@@ -1,6 +1,17 @@
-// AWS SDK for JavaScript v2.7.0
-// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-// License at https://sdk.amazonaws.com/js/BUNDLE_LICENSE.txt
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 module.exports={
   "version": "2.0",
@@ -493,43 +504,29 @@ module.exports={
 module.exports={
   "version": "2.0",
   "metadata": {
-    "apiVersion": "2016-11-11",
-    "endpointPrefix": "lily",
+    "apiVersion": "2017-02-15",
+    "endpointPrefix": "connect",
     "jsonVersion": "1.0",
     "protocol": "json",
-    "serviceAbbreviation": "Lily",
-    "serviceFullName": "LilyCTIService",
-    "signatureVersion": "lilyAuth",
-    "targetPrefix": "LilyCTIService"
+    "serviceAbbreviation": "Connect",
+    "serviceFullName": "AmazonConnectCTIService",
+    "signatureVersion": "v4",
+    "targetPrefix": "AmazonConnectCTIService",
+    "uid": "connect-2017-02-15"
   },
   "operations": {
     "AcceptContact": {
       "input": {
         "type": "structure",
         "required": [
+          "authentication",
           "contactId"
         ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "contactId": {}
-        }
-      },
-      "output": {
-        "type": "structure",
-        "members": {}
-      }
-    },
-    "AddContactAttributes": {
-      "input": {
-        "type": "structure",
-        "required": [
-          "contactId",
-          "attributes"
-        ],
-        "members": {
-          "contactId": {},
-          "attributes": {
-            "shape": "S5"
-          }
         }
       },
       "output": {
@@ -540,7 +537,14 @@ module.exports={
     "ConferenceConnections": {
       "input": {
         "type": "structure",
+        "required": [
+          "authentication",
+          "contactId"
+        ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "contactId": {}
         }
       },
@@ -552,10 +556,18 @@ module.exports={
     "CreateAdditionalConnection": {
       "input": {
         "type": "structure",
+        "required": [
+          "authentication",
+          "contactId",
+          "endpoint"
+        ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "contactId": {},
-          "address": {
-            "shape": "Sd"
+          "endpoint": {
+            "shape": "Sa"
           }
         }
       },
@@ -567,11 +579,18 @@ module.exports={
     "CreateOutboundContact": {
       "input": {
         "type": "structure",
+        "required": [
+          "authentication",
+          "endpoint"
+        ],
         "members": {
-          "address": {
-            "shape": "Sd"
+          "authentication": {
+            "shape": "S2"
           },
-          "queueId": {}
+          "endpoint": {
+            "shape": "Sa"
+          },
+          "queueARN": {}
         }
       },
       "output": {
@@ -582,7 +601,15 @@ module.exports={
     "DestroyConnection": {
       "input": {
         "type": "structure",
+        "required": [
+          "authentication",
+          "contactId",
+          "connectionId"
+        ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "contactId": {},
           "connectionId": {}
         }
@@ -592,29 +619,70 @@ module.exports={
         "members": {}
       }
     },
-    "GetAddresses": {
+    "GetAgentConfiguration": {
       "input": {
         "type": "structure",
+        "required": [
+          "authentication"
+        ],
         "members": {
-          "queueId": {}
+          "authentication": {
+            "shape": "S2"
+          }
         }
       },
       "output": {
         "type": "structure",
+        "required": [
+          "configuration"
+        ],
         "members": {
-          "addresses": {
-            "type": "list",
-            "member": {
-              "shape": "Sd"
-            }
+          "configuration": {
+            "shape": "Sr"
           }
         }
       }
     },
-    "GetAgent": {
+    "GetAgentPermissions": {
       "input": {
         "type": "structure",
+        "required": [
+          "authentication"
+        ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
+          "nextToken": {},
+          "maxResults": {
+            "type": "integer"
+          }
+        }
+      },
+      "output": {
+        "type": "structure",
+        "required": [
+          "permissions"
+        ],
+        "members": {
+          "permissions": {
+            "type": "list",
+            "member": {}
+          },
+          "nextToken": {}
+        }
+      }
+    },
+    "GetAgentSnapshot": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "authentication"
+        ],
+        "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "nextToken": {},
           "timeout": {
             "type": "long"
@@ -623,23 +691,45 @@ module.exports={
       },
       "output": {
         "type": "structure",
+        "required": [
+          "snapshot",
+          "nextToken"
+        ],
         "members": {
-          "agent": {
+          "snapshot": {
             "type": "structure",
+            "required": [
+              "state",
+              "contacts",
+              "snapshotTimestamp"
+            ],
             "members": {
-              "status": {
-                "shape": "Sz"
+              "state": {
+                "shape": "S16"
               },
               "contacts": {
                 "type": "list",
                 "member": {
                   "type": "structure",
+                  "required": [
+                    "contactId",
+                    "type",
+                    "state",
+                    "queue",
+                    "queueTimestamp",
+                    "connections",
+                    "attributes"
+                  ],
                   "members": {
                     "contactId": {},
-                    "originalContactId": {},
+                    "initialContactId": {},
                     "type": {},
-                    "status": {
+                    "state": {
                       "type": "structure",
+                      "required": [
+                        "type",
+                        "timestamp"
+                      ],
                       "members": {
                         "type": {},
                         "timestamp": {
@@ -648,7 +738,7 @@ module.exports={
                       }
                     },
                     "queue": {
-                      "shape": "Si"
+                      "shape": "Sg"
                     },
                     "queueTimestamp": {
                       "type": "timestamp"
@@ -657,13 +747,24 @@ module.exports={
                       "type": "list",
                       "member": {
                         "type": "structure",
+                        "required": [
+                          "connectionId",
+                          "endpoint",
+                          "state",
+                          "type",
+                          "initial"
+                        ],
                         "members": {
                           "connectionId": {},
-                          "address": {
-                            "shape": "Sd"
+                          "endpoint": {
+                            "shape": "Sa"
                           },
-                          "status": {
+                          "state": {
                             "type": "structure",
+                            "required": [
+                              "type",
+                              "timestamp"
+                            ],
                             "members": {
                               "type": {},
                               "timestamp": {
@@ -691,52 +792,162 @@ module.exports={
                       }
                     },
                     "attributes": {
-                      "shape": "S5"
+                      "shape": "S1n"
                     }
                   }
                 }
               },
-              "configuration": {
-                "shape": "S1g"
-              },
-              "nextToken": {},
-              "agentStates": {
-                "type": "list",
-                "member": {
-                  "shape": "Sz"
-                }
-              },
-              "routingProfile": {
-                "type": "structure",
-                "members": {
-                  "name": {},
-                  "queues": {
-                    "type": "list",
-                    "member": {
-                      "shape": "Si"
-                    }
-                  },
-                  "defaultOutboundQueue": {
-                    "shape": "Si"
-                  }
-                }
-              },
-              "permissions": {
-                "type": "list",
-                "member": {}
-              },
-              "timestamp": {
+              "snapshotTimestamp": {
                 "type": "timestamp"
               }
             }
+          },
+          "nextToken": {}
+        }
+      }
+    },
+    "GetAgentStates": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "authentication"
+        ],
+        "members": {
+          "authentication": {
+            "shape": "S2"
+          },
+          "nextToken": {},
+          "maxResults": {
+            "type": "integer"
           }
+        }
+      },
+      "output": {
+        "type": "structure",
+        "required": [
+          "states"
+        ],
+        "members": {
+          "states": {
+            "type": "list",
+            "member": {
+              "shape": "S16"
+            }
+          },
+          "nextToken": {}
+        }
+      }
+    },
+    "GetDialableCountryCodes": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "authentication"
+        ],
+        "members": {
+          "authentication": {
+            "shape": "S2"
+          },
+          "nextToken": {},
+          "maxResults": {
+            "type": "integer"
+          }
+        }
+      },
+      "output": {
+        "type": "structure",
+        "required": [
+          "countryCodes"
+        ],
+        "members": {
+          "countryCodes": {
+            "type": "list",
+            "member": {}
+          },
+          "nextToken": {}
+        }
+      }
+    },
+    "GetEndpoints": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "authentication",
+          "queueARNs"
+        ],
+        "members": {
+          "authentication": {
+            "shape": "S2"
+          },
+          "queueARNs": {
+            "type": "list",
+            "member": {}
+          },
+          "nextToken": {},
+          "maxResults": {
+            "type": "integer"
+          }
+        }
+      },
+      "output": {
+        "type": "structure",
+        "members": {
+          "endpoints": {
+            "type": "list",
+            "member": {
+              "shape": "Sa"
+            }
+          },
+          "nextToken": {}
+        }
+      }
+    },
+    "GetRoutingProfileQueues": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "authentication",
+          "routingProfileARN"
+        ],
+        "members": {
+          "authentication": {
+            "shape": "S2"
+          },
+          "routingProfileARN": {},
+          "nextToken": {},
+          "maxResults": {
+            "type": "integer"
+          }
+        }
+      },
+      "output": {
+        "type": "structure",
+        "required": [
+          "queues"
+        ],
+        "members": {
+          "queues": {
+            "type": "list",
+            "member": {
+              "shape": "Sg"
+            }
+          },
+          "nextToken": {}
         }
       }
     },
     "HoldConnection": {
       "input": {
         "type": "structure",
+        "required": [
+          "authentication",
+          "contactId",
+          "connectionId"
+        ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "contactId": {},
           "connectionId": {}
         }
@@ -750,9 +961,13 @@ module.exports={
       "input": {
         "type": "structure",
         "required": [
+          "authentication",
           "contactId"
         ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "contactId": {},
           "issueCode": {},
           "description": {},
@@ -764,47 +979,20 @@ module.exports={
         "members": {}
       }
     },
-    "SendSoftphoneCallLogs": {
+    "PutAgentState": {
       "input": {
         "type": "structure",
         "required": [
-          "contactId"
+          "authentication",
+          "state"
         ],
         "members": {
-          "contactId": {},
-          "logs": {}
-        }
-      },
-      "output": {
-        "type": "structure",
-        "members": {}
-      }
-    },
-    "SendSoftphoneCallMetrics": {
-      "input": {
-        "type": "structure",
-        "required": [
-          "contactId"
-        ],
-        "members": {
-          "contactId": {},
-          "metrics": {}
-        }
-      },
-      "output": {
-        "type": "structure",
-        "members": {}
-      }
-    },
-    "SendSoftphoneCallStatistics": {
-      "input": {
-        "type": "structure",
-        "required": [
-          "contactId"
-        ],
-        "members": {
-          "contactId": {},
-          "softphoneStreamStatistics": {}
+          "authentication": {
+            "shape": "S2"
+          },
+          "state": {
+            "shape": "S16"
+          }
         }
       },
       "output": {
@@ -815,7 +1003,15 @@ module.exports={
     "ResumeConnection": {
       "input": {
         "type": "structure",
+        "required": [
+          "authentication",
+          "contactId",
+          "connectionId"
+        ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "contactId": {},
           "connectionId": {}
         }
@@ -828,7 +1024,14 @@ module.exports={
     "SendClientLogs": {
       "input": {
         "type": "structure",
+        "required": [
+          "authentication",
+          "logEvents"
+        ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "logEvents": {
             "type": "list",
             "member": {
@@ -853,11 +1056,15 @@ module.exports={
       "input": {
         "type": "structure",
         "required": [
+          "authentication",
           "contactId",
           "connectionId",
           "digits"
         ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "contactId": {},
           "connectionId": {},
           "digits": {}
@@ -872,12 +1079,17 @@ module.exports={
       "input": {
         "type": "structure",
         "required": [
-          "contactId"
+          "authentication",
+          "contactId",
+          "softphoneStreamStatistics"
         ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "contactId": {},
           "softphoneStreamStatistics": {
-            "shape": "S23"
+            "shape": "S2k"
           }
         }
       },
@@ -890,9 +1102,14 @@ module.exports={
       "input": {
         "type": "structure",
         "required": [
-          "contactId"
+          "authentication",
+          "contactId",
+          "report"
         ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "contactId": {},
           "report": {
             "type": "structure",
@@ -904,7 +1121,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S23"
+                "shape": "S2k"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -918,13 +1135,13 @@ module.exports={
               "signallingConnectTimeMillis": {
                 "type": "long"
               },
-              "handshakingTimeMillis": {
+              "handshakeTimeMillis": {
                 "type": "long"
               },
-              "preTalkingTimeMillis": {
+              "preTalkTimeMillis": {
                 "type": "long"
               },
-              "talkingTimeMillis": {
+              "talkTimeMillis": {
                 "type": "long"
               },
               "cleanupTimeMillis": {
@@ -936,7 +1153,7 @@ module.exports={
               "signallingConnectionFailure": {
                 "type": "boolean"
               },
-              "handshakingFailure": {
+              "handshakeFailure": {
                 "type": "boolean"
               },
               "gumOtherFailure": {
@@ -975,7 +1192,15 @@ module.exports={
     "ToggleActiveConnections": {
       "input": {
         "type": "structure",
+        "required": [
+          "authentication",
+          "contactId",
+          "connectionId"
+        ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "contactId": {},
           "connectionId": {}
         }
@@ -989,11 +1214,15 @@ module.exports={
       "input": {
         "type": "structure",
         "required": [
+          "authentication",
           "configuration"
         ],
         "members": {
+          "authentication": {
+            "shape": "S2"
+          },
           "configuration": {
-            "shape": "S1g"
+            "shape": "Sr"
           }
         }
       },
@@ -1002,15 +1231,21 @@ module.exports={
         "members": {}
       }
     },
-    "UpdateAgentStatus": {
+    "UpdateContactAttributes": {
       "input": {
         "type": "structure",
         "required": [
-          "status"
+          "authentication",
+          "contactId",
+          "attributes"
         ],
         "members": {
-          "status": {
-            "shape": "Sz"
+          "authentication": {
+            "shape": "S2"
+          },
+          "contactId": {},
+          "attributes": {
+            "shape": "S1n"
           }
         }
       },
@@ -1021,55 +1256,44 @@ module.exports={
     }
   },
   "shapes": {
-    "S5": {
-      "type": "map",
-      "key": {},
-      "value": {
-        "type": "structure",
-        "members": {
-          "name": {},
-          "value": {}
-        }
-      }
-    },
-    "Sd": {
+    "S2": {
       "type": "structure",
       "members": {
-        "addressId": {},
+        "agentARN": {},
+        "authToken": {}
+      }
+    },
+    "Sa": {
+      "type": "structure",
+      "required": [
+        "type"
+      ],
+      "members": {
+        "endpointARN": {},
         "type": {},
         "name": {},
         "phoneNumber": {},
         "agentLogin": {},
         "queue": {
-          "shape": "Si"
+          "shape": "Sg"
         }
       }
     },
-    "Si": {
+    "Sg": {
       "type": "structure",
       "members": {
-        "queueId": {},
+        "queueARN": {},
         "name": {}
       }
     },
-    "Sz": {
-      "type": "structure",
-      "members": {
-        "agentStatusId": {},
-        "type": {},
-        "name": {},
-        "timestamp": {
-          "type": "timestamp"
-        }
-      }
-    },
-    "S1g": {
+    "Sr": {
       "type": "structure",
       "required": [
         "name",
         "softphoneEnabled",
         "softphoneAutoAccept",
-        "extension"
+        "extension",
+        "routingProfile"
       ],
       "members": {
         "name": {},
@@ -1080,13 +1304,48 @@ module.exports={
           "type": "boolean"
         },
         "extension": {},
-        "dialableCountries": {
-          "type": "list",
-          "member": {}
+        "routingProfile": {
+          "type": "structure",
+          "members": {
+            "name": {},
+            "routingProfileARN": {},
+            "defaultOutboundQueue": {
+              "shape": "Sg"
+            }
+          }
         }
       }
     },
-    "S23": {
+    "S16": {
+      "type": "structure",
+      "required": [
+        "type",
+        "name"
+      ],
+      "members": {
+        "agentStateARN": {},
+        "type": {},
+        "name": {},
+        "startTimestamp": {
+          "type": "timestamp"
+        }
+      }
+    },
+    "S1n": {
+      "type": "map",
+      "key": {},
+      "value": {
+        "type": "structure",
+        "required": [
+          "name"
+        ],
+        "members": {
+          "name": {},
+          "value": {}
+        }
+      }
+    },
+    "S2k": {
       "type": "list",
       "member": {
         "type": "structure",
@@ -1095,7 +1354,7 @@ module.exports={
             "type": "timestamp"
           },
           "softphoneStreamType": {},
-          "packetsCount": {
+          "packetCount": {
             "type": "long"
           },
           "packetsLost": {
@@ -1361,8 +1620,8 @@ module.exports={
     "name": "Lambda",
     "cors": true
   },
-  "lily": {
-    "name": "Lily",
+  "connect": {
+    "name": "Connect",
     "cors": true
   },
   "machinelearning": {
@@ -3092,14 +3351,6 @@ AWS.XHRClient = AWS.util.inherit({
         code: 'NetworkingError'
       }));
     }, false);
-
-    /** BEGIN HOT-FIX: DO NOT REMOVE https://issues.amazon.com/issues/JS-358 */
-    xhr.addEventListener('abort', function () {
-      errCallback(AWS.util.error(new Error('Connection aborted'), {
-        code: 'RequestAborted'
-      }));
-    }, false);
-    /** END */
 
     callback(emitter);
     xhr.open(httpRequest.method, href, httpOptions.xhrAsync !== false);
@@ -13021,7 +13272,7 @@ module.exports = keysIn;
 var baseToString = require('../internal/baseToString');
 
 
-var reRegExpChars = /[.*+?^$\{\}()|[\]\/\\]/g,
+var reRegExpChars = /[.*+?^${}()|[\]\/\\]/g,
     reHasRegExpChars = RegExp(reRegExpChars.source);
 
 
@@ -16638,11 +16889,11 @@ if (typeof window !== 'undefined') window.AWS = AWS;
 if (typeof module !== 'undefined') module.exports = AWS;
 if (typeof self !== 'undefined') self.AWS = AWS;
 
-if (!Object.prototype.hasOwnProperty.call(AWS, 'Lily')) {
-  AWS.apiLoader.services['lily'] = {};
-  AWS.Lily = AWS.Service.defineService('lily', [ '2016-11-11' ]);
+if (!Object.prototype.hasOwnProperty.call(AWS, 'Connect')) {
+  AWS.apiLoader.services['connect'] = {};
+  AWS.Connect = AWS.Service.defineService('connect', [ '2017-02-15' ]);
 }
-AWS.apiLoader.services['lily']['2016-11-11'] = require('../apis/lily-2016-11-11.min');
+AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-02-15.min');
 
 if (!Object.prototype.hasOwnProperty.call(AWS, 'STS')) {
   AWS.apiLoader.services['sts'] = {};
@@ -16652,5 +16903,5 @@ if (!Object.prototype.hasOwnProperty.call(AWS, 'STS')) {
 AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.min');
 
 
-},{"../apis/lily-2016-11-11.min":2,"../apis/sts-2011-06-15.min":4,"./browser_loader":8,"./core":10,"./services/sts":43}]},{},[146]);
+},{"../apis/connect-2017-02-15.min":2,"../apis/sts-2011-06-15.min":4,"./browser_loader":8,"./core":10,"./services/sts":43}]},{},[146]);
 

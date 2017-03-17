@@ -1,96 +1,115 @@
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
 (function() {
-
    var global = this;
-   lily = global.lily || {};
-   global.lily = lily;
+   connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
 
    /**---------------------------------------------------------------
     * enum ClientMethods
     */
-   lily.ClientMethods = lily.makeEnum([
-         'getAgent',
+   connect.ClientMethods = connect.makeEnum([
+         'getAgentSnapshot',
+         'putAgentState',
+         'getAgentStates',
+         'getDialableCountryCodes',
+         'getRoutingProfileQueues',
+         'getAgentPermissions',
+         'getAgentConfiguration',
          'updateAgentConfiguration',
-         'updateAgentStatus',
          'acceptContact',
          'createOutboundContact',
          'destroyContact',
          'notifyContactIssue',
-         'addContactAttributes',
+         'updateContactAttributes',
          'createAdditionalConnection',
          'destroyConnection',
-         'sendDigits',
          'holdConnection',
          'resumeConnection',
          'toggleActiveConnections',
          'conferenceConnections',
-         'getAddresses',
          'sendClientLogs',
+         'sendDigits',
+         'sendSoftphoneCallReport',
          'sendSoftphoneCallMetrics',
-         'sendSoftphoneCallReport'
+         'getEndpoints'
    ]);
 
    /**---------------------------------------------------------------
     * enum MasterMethods
     */
-   lily.MasterMethods = lily.makeEnum([
+   connect.MasterMethods = connect.makeEnum([
          'becomeMaster',
          'checkMaster'
    ]);
 
    /**---------------------------------------------------------------
-    * abstract class LilyClientBase
+    * abstract class ClientBase
     */
-   var LilyClientBase = function() {};
-   LilyClientBase.EMPTY_CALLBACKS = {
+   var ClientBase = function() {};
+   ClientBase.EMPTY_CALLBACKS = {
       success: function() { },
       failure: function() { }
    };
 
-   LilyClientBase.prototype.call = function(method, paramsIn, callbacksIn) {
-      lily.assertNotNull(method, 'method');
+   ClientBase.prototype.call = function(method, paramsIn, callbacksIn) {
+      connect.assertNotNull(method, 'method');
       var params = paramsIn || {};
-      var callbacks = callbacksIn || LilyClientBase.EMPTY_CALLBACKS;
+      var callbacks = callbacksIn || ClientBase.EMPTY_CALLBACKS;
       this._callImpl(method, params, callbacks);
    };
 
-   LilyClientBase.prototype._callImpl = function(method, params, callbacks) {
-      throw new lily.NotImplementedError();
+   ClientBase.prototype._callImpl = function(method, params, callbacks) {
+      throw new connect.NotImplementedError();
    };
 
    /**---------------------------------------------------------------
-    * class NullClient extends LilyClientBase
+    * class NullClient extends ClientBase
     */
    var NullClient = function() {
-      LilyClientBase.call(this);
+      ClientBase.call(this);
    };
-   NullClient.prototype = Object.create(LilyClientBase.prototype);
+   NullClient.prototype = Object.create(ClientBase.prototype);
    NullClient.prototype.constructor = NullClient;
 
    NullClient.prototype._callImpl = function(method, params, callbacks) {
       if (callbacks && callbacks.failure) {
-         var message = lily.sprintf('No such method exists on NULL client: %s', method);
-         callbacks.failure(new lily.ValueError(message), {message: message});
+         var message = connect.sprintf('No such method exists on NULL client: %s', method);
+         callbacks.failure(new connect.ValueError(message), {message: message});
       }
    };
 
    /**---------------------------------------------------------------
-    * abstract class UpstreamConduitClientBase extends LilyClientBase
+    * abstract class UpstreamConduitClientBase extends ClientBase
     */
    var UpstreamConduitClientBase = function(conduit, requestEvent, responseEvent) {
-      LilyClientBase.call(this);
+      ClientBase.call(this);
       this.conduit = conduit;
       this.requestEvent = requestEvent;
       this.responseEvent = responseEvent;
       this._requestIdCallbacksMap = {};
 
-      this.conduit.onUpstream(responseEvent, lily.hitch(this, this._handleResponse));
+      this.conduit.onUpstream(responseEvent, connect.hitch(this, this._handleResponse));
    };
 
-   UpstreamConduitClientBase.prototype = Object.create(LilyClientBase.prototype);
+   UpstreamConduitClientBase.prototype = Object.create(ClientBase.prototype);
    UpstreamConduitClientBase.prototype.constructor = UpstreamConduitClientBase;
 
    UpstreamConduitClientBase.prototype._callImpl = function(method, params, callbacks) {
-      var request = lily.EventFactory.createRequest(this.requestEvent, method, params);
+      var request = connect.EventFactory.createRequest(this.requestEvent, method, params);
       this._requestIdCallbacksMap[request.requestId] = callbacks;
       this.conduit.sendUpstream(request.event, request);
    };
@@ -111,76 +130,187 @@
          return;
       }
 
-      if (data.err) {
+      if (data.err && callbacks.failure) {
          callbacks.failure(data.err, data.data);
 
-      } else {
+      } else if (callbacks.success) {
          callbacks.success(data.data);
       }
    };
 
    /**---------------------------------------------------------------
-    * class UpstreamConduitLilyClient extends LilyClientBase
+    * class UpstreamConduitClient extends ClientBase
     */
-   var UpstreamConduitLilyClient = function(conduit) {
-      UpstreamConduitClientBase.call(this, conduit, lily.EventType.API_REQUEST, lily.EventType.API_RESPONSE);
+   var UpstreamConduitClient = function(conduit) {
+      UpstreamConduitClientBase.call(this, conduit, connect.EventType.API_REQUEST, connect.EventType.API_RESPONSE);
    };
-   UpstreamConduitLilyClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
-   UpstreamConduitLilyClient.prototype.constructor = UpstreamConduitLilyClient;
+   UpstreamConduitClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
+   UpstreamConduitClient.prototype.constructor = UpstreamConduitClient;
 
    /**---------------------------------------------------------------
-    * class UpstreamConduitMasterClient extends LilyClientBase
+    * class UpstreamConduitMasterClient extends ClientBase
     */
    var UpstreamConduitMasterClient = function(conduit) {
-      UpstreamConduitClientBase.call(this, conduit, lily.EventType.MASTER_REQUEST, lily.EventType.MASTER_RESPONSE);
+      UpstreamConduitClientBase.call(this, conduit, connect.EventType.MASTER_REQUEST, connect.EventType.MASTER_RESPONSE);
    };
    UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
 
    /**---------------------------------------------------------------
-    * class AWSLilyClient extends LilyClientBase
+    * class AWSClient extends ClientBase
     */
-   var AWSLilyClient = function(authToken, region, endpointIn) {
-      lily.assertNotNull(authToken, 'authToken');
-      lily.assertNotNull(region, 'region');
-      LilyClientBase.call(this);
-      AWS.config.credentials = new lily.AuthTokenCredentials(authToken);
+   var AWSClient = function(authToken, region, endpointIn) {
+      connect.assertNotNull(authToken, 'authToken');
+      connect.assertNotNull(region, 'region');
+      ClientBase.call(this);
+      AWS.config.credentials = new AWS.Credentials({});
       AWS.config.region = region;
-      var endpointUrl = endpointIn || lily.getBaseUrl() + '/lily/api';
+      this.authToken = authToken;
+      var endpointUrl = endpointIn || connect.getBaseUrl() + '/connect/api';
       var endpoint = new AWS.Endpoint(endpointUrl);
-      this.client = new AWS.Lily({endpoint: endpoint});
+      this.client = new AWS.Connect({endpoint: endpoint});
    };
-   AWSLilyClient.prototype = Object.create(LilyClientBase.prototype);
-   AWSLilyClient.prototype.constructor = AWSLilyClient;
+   AWSClient.prototype = Object.create(ClientBase.prototype);
+   AWSClient.prototype.constructor = AWSClient;
 
-   AWSLilyClient.prototype._callImpl = function(method, params, callbacks) {
-      if (! lily.contains(this.client, method)) {
-         var message = lily.sprintf('No such method exists on AWS client: %s', method);
-         callbacks.failure(new lily.ValueError(message), {message: message});
+   AWSClient.prototype._callImpl = function(method, params, callbacks) {
+      var self = this;
+
+      params.authentication = {
+         authToken: this.authToken
+      };
+
+      if (! connect.contains(this.client, method)) {
+         var message = connect.sprintf('No such method exists on AWS client: %s', method);
+         callbacks.failure(new connect.ValueError(message), {message: message});
 
       } else {
-         this.client[method](params, function(err, data) {
-            // LARS returns this header when the session expire.
-            if (this.httpResponse.headers['x-amz-unauthorized'] === 'true') {
-                callbacks.authFailure();
-            }
-            try {
-               if (err) {
-                  callbacks.failure(err, data);
-               } else {
-                  callbacks.success(data);
+         params = this._translateParams(method, params);
+
+         this.client[method](params)
+            .on('build', function(request) {
+               request.httpRequest.headers['X-Amz-Bearer'] = self.authToken;
+            })
+            .send(function(err, data) {
+               // LARS returns this header when the session expire.
+               if (this.httpResponse.headers['x-amz-unauthorized'] === 'true') {
+                  callbacks.authFailure();
                }
-            } catch (e) {
-               lily.getLog().error("Failed to handle AWS API request for method %s", method)
-                  .withException(e);
-            }
-         });
+               var refreshHeader = this.httpResponse.headers['x-amzn-auth-refresh'];
+               if (refreshHeader) {
+                  lily.getLog().info("Auth token refreshed");
+                  AWS.config.credentials = new lily.AuthTokenCredentials(refreshHeader);
+                  callbacks.refreshAuthToken(refreshHeader);
+               }
+               try {
+                  if (err) {
+                     // Can't pass err directly to postMessage
+                     // postMessage() tries to clone the err object and failed.
+                     // Refer to https://github.com/goatslacker/alt-devtool/issues/5
+                     var error = {};
+                     error.type = Object.prototype.toString.call(err);
+                     error.message = err.message;
+                     error.stack = err.stack ? err.stack.split('\n') : [];
+                     callbacks.failure(error, data);
+                  } else {
+                     callbacks.success(data);
+                  }
+               } catch (e) {
+                  connect.getLog().error("Failed to handle AWS API request for method %s", method)
+                        .withException(e);
+               }
+            });
       }
    };
 
-   lily.NullClient = NullClient;
-   lily.UpstreamConduitLilyClient = UpstreamConduitLilyClient;
-   lily.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
-   lily.AWSLilyClient = AWSLilyClient;
+   AWSClient.prototype._translateParams = function(method, params) {
+      switch (method) {
+         case connect.ClientMethods.UPDATE_AGENT_CONFIGURATION:
+            params.configuration = this._translateAgentConfiguration(params.configuration);
+            break;
+
+         case connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS:
+            params.softphoneStreamStatistics = this._translateSoftphoneStreamStatistics(
+                  params.softphoneStreamStatistics);
+            break;
+
+         case connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT:
+            params.report = this._translateSoftphoneCallReport(params.report);
+            break;
+
+         default:
+            break;
+      }
+
+      return params;
+   };
+
+   AWSClient.prototype._translateAgentConfiguration = function(config) {
+      return {
+         name: config.name,
+         softphoneEnabled: config.softphoneEnabled,
+         softphoneAutoAccept: config.softphoneAutoAccept,
+         extension: config.extension,
+         routingProfile: this._translateRoutingProfile(config.routingProfile)
+      };
+   };
+
+   AWSClient.prototype._translateRoutingProfile = function(profile) {
+      return {
+         name: profile.name,
+         routingProfileARN: profile.routingProfileARN,
+         defaultOutboundQueue: this._translateQueue(profile.defaultOutboundQueue)
+      };
+   };
+
+   AWSClient.prototype._translateQueue = function(queue) {
+      return {
+         queueARN:   queue.queueARN,
+         name:       queue.name
+      };
+   };
+
+   AWSClient.prototype._translateSoftphoneStreamStatistics = function(stats) {
+      stats.forEach(function(stat) {
+         if ('packetsCount' in stat) {
+            stat.packetCount = stat.packetsCount;
+            delete stat.packetsCount;
+         }
+      });
+
+      return stats;
+   };
+
+   AWSClient.prototype._translateSoftphoneCallReport = function(report) {
+      if ('handshakingTimeMillis' in report) {
+         report.handshakeTimeMillis = report.handshakingTimeMillis;
+         delete report.handshakingTimeMillis;
+      }
+
+      if ('preTalkingTimeMillis' in report) {
+         report.preTalkTimeMillis = report.preTalkingTimeMillis;
+         delete report.preTalkingTimeMillis;
+      }
+
+      if ('handshakingFailure' in report) {
+         report.handshakeFailure = report.handshakingFailure;
+         delete report.handshakingFailure;
+      }
+
+      if ('talkingTimeMillis' in report) {
+         report.talkTimeMillis = report.talkingTimeMillis;
+         delete report.talkingTimeMillis;
+      }
+
+      report.softphoneStreamStatistics = this._translateSoftphoneStreamStatistics(
+            report.softphoneStreamStatistics);
+
+      return report;
+   };
+
+   connect.NullClient = NullClient;
+   connect.UpstreamConduitClient = UpstreamConduitClient;
+   connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
+   connect.AWSClient = AWSClient;
 
 })();

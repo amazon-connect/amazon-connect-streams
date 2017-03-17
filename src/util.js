@@ -1,16 +1,30 @@
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
 (function() {
-
    var global = this;
-   lily = global.lily || {};
-   global.lily = lily;
+   connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
 
    var ONE_DAY_MILLIS = 24*60*60*1000;
 
    /**
     * Unpollute sprintf functions from the global namespace.
     */
-   lily.sprintf = global.sprintf;
-   lily.vsprintf = global.vsprintf;
+   connect.sprintf = global.sprintf;
+   connect.vsprintf = global.vsprintf;
    delete global.sprintf;
    delete global.vsprintf;
 
@@ -28,14 +42,14 @@
     * @return A closure encapsulating the invocation of the
     *    method provided in context of the given instance.
     */
-   lily.hitch = function() {
+   connect.hitch = function() {
       var args = Array.prototype.slice.call(arguments);
       var scope = args.shift();
       var method = args.shift();
 
-      lily.assertNotNull(scope, 'scope');
-      lily.assertNotNull(method, 'method');
-      lily.assertTrue(lily.isFunction(method), 'method must be a function');
+      connect.assertNotNull(scope, 'scope');
+      connect.assertNotNull(method, 'method');
+      connect.assertTrue(connect.isFunction(method), 'method must be a function');
 
       return function() {
          var closureArgs = Array.prototype.slice.call(arguments);
@@ -47,18 +61,25 @@
     * Determine if the given value is a callable function type.
     * Borrowed from Underscore.js.
     */
-   lily.isFunction = function(obj) {
+   connect.isFunction = function(obj) {
       return !!(obj && obj.constructor && obj.call && obj.apply);
+   };
+
+   /**
+    * Determine if the given value is an array.
+    */
+   connect.isArray = function(obj) {
+      return Object.prototype.toString.call(obj) === '[object Array]';
    };
 
    /**
     * Get a list of keys from a Javascript object used
     * as a hash map.
     */
-   lily.keys = function(map) {
+   connect.keys = function(map) {
       var keys = [];
 
-      lily.assertNotNull(map, 'map');
+      connect.assertNotNull(map, 'map');
 
       for (var k in map) {
          keys.push(k);
@@ -71,10 +92,10 @@
     * Get a list of values from a Javascript object used
     * as a hash map.
     */
-   lily.values = function(map) {
+   connect.values = function(map) {
       var values = [];
 
-      lily.assertNotNull(map, 'map');
+      connect.assertNotNull(map, 'map');
 
       for (var k in map) {
          values.push(map[k]);
@@ -86,7 +107,7 @@
    /**
     * Get a list of key/value pairs from the given map.
     */
-   lily.entries = function(map) {
+   connect.entries = function(map) {
       var entries = [];
 
       for (var k in map) {
@@ -100,12 +121,12 @@
     * Merge two or more maps together into a new map,
     * or simply copy a single map.
     */
-   lily.merge = function() {
+   connect.merge = function() {
       var argMaps = Array.prototype.slice.call(arguments, 0);
       var resultMap = {};
 
       argMaps.forEach(function(map) {
-         lily.entries(map).forEach(function(kv) {
+         connect.entries(map).forEach(function(kv) {
             resultMap[kv.key] = kv.value;
          });
       });
@@ -113,11 +134,11 @@
       return resultMap;
    };
 
-   lily.now = function() {
+   connect.now = function() {
       return new Date().getTime();
    };
 
-   lily.find = function(array, predicate) {
+   connect.find = function(array, predicate) {
       for (var x = 0; x < array.length; x++) {
          if (predicate(array[x])) {
             return array[x];
@@ -127,21 +148,21 @@
       return null;
    };
 
-   lily.contains = function(obj, value) {
+   connect.contains = function(obj, value) {
       if (obj instanceof Array) {
-         return lily.find(obj, function(v) { return v === value; }) != null;
+         return connect.find(obj, function(v) { return v === value; }) != null;
 
       } else {
          return (value in obj);
       }
    };
 
-   lily.containsValue = function(obj, value) {
+   connect.containsValue = function(obj, value) {
       if (obj instanceof Array) {
-         return lily.find(obj, function(v) { return v === value; }) != null;
+         return connect.find(obj, function(v) { return v === value; }) != null;
 
       } else {
-         return lily.find(lily.values(obj), function(v) { return v === value; }) != null;
+         return connect.find(connect.values(obj), function(v) { return v === value; }) != null;
       }
    };
 
@@ -149,8 +170,8 @@
     * Generate a random ID consisting of the current timestamp
     * and a random base-36 number based on Math.random().
     */
-   lily.randomId = function() {
-      return lily.sprintf("%s-%s", lily.now(), Math.random().toString(36).slice(2));
+   connect.randomId = function() {
+      return connect.sprintf("%s-%s", connect.now(), Math.random().toString(36).slice(2));
    };
 
    /**
@@ -160,7 +181,7 @@
     * Conversion from pascal case based on code from here:
     * http://stackoverflow.com/questions/30521224
     */
-   lily.makeEnum = function(values) {
+   connect.makeEnum = function(values) {
       var enumObj = {};
 
       values.forEach(function(value) {
@@ -173,10 +194,10 @@
       return enumObj;
    };
 
-   lily.makeNamespacedEnum = function(prefix, values) {
-      var enumObj = lily.makeEnum(values);
-      lily.keys(enumObj).forEach(function(key) {
-         enumObj[key] = lily.sprintf("%s::%s", prefix, enumObj[key]);
+   connect.makeNamespacedEnum = function(prefix, values) {
+      var enumObj = connect.makeEnum(values);
+      connect.keys(enumObj).forEach(function(key) {
+         enumObj[key] = connect.sprintf("%s::%s", prefix, enumObj[key]);
       });
       return enumObj;
    };
@@ -190,7 +211,7 @@
     *    items in the iterable.
     * @return A map from index to item for each item in the iterable.
     */
-   lily.index = function(iterable, closure) {
+   connect.index = function(iterable, closure) {
       var map = {};
 
       iterable.forEach(function(item) {
@@ -204,7 +225,7 @@
     * Converts the given array into a map as a set,
     * where elements in the array are mapped to 1.
     */
-   lily.set = function(arrayIn) {
+   connect.set = function(arrayIn) {
       var setMap = {};
 
       arrayIn.forEach(function(key) {
@@ -218,10 +239,10 @@
     * Returns a map for each key in mapB which
     * is NOT in mapA.
     */
-   lily.relativeComplement = function(mapA, mapB) {
+   connect.relativeComplement = function(mapA, mapB) {
       var compMap = {};
 
-      lily.keys(mapB).forEach(function(key) {
+      connect.keys(mapB).forEach(function(key) {
          if (! (key in mapA)) {
             compMap[key] = mapB[key];
          }
@@ -233,22 +254,22 @@
    /**
     * Asserts that a premise is true.
     */
-   lily.assertTrue = function(premise, message) {
+   connect.assertTrue = function(premise, message) {
       if (! premise) {
-         throw new lily.ValueError(message);
+         throw new connect.ValueError(message);
       }
    };
 
    /**
     * Asserts that a value is not null or undefined.
     */
-   lily.assertNotNull = function(value, name) {
-      lily.assertTrue(value != null && typeof value !== undefined,
-            lily.sprintf("%s must be provided", name || 'A value'));
+   connect.assertNotNull = function(value, name) {
+      connect.assertTrue(value != null && typeof value !== undefined,
+            connect.sprintf("%s must be provided", name || 'A value'));
       return value;
    };
 
-   lily.deepcopy = function(src) {
+   connect.deepcopy = function(src) {
       return JSON.parse(JSON.stringify(src));
    };
 
@@ -256,16 +277,16 @@
     * Get the current base url of the open page, e.g. if the page is
     * https://example.com:9494/oranges, this will be "https://example.com:9494".
     */
-   lily.getBaseUrl = function() {
+   connect.getBaseUrl = function() {
       var location = global.location;
-      return lily.sprintf("%s//%s:%s", location.protocol, location.hostname, location.port);
+      return connect.sprintf("%s//%s:%s", location.protocol, location.hostname, location.port);
    };
 
    /**
     * Determine if the current window is in an iframe.
     * Courtesy: http://stackoverflow.com/questions/326069/
     */
-   lily.isFramed = function() {
+   connect.isFramed = function() {
       try {
          return window.self !== window.top;
       } catch (e) {
@@ -276,9 +297,9 @@
    /**
     * A wrapper around Window.open() for managing single instance popups.
     */
-   lily.PopupManager = function() {};
+   connect.PopupManager = function() {};
 
-   lily.PopupManager.prototype.open = function(url, name) {
+   connect.PopupManager.prototype.open = function(url, name) {
       var then = this._getLastOpenedTimestamp(name);
       var now = new Date().getTime();
 
@@ -290,13 +311,13 @@
          this._setLastOpenedTimestamp(name, now);
       }
    };
-   
-   lily.PopupManager.prototype.clear = function(name) {
+
+   connect.PopupManager.prototype.clear = function(name) {
       var key = this._getLocalStorageKey(name);
       global.localStorage.removeItem(key);
    };
 
-   lily.PopupManager.prototype._getLastOpenedTimestamp = function(name) {
+   connect.PopupManager.prototype._getLastOpenedTimestamp = function(name) {
       var key = this._getLocalStorageKey(name);
       var value = global.localStorage.getItem(key);
 
@@ -308,19 +329,19 @@
       }
    };
 
-   lily.PopupManager.prototype._setLastOpenedTimestamp = function(name, ts) {
+   connect.PopupManager.prototype._setLastOpenedTimestamp = function(name, ts) {
       var key = this._getLocalStorageKey(name);
       global.localStorage.setItem(key, '' + ts);
    };
 
-   lily.PopupManager.prototype._getLocalStorageKey = function(name) {
-      return "lilyPopupManager::" + name;
+   connect.PopupManager.prototype._getLocalStorageKey = function(name) {
+      return "connectPopupManager::" + name;
    };
 
    /**
     * An enumeration of the HTML5 notification permission values.
     */
-   var NotificationPermission = lily.makeEnum([
+   var NotificationPermission = connect.makeEnum([
       'granted',
       'denied',
       'default'
@@ -329,19 +350,19 @@
    /**
     * A simple engine for showing notification popups.
     */
-   lily.NotificationManager = function() {
+   connect.NotificationManager = function() {
       this.queue = [];
       this.permission = NotificationPermission.DEFAULT;
    };
 
-   lily.NotificationManager.prototype.requestPermission = function() {
+   connect.NotificationManager.prototype.requestPermission = function() {
       var self = this;
       if (!("Notification" in global)) {
-         lily.getLog().warn("This browser doesn't support notifications.");
+         connect.getLog().warn("This browser doesn't support notifications.");
          this.permission = NotificationPermission.DENIED;
 
       } else if (global.Notification.permission === NotificationPermission.DENIED) {
-         lily.getLog().warn("The user has requested to not receive notifications.");
+         connect.getLog().warn("The user has requested to not receive notifications.");
          this.permission = NotificationPermission.DENIED;
 
       } else if (this.permission !== NotificationPermission.GRANTED) {
@@ -357,25 +378,25 @@
       }
    };
 
-   lily.NotificationManager.prototype.show = function(title, options) {
+   connect.NotificationManager.prototype.show = function(title, options) {
       if (this.permission === NotificationPermission.GRANTED) {
          return this._showImpl({title: title, options: options});
 
       } else if (this.permission === NotificationPermission.DENIED) {
-         lily.getLog().warn("Unable to show notification.").withObject({
+         connect.getLog().warn("Unable to show notification.").withObject({
             title: title,
             options: options
          });
 
       } else {
          var params = {title: title, options: options};
-         lily.getLog().warn("Deferring notification until user decides to allow or deny.")
+         connect.getLog().warn("Deferring notification until user decides to allow or deny.")
             .withObject(params);
          this.queue.push(params);
       }
    };
 
-   lily.NotificationManager.prototype._showQueued = function() {
+   connect.NotificationManager.prototype._showQueued = function() {
       var self = this;
       var notifications = this.queue.map(function(params) {
          return self._showImpl(params);
@@ -384,7 +405,7 @@
       return notifications;
    };
 
-   lily.NotificationManager.prototype._showImpl = function(params) {
+   connect.NotificationManager.prototype._showImpl = function(params) {
       var notification = new global.Notification(params.title, params.options);
       if (params.options.clicked) {
          notification.onclick = function() {
@@ -394,34 +415,34 @@
       return notification;
    };
 
-   lily.BaseError = function(format, args) {
-      global.Error.call(this, lily.vsprintf(format, args));
+   connect.BaseError = function(format, args) {
+      global.Error.call(this, connect.vsprintf(format, args));
    };
-   lily.BaseError.prototype = Object.create(Error.prototype);
-   lily.BaseError.prototype.constructor = lily.BaseError;
+   connect.BaseError.prototype = Object.create(Error.prototype);
+   connect.BaseError.prototype.constructor = connect.BaseError;
 
-   lily.ValueError = function() {
+   connect.ValueError = function() {
       var args = Array.prototype.slice.call(arguments, 0);
       var format = args.shift();
-      lily.BaseError.call(this, format, args);
+      connect.BaseError.call(this, format, args);
    };
-   lily.ValueError.prototype = Object.create(lily.BaseError.prototype);
-   lily.ValueError.prototype.constructor = lily.ValueError;
+   connect.ValueError.prototype = Object.create(connect.BaseError.prototype);
+   connect.ValueError.prototype.constructor = connect.ValueError;
 
-   lily.NotImplementedError = function() {
+   connect.NotImplementedError = function() {
       var args = Array.prototype.slice.call(arguments, 0);
       var format = args.shift();
-      lily.BaseError.call(this, format, args);
+      connect.BaseError.call(this, format, args);
    };
-   lily.NotImplementedError.prototype = Object.create(lily.BaseError.prototype);
-   lily.NotImplementedError.prototype.constructor = lily.NotImplementedError;
+   connect.NotImplementedError.prototype = Object.create(connect.BaseError.prototype);
+   connect.NotImplementedError.prototype.constructor = connect.NotImplementedError;
 
-   lily.StateError = function() {
+   connect.StateError = function() {
       var args = Array.prototype.slice.call(arguments, 0);
       var format = args.shift();
-      lily.BaseError.call(this, format, args);
+      connect.BaseError.call(this, format, args);
    };
-   lily.StateError.prototype = Object.create(lily.BaseError.prototype);
-   lily.StateError.prototype.constructor = lily.StateError;
+   connect.StateError.prototype = Object.create(connect.BaseError.prototype);
+   connect.StateError.prototype.constructor = connect.StateError;
 
 })();

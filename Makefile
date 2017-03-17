@@ -3,14 +3,13 @@
 # Concatenates JS assets in the correct order.
 #
 
-VERSION = 'v0.1'
+VERSION = 'v1.0'
 OUTPUT_JS = 'amazon-connect-$(VERSION).js'
 
-SOURCE_FILES = src/lily.js \
+SOURCE_FILES = src/aws-client.js \
 					src/sprintf.js \
 					src/log.js \
 					src/util.js \
-					src/aws.js \
 					src/event.js \
 					src/streams.js \
 					src/client.js \
@@ -27,7 +26,7 @@ $(OUTPUT_JS): $(SOURCE_FILES)
 	cat $^ >$@
 
 clean:
-	rm $(OUTPUT_JS)
+	rm -f $(OUTPUT_JS)
 
 .DEFAULT_GOAL := all
 

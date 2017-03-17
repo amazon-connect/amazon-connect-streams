@@ -1,8 +1,22 @@
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
 (function() {
-
    var global = this;
-   lily = global.lily || {};
-   global.lily = lily;
+   connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
 
    /**---------------------------------------------------------------
     * class Stream
@@ -16,7 +30,7 @@
     * Send a message to the stream.  This method must be implemented by subclasses.
     */
    Stream.prototype.send = function(message) {
-      throw new lily.NotImplementedError();
+      throw new connect.NotImplementedError();
    };
 
    /**
@@ -24,7 +38,7 @@
     * This method must be implemented by subclasses.
     */
    Stream.prototype.onMessage = function(f) {
-      throw new lily.NotImplementedError();
+      throw new connect.NotImplementedError();
    };
 
    /**---------------------------------------------------------------
@@ -103,7 +117,7 @@
    var PortStream = function(port) {
       Stream.call(this);
       this.port = port;
-      this.id = lily.randomId();
+      this.id = connect.randomId();
    };
    PortStream.prototype = Object.create(Stream.prototype);
    PortStream.prototype.constructor = PortStream;
@@ -130,7 +144,7 @@
    var StreamMultiplexer = function(streams) {
       Stream.call(this);
       this.streamMap = streams ?
-         lily.index(streams, function(s) { return s.getId(); }) : {};
+         connect.index(streams, function(s) { return s.getId(); }) : {};
       this.messageListeners = [];
    };
    StreamMultiplexer.prototype = Object.create(Stream.prototype);
@@ -191,14 +205,14 @@
     * Get a list of streams in the multiplexer.
     */
    StreamMultiplexer.prototype.getStreams = function(stream) {
-      return lily.values(this.streamMap);
+      return connect.values(this.streamMap);
    };
 
    /**
     * Get the stream matching the given port.
     */
    StreamMultiplexer.prototype.getStreamForPort = function(port) {
-      return lily.find(this.getStreams(), function(s) {
+      return connect.find(this.getStreams(), function(s) {
          return s.port === port;
       });
    };
@@ -214,46 +228,46 @@
       this.name = name;
       this.upstream = upstream || new NullStream();
       this.downstream = downstream || new NullStream();
-      this.downstreamBus = new lily.EventBus();
-      this.upstreamBus = new lily.EventBus();
+      this.downstreamBus = new connect.EventBus();
+      this.upstreamBus = new connect.EventBus();
 
-      this.upstream.onMessage(lily.hitch(this, this._dispatchEvent, this.upstreamBus));
-      this.downstream.onMessage(lily.hitch(this, this._dispatchEvent, this.downstreamBus));
+      this.upstream.onMessage(connect.hitch(this, this._dispatchEvent, this.upstreamBus));
+      this.downstream.onMessage(connect.hitch(this, this._dispatchEvent, this.downstreamBus));
    };
 
    Conduit.prototype.onUpstream = function(eventName, f) {
-      lily.assertNotNull(eventName, 'eventName');
-      lily.assertNotNull(f, 'f');
-      lily.assertTrue(lily.isFunction(f), 'f must be a function');
+      connect.assertNotNull(eventName, 'eventName');
+      connect.assertNotNull(f, 'f');
+      connect.assertTrue(connect.isFunction(f), 'f must be a function');
       return this.upstreamBus.subscribe(eventName, f);
    };
 
    Conduit.prototype.onAllUpstream = function(f) {
-      lily.assertNotNull(f, 'f');
-      lily.assertTrue(lily.isFunction(f), 'f must be a function');
+      connect.assertNotNull(f, 'f');
+      connect.assertTrue(connect.isFunction(f), 'f must be a function');
       return this.upstreamBus.subscribeAll(f);
    };
 
    Conduit.prototype.onDownstream = function(eventName, f) {
-      lily.assertNotNull(eventName, 'eventName');
-      lily.assertNotNull(f, 'f');
-      lily.assertTrue(lily.isFunction(f), 'f must be a function');
+      connect.assertNotNull(eventName, 'eventName');
+      connect.assertNotNull(f, 'f');
+      connect.assertTrue(connect.isFunction(f), 'f must be a function');
       return this.downstreamBus.subscribe(eventName, f);
    };
 
    Conduit.prototype.onAllDownstream = function(f) {
-      lily.assertNotNull(f, 'f');
-      lily.assertTrue(lily.isFunction(f), 'f must be a function');
+      connect.assertNotNull(f, 'f');
+      connect.assertTrue(connect.isFunction(f), 'f must be a function');
       return this.downstreamBus.subscribeAll(f);
    };
 
    Conduit.prototype.sendUpstream = function(eventName, data) {
-      lily.assertNotNull(eventName, 'eventName');
+      connect.assertNotNull(eventName, 'eventName');
       this.upstream.send({event: eventName, data: data});
    };
 
    Conduit.prototype.sendDownstream = function(eventName, data) {
-      lily.assertNotNull(eventName, 'eventName');
+      connect.assertNotNull(eventName, 'eventName');
       this.downstream.send({event: eventName, data: data});
    };
 
@@ -309,12 +323,12 @@
    IFrameConduit.prototype = Object.create(Conduit.prototype);
    IFrameConduit.prototype.constructor = IFrameConduit;
 
-   lily.Stream = Stream;
-   lily.NullStream = NullStream;
-   lily.WindowStream = WindowStream;
-   lily.WindowIOStream = WindowIOStream;
-   lily.PortStream = PortStream;
-   lily.StreamMultiplexer = StreamMultiplexer;
-   lily.Conduit = Conduit;
-   lily.IFrameConduit = IFrameConduit;
+   connect.Stream = Stream;
+   connect.NullStream = NullStream;
+   connect.WindowStream = WindowStream;
+   connect.WindowIOStream = WindowIOStream;
+   connect.PortStream = PortStream;
+   connect.StreamMultiplexer = StreamMultiplexer;
+   connect.Conduit = Conduit;
+   connect.IFrameConduit = IFrameConduit;
 })();

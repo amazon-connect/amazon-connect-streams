@@ -1,21 +1,29 @@
 /*
- * control-panel/ringtone.js: Defines the ringtone manager used to play ringtones
- *    for incoming softphone calls and other media.
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
- * Authors: Lain Supe (supelee), Yuliang Zhou (yuliangz)
- * Date: Wednesday, June 1st 2016
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
  */
 (function() {
    var global = this;
-   var lily = global.lily || {};
-   global.lily = lily;
+   var connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
 
    var RingtoneEngine = function(softphoneParams) {
       var self = this;
 
       this._prevContactId = null;
 
-      lily.assertNotNull(softphoneParams, "softphoneParams");
+      connect.assertNotNull(softphoneParams, "softphoneParams");
       if (! softphoneParams.ringtoneUrl || softphoneParams.ringtoneUrl === "") {
          throw new Error("ringtoneUrl is required!");
       }
@@ -32,23 +40,23 @@
 
       } else {
          this._audio = null;
-         lily.getLog().error("Unable to provide a ringtone.");
+         connect.getLog().error("Unable to provide a ringtone.");
       }
 
       // TODO: this should triggers onIncoming instead of onConnecting
-      // https://issues.amazon.com/issues/LilyGatekeepers-974
-      lily.contact(function(contact) {
+      // https://issues.amazon.com/issues/ConnectGatekeepers-974
+      connect.contact(function(contact) {
          contact.onConnecting(function() {
-            if (contact.getType() === lily.ContactType.VOICE &&
+            if (contact.getType() === connect.ContactType.VOICE &&
                contact.isSoftphoneCall() &&
                contact.isInbound()) {
 
                self._startRingtone();
                self._prevContactId = contact.getContactId();
 
-               contact.onConnected(lily.hitch(self, self._stopRingtone));
-               contact.onAccepted(lily.hitch(self, self._stopRingtone));
-               contact.onEnded(lily.hitch(self, self._stopRingtone));
+               contact.onConnected(connect.hitch(self, self._stopRingtone));
+               contact.onAccepted(connect.hitch(self, self._stopRingtone));
+               contact.onEnded(connect.hitch(self, self._stopRingtone));
             }
          });
       });
@@ -103,6 +111,6 @@
       }
    };
 
-   /* export lily.RingtoneEngine */
-   lily.RingtoneEngine = RingtoneEngine;
+   /* export connect.RingtoneEngine */
+   connect.RingtoneEngine = RingtoneEngine;
 })();

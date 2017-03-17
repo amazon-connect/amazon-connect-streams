@@ -1,19 +1,34 @@
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
 (function() {
    var global = this;
-   lily = global.lily || {};
-   global.lily = lily;
+   connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
 
    var RTPJobIntervalMs = 1000;
    var statsReportingJobIntervalMs = 30000;
    var streamBufferSize = 500;
    var CallTypeMap = {};
-   CallTypeMap[lily.SoftphoneCallType.AUDIO_ONLY] = 'Audio';
-   CallTypeMap[lily.SoftphoneCallType.VIDEO_ONLY] = 'Video';
-   CallTypeMap[lily.SoftphoneCallType.AUDIO_VIDEO] = 'AudioVideo';
-   CallTypeMap[lily.SoftphoneCallType.NONE] = 'None';
+   CallTypeMap[connect.SoftphoneCallType.AUDIO_ONLY] = 'Audio';
+   CallTypeMap[connect.SoftphoneCallType.VIDEO_ONLY] = 'Video';
+   CallTypeMap[connect.SoftphoneCallType.AUDIO_VIDEO] = 'AudioVideo';
+   CallTypeMap[connect.SoftphoneCallType.NONE] = 'None';
 
    var MediaTypeMap = {};
-   MediaTypeMap[lily.ContactType.VOICE] = "Voice";
+   MediaTypeMap[connect.ContactType.VOICE] = "Voice";
    var UNKNOWN_MEDIA_TYPE = "Unknown";
 
    var timeSeriesStreamStatsBuffer = [];
@@ -24,10 +39,10 @@
    //Logger specific to softphone.
    var logger = null;
 
-   var SoftphoneErrorTypes = lily.SoftphoneErrorTypes;
+   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
 
    var SoftphoneManager = function(softphoneParams) {
-      logger = new SoftphoneLogger(lily.getLog());
+      logger = new SoftphoneLogger(connect.getLog());
       if (!isBrowserSoftPhoneSupported()) {
          publishError(SoftphoneErrorTypes.UNSUPPORTED_BROWSER,
                       "Connect does not support this browser. Some functionality may not work. ",
@@ -35,7 +50,7 @@
       }
       var gumPromise = fetchUserMedia({
          success: function(stream) {
-            lily.core.setSoftphoneUserMediaStream(stream);
+            connect.core.setSoftphoneUserMediaStream(stream);
          },
          failure: function(err) {
             publishError(err, "Your microphone is not enabled in your browser. ", "");
@@ -45,19 +60,19 @@
       this.ringtoneEngine = null;
 
       if (! softphoneParams.disableRingtone) {
-         this.ringtoneEngine = new lily.RingtoneEngine(softphoneParams);
+         this.ringtoneEngine = new connect.RingtoneEngine(softphoneParams);
 
       } else {
          logger.warn("Softphone ringtone has been disabled.");
       }
 
-      lily.contact(function(contact) {
+      connect.contact(function(contact) {
          var callDetected = false;
 
          contact.onRefresh(function() {
             if (contact.isSoftphoneCall() && !callDetected && (
-                     contact.getStatus().type === lily.ContactStatusType.CONNECTING ||
-                     contact.getStatus().type === lily.ContactStatusType.INCOMING)) {
+                     contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
+                     contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
 
                callDetected = true;
                logger.info("Softphone call detected: ", contact.getContactId());
@@ -65,15 +80,15 @@
                var softphoneInfo = contact.getAgentConnection().getSoftphoneMediaInfo();
                var callConfig = parseCallConfig(softphoneInfo.callConfigJson);
 
-               var session = new lily.RTCSession(
+               var session = new connect.RTCSession(
                      callConfig.signalingEndpoint,
                      callConfig.iceServers,
                      softphoneInfo.callContextToken,
                      logger,
                      contact.getContactId());
-               session.mediaStream = lily.core.getSoftphoneUserMediaStream();
+               session.mediaStream = connect.core.getSoftphoneUserMediaStream();
                session.onSessionFailed = function(rtcSession, reason) {
-                   if (reason === lily.RTCErrors.ICE_COLLECTION_TIMEOUT) {
+                   if (reason === connect.RTCErrors.ICE_COLLECTION_TIMEOUT) {
                         var endPointUrl = "\n";
                         for (var i=0; i < rtcSession._iceServers.length; i++) {
                             for (var j=0; j < rtcSession._iceServers[i].urls.length; j++) {
@@ -81,23 +96,23 @@
                             }
                         }
                         publishError(SoftphoneErrorTypes.ICE_COLLECTION_TIMEOUT, "Ice collection timedout. " ,endPointUrl);
-                   } else if (reason === lily.RTCErrors.USER_BUSY) {
+                   } else if (reason === connect.RTCErrors.USER_BUSY) {
                         publishError(SoftphoneErrorTypes.USER_BUSY_ERROR,
                         "Softphone call UserBusy error. ",
                         "");
-                   } else if (reason === lily.RTCErrors.SIGNALLING_HANDSHAKE_FAILURE) {
+                   } else if (reason === connect.RTCErrors.SIGNALLING_HANDSHAKE_FAILURE) {
                         publishError(SoftphoneErrorTypes.SIGNALLING_HANDSHAKE_FAILURE,
                         "Handshaking with Signalling Server " + rtcSession._signalingUri + " failed. ",
                         rtcSession._signalingUri);
-                   } else if (reason === lily.RTCErrors.GUM_TIMEOUT_FAILURE || reason === lily.RTCErrors.GUM_OTHER_FAILURE) {
+                   } else if (reason === connect.RTCErrors.GUM_TIMEOUT_FAILURE || reason === connect.RTCErrors.GUM_OTHER_FAILURE) {
                         publishError(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED,
                         "Your microphone is not enabled in your browser. ",
                         "");
-                   } else if (reason === lily.RTCErrors.SIGNALLING_CONNECTION_FAILURE) {
+                   } else if (reason === connect.RTCErrors.SIGNALLING_CONNECTION_FAILURE) {
                         publishError(SoftphoneErrorTypes.SIGNALLING_CONNECTION_FAILURE,
                         "URL " +  rtcSession._signalingUri + " cannot be reached. ",
                         rtcSession._signalingUri);
-                   } else if (reason === lily.RTCErrors.CALL_NOT_FOUND) {
+                   } else if (reason === connect.RTCErrors.CALL_NOT_FOUND) {
                         //No need to publish any softphone error for this case. CCP UX will handle this case.
                         logger.error("Softphone call failed due to CallNotFoundException.");
                    } else {
@@ -109,7 +124,7 @@
                };
                session.onSessionConnected = function(rtcSession) {
                     //Become master to send logs, since we need logs from softphone tab.
-                    lily.becomeMaster(lily.MasterTopics.SEND_LOGS);
+                    connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
                     //start stats collection and reporting jobs
                     startStatsCollectionJob(rtcSession);
                     startStatsReportingJob(contact);
@@ -177,10 +192,10 @@
    };
 
    var publishError = function(errorType, message, endPointUrl) {
-      var bus = lily.core.getEventBus();
+      var bus = connect.core.getEventBus();
       logger.error("Softphone error occurred : ", errorType,
             message || "");
-      bus.trigger(lily.AgentEvents.SOFTPHONE_ERROR, new lily.SoftphoneError(errorType, message, endPointUrl));
+      bus.trigger(connect.AgentEvents.SOFTPHONE_ERROR, new connect.SoftphoneError(errorType, message, endPointUrl));
    };
 
     var isBrowserSoftPhoneSupported = function () {
@@ -407,13 +422,13 @@
         this._tee = function(level, method) {
             return function() {
                 // call the original logger object to output to browser
-                //Lily logger follows %s format to print objects to console.
+                //Connect logger follows %s format to print objects to console.
                 var args = Array.prototype.slice.call(arguments[0]);
                 var format = "";
                 args.forEach(function(){
                     format = format + " %s";
                 });
-                method.apply(self._originalLogger, [lily.LogComponent.SOFTPHONE, format].concat(args));
+                method.apply(self._originalLogger, [connect.LogComponent.SOFTPHONE, format].concat(args));
             };
         };
     };
@@ -434,5 +449,5 @@
         this._tee(5, this._originalLogger.error)(arguments);
     };
 
-    lily.SoftphoneManager = SoftphoneManager;
+    connect.SoftphoneManager = SoftphoneManager;
 })();

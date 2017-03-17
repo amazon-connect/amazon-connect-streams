@@ -1,15 +1,28 @@
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
 (function() {
-
    var global = this;
-   lily = global.lily || {};
-   global.lily = lily;
+   connect = global.connect || {};
+   global.connect = connect;
 
    var ALL_EVENTS = '<<all>>';
 
    /**---------------------------------------------------------------
     * enum EventType
     */
-   var EventType = lily.makeEnum([
+   var EventType = connect.makeEnum([
          'acknowledge',
          'ack_timeout',
          'api_request',
@@ -29,7 +42,7 @@
    /**---------------------------------------------------------------
     * enum MasterTopics
     */
-   var MasterTopics = lily.makeNamespacedEnum('lily', [
+   var MasterTopics = connect.makeNamespacedEnum('connect', [
          'loginPopup',
          'sendLogs',
          'softphone'
@@ -38,7 +51,7 @@
    /**---------------------------------------------------------------
     * enum AgentEvents
     */
-   var AgentEvents = lily.makeNamespacedEnum('agent', [
+   var AgentEvents = connect.makeNamespacedEnum('agent', [
          'init',
          'update',
          'refresh',
@@ -56,7 +69,7 @@
    /**---------------------------------------------------------------
     * enum ContactEvents
     */
-   var ContactEvents = lily.makeNamespacedEnum('contact', [
+   var ContactEvents = connect.makeNamespacedEnum('contact', [
          'init',
          'refresh',
          'destroyed',
@@ -78,7 +91,7 @@
    EventFactory.createRequest = function(type, method, params) {
       return {
          event:      type,
-         requestId:  lily.randomId(),
+         requestId:  connect.randomId(),
          method:     method,
          params:     params
       };
@@ -98,7 +111,7 @@
     */
    var Subscription = function(subMap, eventName, f) {
       this.subMap = subMap;
-      this.id = lily.randomId();
+      this.id = connect.randomId();
       this.eventName = eventName;
       this.f = f;
    };
@@ -136,7 +149,7 @@
     * Unsubscribe a subscription matching the given event name and id.
     */
    SubscriptionMap.prototype.unsubscribe = function(eventName, subId) {
-      if (lily.contains(this.subEventNameMap, eventName)) {
+      if (connect.contains(this.subEventNameMap, eventName)) {
          this.subEventNameMap[eventName] = this.subEventNameMap[eventName].filter(function(s) { return s.id !== subId; });
 
          if (this.subEventNameMap[eventName].length < 1) {
@@ -144,7 +157,7 @@
          }
       }
 
-      if (lily.contains(this.subIdMap, subId)) {
+      if (connect.contains(this.subIdMap, subId)) {
          delete this.subIdMap[subId];
       }
    };
@@ -153,7 +166,7 @@
     * Get a list of all subscriptions in the subscription map.
     */
    SubscriptionMap.prototype.getAllSubscriptions = function() {
-      return lily.values(this.subEventNameMap).reduce(function(a, b) {
+      return connect.values(this.subEventNameMap).reduce(function(a, b) {
          return a.concat(b);
       }, []);
    };
@@ -182,9 +195,9 @@
     * which can be used to unsubscribe.
     */
    EventBus.prototype.subscribe = function(eventName, f) {
-      lily.assertNotNull(eventName, 'eventName');
-      lily.assertNotNull(f, 'f');
-      lily.assertTrue(lily.isFunction(f), 'f must be a function');
+      connect.assertNotNull(eventName, 'eventName');
+      connect.assertNotNull(f, 'f');
+      connect.assertTrue(connect.isFunction(f), 'f must be a function');
       return this.subMap.subscribe(eventName, f);
    };
 
@@ -192,8 +205,8 @@
     * Subscribe a function to be called on all events.
     */
    EventBus.prototype.subscribeAll = function(f) {
-      lily.assertNotNull(f, 'f');
-      lily.assertTrue(lily.isFunction(f), 'f must be a function');
+      connect.assertNotNull(f, 'f');
+      connect.assertTrue(connect.isFunction(f), 'f must be a function');
       return this.subMap.subscribe(ALL_EVENTS, f);
    };
 
@@ -211,13 +224,13 @@
     * data object and the name of the event, in that order.
     */
    EventBus.prototype.trigger = function(eventName, data) {
-      lily.assertNotNull(eventName, 'eventName');
+      connect.assertNotNull(eventName, 'eventName');
       var self = this;
       var allEventSubs = this.subMap.getSubscriptions(ALL_EVENTS);
       var eventSubs = this.subMap.getSubscriptions(eventName);
 
       if (this.logEvents) {
-         lily.getLog().trace("Publishing event: %s {%s}", eventName, JSON.stringify(data));
+         connect.getLog().trace("Publishing event: %s {%s}", eventName, JSON.stringify(data));
       }
 
       allEventSubs.concat(eventSubs).forEach(function(sub) {
@@ -225,7 +238,7 @@
             sub.f(data || null, eventName, self);
 
          } catch (e) {
-            lily.getLog().error("'%s' event handler failed.", eventName).withException(e);
+            connect.getLog().error("'%s' event handler failed.", eventName).withException(e);
          }
       });
    };
@@ -252,10 +265,10 @@
       });
    };
 
-   lily.EventBus = EventBus;
-   lily.EventFactory = EventFactory;
-   lily.EventType = EventType;
-   lily.AgentEvents = AgentEvents;
-   lily.ContactEvents = ContactEvents;
-   lily.MasterTopics = MasterTopics;
+   connect.EventBus = EventBus;
+   connect.EventFactory = EventFactory;
+   connect.EventType = EventType;
+   connect.AgentEvents = AgentEvents;
+   connect.ContactEvents = ContactEvents;
+   connect.MasterTopics = MasterTopics;
 })();

@@ -1,12 +1,28 @@
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
 (function() {
-
    var global = this;
-   lily = global.lily || {};
-   global.lily = lily;
+   connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
 
-   lily.core = {};
+   connect.core = {};
 
-   lily.core.initialized = false;
+   connect.core.initialized = false;
+
+   connect.DEFAULT_BATCH_SIZE = 10;
 
    var CCP_SYN_TIMEOUT = 1000; // 1 sec
    var CCP_ACK_TIMEOUT = 3000; // 3 sec
@@ -19,9 +35,9 @@
       "us-east-1":   "06919f4fd8ed324e"
    };
    var createLoginUrl = function(params, redirect) {
-      lily.assertTrue(params.region in CLIENT_ID_MAP, "unsupported region");
-      lily.assertNotNull(params.alias);
-      lily.assertNotNull(redirect);
+      connect.assertTrue(params.region in CLIENT_ID_MAP, "unsupported region");
+      connect.assertNotNull(params.alias);
+      connect.assertNotNull(redirect);
 
       return LOGIN_URL_PATTERN
          .replace("{alias}", params.alias)
@@ -31,71 +47,71 @@
    };
 
    /**-------------------------------------------------------------------------
-    * Print a warning message if the Lily core is not initialized.
+    * Print a warning message if the Connect core is not initialized.
     */
-   lily.core.checkNotInitialized = function() {
-      if (lily.core.initialized) {
-         var log = lily.getLog();
-         log.warn("Lily core already initialized, only needs to be initialized once.");
+   connect.core.checkNotInitialized = function() {
+      if (connect.core.initialized) {
+         var log = connect.getLog();
+         log.warn("Connect core already initialized, only needs to be initialized once.");
       }
    };
 
    /**-------------------------------------------------------------------------
-    * Basic Lily client initialization.
+    * Basic Connect client initialization.
     * Should be used only by the API Shared Worker.
     */
-   lily.core.init = function(params) {
-      lily.assertNotNull(params, 'params');
+   connect.core.init = function(params) {
+      connect.assertNotNull(params, 'params');
 
-      var authToken = lily.assertNotNull(params.authToken, 'params.authToken');
-      var region = lily.assertNotNull(params.region, 'params.region');
+      var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
+      var region = connect.assertNotNull(params.region, 'params.region');
       var endpoint = params.endpoint || null;
 
-      lily.core.eventBus = new lily.EventBus();
-      lily.core.agentDataProvider = new AgentDataProvider(lily.core.getEventBus());
-      lily.core.client = new lily.AWSLilyClient(authToken, region, endpoint);
-      lily.core.initialized = true;
+      connect.core.eventBus = new connect.EventBus();
+      connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
+      connect.core.client = new connect.AWSClient(authToken, region, endpoint);
+      connect.core.initialized = true;
    };
 
    /**-------------------------------------------------------------------------
-    * Uninitialize Lily.
+    * Uninitialize Connect.
     */
-   lily.core.terminate = function() {
-      lily.core.client = new lily.NullClient();
-      lily.core.masterClient = new lily.NullClient();
-      lily.core.eventBus = new lily.EventBus();
-      lily.core.initialized = false;
+   connect.core.terminate = function() {
+      connect.core.client = new connect.NullClient();
+      connect.core.masterClient = new connect.NullClient();
+      connect.core.eventBus = new connect.EventBus();
+      connect.core.initialized = false;
    };
 
    /**-------------------------------------------------------------------------
     * Setup the SoftphoneManager to be initialized when the agent
     * is determined to have softphone enabled.
     */
-   lily.core.softphoneUserMediaStream = null;
+   connect.core.softphoneUserMediaStream = null;
 
-   lily.core.getSoftphoneUserMediaStream = function() {
-        return lily.core.softphoneUserMediaStream;
+   connect.core.getSoftphoneUserMediaStream = function() {
+        return connect.core.softphoneUserMediaStream;
    };
 
-   lily.core.setSoftphoneUserMediaStream = function(stream) {
-        lily.core.softphoneUserMediaStream = stream;
+   connect.core.setSoftphoneUserMediaStream = function(stream) {
+        connect.core.softphoneUserMediaStream = stream;
    };
 
-   lily.core.initSoftphoneManager = function(paramsIn) {
+   connect.core.initSoftphoneManager = function(paramsIn) {
       var params = paramsIn || {};
 
       var competeForMasterOnAgentUpdate = function(softphoneParamsIn) {
-         var softphoneParams = lily.merge(params.softphone || {}, softphoneParamsIn);
+         var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
 
-         lily.agent(function(agent) {
+         connect.agent(function(agent) {
             agent.onRefresh(function() {
                var sub = this;
 
-               lily.ifMaster(lily.MasterTopics.SOFTPHONE, function() {
-                  if (! lily.core.softphoneManager && agent.isSoftphoneEnabled()) {
+               connect.ifMaster(connect.MasterTopics.SOFTPHONE, function() {
+                  if (! connect.core.softphoneManager && agent.isSoftphoneEnabled()) {
                      // Become master to send logs, since we need logs from softphone tab.
-                     lily.becomeMaster(lily.MasterTopics.SEND_LOGS);
-                     lily.core.softphoneManager = new lily.SoftphoneManager(softphoneParams);
+                     connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
+                     connect.core.softphoneManager = new connect.SoftphoneManager(softphoneParams);
                      sub.unsubscribe();
                   }
                });
@@ -107,9 +123,9 @@
        * If the window is framed, we need to wait for a CONFIGURE message from
        * downstream before we try to initialize, unless params.allowFramedSoftphone is true.
        */
-      if (lily.isFramed() && ! params.allowFramedSoftphone) {
-         var bus = lily.core.getEventBus();
-         bus.subscribe(lily.EventType.CONFIGURE, function(data) {
+      if (connect.isFramed() && ! params.allowFramedSoftphone) {
+         var bus = connect.core.getEventBus();
+         bus.subscribe(connect.EventType.CONFIGURE, function(data) {
             if (data.softphone && data.softphone.allowFramedSoftphone) {
                competeForMasterOnAgentUpdate(data.softphone);
             }
@@ -120,99 +136,99 @@
    };
 
    /**-------------------------------------------------------------------------
-    * Initializes Lily by creating or connecting to the API Shared Worker.
+    * Initializes Connect by creating or connecting to the API Shared Worker.
     * Used primarily by the CCP.
     */
-   lily.core.initSharedWorker = function(params) {
-      lily.core.checkNotInitialized();
-      if (lily.core.initialized) {
+   connect.core.initSharedWorker = function(params) {
+      connect.core.checkNotInitialized();
+      if (connect.core.initialized) {
          return;
       }
-      lily.assertNotNull(params, 'params');
+      connect.assertNotNull(params, 'params');
 
-      var sharedWorkerUrl = lily.assertNotNull(params.sharedWorkerUrl, 'params.sharedWorkerUrl');
-      var authToken = lily.assertNotNull(params.authToken, 'params.authToken');
-      var region = lily.assertNotNull(params.region, 'params.region');
+      var sharedWorkerUrl = connect.assertNotNull(params.sharedWorkerUrl, 'params.sharedWorkerUrl');
+      var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
+      var region = connect.assertNotNull(params.region, 'params.region');
       var endpoint = params.endpoint || null;
 
       try {
          // Initialize the event bus and agent data providers.
-         lily.core.eventBus = new lily.EventBus({logEvents: true});
-         lily.core.agentDataProvider = new AgentDataProvider(lily.core.getEventBus());
+         connect.core.eventBus = new connect.EventBus({logEvents: true});
+         connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
 
          // Create the shared worker and upstream conduit.
-         var worker = new SharedWorker(sharedWorkerUrl, "LilySharedWorker");
-         var conduit = new lily.Conduit("LilySharedWorkerConduit",
-               new lily.PortStream(worker.port),
-               new lily.WindowIOStream(window, parent));
+         var worker = new SharedWorker(sharedWorkerUrl, "ConnectSharedWorker");
+         var conduit = new connect.Conduit("ConnectSharedWorkerConduit",
+               new connect.PortStream(worker.port),
+               new connect.WindowIOStream(window, parent));
 
          // Close our port to the shared worker before the window closes.
          global.onbeforeunload = function() {
-            conduit.sendUpstream(lily.EventType.CLOSE);
+            conduit.sendUpstream(connect.EventType.CLOSE);
             worker.port.close();
          };
 
-         lily.getLog().scheduleUpstreamLogPush(conduit);
+         connect.getLog().scheduleUpstreamLogPush(conduit);
          // Bridge all upstream messages into the event bus.
-         conduit.onAllUpstream(lily.core.getEventBus().bridge());
+         conduit.onAllUpstream(connect.core.getEventBus().bridge());
          // Bridge all downstream messages into the event bus.
-         conduit.onAllDownstream(lily.core.getEventBus().bridge());
+         conduit.onAllDownstream(connect.core.getEventBus().bridge());
          // Pass all upstream messages (from shared worker) downstream (to CCP consumer).
          conduit.onAllUpstream(conduit.passDownstream());
          // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
          conduit.onAllDownstream(conduit.passUpstream());
          // Send configuration up to the shared worker.
-         conduit.sendUpstream(lily.EventType.CONFIGURE, {
+         conduit.sendUpstream(connect.EventType.CONFIGURE, {
             authToken:     authToken,
             endpoint:      endpoint,
             region:        region
          });
-         conduit.onUpstream(lily.EventType.ACKNOWLEDGE, function() {
-            lily.getLog().info("Acknowledged by the LilySharedWorker!");
-            lily.core.initialized = true;
+         conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function() {
+            connect.getLog().info("Acknowledged by the ConnectSharedWorker!");
+            connect.core.initialized = true;
             this.unsubscribe();
          });
          // Add all upstream log entries to our own logger.
-         conduit.onUpstream(lily.EventType.LOG, function(logEntry) {
-            lily.getLog().addLogEntry(lily.LogEntry.fromObject(logEntry));
+         conduit.onUpstream(connect.EventType.LOG, function(logEntry) {
+            connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
          });
          // Reload the page if the shared worker detects an API auth failure.
-         conduit.onUpstream(lily.EventType.AUTH_FAIL, function(logEntry) {
+         conduit.onUpstream(connect.EventType.AUTH_FAIL, function(logEntry) {
             location.reload();
          });
 
-         lily.core.client = new lily.UpstreamConduitLilyClient(conduit);
-         lily.core.masterClient = new lily.UpstreamConduitMasterClient(conduit);
+         connect.core.client = new connect.UpstreamConduitClient(conduit);
+         connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
 
          // Pass the TERMINATE request upstream to the shared worker.
-         lily.core.getEventBus().subscribe(lily.EventType.TERMINATE,
+         connect.core.getEventBus().subscribe(connect.EventType.TERMINATE,
             conduit.passUpstream());
 
          // Refresh the page when we receive the TERMINATED response from the
          // shared worker.
-         lily.core.getEventBus().subscribe(lily.EventType.TERMINATED, function() {
+         connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function() {
             window.location.reload(true);
          });
 
          worker.port.start();
 
          // Attempt to get permission to show notifications.
-         var nm = lily.core.getNotificationManager();
+         var nm = connect.core.getNotificationManager();
          nm.requestPermission();
 
       } catch (e) {
-         lily.getLog().error("Failed to initialize the API shared worker, we're dead!")
+         connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
             .withException(e);
       }
    };
 
    /**-------------------------------------------------------------------------
-    * Initializes Lily by creating or connecting to the API Shared Worker.
-    * Initializes Lily by loading the CCP in an iframe and connecting to it.
+    * Initializes Connect by creating or connecting to the API Shared Worker.
+    * Initializes Connect by loading the CCP in an iframe and connecting to it.
     */
-   lily.core.initCCP = function(containerDiv, paramsIn) {
-      lily.core.checkNotInitialized();
-      if (lily.core.initialized) {
+   connect.core.initCCP = function(containerDiv, paramsIn) {
+      connect.core.checkNotInitialized();
+      if (connect.core.initialized) {
          return;
       }
 
@@ -227,8 +243,8 @@
 
       var softphoneParams = params.softphone || null;
 
-      lily.assertNotNull(containerDiv, 'containerDiv');
-      lily.assertNotNull(params.ccpUrl, 'params.ccpUrl');
+      connect.assertNotNull(containerDiv, 'containerDiv');
+      connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
 
       // Create the CCP iframe and append it to the container div.
       var iframe = document.createElement('iframe');
@@ -237,76 +253,76 @@
       containerDiv.appendChild(iframe);
 
       // Initialize the event bus and agent data providers.
-      lily.core.eventBus = new lily.EventBus({logEvents: true});
-      lily.core.agentDataProvider = new AgentDataProvider(lily.core.getEventBus());
+      connect.core.eventBus = new connect.EventBus({logEvents: true});
+      connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
 
       // Build the upstream conduit communicating with the CCP iframe.
-      var conduit = new lily.IFrameConduit(params.ccpUrl, window, iframe);
-      conduit.onAllUpstream(lily.core.getEventBus().bridge());
+      var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
+      conduit.onAllUpstream(connect.core.getEventBus().bridge());
 
       // Initialize the keepalive manager.
-      lily.core.keepaliveManager = new KeepaliveManager(conduit,
-                                                        lily.core.getEventBus(),
+      connect.core.keepaliveManager = new KeepaliveManager(conduit,
+                                                        connect.core.getEventBus(),
                                                         params.ccpSynTimeout || CCP_SYN_TIMEOUT,
                                                         params.ccpAckTimeout || CCP_ACK_TIMEOUT);
-      lily.core.iframeRefreshInterval = null;
+      connect.core.iframeRefreshInterval = null;
 
       // Allow 10 sec (default) before receiving the first ACK from the CCP.
-      lily.core.ccpLoadTimeoutInstance = global.setTimeout(function() {
-         lily.core.ccpLoadTimeoutInstance = null;
-         lily.core.getEventBus().trigger(lily.EventType.ACK_TIMEOUT);
+      connect.core.ccpLoadTimeoutInstance = global.setTimeout(function() {
+         connect.core.ccpLoadTimeoutInstance = null;
+         connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
       }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
 
       // Once we receive the first ACK, setup our upstream API client and establish
       // the SYN/ACK refresh flow.
-      conduit.onUpstream(lily.EventType.ACKNOWLEDGE, function() {
-         lily.getLog().info("Acknowledged by the CCP!");
-         lily.core.client = new lily.UpstreamConduitLilyClient(conduit);
-         lily.core.masterClient = new lily.UpstreamConduitMasterClient(conduit);
-         lily.core.initialized = true;
+      conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function() {
+         connect.getLog().info("Acknowledged by the CCP!");
+         connect.core.client = new connect.UpstreamConduitClient(conduit);
+         connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
+         connect.core.initialized = true;
 
          if (softphoneParams) {
             // Send configuration up to the CCP.
-            conduit.sendUpstream(lily.EventType.CONFIGURE, {
+            conduit.sendUpstream(connect.EventType.CONFIGURE, {
                softphone:  softphoneParams
             });
          }
 
-         if (lily.core.ccpLoadTimeoutInstance) {
-            global.clearTimeout(lily.core.ccpLoadTimeoutInstance);
-            lily.core.ccpLoadTimeoutInstance = null;
+         if (connect.core.ccpLoadTimeoutInstance) {
+            global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
+            connect.core.ccpLoadTimeoutInstance = null;
          }
 
-         lily.core.keepaliveManager.start();
+         connect.core.keepaliveManager.start();
          this.unsubscribe();
       });
 
       // Add any logs from the upstream to our own logger.
-      conduit.onUpstream(lily.EventType.LOG, function(logEntry) {
-         lily.getLog().addLogEntry(lily.LogEntry.fromObject(logEntry));
+      conduit.onUpstream(connect.EventType.LOG, function(logEntry) {
+         connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
       });
 
       // Pop a login page when we encounter an ACK timeout.
-      lily.core.getEventBus().subscribe(lily.EventType.ACK_TIMEOUT, function() {
+      connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function() {
          try {
             var loginUrl = createLoginUrl(params, params.redirectUrl);
-            lily.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
-            lily.core.getPopupManager().open(loginUrl, lily.MasterTopics.LOGIN_POPUP);
+            connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
+            connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
 
          } catch (e) {
-            lily.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
+            connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
          }
 
-         if (lily.core.iframeRefreshInterval == null) {
-            lily.core.iframeRefreshInterval = window.setInterval(function() {
+         if (connect.core.iframeRefreshInterval == null) {
+            connect.core.iframeRefreshInterval = window.setInterval(function() {
                iframe.src = params.ccpUrl;
             }, CCP_IFRAME_REFRESH_INTERVAL);
 
-            conduit.onUpstream(lily.EventType.ACKNOWLEDGE, function() {
+            conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function() {
                this.unsubscribe();
-               global.clearInterval(lily.core.iframeRefreshInterval);
-               lily.core.iframeRefreshInterval = null;
-               lily.core.getPopupManager().clear(lily.MasterTopics.LOGIN_POPUP);
+               global.clearInterval(connect.core.iframeRefreshInterval);
+               connect.core.iframeRefreshInterval = null;
+               connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
             });
          }
       });
@@ -326,22 +342,22 @@
    KeepaliveManager.prototype.start = function() {
       var self = this;
 
-      this.conduit.sendUpstream(lily.EventType.SYNCHRONIZE);
-      this.ackSub = this.conduit.onUpstream(lily.EventType.ACKNOWLEDGE, function() {
+      this.conduit.sendUpstream(connect.EventType.SYNCHRONIZE);
+      this.ackSub = this.conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function() {
          this.unsubscribe();
          global.clearTimeout(self.ackTimer);
          self.deferStart();
       });
       this.ackTimer = global.setTimeout(function() {
          self.ackSub.unsubscribe();
-         self.eventBus.trigger(lily.EventType.ACK_TIMEOUT);
+         self.eventBus.trigger(connect.EventType.ACK_TIMEOUT);
          self.deferStart();
       }, this.ackTimeout);
    };
 
    KeepaliveManager.prototype.deferStart = function() {
       if (this.synTimer == null) {
-         this.synTimer = global.setTimeout(lily.hitch(this, this.start), this.synTimeout);
+         this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
       }
    };
 
@@ -349,7 +365,7 @@
    var AgentDataProvider = function(bus) {
       var agentData = null;
       this.bus = bus;
-      this.bus.subscribe(lily.AgentEvents.UPDATE, lily.hitch(this, this.updateAgentData));
+      this.bus.subscribe(connect.AgentEvents.UPDATE, connect.hitch(this, this.updateAgentData));
    };
 
    AgentDataProvider.prototype.updateAgentData = function(agentData) {
@@ -359,18 +375,18 @@
       this._calculateDurations();
 
       if (oldAgentData == null) {
-         lily.agent.initialized = true;
-         this.bus.trigger(lily.AgentEvents.INIT, new lily.Agent());
+         connect.agent.initialized = true;
+         this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
       }
 
-      this.bus.trigger(lily.AgentEvents.REFRESH, new lily.Agent());
+      this.bus.trigger(connect.AgentEvents.REFRESH, new connect.Agent());
 
       this._fireAgentUpdateEvents(oldAgentData);
    };
 
    AgentDataProvider.prototype.getAgentData = function() {
       if (this.agentData == null) {
-         throw new lily.StateError('No agent data is available yet!');
+         throw new connect.StateError('No agent data is available yet!');
       }
 
       return this.agentData;
@@ -378,12 +394,12 @@
 
    AgentDataProvider.prototype.getContactData = function(contactId) {
       var agentData = this.getAgentData();
-      var contactData = lily.find(agentData.contacts, function(ctdata) {
+      var contactData = connect.find(agentData.snapshot.contacts, function(ctdata) {
          return ctdata.contactId === contactId;
       });
 
       if (contactData == null) {
-         throw new lily.StateError('Contact %s no longer exists.', contactId);
+         throw new connect.StateError('Contact %s no longer exists.', contactId);
       }
 
       return contactData;
@@ -391,32 +407,32 @@
 
    AgentDataProvider.prototype.getConnectionData = function(contactId, connectionId) {
       var contactData = this.getContactData(contactId);
-      var connectionData = lily.find(contactData.connections, function(cdata) {
+      var connectionData = connect.find(contactData.connections, function(cdata) {
          return cdata.connectionId === connectionId;
       });
 
       if (connectionData == null) {
-         throw new lily.StateError('Connection %s for contact %s no longer exists.', connectionId, contactId);
+         throw new connect.StateError('Connection %s for contact %s no longer exists.', connectionId, contactId);
       }
 
       return connectionData;
    };
 
    AgentDataProvider.prototype._calculateDurations = function() {
-      var now = lily.now();
+      var now = connect.now();
       var self = this;
-      this.agentData.localTimestamp = now;
+      this.agentData.snapshot.localTimestamp = now;
 
-      var skew = this.agentData.timestamp - this.agentData.localTimestamp;
+      var skew = this.agentData.snapshot.snapshotTimestamp - this.agentData.snapshot.localTimestamp;
 
-      this.agentData.status.duration = Math.round(now - this.agentData.status.timestamp.getTime() + skew);
+      this.agentData.snapshot.state.duration = Math.round(now - this.agentData.snapshot.state.startTimestamp.getTime() + skew);
 
-      this.agentData.contacts.forEach(function(contact) {
+      this.agentData.snapshot.contacts.forEach(function(contact) {
          var ts = new Date(contact.timestamp).getTime();
-         contact.status.duration = Math.round(now - contact.status.timestamp.getTime() + skew);
+         contact.state.duration = Math.round(now - contact.state.timestamp.getTime() + skew);
 
          contact.connections.forEach(function(conn) {
-            conn.status.duration = Math.round(now - conn.status.timestamp.getTime() + skew);
+            conn.state.duration = Math.round(now - conn.state.timestamp.getTime() + skew);
          });
       });
    };
@@ -426,20 +442,20 @@
          added:      {},
          removed:    {},
          common:     {},
-         oldMap:     lily.index(oldAgentData == null ? [] : oldAgentData.contacts, function(contact) { return contact.contactId; }),
-         newMap:     lily.index(this.agentData.contacts, function(contact) { return contact.contactId; })
+         oldMap:     connect.index(oldAgentData == null ? [] : oldAgentData.snapshot.contacts, function(contact) { return contact.contactId; }),
+         newMap:     connect.index(this.agentData.snapshot.contacts, function(contact) { return contact.contactId; })
       };
 
-      lily.keys(diff.oldMap).forEach(function(contactId) {
-         if (lily.contains(diff.newMap, contactId)) {
+      connect.keys(diff.oldMap).forEach(function(contactId) {
+         if (connect.contains(diff.newMap, contactId)) {
             diff.common[contactId] = diff.newMap[contactId];
          } else {
             diff.removed[contactId] = diff.oldMap[contactId];
          }
       });
 
-      lily.keys(diff.newMap).forEach(function(contactId) {
-         if (! lily.contains(diff.oldMap, contactId)) {
+      connect.keys(diff.newMap).forEach(function(contactId) {
+         if (! connect.contains(diff.oldMap, contactId)) {
             diff.added[contactId] = diff.newMap[contactId];
          }
       });
@@ -450,26 +466,26 @@
    AgentDataProvider.prototype._fireAgentUpdateEvents = function(oldAgentData) {
       var self = this;
       var diff = null;
-      var oldAgentStatus = oldAgentData == null ? lily.AgentAvailStates.INIT : oldAgentData.status.name;
-      var newAgentStatus = this.agentData.status.name;
-      var oldRoutingStatus = oldAgentData == null ? lily.AgentStatusType.INIT : oldAgentData.status.type;
-      var newRoutingStatus = this.agentData.status.type;
+      var oldAgentState = oldAgentData == null ? connect.AgentAvailStates.INIT : oldAgentData.snapshot.state.name;
+      var newAgentState = this.agentData.snapshot.state.name;
+      var oldRoutingState = oldAgentData == null ? connect.AgentStateType.INIT : oldAgentData.snapshot.state.type;
+      var newRoutingState = this.agentData.snapshot.state.type;
 
-      if (oldRoutingStatus !== newRoutingStatus) {
-         lily.core.getAgentRoutingEventGraph().getAssociations(this, oldRoutingStatus, newRoutingStatus).forEach(function(event) {
-            self.bus.trigger(event, new lily.Agent());
+      if (oldRoutingState !== newRoutingState) {
+         connect.core.getAgentRoutingEventGraph().getAssociations(this, oldRoutingState, newRoutingState).forEach(function(event) {
+            self.bus.trigger(event, new connect.Agent());
          });
       }
 
-      if (oldAgentStatus !== newAgentStatus) {
-         this.bus.trigger(lily.AgentEvents.STATE_CHANGE, {
-            agent:      new lily.Agent(),
-            oldState:  oldAgentStatus,
-            newState:  newAgentStatus
+      if (oldAgentState !== newAgentState) {
+         this.bus.trigger(connect.AgentEvents.STATE_CHANGE, {
+            agent:      new connect.Agent(),
+            oldState:  oldAgentState,
+            newState:  newAgentState
 
          });
-         lily.core.getAgentStateEventGraph().getAssociations(this, oldAgentStatus, newAgentStatus).forEach(function(event) {
-            self.bus.trigger(event, new lily.Agent());
+         connect.core.getAgentStateEventGraph().getAssociations(this, oldAgentState, newAgentState).forEach(function(event) {
+            self.bus.trigger(event, new connect.Agent());
          });
       }
 
@@ -478,167 +494,167 @@
 
       } else {
          diff =  {
-            added:      lily.index(this.agentData.contacts, function(contact) { return contact.contactId; }),
+            added:      connect.index(this.agentData.snapshot.contacts, function(contact) { return contact.contactId; }),
             removed:    {},
             common:     {},
             oldMap:     {},
-            newMap:     lily.index(this.agentData.contacts, function(contact) { return contact.contactId; })
+            newMap:     connect.index(this.agentData.snapshot.contacts, function(contact) { return contact.contactId; })
          };
       }
 
-      lily.values(diff.added).forEach(function(contactData) {
-         self.bus.trigger(lily.ContactEvents.INIT, new lily.Contact(contactData.contactId));
-         self._fireContactUpdateEvents(contactData.contactId, lily.ContactStatusType.INIT, contactData.status.type);
+      connect.values(diff.added).forEach(function(contactData) {
+         self.bus.trigger(connect.ContactEvents.INIT, new connect.Contact(contactData.contactId));
+         self._fireContactUpdateEvents(contactData.contactId, connect.ContactStateType.INIT, contactData.state.type);
       });
 
-      lily.values(diff.removed).forEach(function(contactData) {
-         self.bus.trigger(lily.ContactEvents.DESTROYED, new lily.ContactSnapshot(contactData));
-         self.bus.trigger(lily.core.getContactEventName(lily.ContactEvents.DESTROYED, contactData.contactId), new lily.ContactSnapshot(contactData));
+      connect.values(diff.removed).forEach(function(contactData) {
+         self.bus.trigger(connect.ContactEvents.DESTROYED, new connect.ContactSnapshot(contactData));
+         self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.DESTROYED, contactData.contactId), new connect.ContactSnapshot(contactData));
          self._unsubAllContactEventsForContact(contactData.contactId);
       });
 
-      lily.keys(diff.common).forEach(function(contactId) {
-         self._fireContactUpdateEvents(contactId, diff.oldMap[contactId].status.type, diff.newMap[contactId].status.type);
+      connect.keys(diff.common).forEach(function(contactId) {
+         self._fireContactUpdateEvents(contactId, diff.oldMap[contactId].state.type, diff.newMap[contactId].state.type);
       });
    };
 
-   AgentDataProvider.prototype._fireContactUpdateEvents = function(contactId, oldContactStatus, newContactStatus) {
+   AgentDataProvider.prototype._fireContactUpdateEvents = function(contactId, oldContactState, newContactState) {
       var self = this;
-      if (oldContactStatus !== newContactStatus) {
-         lily.core.getContactEventGraph().getAssociations(this, oldContactStatus, newContactStatus).forEach(function(event) {
-            self.bus.trigger(event, new lily.Contact(contactId));
-            self.bus.trigger(lily.core.getContactEventName(event, contactId), new lily.Contact(contactId));
+      if (oldContactState !== newContactState) {
+         connect.core.getContactEventGraph().getAssociations(this, oldContactState, newContactState).forEach(function(event) {
+            self.bus.trigger(event, new connect.Contact(contactId));
+            self.bus.trigger(connect.core.getContactEventName(event, contactId), new connect.Contact(contactId));
          });
       }
 
-      self.bus.trigger(lily.ContactEvents.REFRESH, new lily.Contact(contactId));
-      self.bus.trigger(lily.core.getContactEventName(lily.ContactEvents.REFRESH, contactId), new lily.Contact(contactId));
+      self.bus.trigger(connect.ContactEvents.REFRESH, new connect.Contact(contactId));
+      self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), new connect.Contact(contactId));
    };
 
    AgentDataProvider.prototype._unsubAllContactEventsForContact = function(contactId) {
       var self = this;
-      lily.values(lily.ContactEvents).forEach(function(eventName) {
-         self.bus.getSubscriptions(lily.core.getContactEventName(eventName, contactId))
+      connect.values(connect.ContactEvents).forEach(function(eventName) {
+         self.bus.getSubscriptions(connect.core.getContactEventName(eventName, contactId))
             .map(function(sub) { sub.unsubscribe(); });
       });
    };
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getContactEventName = function(eventName, contactId) {
-      lily.assertNotNull(eventName, 'eventName');
-      lily.assertNotNull(contactId, 'contactId');
-      if (! lily.contains(lily.values(lily.ContactEvents), eventName)) {
-         throw new lily.ValueError('%s is not a valid contact event.', eventName);
+   connect.core.getContactEventName = function(eventName, contactId) {
+      connect.assertNotNull(eventName, 'eventName');
+      connect.assertNotNull(contactId, 'contactId');
+      if (! connect.contains(connect.values(connect.ContactEvents), eventName)) {
+         throw new connect.ValueError('%s is not a valid contact event.', eventName);
       }
-      return lily.sprintf('%s::%s', eventName, contactId);
+      return connect.sprintf('%s::%s', eventName, contactId);
    };
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getEventBus = function() {
-      return lily.core.eventBus;
+   connect.core.getEventBus = function() {
+      return connect.core.eventBus;
    };
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getAgentDataProvider = function() {
-      return lily.core.agentDataProvider;
+   connect.core.getAgentDataProvider = function() {
+      return connect.core.agentDataProvider;
    };
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getLocalTimestamp = function() {
-      return lily.core.getAgentDataProvider().getAgentData().localTimestamp;
+   connect.core.getLocalTimestamp = function() {
+      return connect.core.getAgentDataProvider().getAgentData().snapshot.localTimestamp;
    };
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getAgentRoutingEventGraph = function() {
-      return lily.core.agentRoutingEventGraph;
+   connect.core.getAgentRoutingEventGraph = function() {
+      return connect.core.agentRoutingEventGraph;
    };
-   lily.core.agentRoutingEventGraph = new lily.EventGraph()
-      .assoc(lily.EventGraph.ANY, lily.AgentStatusType.ROUTABLE,
-             lily.AgentEvents.ROUTABLE)
-      .assoc(lily.EventGraph.ANY, lily.AgentStatusType.NOT_ROUTABLE,
-             lily.AgentEvents.NOT_ROUTABLE)
-      .assoc(lily.EventGraph.ANY, lily.AgentStatusType.OFFLINE,
-             lily.AgentEvents.OFFLINE);
+   connect.core.agentRoutingEventGraph = new connect.EventGraph()
+      .assoc(connect.EventGraph.ANY, connect.AgentStateType.ROUTABLE,
+             connect.AgentEvents.ROUTABLE)
+      .assoc(connect.EventGraph.ANY, connect.AgentStateType.NOT_ROUTABLE,
+             connect.AgentEvents.NOT_ROUTABLE)
+      .assoc(connect.EventGraph.ANY, connect.AgentStateType.OFFLINE,
+             connect.AgentEvents.OFFLINE);
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getAgentStateEventGraph = function() {
-      return lily.core.agentStateEventGraph;
+   connect.core.getAgentStateEventGraph = function() {
+      return connect.core.agentStateEventGraph;
    };
-   lily.core.agentStateEventGraph = new lily.EventGraph()
-      .assoc(lily.EventGraph.ANY,
-             lily.values(lily.AgentErrorStates),
-             lily.AgentEvents.ERROR)
-      .assoc(lily.EventGraph.ANY, lily.AgentAvailStates.AFTER_CALL_WORK,
-             lily.AgentEvents.ACW);
+   connect.core.agentStateEventGraph = new connect.EventGraph()
+      .assoc(connect.EventGraph.ANY,
+             connect.values(connect.AgentErrorStates),
+             connect.AgentEvents.ERROR)
+      .assoc(connect.EventGraph.ANY, connect.AgentAvailStates.AFTER_CALL_WORK,
+             connect.AgentEvents.ACW);
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getContactEventGraph = function() {
-      return lily.core.contactEventGraph;
+   connect.core.getContactEventGraph = function() {
+      return connect.core.contactEventGraph;
    };
 
-   lily.core.contactEventGraph = new lily.EventGraph()
-      .assoc(lily.EventGraph.ANY,
-             lily.ContactStatusType.INCOMING,
-             lily.ContactEvents.INCOMING)
-      .assoc(lily.EventGraph.ANY,
-             lily.ContactStatusType.PENDING,
-             lily.ContactEvents.PENDING)
-      .assoc(lily.EventGraph.ANY,
-             lily.ContactStatusType.CONNECTING,
-             lily.ContactEvents.CONNECTING)
-      .assoc(lily.EventGraph.ANY,
-             lily.ContactStatusType.CONNECTED,
-             lily.ContactEvents.CONNECTED)
-      .assoc(lily.ContactStatusType.INCOMING,
-             lily.ContactStatusType.ERROR,
-             lily.ContactEvents.MISSED)
-      .assoc(lily.EventGraph.ANY,
-             lily.ContactStatusType.ENDED,
-             lily.ContactEvents.ACW)
-      .assoc(lily.values(lily.CONTACT_ACTIVE_STATES),
-             lily.values(lily.relativeComplement(lily.CONTACT_ACTIVE_STATES, lily.ContactStatusType)),
-             lily.ContactEvents.ENDED);
+   connect.core.contactEventGraph = new connect.EventGraph()
+      .assoc(connect.EventGraph.ANY,
+             connect.ContactStateType.INCOMING,
+             connect.ContactEvents.INCOMING)
+      .assoc(connect.EventGraph.ANY,
+             connect.ContactStateType.PENDING,
+             connect.ContactEvents.PENDING)
+      .assoc(connect.EventGraph.ANY,
+             connect.ContactStateType.CONNECTING,
+             connect.ContactEvents.CONNECTING)
+      .assoc(connect.EventGraph.ANY,
+             connect.ContactStateType.CONNECTED,
+             connect.ContactEvents.CONNECTED)
+      .assoc(connect.ContactStateType.INCOMING,
+             connect.ContactStateType.ERROR,
+             connect.ContactEvents.MISSED)
+      .assoc(connect.EventGraph.ANY,
+             connect.ContactStateType.ENDED,
+             connect.ContactEvents.ACW)
+      .assoc(connect.values(connect.CONTACT_ACTIVE_STATES),
+             connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
+             connect.ContactEvents.ENDED);
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getClient = function() {
-      if (! lily.core.client) {
-         throw new lily.StateError('The lily core has not been initialized!');
+   connect.core.getClient = function() {
+      if (! connect.core.client) {
+         throw new connect.StateError('The connect core has not been initialized!');
       }
-      return lily.core.client;
+      return connect.core.client;
    };
-   lily.core.client = null;
+   connect.core.client = null;
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getMasterClient = function() {
-      if (! lily.core.masterClient) {
-         throw new lily.StateError('The lily master client has not been initialized!');
+   connect.core.getMasterClient = function() {
+      if (! connect.core.masterClient) {
+         throw new connect.StateError('The connect master client has not been initialized!');
       }
-      return lily.core.masterClient;
+      return connect.core.masterClient;
    };
-   lily.core.masterClient = null;
+   connect.core.masterClient = null;
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getSoftphoneManager = function() {
-      return lily.core.softphoneManager;
+   connect.core.getSoftphoneManager = function() {
+      return connect.core.softphoneManager;
    };
-   lily.core.softphoneManager = null;
+   connect.core.softphoneManager = null;
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getNotificationManager = function() {
-      if (! lily.core.notificationManager) {
-         lily.core.notificationManager = new lily.NotificationManager();
+   connect.core.getNotificationManager = function() {
+      if (! connect.core.notificationManager) {
+         connect.core.notificationManager = new connect.NotificationManager();
       }
-      return lily.core.notificationManager;
+      return connect.core.notificationManager;
    };
-   lily.core.notificationManager = null;
+   connect.core.notificationManager = null;
 
    /**-----------------------------------------------------------------------*/
-   lily.core.getPopupManager = function() {
-      return lily.core.popupManager;
+   connect.core.getPopupManager = function() {
+      return connect.core.popupManager;
    };
-   lily.core.popupManager = new lily.PopupManager();
+   connect.core.popupManager = new connect.PopupManager();
 
    /**-----------------------------------------------------------------------*/
-   lily.core.AgentDataProvider = AgentDataProvider;
+   connect.core.AgentDataProvider = AgentDataProvider;
 
 })();

@@ -1,23 +1,37 @@
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
 (function() {
-
    var global = this;
-   lily = global.lily || {};
-   global.lily = lily;
-   
+   connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
+
    /**-------------------------------------------------------------------------
     * GraphLink <<abstract class>>
     *
     * Represents the association of one or more attributes to a state transition.
     */
    var GraphLink = function(fromState, toState) {
-      lily.assertNotNull(fromState, 'fromState');
-      lily.assertNotNull(toState, 'toState');
+      connect.assertNotNull(fromState, 'fromState');
+      connect.assertNotNull(toState, 'toState');
       this.fromState = fromState;
       this.toState = toState;
    };
 
    GraphLink.prototype.getAssociations = function(context) {
-      throw lily.NotImplementedError();
+      throw connect.NotImplementedError();
    };
 
    GraphLink.prototype.getFromState = function() {
@@ -35,9 +49,9 @@
     * state transition.
     */
    var DirectGraphLink = function(fromState, toState, associations) {
-      lily.assertNotNull(fromState, 'fromState');
-      lily.assertNotNull(toState, 'toState');
-      lily.assertNotNull(associations, 'associations');
+      connect.assertNotNull(fromState, 'fromState');
+      connect.assertNotNull(toState, 'toState');
+      connect.assertNotNull(associations, 'associations');
       GraphLink.call(this, fromState, toState);
       this.associations = associations;
    };
@@ -55,10 +69,10 @@
     * state transition.
     */
    var FunctionalGraphLink = function(fromState, toState, closure) {
-      lily.assertNotNull(fromState, 'fromState');
-      lily.assertNotNull(toState, 'toState');
-      lily.assertNotNull(closure, 'closure');
-      lily.assertTrue(lily.isFunction(closure), 'closure must be a function');
+      connect.assertNotNull(fromState, 'fromState');
+      connect.assertNotNull(toState, 'toState');
+      connect.assertNotNull(closure, 'closure');
+      connect.assertTrue(connect.isFunction(closure), 'closure must be a function');
       GraphLink.call(this, fromState, toState);
       this.closure = closure;
    };
@@ -118,8 +132,8 @@
    };
 
    EventGraph.prototype.getAssociations = function(context, fromState, toState) {
-      lily.assertNotNull(fromState, 'fromState');
-      lily.assertNotNull(toState, 'toState');
+      connect.assertNotNull(fromState, 'fromState');
+      connect.assertNotNull(toState, 'toState');
       var associations = [];
 
       var toMapFromAny = this.fromMap[EventGraph.ANY] || {};
@@ -156,6 +170,6 @@
       }, []);
    };
 
-   lily.EventGraph = EventGraph;
+   connect.EventGraph = EventGraph;
 
 })();

@@ -1,23 +1,38 @@
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
 (function() {
-
    var global = this;
-   lily = global.lily || {};
-   global.lily = lily;
+   connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
 
    /*----------------------------------------------------------------
-    * enum AgentStatusType
+    * enum AgentStateType
     */
-   lily.AgentStatusType = lily.makeEnum([
+   connect.AgentStateType = connect.makeEnum([
          'init',
          'routable',
          'not_routable',
          'offline'
    ]);
+   connect.AgentStatusType = connect.AgentStateType;
 
    /**
     * enum AgentAvailStates
     */
-   lily.AgentAvailStates = lily.makeEnum([
+   connect.AgentAvailStates = connect.makeEnum([
          'Init',
          'Busy',
          'AfterCallWork',
@@ -31,7 +46,7 @@
    /**
     * enum AgentErrorStates
     */
-   lily.AgentErrorStates = lily.makeEnum([
+   connect.AgentErrorStates = connect.makeEnum([
          'Error',
          'AgentHungUp',
          'BadAddressAgent',
@@ -50,16 +65,17 @@
    /*----------------------------------------------------------------
     * enum AddressType
     */
-   lily.AddressType = lily.makeEnum([
+   connect.EndpointType = connect.makeEnum([
          'phone_number',
          'agent',
          'queue'
    ]);
+   connect.AddressType = connect.EndpointType;
 
    /*----------------------------------------------------------------
     * enum ConnectionType
     */
-   lily.ConnectionType = lily.makeEnum([
+   connect.ConnectionType = connect.makeEnum([
          'agent',
          'inbound',
          'outbound',
@@ -67,26 +83,27 @@
    ]);
 
    /*----------------------------------------------------------------
-    * enum ConnectionStatusType
+    * enum ConnectionStateType
     */
-   lily.ConnectionStatusType = lily.makeEnum([
+   connect.ConnectionStateType = connect.makeEnum([
          'init',
          'connecting',
          'connected',
          'hold',
          'disconnected'
    ]);
+   connect.ConnectionStatusType = connect.ConnectionStateType;
 
-   lily.CONNECTION_ACTIVE_STATES = lily.set([
-         lily.ConnectionStatusType.CONNECTING,
-         lily.ConnectionStatusType.CONNECTED,
-         lily.ConnectionStatusType.HOLD
+   connect.CONNECTION_ACTIVE_STATES = connect.set([
+         connect.ConnectionStateType.CONNECTING,
+         connect.ConnectionStateType.CONNECTED,
+         connect.ConnectionStateType.HOLD
    ]);
 
    /*----------------------------------------------------------------
-    * enum ContactStatusType
+    * enum ContactStateType
     */
-   lily.ContactStatusType = lily.makeEnum([
+   connect.ContactStateType = connect.makeEnum([
          'init',
          'incoming',
          'pending',
@@ -96,8 +113,9 @@
          'error',
          'ended'
    ]);
+   connect.ContactStatusType = connect.ContactStateType;
 
-   lily.CONTACT_ACTIVE_STATES = lily.makeEnum([
+   connect.CONTACT_ACTIVE_STATES = connect.makeEnum([
          'incoming',
          'connecting',
          'connected'
@@ -106,7 +124,7 @@
    /*----------------------------------------------------------------
     * enum ContactType
     */
-   lily.ContactType = lily.makeEnum([
+   connect.ContactType = connect.makeEnum([
          'voice',
          'queue_callback'
    ]);
@@ -114,7 +132,7 @@
    /*----------------------------------------------------------------
     * enum SoftphoneCallType
     */
-   lily.SoftphoneCallType = lily.makeEnum([
+   connect.SoftphoneCallType = connect.makeEnum([
          'audio_video',
          'video_only',
          'audio_only',
@@ -124,7 +142,7 @@
    /*----------------------------------------------------------------
     * enum for SoftphoneErrorTypes
     */
-    lily.SoftphoneErrorTypes = lily.makeEnum([
+    connect.SoftphoneErrorTypes = connect.makeEnum([
         'unsupported_browser',
         'microphone_not_shared',
         'signalling_handshake_failure',
@@ -140,79 +158,83 @@
     * class Agent
     */
    var Agent = function() {
-      if (! lily.agent.initialized) {
-         throw new lily.StateError("The agent is not yet initialized!");
+      if (! connect.agent.initialized) {
+         throw new connect.StateError("The agent is not yet initialized!");
       }
    };
 
    Agent.prototype._getData = function() {
-      return lily.core.getAgentDataProvider().getAgentData();
+      return connect.core.getAgentDataProvider().getAgentData();
    };
 
    Agent.prototype._createContactAPI = function(contactData) {
-      return new lily.Contact(contactData.contactId);
+      return new connect.Contact(contactData.contactId);
    };
 
    Agent.prototype.onContactPending = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(lily.AgentEvents.CONTACT_PENDING, f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.AgentEvents.CONTACT_PENDING, f);
    };
 
    Agent.prototype.onRefresh = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(lily.AgentEvents.REFRESH, f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.AgentEvents.REFRESH, f);
    };
 
    Agent.prototype.onRoutable = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(lily.AgentEvents.ROUTABLE, f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.AgentEvents.ROUTABLE, f);
    };
 
    Agent.prototype.onNotRoutable = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(lily.AgentEvents.NOT_ROUTABLE, f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.AgentEvents.NOT_ROUTABLE, f);
    };
 
    Agent.prototype.onOffline = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(lily.AgentEvents.OFFLINE, f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.AgentEvents.OFFLINE, f);
    };
 
    Agent.prototype.onError = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(lily.AgentEvents.ERROR, f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.AgentEvents.ERROR, f);
    };
 
    Agent.prototype.onSoftphoneError = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(lily.AgentEvents.SOFTPHONE_ERROR, f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.AgentEvents.SOFTPHONE_ERROR, f);
    };
 
    Agent.prototype.onAfterCallWork = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(lily.AgentEvents.ACW, f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.AgentEvents.ACW, f);
    };
 
    Agent.prototype.onStateChange = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(lily.AgentEvents.STATE_CHANGE, f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.AgentEvents.STATE_CHANGE, f);
    };
 
-   Agent.prototype.getStatus = function() {
-      return this._getData().status;
+   Agent.prototype.getState = function() {
+      return this._getData().snapshot.state;
    };
 
-   Agent.prototype.getStatusDuration = function() {
-      return lily.now() - lily.core.getLocalTimestamp() + this._getData().status.duration * 1000;
+   Agent.prototype.getStatus = Agent.prototype.getState;
+
+   Agent.prototype.getStateDuration = function() {
+      return connect.now() - connect.core.getLocalTimestamp() + this._getData().snapshot.state.duration * 1000;
    };
+
+   Agent.prototype.getStatusDuration = Agent.prototype.getStateDuration;
 
    Agent.prototype.getPermissions = function() {
-      return this._getData().permissions;
+      return this.getConfiguration().permissions;
    };
 
    Agent.prototype.getContacts = function(contactTypeFilter) {
       var self = this;
-      return this._getData().contacts.map(function(contactData) {
+      return this._getData().snapshot.contacts.map(function(contactData) {
          return self._createContactAPI(contactData);
       }).filter(function(contact) {
          return (! contactTypeFilter) || contact.getType() === contactTypeFilter;
@@ -224,11 +246,11 @@
    };
 
    Agent.prototype.getAgentStates = function() {
-      return this._getData().agentStates;
+      return this.getConfiguration().agentStates;
    };
 
    Agent.prototype.getRoutingProfile = function() {
-      return this._getData().routingProfile;
+      return this.getConfiguration().routingProfile;
    };
 
    Agent.prototype.getName = function() {
@@ -248,55 +270,94 @@
    };
 
    Agent.prototype.setConfiguration = function(configuration, callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.UPDATE_AGENT_CONFIGURATION, {
-         configuration: lily.assertNotNull(configuration, 'configuration')
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.UPDATE_AGENT_CONFIGURATION, {
+         configuration: connect.assertNotNull(configuration, 'configuration')
       }, callbacks);
    };
 
-   Agent.prototype.setStatus = function(status, callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.UPDATE_AGENT_STATUS, {
-         status: lily.assertNotNull(status, 'status')
+   Agent.prototype.setState = function(state, callbacks) {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.PUT_AGENT_STATE, {
+         state: connect.assertNotNull(state, 'state')
       }, callbacks);
    };
 
-   Agent.prototype.connect = function(address, params) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.CREATE_OUTBOUND_CONTACT, {
-         address:    lily.assertNotNull(address, 'address'),
-         queueId:    params.queueId || this.getRoutingProfile().defaultOutboundQueue.queueId
+   Agent.prototype.setStatus = Agent.prototype.setState;
+
+   Agent.prototype.connect = function(endpointIn, params) {
+      var client = connect.core.getClient();
+      var endpoint = new connect.Endpoint(endpointIn);
+      // Have to remove the endpointId field or AWS JS SDK gets mad.
+      delete endpoint.endpointId;
+
+      client.call(connect.ClientMethods.CREATE_OUTBOUND_CONTACT, {
+         endpoint:    connect.assertNotNull(endpoint, 'endpoint'),
+         queueARN:   params.queueARN || params.queueId || this.getRoutingProfile().defaultOutboundQueue.queueARN
       }, {
          success: params.success,
          failure: params.failure
       });
    };
 
-   Agent.prototype.getAddresses = function(queueId, callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.GET_ADDRESSES, {
-         queueId:    queueId || null
+   Agent.prototype.getAllQueueARNs = function() {
+      return this.getConfiguration().routingProfile.queues.map(function(queue) {
+         return queue.queueARN;
+      });
+   };
+
+   Agent.prototype.getEndpoints = function(queueARNs, callbacks, pageInfoIn) {
+      var self = this;
+      var client = connect.core.getClient();
+      var pageInfo = pageInfoIn || {endpoints: []};
+
+      pageInfo.maxResults = pageInfo.maxResults || connect.DEFAULT_BATCH_SIZE;
+
+      // Backwards compatibility allowing a single queueARN to be specified
+      // instead of an array.
+      if (! connect.isArray(queueARNs)) {
+         queueARNs = [queueARNs];
+      }
+
+      client.call(connect.ClientMethods.GET_ENDPOINTS, {
+         queueARNs:   queueARNs,
+         nextToken:   pageInfo.nextToken || null,
+         maxResults:  pageInfo.maxResults
       }, {
          success: function(data) {
-            callbacks.success({
-               addresses: data.addresses.map(function(addr) {
-                  return new lily.Address(addr);
-               })
-            });
+            if (data.nextToken) {
+               self.getEndpoints(queueARNs, callbacks, {
+                  nextToken:  data.nextToken,
+                  maxResults: pageInfo.maxResults,
+                  endpoints:  pageInfo.endpoints.concat(data.endpoints)
+               });
+            } else {
+               pageInfo.endpoints = pageInfo.endpoints.concat(data.endpoints);
+               var endpoints = pageInfo.endpoints.map(function(endpoint) {
+                     return new connect.Endpoint(endpoint);
+               });
+
+               callbacks.success({
+                  endpoints: endpoints,
+                  addresses: endpoints
+               });
+            }
          },
          failure: callbacks.failure
       });
    };
 
+   Agent.prototype.getAddresses = Agent.prototype.getEndpoints;
+
    Agent.prototype.toSnapshot = function() {
-      return new lily.AgentSnapshot(this._getData());
+      return new connect.AgentSnapshot(this._getData());
    };
 
    /*----------------------------------------------------------------
     * class AgentSnapshot
     */
    var AgentSnapshot = function(agentData) {
-      lily.Agent.call(this);
+      connect.Agent.call(this);
       this.agentData = agentData;
    };
    AgentSnapshot.prototype = Object.create(Agent.prototype);
@@ -307,7 +368,7 @@
    };
 
    AgentSnapshot.prototype._createContactAPI = function(contactData) {
-      return new lily.ContactSnapshot(contactData);
+      return new connect.ContactSnapshot(contactData);
    };
 
    /*----------------------------------------------------------------
@@ -318,61 +379,61 @@
    };
 
    Contact.prototype._getData = function() {
-      return lily.core.getAgentDataProvider().getContactData(this.getContactId());
+      return connect.core.getAgentDataProvider().getContactData(this.getContactId());
    };
 
    Contact.prototype._createConnectionAPI = function(connectionData) {
-      return new lily.Connection(this.contactId, connectionData.connectionId);
+      return new connect.Connection(this.contactId, connectionData.connectionId);
    };
 
    Contact.prototype.getEventName = function(eventName) {
-      return lily.core.getContactEventName(eventName, this.getContactId());
+      return connect.core.getContactEventName(eventName, this.getContactId());
    };
 
    Contact.prototype.onRefresh = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(this.getEventName(lily.ContactEvents.REFRESH), f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(this.getEventName(connect.ContactEvents.REFRESH), f);
    };
 
    Contact.prototype.onIncoming = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(this.getEventName(lily.ContactEvents.INCOMING), f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(this.getEventName(connect.ContactEvents.INCOMING), f);
    };
 
    Contact.prototype.onConnecting = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(this.getEventName(lily.ContactEvents.CONNECTING), f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTING), f);
    };
 
    Contact.prototype.onPending = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(this.getEventName(lily.ContactEvents.PENDING), f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(this.getEventName(connect.ContactEvents.PENDING), f);
    };
 
    Contact.prototype.onAccepted = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(this.getEventName(lily.ContactEvents.ACCEPTED), f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(this.getEventName(connect.ContactEvents.ACCEPTED), f);
    };
 
    Contact.prototype.onMissed = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(this.getEventName(lily.ContactEvents.MISSED), f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(this.getEventName(connect.ContactEvents.MISSED), f);
    };
 
    Contact.prototype.onEnded = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(this.getEventName(lily.ContactEvents.ENDED), f);
-      bus.subscribe(this.getEventName(lily.ContactEvents.DESTROYED), f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(this.getEventName(connect.ContactEvents.ENDED), f);
+      bus.subscribe(this.getEventName(connect.ContactEvents.DESTROYED), f);
    };
 
    Contact.prototype.onACW = function(f) {
-     var bus = lily.core.getEventBus();
-     bus.subscribe(this.getEventName(lily.ContactEvents.ACW), f);
+     var bus = connect.core.getEventBus();
+     bus.subscribe(this.getEventName(connect.ContactEvents.ACW), f);
    };
 
    Contact.prototype.onConnected = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(this.getEventName(lily.ContactEvents.CONNECTED), f);
+      var bus = connect.core.getEventBus();
+      bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTED), f);
    };
 
    Contact.prototype.getContactId = function() {
@@ -388,11 +449,11 @@
    };
 
    Contact.prototype.getStatus = function() {
-      return this._getData().status;
+      return this._getData().state;
    };
 
    Contact.prototype.getStatusDuration = function() {
-      return lily.now() - lily.core.getLocalTimestamp() + this._getData().status.duration * 1000;
+      return connect.now() - connect.core.getLocalTimestamp() + this._getData().state.duration * 1000;
    };
 
    Contact.prototype.getQueue = function() {
@@ -406,12 +467,12 @@
    Contact.prototype.getConnections = function() {
       var self = this;
       return this._getData().connections.map(function(connData) {
-         return new lily.Connection(self.contactId, connData.connectionId);
+         return new connect.Connection(self.contactId, connData.connectionId);
       });
    };
 
    Contact.prototype.getInitialConnection = function() {
-      return lily.find(this.getConnections(), function(conn) {
+      return connect.find(this.getConnections(), function(conn) {
          return conn.isInitialConnection();
       }) || null;
    };
@@ -427,7 +488,7 @@
 
    Contact.prototype.getThirdPartyConnections = function() {
       return this.getConnections().filter(function(conn) {
-         return ! conn.isInitialConnection() && conn.getType() !== lily.ConnectionType.AGENT;
+         return ! conn.isInitialConnection() && conn.getType() !== connect.ConnectionType.AGENT;
       });
    };
 
@@ -438,9 +499,9 @@
    };
 
    Contact.prototype.getAgentConnection = function() {
-      return lily.find(this.getConnections(), function(conn) {
+      return connect.find(this.getConnections(), function(conn) {
          var connType =  conn.getType();
-         return connType === lily.ConnectionType.AGENT || connType === lily.ConnectionType.MONITORING;
+         return connType === connect.ConnectionType.AGENT || connType === connect.ConnectionType.MONITORING;
       });
    };
 
@@ -449,56 +510,60 @@
    };
 
    Contact.prototype.isSoftphoneCall = function() {
-      return lily.find(this.getConnections(), function(conn) {
+      return connect.find(this.getConnections(), function(conn) {
          return conn.getSoftphoneMediaInfo() != null;
       }) != null;
    };
 
    Contact.prototype.isInbound = function() {
       var conn = this.getInitialConnection();
-      return conn ? conn.getType() === lily.ConnectionType.INBOUND : false;
+      return conn ? conn.getType() === connect.ConnectionType.INBOUND : false;
    };
 
    Contact.prototype.isConnected = function() {
-      return this.getStatus().type === lily.ContactStatusType.CONNECTED;
+      return this.getStatus().type === connect.ContactStateType.CONNECTED;
    };
 
    Contact.prototype.accept = function(callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.ACCEPT_CONTACT, {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.ACCEPT_CONTACT, {
          contactId:  this.getContactId()
       }, callbacks);
    };
 
    Contact.prototype.destroy = function(callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.DESTROY_CONTACT, {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.DESTROY_CONTACT, {
          contactId:  this.getContactId()
       }, callbacks);
    };
 
    Contact.prototype.notifyIssue = function(issueCode, description, callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.NOTIFY_CONTACT_ISSUE, {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.NOTIFY_CONTACT_ISSUE, {
          contactId:     this.getContactId(),
          issueCode:     issueCode,
          description:   description
       }, callbacks);
    };
 
-   Contact.prototype.addConnection = function(address, callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.CREATE_ADDITIONAL_CONNECTION, {
+   Contact.prototype.addConnection = function(endpointIn, callbacks) {
+      var client = connect.core.getClient();
+      var endpoint = new connect.Endpoint(endpointIn);
+      // Have to remove the endpointId field or AWS JS SDK gets mad.
+      delete endpoint.endpointId;
+
+      client.call(connect.ClientMethods.CREATE_ADDITIONAL_CONNECTION, {
          contactId:     this.getContactId(),
-         address:       address
+         endpoint:      endpoint
       }, callbacks);
    };
 
    Contact.prototype.toggleActiveConnections = function(callbacks) {
-      var client = lily.core.getClient();
+      var client = connect.core.getClient();
       var connectionId = null;
-      var holdingConn = lily.find(this.getConnections(), function(conn) {
-         return conn.getStatus().type === lily.ConnectionStatusType.HOLD;
+      var holdingConn = connect.find(this.getConnections(), function(conn) {
+         return conn.getStatus().type === connect.ConnectionStateType.HOLD;
       });
 
       if (holdingConn != null) {
@@ -513,45 +578,45 @@
          }
       }
 
-      client.call(lily.ClientMethods.TOGGLE_ACTIVE_CONNECTIONS, {
+      client.call(connect.ClientMethods.TOGGLE_ACTIVE_CONNECTIONS, {
          contactId:     this.getContactId(),
          connectionId:  connectionId
       }, callbacks);
    };
 
    Contact.prototype.sendSoftphoneMetrics = function(softphoneStreamStatistics, callbacks) {
-      var client = lily.core.getClient();
+      var client = connect.core.getClient();
 
-      client.call(lily.ClientMethods.SEND_SOFTPHONE_CALL_METRICS, {
+      client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS, {
          contactId:     this.getContactId(),
          softphoneStreamStatistics:  softphoneStreamStatistics
       }, callbacks);
    };
 
    Contact.prototype.sendSoftphoneReport = function(report, callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.SEND_SOFTPHONE_CALL_REPORT, {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT, {
          contactId:     this.getContactId(),
          report:  report
       }, callbacks);
    };
 
    Contact.prototype.conferenceConnections = function(callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.CONFERENCE_CONNECTIONS, {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.CONFERENCE_CONNECTIONS, {
          contactId:     this.getContactId()
       }, callbacks);
    };
 
    Contact.prototype.toSnapshot = function() {
-      return new lily.ContactSnapshot(this._getData());
+      return new connect.ContactSnapshot(this._getData());
    };
 
    /*----------------------------------------------------------------
     * class ContactSnapshot
     */
    var ContactSnapshot = function(contactData) {
-      lily.Contact.call(this, contactData.contactId);
+      connect.Contact.call(this, contactData.contactId);
       this.contactData = contactData;
    };
    ContactSnapshot.prototype = Object.create(Contact.prototype);
@@ -562,7 +627,7 @@
    };
 
    ContactSnapshot.prototype._createConnectionAPI = function(connectionData) {
-      return new lily.ConnectionSnapshot(connectionData);
+      return new connect.ConnectionSnapshot(connectionData);
    };
 
    /*----------------------------------------------------------------
@@ -574,7 +639,7 @@
    };
 
    Connection.prototype._getData = function() {
-      return lily.core.getAgentDataProvider().getConnectionData(
+      return connect.core.getAgentDataProvider().getConnectionData(
             this.getContactId(), this.getConnectionId());
    };
 
@@ -586,16 +651,18 @@
       return this.connectionId;
    };
 
-   Connection.prototype.getAddress = function() {
-      return new lily.Address(this._getData().address);
+   Connection.prototype.getEndpoint = function() {
+      return new connect.Endpoint(this._getData().endpoint);
    };
 
+   Connection.prototype.getAddress = Connection.prototype.getEndpoint;
+
    Connection.prototype.getStatus = function() {
-      return this._getData().status;
+      return this._getData().state;
    };
 
    Connection.prototype.getStatusDuration = function() {
-      return lily.now() - lily.core.getLocalTimestamp() + this._getData().status.duration * 1000;
+      return connect.now() - connect.core.getLocalTimestamp() + this._getData().state.duration * 1000;
    };
 
    Connection.prototype.getType = function() {
@@ -607,19 +674,19 @@
    };
 
    Connection.prototype.isActive = function() {
-      return lily.contains(lily.CONNECTION_ACTIVE_STATES, this.getStatus().type);
+      return connect.contains(connect.CONNECTION_ACTIVE_STATES, this.getStatus().type);
    };
 
    Connection.prototype.isConnected = function() {
-      return this.getStatus().type === lily.ConnectionStatusType.CONNECTED;
+      return this.getStatus().type === connect.ConnectionStateType.CONNECTED;
    };
 
    Connection.prototype.isConnecting = function() {
-      return this.getStatus().type === lily.ConnectionStatusType.CONNECTING;
+      return this.getStatus().type === connect.ConnectionStateType.CONNECTING;
    };
 
    Connection.prototype.isOnHold = function() {
-      return this.getStatus().type === lily.ConnectionStatusType.HOLD;
+      return this.getStatus().type === connect.ConnectionStateType.HOLD;
    };
 
    Connection.prototype.getSoftphoneMediaInfo = function() {
@@ -627,16 +694,16 @@
    };
 
    Connection.prototype.destroy = function(callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.DESTROY_CONNECTION, {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.DESTROY_CONNECTION, {
          contactId:     this.getContactId(),
          connectionId:  this.getConnectionId()
       }, callbacks);
    };
 
    Connection.prototype.sendDigits = function(digits, callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.SEND_DIGITS, {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.SEND_DIGITS, {
          contactId:     this.getContactId(),
          connectionId:  this.getConnectionId(),
          digits:        digits
@@ -644,30 +711,30 @@
    };
 
    Connection.prototype.hold = function(callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.HOLD_CONNECTION, {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.HOLD_CONNECTION, {
          contactId:     this.getContactId(),
          connectionId:  this.getConnectionId()
       }, callbacks);
    };
 
    Connection.prototype.resume = function(callbacks) {
-      var client = lily.core.getClient();
-      client.call(lily.ClientMethods.RESUME_CONNECTION, {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.RESUME_CONNECTION, {
          contactId:     this.getContactId(),
          connectionId:  this.getConnectionId()
       }, callbacks);
    };
 
    Connection.prototype.toSnapshot = function() {
-      return new lily.ConnectionSnapshot(this._getData());
+      return new connect.ConnectionSnapshot(this._getData());
    };
 
    /*----------------------------------------------------------------
     * class ConnectionSnapshot
     */
    var ConnectionSnapshot = function(connectionData) {
-      lily.Connection.call(this, connectionData.contactId, connectionData.connectionId);
+      connect.Connection.call(this, connectionData.contactId, connectionData.connectionId);
       this.connectionData = connectionData;
    };
    ConnectionSnapshot.prototype = Object.create(Connection.prototype);
@@ -677,9 +744,10 @@
       return this.connectionData;
    };
 
-   var Address = function(paramsIn) {
+   var Endpoint = function(paramsIn) {
       var params = paramsIn || {};
-      this.addressId = params.addressId || null;
+      this.endpointARN = params.endpointId || params.endpointARN || null;
+      this.endpointId = this.endpointARN;
       this.type = params.type || null;
       this.name = params.name || null;
       this.phoneNumber = params.phoneNumber || null;
@@ -688,18 +756,18 @@
    };
 
    /**
-    * Strip the SIP address components from the phoneNumber field.
+    * Strip the SIP endpoint components from the phoneNumber field.
     */
-   Address.prototype.stripPhoneNumber = function() {
+   Endpoint.prototype.stripPhoneNumber = function() {
       return this.phoneNumber ? this.phoneNumber.replace(/sip:([^@]*)@.*/, "$1") : "";
    };
 
    /**
-    * Create an Address object from the given phone number and name.
+    * Create an Endpoint object from the given phone number and name.
     */
-   Address.byPhoneNumber = function(number, name) {
-      return new Address({
-         type:          lily.AddressType.PHONE_NUMBER,
+   Endpoint.byPhoneNumber = function(number, name) {
+      return new Endpoint({
+         type:          connect.EndpointType.PHONE_NUMBER,
          phoneNumber:   number,
          name:          name || null
       });
@@ -726,20 +794,20 @@
    /*----------------------------------------------------------------
     * Root Subscription APIs.
     */
-   lily.agent = function(f) {
-      if (lily.agent.initialized) {
-         f(new lily.Agent());
+   connect.agent = function(f) {
+      if (connect.agent.initialized) {
+         f(new connect.Agent());
 
       } else {
-         var bus = lily.core.getEventBus();
-         bus.subscribe(lily.AgentEvents.INIT, f);
+         var bus = connect.core.getEventBus();
+         bus.subscribe(connect.AgentEvents.INIT, f);
       }
    };
-   lily.agent.initialized = false;
+   connect.agent.initialized = false;
 
-   lily.contact = function(f) {
-      var bus = lily.core.getEventBus();
-      bus.subscribe(lily.ContactEvents.INIT, f);
+   connect.contact = function(f) {
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.ContactEvents.INIT, f);
    };
 
    /**
@@ -751,21 +819,21 @@
     * @param f_true The callback to be invoked if we are the master.
     * @param f_else [optional] A callback to be invoked if we are not the master.
     */
-   lily.ifMaster = function(topic, f_true, f_else) {
-      lily.assertNotNull(topic, "A topic must be provided.");
-      lily.assertNotNull(f_true, "A true callback must be provided.");
+   connect.ifMaster = function(topic, f_true, f_else) {
+      connect.assertNotNull(topic, "A topic must be provided.");
+      connect.assertNotNull(f_true, "A true callback must be provided.");
 
-      if (! lily.core.masterClient) {
+      if (! connect.core.masterClient) {
          // We can't be the master because there is no master client!
-         lily.getLog().warn("We can't be the master for topic '%s' because there is no master client!", topic);
+         connect.getLog().warn("We can't be the master for topic '%s' because there is no master client!", topic);
          if (f_else) {
             f_else();
          }
          return;
       }
 
-      var masterClient = lily.core.getMasterClient();
-      masterClient.call(lily.MasterMethods.CHECK_MASTER, {
+      var masterClient = connect.core.getMasterClient();
+      masterClient.call(connect.MasterMethods.CHECK_MASTER, {
          topic: topic
       }, {
          success: function(data) {
@@ -782,21 +850,22 @@
    /**
     * Notify the shared worker that we are now the master for the given topic.
     */
-   lily.becomeMaster = function(topic) {
-      lily.assertNotNull(topic, "A topic must be provided.");
-      var masterClient = lily.core.getMasterClient();
-      masterClient.call(lily.MasterMethods.BECOME_MASTER, {
+   connect.becomeMaster = function(topic) {
+      connect.assertNotNull(topic, "A topic must be provided.");
+      var masterClient = connect.core.getMasterClient();
+      masterClient.call(connect.MasterMethods.BECOME_MASTER, {
          topic: topic
       });
    };
 
-   lily.Agent = Agent;
-   lily.AgentSnapshot = AgentSnapshot;
-   lily.Contact = Contact;
-   lily.ContactSnapshot = ContactSnapshot;
-   lily.Connection = Connection;
-   lily.ConnectionSnapshot = ConnectionSnapshot;
-   lily.Address = Address;
-   lily.SoftphoneError = SoftphoneError;
+   connect.Agent = Agent;
+   connect.AgentSnapshot = AgentSnapshot;
+   connect.Contact = Contact;
+   connect.ContactSnapshot = ContactSnapshot;
+   connect.Connection = Connection;
+   connect.ConnectionSnapshot = ConnectionSnapshot;
+   connect.Endpoint = Endpoint;
+   connect.Address = Endpoint;
+   connect.SoftphoneError = SoftphoneError;
 
 })();

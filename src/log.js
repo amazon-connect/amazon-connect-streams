@@ -1,8 +1,23 @@
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
 (function() {
 
    var global = this;
-   lily = global.lily || {};
-   global.lily = lily;
+   connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
 
    // How frequently logs should be collected and reported to shared worker.
    var LOG_REPORT_INTERVAL_MILLIS = 5000;
@@ -144,7 +159,7 @@
     * to the console.
     */
    LogEntry.prototype.toString = function() {
-      return lily.sprintf("[%s] [%s]: %s",
+      return connect.sprintf("[%s] [%s]: %s",
          this.getTime() && this.getTime().toISOString ? this.getTime().toISOString() : "???",
          this.getLevel(),
          this.getText());
@@ -192,7 +207,7 @@
     * may contain any number of objects.
     */
    LogEntry.prototype.withObject = function(obj) {
-      this.objects.push(lily.deepcopy(obj));
+      this.objects.push(connect.deepcopy(obj));
       return this;
    };
 
@@ -241,7 +256,7 @@
     * @param logEntries The maximum number of log entries to keep.
     */
    Logger.prototype.startLogRolling = function(setIntervalProc, interval, logEntries) {
-      setIntervalProc(lily.hitch(this, this.rollLogs, logEntries), interval);
+      setIntervalProc(connect.hitch(this, this.rollLogs, logEntries), interval);
    };
 
    /**
@@ -266,7 +281,7 @@
     */
    Logger.prototype.write = function(component, level, text) {
       var logEntry = new LogEntry(component, level, text);
-      this.addLogEntry(logEntry); 
+      this.addLogEntry(logEntry);
       return logEntry;
    };
 
@@ -313,42 +328,42 @@
 
    Logger.prototype.trace = function() {
       var logArgs = extractLoggerArgs(arguments);
-      return this.write(logArgs.component, LogLevel.TRACE, lily.vsprintf(logArgs.format, logArgs.args));
+      return this.write(logArgs.component, LogLevel.TRACE, connect.vsprintf(logArgs.format, logArgs.args));
    };
 
    Logger.prototype.debug = function() {
       var logArgs = extractLoggerArgs(arguments);
-      return this.write(logArgs.component, LogLevel.DEBUG, lily.vsprintf(logArgs.format, logArgs.args));
+      return this.write(logArgs.component, LogLevel.DEBUG, connect.vsprintf(logArgs.format, logArgs.args));
    };
 
    Logger.prototype.info = function() {
       var logArgs = extractLoggerArgs(arguments);
-      return this.write(logArgs.component, LogLevel.INFO, lily.vsprintf(logArgs.format, logArgs.args));
+      return this.write(logArgs.component, LogLevel.INFO, connect.vsprintf(logArgs.format, logArgs.args));
    };
 
    Logger.prototype.log = function() {
       var logArgs = extractLoggerArgs(arguments);
-      return this.write(logArgs.component, LogLevel.LOG, lily.vsprintf(logArgs.format, logArgs.args));
+      return this.write(logArgs.component, LogLevel.LOG, connect.vsprintf(logArgs.format, logArgs.args));
    };
 
    Logger.prototype.test = function() {
       var logArgs = extractLoggerArgs(arguments);
-      return this.write(logArgs.component, LogLevel.TEST, lily.vsprintf(logArgs.format, logArgs.args));
+      return this.write(logArgs.component, LogLevel.TEST, connect.vsprintf(logArgs.format, logArgs.args));
    };
 
    Logger.prototype.warn = function() {
       var logArgs = extractLoggerArgs(arguments);
-      return this.write(logArgs.component, LogLevel.WARN, lily.vsprintf(logArgs.format, logArgs.args));
+      return this.write(logArgs.component, LogLevel.WARN, connect.vsprintf(logArgs.format, logArgs.args));
    };
 
    Logger.prototype.error = function() {
       var logArgs = extractLoggerArgs(arguments);
-      return this.write(logArgs.component, LogLevel.ERROR, lily.vsprintf(logArgs.format, logArgs.args));
+      return this.write(logArgs.component, LogLevel.ERROR, connect.vsprintf(logArgs.format, logArgs.args));
    };
 
    Logger.prototype.critical = function() {
       var logArgs = extractLoggerArgs(arguments);
-      return this.write(logArgs.component, LogLevel.ERROR, lily.vsprintf(logArgs.format, logArgs.args));
+      return this.write(logArgs.component, LogLevel.ERROR, connect.vsprintf(logArgs.format, logArgs.args));
    };
 
    /**
@@ -374,19 +389,19 @@
    };
 
    Logger.prototype.scheduleUpstreamLogPush = function(conduit) {
-      if (!lily.upstreamLogPushScheduled) {
-          lily.upstreamLogPushScheduled = true;
+      if (!connect.upstreamLogPushScheduled) {
+          connect.upstreamLogPushScheduled = true;
           /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to LARS*/
-          global.setInterval(lily.hitch(this, this.reportMasterLogsUpStream, conduit), LOG_REPORT_INTERVAL_MILLIS);
+          global.setInterval(connect.hitch(this, this.reportMasterLogsUpStream, conduit), LOG_REPORT_INTERVAL_MILLIS);
       }
    };
 
    Logger.prototype.reportMasterLogsUpStream = function(conduit) {
       var logsToPush = this._logsToPush.slice();
       this._logsToPush = [];
-      lily.ifMaster(lily.MasterTopics.SEND_LOGS, function(){
+      connect.ifMaster(connect.MasterTopics.SEND_LOGS, function(){
           if (logsToPush.length > 0) {
-             conduit.sendUpstream(lily.EventType.SEND_LOGS, logsToPush);
+             conduit.sendUpstream(connect.EventType.SEND_LOGS, logsToPush);
           }
       });
    };
@@ -394,35 +409,35 @@
    var DownstreamConduitLogger = function(conduit) {
       Logger.call(this);
       this.conduit = conduit;
-      global.setInterval(lily.hitch(this, this._pushLogsDownstream),
+      global.setInterval(connect.hitch(this, this._pushLogsDownstream),
             DownstreamConduitLogger.LOG_PUSH_INTERVAL);
    };
    // How frequently logs should be collected and delivered downstream.
    DownstreamConduitLogger.LOG_PUSH_INTERVAL = 1000;
    DownstreamConduitLogger.prototype = Object.create(Logger.prototype);
    DownstreamConduitLogger.prototype.constructor = DownstreamConduitLogger;
-   
+
    DownstreamConduitLogger.prototype._pushLogsDownstream = function() {
       var self = this;
       this._logs.forEach(function(log) {
-         self.conduit.sendDownstream(lily.EventType.LOG, log);
+         self.conduit.sendDownstream(connect.EventType.LOG, log);
       });
       this._logs = [];
    };
 
    /** Create the singleton logger instance. */
-   lily.rootLogger = new Logger();
+   connect.rootLogger = new Logger();
 
    /** Fetch the singleton logger instance. */
    var getLog = function() {
-      return lily.rootLogger;
+      return connect.rootLogger;
    };
 
-   lily = lily || {};
-   lily.getLog = getLog;
-   lily.LogEntry = LogEntry;
-   lily.Logger = Logger;
-   lily.LogLevel = LogLevel;
-   lily.LogComponent = LogComponent;
-   lily.DownstreamConduitLogger = DownstreamConduitLogger;
+   connect = connect || {};
+   connect.getLog = getLog;
+   connect.LogEntry = LogEntry;
+   connect.Logger = Logger;
+   connect.LogLevel = LogLevel;
+   connect.LogComponent = LogComponent;
+   connect.DownstreamConduitLogger = DownstreamConduitLogger;
 })();
