@@ -3,7 +3,7 @@
 # Concatenates JS assets in the correct order.
 #
 
-VERSION = 'v1.0'
+VERSION = $(shell git describe --tags)
 OUTPUT_JS = 'amazon-connect-$(VERSION).js'
 
 SOURCE_FILES = src/aws-client.js \
