@@ -902,6 +902,30 @@ module.exports={
         }
       }
     },
+    "GetNewAuthToken": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "authentication",
+          "refreshToken"
+        ],
+        "members": {
+          "authentication": {
+            "shape": "S2"
+          },
+          "refreshToken": {}
+        }
+      },
+      "output": {
+        "type": "structure",
+        "members": {
+          "newAuthToken": {},
+          "expirationDateTime": {
+            "type": "timestamp"
+          }
+        }
+      }
+    },
     "GetRoutingProfileQueues": {
       "input": {
         "type": "structure",
@@ -1089,7 +1113,7 @@ module.exports={
           },
           "contactId": {},
           "softphoneStreamStatistics": {
-            "shape": "S2k"
+            "shape": "S2m"
           }
         }
       },
@@ -1121,7 +1145,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S2k"
+                "shape": "S2m"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -1345,7 +1369,7 @@ module.exports={
         }
       }
     },
-    "S2k": {
+    "S2m": {
       "type": "list",
       "member": {
         "type": "structure",
@@ -1476,6 +1500,10 @@ module.exports={
     "prefix": "config",
     "name": "ConfigService",
     "cors": true
+  },
+  "connect": {
+    "name":  "Connect",
+    "cors":  true
   },
   "datapipeline": {
     "name": "DataPipeline"
@@ -1618,10 +1646,6 @@ module.exports={
   },
   "lambda": {
     "name": "Lambda",
-    "cors": true
-  },
-  "connect": {
-    "name": "Connect",
     "cors": true
   },
   "machinelearning": {
@@ -3351,6 +3375,13 @@ AWS.XHRClient = AWS.util.inherit({
         code: 'NetworkingError'
       }));
     }, false);
+    /** BEGIN HOT-FIX: DO NOT REMOVE https://issues.amazon.com/issues/JS-358 */
+    xhr.addEventListener('abort', function () {
+      errCallback(AWS.util.error(new Error('Connection aborted'), {
+        code: 'RequestAborted'
+      }));
+    }, false);
+    /** END */
 
     callback(emitter);
     xhr.open(httpRequest.method, href, httpOptions.xhrAsync !== false);
@@ -9803,7 +9834,7 @@ function hash(alg, key) {
   return {
     update: function (data) {
       if(!Buffer.isBuffer(data)) data = new Buffer(data)
-
+        
       bufs.push(data)
       length += data.length
       return this

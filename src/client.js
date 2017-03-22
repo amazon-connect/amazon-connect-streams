@@ -45,7 +45,8 @@
          'sendDigits',
          'sendSoftphoneCallReport',
          'sendSoftphoneCallMetrics',
-         'getEndpoints'
+         'getEndpoints',
+         'getNewAuthToken'
    ]);
 
    /**---------------------------------------------------------------
@@ -195,12 +196,6 @@
                // LARS returns this header when the session expire.
                if (this.httpResponse.headers['x-amz-unauthorized'] === 'true') {
                   callbacks.authFailure();
-               }
-               var refreshHeader = this.httpResponse.headers['x-amzn-auth-refresh'];
-               if (refreshHeader) {
-                  lily.getLog().info("Auth token refreshed");
-                  AWS.config.credentials = new lily.AuthTokenCredentials(refreshHeader);
-                  callbacks.refreshAuthToken(refreshHeader);
                }
                try {
                   if (err) {

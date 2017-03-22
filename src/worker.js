@@ -134,8 +134,10 @@
       var self = this;
       var client = connect.core.getClient();
 
+      this.checkAuthToken();
+
       client.call(connect.ClientMethods.GET_AGENT_SNAPSHOT, {
-         nextToken:     this.nextToken,
+         nextToken:     self.nextToken,
          timeout:       GET_AGENT_TIMEOUT
       }, {
          success: function(data) {
@@ -157,9 +159,9 @@
                global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_RECOVERY_TIMEOUT);
             }
          },
-         authFailure: connect.hitch(self, self.handleAuthFail),
-         refreshAuthToken: connect.hitch(self, self.refreshAuthToken)
+         authFailure: connect.hitch(self, self.handleAuthFail)
       });
+
    };
 
    ClientEngine.prototype.pollForAgentConfiguration = function() {
@@ -188,8 +190,7 @@
                   GET_AGENT_CONFIGURATION_INTERVAL);
             }
          },
-         authFailure: connect.hitch(self, self.handleAuthFail),
-         refreshAuthToken: connect.hitch(self, self.refreshAuthToken)
+         authFailure: connect.hitch(self, self.handleAuthFail)
       });
    };
 
@@ -224,8 +225,7 @@
                   data: data
                });
          },
-         authFailure: connect.hitch(self, self.handleAuthFail),
-         refreshAuthToken: connect.hitch(self, self.refreshAuthToken)
+         authFailure: connect.hitch(self, self.handleAuthFail)
       });
    };
 
@@ -260,8 +260,7 @@
                   data: data
                });
          },
-         authFailure: connect.hitch(self, self.handleAuthFail),
-         refreshAuthToken: connect.hitch(self, self.refreshAuthToken)
+         authFailure: connect.hitch(self, self.handleAuthFail)
       });
    };
 
@@ -295,8 +294,7 @@
                   data: data
                });
          },
-         authFailure: connect.hitch(self, self.handleAuthFail),
-         refreshAuthToken: connect.hitch(self, self.refreshAuthToken)
+         authFailure: connect.hitch(self, self.handleAuthFail)
       });
    };
 
@@ -331,8 +329,7 @@
                   data: data
                });
          },
-         authFailure: connect.hitch(self, self.handleAuthFail),
-         refreshAuthToken: connect.hitch(self, self.refreshAuthToken)
+         authFailure: connect.hitch(self, self.handleAuthFail)
       });
    };
 
@@ -351,8 +348,7 @@
             connect.getLog().error("'%s' API request failed: %s", request.method, err)
                .withObject({request: request, response: response});
          },
-         authFailure: connect.hitch(self, self.handleAuthFail),
-         refreshAuthToken: connect.hitch(self, self.refreshAuthToken)
+         authFailure: connect.hitch(self, self.handleAuthFail)
       });
    };
 
@@ -470,8 +466,7 @@
          failure: function(err, data) {
             connect.getLog().error("SendLogs request failed. %s", err);
          },
-         authFailure: connect.hitch(self, self.handleAuthFail),
-         refreshAuthToken: connect.hitch(self, self.refreshAuthToken)
+         authFailure: connect.hitch(self, self.handleAuthFail)
       });
    };
 
@@ -480,9 +475,35 @@
       self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
    };
 
-   ClientEngine.prototype.refreshAuthToken = function(newAuthToken) {
-      this.initData.authToken = newAuthToken;
-      connect.core.init(this.initData);
+   ClientEngine.prototype.checkAuthToken = function() {
+      var self = this;
+      var expirationDate = new Date(self.initData.authTokenExpiration);
+      var currentTimeStamp = new Date().getTime();
+      var fiveMins = 5 * 60 * 1000;
+
+      // refresh token 5 minutes before expiration
+      if (expirationDate.getTime() < (currentTimeStamp + fiveMins)) {
+        this.refreshAuthToken();
+      }
+   };
+
+   ClientEngine.prototype.refreshAuthToken = function() {
+      var self = this;
+      connect.assertNotNull(self.initData.refreshToken, 'initData.refreshToken');
+
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.GET_NEW_AUTH_TOKEN, {refreshToken: self.initData.refreshToken}, {
+         success: function(data) {
+            connect.getLog().info("Get new auth token succeeded. New auth token expired at %s", data.expirationDateTime);
+            self.initData.authToken = data.newAuthToken;
+            self.initData.authTokenExpiration = new Date(data.expirationDateTime);
+            connect.core.init(self.initData);
+         },
+         failure: function(err, data) {
+            connect.getLog().error("Get new auth token failed. %s ", err);
+         },
+         authFailure: connect.hitch(self, self.handleAuthFail)
+      });
    };
 
    /**-----------------------------------------------------------------------*/

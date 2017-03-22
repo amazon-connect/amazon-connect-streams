@@ -26,22 +26,22 @@
 
    var CCP_SYN_TIMEOUT = 1000; // 1 sec
    var CCP_ACK_TIMEOUT = 3000; // 3 sec
-   var CCP_LOAD_TIMEOUT = 10000; // 10 sec
+   var CCP_LOAD_TIMEOUT = 3000; // 3 sec
    var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
 
    var LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
    var CLIENT_ID_MAP = {
-      "devo":        "b661e4d55bcdc85f",
       "us-east-1":   "06919f4fd8ed324e"
    };
-   var createLoginUrl = function(params, redirect) {
-      connect.assertTrue(params.region in CLIENT_ID_MAP, "unsupported region");
+   var createLoginUrl = function(params) {
+      //connect.assertTrue(params.region in CLIENT_ID_MAP, "unsupported region");
+      var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
       connect.assertNotNull(params.alias);
       connect.assertNotNull(redirect);
 
       return LOGIN_URL_PATTERN
          .replace("{alias}", params.alias)
-         .replace("{client_id}", CLIENT_ID_MAP[params.region])
+         .replace("{client_id}", CLIENT_ID_MAP["us-east-1"])
          .replace("{redirect}", global.encodeURIComponent(
             redirect));
    };
@@ -148,6 +148,8 @@
 
       var sharedWorkerUrl = connect.assertNotNull(params.sharedWorkerUrl, 'params.sharedWorkerUrl');
       var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
+      var refreshToken = connect.assertNotNull(params.refreshToken, 'params.refreshToken');
+      var authTokenExpiration = connect.assertNotNull(params.authTokenExpiration, 'params.authTokenExpiration');
       var region = connect.assertNotNull(params.region, 'params.region');
       var endpoint = params.endpoint || null;
 
@@ -180,6 +182,8 @@
          // Send configuration up to the shared worker.
          conduit.sendUpstream(connect.EventType.CONFIGURE, {
             authToken:     authToken,
+            authTokenExpiration: authTokenExpiration,
+            refreshToken:  refreshToken,
             endpoint:      endpoint,
             region:        region
          });
@@ -304,13 +308,16 @@
 
       // Pop a login page when we encounter an ACK timeout.
       connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function() {
-         try {
-            var loginUrl = createLoginUrl(params, params.redirectUrl);
-            connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
-            connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
+         // loginPopup is true by default, only false if explicitly set to false.
+         if (params.loginPopup !== false) {
+            try {
+               var loginUrl = createLoginUrl(params, params.redirectUrl);
+               connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
+               connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
 
-         } catch (e) {
-            connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
+            } catch (e) {
+               connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
+            }
          }
 
          if (connect.core.iframeRefreshInterval == null) {
