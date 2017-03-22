@@ -64,10 +64,9 @@ everything setup correctly and that you will be able to listen for events.
 ```
 connect.core.initCCP(containerDiv, {
    ccpUrl:        ccpUrl,        /*REQUIRED*/
-   alias:         alias,         /*REQUIRED*/
    loginPopup:    true,          /*optional, default TRUE*/
    softphone:     {              /*optional*/
-      disableRingtone:  true,    /*optional*/ 
+      disableRingtone:  true,    /*optional*/
       ringtoneUrl: ringtoneUrl   /*optional*/
    }
 });
@@ -79,7 +78,6 @@ and made available to your JS client code.
 * `ccpUrl`: The URL of the CCP.  This is the page you would normally navigate to
   in order to use the CCP in a standalone page, it is different for each
   instance.
-* `alias`: The alias of the Amazon Connect instance.
 * `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login
   popup which is shown when the user's authentication expires.
 * `softphone`: This object is optional and allows you to specify some settings
@@ -744,7 +742,7 @@ An enumeration listing the different high-level states that a contact can have.
 
 * `ContactStateType.INCOMING`: Indicates that the contact is incoming and is waiting for acceptance.  This state is skipped for `ContactType.VOICE` contacts but is essential for `ContactType.QUEUE_CALLBACK` contacts.
 * `ContactStateType.CONNECTING`: Indicates that the contact is currently connecting.  For `ContactType.VOICE` contacts, this is when the user will accept the incoming call.  For all other types, the contact will be accepted during the `ContactStateType.INCOMING` state.
-* 
+*
 ### `ConnectionStateType`
 An enumeration listing the different states that a connection can have.
 

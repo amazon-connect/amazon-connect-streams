@@ -176,6 +176,7 @@
 
    AWSClient.prototype._callImpl = function(method, params, callbacks) {
       var self = this;
+      var log = connect.getLog();
 
       params.authentication = {
          authToken: this.authToken
@@ -188,26 +189,32 @@
       } else {
          params = this._translateParams(method, params);
 
+         log.trace("AWSClient: --> Calling operation '%s'", method);
+
          this.client[method](params)
             .on('build', function(request) {
                request.httpRequest.headers['X-Amz-Bearer'] = self.authToken;
             })
             .send(function(err, data) {
-               // LARS returns this header when the session expire.
-               if (this.httpResponse.headers['x-amz-unauthorized'] === 'true') {
-                  callbacks.authFailure();
-               }
                try {
                   if (err) {
-                     // Can't pass err directly to postMessage
-                     // postMessage() tries to clone the err object and failed.
-                     // Refer to https://github.com/goatslacker/alt-devtool/issues/5
-                     var error = {};
-                     error.type = Object.prototype.toString.call(err);
-                     error.message = err.message;
-                     error.stack = err.stack ? err.stack.split('\n') : [];
-                     callbacks.failure(error, data);
+                     if (err.code === connect.CTIExceptions.UNAUTHORIZED_EXCEPTION) {
+                        callbacks.authFailure();
+                     } else {
+                        // Can't pass err directly to postMessage
+                        // postMessage() tries to clone the err object and failed.
+                        // Refer to https://github.com/goatslacker/alt-devtool/issues/5
+                        var error = {};
+                        error.type = err.code;
+                        error.message = err.message;
+                        error.stack = err.stack ? err.stack.split('\n') : [];
+                        callbacks.failure(error, data);
+                     }
+
+                     log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err));
+
                   } else {
+                     log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data);
                      callbacks.success(data);
                   }
                } catch (e) {

@@ -88,7 +88,7 @@
 
             // Start polling for agent data.
             self.pollForAgent();
-            self.pollForAgentConfiguration();
+            self.pollForAgentConfiguration({repeatForever: true});
          }
       });
       this.conduit.onDownstream(connect.EventType.TERMINATE, function() {
@@ -120,8 +120,12 @@
             portConduit.sendDownstream(connect.AgentEvents.UPDATE, self.agent);
          }
 
-         portConduit.onDownstream(connect.EventType.API_REQUEST, connect.hitch(self, self.handleAPIRequest, portConduit));
-         portConduit.onDownstream(connect.EventType.MASTER_REQUEST, connect.hitch(self, self.handleMasterRequest, portConduit, stream.getId()));
+         portConduit.onDownstream(connect.EventType.API_REQUEST,
+               connect.hitch(self, self.handleAPIRequest, portConduit));
+         portConduit.onDownstream(connect.EventType.MASTER_REQUEST,
+               connect.hitch(self, self.handleMasterRequest, portConduit, stream.getId()));
+         portConduit.onDownstream(connect.EventType.RELOAD_AGENT_CONFIGURATION,
+               connect.hitch(self, self.pollForAgentConfiguration));
          portConduit.onDownstream(connect.EventType.CLOSE, function() {
             self.multiplexer.removeStream(stream);
             delete self.portConduitMap[stream.getId()];
@@ -164,9 +168,10 @@
 
    };
 
-   ClientEngine.prototype.pollForAgentConfiguration = function() {
+   ClientEngine.prototype.pollForAgentConfiguration = function(paramsIn) {
       var self = this;
       var client = connect.core.getClient();
+      var params = paramsIn || {};
 
       client.call(connect.ClientMethods.GET_AGENT_CONFIGURATION, {}, {
          success: function(data) {
@@ -175,8 +180,10 @@
             self.pollForAgentStates(configuration);
             self.pollForDialableCountryCodes(configuration);
             self.pollForRoutingProfileQueues(configuration);
-            global.setTimeout(connect.hitch(self, self.pollForAgentConfiguration),
-               GET_AGENT_CONFIGURATION_INTERVAL);
+            if (params.repeatForever) {
+               global.setTimeout(connect.hitch(self, self.pollForAgentConfiguration, params),
+                  GET_AGENT_CONFIGURATION_INTERVAL);
+            }
          },
          failure: function(err, data) {
             try {
@@ -186,8 +193,10 @@
                      data: data
                   });
             } finally {
-               global.setTimeout(connect.hitch(self, self.pollForAgentConfiguration),
-                  GET_AGENT_CONFIGURATION_INTERVAL);
+               if (params.repeatForever) {
+                  global.setTimeout(connect.hitch(self, self.pollForAgentConfiguration),
+                     GET_AGENT_CONFIGURATION_INTERVAL, params);
+               }
             }
          },
          authFailure: connect.hitch(self, self.handleAuthFail)
@@ -433,7 +442,10 @@
             queue.queueId = queue.queueARN;
          });
          this.agent.snapshot.contacts.forEach(function(contact) {
-            contact.queue.queueId = contact.queue.queueARN;
+            //contact.queue is null when monitoring
+            if (contact.queue !== undefined) {
+                contact.queue.queueId = contact.queue.queueARN;
+            }
          });
          this.agent.configuration.routingProfile.routingProfileId =
             this.agent.configuration.routingProfile.routingProfileARN;

@@ -33,17 +33,24 @@
    var CLIENT_ID_MAP = {
       "us-east-1":   "06919f4fd8ed324e"
    };
+
+   /**
+    * @deprecated
+    * We will no longer need this function soon.
+    */
    var createLoginUrl = function(params) {
-      //connect.assertTrue(params.region in CLIENT_ID_MAP, "unsupported region");
       var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
-      connect.assertNotNull(params.alias);
       connect.assertNotNull(redirect);
 
-      return LOGIN_URL_PATTERN
-         .replace("{alias}", params.alias)
-         .replace("{client_id}", CLIENT_ID_MAP["us-east-1"])
-         .replace("{redirect}", global.encodeURIComponent(
-            redirect));
+      if (params.alias) {
+         return LOGIN_URL_PATTERN
+            .replace("{alias}", params.alias)
+            .replace("{client_id}", CLIENT_ID_MAP["us-east-1"])
+            .replace("{redirect}", global.encodeURIComponent(
+               redirect));
+      } else {
+         return params.ccpUrl;
+      }
    };
 
    /**-------------------------------------------------------------------------
@@ -164,6 +171,9 @@
                new connect.PortStream(worker.port),
                new connect.WindowIOStream(window, parent));
 
+         // Set the global upstream conduit for external use.
+         connect.core.upstream = conduit;
+
          // Close our port to the shared worker before the window closes.
          global.onbeforeunload = function() {
             conduit.sendUpstream(connect.EventType.CLOSE);
@@ -257,11 +267,17 @@
       containerDiv.appendChild(iframe);
 
       // Initialize the event bus and agent data providers.
-      connect.core.eventBus = new connect.EventBus({logEvents: true});
+      // NOTE: Setting logEvents here to FALSE in order to avoid duplicating
+      // events which are logged in CCP.
+      connect.core.eventBus = new connect.EventBus({logEvents: false});
       connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
 
       // Build the upstream conduit communicating with the CCP iframe.
       var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
+
+      // Set the global upstream conduit for external use.
+      connect.core.upstream = conduit;
+
       conduit.onAllUpstream(connect.core.getEventBus().bridge());
 
       // Initialize the keepalive manager.
@@ -311,7 +327,7 @@
          // loginPopup is true by default, only false if explicitly set to false.
          if (params.loginPopup !== false) {
             try {
-               var loginUrl = createLoginUrl(params, params.redirectUrl);
+               var loginUrl = createLoginUrl(params);
                connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
                connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
 
@@ -660,6 +676,21 @@
       return connect.core.popupManager;
    };
    connect.core.popupManager = new connect.PopupManager();
+
+   /**-----------------------------------------------------------------------*/
+   connect.core.getPopupManager = function() {
+      return connect.core.popupManager;
+   };
+   connect.core.popupManager = new connect.PopupManager();
+
+   /**-----------------------------------------------------------------------*/
+   connect.core.getUpstream = function() {
+      if (! connect.core.upstream) {
+         throw new connect.StateError('There is no upstream conduit!');
+      }
+      return connect.core.upstream;
+   };
+   connect.core.upstream = null;
 
    /**-----------------------------------------------------------------------*/
    connect.core.AgentDataProvider = AgentDataProvider;

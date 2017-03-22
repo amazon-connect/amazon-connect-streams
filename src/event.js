@@ -36,7 +36,8 @@
          'synchronize',
          'terminate',
          'terminated',
-         'send_logs'
+         'send_logs',
+         'reload_agent_configuration'
    ]);
 
    /**---------------------------------------------------------------
@@ -230,7 +231,7 @@
       var eventSubs = this.subMap.getSubscriptions(eventName);
 
       if (this.logEvents) {
-         connect.getLog().trace("Publishing event: %s {%s}", eventName, JSON.stringify(data));
+         connect.getLog().trace("Publishing event: %s", eventName);
       }
 
       allEventSubs.concat(eventSubs).forEach(function(sub) {

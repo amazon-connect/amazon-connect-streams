@@ -155,6 +155,21 @@
    ]);
 
    /*----------------------------------------------------------------
+    * enum for CTI exceptions
+    */
+    connect.CTIExceptions = connect.makeEnum([
+        "AccessDeniedException",
+        "InvalidStateException",
+        "BadEndpointException",
+        "InvalidAgentARNException",
+        "InvalidConfigurationException",
+        "InvalidContactTypeException",
+        "PaginationException",
+        "RefreshTokenExpiredException",
+        "SendDataFailedException",
+        "UnauthorizedException"
+    ]);
+   /*----------------------------------------------------------------
     * class Agent
     */
    var Agent = function() {
@@ -273,7 +288,19 @@
       var client = connect.core.getClient();
       client.call(connect.ClientMethods.UPDATE_AGENT_CONFIGURATION, {
          configuration: connect.assertNotNull(configuration, 'configuration')
-      }, callbacks);
+      }, {
+         success: function(data) {
+            // We need to ask the shared worker to reload agent config
+            // once we change it so every tab has accurate config.
+            var conduit = connect.core.getUpstream();
+            conduit.sendUpstream(connect.EventType.RELOAD_AGENT_CONFIGURATION);
+
+            if (callbacks.success) {
+               callbacks.success(data);
+            }
+         },
+         failure: callbacks.failure
+      });
    };
 
    Agent.prototype.setState = function(state, callbacks) {
