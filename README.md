@@ -73,7 +73,6 @@ everything setup correctly and that you will be able to listen for events.
 ```
 connect.core.initCCP(containerDiv, {
    ccpUrl:        ccpUrl,        /*REQUIRED*/
-   alias:         alias,         /*REQUIRED*/
    loginPopup:    true,          /*optional, default TRUE*/
    softphone:     {              /*optional*/
       disableRingtone:  true,    /*optional*/ 
@@ -88,7 +87,6 @@ and made available to your JS client code.
 * `ccpUrl`: The URL of the CCP.  This is the page you would normally navigate to
   in order to use the CCP in a standalone page, it is different for each
   instance.
-* `alias`: The alias of the Amazon Connect instance.
 * `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login
   popup which is shown when the user's authentication expires.
 * `softphone`: This object is optional and allows you to specify some settings
