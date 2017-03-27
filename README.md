@@ -1,11 +1,11 @@
 # About
 The Amazon Connect Streams API (Streams) gives you the power to integrate your
-existing web applications with Amazon Connect.  Streams gives you the power to
+existing web applications with Amazon Connect.  Streams lets you
 embed the Contact Control Panel (CCP) UI components into your page, and/or
 handle agent and contact state events directly giving you the power to control
 agent and contact state through an object oriented event driven interface.  You
 can use the built in interface or build your own from scratch: Streams gives you
-the power to choose.
+the choice.
 
 # Learn More
 To learn more about Amazon Connect and its capabilities, please check out
