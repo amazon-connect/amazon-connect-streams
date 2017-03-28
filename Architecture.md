@@ -24,13 +24,13 @@ three browser-side layers, starting with the CRM:
   CRM integration pages.
 
 ## High Level
-![High Level Architecture](https://github.com/aws/amazon-connect-streams/images/high_level.png)
+![High Level Architecture](/images/high_level.png?raw=true)
 
 ## CRM Integration
-![CRM Integration Architecture](https://github.com/aws/amazon-connect-streams/images/crm.png)
+![CRM Integration Architecture](/images/crm.png?raw=true)
 
 ## Contact Control Panel (CCP)
-![Contact Control Panel (CCP) Architecture](https://github.com/aws/amazon-connect-streams/images/ccp.png)
+![Contact Control Panel (CCP) Architecture](/images/ccp.png?raw=true)
 
 ## Connect Shared Worker 
-![Connect Shared Worker](https://github.com/aws/amazon-connect-streams/images/shared_worker.png)
+![Connect Shared Worker](/images/shared_worker.png?raw=true)
