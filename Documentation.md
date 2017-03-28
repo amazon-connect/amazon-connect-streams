@@ -10,6 +10,10 @@ agent and contact state through an object oriented event driven interface.  You
 can use the built in interface or build your own from scratch: Streams gives you
 the power to choose.
 
+## Architecture
+Click [here](Architecture.md) to view a quick architecture overview of how
+Connect Streams works.
+
 ## Getting Started
 ### Whitelisting
 The first step to using Streams is to whitelist the pages you wish to embed.
