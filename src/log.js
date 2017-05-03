@@ -39,8 +39,8 @@
     * An enumeration of common logging components.
     */
    var LogComponent = {
-      CCP:          "CCP",
-      SOFTPHONE:    "SOFTPHONE"
+      CCP:          "ccp",
+      SOFTPHONE:    "softphone"
    };
 
    /**

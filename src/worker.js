@@ -147,6 +147,8 @@
          success: function(data) {
             self.agent = self.agent || {};
             self.agent.snapshot = data.snapshot;
+            self.agent.snapshot.localTimestamp = connect.now();
+            self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
             self.nextToken = data.nextToken;
             self.updateAgent();
             global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT);
@@ -513,6 +515,7 @@
          },
          failure: function(err, data) {
             connect.getLog().error("Get new auth token failed. %s ", err);
+            self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
          },
          authFailure: connect.hitch(self, self.handleAuthFail)
       });

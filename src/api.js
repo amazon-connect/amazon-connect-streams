@@ -238,7 +238,7 @@
    Agent.prototype.getStatus = Agent.prototype.getState;
 
    Agent.prototype.getStateDuration = function() {
-      return connect.now() - connect.core.getLocalTimestamp() + this._getData().snapshot.state.duration * 1000;
+      return connect.now() - this._getData().snapshot.state.startTimestamp.getTime() + connect.core.getSkew();
    };
 
    Agent.prototype.getStatusDuration = Agent.prototype.getStateDuration;
@@ -480,7 +480,7 @@
    };
 
    Contact.prototype.getStatusDuration = function() {
-      return connect.now() - connect.core.getLocalTimestamp() + this._getData().state.duration * 1000;
+      return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
    };
 
    Contact.prototype.getQueue = function() {
@@ -689,7 +689,7 @@
    };
 
    Connection.prototype.getStatusDuration = function() {
-      return connect.now() - connect.core.getLocalTimestamp() + this._getData().state.duration * 1000;
+      return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
    };
 
    Connection.prototype.getType = function() {

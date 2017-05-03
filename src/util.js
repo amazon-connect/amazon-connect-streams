@@ -18,6 +18,7 @@
    global.connect = connect;
    global.lily = connect;
 
+   var userAgent = navigator.userAgent;
    var ONE_DAY_MILLIS = 24*60*60*1000;
 
    /**
@@ -200,6 +201,49 @@
          enumObj[key] = connect.sprintf("%s::%s", prefix, enumObj[key]);
       });
       return enumObj;
+   };
+
+   /**
+   * Methods to determine browser type and versions, used for softphone initialization.
+   */
+   connect.isChromeBrowser = function() {
+       return userAgent.indexOf("Chrome") !== -1;
+   };
+
+   connect.isFirefoxBrowser = function() {
+       return userAgent.indexOf("Firefox") !== -1;
+   };
+
+   connect.isOperaBrowser = function() {
+       return userAgent.indexOf("Opera") !== -1;
+   };
+
+   connect.getChromeBrowserVersion = function() {
+       var chromeVersion = userAgent.substring(userAgent.indexOf("Chrome")+7);
+       if (chromeVersion) {
+           return parseFloat(chromeVersion);
+       } else {
+           return -1;
+       }
+   };
+
+   connect.getFirefoxBrowserVersion = function() {
+       var firefoxVersion = userAgent.substring(userAgent.indexOf("Firefox")+8);
+       if (firefoxVersion) {
+           return parseFloat(firefoxVersion);
+       } else {
+           return -1;
+       }
+   };
+
+   connect.getOperaBrowserVersion = function() {
+       var versionOffset = userAgent.indexOf("Opera");
+       var operaVersion = (userAgent.indexOf("Version") !== -1) ? userAgent.substring(versionOffset+8) : userAgent.substring(versionOffset+6);
+       if (operaVersion) {
+           return parseFloat(operaVersion);
+       } else {
+           return -1;
+       }
    };
 
    /**

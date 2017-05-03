@@ -26,6 +26,8 @@
    CallTypeMap[connect.SoftphoneCallType.VIDEO_ONLY] = 'Video';
    CallTypeMap[connect.SoftphoneCallType.AUDIO_VIDEO] = 'AudioVideo';
    CallTypeMap[connect.SoftphoneCallType.NONE] = 'None';
+   var AUDIO_INPUT = 'audio_input';
+   var AUDIO_OUTPUT = 'audio_output';
 
    var MediaTypeMap = {};
    MediaTypeMap[connect.ContactType.VOICE] = "Voice";
@@ -50,7 +52,9 @@
       }
       var gumPromise = fetchUserMedia({
          success: function(stream) {
-            connect.core.setSoftphoneUserMediaStream(stream);
+            if (connect.isFirefoxBrowser()) {
+                connect.core.setSoftphoneUserMediaStream(stream);
+            }
          },
          failure: function(err) {
             publishError(err, "Your microphone is not enabled in your browser. ", "");
@@ -58,13 +62,6 @@
       });
 
       this.ringtoneEngine = null;
-
-      if (! softphoneParams.disableRingtone) {
-         this.ringtoneEngine = new connect.RingtoneEngine(softphoneParams);
-
-      } else {
-         logger.warn("Softphone ringtone has been disabled.");
-      }
 
       connect.contact(function(contact) {
          var callDetected = false;
@@ -86,7 +83,9 @@
                      softphoneInfo.callContextToken,
                      logger,
                      contact.getContactId());
-               session.mediaStream = connect.core.getSoftphoneUserMediaStream();
+               if (connect.core.getSoftphoneUserMediaStream()) {
+                    session.mediaStream = connect.core.getSoftphoneUserMediaStream();
+               }
                session.onSessionFailed = function(rtcSession, reason) {
                    if (reason === connect.RTCErrors.ICE_COLLECTION_TIMEOUT) {
                         var endPointUrl = "\n";
@@ -199,37 +198,20 @@
    };
 
     var isBrowserSoftPhoneSupported = function () {
-        var userAgent = navigator.userAgent;
-        var browserVersion;
         // In Opera, the true version is after "Opera" or after "Version"
-        if (userAgent.indexOf("Opera") !== -1) {
-            var versionOffset = userAgent.indexOf("Opera");
-            browserVersion = (userAgent.indexOf("Version") !== -1) ? userAgent.substring(versionOffset+8) : userAgent.substring(versionOffset+6);
-            if (browserVersion  && parseFloat(browserVersion, 10) > 17) {
-                return true;
-            } else {
-                return false;
-            }
+        if (connect.isOperaBrowser() && connect.getOperaBrowserVersion() > 17) {
+            return true;
         }
         // In Chrome, the true version is after "Chrome"
-        else if (userAgent.indexOf("Chrome") !== -1) {
-            browserVersion = userAgent.substring(userAgent.indexOf("Chrome")+7);
-            if (browserVersion && parseFloat(browserVersion, 10) > 22) {
-                return true;
-            } else {
-                return false;
-            }
+        else if (connect.isChromeBrowser() && connect.getChromeBrowserVersion() > 22) {
+            return true;
         }
         // In Firefox, the true version is after "Firefox"
-        else if (userAgent.indexOf("Firefox") !== -1) {
-            browserVersion = userAgent.substring(userAgent.indexOf("Firefox")+8);
-            if (browserVersion && parseFloat(browserVersion, 10) > 21) {
-                return true;
-            } else {
-                return false;
-            }
+        else if (connect.isFirefoxBrowser() && connect.getFirefoxBrowserVersion() > 21) {
+            return true;
+        } else {
+            return false;
         }
-        return false;
     };
 
     var sendSoftphoneMetrics = function(contact) {
@@ -249,7 +231,8 @@
     };
 
     var sendSoftphoneReport = function(contact, report, userAudioStats, remoteAudioStats) {
-        report.streamStats = [userAudioStats || {}, remoteAudioStats || {}];
+        report.streamStats = [ addStreamTypeToStats(userAudioStats || {}, AUDIO_INPUT),
+                                addStreamTypeToStats(remoteAudioStats || {}, AUDIO_OUTPUT) ];
         var callReport = {
                         callStartTime: report.sessionStartTime,
                         callEndTime: report.sessionEndTime,
@@ -272,7 +255,7 @@
                         invalidRemoteSDPFailure: report.invalidRemoteSDPFailure,
                         noRemoteIceCandidateFailure: report.noRemoteIceCandidateFailure,
                         setRemoteDescriptionFailure: report.setRemoteDescriptionFailure,
-                        softphoneStreamStatistics: [userAudioStats, remoteAudioStats]
+                        softphoneStreamStatistics: report.streamStats
                       };
         contact.sendSoftphoneReport(callReport, {
             success: function(){
@@ -289,17 +272,15 @@
         rtpStatsJob = window.setInterval(function() {
             rtcSession.getUserAudioStats().then(function(stats) {
                 var previousUserStats = aggregatedUserAudioStats;
-                var timestamp = new Date();
-                aggregatedUserAudioStats = evaluateReportStats(timestamp, stats, 'audio_input');
-                timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats));
+                aggregatedUserAudioStats = stats;
+                timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT));
             }, function(error) {
                 logger.debug("Failed to get user audio stats.", error);
             });
             rtcSession.getRemoteAudioStats().then(function(stats) {
                 var previousRemoteStats = aggregatedRemoteAudioStats;
-                var timestamp = new Date();
-                aggregatedRemoteAudioStats = evaluateReportStats(timestamp, stats, 'audio_output');
-                timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats));
+                aggregatedRemoteAudioStats = stats;
+                timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT));
             }, function(error) {
                 logger.debug("Failed to get remote audio stats.", error);
             });
@@ -320,13 +301,13 @@
         reportStatsJob = null;
     };
 
-    var getTimeSeriesStats = function(currentStats, previousStats) {
+    var getTimeSeriesStats = function(currentStats, previousStats, streamType) {
         if (previousStats && currentStats) {
-            var packetsLost = currentStats.getPacketsLost() > previousStats.getPacketsLost() ? currentStats.getPacketsLost() - previousStats.getPacketsLost() : 0;
-            var packetsCount = currentStats.getPacketsCount() > previousStats.getPacketsCount() ? currentStats.getPacketsCount() - previousStats.getPacketsCount()  : 0;
-            return new AudioRtpStats(currentStats.getTimestamp(), packetsLost, packetsCount, previousStats.getSoftphoneStreamType(), currentStats.getAudioLevel());
+            var packetsLost = currentStats.packetsLost > previousStats.packetsLost ? currentStats.packetsLost - previousStats.packetsLost : 0;
+            var packetsCount = currentStats.packetsCount > previousStats.packetsCount ? currentStats.packetsCount - previousStats.packetsCount : 0;
+            return new RTPStreamStats(currentStats.timestamp, packetsLost, packetsCount, streamType, currentStats.audioLevel);
         } else {
-            return currentStats;
+            return new RTPStreamStats(currentStats.timestamp, currentStats.packetsLost, currentStats.packetsCount, streamType, currentStats.audioLevel);
         }
     };
 
@@ -340,80 +321,23 @@
     var stopJobsAndReport = function(contact, sessionReport) {
        rtpStatsJob = stopJob(rtpStatsJob);
        reportStatsJob = stopJob(reportStatsJob);
-       sendSoftphoneReport(contact, sessionReport, aggregatedUserAudioStats, aggregatedRemoteAudioStats);
+       sendSoftphoneReport(contact, sessionReport, addStreamTypeToStats(aggregatedUserAudioStats, AUDIO_INPUT), addStreamTypeToStats(aggregatedRemoteAudioStats, AUDIO_OUTPUT));
        sendSoftphoneMetrics(contact);
     };
 
     /**
-     * Extract rtp stats from RTCStatsReport
-     */
-    var evaluateReportStats = function (timestamp, stats, streamType) {
-        var callStats = null;
-        if (!stats) {
-            return callStats;
-        }
-        var statsReports = Object.keys(stats);
-        if (statsReports) {
-            for (var i = 0; i < statsReports.length; i++) {
-                var statsReport = stats[statsReports[i]];
-                if (statsReport && (statsReport.type === 'outboundrtp' ||
-                                        statsReport.type === 'inboundrtp' ||
-                                            statsReport.type === 'ssrc')) {
-                    var packetsLost = 0;
-                    var audioLevel = null;
-                    if (typeof statsReport.packetsLost === 'undefined' || statsReport.packetsLost < 0) { // Chrome reports -1 when there is no packet loss
-                        packetsLost = 0;
-                    }
-                    if (typeof statsReport.packetsSent !== 'undefined') {
-                        //no audio level in firefox
-                        if (typeof statsReport.audioInputLevel !== 'undefined') {
-                            audioLevel = statsReport.audioInputLevel;
-                        }
-                        callStats = new AudioRtpStats(timestamp, packetsLost, statsReport.packetsSent, streamType, audioLevel);
-                    } else if (typeof statsReport.packetsReceived !== 'undefined') {
-                        //no audio level in firefox
-                        if (typeof statsReport.audioOutputLevel !== 'undefined') {
-                            audioLevel = statsReport.audioOutputLevel;
-                        }
-                        callStats = new AudioRtpStats(timestamp, packetsLost, statsReport.packetsReceived, streamType, audioLevel);
-                    }
-                }
-            }
-        }
-        return callStats;
-    };
-
-    var AudioRtpStats = function(timestamp, packetsLost, packetsCount, streamType, audioLevel) {
+    *   Adding streamtype parameter on top of RTCJS RTStats object.
+    */
+    var RTPStreamStats = function(timestamp, packetsLost, packetsCount, streamType, audioLevel) {
+        this.softphoneStreamType = streamType;
         this.timestamp = timestamp;
         this.packetsLost = packetsLost;
         this.packetsCount = packetsCount;
-        this.softphoneStreamType = streamType;
-        //Currently firefox doesn't provide audio level in rtp stats.
         this.audioLevel = audioLevel;
     };
-    /** {number} number of packets sent to the channel */
-    AudioRtpStats.prototype.getPacketsCount = function() {
-        return this.packetsCount;
-    };
-    /** {number} number of packets lost after travelling through the channel */
-    AudioRtpStats.prototype.getPacketsLost = function() {
-        return this.packetsLost;
-    };
-    /** {number} number of packets lost after travelling through the channel */
-    AudioRtpStats.prototype.getPacketLossPercentage = function() {
-        return this.packetsCount > 0 ? this.packetsLost/this.packetsCount : 0;
-    };
-    /** Audio volume level */
-    AudioRtpStats.prototype.getAudioLevel = function() {
-        return this.audioLevel;
-    };
-    /** Audio stream type */
-    AudioRtpStats.prototype.getSoftphoneStreamType = function() {
-        return this.softphoneStreamType;
-    };
-    /** Timestamp when stats are collected. */
-    AudioRtpStats.prototype.getTimestamp = function() {
-        return this.timestamp;
+
+    var addStreamTypeToStats = function(stats, streamType) {
+        return new RTPStreamStats(stats.timestamp, stats.packetsLost, stats.packetsCount, streamType, stats.audioLevel);
     };
 
     var SoftphoneLogger = function(logger) {

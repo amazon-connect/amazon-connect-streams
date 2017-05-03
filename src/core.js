@@ -22,7 +22,7 @@
 
    connect.core.initialized = false;
 
-   connect.DEFAULT_BATCH_SIZE = 10;
+   connect.DEFAULT_BATCH_SIZE = 100;
 
    var CCP_SYN_TIMEOUT = 1000; // 1 sec
    var CCP_ACK_TIMEOUT = 3000; // 3 sec
@@ -395,8 +395,6 @@
       var oldAgentData = this.agentData;
       this.agentData = agentData;
 
-      this._calculateDurations();
-
       if (oldAgentData == null) {
          connect.agent.initialized = true;
          this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
@@ -439,25 +437,6 @@
       }
 
       return connectionData;
-   };
-
-   AgentDataProvider.prototype._calculateDurations = function() {
-      var now = connect.now();
-      var self = this;
-      this.agentData.snapshot.localTimestamp = now;
-
-      var skew = this.agentData.snapshot.snapshotTimestamp - this.agentData.snapshot.localTimestamp;
-
-      this.agentData.snapshot.state.duration = Math.round(now - this.agentData.snapshot.state.startTimestamp.getTime() + skew);
-
-      this.agentData.snapshot.contacts.forEach(function(contact) {
-         var ts = new Date(contact.timestamp).getTime();
-         contact.state.duration = Math.round(now - contact.state.timestamp.getTime() + skew);
-
-         contact.connections.forEach(function(conn) {
-            conn.state.duration = Math.round(now - conn.state.timestamp.getTime() + skew);
-         });
-      });
    };
 
    AgentDataProvider.prototype._diffContacts = function(oldAgentData) {
@@ -585,6 +564,11 @@
    /**-----------------------------------------------------------------------*/
    connect.core.getLocalTimestamp = function() {
       return connect.core.getAgentDataProvider().getAgentData().snapshot.localTimestamp;
+   };
+
+   /**-----------------------------------------------------------------------*/
+   connect.core.getSkew = function() {
+      return connect.core.getAgentDataProvider().getAgentData().snapshot.skew;
    };
 
    /**-----------------------------------------------------------------------*/

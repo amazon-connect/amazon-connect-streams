@@ -47,18 +47,17 @@
       // https://issues.amazon.com/issues/ConnectGatekeepers-974
       connect.contact(function(contact) {
          contact.onConnecting(function() {
-            if (contact.getType() === connect.ContactType.VOICE &&
-               contact.isSoftphoneCall() &&
-               contact.isInbound()) {
-
-               self._startRingtone();
-               self._prevContactId = contact.getContactId();
-
-               contact.onConnected(connect.hitch(self, self._stopRingtone));
-               contact.onAccepted(connect.hitch(self, self._stopRingtone));
-               contact.onEnded(connect.hitch(self, self._stopRingtone));
+            if (contact.getType() === lily.ContactType.VOICE &&
+               contact.isSoftphoneCall() && contact.isInbound()) {
+               self._ringtoneSetup(contact);
             }
          });
+
+         contact.onIncoming(function() {
+             if (contact.getType() === lily.ContactType.QUEUE_CALLBACK) {
+                self._ringtoneSetup(contact);
+             }
+          });
       });
    };
 
@@ -80,6 +79,15 @@
     */
    RingtoneEngine.prototype.stopRingtone = function() {
       this._stopRingtone();
+   };
+
+   RingtoneEngine.prototype._ringtoneSetup = function(contact) {
+      this._startRingtone();
+      this._prevContactId = contact.getContactId();
+
+      contact.onConnected(lily.hitch(this, this._stopRingtone));
+      contact.onAccepted(lily.hitch(this, this._stopRingtone));
+      contact.onEnded(lily.hitch(this, this._stopRingtone));
    };
 
    /**
