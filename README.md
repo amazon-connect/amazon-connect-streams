@@ -51,7 +51,7 @@ Streams library from GitHub.  You can do that by cloning our public repository
 here:
 
 ```
-$ git clone https://aws/amazon-connect-streams
+$ git clone https://github.com/aws/amazon-connect-streams
 ```
 
 Once you download streams, change into the directory and build it:
