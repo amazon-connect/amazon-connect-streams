@@ -34,6 +34,7 @@ To whitelist your pages:
    website is hosted on a non-standard port.
 
 #### A few things to note:
+* Whitelisted domains must be HTTPS.
 * All of the pages that attempt to initialize the Streams library must be hosted
   on domains that are whitelisted as per the above steps.
 * All open tabs that contain an initialized Streams library or any other CCP
