@@ -83,7 +83,7 @@ and made available to your JS client code.
 * `ccpUrl`: The URL of the CCP.  This is the page you would normally navigate to
   in order to use the CCP in a standalone page, it is different for each
   instance.
-  The url is https://XXX.awsapps.com/connect/ccp where XXX will be the alias of your Amazon Connect Instance
+  * The url should be `https://XXX.awsapps.com/connect/ccp` where XXX will be the alias of your Amazon Connect Instance
 * `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login
   popup which is shown when the user's authentication expires.
 * `softphone`: This object is optional and allows you to specify some settings
