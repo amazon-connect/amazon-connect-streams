@@ -468,7 +468,7 @@
    };
 
    Contact.prototype.getOriginalContactId = function() {
-      return this._getData().originalContactId;
+      return this._getData().initialContactId;
    };
 
    Contact.prototype.getType = function() {

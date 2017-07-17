@@ -253,7 +253,8 @@
          softphoneEnabled: config.softphoneEnabled,
          softphoneAutoAccept: config.softphoneAutoAccept,
          extension: config.extension,
-         routingProfile: this._translateRoutingProfile(config.routingProfile)
+         routingProfile: this._translateRoutingProfile(config.routingProfile),
+         agentPreferences: config.agentPreferences
       };
    };
 

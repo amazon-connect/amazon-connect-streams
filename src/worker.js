@@ -347,7 +347,6 @@
    ClientEngine.prototype.handleAPIRequest = function(portConduit, request) {
       var self = this;
       var client = connect.core.getClient();
-
       client.call(request.method, request.params, {
          success: function(data) {
             var response = connect.EventFactory.createResponse(connect.EventType.API_RESPONSE, request, data);

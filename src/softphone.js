@@ -305,9 +305,21 @@
         if (previousStats && currentStats) {
             var packetsLost = currentStats.packetsLost > previousStats.packetsLost ? currentStats.packetsLost - previousStats.packetsLost : 0;
             var packetsCount = currentStats.packetsCount > previousStats.packetsCount ? currentStats.packetsCount - previousStats.packetsCount : 0;
-            return new RTPStreamStats(currentStats.timestamp, packetsLost, packetsCount, streamType, currentStats.audioLevel);
+            return new RTPStreamStats(currentStats.timestamp,
+                                      packetsLost,
+                                      packetsCount,
+                                      streamType,
+                                      currentStats.audioLevel,
+                                      currentStats.jbMilliseconds,
+                                      currentStats.rttMilliseconds);
         } else {
-            return new RTPStreamStats(currentStats.timestamp, currentStats.packetsLost, currentStats.packetsCount, streamType, currentStats.audioLevel);
+            return new RTPStreamStats(currentStats.timestamp,
+                                      currentStats.packetsLost,
+                                      currentStats.packetsCount,
+                                      streamType,
+                                      currentStats.audioLevel,
+                                      currentStats.jbMilliseconds,
+                                      currentStats.rttMilliseconds);
         }
     };
 
@@ -328,12 +340,14 @@
     /**
     *   Adding streamtype parameter on top of RTCJS RTStats object.
     */
-    var RTPStreamStats = function(timestamp, packetsLost, packetsCount, streamType, audioLevel) {
+    var RTPStreamStats = function(timestamp, packetsLost, packetsCount, streamType, audioLevel, jitterBufferMillis, roundTripTimeMillis) {
         this.softphoneStreamType = streamType;
         this.timestamp = timestamp;
         this.packetsLost = packetsLost;
         this.packetsCount = packetsCount;
         this.audioLevel = audioLevel;
+        this.jitterBufferMillis = jitterBufferMillis;
+        this.roundTripTimeMillis = roundTripTimeMillis;
     };
 
     var addStreamTypeToStats = function(stats, streamType) {

@@ -705,7 +705,7 @@ module.exports={
             ],
             "members": {
               "state": {
-                "shape": "S16"
+                "shape": "S17"
               },
               "contacts": {
                 "type": "list",
@@ -715,7 +715,6 @@ module.exports={
                     "contactId",
                     "type",
                     "state",
-                    "queue",
                     "queueTimestamp",
                     "connections",
                     "attributes"
@@ -749,7 +748,6 @@ module.exports={
                         "type": "structure",
                         "required": [
                           "connectionId",
-                          "endpoint",
                           "state",
                           "type",
                           "initial"
@@ -792,7 +790,7 @@ module.exports={
                       }
                     },
                     "attributes": {
-                      "shape": "S1n"
+                      "shape": "S1o"
                     }
                   }
                 }
@@ -831,7 +829,7 @@ module.exports={
           "states": {
             "type": "list",
             "member": {
-              "shape": "S16"
+              "shape": "S17"
             }
           },
           "nextToken": {}
@@ -1015,7 +1013,7 @@ module.exports={
             "shape": "S2"
           },
           "state": {
-            "shape": "S16"
+            "shape": "S17"
           }
         }
       },
@@ -1113,7 +1111,7 @@ module.exports={
           },
           "contactId": {},
           "softphoneStreamStatistics": {
-            "shape": "S2m"
+            "shape": "S2n"
           }
         }
       },
@@ -1145,7 +1143,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S2m"
+                "shape": "S2n"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -1269,7 +1267,7 @@ module.exports={
           },
           "contactId": {},
           "attributes": {
-            "shape": "S1n"
+            "shape": "S1o"
           }
         }
       },
@@ -1337,10 +1335,15 @@ module.exports={
               "shape": "Sg"
             }
           }
+        },
+        "agentPreferences": {
+          "type": "map",
+          "key": {},
+          "value": {}
         }
       }
     },
-    "S16": {
+    "S17": {
       "type": "structure",
       "required": [
         "type",
@@ -1355,7 +1358,7 @@ module.exports={
         }
       }
     },
-    "S1n": {
+    "S1o": {
       "type": "map",
       "key": {},
       "value": {
@@ -1369,7 +1372,7 @@ module.exports={
         }
       }
     },
-    "S2m": {
+    "S2n": {
       "type": "list",
       "member": {
         "type": "structure",
@@ -1386,6 +1389,12 @@ module.exports={
           },
           "audioLevel": {
             "type": "double"
+          },
+          "jitterBufferMillis": {
+            "type": "long"
+          },
+          "roundTripTimeMillis": {
+            "type": "long"
           }
         }
       }
