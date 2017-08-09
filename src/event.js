@@ -37,7 +37,8 @@
          'terminate',
          'terminated',
          'send_logs',
-         'reload_agent_configuration'
+         'reload_agent_configuration',
+         'broadcast'
    ]);
 
    /**---------------------------------------------------------------
@@ -46,7 +47,8 @@
    var MasterTopics = connect.makeNamespacedEnum('connect', [
          'loginPopup',
          'sendLogs',
-         'softphone'
+         'softphone',
+         'ringtone'
    ]);
 
    /**---------------------------------------------------------------

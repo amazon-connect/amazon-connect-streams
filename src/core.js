@@ -104,6 +104,86 @@
         connect.core.softphoneUserMediaStream = stream;
    };
 
+   connect.core.initRingtoneEngines = function(params) {
+      connect.assertNotNull(params, "params");
+
+      var setupRingtoneEngines = function(ringtoneSettings) {
+         connect.assertNotNull(ringtoneSettings, "ringtoneSettings");
+         connect.assertNotNull(ringtoneSettings.voice, "ringtoneSettings.voice");
+         connect.assertTrue(ringtoneSettings.voice.ringtoneUrl || ringtoneSettings.voice.disabled, "ringtoneSettings.voice.ringtoneUrl must be provided or ringtoneSettings.voice.disabled must be true");
+         connect.assertNotNull(ringtoneSettings.queue_callback, "ringtoneSettings.queue_callback");
+         connect.assertTrue(ringtoneSettings.queue_callback.ringtoneUrl || ringtoneSettings.queue_callback.disabled, "ringtoneSettings.voice.ringtoneUrl must be provided or ringtoneSettings.queue_callback.disabled must be true");
+
+         connect.core.ringtoneEngines = {};
+
+         connect.agent(function(agent) {
+            agent.onRefresh(function() {
+               connect.ifMaster(connect.MasterTopics.RINGTONE, function() {
+                  if (! ringtoneSettings.voice.disabled && ! connect.core.ringtoneEngines.voice) {
+                     connect.core.ringtoneEngines.voice =
+                        new connect.VoiceRingtoneEngine(ringtoneSettings.voice);
+                     connect.getLog().info("VoiceRingtoneEngine initialized.");
+                  }
+
+                  if (! ringtoneSettings.queue_callback.disabled && ! connect.core.ringtoneEngines.queue_callback) {
+                     connect.core.ringtoneEngines.queue_callback =
+                        new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
+                     connect.getLog().info("QueueCallbackRingtoneEngine initialized.");
+                  }
+               });
+            });
+         });
+      };
+
+      var mergeParams = function(params, otherParams) {
+         // For backwards compatibility: support pulling disabled flag and ringtoneUrl
+         // from softphone config if it exists from downstream into the ringtone config.
+         params.ringtone = params.ringtone || {};
+         params.ringtone.voice = params.ringtone.voice || {};
+         params.ringtone.queue_callback = params.ringtone.queue_callback || {};
+
+         if (otherParams.softphone) {
+            if (otherParams.softphone.disableRingtone) {
+               params.ringtone.voice.disabled = true;
+               params.ringtone.queue_callback.disabled = true;
+            }
+
+            if (otherParams.softphone.ringtoneUrl) {
+               params.ringtone.voice.ringtoneUrl = otherParams.softphone.ringtoneUrl;
+               params.ringtone.queue_callback.ringtoneUrl = otherParams.softphone.ringtoneUrl;
+            }
+         }
+
+         // Merge in ringtone settings from downstream.
+         if (otherParams.ringtone) {
+            params.ringtone.voice = connect.merge(params.ringtone.voice,
+               otherParams.ringtone.voice || {});
+            params.ringtone.queue_callback = connect.merge(params.ringtone.queue_callback,
+               otherParams.ringtone.voice || {});
+         }
+      };
+      
+      // Merge params from params.softphone into params.ringtone
+      // for embedded and non-embedded use cases so that defaults
+      // are picked up.
+      mergeParams(params, params);
+
+      if (connect.isFramed()) {
+         // If the CCP is in a frame, wait for configuration from downstream.
+         var bus = connect.core.getEventBus();
+         bus.subscribe(connect.EventType.CONFIGURE, function(data) {
+            this.unsubscribe();
+            // Merge all params from data into params for any overridden
+            // values in either legacy "softphone" or "ringtone" settings.
+            mergeParams(params, data);
+            setupRingtoneEngines(params.ringtone);
+         });
+
+      } else {
+         setupRingtoneEngines(params.ringtone);
+      }
+   };
+
    connect.core.initSoftphoneManager = function(paramsIn) {
       var params = paramsIn || {};
 
@@ -134,6 +214,7 @@
          var bus = connect.core.getEventBus();
          bus.subscribe(connect.EventType.CONFIGURE, function(data) {
             if (data.softphone && data.softphone.allowFramedSoftphone) {
+               this.unsubscribe();
                competeForMasterOnAgentUpdate(data.softphone);
             }
          });

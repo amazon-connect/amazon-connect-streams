@@ -553,9 +553,26 @@
 
    Contact.prototype.accept = function(callbacks) {
       var client = connect.core.getClient();
+      var self = this;
       client.call(connect.ClientMethods.ACCEPT_CONTACT, {
          contactId:  this.getContactId()
-      }, callbacks);
+      }, {
+         success: function(data) {
+            var conduit = connect.core.getUpstream();
+            conduit.sendUpstream(connect.EventType.BROADCAST, {
+               event: connect.ContactEvents.ACCEPTED
+            });
+            conduit.sendUpstream(connect.EventType.BROADCAST, {
+               event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED,
+                  self.getContactId())
+            });
+
+            if (callbacks && callbacks.success) {
+               callbacks.success(data);
+            }
+         },
+         failure: callbacks ? callbacks.failure : null
+      });
    };
 
    Contact.prototype.destroy = function(callbacks) {

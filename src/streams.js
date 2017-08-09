@@ -282,7 +282,7 @@
     * Returns a closure which passes events upstream.
     *
     * Usage:
-    * conduit.onUpstream("MyEvent", conduit.passUpstream());
+    * conduit.onDownstream("MyEvent", conduit.passUpstream());
     */
    Conduit.prototype.passUpstream = function() {
       var self = this;

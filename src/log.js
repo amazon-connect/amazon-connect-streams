@@ -13,7 +13,6 @@
  * and limitations under the License.
  */
 (function() {
-
    var global = this;
    connect = global.connect || {};
    global.connect = connect;
@@ -21,6 +20,10 @@
 
    // How frequently logs should be collected and reported to shared worker.
    var LOG_REPORT_INTERVAL_MILLIS = 5000;
+
+   // The default log roll interval (30min)
+   var DEFAULT_LOG_ROLL_INTERVAL = 1800000;
+
    /**
     * An enumeration of common logging levels.
     */
@@ -89,7 +92,6 @@
     /**
     * Extract the custom arguments as required by the logger
     */
-
     var extractLoggerArgs = function(loggerArgs) {
           var args = Array.prototype.slice.call(loggerArgs, 0);
           var firstArg = args.shift();
@@ -126,6 +128,7 @@
       this.objects = [];
       this.line = 0;
    };
+
    LogEntry.fromObject = function(obj) {
       var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text);
 
@@ -216,10 +219,37 @@
     */
    var Logger = function() {
       this._logs = [];
+      this._rolledLogs = [];
       this._logsToPush = [];
       this._echoLevel = LogLevelOrder.INFO;
       this._logLevel = LogLevelOrder.INFO;
       this._lineCount = 0;
+      this._logRollInterval = 0;
+      this._logRollTimer = null;
+      this.setLogRollInterval(DEFAULT_LOG_ROLL_INTERVAL);
+   };
+   
+   /**
+    * Sets the interval in milliseconds that the logs will be rotated.
+    * Logs are rotated out completely at the end of the second roll
+    * and will eventually be garbage collected.
+    */
+   Logger.prototype.setLogRollInterval = function(interval) {
+      var self = this;
+
+      if (! (this._logRollTimer) || interval !== this._logRollInterval) {
+         if (this._logRollTimer) {
+            global.clearInterval(this._logRollTimer);
+         }
+         this._logRollInterval = interval;
+         this._logRollTimer = global.setInterval(function() {
+            this._rolledLogs = this._logs;
+            this._logs = [];
+            self.info("Log roll interval occurred.");
+         }, this._logRollInterval);
+      } else {
+         this.warn("Logger is already set to the given interval: %d", this._logRollInterval);
+      }
    };
 
    /**
@@ -243,31 +273,6 @@
          this._echoLevel = LogLevelOrder[level];
       } else {
          throw new Error("Unknown logging level: " + level);
-      }
-   };
-
-   /**
-    * Begin timed log rolling.  At each interval, the number of logs in the logger will be
-    * culled to the specified amount.
-    *
-    * @param setIntervalProc The proc used to create interval timers, typically should
-    *    just pass window.setInterval here.
-    * @param interval The interval in milliseconds to perform the culling.
-    * @param logEntries The maximum number of log entries to keep.
-    */
-   Logger.prototype.startLogRolling = function(setIntervalProc, interval, logEntries) {
-      setIntervalProc(connect.hitch(this, this.rollLogs, logEntries), interval);
-   };
-
-   /**
-    * Perform log rolling.  Culls the number of logs in the logger to the
-    * specified amount.
-    *
-    * @param logEntries The number of entries to limit the logger to contain.
-    */
-   Logger.prototype.rollLogs = function(logEntries) {
-      if (this._logs.length > logEntries) {
-         this._logs.splice(0, this._logs.length - logEntries);
       }
    };
 
@@ -379,9 +384,9 @@
    };
 
    Logger.prototype.download = function() {
-      var logBuffer = "data:text/plain;base64," + window.btoa(JSON.stringify(this, undefined, 4));
+      var logBlob = new global.Blob([JSON.stringify(this._rolledLogs.concat(this._logs), undefined, 4)], ['text/plain']);
       var downloadLink = document.createElement('a');
-      downloadLink.href = logBuffer;
+      downloadLink.href = global.URL.createObjectURL(logBlob);
       downloadLink.download = 'agent-log.txt';
       document.body.appendChild(downloadLink);
       downloadLink.click();
@@ -411,6 +416,11 @@
       this.conduit = conduit;
       global.setInterval(connect.hitch(this, this._pushLogsDownstream),
             DownstreamConduitLogger.LOG_PUSH_INTERVAL);
+
+      // Disable log rolling, we will purge our own logs once they have
+      // been pushed downstream.
+      global.clearInterval(this._logRollTimer);
+      this._logRollTimer = null;
    };
    // How frequently logs should be collected and delivered downstream.
    DownstreamConduitLogger.LOG_PUSH_INTERVAL = 1000;

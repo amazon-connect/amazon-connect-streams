@@ -100,6 +100,9 @@
       this.conduit.onDownstream(connect.EventType.SYNCHRONIZE, function() {
          self.conduit.sendDownstream(connect.EventType.ACKNOWLEDGE);
       });
+      this.conduit.onDownstream(connect.EventType.BROADCAST, function(data) {
+         self.conduit.sendDownstream(data.event, data.data);
+      });
 
       /**
        * Called when a consumer port connects to this SharedWorker.
