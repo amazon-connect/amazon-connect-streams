@@ -241,7 +241,7 @@ var config = agent.getConfiguration();
 ```
 Gets the full `AgentConfiguration` object for the agent.  This object contains the following fields:
 
-* `name`: The agent's user friendly display name.
+* `name`: The agent's user friendly display name. The agent's user friendly display name is their first name.
 * `softphoneEnabled`: Indicates if the agent's phone calls should route to the agent's
   browser-based softphone or the telephone number configurationured as the agent's extension.
 * `extension`: Indicates the phone number that should be dialed to connect the agent to their
@@ -274,7 +274,7 @@ Gets the agent's routing profile.  The routing profile contains the following fi
 ```
 var name = agent.getName();
 ```
-Gets the agent's user friendly display name from the `AgentConfiguration` object for the agent.
+Gets the agent's user friendly display name from the `AgentConfiguration` object for the agent. The agent's user friendly display name is their first name.
 
 ### `agent.getExtension()`
 ```
@@ -403,9 +403,9 @@ var type = contact.getType();
 ```
 Get the type of the contact.  This indicates what type of media is carried over the connections of the contact.
 
-### `contact.getState()`
+### `contact.getStatus()`
 ```
-var state = contact.getState();
+var state = contact.getStatus();
 ```
 Get a `ContactState` object representing the state of the contact.  This object has the following fields:
 
@@ -413,9 +413,9 @@ Get a `ContactState` object representing the state of the contact.  This object 
 * `duration`: A relative local state duration.  To get the actual duration of the state relative
   to the current time, use `contact.getStateDuration()`.
 
-### `contact.getStateDuration()`
+### `contact.getStatusDuration()`
 ```
-var millis = contact.getStateDuration();
+var millis = contact.getStatusDuration();
 ```
 Get the duration of the contact state in milliseconds relative to local time.  This takes into
 account time skew between the JS client and the Connect backend servers.
