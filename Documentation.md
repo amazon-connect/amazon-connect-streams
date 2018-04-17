@@ -42,7 +42,7 @@ To whitelist your pages:
   open window will be communicated to all open windows.
 
 ### Downloading Streams
-The next step to embedding Connect into your application is to download the
+The next step to embedding Amazon Connect into your application is to download the
 Streams library from GitHub.  You can do that by cloning our public repository
 here:
 
@@ -58,7 +58,7 @@ $ make
 ```
 
 This will generate a file called `connect-streams-${VERSION}.js`, this is the full
-Connect Streams API which you will want to include in your page.  You can serve
+Amazon Connect Streams API which you will want to include in your page.  You can serve
 `connect-streams-${VERSION}.js` with your web application.
 
 ## Initialization
@@ -76,7 +76,7 @@ connect.core.initCCP(containerDiv, {
    }
 });
 ```
-Integrates with Connect by loading the pre-built CCP located at `ccpUrl` into an
+Integrates with Amazon Connect by loading the pre-built CCP located at `ccpUrl` into an
 iframe and placing it into the `containerDiv` provided.  API requests are
 funneled through this CCP and agent and contact updates are published through it
 and made available to your JS client code.
@@ -118,7 +118,7 @@ this:
   rendered in an iframe.
 
 ### Event Subscription
-Event subscriptions link your app into the heartbeat of Connect by allowing your
+Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
 code to be called when new agent information is available.
 
 Event subscription works by providing callbacks to the Streams API which are
@@ -197,9 +197,7 @@ being able to be routed contacts again.
 ```
 agent.onAfterCallWork(function(agent) { ... });
 ```
-Subscribe a method to be called when the agent enters the "After Call Work"
-state.  This is a non-routable state which exists to allow agents some time to
-wrap up after handling a contact before they are routed additional contacts.
+Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state.  This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
 
 ### `agent.getState()`
 ```
@@ -233,7 +231,7 @@ var contacts = agent.getContacts(contactTypeFilter);
 ```
 Gets a list of `Contact` API objects for each of the agent's current contacts.
 
-* `contactTypeFilter`: Optional.  If provided, only contacts of the given type will be returned.
+* `contactTypeFilter`: Optional.  If provided, only contacts of the given type are returned.
 
 ### `agent.getConfiguration()`
 ```
@@ -242,8 +240,8 @@ var config = agent.getConfiguration();
 Gets the full `AgentConfiguration` object for the agent.  This object contains the following fields:
 
 * `name`: The agent's user friendly display name.
-* `softphoneEnabled`: Indicates if the agent's phone calls should route to the agent's
-  browser-based softphone or the telephone number configurationured as the agent's extension.
+* `softphoneEnabled`: Indicates whether the agent's phone calls should route to the agent's
+  browser-based softphone or the telephone number configured as the agent's extension.
 * `extension`: Indicates the phone number that should be dialed to connect the agent to their
   inbound or outbound calls when softphone is not enabled.
 * `routingProfile`: Describes the agent's current routing profile and list of
@@ -281,7 +279,7 @@ Gets the agent's user friendly display name from the `AgentConfiguration` object
 var extension = agent.getExtension();
 ```
 Gets the agent's extension from the `AgentConfiguration` object for the agent.  This is the phone
-number which is dialed by Connect to reach out to the agent for incoming and outgoing calls if
+number that is dialed by Amazon Connect to reach out to the agent for incoming and outgoing calls if
 softphone is not enabled.
 
 ### `agent.isSoftphoneEnabled()`
@@ -300,7 +298,7 @@ agent.setConfiguration(config {
    failure: function() { ... }
 });
 ```
-Updates the agents configuration with the given `AgentConfiguration` object.  The extension specified must be a valid E164 phone number or the update will fail.
+Updates the agents configuration with the given `AgentConfiguration` object.  The extension specified must be a valid E.164 phone number or the update will fail.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
@@ -327,7 +325,7 @@ agent.connect(endpoint, {
 });
 ```
 Creates an outbound contact to the given endpoint.  An optional queueARN can be
-specified indicating with which to associate the outbound contact.
+specified indicating with which queue to associate the outbound contact.
 
 Optional success and failure callbacks can be provided to determine if the
 operation was successful.
@@ -365,7 +363,7 @@ contact.onAccepted(function(contact) { ... });
 ```
 Subscribe a method to be invoked whenever the contact is accepted.  This is an event which is fired in response
 to an API call when it succeeds, and this is usually triggered by a UI interaction such as clicking an
-accept button.  The proper response to this API is to stop playing ringtones and remove any accept UI buttons
+accept button.  The proper response to this API is to stop playing ringtones and remove any Accept UI buttons
 or actions, and potentially show an "Accepting..." UI to the customer.
 
 ### `contact.onEnded()`
@@ -418,7 +416,7 @@ Get a `ContactState` object representing the state of the contact.  This object 
 var millis = contact.getStateDuration();
 ```
 Get the duration of the contact state in milliseconds relative to local time.  This takes into
-account time skew between the JS client and the Connect backend servers.
+account time skew between the JS client and the Amazon Connect backend servers.
 
 ### `contact.getQueue()`
 ```
@@ -426,7 +424,7 @@ var queue = contact.getQueue();
 ```
 Get the queue associated with the contact.  This object has the following fields:
 
-* `queueARN`: The queueARN of the queue.
+* `queueARN`: The ARN of the queue to associate with the contact.
 * `name`: The name of the queue.
 
 ### `contact.getConnections()`
@@ -460,7 +458,7 @@ except for the initial connection, or an empty list if there are no third party 
 var thirdPartyConn = contact.getSingleActiveThirdPartyConnection();
 ```
 In Voice contacts, there can only be one active third party connection.  This
-method returns the single active third party connection, or null if there are no
+method returns the single active third-party connection, or null if there are no
 currently active third party connections.
 
 ### `contact.getAgentConnection()`
@@ -543,7 +541,7 @@ contact.addConnection(endpoint, {
    failure: function() { ... }
 });
 ```
-Add a new outbound third party connection to this contact connecting to the given endpoint.
+Add a new outbound third-party connection to this contact connecting to the given endpoint.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
@@ -611,7 +609,7 @@ following fields:
 ```
 var millis = connection.getStateDuration();
 ```
-Get the duration of the connection state in milliseconds relative to local time.
+Get the duration of the connection state, in milliseconds, relative to local time.
 This takes into account time skew between the JS client and the Connect backend
 servers.
 
@@ -768,7 +766,7 @@ This is a list of some of the special event types which are published into the l
 
 * `EventType.ACKNOWLEDGE`: Event received when the backend API shared worker acknowledges the current tab.
 * `EventType.ACK_TIMEOUT`: Event which is published if the backend API shared worker fails to respond to an `EventType.SYNCHRONIZE` event in a timely manner, meaning that the tab or window has been disconnected from the shared worker.
-* `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid.  This usually requires the user to login again for the CCP to continue to function.  See `connect.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to login again when this happens.
+* `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid.  This usually requires the user to log in again for the CCP to continue to function.  See `connect.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
 * `EventType.LOG`: An event published whenever the CCP or the API shared worker creates a log entry.
 
 #### Note
