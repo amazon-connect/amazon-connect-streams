@@ -221,6 +221,17 @@
       } else {
          competeForMasterOnAgentUpdate(params);
       }
+
+
+      connect.agent(function(agent) {
+         // Sync mute across all tabs 
+         if(agent.isSoftphoneEnabled()){
+            connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+              {
+                event: connect.EventType.MUTE
+             });
+         }
+      });
    };
 
    /**-------------------------------------------------------------------------
@@ -256,7 +267,7 @@
          connect.core.upstream = conduit;
 
          // Close our port to the shared worker before the window closes.
-         global.onbeforeunload = function() {
+         global.onunload = function() {
             conduit.sendUpstream(connect.EventType.CLOSE);
             worker.port.close();
          };
@@ -344,8 +355,8 @@
       // Create the CCP iframe and append it to the container div.
       var iframe = document.createElement('iframe');
       iframe.src = params.ccpUrl;
-      iframe.style = "width: 100%; height: 100%";
       iframe.allow = "microphone";
+      iframe.style = "width: 100%; height: 100%";
       containerDiv.appendChild(iframe);
 
       // Initialize the event bus and agent data providers.

@@ -20,12 +20,16 @@
 
    connect.worker = {};
 
-   var GET_AGENT_TIMEOUT = 30000;
-   var GET_AGENT_RECOVERY_TIMEOUT = 5000;
-   var GET_AGENT_SUCCESS_TIMEOUT = 100;
+   var GET_AGENT_TIMEOUT_MS = 30000;
+   var GET_AGENT_RECOVERY_TIMEOUT_MS = 5000;
+   var GET_AGENT_SUCCESS_TIMEOUT_MS = 100;
    var LOG_BUFFER_CAP_SIZE = 400;
 
-   var GET_AGENT_CONFIGURATION_INTERVAL = 30000;      // 30sec
+   var CHECK_AUTH_TOKEN_INTERVAL_MS = 300000; // 5 minuts
+   var REFRESH_AUTH_TOKEN_INTERVAL_MS = 10000; // 10 seconds
+   var REFRESH_AUTH_TOKEN_MAX_TRY = 4;
+
+   var GET_AGENT_CONFIGURATION_INTERVAL_MS = 30000;
 
    /**-----------------------------------------------------------------------*/
    var MasterTopicCoordinator = function() {
@@ -54,6 +58,55 @@
       });
    };
 
+   /**---------------------------------------------------------------
+    * class WorkerClient extends ClientBase
+    */
+   var WorkerClient = function(conduit) {
+      connect.ClientBase.call(this);
+      this.conduit = conduit;
+   };
+   WorkerClient.prototype = Object.create(connect.ClientBase.prototype);
+   WorkerClient.prototype.constructor = WorkerClient;
+
+   WorkerClient.prototype._callImpl = function(method, params, callbacks) {
+      var self = this;
+      var request_start = new Date().getTime();
+      connect.core.getClient()._callImpl(method, params, {
+         success: function(data) {
+            self._recordAPILatency(method, request_start);
+            callbacks.success(data);
+         },
+         failure: function(error, data) {
+            self._recordAPILatency(method, request_start, error);
+            callbacks.failure(error, data);
+         },
+         authFailure: function() {
+            self._recordAPILatency(method, request_start);
+            callbacks.authFailure();
+         }
+      });
+   };
+
+   WorkerClient.prototype._recordAPILatency = function(method, request_start, err) {
+      var request_end = new Date().getTime();
+      var request_time = request_end - request_start;
+      this._sendAPIMetrics(method, request_time, err);
+   };
+
+   WorkerClient.prototype._sendAPIMetrics = function(method, time, err) {
+      this.conduit.sendDownstream(connect.EventType.API_METRIC, { 
+         name: method,
+         time: time,
+         dimensions: [
+            {
+               name: "Category",
+               value: "API"
+            }
+         ],
+         error: err
+      });
+   };
+
    /**-------------------------------------------------------------------------
     * The object responsible for polling and passing data downstream to all
     * consumer ports.
@@ -61,9 +114,9 @@
    var ClientEngine = function() {
       var self = this;
 
-      this.client = null;
       this.multiplexer = new connect.StreamMultiplexer();
       this.conduit = new connect.Conduit("AmazonConnectSharedWorker", null, this.multiplexer);
+      this.client = new WorkerClient(this.conduit);
       this.timeout = null;
       this.agent = null;
       this.nextToken = null;
@@ -87,8 +140,26 @@
             connect.core.init(data);
 
             // Start polling for agent data.
-            self.pollForAgent();
-            self.pollForAgentConfiguration({repeatForever: true});
+            if (!self.agentPolling) {
+                connect.getLog().info("Kicking off agent polling");
+                self.agentPolling = true;
+                self.pollForAgent();
+            } else {
+                connect.getLog().info("Not kicking off new agent polling, since there's already polling going on");
+            }
+            if (!self.configPolling) {
+                connect.getLog().info("Kicking off config polling");
+                self.configPolling = true;
+                self.pollForAgentConfiguration({repeatForever: true});
+            } else {
+                connect.getLog().info("Not kicking off new config polling, since there's already polling going on");
+            }
+            if (!global.checkAuthTokenInterval) {
+                connect.getLog().info("Kicking off auth token polling");
+                global.checkAuthTokenInterval = global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
+            } else {
+                connect.getLog().info("Not kicking off auth token polling, since there's already polling going on");
+            }
          }
       });
       this.conduit.onDownstream(connect.EventType.TERMINATE, function() {
@@ -140,12 +211,11 @@
    ClientEngine.prototype.pollForAgent = function() {
       var self = this;
       var client = connect.core.getClient();
+      var onAuthFail = connect.hitch(self, self.handleAuthFail);
 
-      this.checkAuthToken();
-
-      client.call(connect.ClientMethods.GET_AGENT_SNAPSHOT, {
+      this.client.call(connect.ClientMethods.GET_AGENT_SNAPSHOT, {
          nextToken:     self.nextToken,
-         timeout:       GET_AGENT_TIMEOUT
+         timeout:       GET_AGENT_TIMEOUT_MS
       }, {
          success: function(data) {
             self.agent = self.agent || {};
@@ -153,8 +223,9 @@
             self.agent.snapshot.localTimestamp = connect.now();
             self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
             self.nextToken = data.nextToken;
+            connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.").withObject(data);
             self.updateAgent();
-            global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT);
+            global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
          },
          failure: function(err, data) {
             try {
@@ -165,20 +236,23 @@
                   });
 
             } finally {
-               global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_RECOVERY_TIMEOUT);
+               global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_RECOVERY_TIMEOUT_MS);
             }
          },
-         authFailure: connect.hitch(self, self.handleAuthFail)
+         authFailure: function() {
+            self.agentPolling = false;
+            onAuthFail();
+         }
       });
 
    };
 
    ClientEngine.prototype.pollForAgentConfiguration = function(paramsIn) {
       var self = this;
-      var client = connect.core.getClient();
       var params = paramsIn || {};
+      var onAuthFail = connect.hitch(self, self.handleAuthFail);
 
-      client.call(connect.ClientMethods.GET_AGENT_CONFIGURATION, {}, {
+      this.client.call(connect.ClientMethods.GET_AGENT_CONFIGURATION, {}, {
          success: function(data) {
             var configuration = data.configuration;
             self.pollForAgentPermissions(configuration);
@@ -187,7 +261,7 @@
             self.pollForRoutingProfileQueues(configuration);
             if (params.repeatForever) {
                global.setTimeout(connect.hitch(self, self.pollForAgentConfiguration, params),
-                  GET_AGENT_CONFIGURATION_INTERVAL);
+                  GET_AGENT_CONFIGURATION_INTERVAL_MS);
             }
          },
          failure: function(err, data) {
@@ -200,21 +274,23 @@
             } finally {
                if (params.repeatForever) {
                   global.setTimeout(connect.hitch(self, self.pollForAgentConfiguration),
-                     GET_AGENT_CONFIGURATION_INTERVAL, params);
+                     GET_AGENT_CONFIGURATION_INTERVAL_MS, params);
                }
             }
          },
-         authFailure: connect.hitch(self, self.handleAuthFail)
+         authFailure: function() {
+            self.configPolling = false;
+            onAuthFail();
+         }
       });
    };
 
    ClientEngine.prototype.pollForAgentStates = function(configuration, paramsIn) {
       var self = this;
-      var client = connect.core.getClient();
       var params = paramsIn || {};
       params.maxResults = params.maxResults || connect.DEFAULT_BATCH_SIZE;
 
-      client.call(connect.ClientMethods.GET_AGENT_STATES, {
+      this.client.call(connect.ClientMethods.GET_AGENT_STATES, {
          nextToken: params.nextToken || null,
          maxResults: params.maxResults
 
@@ -245,11 +321,10 @@
 
    ClientEngine.prototype.pollForAgentPermissions = function(configuration, paramsIn) {
       var self = this;
-      var client = connect.core.getClient();
       var params = paramsIn || {};
       params.maxResults = params.maxResults || connect.DEFAULT_BATCH_SIZE;
 
-      client.call(connect.ClientMethods.GET_AGENT_PERMISSIONS, {
+      this.client.call(connect.ClientMethods.GET_AGENT_PERMISSIONS, {
          nextToken: params.nextToken || null,
          maxResults: params.maxResults
 
@@ -280,11 +355,10 @@
 
    ClientEngine.prototype.pollForDialableCountryCodes = function(configuration, paramsIn) {
       var self = this;
-      var client = connect.core.getClient();
       var params = paramsIn || {};
       params.maxResults = params.maxResults || connect.DEFAULT_BATCH_SIZE;
 
-      client.call(connect.ClientMethods.GET_DIALABLE_COUNTRY_CODES, {
+      this.client.call(connect.ClientMethods.GET_DIALABLE_COUNTRY_CODES, {
          nextToken: params.nextToken || null,
          maxResults: params.maxResults
       }, {
@@ -314,11 +388,10 @@
 
    ClientEngine.prototype.pollForRoutingProfileQueues = function(configuration, paramsIn) {
       var self = this;
-      var client = connect.core.getClient();
       var params = paramsIn || {};
       params.maxResults = params.maxResults || connect.DEFAULT_BATCH_SIZE;
 
-      client.call(connect.ClientMethods.GET_ROUTING_PROFILE_QUEUES, {
+      this.client.call(connect.ClientMethods.GET_ROUTING_PROFILE_QUEUES, {
          routingProfileARN: configuration.routingProfile.routingProfileARN,
          nextToken: params.nextToken || null,
          maxResults: params.maxResults
@@ -349,8 +422,8 @@
 
    ClientEngine.prototype.handleAPIRequest = function(portConduit, request) {
       var self = this;
-      var client = connect.core.getClient();
-      client.call(request.method, request.params, {
+
+      this.client.call(request.method, request.params, {
          success: function(data) {
             var response = connect.EventFactory.createResponse(connect.EventType.API_RESPONSE, request, data);
             portConduit.sendDownstream(response.event, response);
@@ -359,7 +432,7 @@
             var response = connect.EventFactory.createResponse(connect.EventType.API_RESPONSE, request, data, JSON.stringify(err));
             portConduit.sendDownstream(response.event, response);
             connect.getLog().error("'%s' API request failed: %s", request.method, err)
-               .withObject({request: request, response: response});
+               .withObject({request: self.filterAuthToken(request), response: response});
          },
          authFailure: connect.hitch(self, self.handleAuthFail)
       });
@@ -464,7 +537,6 @@
     */
    ClientEngine.prototype.handleSendLogsRequest = function() {
       var self = this;
-      var client = connect.core.getClient();
       var logEvents = [];
       var logsToSend = self.logsBuffer.slice();
       self.logsBuffer = [];
@@ -475,7 +547,7 @@
             message: log.text
          });
       });
-      client.call(connect.ClientMethods.SEND_CLIENT_LOGS, {logEvents: logEvents}, {
+      this.client.call(connect.ClientMethods.SEND_CLIENT_LOGS, {logEvents: logEvents}, {
          success: function(data) {
             connect.getLog().info("SendLogs request succeeded.");
          },
@@ -495,32 +567,61 @@
       var self = this;
       var expirationDate = new Date(self.initData.authTokenExpiration);
       var currentTimeStamp = new Date().getTime();
-      var fiveMins = 5 * 60 * 1000;
+      var thirtyMins = 30 * 60 * 1000;
 
-      // refresh token 5 minutes before expiration
-      if (expirationDate.getTime() < (currentTimeStamp + fiveMins)) {
-        this.refreshAuthToken();
+      // refresh token 30 minutes before expiration
+      if (expirationDate.getTime() < (currentTimeStamp + thirtyMins)) {
+         connect.getLog().info("Auth token expires at " + expirationDate + " Start refreshing token with retry.");
+         connect.backoff(connect.hitch(self, self.refreshAuthToken), REFRESH_AUTH_TOKEN_INTERVAL_MS, REFRESH_AUTH_TOKEN_MAX_TRY);
       }
    };
 
-   ClientEngine.prototype.refreshAuthToken = function() {
+   ClientEngine.prototype.refreshAuthToken = function(callbacks) {
       var self = this;
       connect.assertNotNull(self.initData.refreshToken, 'initData.refreshToken');
 
-      var client = connect.core.getClient();
-      client.call(connect.ClientMethods.GET_NEW_AUTH_TOKEN, {refreshToken: self.initData.refreshToken}, {
+      this.client.call(connect.ClientMethods.GET_NEW_AUTH_TOKEN, {refreshToken: self.initData.refreshToken}, {
          success: function(data) {
             connect.getLog().info("Get new auth token succeeded. New auth token expired at %s", data.expirationDateTime);
             self.initData.authToken = data.newAuthToken;
             self.initData.authTokenExpiration = new Date(data.expirationDateTime);
             connect.core.init(self.initData);
+            if (callbacks && callbacks.success) {
+               callbacks.success(data);
+            }
          },
          failure: function(err, data) {
             connect.getLog().error("Get new auth token failed. %s ", err);
-            self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+            if (callbacks && callbacks.failure) {
+               callbacks.failure(err, data);
+            }
          },
          authFailure: connect.hitch(self, self.handleAuthFail)
       });
+   };
+   
+   /**
+    * Filter the 'authentication' field of the request params from the given API_REQUEST event.
+    */
+   ClientEngine.prototype.filterAuthToken = function(request) {
+      var new_request = {};
+      
+      for (var keyA in request) {
+         if (keyA === 'params') {
+            var new_params = {};
+            for (var keyB in request.params) {
+               if (keyB !== 'authentication') {
+                  new_params[keyB] = request.params[keyB];
+               }
+            }
+
+            new_request.params = new_params;
+         } else {
+            new_request[keyA] = request[keyA];
+         }
+      }
+
+      return new_request;
    };
 
    /**-----------------------------------------------------------------------*/
