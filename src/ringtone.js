@@ -49,16 +49,18 @@
       throw new Error("Not implemented.");
    };
 
-   RingtoneEngineBase.prototype._startRingtone = function() {
+   RingtoneEngineBase.prototype._startRingtone = function(contact) {
       if (this._audio) {
          this._audio.play();
+         this._publishTelemetryEvent("Ringtone Start", contact);
       }
    };
 
-   RingtoneEngineBase.prototype._stopRingtone = function() {
+   RingtoneEngineBase.prototype._stopRingtone = function(contact) {
       if (this._audio) {
          this._audio.pause();
          this._audio.currentTime = 0;
+         this._publishTelemetryEvent("Ringtone Stop", contact);
       }
    };
 
@@ -72,13 +74,28 @@
    RingtoneEngineBase.prototype._ringtoneSetup = function(contact) {
       var self = this;
       connect.ifMaster(connect.MasterTopics.RINGTONE, function() {
-         self._startRingtone();
+         self._startRingtone(contact);
          self._prevContactId = contact.getContactId();
 
          contact.onConnected(lily.hitch(self, self._stopRingtone));
          contact.onAccepted(lily.hitch(self, self._stopRingtone));
          contact.onEnded(lily.hitch(self, self._stopRingtone));
+         // Just to make sure to stop the ringtone in case of the failures of specific callbacks(onAccepted,onConnected);
+         contact.onRefresh(function(contact){
+          if(contact.getStatus().type !== connect.ContactStatusType.CONNECTING){
+            self._stopRingtone();
+          }
+         });
       });
+   };
+
+   RingtoneEngineBase.prototype._publishTelemetryEvent = function(eventName, contact) {
+       if(contact && contact.getContactId()) {
+           connect.publishMetric({
+               name: eventName,
+               contactId: contact.getContactId()
+           });
+       }
    };
 
    /**
@@ -118,13 +135,22 @@
    VoiceRingtoneEngine.prototype._driveRingtone = function() {
       var self = this;
 
+      var onContactConnect =  function(contact){
+          if (contact.getType() === lily.ContactType.VOICE &&
+             contact.isSoftphoneCall() && contact.isInbound()) {
+             self._ringtoneSetup(contact);
+             self._publishTelemetryEvent("Ringtone Connecting", contact);
+          }
+      };
+
       connect.contact(function(contact) {
-         contact.onConnecting(function() {
-            if (contact.getType() === lily.ContactType.VOICE &&
-               contact.isSoftphoneCall() && contact.isInbound()) {
-               self._ringtoneSetup(contact);
-            }
-         });
+         contact.onConnecting(onContactConnect);
+      });
+
+      new connect.Agent().getContacts().forEach(function(contact){
+        if(contact.getStatus().type === connect.ContactStatusType.CONNECTING){
+          onContactConnect(contact);
+        }
       });
    };
 
@@ -141,6 +167,7 @@
          contact.onIncoming(function() {
              if (contact.getType() === lily.ContactType.QUEUE_CALLBACK) {
                 self._ringtoneSetup(contact);
+                self._publishTelemetryEvent("Callback Ringtone Connecting", contact);
              }
           });
       });
