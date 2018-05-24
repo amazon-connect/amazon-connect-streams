@@ -610,4 +610,3 @@
 
     connect.SoftphoneManager = SoftphoneManager;
 })();
-
