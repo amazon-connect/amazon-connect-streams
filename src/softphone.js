@@ -114,7 +114,6 @@
                         if (rtcSessions.hasOwnProperty(_connectionId)) {
                             publishMultipleSessionsEvent(MULTIPLE_SESSIONS_EVENT, rtcSessions[_connectionId].callId, _connectionId);
                         }
-
                     }
                 }
             }
