@@ -231,6 +231,27 @@
       bus.subscribe(connect.AgentEvents.STATE_CHANGE, f);
    };
 
+   Agent.prototype.onMuteToggle = function(f) {
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.AgentEvents.MUTE_TOGGLE, f);
+   };
+
+   Agent.prototype.mute = function() {
+      connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+        {
+          event: connect.EventType.MUTE, 
+          data: {mute: true}
+      });
+   };
+
+   Agent.prototype.unmute = function() {
+      connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+        {
+          event: connect.EventType.MUTE, 
+          data: {mute: false}
+      });
+   };
+
    Agent.prototype.getState = function() {
       return this._getData().snapshot.state;
    };

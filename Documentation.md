@@ -61,6 +61,23 @@ This will generate a file called `connect-streams-${VERSION}.js`, this is the fu
 Connect Streams API which you will want to include in your page.  You can serve
 `connect-streams-${VERSION}.js` with your web application.
 
+### Build your own with NPM
+Install latest LTS version of [NodeJS](https://nodejs.org)
+
+```
+$ git clone https://github.com/aws/amazon-connect-streams
+$ cd amazon-connect-streams
+$ npm install
+$ gulp 
+```
+
+Find build artifacts in **release** directory -  This will generate a file called `connect-streams.js` and the minified version of the same `connect-streams-min.js`  - this is the full Connect Streams API which you will want to include in your page.
+
+To run unit tests:
+```
+$ gulp test
+```
+
 ## Initialization
 Initializing the Streams API is the first step to verify that you have
 everything setup correctly and that you will be able to listen for events.
@@ -339,6 +356,27 @@ var snapshot = agent.toSnapshot();
 The data behind the `Agent` API object is ephemeral and changes whenever new data is provided.  This method
 provides an opportunity to create a snapshot version of the `Agent` API object and save it for future use,
 such as adding to a log file or posting elsewhere.
+
+
+### `agent.mute()`
+```
+agent.mute();
+```
+Sets the agent local media to mute mode.
+
+
+### `agent.unmute()`
+```
+agent.unmute();
+```
+Sets the agent localmedia to unmute mode.
+
+### `agent.onMuteToggle()`
+```
+agent.onMuteToggle(function(obj) { //obj.muted provides the current status of the agent });
+```
+Subscribe a method to be called when the agent updates the mute status, meaning
+that agents mute/unmute APIs are called and the local media stream is succesfully updated with the new status. 
 
 ## Contact API
 The Contact API provides event subscription methods and action methods which can be called on behalf of a specific
