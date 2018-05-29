@@ -262,7 +262,8 @@ Gets the full `AgentConfiguration` object for the agent.  This object contains t
 * `extension`: Indicates the phone number that should be dialed to connect the agent to their
   inbound or outbound calls when softphone is not enabled.
 * `routingProfile`: Describes the agent's current routing profile and list of
-  queues therein.  See `agent.getRoutingProfile()` for more info.
+  queues therein. See `agent.getRoutingProfile()` for more info.
+* `username`: The username for the agent as entered in their Amazon Connect user account.
 
 ### `agent.getAgentStates()`
 ```
