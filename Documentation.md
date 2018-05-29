@@ -1,5 +1,5 @@
 # Amazon Connect Streams Documentation
-(c) 2017 Amazon.com, Inc.  All rights reserved.
+(c) 2018 Amazon.com, Inc.  All rights reserved.
 
 ## Overview
 The Amazon Connect Streams API (Streams) gives you the power to integrate your
@@ -11,12 +11,12 @@ can use the built in interface or build your own from scratch: Streams gives you
 the power to choose.
 
 ## Architecture
-Click [here](Architecture.md) to view a quick architecture overview of how
-Connect Streams works.
+Click [here](Architecture.md) to view a quick architecture overview of how the 
+Amazon Connect Streams API works.
 
 ## Getting Started
 ### Whitelisting
-The first step to using Streams is to whitelist the pages you wish to embed.
+The first step to using the Streams API is to whitelist the pages you wish to embed.
 For our customer's security, we require that all domains which embed the CCP for
 a particular instance are explicitly whitelisted.  Each domain entry identifies
 the protocol scheme, host, and port.  Any pages hosted behind the same protocol
@@ -26,17 +26,17 @@ required to use the Streams library.
 To whitelist your pages:
 
 1. Login to your AWS Account, then navigate to the Amazon Connect console.
-2. Click the instance name of the instance for which you would like to whitelist
-   pages to load the settings page for your instance.
-3. Click the "Application integration" link on the left.
-4. Click "+ Add Origin", then enter a domain URL, e.g.
+2. Choose the instance alias of the instance to whitelist
+   pages for to load the settings Overview page for your instance.
+3. Choose "Application integration" link on the left.
+4. Choose "+ Add Origin", then enter a domain URL, e.g.
    "https<nolink>://example.com", or "https<nolink>://example.com:9595" if your
    website is hosted on a non-standard port.
 
 #### A few things to note:
 * Whitelisted domains must be HTTPS.
 * All of the pages that attempt to initialize the Streams library must be hosted
-  on domains that are whitelisted as per the above steps.
+  on domains that are whitelisted as per the previous steps.
 * All open tabs that contain an initialized Streams library or any other CCP
   tabs opened will be synchronized.  This means that state changes made in one
   open window will be communicated to all open windows.
@@ -80,7 +80,7 @@ $ gulp test
 
 ## Initialization
 Initializing the Streams API is the first step to verify that you have
-everything setup correctly and that you will be able to listen for events.
+everything set up correctly and that you are able to listen for events.
 
 ### `connect.core.initCCP()`
 ```
@@ -100,7 +100,6 @@ and made available to your JS client code.
 * `ccpUrl`: The URL of the CCP.  This is the page you would normally navigate to
   in order to use the CCP in a standalone page, it is different for each
   instance.
-  * The url should be `https://XXX.awsapps.com/connect/ccp` where XXX will be the alias of your Amazon Connect Instance
 * `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login
   popup which is shown when the user's authentication expires.
 * `softphone`: This object is optional and allows you to specify some settings
@@ -234,7 +233,7 @@ This object contains the following fields:
 var millis = agent.getStateDuration();
 ```
 Get the duration of the agent's state in milliseconds relative to local time.  This takes into
-account time skew between the JS client and the Connect backend servers.
+account time skew between the JS client and the Amazon Connect service.
 
 ### `agent.getPermissions()`
 ```
@@ -296,8 +295,8 @@ Gets the agent's user friendly display name from the `AgentConfiguration` object
 ```
 var extension = agent.getExtension();
 ```
-Gets the agent's extension from the `AgentConfiguration` object for the agent.  This is the phone
-number that is dialed by Amazon Connect to reach out to the agent for incoming and outgoing calls if
+Gets the agent's phone number from the `AgentConfiguration` object for the agent.  This is the phone
+number that is dialed by Amazon Connect to connect calls to the agent for incoming and outgoing calls if
 softphone is not enabled.
 
 ### `agent.isSoftphoneEnabled()`
@@ -316,7 +315,7 @@ agent.setConfiguration(config {
    failure: function() { ... }
 });
 ```
-Updates the agents configuration with the given `AgentConfiguration` object.  The extension specified must be a valid E.164 phone number or the update will fail.
+Updates the agents configuration with the given `AgentConfiguration` object.  The phone number specified must be in E.164 format or the update fails.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
@@ -332,7 +331,8 @@ agent.setState(routableState, {
 ```
 Set the agent's current availability state.  Can only be performed if the agent is not handling a live contact.
 
-Optional success and failure callbacks can be provided to determine if the operation was successful.
+You can optionally provide success and failure callbacks to determine whether the
+operation succeeded.
 
 ### `agent.connect()`
 ```
@@ -342,17 +342,16 @@ agent.connect(endpoint, {
    failure: function() { ... }
 });
 ```
-Creates an outbound contact to the given endpoint.  An optional queueARN can be
-specified indicating with which queue to associate the outbound contact.
+Creates an outbound contact to the given endpoint.  You can optionally provide a queueARN to associate the contact with a queue.
 
-Optional success and failure callbacks can be provided to determine if the
-operation was successful.
+You can optionally provide success and failure callbacks to determine whether the
+operation succeeded.
 
 ### `agent.toSnapshot()`
 ```
 var snapshot = agent.toSnapshot();
 ```
-The data behind the `Agent` API object is ephemeral and changes whenever new data is provided.  This method
+The data behind the `Agent` API object is ephemeral and changes whenever new data is provided. This method
 provides an opportunity to create a snapshot version of the `Agent` API object and save it for future use,
 such as adding to a log file or posting elsewhere.
 
@@ -489,16 +488,16 @@ no longer active.
 ```
 var thirdPartyConns = contact.getThirdPartyConnections();
 ```
-Get a list of all of the third party connections, i.e. the list of all connections
-except for the initial connection, or an empty list if there are no third party connections.
+Get a list of all of the third-party connections, i.e. the list of all connections
+except for the initial connection, or an empty list if there are no third-party connections.
 
 ### `contact.getSingleActiveThirdPartyConnection()`
 ```
 var thirdPartyConn = contact.getSingleActiveThirdPartyConnection();
 ```
-In Voice contacts, there can only be one active third party connection.  This
+In Voice contacts, there can only be one active third-party connection.  This
 method returns the single active third-party connection, or null if there are no
-currently active third party connections.
+currently active third-party connections.
 
 ### `contact.getAgentConnection()`
 ```
@@ -517,21 +516,21 @@ Get a map from attribute name to value for each attribute associated with the co
 ```
 if (contact.isSoftphoneCall()) { ... }
 ```
-Determine if this contact is a softphone call.
+Determine whether this contact is a softphone call.
 
 ### `contact.isInbound()`
 ```
 if (contact.isInbound()) { ... }
 ```
-Determine if this is an inbound or outbound contact.
+Determine whether this is an inbound or outbound contact.
 
 ### `contact.isConnected()`
 ```
 if (contact.isConnected()) { ... }
 ```
-Determine if the contact is in a connected state.
+Determine whether the contact is in a connected state.
 
-Note that contacts will no longer exist once they have been removed.  To detect
+Note that contacts no longer exist once they have been removed.  To detect
 these instances, subscribe to the `contact.onEnded()` event for the contact.
 
 ### `contact.accept()`
@@ -543,7 +542,7 @@ contact.accept({
 ```
 Accept an incoming contact.
 
-Optional success and failure callbacks can be provided to determine if the operation was successful.
+Optional success and failure callbacks can be provided to determine whether the operation was successful.
 
 ### `contact.destroy()`
 ```
@@ -552,11 +551,11 @@ contact.destroy({
    failure: function() { ... }
 });
 ```
-Close the contact and all of its associated connections.  If the contact is a voice contact and
-there is a third party, the customer will remain bridged with the third party and will not
-be disconnected from the call.  Otherwise, the agent and customer will be disconnected.
+Close the contact and all of its associated connections.  If the contact is a voice contact, and
+there is a third-party, the customer remains bridged with the third party and will not
+be disconnected from the call. Otherwise, the agent and customer are disconnected.
 
-Optional success and failure callbacks can be provided to determine if the operation was successful.
+Optional success and failure callbacks can be provided to determine whether the operation was successful.
 
 ### `contact.notifyIssue()`
 ```
@@ -565,7 +564,7 @@ contact.notifyIssue(issueCode, description, {
    failure: function() { ... }
 });
 ```
-Provide diagnostic information for the contact, in case something exceptional happens on the front end.
+Provide diagnostic information for the contact in the case something exceptional happens on the front end.
 The Streams logs will be published along with the issue code and description provided here.
 
 * `issueCode`: An arbitrary issue code to associate with the diagnostic report.
@@ -580,9 +579,9 @@ contact.addConnection(endpoint, {
    failure: function() { ... }
 });
 ```
-Add a new outbound third-party connection to this contact connecting to the given endpoint.
+Add a new outbound third-party connection to this contact and connect it to the specified endpoint.
 
-Optional success and failure callbacks can be provided to determine if the operation was successful.
+Optional success and failure callbacks can be provided to determine whether the operation was successful.
 
 ### `contact.toggleActiveConnections()`
 ```
@@ -591,10 +590,10 @@ contact.toggleActiveConnections({
    failure: function() { ... }
 });
 ```
-Rotate through the connected and on hold connections of the contact.  This operation is only valid
-if there is at least one third party connection and the initial connection is still connected.
+Rotate through the connected and on hold connections of the contact. This operation is only valid
+if there is at least one third-party connection and the initial connection is still connected.
 
-Optional success and failure callbacks can be provided to determine if the operation was successful.
+Optional success and failure callbacks can be provided to determine whether the operation was successful.
 
 ### `contact.conferenceConnections()`
 ```
@@ -603,15 +602,15 @@ contact.conferenceConnections({
    failure: function() { ... }
 });
 ```
-Conference together the active connections of the conversation.  This operation is only valid
-if there is at least one third party connection and the initial connection is still connected.
+Conference together the active connections of the conversation. This operation is only valid
+if there is at least one third-party connection and the initial connection is still connected.
 
-Optional success and failure callbacks can be provided to determine if the operation was successful.
+Optional success and failure callbacks can be provided to determine whether the operation was successful.
 
 ## Connection API
 The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state
-of a particular connection within a contact.  Like contacts, connections come and go.  It is good practice not
-to persist these object or keep them as internal state.  If you need to, store the `contactId` and `connectionId`
+of a particular connection within a contact.  Like contacts, connections come and go. It is good practice not
+to persist these object or keep them as internal state. If you need to, store the `contactId` and `connectionId`
 of the connection and make sure that the contact and connection still exist by fetching them in order from
 the `Agent` API object before calling methods on them.
 
@@ -641,7 +640,7 @@ Gets the `ConnectionState` object for this connection.  This object has the
 following fields:
 
 * `type`: The connection state type, as per the `ConnectionStateType` enumeration.
-* `duration`: A relative local state duration.  To get the actual duration of
+* `duration`: A relative local state duration. To get the actual duration of
   the state relative to the current time, use `connection.getStateDuration()`.
 
 ### `connection.getStateDuration()`
@@ -649,14 +648,13 @@ following fields:
 var millis = connection.getStateDuration();
 ```
 Get the duration of the connection state, in milliseconds, relative to local time.
-This takes into account time skew between the JS client and the Connect backend
-servers.
+This takes into account time skew between the JS client and the Amazon Connect service.
 
 ### `connection.getType()`
 ```
 var type = connection.getType()
 ```
-Get the type of connection.  This value is either "inbound", "outbound", or "monitoring".
+Get the type of connection. This value is either "inbound", "outbound", or "monitoring".
 
 ### `connection.isInitialConnection()`
 ```
@@ -680,13 +678,13 @@ Determine if the connection is connected, meaning that the agent is live in a co
 ```
 if (conn.isConnecting()) { ... }
 ```
-Determine if the connection is in the process of connecting.
+Determine whether the connection is in the process of connecting.
 
 ### `connection.isOnHold()`
 ```
 if (conn.isOnHold()) { ... }
 ```
-Determine if the connection is on hold.
+Determine whether the connection is on hold.
 
 ### `connection.destroy()`
 ```
@@ -697,7 +695,7 @@ conn.destroy({
 ```
 Ends the connection.
 
-Optional success and failure callbacks can be provided to determine if the operation was successful.
+Optional success and failure callbacks can be provided to determine whether the operation was successful.
 
 ### `connection.sendDigits()`
 ```
@@ -723,7 +721,7 @@ conn.hold({
 ```
 Put this connection on hold.
 
-Optional success and failure callbacks can be provided to determine if the operation was successful.
+Optional success and failure callbacks can be provided to determine whether the operation was successful.
 
 ### `connection.resume()`
 ```
@@ -734,7 +732,7 @@ conn.resume({
 ```
 Resume this connection if it was on hold.
 
-Optional success and failure callbacks can be provided to determine if the operation was successful.
+Optional success and failure callbacks can be provided to determine whether the operation was successful.
 
 ## Utility Functions
 ### `Endpoint.byPhoneNumber()` (static function)
@@ -748,7 +746,7 @@ Creates an `Endpoint` object for the given phone number, useful for `agent.conne
 ```
 agent.onRefresh(connect.hitch(eventHandler, eventHandler._onAgentRefresh));
 ```
-A useful utility function for creating callback closures which binds a function to an object instance.
+A useful utility function for creating callback closures that bind a function to an object instance.
 In the above example, the "_onAgentRefresh" function of the "eventHandler" will be called when the
 agent is refreshed.
 
