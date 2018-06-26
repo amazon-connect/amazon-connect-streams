@@ -34,8 +34,8 @@
     var UNKNOWN_MEDIA_TYPE = "Unknown";
 
     var timeSeriesStreamStatsBuffer = [];
-    var aggregatedUserAudioStats = null;
-    var aggregatedRemoteAudioStats = null;
+    var aggregatedUserAudioStats = {};
+    var aggregatedRemoteAudioStats = {};
     var rtpStatsJob = null;
     var reportStatsJob = null;
     //Logger specific to softphone.
@@ -452,8 +452,8 @@
     };
 
     var sendSoftphoneReport = function(contact, report, userAudioStats, remoteAudioStats) {
-        report.streamStats = [ addStreamTypeToStats(userAudioStats || {}, AUDIO_INPUT),
-                                addStreamTypeToStats(remoteAudioStats || {}, AUDIO_OUTPUT) ];
+        report.streamStats = [ addStreamTypeToStats(userAudioStats, AUDIO_INPUT),
+                                addStreamTypeToStats(remoteAudioStats, AUDIO_OUTPUT) ];
         var callReport = {
                         callStartTime: report.sessionStartTime,
                         callEndTime: report.sessionEndTime,
@@ -572,6 +572,7 @@
     };
 
     var addStreamTypeToStats = function(stats, streamType) {
+        stats = stats || {};
         return new RTPStreamStats(stats.timestamp, stats.packetsLost, stats.packetsCount, streamType, stats.audioLevel);
     };
 
