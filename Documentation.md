@@ -410,7 +410,7 @@ or actions, and potentially show an "Accepting..." UI to the customer.
 contact.onEnded(function() { ... });
 ```
 Subscribe a method to be invoked whenever the contact is ended or destroyed.  This could be due to the conversation
-being ended by the agent, or due to the contact being missed.  Call `contact.getState()` to determine the state
+being ended by the agent, or due to the contact being missed.  Call `contact.getStatus()` to determine the state
 of the contact and take appropriate action.
 
 ### `contact.onConnected()`
@@ -440,19 +440,19 @@ var type = contact.getType();
 ```
 Get the type of the contact.  This indicates what type of media is carried over the connections of the contact.
 
-### `contact.getState()`
+### `contact.getStatus()`
 ```
-var state = contact.getState();
+var state = contact.getStatus();
 ```
 Get a `ContactState` object representing the state of the contact.  This object has the following fields:
 
 * `type`: The contact state type, as per the `ContactStateType` enumeration.
 * `duration`: A relative local state duration.  To get the actual duration of the state relative
-  to the current time, use `contact.getStateDuration()`.
+  to the current time, use `contact.getStatusDuration()`.
 
-### `contact.getStateDuration()`
+### `contact.getStatusDuration()`
 ```
-var millis = contact.getStateDuration();
+var millis = contact.getStatusDuration();
 ```
 Get the duration of the contact state in milliseconds relative to local time.  This takes into
 account time skew between the JS client and the Amazon Connect backend servers.
