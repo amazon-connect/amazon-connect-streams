@@ -71,7 +71,7 @@
         // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
         var callsDetected = {};
 
-        
+
 
         var isContactTerminated = function(contact) {
             return contact.getStatus().type === connect.ContactStatusType.ENDED ||
@@ -192,6 +192,8 @@
 
                     session.remoteAudioElement = document.getElementById('remote-audio');
                     session.connect();
+                    var bus = connect.core.getEventBus();
+                    bus.trigger(contact.getEventName(connect.ContactEvents.SESSION), session);
                 }
         };
 
@@ -208,7 +210,7 @@
 
         connect.contact(onInitContact);
 
-        // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed. 
+        // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed.
         new connect.Agent().getContacts().forEach(function(contact){
             var agentConnectionId = contact.getAgentConnection().connectionId;
             logger.info("Contact exist in the snapshot. Reinitiate the Contact and RTC session creation for contactId" + contact.getContactId(), "agent connectionId " + agentConnectionId);
@@ -241,7 +243,7 @@
             logger.info("Auto-accept is disabled, ringtone will be stopped by user action.");
         }
     };
-    
+
     // Bind events for mute
     var handleSoftPhoneMuteToggle = function(){
         var bus = connect.core.getEventBus();
@@ -258,7 +260,7 @@
     };
 
     // Check for the local streams if exists  -  revert it
-    // And inform other clients about the change 
+    // And inform other clients about the change
     var muteToggle = function(data){
         var status;
         if(connect.keys(localMediaStream).length === 0){
@@ -328,7 +330,7 @@
         } else {
             publishError(SoftphoneErrorTypes.WEBRTC_ERROR,
                 "webrtc system error. ",
-                "");
+                reason);
         }
     };
 
