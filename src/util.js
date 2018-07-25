@@ -447,7 +447,7 @@
          this.permission = NotificationPermission.DENIED;
 
       } else if (this.permission !== NotificationPermission.GRANTED) {
-         global.Notification.requestPermission(function(permission) {
+         global.Notification.requestPermission().then(function(permission) {
             self.permission = permission;
             if (permission === NotificationPermission.GRANTED) {
                self._showQueued();
