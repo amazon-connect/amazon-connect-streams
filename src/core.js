@@ -86,7 +86,13 @@
    connect.core.terminate = function() {
       connect.core.client = new connect.NullClient();
       connect.core.masterClient = new connect.NullClient();
-      connect.core.eventBus = new connect.EventBus();
+      var bus = connect.core.getEventBus();
+      if(bus) bus.unsubscribeAll();
+      connect.core.bus = new connect.EventBus();
+      connect.core.agentDataProvider = null;
+      connect.core.upstream = null;
+      connect.core.keepaliveManager = null;
+      connect.agent.initialized = false;
       connect.core.initialized = false;
    };
 
