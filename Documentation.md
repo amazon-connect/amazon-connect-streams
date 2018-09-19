@@ -64,7 +64,10 @@ Amazon Connect Streams API which you will want to include in your page.  You can
 ### Build your own with NPM
 Install latest LTS version of [NodeJS](https://nodejs.org)
 
+You will also need to have `gulp` installed. You can install `gulp` globally.
+
 ```
+$ npm install -g gulp
 $ git clone https://github.com/aws/amazon-connect-streams
 $ cd amazon-connect-streams
 $ npm install

@@ -38,9 +38,9 @@ gulp.task('test', ['pre-test'], function () {
  
 gulp.task('script', function() {
   return gulp.src(source)
-    .pipe(concat('connect-steams.js'))
+    .pipe(concat('connect-streams.js'))
     .pipe(gulp.dest('./release/'))
-    .pipe(rename('connect-steams-min.js'))
+    .pipe(rename('connect-streams-min.js'))
     .pipe(uglify())
     .pipe(gulp.dest('./release/'))
 });
