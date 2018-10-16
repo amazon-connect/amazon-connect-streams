@@ -357,11 +357,11 @@
         }
 
         if (typeof navigator.mediaDevices === "object" && typeof navigator.mediaDevices.getUserMedia === "function") {
-            promise = navigator.mediaDevices.getUserMedia(USER_MEDIA_CONSTRAINT);
+            promise = navigator.mediaDevices.getUserMedia(connect.USER_MEDIA_CONSTRAINT);
 
         } else if (typeof navigator.webkitGetUserMedia === "function") {
             promise = new Promise(function(resolve, reject) {
-                navigator.webkitGetUserMedia(USER_MEDIA_CONSTRAINT, resolve, reject);
+                navigator.webkitGetUserMedia(connect.USER_MEDIA_CONSTRAINT, resolve, reject);
             });
 
         } else {
