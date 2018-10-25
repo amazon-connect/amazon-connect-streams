@@ -65,6 +65,22 @@ This will generate a file called `connect-streams-${VERSION}.js`, this is the fu
 Connect Streams API which you will want to include in your page.  You can serve
 `connect-streams-${VERSION}.js` with your web application.
 
+### Build your own with NPM
+Install latest LTS version of [NodeJS](https://nodejs.org)
+
+```
+$ git clone https://github.com/aws/amazon-connect-streams
+$ cd amazon-connect-streams
+$ npm install
+$ gulp 
+```
+
+Find build artifacts in **release** directory -  This will generate a file called `connect-streams.js` and the minified version of the same `connect-streams-min.js`  - this is the full Connect Streams API which you will want to include in your page.
+
+To run unit tests specifically:
+```
+$ gulp test
+```
 ## Initialization
 Initializing the Streams API is the first step to verify that you have
 everything setup correctly and that you will be able to listen for events.

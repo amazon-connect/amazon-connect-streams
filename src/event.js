@@ -38,7 +38,10 @@
          'terminated',
          'send_logs',
          'reload_agent_configuration',
-         'broadcast'
+         'broadcast',
+         'api_metric',
+         'client_metric',
+         'mute'
    ]);
 
    /**---------------------------------------------------------------
@@ -48,7 +51,8 @@
          'loginPopup',
          'sendLogs',
          'softphone',
-         'ringtone'
+         'ringtone',
+         'metrics'
    ]);
 
    /**---------------------------------------------------------------
@@ -66,7 +70,8 @@
          'error',
          'softphone_error',
          'state_change',
-         'acw'
+         'acw',
+         'mute_toggle'
    ]);
 
    /**---------------------------------------------------------------
@@ -232,7 +237,7 @@
       var allEventSubs = this.subMap.getSubscriptions(ALL_EVENTS);
       var eventSubs = this.subMap.getSubscriptions(eventName);
 
-      if (this.logEvents) {
+      if (this.logEvents && (eventName !== connect.EventType.LOG && eventName !== connect.EventType.MASTER_RESPONSE && eventName !== connect.EventType.API_METRIC)) {
          connect.getLog().trace("Publishing event: %s", eventName);
       }
 

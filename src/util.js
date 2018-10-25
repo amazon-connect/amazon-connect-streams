@@ -339,6 +339,43 @@
    };
 
    /**
+    * Calling a function with exponential backoff with full jitter retry strategy
+    * It will retry calling the function for maximum maxRetry times if it fails.
+    * Success callback will be called if the function succeeded.
+    * Failure callback will be called only if the last try failed.
+    */
+   connect.backoff = function(func, milliInterval, maxRetry, callbacks) {
+      connect.assertTrue(connect.isFunction(func), "func must be a Function");
+      var self = this;
+      var ratio = 2;
+
+      func({
+         success: function(data) {
+            if (callbacks && callbacks.success) {
+               callbacks.success(data);
+            }
+         },
+         failure: function(err, data) {
+            if (maxRetry > 0) {
+               var interval = milliInterval * 2 * Math.random();
+               global.setTimeout(function() {
+                  self.backoff(func, interval * ratio, --maxRetry, callbacks);
+               }, interval);
+            } else {
+               if (callbacks && callbacks.failure) {
+                  callbacks.failure(err, data);
+               }
+            }
+         }
+      });
+   };
+
+   connect.publishMetric = function(metricData) {
+      var bus = connect.core.getEventBus();
+      bus.trigger(connect.EventType.CLIENT_METRIC, metricData);
+   };
+
+   /**
     * A wrapper around Window.open() for managing single instance popups.
     */
    connect.PopupManager = function() {};
@@ -410,7 +447,7 @@
          this.permission = NotificationPermission.DENIED;
 
       } else if (this.permission !== NotificationPermission.GRANTED) {
-         global.Notification.requestPermission(function(permission) {
+         global.Notification.requestPermission().then(function(permission) {
             self.permission = permission;
             if (permission === NotificationPermission.GRANTED) {
                self._showQueued();
