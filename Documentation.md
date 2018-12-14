@@ -857,7 +857,7 @@ Error connecting to the media service. To resolve, try the action again, or wait
 Agent has the CCP running in 2 distinct browsers at the same time, such as Chrome and Firefox. Use only one browser at a time to log in to the CCP.
 
 ### `webrtc_error`
-An issue occurred due to either using an unsupported browser, or a required port/protocol is now open, such as not allowing UDP on port 443. To resolve, confirm that the agent is using a supported browser,a nd that all traffic is allowed for all required ports and protocols. See [CCP Networking](https://docs.aws.amazon.com/connect/latest/adminguide/troubleshooting.html#ccp-networking) and [Phone Settings](https://docs.aws.amazon.com/connect/latest/userguide/agentconsole-guide.html#phone-settings) for more information. 
+An issue occurred due to either using an unsupported browser, or a required port/protocol is not open, such as not allowing UDP on port 443. To resolve, confirm that the agent is using a supported browser, and that all traffic is allowed for all required ports and protocols. See [CCP Networking](https://docs.aws.amazon.com/connect/latest/adminguide/troubleshooting.html#ccp-networking) and [Phone Settings](https://docs.aws.amazon.com/connect/latest/userguide/agentconsole-guide.html#phone-settings) for more information. 
 
 ### `realtime_communication_error`
 An internal communication error occurred. 
