@@ -835,8 +835,8 @@ call `.withObject(o)` to add an arbitrary object (`o`) to the logs.
 
 Finally, you can trigger the logs to be downloaded to the agent's machine in JSON form by calling `connect.getLog().download()`.
 
-## CCP Connectivity Errors and Events
-The following errors are related to agent connectivity in the CCP.
+## CCP Error Logging
+The following errors are related to connectivity in the CCP. These errors are logged in the CCP logs when they occur.
 
 ### `unsupported_browser` 
 Agent is using an unsupported browser. Only the latest 3 versions of Chrome or Firefox is supported. Upgarde the agent's browser to resolve this error. See [Supported browsers](https://docs.aws.amazon.com/connect/latest/adminguide/what-is-amazon-connect.html#browsers)  for more information.
@@ -861,6 +861,9 @@ An issue occurred due to either using an unsupported browser, or a required port
 
 ### `realtime_communication_error`
 An internal communication error occurred. 
+
+## Agent States Logging
+The following agent states are logged in the CCP logs when they occur.
 
 ### `AgentHungUp`
 Agent hung up during the active call. 
