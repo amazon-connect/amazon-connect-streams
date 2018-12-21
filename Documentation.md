@@ -839,7 +839,7 @@ Finally, you can trigger the logs to be downloaded to the agent's machine in JSO
 The following errors are related to connectivity in the CCP. These errors are logged in the CCP logs when they occur.
 
 ### `unsupported_browser` 
-Agent is using an unsupported browser. Only the latest 3 versions of Chrome or Firefox is supported. Upgarde the agent's browser to resolve this error. See [Supported browsers](https://docs.aws.amazon.com/connect/latest/adminguide/what-is-amazon-connect.html#browsers)  for more information.
+Agent is using an unsupported browser. Only the latest 3 versions of Chrome or Firefox is supported. Upgrade the agent's browser to resolve this error. See [Supported browsers](https://docs.aws.amazon.com/connect/latest/adminguide/what-is-amazon-connect.html#browsers)  for more information.
 
 ### `microphone_not_shared`
 The microphone does not have permission for the site on which the CCP is running. For Google Chrome steps, see [Use your camera and microphone in Chrome](https://support.google.com/chrome/answer/2693767?hl=en). For Mozilla Firefox steps, see [Firefox Page Info window](https://support.mozilla.org/en-US/kb/firefox-page-info-window).
