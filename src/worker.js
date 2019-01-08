@@ -191,7 +191,7 @@
          self.portConduitMap[stream.getId()] = portConduit;
 
          if (self.agent !== null) {
-              self.updateAgent();
+            self.updateAgent();
          }
 
          portConduit.onDownstream(connect.EventType.API_REQUEST,
@@ -218,14 +218,19 @@
          timeout:       GET_AGENT_TIMEOUT_MS
       }, {
          success: function(data) {
-            self.agent = self.agent || {};
-            self.agent.snapshot = data.snapshot;
-            self.agent.snapshot.localTimestamp = connect.now();
-            self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
-            self.nextToken = data.nextToken;
-            connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.").withObject(data);
-            self.updateAgent();
-            global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
+             try {
+                 self.agent = self.agent || {};
+                 self.agent.snapshot = data.snapshot;
+                 self.agent.snapshot.localTimestamp = connect.now();
+                 self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
+                 self.nextToken = data.nextToken;
+                 connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.").withObject(data);
+                 self.updateAgent();
+             } catch(e) {
+                 connect.getLog().error("Long poll failed to update agent.").withObject(data).withException(e);
+             } finally {
+                 global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
+             }
          },
          failure: function(err, data) {
             try {
