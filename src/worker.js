@@ -191,7 +191,7 @@
          self.portConduitMap[stream.getId()] = portConduit;
 
          if (self.agent !== null) {
-            portConduit.sendDownstream(connect.AgentEvents.UPDATE, self.agent);
+              self.updateAgent();
          }
 
          portConduit.onDownstream(connect.EventType.API_REQUEST,
