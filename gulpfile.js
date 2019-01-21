@@ -3,7 +3,9 @@ var istanbul = require('gulp-istanbul'),
     concat = require('gulp-concat'),
     gulp = require('gulp'),
     uglify = require('gulp-uglify'),
-    rename = require('gulp-rename');
+    rename = require('gulp-rename'),
+    watch = require('gulp-watch'),
+    jshint = require('gulp-jshint');
 
 var source = [ "src/aws-client.js",
     "src/sprintf.js",
@@ -38,11 +40,16 @@ gulp.task('test', ['pre-test'], function () {
  
 gulp.task('script', function() {
   return gulp.src(source)
+    .pipe(jshint())
     .pipe(concat('connect-streams.js'))
     .pipe(gulp.dest('./release/'))
     .pipe(rename('connect-streams-min.js'))
     .pipe(uglify())
     .pipe(gulp.dest('./release/'))
+});
+
+gulp.task('watch', function() {
+  gulp.watch('src/*.js', ['script']);
 });
 
 gulp.task('default',['test','script']);
