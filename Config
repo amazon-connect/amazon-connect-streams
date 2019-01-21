@@ -1,0 +1,35 @@
+# If the current branch does not yet exist in Brazil, you can create and push
+# it simultaneously using the following command:
+# 'git push -u origin BRANCH_NAME_HERE'
+
+package.AmazonConnectStreams = {
+  # Please read http://tiny/inaap63w/3PMajorVersionScheme before changing the
+  # suggested major version.
+  interfaces = (1.x);
+  scope = third-party;
+
+  third-party-configuration = {
+    # This is important, please do not remove it.
+    thirdPartyName       = "AmazonConnectStreams";
+    thirdPartyVersion    = "1.3.0";
+    licenseType          = (UNKNOWN);
+    licenseFile          = (third-party-src/LICENSE.txt);
+    repository           = "raw";
+    downloadType         = "unknown";
+  };
+
+  build-system = custom-build;
+
+  build-tools = {
+    1.x = {
+      BrazilPath = 1.1;
+      CFlags = 1.0;
+      Chrpath = 1.0;
+      GnuMake = 3.81;
+    };
+  };
+
+  targets = {
+  };
+};
+# vim: set ft=perl ts=2 sw=2 tw=79 :
