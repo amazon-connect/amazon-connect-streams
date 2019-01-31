@@ -5,7 +5,10 @@ var istanbul = require('gulp-istanbul'),
     uglify = require('gulp-uglify'),
     rename = require('gulp-rename'),
     watch = require('gulp-watch'),
-    jshint = require('gulp-jshint');
+    jshint = require('gulp-jshint'),
+    pump = require('pump');
+
+var webserver = require('gulp-webserver');
 
 var source = [ "src/aws-client.js",
     "src/sprintf.js",
@@ -19,7 +22,8 @@ var source = [ "src/aws-client.js",
     "src/core.js",
     "src/ringtone.js",
     "src/softphone.js",
-    "src/worker.js"
+    "src/worker.js",
+    "src/mediaControllers/*"
 ]; 
  
 gulp.task('pre-test', function () {
@@ -31,25 +35,37 @@ gulp.task('pre-test', function () {
 });
  
 gulp.task('test', ['pre-test'], function () {
-  return gulp.src(['test/unit/*.js'])
+  return gulp.src(['test/unit/**/*.spec.js'])
     .pipe(mocha({exit: true, showStack:true}))
     .on('error', console.error)
     // Creating the reports after tests ran
     .pipe(istanbul.writeReports());
 });
- 
-gulp.task('script', function() {
-  return gulp.src(source)
-    .pipe(jshint())
-    .pipe(concat('connect-streams.js'))
-    .pipe(gulp.dest('./release/'))
-    .pipe(rename('connect-streams-min.js'))
-    .pipe(uglify())
-    .pipe(gulp.dest('./release/'))
-});
 
 gulp.task('watch', function() {
   gulp.watch('src/*.js', ['script']);
+});
+
+gulp.task('script', function (cb) {
+  pump([
+    gulp.src(source),
+    jshint(),
+    concat('connect-streams.js'),
+    gulp.dest('./release/'),
+    rename('connect-streams-min.js'),
+    uglify(),
+    gulp.dest('./release/')
+  ], cb);
+});
+
+gulp.task('webserver', function() {
+  gulp.src('./')
+    .pipe(webserver({
+      livereload: true,
+      directoryListing: false,
+      open: true,
+      https: true
+    }));
 });
 
 gulp.task('default',['test','script']);

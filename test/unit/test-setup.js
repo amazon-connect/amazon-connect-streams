@@ -17,18 +17,6 @@ global.document = {
     createElement: sinon.stub().returns({})
 }
 
-require("../../src/aws-client.js");
-require("../../src/sprintf.js");
-require("../../src/log.js");
-require("../../src/util.js");
-require("../../src/event.js");
-require("../../src/streams.js");
-require("../../src/client.js");
-require("../../src/transitions.js");
-require("../../src/api.js");
-require("../../src/core.js");
-require("../../src/ringtone.js");
-require("../../src/softphone.js");
-require("../../src/worker.js");
+require("../../release/connect-streams.js");
 
 global.connect.RTCSession = function () {};

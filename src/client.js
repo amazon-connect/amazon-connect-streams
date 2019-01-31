@@ -200,7 +200,7 @@
                   if (err) {
                      if (err.code === connect.CTIExceptions.UNAUTHORIZED_EXCEPTION) {
                         callbacks.authFailure();
-                     } else {
+                     }else{
                         // Can't pass err directly to postMessage
                         // postMessage() tries to clone the err object and failed.
                         // Refer to https://github.com/goatslacker/alt-devtool/issues/5

@@ -785,6 +785,15 @@ module.exports={
                               "callContextToken": {},
                               "callConfigJson": {}
                             }
+                          },
+                          "chatMediaInfo": {
+                            "type": "structure",
+                            "members": {
+                                "chatAutoAccept": {
+                                    "type": "boolean"
+                                },
+                              "connectionData": {}
+                            }
                           }
                         }
                       }
