@@ -68,6 +68,7 @@
         this.ringtoneEngine = null;
         var cleanMultipleSessions = 'true' === softphoneParams.cleanMultipleSessions;
         var rtcSessions = {};
+        this.sessions = rtcSessions;
         // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
         var callsDetected = {};
 
@@ -192,6 +193,8 @@
 
                     session.remoteAudioElement = document.getElementById('remote-audio');
                     session.connect();
+                    var bus = connect.core.getEventBus();
+                    bus.trigger(contact.getEventName(connect.ContactEvents.SESSION), null);
                 }
         };
 
@@ -328,7 +331,7 @@
         } else {
             publishError(SoftphoneErrorTypes.WEBRTC_ERROR,
                 "webrtc system error. ",
-                "");
+                reason);
         }
     };
 
