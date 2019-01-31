@@ -64,7 +64,10 @@ Amazon Connect Streams API which you will want to include in your page.  You can
 ### Build your own with NPM
 Install latest LTS version of [NodeJS](https://nodejs.org)
 
+You will also need to have `gulp` installed. You can install `gulp` globally.
+
 ```
+$ npm install -g gulp
 $ git clone https://github.com/aws/amazon-connect-streams
 $ cd amazon-connect-streams
 $ npm install
@@ -832,3 +835,68 @@ call `.withObject(o)` to add an arbitrary object (`o`) to the logs.
 
 Finally, you can trigger the logs to be downloaded to the agent's machine in JSON form by calling `connect.getLog().download()`.
 
+## CCP Error Logging
+The following errors are related to connectivity in the CCP. These errors are logged in the CCP logs when they occur.
+
+### `unsupported_browser` 
+Agent is using an unsupported browser. Only the latest 3 versions of Chrome or Firefox is supported. Upgrade the agent's browser to resolve this error. See [Supported browsers](https://docs.aws.amazon.com/connect/latest/adminguide/what-is-amazon-connect.html#browsers)  for more information.
+
+### `microphone_not_shared`
+The microphone does not have permission for the site on which the CCP is running. For Google Chrome steps, see [Use your camera and microphone in Chrome](https://support.google.com/chrome/answer/2693767?hl=en). For Mozilla Firefox steps, see [Firefox Page Info window](https://support.mozilla.org/en-US/kb/firefox-page-info-window).
+
+### `signalling_handshake_failure`
+Error connecting the CCP to the telephony system. To resolve, try the action again, or wait a minute and then retry. If the issue persists, contact support.
+
+### `signalling_connection_failure`
+Internal connection error occurred. To resolve, try the action again, or wait a minute and then retry. If the issue persists, contact support.
+
+### `ice_collection_timeout`
+Error connecting to the media service. To resolve, try the action again, or wait a minute and then retry. If the issue persists, contact support.
+
+### `user_busy_error`
+Agent has the CCP running in 2 distinct browsers at the same time, such as Chrome and Firefox. Use only one browser at a time to log in to the CCP.
+
+### `webrtc_error`
+An issue occurred due to either using an unsupported browser, or a required port/protocol is not open, such as not allowing UDP on port 443. To resolve, confirm that the agent is using a supported browser, and that all traffic is allowed for all required ports and protocols. See [CCP Networking](https://docs.aws.amazon.com/connect/latest/adminguide/troubleshooting.html#ccp-networking) and [Phone Settings](https://docs.aws.amazon.com/connect/latest/userguide/agentconsole-guide.html#phone-settings) for more information. 
+
+### `realtime_communication_error`
+An internal communication error occurred. 
+
+## Agent States Logging
+The following agent states are logged in the CCP logs when they occur.
+
+### `AgentHungUp`
+Agent hung up during the active call. 
+
+### `BadAddressAgent`
+Error routiung the call to an agent. Attempt the action again. If the problem persists, contact support.
+
+### `BadAddressCustomer`
+The phone number could not be dialed due to an invalid number or an issue with the telephony provider. Confirm that the phone number is a valid phone number. Attempt to dial the number from another device to confirm whether the call is successful.
+
+### `FailedConnectAgent`
+Failed to connect the call to the agent. Attempt the action again. If the issue persists, contact support.
+
+### `FailedConnectCustomer`
+Failed to connect the call to the customer. Attempt the action again. If the issue persists, contact support.
+
+### `LineEngagedAgent`
+Agent line was not available when the call was attempted.
+
+### `LineEngagedCustomer`
+Customer line was not available when the call was attempted.
+
+### `MissedCallAgent`
+Agent did not pick up the call, either due to a technical issue or becasue the agent did accept the call.
+
+### `MissedCallCustomer`
+The customer did not answer a callback. Queued callbacks are retried the number of times specified in the Transfer to queue block. Increase the number of retries.
+
+### `MultipleCcpWindows`
+The agent has the CCP open in multiple distinct browsers, such as Firefox and Chrome, at the same time. To resolve, use only one browser to log in to the CCP.
+
+### `RealtimeCommunicationError`
+An internal communication error occurred.
+
+### `ERROR Default`
+All errors not otherwsie defined.
