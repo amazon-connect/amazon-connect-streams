@@ -153,6 +153,7 @@
          params.ringtone = params.ringtone || {};
          params.ringtone.voice = params.ringtone.voice || {};
          params.ringtone.queue_callback = params.ringtone.queue_callback || {};
+         params.ringtone.chat = params.ringtone.chat || {};
 
          if (otherParams.softphone) {
             if (otherParams.softphone.disableRingtone) {
@@ -173,7 +174,7 @@
             params.ringtone.queue_callback = connect.merge(params.ringtone.queue_callback,
                otherParams.ringtone.voice || {});
             params.ringtone.chat = connect.merge(params.ringtone.chat,
-               otherParams.ringtone.voice || {});
+               otherParams.ringtone.chat || {});
          }
       };
       
