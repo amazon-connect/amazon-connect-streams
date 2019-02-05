@@ -479,11 +479,6 @@
      bus.subscribe(this.getEventName(connect.ContactEvents.ACW), f);
    };
 
-   Contact.prototype.onSession = function(f) {
-      var bus = connect.core.getEventBus();
-      bus.subscribe(this.getEventName(connect.ContactEvents.SESSION), f);
-   };
-
    Contact.prototype.onConnected = function(f) {
       var bus = connect.core.getEventBus();
       bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTED), f);
