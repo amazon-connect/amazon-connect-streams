@@ -919,8 +919,14 @@
         initialContactId: contactData.initialContactId,
         participantId: this.connectionId
       };
-      var connectionData = JSON.parse(data.connectionData);
-      mediaObject.participantToken = connectionData.ConnectionAuthenticationToken;
+      if (data.connectionData) {
+        try {
+          mediaObject.participantToken = JSON.parse(data.connectionData).ConnectionAuthenticationToken;
+        } catch (e) {
+          connect.getLog().error(connect.LogComponent.CHAT, "Connection data is invalid").withObject(data).withException(e);
+          mediaObject.participantToken = null;
+        }
+      }
       /** Just to keep the data accessible */
       mediaObject.originalInfo = this._getData().chatMediaInfo;
       return mediaObject;
@@ -933,6 +939,13 @@
 
   ChatConnection.prototype.getMediaController = function () {
     return connect.core.mediaFactory.get(this);
+  };
+
+  ChatConnection.prototype._initMediaController = function () {
+    var mediaInfo = this.getMediaInfo();
+    if (mediaInfo.participantToken) {
+      connect.core.mediaFactory.get(this).catch(function () { });
+    }
   }
 
   /*----------------------------------------------------------------
@@ -949,7 +962,7 @@
     return this.connectionData;
   };
 
-  ConnectionSnapshot.prototype._initMediaController = function () {};
+  ConnectionSnapshot.prototype._initMediaController = function () { };
 
   var Endpoint = function (paramsIn) {
     var params = paramsIn || {};

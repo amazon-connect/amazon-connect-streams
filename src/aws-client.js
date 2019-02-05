@@ -792,6 +792,9 @@ module.exports={
                                 "chatAutoAccept": {
                                     "type": "boolean"
                                 },
+                                "customerName": {
+                                  "type": "string"
+                                },
                               "connectionData": {}
                             }
                           }
