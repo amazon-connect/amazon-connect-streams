@@ -125,19 +125,19 @@
          connect.agent(function(agent) {
             agent.onRefresh(function() {
                connect.ifMaster(connect.MasterTopics.RINGTONE, function() {
-                  if (! ringtoneSettings.voice.disabled && ! connect.core.ringtoneEngines.voice) {
+                  if (!ringtoneSettings.voice.disabled && !connect.core.ringtoneEngines.voice) {
                      connect.core.ringtoneEngines.voice =
                         new connect.VoiceRingtoneEngine(ringtoneSettings.voice);
                      connect.getLog().info("VoiceRingtoneEngine initialized.");
                   }
 
-                  if (! ringtoneSettings.chat.disabled && ! connect.core.ringtoneEngines.chat) {
+                  if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
                     connect.core.ringtoneEngines.chat =
                        new connect.ChatRingtoneEngine(ringtoneSettings.chat);
                     connect.getLog().info("ChatRingtoneEngine initialized.");
                  }
 
-                  if (! ringtoneSettings.queue_callback.disabled && ! connect.core.ringtoneEngines.queue_callback) {
+                  if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
                      connect.core.ringtoneEngines.queue_callback =
                         new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
                      connect.getLog().info("QueueCallbackRingtoneEngine initialized.");
@@ -153,7 +153,7 @@
          params.ringtone = params.ringtone || {};
          params.ringtone.voice = params.ringtone.voice || {};
          params.ringtone.queue_callback = params.ringtone.queue_callback || {};
-         params.ringtone.chat = params.ringtone.chat || {};
+         params.ringtone.chat = params.ringtone.chat || { disabled: true };
 
          if (otherParams.softphone) {
             if (otherParams.softphone.disableRingtone) {
