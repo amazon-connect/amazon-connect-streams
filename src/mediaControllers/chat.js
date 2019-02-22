@@ -18,7 +18,7 @@
   connect = global.connect || {};
   global.connect = connect;
 
-  connect.ChatMediaController = function (mediaInfo) {
+  connect.ChatMediaController = function (mediaInfo, metadata) {
 
     var logger = connect.getLog();
     var logComponent = connect.LogComponent.CHAT;
@@ -27,8 +27,18 @@
       publishTelemetryEvent("Chat media controller init", mediaInfo.contactId);
       logger.info(logComponent, "Chat media controller init").withObject(mediaInfo);
 
+      connect.ChatSession.setGlobalConfig({
+        loggerConfig: {
+          logger: logger
+        },
+        region: metadata.region
+      });
       /** Could be also CUSTOMER -  For now we are creating only Agent connection media object */
-      var controller = connect.ChatSession(mediaInfo, "AGENT");
+      var controller = connect.ChatSession.create({
+        chatDetails: mediaInfo,
+        type: "AGENT"
+      });
+      
       trackChatConnectionStatus(controller);
       return controller
         .connect()

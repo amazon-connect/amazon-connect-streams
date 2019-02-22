@@ -271,7 +271,7 @@
          // Initialize the event bus and agent data providers.
          connect.core.eventBus = new connect.EventBus({logEvents: true});
          connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
-         connect.core.mediaFactory = new connect.MediaFactory();
+         connect.core.mediaFactory = new connect.MediaFactory(params);
          // Create the shared worker and upstream conduit.
          var worker = new SharedWorker(sharedWorkerUrl, "ConnectSharedWorker");
          var conduit = new connect.Conduit("ConnectSharedWorkerConduit",

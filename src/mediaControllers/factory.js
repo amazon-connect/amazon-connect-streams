@@ -18,12 +18,15 @@
   connect = global.connect || {};
   global.connect = connect;
 
-  connect.MediaFactory = function () {
+  connect.MediaFactory = function (params) {
     /** controller holder */
     var mediaControllers = {};
 
     var logger = connect.getLog();
     var logComponent = connect.LogComponent.CHAT;
+
+    var metadata = params || {};
+    metadata.region =  metadata.region || "us-west-2"; // Default it to us-west-2
 
     var getMediaController = function (connectionObj) {
       var connectionId = connectionObj.getConnectionId();
@@ -38,7 +41,7 @@
         logger.info(logComponent, "media controller of type %s init", connectionObj.getMediaType()).withObject(connectionObj);
         switch (connectionObj.getMediaType()) {
           case connect.MediaType.CHAT:
-            return mediaControllers[connectionId] = new connect.ChatMediaController(connectionObj.getMediaInfo()).get();
+            return mediaControllers[connectionId] = new connect.ChatMediaController(connectionObj.getMediaInfo(), metadata).get();
           case connect.MediaType.SOFTPHONE:
             return mediaControllers[connectionId] = new connect.SoftphoneMediaController(connectionObj.getMediaInfo()).get();
           default:
