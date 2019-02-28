@@ -4,10 +4,7 @@ describe('SoftphoneManager', function () {
     describe('#SoftphoneManager RTC session', function () {
         var bus,
             contact,
-            agent,
-            status,
-            contactId,
-            RTCsession;
+            contactId;
 
         before(function () {
             bus = connect.core.getEventBus(),
@@ -16,7 +13,7 @@ describe('SoftphoneManager', function () {
 
             sinon.stub(contact, "isSoftphoneCall").returns(true);
             sinon.stub(contact, "isInbound").returns(true);
-            sinon.stub(contact, "getStatus").returns({
+            sinon.stub(contact, "getState").returns({
                 type: connect.ContactStateType.CONNECTING
             });
             sinon.stub(connect, 'RTCSession').returns({});
@@ -37,7 +34,7 @@ describe('SoftphoneManager', function () {
             contact.isSoftphoneCall.restore();
             contact.isInbound.restore();
             contact.getAgentConnection.restore();
-            contact.getStatus.restore();
+            contact.getState.restore();
             connect.isOperaBrowser.restore();
             connect.getOperaBrowserVersion.restore();
             connect.RTCSession.restore();
@@ -45,7 +42,7 @@ describe('SoftphoneManager', function () {
             connect.Agent.prototype.getContacts();
         });
 
-        it('RTC session created for a incomming contact', function () {
+        it('RTC session created for an incoming contact', function () {
             var softphoneManager = new connect.SoftphoneManager({});
             bus.trigger(connect.ContactEvents.INIT, contact);
             bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), contact);
@@ -53,8 +50,8 @@ describe('SoftphoneManager', function () {
         });
 
         it('RTC session will not be created for the contact which is already connected with one RTC session', function () {
-            contact.getStatus.restore();
-            sinon.stub(contact, "getStatus").returns({
+            contact.getState.restore();
+            sinon.stub(contact, "getState").returns({
                 type: connect.ContactStateType.CONNECTED
             });
             connect.RTCsession = sinon.spy();
@@ -75,7 +72,4 @@ describe('SoftphoneManager', function () {
             it('Multiple RTC session should not be created in case of voice system failures!')
         });
     });
-
-    
-
 });
