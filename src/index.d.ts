@@ -465,11 +465,11 @@ declare namespace connect {
         /**
          * Get a ContactState object representing the state of the contact.
          */
-        getStatus(): ContactState;
+        getState(): ContactState;
         /**
          * Get the duration of the contact state in milliseconds relative to local time.
          */
-        getStatusDuration(): number;
+        getStateDuration(): number;
         /**
          * Get the queue associated with the contact.
          */

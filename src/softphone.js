@@ -74,9 +74,9 @@
         
 
         var isContactTerminated = function(contact) {
-            return contact.getStatus().type === connect.ContactStatusType.ENDED ||
-                   contact.getStatus().type === connect.ContactStatusType.ERROR ||
-                   contact.getStatus().type === connect.ContactStatusType.MISSED;
+            return contact.getState().type === connect.ContactStateType.ENDED ||
+                   contact.getState().type === connect.ContactStateType.ERROR ||
+                   contact.getState().type === connect.ContactStateType.MISSED;
         };
 
         var destroySession = function (agentConnectionId) {
@@ -124,8 +124,8 @@
                     destroySession(agentConnectionId);
                 }
                 if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
-                        contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
-                        contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+                        contact.getState().type === connect.ContactStateType.CONNECTING ||
+                        contact.getState().type === connect.ContactStateType.INCOMING)) {
 
                     // Set to true, this will block subsequent invokes from entering.
                     callsDetected[agentConnectionId] = true;
@@ -134,7 +134,7 @@
                     // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
                     sanityCheckActiveSessions(rtcSessions);
 
-                    if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
+                    if (contact.getState().type === connect.ContactStateType.CONNECTING) {
                         publishTelemetryEvent("Softphone Connecting", contact.getContactId());
                     }
 

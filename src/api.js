@@ -496,13 +496,17 @@
       return this._getData().type;
    };
 
-   Contact.prototype.getStatus = function() {
+   Contact.prototype.getState = function() {
       return this._getData().state;
    };
 
-   Contact.prototype.getStatusDuration = function() {
+   Contact.prototype.getStatus = Contact.prototype.getState;
+
+   Contact.prototype.getStateDuration = function() {
       return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
    };
+
+   Contact.prototype.getStatusDuration = Contact.prototype.getStateDuration;
 
    Contact.prototype.getQueue = function() {
       return this._getData().queue;
@@ -569,7 +573,7 @@
    };
 
    Contact.prototype.isConnected = function() {
-      return this.getStatus().type === connect.ContactStateType.CONNECTED;
+      return this.getState().type === connect.ContactStateType.CONNECTED;
    };
 
    Contact.prototype.accept = function(callbacks) {
@@ -628,7 +632,7 @@
       var client = connect.core.getClient();
       var connectionId = null;
       var holdingConn = connect.find(this.getConnections(), function(conn) {
-         return conn.getStatus().type === connect.ConnectionStateType.HOLD;
+         return conn.getState().type === connect.ConnectionStateType.HOLD;
       });
 
       if (holdingConn != null) {
@@ -722,13 +726,17 @@
 
    Connection.prototype.getAddress = Connection.prototype.getEndpoint;
 
-   Connection.prototype.getStatus = function() {
+   Connection.prototype.getState = function() {
       return this._getData().state;
    };
 
-   Connection.prototype.getStatusDuration = function() {
+   Connection.prototype.getStatus = Connection.prototype.getState;
+
+   Connection.prototype.getStateDuration = function() {
       return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
    };
+
+   Connection.prototype.getStatusDuration = Connection.prototype.getStateDuration;
 
    Connection.prototype.getType = function() {
       return this._getData().type;
@@ -739,19 +747,19 @@
    };
 
    Connection.prototype.isActive = function() {
-      return connect.contains(connect.CONNECTION_ACTIVE_STATES, this.getStatus().type);
+      return connect.contains(connect.CONNECTION_ACTIVE_STATES, this.getState().type);
    };
 
    Connection.prototype.isConnected = function() {
-      return this.getStatus().type === connect.ConnectionStateType.CONNECTED;
+      return this.getState().type === connect.ConnectionStateType.CONNECTED;
    };
 
    Connection.prototype.isConnecting = function() {
-      return this.getStatus().type === connect.ConnectionStateType.CONNECTING;
+      return this.getState().type === connect.ConnectionStateType.CONNECTING;
    };
 
    Connection.prototype.isOnHold = function() {
-      return this.getStatus().type === connect.ConnectionStateType.HOLD;
+      return this.getState().type === connect.ConnectionStateType.HOLD;
    };
 
    Connection.prototype.getSoftphoneMediaInfo = function() {

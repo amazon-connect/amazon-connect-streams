@@ -17,7 +17,7 @@ describe('SoftphoneManager', function () {
             sinon.stub(contact, "isSoftphoneCall").returns(true);
             sinon.stub(contact, "isInbound").returns(true);
             sinon.stub(contact, "getStatus").returns({
-                type: connect.ContactStatusType.CONNECTING
+                type: connect.ContactStateType.CONNECTING
             });
             sinon.stub(connect, 'RTCSession').returns({});
 
@@ -55,7 +55,7 @@ describe('SoftphoneManager', function () {
         it('RTC session will not be created for the contact which is already connected with one RTC session', function () {
             contact.getStatus.restore();
             sinon.stub(contact, "getStatus").returns({
-                type: connect.ContactStatusType.CONNECTED
+                type: connect.ContactStateType.CONNECTED
             });
             connect.RTCsession = sinon.spy();
             var softphoneManager = new connect.SoftphoneManager({});
