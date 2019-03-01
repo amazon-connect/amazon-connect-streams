@@ -789,7 +789,7 @@ An enumeration listing the different high-level states that a contact can have.
 
 * `ContactStateType.INCOMING`: Indicates that the contact is incoming and is waiting for acceptance.  This state is skipped for `ContactType.VOICE` contacts but is essential for `ContactType.QUEUE_CALLBACK` contacts.
 * `ContactStateType.CONNECTING`: Indicates that the contact is currently connecting.  For `ContactType.VOICE` contacts, this is when the user will accept the incoming call.  For all other types, the contact will be accepted during the `ContactStateType.INCOMING` state.
-*
+
 ### `ConnectionStateType`
 An enumeration listing the different states that a connection can have.
 
