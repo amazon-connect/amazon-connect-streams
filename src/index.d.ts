@@ -230,7 +230,7 @@ declare namespace connect {
         getThirdPartyConnections() : Connection;
         getSingleActiveThirdPartyConnection() : Connection;
         getAgentConnection() : Connection;
-        getAttributes() : { [key: string] : string };
+        getAttributes() : { [key: string] : { name: string, value: string } };
         isSoftphoneCall() : boolean;
         isInbound() : boolean;
         isConnected() : boolean;
