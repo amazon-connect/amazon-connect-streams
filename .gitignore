@@ -5,6 +5,3 @@ node_modules/
 npm-debug.log
 coverage/
 release/
-
-#temporary files
-*~
