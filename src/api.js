@@ -916,7 +916,7 @@
       var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
       var mediaObject = {
         contactId: this.contactId,
-        initialContactId: contactData.initialContactId,
+        initialContactId: contactData.initialContactId || this.contactId,
         participantId: this.connectionId
       };
       if (data.connectionData) {
