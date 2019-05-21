@@ -781,6 +781,15 @@
     return this._getData().softphoneMediaInfo;
   };
 
+  /**
+   * Gets the currently monitored contact info, Returns null if does not exists.
+   * @return {{agentName:string, customerName:string, joinTime:Date}}
+   */
+  Connection.prototype.getMonitorInfo = function () {
+    return this._getData().monitorInfo;
+  };
+
+
   Connection.prototype.destroy = function (origCallbacks) {
     var client = connect.core.getClient(), self = this;
 
