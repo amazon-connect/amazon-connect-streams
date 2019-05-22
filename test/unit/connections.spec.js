@@ -9,8 +9,12 @@ describe('Connections API', function () {
     const initMediaController = sinon.spy();
 
     var chatMonitorInfo = {
-      agentName: "Agent",
-      CustomerName: "CustomerName",
+      agent: {
+        agentName: "Agent",
+      },
+      customer: {
+        CustomerName: "CustomerName",
+      },
       joinTime: 123
     };
 

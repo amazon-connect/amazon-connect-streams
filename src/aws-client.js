@@ -786,22 +786,18 @@ module.exports={
                               "callConfigJson": {}
                             }
                           },
-
+                          
                           "monitoringInfo": {
                             "type": "structure",
                             "members": {
-                                "customerName": {
-                                  "type": "string"
-                                },
-                                "agentName": {
-                                  "type": "string"
-                                },
+                                "agent": {},
+                                "customer": {},
                                 "joinTime": {
                                   "type": "timestamp"
                                 }
                             }
                           },
-                          
+
                           "chatMediaInfo": {
                             "type": "structure",
                             "members": {

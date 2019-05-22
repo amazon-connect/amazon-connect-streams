@@ -786,7 +786,7 @@
    * @return {{agentName:string, customerName:string, joinTime:Date}}
    */
   Connection.prototype.getMonitorInfo = function () {
-    return this._getData().monitorInfo;
+    return this._getData().monitoringInfo;
   };
 
 
