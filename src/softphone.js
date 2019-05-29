@@ -45,6 +45,10 @@
     var MULTIPLE_SESSIONS_EVENT = "MultiSessions";
 
     var localMediaStream = {};
+    
+    var USER_MEDIA_CONSTRAINT = {
+        audio: true
+    };
 
     var SoftphoneManager = function(softphoneParams) {
         logger = new SoftphoneLogger(connect.getLog());
@@ -53,7 +57,7 @@
                       "Connect does not support this browser. Some functionality may not work. ",
                       "");
         }
-        var gumPromise = fetchUserMedia({
+        var gumPromise = connect.fetchUserMedia({
             success: function(stream) {
                 if (connect.isFirefoxBrowser()) {
                     connect.core.setSoftphoneUserMediaStream(stream);
@@ -345,10 +349,6 @@
         callbacks.success = callbacks.success || function() {};
         callbacks.failure = callbacks.failure || function() {};
 
-        var CONSTRAINT = {
-            audio: true
-        };
-
         var promise = null;
 
         if (typeof Promise !== "function") {
@@ -357,11 +357,11 @@
         }
 
         if (typeof navigator.mediaDevices === "object" && typeof navigator.mediaDevices.getUserMedia === "function") {
-            promise = navigator.mediaDevices.getUserMedia(CONSTRAINT);
+            promise = navigator.mediaDevices.getUserMedia(connect.USER_MEDIA_CONSTRAINT);
 
         } else if (typeof navigator.webkitGetUserMedia === "function") {
             promise = new Promise(function(resolve, reject) {
-                navigator.webkitGetUserMedia(CONSTRAINT, resolve, reject);
+                navigator.webkitGetUserMedia(connect.USER_MEDIA_CONSTRAINT, resolve, reject);
             });
 
         } else {
@@ -610,4 +610,7 @@
     };
 
     connect.SoftphoneManager = SoftphoneManager;
+
+    connect.fetchUserMedia = fetchUserMedia;
+    connect.USER_MEDIA_CONSTRAINT = USER_MEDIA_CONSTRAINT;
 })();
