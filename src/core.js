@@ -42,7 +42,9 @@
       var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
       connect.assertNotNull(redirect);
 
-      if (params.alias) {
+      if (params.loginUrl) {
+        return params.loginUrl
+      } else if (params.alias) {
          return LOGIN_URL_PATTERN
             .replace("{alias}", params.alias)
             .replace("{client_id}", CLIENT_ID_MAP["us-east-1"])
