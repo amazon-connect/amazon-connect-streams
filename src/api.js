@@ -790,15 +790,8 @@
   };
 
 
-  Connection.prototype.destroy = function (origCallbacks) {
+  Connection.prototype.destroy = function (callbacks) {
     var client = connect.core.getClient(), self = this;
-
-    var callbacks = Object.assign({}, origCallbacks);
-    callbacks.success = function () {
-      /** destroy the media controller for this contact */
-      connect.core.mediaFactory.destroy(self.getConnectionId());
-      origCallbacks.success.apply(this, arguments);
-    }
 
     client.call(connect.ClientMethods.DESTROY_CONNECTION, {
       contactId: this.getContactId(),
