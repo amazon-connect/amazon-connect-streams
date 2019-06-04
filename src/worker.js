@@ -512,11 +512,11 @@
          this.agent.snapshot.status = this.agent.state;
 
          // Sort the contacts on the timestamp
-         this.agent.snapshot.contacts && 
-         this.agent.snapshot.contacts.length > 1 && 
-         this.agent.snapshot.contacts.sort(function(contactA, ContactB) { 
-           return contactA.state.timestamp.getTime() - ContactB.state.timestamp.getTime();
-          });
+         if(this.agent.snapshot.contacts && this.agent.snapshot.contacts.length > 1){
+          this.agent.snapshot.contacts.sort(function(contactA, contactB) { 
+            return contactA.state.timestamp.getTime() - contactB.state.timestamp.getTime();
+           });
+         } 
 
          this.agent.snapshot.contacts.forEach(function(contact) {
             contact.status = contact.state;
