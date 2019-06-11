@@ -13,7 +13,7 @@
     "connect"
   ],
   "author": "Amazon Web Services",
-  "license": "Amazon Software License",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/aws/amazon-connect-streams/issues"
   },
