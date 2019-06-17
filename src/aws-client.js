@@ -792,7 +792,7 @@ module.exports={
                             "members": {
                                 "agent": {},
                                 "customer": {},
-                                "joinTime": {
+                                "joinTimeStamp": {
                                   "type": "timestamp"
                                 }
                             }
@@ -1343,6 +1343,7 @@ module.exports={
       ],
       "members": {
         "name": {},
+        "username": {},
         "softphoneEnabled": {
           "type": "boolean"
         },
