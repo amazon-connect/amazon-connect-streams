@@ -14,6 +14,15 @@ declare namespace connect {
     type AgentCallback = (agent: Agent) => void;
 
     /**
+     *
+     * A callback to receive agent and state change details
+     *
+     * @param agentStateChange An object containing the current agent object and
+     * state transition information.
+     */
+    type AgentStateChangeCallback = (agentStateChange: AgentStateChange) => void;
+
+    /**
      * Register a callback to receive agent details
      *
      * @param callback A callback that will receive an {Agent} instance
@@ -237,6 +246,12 @@ declare namespace connect {
          */
         onRefresh(callback: AgentCallback): void;
         /**
+         * Subscribe a method to be called when the agent's state changes.
+         *
+         * @param callback A callback to receive updated Agent and state information.
+         */
+        onStateChange(callback: AgentStateChangeCallback): void;
+        /**
          * Subscribe a method to be called when the agent becomes routable, meaning that they can be routed incoming contacts.
          *
          * @param callback A callback to receive updated Agent information.
@@ -350,6 +365,23 @@ declare namespace connect {
          * Sets the agent localmedia to unmute mode.
          */
         unmute(): void;
+    }
+
+    interface AgentStateChange {
+        /*
+         * The Agent object.
+         */
+        agent: Agent;
+
+        /*
+         * The name of the agent's new state.
+         */
+        newState: string;
+
+        /*
+         * The name of the agent's previous state.
+         */
+        oldState: string;
     }
 
     /**
@@ -507,7 +539,7 @@ declare namespace connect {
         /**
          * Get a map from attribute name to value for each attribute associated with the contact.
          */
-        getAttributes(): { [key: string]: string };
+        getAttributes(): { [key: string] : { name: string, value: string } };
         /*
          * Determine whether this contact is a softphone call.
          */
