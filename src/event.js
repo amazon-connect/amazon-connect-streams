@@ -151,6 +151,7 @@
     var subList = this.subEventNameMap[eventName] || [];
     subList.push(sub);
     this.subEventNameMap[eventName] = subList;
+    return sub;
   };
 
   /**
