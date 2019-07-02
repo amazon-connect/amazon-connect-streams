@@ -248,14 +248,17 @@
       }
     });
   };
-
+  
   connect.core.authorize = function (endpoint) {
     return fetch(endpoint, {
       credentials: 'include'
     }).then(function (res) {
-      return res.json();
-    }).catch(function (e) {
-      throw e;
+      if (res.status === 200) {
+        return res.json();
+      } else {
+        // We may want to have the common reload logic here on 401!
+        throw res;
+      }
     });
   };
 

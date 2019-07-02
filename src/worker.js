@@ -588,13 +588,14 @@
       connect.backoff(connect.hitch(self, self.authorize), REFRESH_AUTH_TOKEN_INTERVAL_MS, REFRESH_AUTH_TOKEN_MAX_TRY);
     }
   };
+  
 
   ClientEngine.prototype.authorize = function (callbacks) {
     var self = this;
     connect.core.authorize(this.initData.authorizeEndpoint).then(function (response) {
-      connect.getLog().info("Authorization succeded and the token expires at %s", new Date(response.authTokenExpiration));
-      self.initData.authToken = response.authToken;
-      self.initData.authTokenExpiration = new Date(response.authTokenExpiration);
+      connect.getLog().info("Authorization succeded and the token expires at %s", new Date(response.expiration));
+      self.initData.authToken = response.accessToken;
+      self.initData.authTokenExpiration = new Date(response.expiration);
     }).catch(function (err) {
       connect.getLog().error("Authorization failed %s ", err);
       self.handleAuthFail();
