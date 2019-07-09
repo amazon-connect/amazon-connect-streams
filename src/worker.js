@@ -600,7 +600,7 @@
     }).catch(function (response) {
       connect.getLog().error("Authorization failed %s ", response);
       if (response.status === 401) {
-      self.handleAuthFail();
+        self.handleAuthFail();
       }
     });
   };
