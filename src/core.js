@@ -68,16 +68,25 @@
    * Should be used only by the API Shared Worker.
    */
   connect.core.init = function (params) {
+    connect.core.eventBus = new connect.EventBus();
+    connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
+    connect.core.initClient(params);
+    connect.core.initialized = true;
+  };
+
+  /**-------------------------------------------------------------------------
+   * Initialized AWS client
+   * Should be used by Shared Worker to update AWS client with new credentials
+   * after refreshed authentication.
+   */
+  connect.core.initClient = function (params) {
     connect.assertNotNull(params, 'params');
 
     var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
     var region = connect.assertNotNull(params.region, 'params.region');
     var endpoint = params.endpoint || null;
 
-    connect.core.eventBus = new connect.EventBus();
-    connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.client = new connect.AWSClient(authToken, region, endpoint);
-    connect.core.initialized = true;
   };
 
   /**-------------------------------------------------------------------------
