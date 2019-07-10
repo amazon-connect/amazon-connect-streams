@@ -593,7 +593,7 @@
   ClientEngine.prototype.authorize = function (callbacks) {
     var self = this;
     connect.core.authorize(this.initData.authorizeEndpoint).then(function (response) {
-      var expiration = new Date(parseInt(response.expiration, 10));
+      var expiration = new Date(response.expiration);
       connect.getLog().info("Authorization succeded and the token expires at %s", expiration);
       self.initData.authToken = response.accessToken;
       self.initData.authTokenExpiration = expiration;
