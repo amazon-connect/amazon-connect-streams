@@ -851,19 +851,20 @@
     * Root Subscription APIs.
     */
    connect.agent = function(f) {
+      var bus = connect.core.getEventBus();
+      var sub = bus.subscribe(connect.AgentEvents.INIT, f);
+
       if (connect.agent.initialized) {
          f(new connect.Agent());
-
-      } else {
-         var bus = connect.core.getEventBus();
-         bus.subscribe(connect.AgentEvents.INIT, f);
       }
+
+      return sub;
    };
    connect.agent.initialized = false;
 
    connect.contact = function(f) {
       var bus = connect.core.getEventBus();
-      bus.subscribe(connect.ContactEvents.INIT, f);
+      return bus.subscribe(connect.ContactEvents.INIT, f);
    };
 
    /**
