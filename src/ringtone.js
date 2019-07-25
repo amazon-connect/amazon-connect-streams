@@ -73,8 +73,9 @@
          contact.onEnded(lily.hitch(self, self._stopRingtone));
          // Just to make sure to stop the ringtone in case of the failures of specific callbacks(onAccepted,onConnected);
          contact.onRefresh(function(contact){
-          if(contact.getStatus().type !== connect.ContactStatusType.CONNECTING){
-            self._stopRingtone();
+          if(contact.getStatus().type !== connect.ContactStatusType.CONNECTING &&
+               contact.getStatus().type !== connect.ContactStatusType.INCOMING){
+              self._stopRingtone();
           }
          });
       });
