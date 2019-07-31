@@ -27,6 +27,12 @@ package.AmazonConnectStreams = {
     };
   };
 
+  dependencies = {
+    1.x = {
+      AmazonConnectWebSocketManager = 1.0;
+    };
+  };
+
   targets = {
     AmazonConnectStreams = {
       type = thirdparty;

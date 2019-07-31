@@ -23,7 +23,8 @@ var source = [ "src/aws-client.js",
     "src/ringtone.js",
     "src/softphone.js",
     "src/worker.js",
-    "src/mediaControllers/*"
+    "src/mediaControllers/*",
+    "node_modules/@amzn/amazon-connect-websocket-manager/dist/amazon-connect-websocket-manager.js"
 ]; 
  
 gulp.task('pre-test', function () {

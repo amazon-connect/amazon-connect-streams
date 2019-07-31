@@ -46,7 +46,8 @@
          'sendSoftphoneCallReport',
          'sendSoftphoneCallMetrics',
          'getEndpoints',
-         'getNewAuthToken'
+         'getNewAuthToken',
+         'createTransport'
    ]);
 
    /**---------------------------------------------------------------

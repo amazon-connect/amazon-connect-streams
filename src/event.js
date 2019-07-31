@@ -76,6 +76,20 @@
   ]);
 
   /**---------------------------------------------------------------
+   * enum WebSocketEvents
+   */
+  var WebSocketEvents = connect.makeNamespacedEnum('webSocket', [
+    'init_failure',
+    'connection_gain',
+    'connection_lost',
+    'subscription_update',
+    'subscription_failure',
+    'all_message',
+    'send',
+    'subscribe'
+  ]);
+
+  /**---------------------------------------------------------------
    * enum ContactEvents
    */
   var ContactEvents = connect.makeNamespacedEnum('contact', [
@@ -290,5 +304,6 @@
   connect.AgentEvents = AgentEvents;
   connect.ConnnectionEvents = ConnnectionEvents;
   connect.ContactEvents = ContactEvents;
+  connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
 })();

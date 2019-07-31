@@ -303,6 +303,8 @@
       // Set the global upstream conduit for external use.
       connect.core.upstream = conduit;
 
+      connect.core.webSocketProvider = new WebSocketProvider();
+
       // Close our port to the shared worker before the window closes.
       global.onunload = function () {
         conduit.sendUpstream(connect.EventType.CLOSE);
@@ -516,6 +518,105 @@
     if (this.synTimer == null) {
       this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
     }
+  };
+
+  /**-----------------------------------------------------------------------*/
+
+  var WebSocketProvider = function() {
+
+    var callbacks = {
+      initFailure: new Set(),
+      subscriptionUpdate: new Set(),
+      subscriptionFailure: new Set(),
+      topic: new Map(),
+      allMessage: new Set(),
+      connectionGain: new Set(),
+      connectionLost: new Set()
+    };
+
+    var invokeCallbacks = function(callbacks, response) {
+      callbacks.forEach(function (callback) {
+        callback(response);
+      });
+    };
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.INIT_FAILURE, function () {
+      invokeCallbacks(callbacks.initFailure);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_GAIN, function () {
+      invokeCallbacks(callbacks.connectionGain);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_LOST, function () {
+      invokeCallbacks(callbacks.connectionLost);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.SUBSCRIPTION_UPDATE, function (response) {
+      invokeCallbacks(callbacks.subscriptionUpdate, response);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.SUBSCRIPTION_FAILURE, function (response) {
+      invokeCallbacks(callbacks.subscriptionFailure, response);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.ALL_MESSAGE, function (response) {
+      invokeCallbacks(callbacks.allMessage, response);
+      if (callbacks.topic.has(response.topic)) {
+        invokeCallbacks(callbacks.topic.get(response.topic), response);
+      }
+    });
+
+    this.sendMessage = function(webSocketPayload) {
+      connect.core.getUpstream().sendUpstream(connect.WebSocketEvents.SEND, webSocketPayload);
+    };
+
+    this.onInitFailure = function(cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.initFailure.add(cb);
+    };
+
+    this.onConnectionGain = function(cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.connectionGain.add(cb);
+    };
+
+    this.onConnectionLost = function(cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.connectionLost.add(cb);
+    };
+
+    this.onSubscriptionUpdate = function(cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.subscriptionUpdate.add(cb);
+    };
+
+    this.onSubscriptionFailure = function(cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.subscriptionFailure.add(cb);
+    };
+
+    this.subscribeTopics = function(topics) {
+      connect.assertNotNull(topics, 'topics');
+      connect.assertTrue(connect.isArray(topics), 'topics must be a array');
+      connect.core.getUpstream().sendUpstream(connect.WebSocketEvents.SUBSCRIBE, topics);
+    };
+
+    this.onMessage = function(topicName, cb) {
+      connect.assertNotNull(topicName, 'topicName');
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      if (callbacks.topic.has(topicName)) {
+        callbacks.topic.get(topicName).push(cb);
+      } else {
+        callbacks.topic.set(topicName, new Set([cb]));
+      }
+    };
+
+    this.onAllMessage = function (cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.allMessage.add(cb);
+    };
+
   };
 
   /**-----------------------------------------------------------------------*/
@@ -742,6 +843,11 @@
   /**-----------------------------------------------------------------------*/
   connect.core.getEventBus = function () {
     return connect.core.eventBus;
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getWebSocketManager = function () {
+    return connect.core.webSocketProvider;
   };
 
   /**-----------------------------------------------------------------------*/

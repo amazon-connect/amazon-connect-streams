@@ -598,6 +598,27 @@ module.exports={
         "members": {}
       }
     },
+    "CreateTransport": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "transportType",
+          "authentication"
+        ],
+        "members": {
+          "transportType": {},
+          "authentication": {
+            "shape": "S2"
+          }
+        }
+      },
+      "output": {
+        "type": "structure",
+        "members": {
+          "webSocketTransport": {}
+        }
+      }
+    },
     "DestroyConnection": {
       "input": {
         "type": "structure",

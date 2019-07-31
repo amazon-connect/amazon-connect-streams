@@ -163,6 +163,45 @@
         } else {
           connect.getLog().info("Not kicking off auth token polling, since there's already polling going on");
         }
+
+        connect.WebSocketManager.setGlobalConfig({
+          loggerConfig: { logger: connect.getLog() }
+        });
+        var webSocketManager = connect.WebSocketManager.create();
+
+        webSocketManager.onInitFailure(function () {
+          self.conduit.sendDownstream(connect.WebSocketEvents.INIT_FAILURE);
+        });
+
+        webSocketManager.onConnectionGain(function () {
+          self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_GAIN);
+        });
+
+        webSocketManager.onConnectionLost(function () {
+          self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_LOST);
+        });
+
+        webSocketManager.onSubscriptionUpdate(function (response) {
+          self.conduit.sendDownstream(connect.WebSocketEvents.SUBSCRIPTION_UPDATE, response);
+        });
+
+        webSocketManager.onSubscriptionFailure(function (response) {
+          self.conduit.sendDownstream(connect.WebSocketEvents.SUBSCRIPTION_FAILURE, response);
+        });
+
+        webSocketManager.onAllMessage(function (response) {
+          self.conduit.sendDownstream(connect.WebSocketEvents.ALL_MESSAGE, response);
+        });
+
+        self.conduit.onDownstream(connect.WebSocketEvents.SEND, function (message) {
+          webSocketManager.sendMessage(message);
+        });
+
+        self.conduit.onDownstream(connect.WebSocketEvents.SUBSCRIBE, function (topics) {
+          webSocketManager.subscribeTopics(topics);
+        });
+
+        webSocketManager.init(connect.hitch(self, self.getWebSocketTransport, "web_socket"));
       }
     });
     this.conduit.onDownstream(connect.EventType.TERMINATE, function () {
@@ -553,6 +592,34 @@
 
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
+  };
+
+  ClientEngine.prototype.getWebSocketTransport = function(transport) {
+    var self = this;
+    var client = connect.core.getClient();
+    var onAuthFail = connect.hitch(self, self.handleAuthFail);
+
+    return new Promise(function (resolve, reject) {
+      client.call(connect.ClientMethods.CREATE_TRANSPORT, { transportType: transport}, {
+        success: function (data) {
+          connect.getLog().info("getWebSocketTransport succeeded");
+          resolve(data);
+        },
+        failure: function (err, data) {
+          connect.getLog().error("getWebSocketTransport failed")
+              .withObject({
+                err: err,
+                data: data
+              });
+          reject(Error("getWebSocketTransport failed"));
+        },
+        authFailure: function () {
+          connect.getLog().error("getWebSocketTransport Auth Failure");
+          reject(Error("Authentication failed while getting WebSocketTransport URL"));
+          onAuthFail();
+        }
+      });
+    });
   };
 
   /**
