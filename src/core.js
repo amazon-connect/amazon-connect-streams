@@ -354,7 +354,7 @@
       // Create the CCP iframe and append it to the container div.
       var iframe = document.createElement('iframe');
       iframe.src = params.ccpUrl;
-      iframe.allow = "microphone";
+      iframe.allow = "microphone; autoplay";
       iframe.style = "width: 100%; height: 100%";
       containerDiv.appendChild(iframe);
 
