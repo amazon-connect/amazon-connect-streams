@@ -29,6 +29,12 @@
    delete global.sprintf;
    delete global.vsprintf;
 
+   connect.HTTP_STATUS_CODES = {
+    SUCCESS: 200,
+    TOO_MANY_REQUESTS: 429,
+    INTERNAL_SERVER_ERROR: 500
+   };
+
    /**
     * Binds the given instance object as the context for
     * the method provided.
@@ -336,6 +342,30 @@
       } catch (e) {
          return true;
       }
+   };
+
+   connect.fetch = function(endpoint, options, milliInterval, maxRetry){
+      maxRetry = maxRetry || 5;
+      milliInterval = milliInterval || 1000;
+      options = options || {};
+      return new Promise(function(resolve, reject) {
+        function fetchData(maxRetry){
+          fetch(endpoint, options).then(function (res) {
+            if (res.status === connect.HTTP_STATUS_CODES.SUCCESS) {
+              resolve(res.json());
+            } else if (maxRetry !== 1 && (res.status >= connect.HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR || res.status === connect.HTTP_STATUS_CODES.TOO_MANY_REQUESTS)) {
+              setTimeout(function () {
+                fetchData(--maxRetry);
+              }, milliInterval);
+            } else {
+                reject(res);
+            }
+          }).catch(function(e){ 
+              reject(e);
+          });
+        }
+        fetchData(maxRetry);
+      });
    };
 
    /**

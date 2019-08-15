@@ -71,7 +71,10 @@
         // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
         var callsDetected = {};
 
-        
+        // helper method to provide access to rtc sessions
+        this.getSession = function(connectionId){
+          return rtcSessions[connectionId];
+        }
 
         var isContactTerminated = function(contact) {
             return contact.getStatus().type === connect.ContactStatusType.ENDED ||
@@ -154,6 +157,15 @@
                     if (connect.core.getSoftphoneUserMediaStream()) {
                         session.mediaStream = connect.core.getSoftphoneUserMediaStream();
                     }
+
+                     // Custom Event to indicate the session init operations
+                    connect.core.upstream.sendUpstream(connect.EventType.BROADCAST, {
+                      event: connect.ConnnectionEvents.SESSION_INIT,
+                      data: {
+                        connectionId: agentConnectionId
+                      }
+                    });
+
                     session.onSessionFailed = function (rtcSession, reason) {
                         delete rtcSessions[agentConnectionId];
                         delete callsDetected[agentConnectionId];

@@ -83,6 +83,9 @@
       authFailure: function () {
         self._recordAPILatency(method, request_start);
         callbacks.authFailure();
+      },
+      accessDenied: function () {
+        callbacks.accessDenied && callbacks.accessDenied();
       }
     });
   };
@@ -247,7 +250,9 @@
         authFailure: function () {
           self.agentPolling = false;
           onAuthFail();
-        }
+        },
+        accessDenied: connect.hitch(self, self.handleAccessDenied)
+
       });
 
   };
@@ -286,7 +291,8 @@
       authFailure: function () {
         self.configPolling = false;
         onAuthFail();
-      }
+      },
+      accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
 
@@ -320,7 +326,8 @@
               data: data
             });
         },
-        authFailure: connect.hitch(self, self.handleAuthFail)
+        authFailure: connect.hitch(self, self.handleAuthFail),
+        accessDenied: connect.hitch(self, self.handleAccessDenied)
       });
   };
 
@@ -354,7 +361,8 @@
               data: data
             });
         },
-        authFailure: connect.hitch(self, self.handleAuthFail)
+        authFailure: connect.hitch(self, self.handleAuthFail),
+        accessDenied: connect.hitch(self, self.handleAccessDenied)
       });
   };
 
@@ -387,7 +395,8 @@
               data: data
             });
         },
-        authFailure: connect.hitch(self, self.handleAuthFail)
+        authFailure: connect.hitch(self, self.handleAuthFail),
+        accessDenied: connect.hitch(self, self.handleAccessDenied)
       });
   };
 
@@ -421,7 +430,8 @@
               data: data
             });
         },
-        authFailure: connect.hitch(self, self.handleAuthFail)
+        authFailure: connect.hitch(self, self.handleAuthFail),
+        accessDenied: connect.hitch(self, self.handleAccessDenied)
       });
   };
 
@@ -439,7 +449,8 @@
         connect.getLog().error("'%s' API request failed: %s", request.method, err)
           .withObject({ request: self.filterAuthToken(request), response: response });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail)
+      authFailure: connect.hitch(self, self.handleAuthFail),
+      accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
 
@@ -574,6 +585,11 @@
   ClientEngine.prototype.handleAuthFail = function () {
     var self = this;
     self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+  };
+
+  ClientEngine.prototype.handleAccessDenied = function () {
+    var self = this;
+    self.conduit.sendDownstream(connect.EventType.ACCESS_DENIED);
   };
 
   ClientEngine.prototype.checkAuthToken = function () {

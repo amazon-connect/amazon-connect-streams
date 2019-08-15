@@ -28,6 +28,7 @@
     'api_request',
     'api_response',
     'auth_fail',
+    'access_denied',
     'close',
     'configure',
     'log',
@@ -87,9 +88,18 @@
     'connected',
     'missed',
     'acw',
+    'view',
     'ended',
     'error',
     'accepted'
+  ]);
+
+
+   /**---------------------------------------------------------------
+   * enum ConnnectionEvents
+   */
+  var ConnnectionEvents = connect.makeNamespacedEnum('connection', [
+    'session_init'
   ]);
 
   /**---------------------------------------------------------------
@@ -278,6 +288,7 @@
   connect.EventFactory = EventFactory;
   connect.EventType = EventType;
   connect.AgentEvents = AgentEvents;
+  connect.ConnnectionEvents = ConnnectionEvents;
   connect.ContactEvents = ContactEvents;
   connect.MasterTopics = MasterTopics;
 })();

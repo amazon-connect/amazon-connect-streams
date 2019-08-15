@@ -35,6 +35,10 @@
     "us-east-1": "06919f4fd8ed324e"
   };
 
+  var AUTHORIZE_ENDPOINT = "/connect/auth/authorize";
+  var AUTHORIZE_RETRY_INTERVAL = 2000;
+  var AUTHORIZE_MAX_RETRY = 5;
+
   /**
    * @deprecated
    * We will no longer need this function soon.
@@ -44,11 +48,12 @@
     connect.assertNotNull(redirect);
 
     if (params.alias) {
-      return LOGIN_URL_PATTERN
-        .replace("{alias}", params.alias)
+      return LOGIN_URL_PATTERN.replace("{alias}", params.alias)
         .replace("{client_id}", CLIENT_ID_MAP["us-east-1"])
-        .replace("{redirect}", global.encodeURIComponent(
-          redirect));
+        .replace("{redirect}", global.encodeURIComponent(redirect));
+    } else if (params.loginUrl) {
+      /** Now SAML users can pass custom Login URLs to handle the Auth*/
+      return params.loginUrl;
     } else {
       return params.ccpUrl;
     }
@@ -258,17 +263,11 @@
     });
   };
   
-  connect.core.authorize = function (endpoint) {
-    return fetch(endpoint, {
+  connect.core.authorize = function (endpoint) { 
+    var options = {
       credentials: 'include'
-    }).then(function (res) {
-      if (res.status === 200) {
-        return res.json();
-      } else {
-        // We may want to have the common reload logic here on 401!
-        throw res;
-      }
-    });
+    };
+    return connect.fetch(endpoint || AUTHORIZE_ENDPOINT, options, AUTHORIZE_RETRY_INTERVAL, AUTHORIZE_MAX_RETRY);
   };
 
   /**-------------------------------------------------------------------------
@@ -329,7 +328,7 @@
         region: region,
         authorizeEndpoint: authorizeEndpoint
       });
-
+      
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
         connect.getLog().info("Acknowledged by the ConnectSharedWorker!");
         connect.core.initialized = true;
@@ -674,6 +673,60 @@
       self.bus.getSubscriptions(connect.core.getContactEventName(eventName, contactId))
         .map(function (sub) { sub.unsubscribe(); });
     });
+  };
+
+  /** ----- minimal view layer event handling **/
+
+  connect.core.onViewContact = function (f) {
+    connect.core.getUpstream().onUpstream(connect.ContactEvents.VIEW, f);
+  };
+
+  /**
+   * Used of agent interface control. 
+   * connect.core.viewContact("contactId") ->  this is curently programmed to get the contact into view.
+   */
+  connect.core.viewContact = function (contactId) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ContactEvents.VIEW,
+      data: {
+        contactId: contactId
+      }
+    });
+  };
+
+  /** ------------------------------------------------- */
+
+   /**
+   * This will be helpful for the custom and embedded CCPs 
+   * to handle the access denied use case. 
+   */
+  connect.core.onAccessDenied = function (f) {
+    connect.core.getUpstream().onUpstream(connect.EventType.ACCESS_DENIED, f);
+  };
+  
+   /**s
+   * This will be helpful for SAML use cases to handle the custom logins. 
+   */
+  connect.core.onAuthFail = function (f) {
+    connect.core.getUpstream().onUpstream(connect.EventType.AUTH_FAIL, f);
+  };
+
+  /** ------------------------------------------------- */
+
+  /**
+   * Used for handling the rtc session stats.
+   * Usage
+   * connect.core.onSoftphoneSessionInit(function({ connectionId }) {
+   *     var softphoneManager = connect.core.getSoftphoneManager();
+   *     if(softphoneManager){
+   *        // access session
+   *        var session = softphoneManager.getSession(connectionId); 
+   *      }
+   * });
+   */
+
+  connect.core.onSoftphoneSessionInit = function (f) {
+    connect.core.getUpstream().onUpstream(connect.ConnnectionEvents.SESSION_INIT, f);
   };
 
   /**-----------------------------------------------------------------------*/
