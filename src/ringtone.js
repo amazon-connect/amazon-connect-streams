@@ -1,16 +1,7 @@
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
- * Licensed under the Amazon Software License (the "License"). You may not use
- * this file except in compliance with the License. A copy of the License is
- * located at
- *
- *    http://aws.amazon.com/asl/
- *
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
- * or implied. See the License for the specific language governing permissions
- * and limitations under the License.
+ * SPDX-License-Identifier: Apache-2.0
  */
 (function() {
    var global = this;
@@ -82,8 +73,9 @@
          contact.onEnded(lily.hitch(self, self._stopRingtone));
          // Just to make sure to stop the ringtone in case of the failures of specific callbacks(onAccepted,onConnected);
          contact.onRefresh(function(contact){
-          if(contact.getStatus().type !== connect.ContactStatusType.CONNECTING){
-            self._stopRingtone();
+          if(contact.getStatus().type !== connect.ContactStatusType.CONNECTING &&
+               contact.getStatus().type !== connect.ContactStatusType.INCOMING){
+              self._stopRingtone();
           }
          });
       });

@@ -186,6 +186,17 @@ agent.onRefresh(function(agent) { ... });
 ```
 Subscribe a method to be called whenever new agent data is available.
 
+### `agent.onStateChange()`
+```
+agent.onStateChange(function(agentStateChange) { ... });
+```
+Subscribe a method to be called when the agent's state changes. The
+`agentStateChange` object contains the following properties:
+
+* `agent`: The Agent object.
+* `newState`: The name of the agent's new state.
+* `oldState`: The name of the agent's previous state.
+
 ### `agent.onRoutable()`
 ```
 agent.onRoutable(function(agent) { ... });
