@@ -598,6 +598,7 @@
     var self = this;
     var client = connect.core.getClient();
     var onAuthFail = connect.hitch(self, self.handleAuthFail);
+    var onAccessDenied = connect.hitch(self, self.handleAccessDenied);
 
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, { transportType: transport}, {
@@ -617,6 +618,11 @@
           connect.getLog().error("getWebSocketTransport Auth Failure");
           reject(Error("Authentication failed while getting WebSocketTransport URL"));
           onAuthFail();
+        },
+        accessDenied: function () {
+          connect.getLog().error("getWebSocketTransport Access Denied");
+          reject(Error("Access Denied while getting WebSocketTransport URL"));
+          onAccessDenied();
         }
       });
     });

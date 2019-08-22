@@ -574,26 +574,41 @@
     this.onInitFailure = function(cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.initFailure.add(cb);
+      return function () {
+        return callbacks.initFailure.delete(cb);
+      };
     };
 
     this.onConnectionGain = function(cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.connectionGain.add(cb);
+      return function () {
+        return callbacks.connectionGain.delete(cb);
+      };
     };
 
     this.onConnectionLost = function(cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.connectionLost.add(cb);
+      return function () {
+        return callbacks.connectionLost.delete(cb);
+      };
     };
 
     this.onSubscriptionUpdate = function(cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.subscriptionUpdate.add(cb);
+      return function () {
+        return callbacks.subscriptionUpdate.delete(cb);
+      };
     };
 
     this.onSubscriptionFailure = function(cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.subscriptionFailure.add(cb);
+      return function () {
+        return callbacks.subscriptionFailure.delete(cb);
+      };
     };
 
     this.subscribeTopics = function(topics) {
@@ -606,15 +621,21 @@
       connect.assertNotNull(topicName, 'topicName');
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       if (callbacks.topic.has(topicName)) {
-        callbacks.topic.get(topicName).push(cb);
+        callbacks.topic.get(topicName).add(cb);
       } else {
         callbacks.topic.set(topicName, new Set([cb]));
       }
+      return function () {
+        return callbacks.topic.get(topicName).delete(cb);
+      };
     };
 
     this.onAllMessage = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.allMessage.add(cb);
+      return function () {
+        return callbacks.allMessage.delete(cb);
+      };
     };
 
   };
