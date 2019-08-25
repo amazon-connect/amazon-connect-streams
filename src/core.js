@@ -39,6 +39,10 @@
   var AUTHORIZE_RETRY_INTERVAL = 2000;
   var AUTHORIZE_MAX_RETRY = 5;
 
+  var WHITELISTED_ORIGINS_ENDPOINT = "/connect/whitelisted-origins";
+  var WHITELISTED_ORIGINS_RETRY_INTERVAL = 2000;
+  var WHITELISTED_ORIGINS_MAX_RETRY = 5;
+
   /**
    * @deprecated
    * We will no longer need this function soon.
@@ -58,6 +62,14 @@
       return params.ccpUrl;
     }
   };
+
+  /**-------------------------------------------------------------------------
+   * Returns scheme://host:port for a given url
+   */
+  function sanitizeDomain(url){
+    var domain = url.match(/^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/ig);
+    return domain.length ? domain[0] : "";
+  }
 
   /**-------------------------------------------------------------------------
    * Print a warning message if the Connect core is not initialized.
@@ -268,6 +280,24 @@
       credentials: 'include'
     };
     return connect.fetch(endpoint || AUTHORIZE_ENDPOINT, options, AUTHORIZE_RETRY_INTERVAL, AUTHORIZE_MAX_RETRY);
+  };
+
+  connect.core.verifyDomainAccess = function (authToken, endpoint) {
+    if (window.top === window.self) {
+      return Promise.resolve();
+    }
+    var options = {
+      headers: {
+        Cookie: 'lily-auth-gamma-pdx=' + authToken
+      }
+    };
+    return connect.fetch(endpoint || WHITELISTED_ORIGINS_ENDPOINT, options, WHITELISTED_ORIGINS_RETRY_INTERVAL, WHITELISTED_ORIGINS_MAX_RETRY).then(function (response) {
+      var topDomain = sanitizeDomain(window.top.location);
+      var isAllowed = response.whitelistedOrigins.some(function (origin) {
+        topDomain === sanitizeDomain(origin);
+      });
+      return isAllowed ? Promise.resolve() : Promise.reject();
+    });
   };
 
   /**-------------------------------------------------------------------------
