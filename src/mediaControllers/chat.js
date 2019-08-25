@@ -36,7 +36,8 @@
       /** Could be also CUSTOMER -  For now we are creating only Agent connection media object */
       var controller = connect.ChatSession.create({
         chatDetails: mediaInfo,
-        type: "AGENT"
+        type: "AGENT",
+        websocketManager: connect.core.getWebSocketManager()
       });
       
       trackChatConnectionStatus(controller);
