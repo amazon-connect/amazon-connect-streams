@@ -144,13 +144,18 @@
                     initializeParams();
                     var softphoneInfo = contact.getAgentConnection().getSoftphoneMediaInfo();
                     var callConfig = parseCallConfig(softphoneInfo.callConfigJson);
-
+                    var webSocketProvider;
+                    if (callConfig.useWebSocketProvider) {
+                        webSocketProvider = connect.core.getWebSocketManager();
+                    }
                     var session = new connect.RTCSession(
                         callConfig.signalingEndpoint,
                         callConfig.iceServers,
                         softphoneInfo.callContextToken,
                         logger,
-                        contact.getContactId());
+                        contact.getContactId(),
+                        agentConnectionId,
+                        webSocketProvider);
 
                     rtcSessions[agentConnectionId] = session;
 
