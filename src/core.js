@@ -421,7 +421,7 @@
             try {
                var loginUrl = createLoginUrl(params);
                connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
-               connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
+               connect.core.loginWinow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
 
             } catch (e) {
                connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
@@ -438,6 +438,10 @@
                global.clearInterval(connect.core.iframeRefreshInterval);
                connect.core.iframeRefreshInterval = null;
                connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+               if (params.loginPopupAutoClose && connect.core.loginWinow) {
+                  connect.core.loginWinow.close();
+                  connect.core.loginWinow = null;
+               }
             });
          }
       });
