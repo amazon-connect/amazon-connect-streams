@@ -607,6 +607,8 @@ module.exports={
         ],
         "members": {
           "transportType": {},
+          "participantId": {},
+          "contactId": {},
           "authentication": {
             "shape": "S2"
           }
@@ -615,7 +617,30 @@ module.exports={
       "output": {
         "type": "structure",
         "members": {
-          "webSocketTransport": {}
+          "webSocketTransport": {
+            "type": "structure",
+            "required": [
+              "url",
+              "transportLifeTimeInSeconds"
+            ],
+            "members": {
+              "url": {},
+              "transportLifeTimeInSeconds": {
+                "type": "long"
+              }
+            }
+          },
+          "chatTokenTransport": {
+            "type": "structure",
+            "required": [
+              "participantToken",
+              "expiry"
+            ],
+            "members": {
+              "participantToken": {},
+              "expiry": {}
+            }
+          }
         }
       }
     },

@@ -201,7 +201,7 @@
           webSocketManager.subscribeTopics(topics);
         });
 
-        webSocketManager.init(connect.hitch(self, self.getWebSocketTransport, "web_socket"));
+        webSocketManager.init(connect.hitch(self, self.getConnectionDetails, { transportType: "web_socket" }));
       }
     });
     this.conduit.onDownstream(connect.EventType.TERMINATE, function () {
@@ -594,34 +594,34 @@
     }
   };
 
-  ClientEngine.prototype.getWebSocketTransport = function(transport) {
+  ClientEngine.prototype.getConnectionDetails = function(transport) {
     var self = this;
     var client = connect.core.getClient();
     var onAuthFail = connect.hitch(self, self.handleAuthFail);
     var onAccessDenied = connect.hitch(self, self.handleAccessDenied);
 
     return new Promise(function (resolve, reject) {
-      client.call(connect.ClientMethods.CREATE_TRANSPORT, { transportType: transport}, {
+      client.call(connect.ClientMethods.CREATE_TRANSPORT, transport, {
         success: function (data) {
-          connect.getLog().info("getWebSocketTransport succeeded");
+          connect.getLog().info("getConnectionDetails succeeded");
           resolve(data);
         },
         failure: function (err, data) {
-          connect.getLog().error("getWebSocketTransport failed")
+          connect.getLog().error("getConnectionDetails failed")
               .withObject({
                 err: err,
                 data: data
               });
-          reject(Error("getWebSocketTransport failed"));
+          reject(Error("getConnectionDetails failed"));
         },
         authFailure: function () {
-          connect.getLog().error("getWebSocketTransport Auth Failure");
-          reject(Error("Authentication failed while getting WebSocketTransport URL"));
+          connect.getLog().error("getConnectionDetails Auth Failure");
+          reject(Error("Authentication failed while getting getConnectionDetails"));
           onAuthFail();
         },
         accessDenied: function () {
-          connect.getLog().error("getWebSocketTransport Access Denied");
-          reject(Error("Access Denied while getting WebSocketTransport URL"));
+          connect.getLog().error("getConnectionDetails Access Denied");
+          reject(Error("Access Denied while getting getConnectionDetails"));
           onAccessDenied();
         }
       });
