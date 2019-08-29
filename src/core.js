@@ -288,7 +288,7 @@
     }
     var options = {
       headers: {
-        Cookie: 'lily-auth-gamma-pdx=' + authToken
+        'X-Amz-Bearer': authToken
       }
     };
     return connect.fetch(endpoint || WHITELISTED_ORIGINS_ENDPOINT, options, WHITELISTED_ORIGINS_RETRY_INTERVAL, WHITELISTED_ORIGINS_MAX_RETRY).then(function (response) {
