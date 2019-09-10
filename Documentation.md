@@ -213,6 +213,16 @@ accept an incoming contact, or in other error cases.  It means that the agent is
 not routable, and may require that the agent switch to a routable state before
 being able to be routed contacts again.
 
+### `agent.onSoftphoneError()`
+```
+agent.onSoftphoneError(function(softPhoneError) { ... });
+```
+Subscribe a method to be called upon a softphone failure. A softphone error object is passed as the first argument. This object contains the following fields:
+
+* `endPointUrl`: The URL endpoint to which a connection was attempted.
+* `errorMessage`: A more verbose message about the softphone error.
+* `errorType`: The enumerated softphone error type. These are listed below in the Enumerations section.
+
 ### `agent.onAfterCallWork()`
 ```
 agent.onAfterCallWork(function(agent) { ... });
