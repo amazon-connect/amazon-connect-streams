@@ -133,6 +133,14 @@ declare namespace connect {
     }
 
     type AgentCallback = (agent: Agent) => void;
+    type SoftphoneErrorCallback = (error: SoftphoneError) => void;
+
+    interface SoftphoneError {
+        endPointUrl: string,
+        errorMessage: string,
+        errorType: SoftphoneErrorTypes
+    }
+
     interface SuccessFailOptions {
         success?: Function;
         failure?: Function;
@@ -150,6 +158,7 @@ declare namespace connect {
         onOffline(cb: AgentCallback);
         onError(cb: AgentCallback);
         onAfterCallWork(cb: AgentCallback);
+        onSoftphoneError(cb: SoftphoneErrorCallback);
 
         // API
         getState() : AgentState;
