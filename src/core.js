@@ -355,10 +355,46 @@
         authorizeEndpoint: authorizeEndpoint
       });
 
+<<<<<<< HEAD
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
         connect.getLog().info("Acknowledged by the ConnectSharedWorker!");
         connect.core.initialized = true;
         this.unsubscribe();
+=======
+      // Pop a login page when we encounter an ACK timeout.
+      connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function() {
+         // loginPopup is true by default, only false if explicitly set to false.
+         if (params.loginPopup !== false) {
+            try {
+               var loginUrl = createLoginUrl(params);
+               connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
+               // clear out LOGIN_POPUP last opened timestamp for SAML authentication.
+               if (params.loginUrl) {
+                  connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+               }
+               connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
+            } catch (e) {
+               connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
+            }
+         }
+
+         if (connect.core.iframeRefreshInterval == null) {
+            connect.core.iframeRefreshInterval = window.setInterval(function() {
+               iframe.src = params.ccpUrl;
+            }, CCP_IFRAME_REFRESH_INTERVAL);
+
+            conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function() {
+               this.unsubscribe();
+               global.clearInterval(connect.core.iframeRefreshInterval);
+               connect.core.iframeRefreshInterval = null;
+               connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+               if (params.loginPopupAutoClose && connect.core.loginWindow) {
+                  connect.core.loginWindow.close();
+                  connect.core.loginWindow = null;
+               }
+            });
+         }
+>>>>>>> Fix for failed login popup for ACK_TIMEOUT for SAML authentication
       });
       // Add all upstream log entries to our own logger.
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
