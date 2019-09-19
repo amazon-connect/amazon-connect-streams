@@ -8,15 +8,28 @@ global.assert = chai.assert,
 global.navigator = {
     userAgent: 'browser'
 }
-global.window = {
-    addEventListener: sinon.spy()
-};
 
 global.document = {
     getElementById: sinon.stub().returns({}),
     createElement: sinon.stub().returns({})
 }
 
+global.window = {
+    addEventListener: sinon.spy(),
+    document: global.document
+};
+
 require("../../release/connect-streams.js");
 
 global.connect.RTCSession = function () {};
+
+
+// Polyfill for Promise.finally
+Promise.prototype.finally = function(onFinally) {
+    return this.then(
+      /* onFulfilled */
+      res => Promise.resolve(onFinally()).then(() => res),
+      /* onRejected */
+      err => Promise.resolve(onFinally()).then(() => { throw err; })
+    );
+};

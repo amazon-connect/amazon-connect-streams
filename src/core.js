@@ -283,7 +283,7 @@
   };
 
   connect.core.verifyDomainAccess = function (authToken, endpoint) {
-    if (window.top === window.self) {
+    if (!connect.isFramed()) {
       return Promise.resolve();
     }
     var options = {

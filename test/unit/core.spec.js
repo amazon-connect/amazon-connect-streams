@@ -141,5 +141,67 @@ describe('Core', function () {
         it("include test cases for all the remaining methods");
     });
 
+    describe('verifyDomainAccess', function () {
+
+        let isFramed = false;
+        let whitelistedOrigins = [];
+
+        beforeEach(() => {
+            isFramed = false;
+            whitelistedOrigins = [];
+        });
+
+        afterEach(() => {
+            connect.isFramed.restore();
+            connect.fetch.restore();
+        });
+
+        function setup() {
+            sinon.stub(connect, "isFramed").returns(isFramed);
+            sinon.stub(connect, "fetch").returns(Promise.resolve({whitelistedOrigins: whitelistedOrigins}));
+        }
+
+        it('resolves if not iframed', async () => {
+            setup();
+            await connect.core.verifyDomainAccess('token', 'endpoint');
+            expect(true).to.be.true;
+        });
+
+        it('calls /whitelisted-origins if iframed', async () => {
+            isFramed = true;
+            setup();
+            await connect.core.verifyDomainAccess('token', 'endpoint').catch(() => {}).finally(() => {
+                assert(connect.fetch.calledWithMatch('endpoint', {
+                    headers: {
+                      'X-Amz-Bearer': 'token'
+                    }
+                }));
+            });
+        });
+
+        it('matches url correctly', async () => {
+            isFramed = true;
+            whitelistedOrigins = ['https://www.abc.com'];
+            setup();
+            const testDomains = {
+                'https://www.abc.com': true,
+                'http://www.abc.com': false,
+                'http://www.xyz.com': false,
+                'https://www.abc.de': false,
+                'https://xyz.abc.com': false,
+                'https://www.abc.com/sub?x=1#123': true
+            };
+            const urls = Object.keys(testDomains);
+            for (let i = 0; i < urls.length; i++) {
+                global.window.document.referrer = urls[i];
+                await connect.core.verifyDomainAccess('token', 'endpoint').then(() => {
+                    expect(testDomains[urls[i]]).to.be.true;
+                }).catch(() => {
+                    expect(testDomains[urls[i]]).to.be.false;
+                });
+            }
+        });
+    });
+
 });
 
