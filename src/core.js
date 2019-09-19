@@ -292,9 +292,9 @@
       }
     };
     return connect.fetch(endpoint || WHITELISTED_ORIGINS_ENDPOINT, options, WHITELISTED_ORIGINS_RETRY_INTERVAL, WHITELISTED_ORIGINS_MAX_RETRY).then(function (response) {
-      var topDomain = sanitizeDomain(window.top.location);
+      var topDomain = sanitizeDomain(window.document.referrer);
       var isAllowed = response.whitelistedOrigins.some(function (origin) {
-        topDomain === sanitizeDomain(origin);
+        return topDomain === sanitizeDomain(origin);
       });
       return isAllowed ? Promise.resolve() : Promise.reject();
     });
