@@ -33,11 +33,18 @@
         },
         region: metadata.region
       });
+
+      // try {connect.hitch(connect.core, connect.core.getConnectionDetails, { transportType: "chat_token"})}
+      // catch (e) {
+      //   console.log("error in hitching createTransport");
+      //   console.log(e);
+      // }
       /** Could be also CUSTOMER -  For now we are creating only Agent connection media object */
       var controller = connect.ChatSession.create({
         chatDetails: mediaInfo,
         type: "AGENT",
-        websocketManager: connect.core.getWebSocketManager()
+        websocketManager: connect.core.getWebSocketManager(),
+        createTransport: connect.hitch(connect.core, connect.core.getConnectionDetails, { transportType: "chat_token"})
       });
       
       trackChatConnectionStatus(controller);

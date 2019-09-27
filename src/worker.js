@@ -605,37 +605,39 @@
   };
 
   ClientEngine.prototype.getConnectionDetails = function(transport) {
-    var self = this;
-    var client = connect.core.getClient();
-    var onAuthFail = connect.hitch(self, self.handleAuthFail);
-    var onAccessDenied = connect.hitch(self, self.handleAccessDenied);
+    console.log("getConnectionDetails called within worker");
+    return connect.core.getConnectionDetails(transport);
+    // var self = this;
+    // var client = connect.core.getClient();
+    // var onAuthFail = connect.hitch(self, self.handleAuthFail);
+    // var onAccessDenied = connect.hitch(self, self.handleAccessDenied);
 
-    return new Promise(function (resolve, reject) {
-      client.call(connect.ClientMethods.CREATE_TRANSPORT, transport, {
-        success: function (data) {
-          connect.getLog().info("getConnectionDetails succeeded");
-          resolve(data);
-        },
-        failure: function (err, data) {
-          connect.getLog().error("getConnectionDetails failed")
-              .withObject({
-                err: err,
-                data: data
-              });
-          reject(Error("getConnectionDetails failed"));
-        },
-        authFailure: function () {
-          connect.getLog().error("getConnectionDetails Auth Failure");
-          reject(Error("Authentication failed while getting getConnectionDetails"));
-          onAuthFail();
-        },
-        accessDenied: function () {
-          connect.getLog().error("getConnectionDetails Access Denied");
-          reject(Error("Access Denied while getting getConnectionDetails"));
-          onAccessDenied();
-        }
-      });
-    });
+    // return new Promise(function (resolve, reject) {
+    //   client.call(connect.ClientMethods.CREATE_TRANSPORT, transport, {
+    //     success: function (data) {
+    //       connect.getLog().info("getConnectionDetails succeeded");
+    //       resolve(data);
+    //     },
+    //     failure: function (err, data) {
+    //       connect.getLog().error("getConnectionDetails failed")
+    //           .withObject({
+    //             err: err,
+    //             data: data
+    //           });
+    //       reject(Error("getConnectionDetails failed"));
+    //     },
+    //     authFailure: function () {
+    //       connect.getLog().error("getConnectionDetails Auth Failure");
+    //       reject(Error("Authentication failed while getting getConnectionDetails"));
+    //       onAuthFail();
+    //     },
+    //     accessDenied: function () {
+    //       connect.getLog().error("getConnectionDetails Access Denied");
+    //       reject(Error("Access Denied while getting getConnectionDetails"));
+    //       onAccessDenied();
+    //     }
+    //   });
+    // });
   };
 
   /**
