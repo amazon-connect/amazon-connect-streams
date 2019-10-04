@@ -46,8 +46,39 @@
 
     var localMediaStream = {};
 
+    var softphoneClientId = connect.uuid();
+
+    var requestIceAccess = function (transport) {
+        return new Promise(function (resolve, reject) {
+            connect.core.getClient().call(connect.ClientMethods.CREATE_TRANSPORT, transport, {
+                success: function (data) {
+                    resolve(data.softphoneTransport.softphoneMediaConnections);
+                },
+                failure: function (reason) {
+                    if (reason.message && reason.message.includes("SoftphoneConnectionLimitBreachedException")) {
+                        publishError("multiple_softphone_active_sessions", "Number of active sessions are more then allowed limit.");
+                    }
+                    reject(Error("requestIceAccess failed"));
+                },
+                authFailure: function () {
+                    reject(Error("Authentication failed while requestIceAccess"));
+                },
+                accessDenied: function () {
+                    reject(Error("Access Denied while requestIceAccess"));
+                }
+            });
+        });
+    };
+
     var SoftphoneManager = function(softphoneParams) {
+        var self = this;
         logger = new SoftphoneLogger(connect.getLog());
+        var rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
+            connect.core.getWebSocketManager(),
+            softphoneClientId,
+            connect.hitch(self, requestIceAccess, { transportType: "softphone", softphoneClientId: softphoneClientId}),
+            connect.hitch(self, publishError));
+
         if (!isBrowserSoftPhoneSupported()) {
             publishError(SoftphoneErrorTypes.UNSUPPORTED_BROWSER,
                       "Connect does not support this browser. Some functionality may not work. ",
@@ -208,7 +239,7 @@
                     };
 
                     session.remoteAudioElement = document.getElementById('remote-audio');
-                    session.connect();
+                    session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
                 }
         };
 

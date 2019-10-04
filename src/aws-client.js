@@ -609,6 +609,7 @@ module.exports={
           "transportType": {},
           "participantId": {},
           "contactId": {},
+          "softphoneClientId": {},
           "authentication": {
             "shape": "S2"
           }
@@ -639,6 +640,33 @@ module.exports={
             "members": {
               "participantToken": {},
               "expiry": {}
+            }
+          },
+          "softphoneTransport": {
+            "type": "structure",
+            "required": [
+              "softphoneMediaConnections"
+            ],
+            "members": {
+              "softphoneMediaConnections": {
+                "type": "list",
+                "member": {
+                  "type": "structure",
+                  "required": [
+                    "username",
+                    "credential",
+                    "urls"
+                  ],
+                  "members": {
+                    "username": {},
+                    "credential": {},
+                    "urls": {
+                      "type": "list",
+                      "member": {}
+                    }
+                  }
+                }
+              }
             }
           }
         }
