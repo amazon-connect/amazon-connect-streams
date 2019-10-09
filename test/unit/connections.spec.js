@@ -31,7 +31,7 @@ describe('Connections API', function () {
           return {
             state: {},
             chatMediaInfo: chatMediaInfo,
-            monitorInfo: chatMonitorInfo,
+            monitoringInfo: chatMonitorInfo,
             getMediaController: () => { }
           }
         },

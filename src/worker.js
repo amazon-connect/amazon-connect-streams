@@ -197,7 +197,6 @@
             self.conduit.sendDownstream(connect.WebSocketEvents.SUBSCRIPTION_FAILURE, response);
           });
 
-<<<<<<< HEAD
           webSocketManager.onAllMessage(function (response) {
             self.conduit.sendDownstream(connect.WebSocketEvents.ALL_MESSAGE, response);
           });
@@ -214,12 +213,6 @@
         }else{
           connect.getLog().info("Not Creating a Websocket instance, since there's already one exist");
         }
-=======
-        self.conduit.onDownstream(connect.WebSocketEvents.SUBSCRIBE, function (topics) {
-          webSocketManager.subscribeTopics(topics);
-        });
-        webSocketManager.init(connect.hitch(connect.core, connect.core.getConnectionDetails, { transportType: "web_socket" }));
->>>>>>> create transport updates
       }
     });
     this.conduit.onDownstream(connect.EventType.TERMINATE, function () {

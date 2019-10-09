@@ -925,19 +925,43 @@
 
   /**-----------------------------------------------------------------------*/
   /**
-   * Provides easy access to the create_transport API. handleAccessDenied and handleAuthFail are optional. 
-   * Default behavior for access denied and auth fail is a broadcast to the sharedworker conduit. 
+   * Provides easy access to the create_transport API. 
+   * @params transportType: string representing the desired type of response ("web_socket" or "chat_token")
+   * @params chatTokenIds: object with two properties representing participantId and contactId for chat_token transport.
+   * chatTokenIds should only be supplied in the case of transportType = "chat_token"
    * Usage (for chat_token case): 
-   * connect.core.getConnectionDetails({transporttype: "chat_token", participantId: pid, contactId: cid})
+   * connect.core.getConnectionDetails(()=>{}, ()=>{}, "chat_token", {participantId: pid, contactId: cid})
    *  .then(response => {})
    *  .catch(error => {})
    */
-  connect.core.getConnectionDetails = function (transportDetails, handleAccessDenied, handleAuthFail) {
+  connect.core.getConnectionDetails = function (transportType, chatTokenIds) {
     var self = this;
     var client = connect.core.getClient();
+    console.log("getconnectiondetails called");
     if (client){
-      var onAuthFail = handleAuthFail || connect.hitch(self, connect.core.handleAuthFail);
-      var onAccessDenied = handleAccessDenied || connect.hitch(self, connect.core.handleAccessDenied);
+      console.log("getconnectiondetails within client");
+      var onAuthFail = connect.hitch(self, connect.core.handleAuthFail);
+      var onAccessDenied = connect.hitch(self, connect.core.handleAccessDenied);
+      var transportDetails;
+      if (transportType==="chat_token"){
+        if (chatTokenIds && chatTokenIds.participantId && chatTokenIds.contactId){
+          transportDetails = {
+            transportType: transportType,
+            participantId: chatTokenIds.participantId,
+            contactId: chatTokenIds.contactId
+          };
+        } else {
+          connect.getLog().error("getConnectionDetails failed: No Ids given with chat_token transport specified");
+          throw new Error("getConnectionDetails failed: No Ids given with chat_token transport specified");
+        }
+      } else if (transportType==="web_socket"){
+        transportDetails = {
+          transportType: transportType
+        };
+      } else {
+        connect.getLog().error("getConnectionDetails failed: Unknown transport type");
+        throw new Error("getConnectionDetails failed: Unknown transport type");
+      }
       return new Promise(function (resolve, reject) {
         client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
           success: function (data) {

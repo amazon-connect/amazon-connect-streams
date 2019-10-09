@@ -141,11 +141,12 @@ describe('Core', function () {
         var transportDetails;
         var handleAccessDenied;
         var handleAuthFail;
+        var transportType;
         before(function () {
             connect.core.client = {};
             connect.core.client.call = sinon.stub().returnsThis("hello");
-            transportDetails = {
-                transportType: "chat_token",
+            transportType = "chat_token";
+            chatTokenIds = {
                 participantId: "pid",
                 contactId: "cid"
             }
@@ -154,12 +155,12 @@ describe('Core', function () {
         });
 
         it ("getConnectionDetails with transportType: chat_token", function() {
-            connect.core.getConnectionDetails(transportDetails, handleAccessDenied, handleAuthFail);
-            assert(connect.core.client.call.calledWith(connect.ClientMethods.CREATE_TRANSPORT, transportDetails));
+            connect.core.getConnectionDetails(transportType, chatTokenIds, handleAccessDenied, handleAuthFail);
+            assert(connect.core.client.call.calledWith(connect.ClientMethods.CREATE_TRANSPORT, {transportType: "chat_token", participantId: "pid", contactId: "cid"}));
         });
 
         it ("getConnectionDetails with transportType: web_socket", function () {
-            connect.core.getConnectionDetails({transportType: "web_socket"});
+            connect.core.getConnectionDetails("web_socket");
             assert(connect.core.client.call.calledWith(connect.ClientMethods.CREATE_TRANSPORT, {transportType: "web_socket"}));
         })
     });

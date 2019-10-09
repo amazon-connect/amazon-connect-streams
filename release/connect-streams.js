@@ -25343,16 +25343,36 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    * Provides easy access to the create_transport API. handleAccessDenied and handleAuthFail are optional. 
    * Default behavior for access denied and auth fail is a broadcast to the sharedworker conduit. 
    * Usage (for chat_token case): 
-   * connect.core.getConnectionDetails({transporttype: "chat_token", participantId: pid, contactId: cid})
+   * connect.core.getConnectionDetails(()=>{}, ()=>{}, "chat_token", {participantId: pid, contactId: cid})
    *  .then(response => {})
    *  .catch(error => {})
    */
-  connect.core.getConnectionDetails = function (transportDetails, handleAccessDenied, handleAuthFail) {
+  connect.core.getConnectionDetails = function (transportType, chatTokenIds, handleAccessDenied, handleAuthFail) {
     var self = this;
     var client = connect.core.getClient();
     if (client){
       var onAuthFail = handleAuthFail || connect.hitch(self, connect.core.handleAuthFail);
       var onAccessDenied = handleAccessDenied || connect.hitch(self, connect.core.handleAccessDenied);
+      var transportDetails;
+      if (transportType==="chat_token"){
+        if (chatTokenIds && chatTokenIds.participantId && chatTokenIds.contactId){
+          transportDetails = {
+            transportType: transportType,
+            participantId: chatTokenIds.participantId,
+            contactId: chatTokenIds.contactId
+          };
+        } else {
+          connect.getLog().error("getConnectionDetails failed: No Ids given with chat_token transport specified");
+          throw new Error("getConnectionDetails failed: No Ids given with chat_token transport specified");
+        }
+      } else if (transportType==="web_socket"){
+        transportDetails = {
+          transportType: transportType
+        };
+      } else {
+        connect.getLog().error("getConnectionDetails failed: Unknown transport type");
+        throw new Error("getConnectionDetails failed: Unknown transport type");
+      }
       return new Promise(function (resolve, reject) {
         client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
           success: function (data) {
@@ -26581,6 +26601,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
             self.conduit.sendDownstream(connect.WebSocketEvents.SUBSCRIPTION_FAILURE, response);
           });
 
+<<<<<<< HEAD
           webSocketManager.onAllMessage(function (response) {
             self.conduit.sendDownstream(connect.WebSocketEvents.ALL_MESSAGE, response);
           });
@@ -26597,6 +26618,12 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         }else{
           connect.getLog().info("Not Creating a Websocket instance, since there's already one exist");
         }
+=======
+        self.conduit.onDownstream(connect.WebSocketEvents.SUBSCRIBE, function (topics) {
+          webSocketManager.subscribeTopics(topics);
+        });
+        webSocketManager.init(connect.hitch(connect.core, connect.core.getConnectionDetails, "web_socket", handleAuthFail));
+>>>>>>> Added core tests, fixed connections test, slightly changed getConnectionDetails
       }
     });
     this.conduit.onDownstream(connect.EventType.TERMINATE, function () {
@@ -27133,7 +27160,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         chatDetails: mediaInfo,
         type: "AGENT",
         websocketManager: connect.core.getWebSocketManager(),
-        createTransport: connect.hitch(connect.core, connect.core.getConnectionDetails)
+        getConnectionToken: connect.hitch(connect.core, connect.core.getConnectionDetails, "chat_token")
       });
       
       trackChatConnectionStatus(controller);
