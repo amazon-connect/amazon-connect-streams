@@ -24861,7 +24861,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     connect.core.keepaliveManager = new KeepaliveManager(conduit,
       connect.core.getEventBus(),
       params.ccpSynTimeout || CCP_SYN_TIMEOUT,
-      params.ccpAckTimeout || CCP_ACK_TIMEOUT);
+      params.ccpAckTimeout || CCP_ACK_TIMEOUT)
+    ;
     connect.core.iframeRefreshInterval = null;
 
     // Allow 10 sec (default) before receiving the first ACK from the CCP.
@@ -25277,7 +25278,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     connect.core.getUpstream().onUpstream(connect.EventType.ACCESS_DENIED, f);
   };
   
-   /**s
+   /**
    * This will be helpful for SAML use cases to handle the custom logins. 
    */
   connect.core.onAuthFail = function (f) {
@@ -25336,6 +25337,67 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.core.getSkew = function () {
     return connect.core.getAgentDataProvider().getAgentData().snapshot.skew;
   };
+
+  /**-----------------------------------------------------------------------*/
+  /**
+   * Provides easy access to the create_transport API. handleAccessDenied and handleAuthFail are optional. 
+   * Default behavior for access denied and auth fail is a broadcast to the sharedworker conduit. 
+   * Usage (for chat_token case): 
+   * connect.core.getConnectionDetails({transporttype: "chat_token", participantId: pid, contactId: cid})
+   *  .then(response => {})
+   *  .catch(error => {})
+   */
+  connect.core.getConnectionDetails = function (transportDetails, handleAccessDenied, handleAuthFail) {
+    var self = this;
+    var client = connect.core.getClient();
+    if (client){
+      var onAuthFail = handleAuthFail || connect.hitch(self, connect.core.handleAuthFail);
+      var onAccessDenied = handleAccessDenied || connect.hitch(self, connect.core.handleAccessDenied);
+      return new Promise(function (resolve, reject) {
+        client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
+          success: function (data) {
+            connect.getLog().info("getConnectionDetails succeeded");
+            resolve(data);
+          },
+          failure: function (err, data) {
+            connect.getLog().error("getConnectionDetails failed")
+                .withObject({
+                  err: err,
+                  data: data
+                });
+            reject(Error("getConnectionDetails failed"));
+          },
+          authFailure: function () {
+            connect.getLog().error("getConnectionDetails Auth Failure");
+            reject(Error("Authentication failed while getting getConnectionDetails"));
+            onAuthFail();
+          },
+          accessDenied: function () {
+            connect.getLog().error("getConnectionDetails Access Denied");
+            reject(Error("Access Denied while getting getConnectionDetails"));
+            onAccessDenied();
+          }
+        });
+      });
+    }
+    else {
+      Promise.reject(Error("Client was uninitialized"));
+    }
+  }
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.handleAuthFail = function () {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.AUTH_FAIL
+    });
+  }
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.handleAccessDenied = function () {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.ACCESS_DENIED
+    });
+  }
 
   /**-----------------------------------------------------------------------*/
   connect.core.getAgentRoutingEventGraph = function () {
@@ -26927,40 +26989,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }
   };
 
-  ClientEngine.prototype.getConnectionDetails = function(transport) {
-    var self = this;
-    var client = connect.core.getClient();
-    var onAuthFail = connect.hitch(self, self.handleAuthFail);
-    var onAccessDenied = connect.hitch(self, self.handleAccessDenied);
-
-    return new Promise(function (resolve, reject) {
-      client.call(connect.ClientMethods.CREATE_TRANSPORT, transport, {
-        success: function (data) {
-          connect.getLog().info("getConnectionDetails succeeded");
-          resolve(data);
-        },
-        failure: function (err, data) {
-          connect.getLog().error("getConnectionDetails failed")
-              .withObject({
-                err: err,
-                data: data
-              });
-          reject(Error("getConnectionDetails failed"));
-        },
-        authFailure: function () {
-          connect.getLog().error("getConnectionDetails Auth Failure");
-          reject(Error("Authentication failed while getting getConnectionDetails"));
-          onAuthFail();
-        },
-        accessDenied: function () {
-          connect.getLog().error("getConnectionDetails Access Denied");
-          reject(Error("Access Denied while getting getConnectionDetails"));
-          onAccessDenied();
-        }
-      });
-    });
-  };
-
   /**
    * Send a message downstream to all consumers when we detect that authentication
    * against one of our APIs has failed.
@@ -27082,6 +27110,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect = global.connect || {};
   global.connect = connect;
 
+  
+
   connect.ChatMediaController = function (mediaInfo, metadata) {
 
     var logger = connect.getLog();
@@ -27097,11 +27127,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         },
         region: metadata.region
       });
+
       /** Could be also CUSTOMER -  For now we are creating only Agent connection media object */
       var controller = connect.ChatSession.create({
         chatDetails: mediaInfo,
         type: "AGENT",
-        websocketManager: connect.core.getWebSocketManager()
+        websocketManager: connect.core.getWebSocketManager(),
+        createTransport: connect.hitch(connect.core, connect.core.getConnectionDetails)
       });
       
       trackChatConnectionStatus(controller);

@@ -933,7 +933,6 @@
    *  .catch(error => {})
    */
   connect.core.getConnectionDetails = function (transportDetails, handleAccessDenied, handleAuthFail) {
-    console.log("transporttype: " + transportDetails.transportType);
     var self = this;
     var client = connect.core.getClient();
     if (client){

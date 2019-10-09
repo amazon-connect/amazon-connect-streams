@@ -137,9 +137,37 @@ describe('Core', function () {
         });
     });
 
+    describe('#connect.core.getConnectionDetails()', function () {
+        var transportDetails;
+        var handleAccessDenied;
+        var handleAuthFail;
+        before(function () {
+            connect.core.client = {};
+            connect.core.client.call = sinon.stub().returnsThis("hello");
+            transportDetails = {
+                transportType: "chat_token",
+                participantId: "pid",
+                contactId: "cid"
+            }
+            handleAccessDenied = sinon.stub();
+            handleAuthFail = sinon.stub();
+        });
+
+        it ("getConnectionDetails with transportType: chat_token", function() {
+            connect.core.getConnectionDetails(transportDetails, handleAccessDenied, handleAuthFail);
+            assert(connect.core.client.call.calledWith(connect.ClientMethods.CREATE_TRANSPORT, transportDetails));
+        });
+
+        it ("getConnectionDetails with transportType: web_socket", function () {
+            connect.core.getConnectionDetails({transportType: "web_socket"});
+            assert(connect.core.client.call.calledWith(connect.ClientMethods.CREATE_TRANSPORT, {transportType: "web_socket"}));
+        })
+    });
+
     describe('TODO', function () {
         it("include test cases for all the remaining methods");
     });
+
 
     describe('verifyDomainAccess', function () {
 
