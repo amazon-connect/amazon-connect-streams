@@ -46,7 +46,7 @@
 
     var localMediaStream = {};
 
-    var softphoneClientId = connect.uuid();
+    var softphoneClientId = connect.randomId();
 
     var requestIceAccess = function (transport) {
         return new Promise(function (resolve, reject) {
