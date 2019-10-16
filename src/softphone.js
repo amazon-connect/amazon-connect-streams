@@ -73,12 +73,17 @@
     var SoftphoneManager = function(softphoneParams) {
         var self = this;
         logger = new SoftphoneLogger(connect.getLog());
-        var rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
-            connect.core.getWebSocketManager(),
-            softphoneClientId,
-            connect.hitch(self, requestIceAccess, { transportType: "softphone", softphoneClientId: softphoneClientId}),
-            connect.hitch(self, publishError));
-
+        var rtcPeerConnectionFactory;
+        if (connect.RtcPeerConnectionFactory) {
+            rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
+                connect.core.getWebSocketManager(),
+                softphoneClientId,
+                connect.hitch(self, requestIceAccess, {
+                    transportType: "softphone",
+                    softphoneClientId: softphoneClientId
+                }),
+                connect.hitch(self, publishError));
+        }
         if (!isBrowserSoftPhoneSupported()) {
             publishError(SoftphoneErrorTypes.UNSUPPORTED_BROWSER,
                       "Connect does not support this browser. Some functionality may not work. ",
@@ -239,7 +244,11 @@
                     };
 
                     session.remoteAudioElement = document.getElementById('remote-audio');
-                    session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
+                    if (rtcPeerConnectionFactory) {
+                        session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
+                    } else {
+                        session.connect();
+                    }
                 }
         };
 
