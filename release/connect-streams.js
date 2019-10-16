@@ -27152,12 +27152,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       });
 
       /** Could be also CUSTOMER -  For now we are creating only Agent connection media object */
-      try {
-        connect.hitch(connect.core, connect.core.getConnectionDetails, "chat_token");
-      } catch(e) {
-        console.log("failed to hitch connect.core.getConnectionDetails chat token");
-        console.log(e);
-      }
       var controller = connect.ChatSession.create({
         chatDetails: mediaInfo,
         type: "AGENT",
