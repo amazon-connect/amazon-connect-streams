@@ -35,6 +35,11 @@
     INTERNAL_SERVER_ERROR: 500
    };
 
+   connect.TRANSPORT_TYPES = {
+      CHAT_TOKEN: "chat_token",
+      WEB_SOCKET: "web_socket"
+   };
+
    /**
     * Binds the given instance object as the context for
     * the method provided.

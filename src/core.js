@@ -925,71 +925,84 @@
 
   /**-----------------------------------------------------------------------*/
   /**
-   * Provides easy access to the create_transport API. 
-   * @params transportType: string representing the desired type of response ("web_socket" or "chat_token")
-   * @params chatTokenIds: object with two properties representing participantId and contactId for chat_token transport.
+   * Provides a wrapper for the createTransport API. Returns a promise which resolves the API's response if successful. 
+   * @params transportDetails: object representing API input options. Example {transportType: "web_socket"}
+   * @params client: valid client generated from connect.core.getClient()
+   * @return promise: When successful, returns the response from createTransport
    * chatTokenIds should only be supplied in the case of transportType = "chat_token"
    * Usage (for chat_token case): 
-   * connect.core.getConnectionDetails(()=>{}, ()=>{}, "chat_token", {participantId: pid, contactId: cid})
+   * connect.core.getConnectionDetails({ transportType: "chat_token", participantId: "pid", contactId: "cid" })
    *  .then(response => {})
    *  .catch(error => {})
    */
-  connect.core.getConnectionDetails = function (transportType, chatTokenIds) {
-    var self = this;
-    var client = connect.core.getClient();
-    console.log("getconnectiondetails called");
-    if (client){
-      console.log("getconnectiondetails within client");
-      var onAuthFail = connect.hitch(self, connect.core.handleAuthFail);
-      var onAccessDenied = connect.hitch(self, connect.core.handleAccessDenied);
-      var transportDetails;
-      if (transportType==="chat_token"){
-        if (chatTokenIds && chatTokenIds.participantId && chatTokenIds.contactId){
-          transportDetails = {
-            transportType: transportType,
-            participantId: chatTokenIds.participantId,
-            contactId: chatTokenIds.contactId
-          };
-        } else {
-          connect.getLog().error("getConnectionDetails failed: No Ids given with chat_token transport specified");
-          throw new Error("getConnectionDetails failed: No Ids given with chat_token transport specified");
+  connect.core.createTransport = function (transportDetails, client) {
+    var onAuthFail = connect.hitch(this, connect.core.handleAuthFail);
+    var onAccessDenied = connect.hitch(this, connect.core.handleAccessDenied);
+    return new Promise(function (resolve, reject) {
+      client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
+        success: function (data) {
+          connect.getLog().info("getConnectionDetails succeeded");
+          resolve(data);
+        },
+        failure: function (err, data) {
+          connect.getLog().error("getConnectionDetails failed")
+              .withObject({
+                err: err,
+                data: data
+              });
+          reject(Error("getConnectionDetails failed"));
+        },
+        authFailure: function () {
+          connect.getLog().error("getConnectionDetails Auth Failure");
+          reject(Error("Authentication failed while getting getConnectionDetails"));
+          onAuthFail();
+        },
+        accessDenied: function () {
+          connect.getLog().error("getConnectionDetails Access Denied");
+          reject(Error("Access Denied while getting getConnectionDetails"));
+          onAccessDenied();
         }
-      } else if (transportType==="web_socket"){
+      });
+    });
+  }
+
+  /**-----------------------------------------------------------------------*/
+  /**
+   * Provides a wrapper for connect.core.getConnectionDetails. Handles chat_token and web_socket transport types. 
+   * @params transportType: string representing the desired type of response ("web_socket" or "chat_token")
+   * @params chatTokenIds: object with two properties representing participantId and contactId for chat_token transport.
+   * @return promise: When successful, returns the response from createTransport
+   * chatTokenIds should only be supplied in the case of transportType = "chat_token"
+   * Usage (for chat_token case): 
+   * connect.core.getConnectionDetails("chat_token", {participantId: pid, contactId: cid})
+   *  .then(response => {})
+   *  .catch(error => {})
+   */
+  connect.core.getChatToken = function (chatTokenIds) {
+    var client = connect.core.getClient();
+    if (client) {
+      if (chatTokenIds && chatTokenIds.participantId && chatTokenIds.contactId){
         transportDetails = {
-          transportType: transportType
+          transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
+          participantId: chatTokenIds.participantId,
+          contactId: chatTokenIds.contactId
         };
       } else {
-        connect.getLog().error("getConnectionDetails failed: Unknown transport type");
-        throw new Error("getConnectionDetails failed: Unknown transport type");
+        connect.getLog().error("getConnectionDetails failed: No Ids given with chat_token transport specified");
+        throw new Error("getConnectionDetails failed: No Ids given with chat_token transport specified");
       }
-      return new Promise(function (resolve, reject) {
-        client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
-          success: function (data) {
-            connect.getLog().info("getConnectionDetails succeeded");
-            resolve(data);
-          },
-          failure: function (err, data) {
-            connect.getLog().error("getConnectionDetails failed")
-                .withObject({
-                  err: err,
-                  data: data
-                });
-            reject(Error("getConnectionDetails failed"));
-          },
-          authFailure: function () {
-            connect.getLog().error("getConnectionDetails Auth Failure");
-            reject(Error("Authentication failed while getting getConnectionDetails"));
-            onAuthFail();
-          },
-          accessDenied: function () {
-            connect.getLog().error("getConnectionDetails Access Denied");
-            reject(Error("Access Denied while getting getConnectionDetails"));
-            onAccessDenied();
-          }
-        });
-      });
+      return connect.core.createTransport(transportDetails, client);
+    } else {
+      Promise.reject(Error("Client was uninitialized"));
     }
-    else {
+  }
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getWebSocketUrl = function () {
+    var client = connect.core.getClient();
+    if (client) {
+      return connect.core.createTransport({transportType: connect.TRANSPORT_TYPES.WEB_SOCKET}, client);
+    } else {
       Promise.reject(Error("Client was uninitialized"));
     }
   }

@@ -18,10 +18,7 @@
   connect = global.connect || {};
   global.connect = connect;
 
-  
-
   connect.ChatMediaController = function (mediaInfo, metadata) {
-
     var logger = connect.getLog();
     var logComponent = connect.LogComponent.CHAT;
 
@@ -41,7 +38,7 @@
         chatDetails: mediaInfo,
         type: "AGENT",
         websocketManager: connect.core.getWebSocketManager(),
-        createConnectionToken: connect.hitch(connect.core, connect.core.getConnectionDetails, "chat_token")
+        createConnectionToken: connect.hitch(connect.core, connect.core.getChatToken)
       });
       
       trackChatConnectionStatus(controller);

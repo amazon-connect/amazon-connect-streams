@@ -155,12 +155,12 @@ describe('Core', function () {
         });
 
         it ("getConnectionDetails with transportType: chat_token", function() {
-            connect.core.getConnectionDetails(transportType, chatTokenIds, handleAccessDenied, handleAuthFail);
+            connect.core.getChatToken(chatTokenIds);
             assert(connect.core.client.call.calledWith(connect.ClientMethods.CREATE_TRANSPORT, {transportType: "chat_token", participantId: "pid", contactId: "cid"}));
         });
 
         it ("getConnectionDetails with transportType: web_socket", function () {
-            connect.core.getConnectionDetails("web_socket");
+            connect.core.getWebSocketUrl();
             assert(connect.core.client.call.calledWith(connect.ClientMethods.CREATE_TRANSPORT, {transportType: "web_socket"}));
         })
     });
