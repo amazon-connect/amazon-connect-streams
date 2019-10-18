@@ -91,6 +91,7 @@ connect.core.initCCP(containerDiv, {
    ccpUrl:        ccpUrl,        /*REQUIRED*/
    loginPopup:    true,          /*optional, default TRUE*/
    loginUrl:      loginUrl,      /*optional*/
+   loginPopupAutoClose:    true,  /*optional*/
    softphone:     {              /*optional*/
       disableRingtone:  true,    /*optional*/
       ringtoneUrl: ringtoneUrl   /*optional*/
@@ -106,6 +107,7 @@ and made available to your JS client code.
   instance.
 * `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login
   popup which is shown when the user's authentication expires.
+*  `loginPopupAutoClose`: Optional, defaults to `false`. Set to `true` in conjunction with the `loginPopup` parameter to automatically close the login Popup window once the authentication step has completed. If the login page opened in a new tab, this parameter will also auto-close that tab.
 * `loginUrl`: Optional.  Allows custom URL to be used to initiate the ccp, as in
   the case of SAML authentication.
 * `softphone`: This object is optional and allows you to specify some settings
