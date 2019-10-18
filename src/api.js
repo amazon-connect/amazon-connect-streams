@@ -939,7 +939,8 @@
       var mediaObject = {
         contactId: this.contactId,
         initialContactId: contactData.initialContactId || this.contactId,
-        participantId: this.connectionId
+        participantId: this.connectionId,
+        getConnectionToken: this.getConnectionToken
       };
       if (data.connectionData) {
         try {
@@ -953,6 +954,53 @@
       mediaObject.originalInfo = this._getData().chatMediaInfo;
       return mediaObject;
     }
+  };
+
+  /**
+  * Provides the chat connectionToken through the create_transport API for a specific contact and participant Id. 
+  * @params contactId: This connection's contactId.
+  * @params participantId: This connection's participantId.
+  * @returns a promise which, upon success, returns the response from the createTransport API.
+  * Usage:
+  * connect.core.getConnectionToken(contactId: "some contactId", participantId: "some participantId")
+  *  .then(response => {})
+  *  .catch(error => {})
+  */
+  ChatConnection.prototype.getConnectionToken = function (contactId, participantId) {
+    client = connect.core.getClient();
+    var transportDetails = {
+      transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
+      participantId: participantId,
+      contactId: contactId
+    };
+    var onAuthFail = connect.hitch(connect.core, connect.core.handleAuthFail);
+    var onAccessDenied = connect.hitch(connect.core, connect.core.handleAccessDenied);
+    return new Promise(function (resolve, reject) {
+      client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
+        success: function (data) {
+          connect.getLog().info("getConnectionToken succeeded");
+          resolve(data);
+        },
+        failure: function (err, data) {
+          connect.getLog().error("getConnectionToken failed")
+              .withObject({
+                err: err,
+                data: data
+              });
+          reject(Error("getConnecitonToken failed"));
+        },
+        authFailure: function () {
+          connect.getLog().error("getConnectionDetails Auth Failure");
+          reject(Error("Authentication failed while getting ConnectionToken"));
+          onAuthFail();
+        },
+        accessDenied: function () {
+          connect.getLog().error("getConnectionDetails Access Denied");
+          reject(Error("Access Denied while getting ConnectionToken"));
+          onAccessDenied();
+        }
+      });
+    });
   };
 
   ChatConnection.prototype.getMediaType = function () {

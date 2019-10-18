@@ -38,7 +38,7 @@
         chatDetails: mediaInfo,
         type: "AGENT",
         websocketManager: connect.core.getWebSocketManager(),
-        createConnectionToken: connect.hitch(connect.core, connect.core.getChatToken)
+        createConnectionToken: mediaInfo.getConnectionToken
       });
       
       trackChatConnectionStatus(controller);
