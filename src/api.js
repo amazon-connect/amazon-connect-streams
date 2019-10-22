@@ -973,8 +973,6 @@
       participantId: participantId,
       contactId: contactId
     };
-    var onAuthFail = connect.hitch(connect.core, connect.core.handleAuthFail);
-    var onAccessDenied = connect.hitch(connect.core, connect.core.handleAccessDenied);
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
         success: function (data) {
@@ -987,17 +985,7 @@
                 err: err,
                 data: data
               });
-          reject(Error("getConnecitonToken failed"));
-        },
-        authFailure: function () {
-          connect.getLog().error("getConnectionDetails Auth Failure");
-          reject(Error("Authentication failed while getting ConnectionToken"));
-          onAuthFail();
-        },
-        accessDenied: function () {
-          connect.getLog().error("getConnectionDetails Access Denied");
-          reject(Error("Access Denied while getting ConnectionToken"));
-          onAccessDenied();
+          reject(Error("getConnectionToken failed"));
         }
       });
     });

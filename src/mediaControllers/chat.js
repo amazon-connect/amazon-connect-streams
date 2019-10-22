@@ -37,8 +37,7 @@
       var controller = connect.ChatSession.create({
         chatDetails: mediaInfo,
         type: "AGENT",
-        websocketManager: connect.core.getWebSocketManager(),
-        createConnectionToken: mediaInfo.getConnectionToken
+        websocketManager: connect.core.getWebSocketManager()
       });
       
       trackChatConnectionStatus(controller);
