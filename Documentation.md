@@ -357,13 +357,28 @@ operation succeeded.
 agent.connect(endpoint, {
    queueARN: QUEUE_ARN,
    success: function() { ... },
-   failure: function() { ... }
+   failure: function(err) { ... }
 });
 ```
 Creates an outbound contact to the given endpoint.  You can optionally provide a queueARN to associate the contact with a queue.
 
-You can optionally provide success and failure callbacks to determine whether the
-operation succeeded.
+You can optionally provide success and failure callbacks to determine whether the operation succeeded.
+
+Example use to create a new outbound call directly to a phone number.
+```
+var endpoint = connect.Endpoint.byPhoneNumber("+11234567");
+var agent = new connect.Agent();
+var queueArn = "arn:aws:connect:us-east-1:12345678:instance/<CONNECT_INSTANCE_ID>/queue/<CONNECT_QUEUE_ID>";
+
+agent.connect(endpoint, {
+  queueARN: queueArn,
+  success: function() { console.log("outbound call connected") },
+  failure: function(err) {
+    console.log("outbound call connection failed");
+    console.log(err);
+  }
+});
+```
 
 ### `agent.toSnapshot()`
 ```
