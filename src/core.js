@@ -924,20 +924,6 @@
   };
 
   /**-----------------------------------------------------------------------*/
-  connect.core.handleAuthFail = function () {
-    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.EventType.AUTH_FAIL
-    });
-  }
-
-  /**-----------------------------------------------------------------------*/
-  connect.core.handleAccessDenied = function () {
-    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.EventType.ACCESS_DENIED
-    });
-  }
-
-  /**-----------------------------------------------------------------------*/
   connect.core.getAgentRoutingEventGraph = function () {
     return connect.core.agentRoutingEventGraph;
   };

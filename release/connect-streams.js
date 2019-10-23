@@ -24224,7 +24224,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         contactId: this.contactId,
         initialContactId: contactData.initialContactId || this.contactId,
         participantId: this.connectionId,
-        getConnectionToken: this.getConnectionToken
+        getConnectionToken: connect.hitch(this, this.getConnectionToken, this.contactId, this.connectionId)
       };
       if (data.connectionData) {
         try {
@@ -24234,6 +24234,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           mediaObject.participantToken = null;
         }
       }
+      mediaObject.participantToken = mediaObject.participantToken || null;
       /** Just to keep the data accessible */
       mediaObject.originalInfo = this._getData().chatMediaInfo;
       return mediaObject;
@@ -24284,8 +24285,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   };
 
   ChatConnection.prototype._initMediaController = function () {
-    var mediaInfo = this.getMediaInfo();
-    if (mediaInfo.participantToken) {
+    if (connect.core.mediaFactory) {
       connect.core.mediaFactory.get(this).catch(function () { });
     }
   }
@@ -25378,20 +25378,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.core.getSkew = function () {
     return connect.core.getAgentDataProvider().getAgentData().snapshot.skew;
   };
-
-  /**-----------------------------------------------------------------------*/
-  connect.core.handleAuthFail = function () {
-    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.EventType.AUTH_FAIL
-    });
-  }
-
-  /**-----------------------------------------------------------------------*/
-  connect.core.handleAccessDenied = function () {
-    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.EventType.ACCESS_DENIED
-    });
-  }
 
   /**-----------------------------------------------------------------------*/
   connect.core.getAgentRoutingEventGraph = function () {

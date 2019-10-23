@@ -940,7 +940,7 @@
         contactId: this.contactId,
         initialContactId: contactData.initialContactId || this.contactId,
         participantId: this.connectionId,
-        getConnectionToken: this.getConnectionToken
+        getConnectionToken: connect.hitch(this, this.getConnectionToken, this.contactId, this.connectionId)
       };
       if (data.connectionData) {
         try {
@@ -950,6 +950,7 @@
           mediaObject.participantToken = null;
         }
       }
+      mediaObject.participantToken = mediaObject.participantToken || null;
       /** Just to keep the data accessible */
       mediaObject.originalInfo = this._getData().chatMediaInfo;
       return mediaObject;
@@ -1000,8 +1001,7 @@
   };
 
   ChatConnection.prototype._initMediaController = function () {
-    var mediaInfo = this.getMediaInfo();
-    if (mediaInfo.participantToken) {
+    if (connect.core.mediaFactory) {
       connect.core.mediaFactory.get(this).catch(function () { });
     }
   }

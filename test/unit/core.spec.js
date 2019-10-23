@@ -137,39 +137,6 @@ describe('Core', function () {
         });
     });
 
-    describe('#connect.core.getConnectionDetails()', function () {
-        var transportDetails;
-        var handleAccessDenied;
-        var handleAuthFail;
-        var transportType;
-        before(function () {
-            connect.core.client = {};
-            connect.core.client.call = sinon.stub().returnsThis("hello");
-            transportType = "chat_token";
-            chatTokenIds = {
-                participantId: "pid",
-                contactId: "cid"
-            }
-            handleAccessDenied = sinon.stub();
-            handleAuthFail = sinon.stub();
-        });
-
-        it ("getConnectionDetails with transportType: chat_token", function() {
-            connect.core.getChatToken(chatTokenIds);
-            assert(connect.core.client.call.calledWith(connect.ClientMethods.CREATE_TRANSPORT, {transportType: "chat_token", participantId: "pid", contactId: "cid"}));
-        });
-
-        it ("getConnectionDetails with transportType: web_socket", function () {
-            connect.core.getWebSocketUrl();
-            assert(connect.core.client.call.calledWith(connect.ClientMethods.CREATE_TRANSPORT, {transportType: "web_socket"}));
-        })
-    });
-
-    describe('TODO', function () {
-        it("include test cases for all the remaining methods");
-    });
-
-
     describe('verifyDomainAccess', function () {
 
         let isFramed = false;
