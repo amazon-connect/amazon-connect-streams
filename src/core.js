@@ -437,6 +437,7 @@
     connect.core.eventBus = new connect.EventBus({ logEvents: false });
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.mediaFactory = new connect.MediaFactory(params);
+    connect.core.webSocketProvider = new WebSocketProvider();
 
     // Build the upstream conduit communicating with the CCP iframe.
     var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
