@@ -609,7 +609,10 @@
   * @returns a promise which, upon success, returns the response from the createTransport API.
   */
   ClientEngine.prototype.getWebSocketUrl = function() {
+    var self = this;
     var client = connect.core.getClient();
+    var onAuthFail = connect.hitch(self, self.handleAuthFail);
+    var onAccessDenied = connect.hitch(self, self.handleAccessDenied);
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, { transportType: connect.TRANSPORT_TYPES.WEB_SOCKET }, {
         success: function (data) {
@@ -623,6 +626,16 @@
                 data: data
               });
           reject(Error("getWebSocketUrl failed"));
+        },
+        authFailure: function() {
+          connect.getLog().error("getWebSocketUrl Auth Failure");
+          reject(Error("Authentication failed while getting getWebSocketUrl"));
+          onAuthFail();
+        },
+        accessDenied: function() {
+          connect.getLog().error("getWebSocketUrl Access Denied Failure");
+          reject(Error("Access Denied Failure while getting getWebSocketUrl"));
+          onAccessDenied();
         }
       });
     });
