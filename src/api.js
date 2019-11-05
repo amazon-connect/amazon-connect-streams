@@ -131,6 +131,14 @@
   ]);
 
   /*----------------------------------------------------------------
+  * enum ChannelType
+  */
+  connect.ChannelType = connect.makeEnum([
+    'VOICE',
+    'CHAT'
+  ]);
+
+  /*----------------------------------------------------------------
   * enum MediaType
   */
   connect.MediaType = connect.makeEnum([
@@ -295,6 +303,13 @@
 
   Agent.prototype.getRoutingProfile = function () {
     return this.getConfiguration().routingProfile;
+  };
+
+  Agent.prototype.getChannelConcurrency = function (channel) {
+    var channelConcurrencyMap = this.getRoutingProfile().channelConcurrencyMap;
+    return channel
+      ? (channelConcurrencyMap[channel] || 0)
+      : channelConcurrencyMap;
   };
 
   Agent.prototype.getName = function () {

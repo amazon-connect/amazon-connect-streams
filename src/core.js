@@ -232,6 +232,9 @@
       var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
 
       connect.agent(function (agent) {
+        if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
+          return;
+        }
         agent.onRefresh(function () {
           var sub = this;
 
@@ -266,7 +269,7 @@
 
     connect.agent(function (agent) {
       // Sync mute across all tabs 
-      if (agent.isSoftphoneEnabled()) {
+      if (agent.isSoftphoneEnabled() && agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
         connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
           {
             event: connect.EventType.MUTE
