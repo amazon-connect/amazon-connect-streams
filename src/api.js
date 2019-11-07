@@ -940,7 +940,7 @@
         contactId: this.contactId,
         initialContactId: contactData.initialContactId || this.contactId,
         participantId: this.connectionId,
-        getConnectionToken: connect.hitch(this, this.getConnectionToken, this.contactId, this.connectionId)
+        getConnectionToken: connect.hitch(this, this.getConnectionToken)
       };
       if (data.connectionData) {
         try {
@@ -959,20 +959,19 @@
 
   /**
   * Provides the chat connectionToken through the create_transport API for a specific contact and participant Id. 
-  * @params contactId: This connection's contactId.
-  * @params participantId: This connection's participantId.
   * @returns a promise which, upon success, returns the response from the createTransport API.
   * Usage:
-  * connect.core.getConnectionToken(contactId: "some contactId", participantId: "some participantId")
+  * connect.core.getConnectionToken()
   *  .then(response => {})
   *  .catch(error => {})
   */
-  ChatConnection.prototype.getConnectionToken = function (contactId, participantId) {
+  ChatConnection.prototype.getConnectionToken = function () {
+
     client = connect.core.getClient();
     var transportDetails = {
       transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
-      participantId: participantId,
-      contactId: contactId
+      participantId: this.connectionId,
+      contactId: this.contactId
     };
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
