@@ -306,7 +306,13 @@
   };
 
   Agent.prototype.getChannelConcurrency = function (channel) {
-    var channelConcurrencyMap = this.getRoutingProfile().channelConcurrencyMap;
+    var channelConcurrencyMap = null;
+    if (!channelConcurrencyMap) {
+      channelConcurrencyMap = Object.keys(connect.ChannelType).reduce(function (acc, key) {
+        acc[connect.ChannelType[key]] = 1;
+        return acc;
+      }, {});
+    }
     return channel
       ? (channelConcurrencyMap[channel] || 0)
       : channelConcurrencyMap;
