@@ -499,8 +499,7 @@
         connect.getLog().error("'%s' API request failed: %s", request.method, err)
           .withObject({ request: self.filterAuthToken(request), response: response });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
-      accessDenied: connect.hitch(self, self.handleAccessDenied)
+      authFailure: connect.hitch(self, self.handleAuthFail)
     });
   };
 
