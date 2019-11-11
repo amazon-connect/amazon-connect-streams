@@ -515,7 +515,7 @@ declare namespace connect {
          */
         getInitialConnection(): Connection;
         /**
-         * Get the inital connection of the contact, or null if the initial connection
+         * Get the initial connection of the contact, or null if the initial connection
          * is no longer active.
          */
         getActiveInitialConnection(): Connection;
