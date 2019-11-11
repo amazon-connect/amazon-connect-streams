@@ -22173,7 +22173,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     'api_response',
     'auth_fail',
     'access_denied',
-    'cross_domain_access_denied',
     'close',
     'configure',
     'log',
@@ -23597,6 +23596,12 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   Agent.prototype.getChannelConcurrency = function (channel) {
     var channelConcurrencyMap = this.getRoutingProfile().channelConcurrencyMap;
+    if (!channelConcurrencyMap) {
+      channelConcurrencyMap = Object.keys(connect.ChannelType).reduce(function (acc, key) {
+        acc[connect.ChannelType[key]] = 1;
+        return acc;
+      }, {});
+    }
     return channel
       ? (channelConcurrencyMap[channel] || 0)
       : channelConcurrencyMap;
@@ -24478,8 +24483,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   var WHITELISTED_ORIGINS_RETRY_INTERVAL = 2000;
   var WHITELISTED_ORIGINS_MAX_RETRY = 5;
 
-  var NON_RECOVERABLE_EVENTS = [connect.EventType.CROSS_DOMAIN_ACCESS_DENIED];
-
   /**
    * @deprecated
    * We will no longer need this function soon.
@@ -24736,12 +24739,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       var isAllowed = response.whitelistedOrigins.some(function (origin) {
         return topDomain === sanitizeDomain(origin);
       });
-      if (!isAllowed) {
-        var conduit = new connect.Conduit("ErrorIframeConduit", new connect.WindowIOStream(window, parent));
-        conduit.sendUpstream(connect.EventType.CROSS_DOMAIN_ACCESS_DENIED);
-        return Promise.reject();
-      }
-      return Promise.resolve();
+      return isAllowed ? Promise.resolve() : Promise.reject();
     });
   };
 
@@ -24855,9 +24853,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       return;
     }
 
-    // To prevent reloading iframe content in case of cross-domain access denied
-    var inNonRecoverableState = false;
-
     // For backwards compatibility, when instead of taking a params object
     // as input we only accepted ccpUrl.
     var params = {};
@@ -24940,16 +24935,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
     });
 
-    NON_RECOVERABLE_EVENTS.forEach(function (event) {
-      conduit.onUpstream(event, function () {
-        inNonRecoverableState = true;
-        this.unsubscribe();
-        global.clearInterval(connect.core.iframeRefreshInterval);
-        connect.core.iframeRefreshInterval = null;
-        connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-      });
-    });
-
     // Pop a login page when we encounter an ACK timeout.
     connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
       // loginPopup is true by default, only false if explicitly set to false.
@@ -24964,7 +24949,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         }
       }
 
-      if (connect.core.iframeRefreshInterval == null && !inNonRecoverableState) {
+      if (connect.core.iframeRefreshInterval == null) {
         connect.core.iframeRefreshInterval = window.setInterval(function () {
           iframe.src = params.ccpUrl;
         }, CCP_IFRAME_REFRESH_INTERVAL);
@@ -26559,6 +26544,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           webSocketManager.onSubscriptionFailure(function (response) {
             self.conduit.sendDownstream(connect.WebSocketEvents.SUBSCRIPTION_FAILURE, response);
           });
+
           webSocketManager.onAllMessage(function (response) {
             self.conduit.sendDownstream(connect.WebSocketEvents.ALL_MESSAGE, response);
           });
@@ -26571,8 +26557,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
             webSocketManager.subscribeTopics(topics);
           });
 
-          webSocketManager.init(connect.hitch(self, self.getConnectionDetails, { transportType: "web_socket" }));
-        } else{
+          webSocketManager.init(connect.hitch(self, self.getWebSocketUrl));
+        } else {
           connect.getLog().info("Not Creating a Websocket instance, since there's already one exist");
         }
       }
@@ -26861,8 +26847,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         connect.getLog().error("'%s' API request failed: %s", request.method, err)
           .withObject({ request: self.filterAuthToken(request), response: response });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
-      accessDenied: connect.hitch(self, self.handleAccessDenied)
+      authFailure: connect.hitch(self, self.handleAuthFail)
     });
   };
 
