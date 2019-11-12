@@ -392,7 +392,7 @@ Sets the agent localmedia to unmute mode.
 agent.onMuteToggle(function(obj) { //obj.muted provides the current status of the agent });
 ```
 Subscribe a method to be called when the agent updates the mute status, meaning
-that agents mute/unmute APIs are called and the local media stream is succesfully updated with the new status. 
+that agents mute/unmute APIs are called and the local media stream is successfully updated with the new status. 
 
 ## Contact API
 The Contact API provides event subscription methods and action methods which can be called on behalf of a specific
