@@ -756,7 +756,8 @@ module.exports={
               "url": {},
               "transportLifeTimeInSeconds": {
                 "type": "long"
-              }
+              },
+              "expiry": {}
             }
           },
           "chatTokenTransport": {
