@@ -406,18 +406,19 @@
    */
   connect.PopupManager = function () { };
 
-  connect.PopupManager.prototype.open = function (url, name) {
+  connect.PopupManager.prototype.open = function(url, name) {
     var then = this._getLastOpenedTimestamp(name);
     var now = new Date().getTime();
-
+    var win = null;      
     if (now - then > ONE_DAY_MILLIS) {
-      var win = window.open('', name);
-      if (win.location !== url) {
-        window.open(url, name);
-      }
-      this._setLastOpenedTimestamp(name, now);
+       win = window.open('', name);
+       if (win.location !== url) {
+          win = window.open(url, name);
+       }
+       this._setLastOpenedTimestamp(name, now);
     }
-  };
+    return win;
+ };
 
   connect.PopupManager.prototype.clear = function (name) {
     var key = this._getLocalStorageKey(name);
