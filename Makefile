@@ -18,7 +18,8 @@ SOURCE_FILES = src/aws-client.js \
 					src/core.js \
 					src/ringtone.js \
 					src/softphone.js \
-					src/worker.js
+					src/worker.js \
+					node_modules/@amzn/amazon-connect-websocket-manager/dist/amazon-connect-websocket-manager.js
 
 all: $(OUTPUT_JS)
 
