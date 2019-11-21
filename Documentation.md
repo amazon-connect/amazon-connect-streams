@@ -105,7 +105,7 @@ and made available to your JS client code.
 * `ccpUrl`: The URL of the CCP.  This is the page you would normally navigate to
   in order to use the CCP in a standalone page, it is different for each
   instance.
-* `region`: Connect instance region. ex: us-west-2 for PDX ccp instance.  only required for chat channel.
+* `region`: Amazon connect instance region. ex: us-west-2 for PDX ccp instance.  only required for chat channel.
 * `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login
   popup which is shown when the user's authentication expires.
 * `loginUrl`: Optional.  Allows custom URL to be used to initiate the ccp, as in
