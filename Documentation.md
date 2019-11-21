@@ -71,14 +71,14 @@ $ npm install -g gulp
 $ git clone https://github.com/aws/amazon-connect-streams
 $ cd amazon-connect-streams
 $ npm install
-$ gulp 
+$ npm run release 
 ```
 
 Find build artifacts in **release** directory -  This will generate a file called `connect-streams.js` and the minified version of the same `connect-streams-min.js`  - this is the full Connect Streams API which you will want to include in your page.
 
 To run unit tests:
 ```
-$ gulp test
+$ npm run test
 ```
 
 ## Initialization
@@ -91,6 +91,7 @@ connect.core.initCCP(containerDiv, {
    ccpUrl:        ccpUrl,        /*REQUIRED*/
    loginPopup:    true,          /*optional, default TRUE*/
    loginUrl:      loginUrl,      /*optional*/
+   region: region                /*REQUIRED*/
    softphone:     {              /*optional*/
       disableRingtone:  true,    /*optional*/
       ringtoneUrl: ringtoneUrl   /*optional*/
@@ -104,6 +105,7 @@ and made available to your JS client code.
 * `ccpUrl`: The URL of the CCP.  This is the page you would normally navigate to
   in order to use the CCP in a standalone page, it is different for each
   instance.
+* `region`: Amazon connect instance region. ex: us-west-2 for PDX ccp instance.  only required for chat channel.
 * `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login
   popup which is shown when the user's authentication expires.
 * `loginUrl`: Optional.  Allows custom URL to be used to initiate the ccp, as in

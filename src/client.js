@@ -37,7 +37,8 @@
          'sendSoftphoneCallReport',
          'sendSoftphoneCallMetrics',
          'getEndpoints',
-         'getNewAuthToken'
+         'getNewAuthToken',
+         'createTransport'
    ]);
 
    /**---------------------------------------------------------------
@@ -191,6 +192,8 @@
                   if (err) {
                      if (err.code === connect.CTIExceptions.UNAUTHORIZED_EXCEPTION) {
                         callbacks.authFailure();
+                     } else if (callbacks.accessDenied && (err.code === connect.CTIExceptions.ACCESS_DENIED_EXCEPTION || err.statusCode === 403)) {
+                        callbacks.accessDenied();
                      } else {
                         // Can't pass err directly to postMessage
                         // postMessage() tries to clone the err object and failed.

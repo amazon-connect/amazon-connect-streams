@@ -15,10 +15,11 @@ SOURCE_FILES = src/aws-client.js \
 					src/client.js \
 					src/transitions.js \
 					src/api.js \
+					src/lib/amazon-connect-websocket-manager.js,
 					src/core.js \
 					src/ringtone.js \
 					src/softphone.js \
-					src/worker.js
+					src/worker.js 
 
 all: $(OUTPUT_JS)
 
