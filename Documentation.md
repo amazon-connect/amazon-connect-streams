@@ -110,7 +110,6 @@ and made available to your JS client code.
   popup which is shown when the user's authentication expires.
 * `loginUrl`: Optional.  Allows custom URL to be used to initiate the ccp, as in
   the case of SAML authentication.
-
 * `softphone`: This object is optional and allows you to specify some settings
   surrounding the softphone feature of Connect.
   * `allowFramedSoftphone`: Normally, the softphone microphone and speaker
