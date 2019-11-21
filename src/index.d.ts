@@ -656,7 +656,7 @@ declare namespace connect {
     /**
      * Gets the unique connectionId for this connection.
      */
-    getConnectionId(): strsing;
+    getConnectionId(): string;
     /**
      * Gets the endpoint to which this connection is connected.
      */

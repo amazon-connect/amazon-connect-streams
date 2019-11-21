@@ -26,9 +26,6 @@
     "url": "https://github.com/aws/amazon-connect-streams/issues"
   },
   "homepage": "https://github.com/aws/amazon-connect-streams#readme",
-  "npm-pretty-much": {
-    "runRelease": "always"
-  },
   "devDependencies": {
     "chai": "^4.1.2",
     "gulp": "^3.9.1",
