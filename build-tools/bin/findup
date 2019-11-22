@@ -1,0 +1,14 @@
+#!/bin/sh
+#
+# Locates directory that contains $1.
+
+pwd="`pwd`"
+start="$pwd"
+while [ ! "$pwd" -ef .. ]; do
+  [ -e "$1" ] && echo -n "$pwd" && exit
+  cd .. || exit 1
+  pwd="`pwd`"
+done
+
+echo "Could not find '$1' in any sub-directory of '$start'" 1>&2
+exit 1
