@@ -1,16 +1,7 @@
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
- * Licensed under the Amazon Software License (the "License"). You may not use
- * this file except in compliance with the License. A copy of the License is
- * located at
- *
- *    http://aws.amazon.com/asl/
- *
- * or in the "license" file accompanying this file. This file is distributed
- * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
- * or implied. See the License for the specific language governing permissions
- * and limitations under the License.
+ * SPDX-License-Identifier: Apache-2.0
  */
 (function() {
    var global = this;
@@ -46,7 +37,8 @@
          'sendSoftphoneCallReport',
          'sendSoftphoneCallMetrics',
          'getEndpoints',
-         'getNewAuthToken'
+         'getNewAuthToken',
+         'createTransport'
    ]);
 
    /**---------------------------------------------------------------
@@ -200,6 +192,8 @@
                   if (err) {
                      if (err.code === connect.CTIExceptions.UNAUTHORIZED_EXCEPTION) {
                         callbacks.authFailure();
+                     } else if (callbacks.accessDenied && (err.code === connect.CTIExceptions.ACCESS_DENIED_EXCEPTION || err.statusCode === 403)) {
+                        callbacks.accessDenied();
                      } else {
                         // Can't pass err directly to postMessage
                         // postMessage() tries to clone the err object and failed.
