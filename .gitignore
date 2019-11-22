@@ -2,12 +2,12 @@
 
 # dependencies
 node_modules
-release
 /.pnp
 .pnp.js
+package-lock.json
 
 # testing
-/coverage
+coverage
 
 # production
 
