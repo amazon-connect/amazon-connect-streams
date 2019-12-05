@@ -88,9 +88,17 @@ declare namespace connect {
     */
     ccpUrl: string;
     /*
+    * The login URL for the Connect CCP when configured for SAML2 authentication.
+    */
+    loginUrl?: string;
+    /*
     * Whether to display the login view.
     */
     loginPopup?: boolean;
+    /*
+    * Whether to auto-close the CCP popup window.
+    */
+    loginPopupAutoClose?: boolean;
     /*
     * Options specifying softphone configuration.
     */
@@ -419,6 +427,11 @@ declare namespace connect {
      * Indicates whether the agent is currently muted.
      */
     muted?: boolean;
+
+    /**
+     * Resource ARN of the Agent State.
+     */
+    agentStateARN: string;
   }
 
   interface AgentConfiguration {
@@ -641,13 +654,6 @@ declare namespace connect {
     static byPhoneNumber(phoneNumber: string): Endpoint;
   }
 
-  interface SendDigitOptions extends SuccessFailOptions {
-    /*
-    * A string containing digits to send.
-    */
-    digits: string;
-  }
-
   interface BaseConnection {
     /**
      * Gets the unique contactId of the contact to which this connection belongs.
@@ -701,9 +707,10 @@ declare namespace connect {
     destroy(successFailOptions: SuccessFailOptions): void;
     /**
      * Send a digit or string of digits through this connection.
+     * @param digits The digits to dial.
      * @param successFailOptions Optional success and failure callbacks can be provided to determine whether the operation was successful.
      */
-    sendDigits(options: SendDigitOptions): void;
+    sendDigits(digits: string, options: SuccessFailOptions): void;
 
     /**
      * Put this connection on hold.
@@ -718,8 +725,6 @@ declare namespace connect {
     resume(successFailOptions: SuccessFailOptions): void;
     getMonitorInfo(): MonitorInfo;
   }
-
-
 
   interface VoiceConnection extends BaseConnection {
     getMediaType(): MediaType;
