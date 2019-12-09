@@ -825,6 +825,7 @@ This is a list of some of the special event types which are published into the l
 * `EventType.ACK_TIMEOUT`: Event which is published if the backend API shared worker fails to respond to an `EventType.SYNCHRONIZE` event in a timely manner, meaning that the tab or window has been disconnected from the shared worker.
 * `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid.  This usually requires the user to log in again for the CCP to continue to function.  See `connect.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
 * `EventType.LOG`: An event published whenever the CCP or the API shared worker creates a log entry.
+* `EventType.TERMINATED`: Event published when the agent logged out from ccp.
 
 #### Note
 The `EventBus` is used by the high-level subscription APIs to manage subscriptions
