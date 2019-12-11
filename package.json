@@ -19,7 +19,7 @@
     "server": "gulp webserver",
     "watch": "gulp watch",
     "clean": "rm -rf build/ node_modules build package-lock.json",
-    "release-watch": "npm run clean && npm install && npm run release && npm run watch"
+    "release-watch": "npm run release && npm run watch"
   },
   "author": "Amazon Web Services",
   "license": "Apache-2.0",

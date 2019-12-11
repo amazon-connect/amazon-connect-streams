@@ -2,7 +2,6 @@
 
 # dependencies
 node_modules
-release
 /.pnp
 .pnp.js
 
