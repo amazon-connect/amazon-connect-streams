@@ -182,15 +182,12 @@ be called on behalf of the agent.  There is only ever one agent per Streams
 instantiation and all contacts and actions are assumed to be taken on behalf of
 this one agent.
 
-<<<<<<< HEAD
-=======
 ### `agent.onContactPending()`
 ```
 agent.onContactPending((agent) { ... });
 ```
 Subscribe a method to be called whenever a contact enters the pending state for this particular agent.
 
->>>>>>> amazon-connect-streams/master
 ### `agent.onRefresh()`
 ```
 agent.onRefresh(function(agent) { ... });
@@ -238,26 +235,19 @@ accept an incoming contact, or in other error cases.  It means that the agent is
 not routable, and may require that the agent switch to a routable state before
 being able to be routed contacts again.
 
-<<<<<<< HEAD
-=======
 ### `agent.onSoftphoneError()`
 ```
 agent.onSoftphoneError(function(agent) { ... });
 ```
 Subscribe a method to be called when the agent is put into an error state specific to softphone funcionality.
 
->>>>>>> amazon-connect-streams/master
 ### `agent.onAfterCallWork()`
 ```
 agent.onAfterCallWork(function(agent) { ... });
 ```
 Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state.  This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
 
-<<<<<<< HEAD
-### `agent.getState()`
-=======
 ### `agent.getState()` / `agent.getStatus()`
->>>>>>> amazon-connect-streams/master
 ```
 var state = agent.getState()
 ```
@@ -327,8 +317,6 @@ Gets the agent's routing profile.  The routing profile contains the following fi
 * `queues`: The queues contained in the routing profile.
 * `defaultOutboundQueue`: The default queue which should be associated with outbound contacts.
 
-<<<<<<< HEAD
-=======
 ### `agent.getChannelConcurrency`
 ```
 if (agent.getChannelConcurrency("VOICE")) { ... }
@@ -341,7 +329,6 @@ Gets either a boolean represented by a 1 or 0, or a map of channel type to 1 or 
 * `channel`: A string ENUM representing the channel whose value to return. 
 The ENUM options are currently `"VOICE"` and `"CHAT"`
 
->>>>>>> amazon-connect-streams/master
 ### `agent.getName()`
 ```
 var name = agent.getName();
@@ -356,15 +343,12 @@ Gets the agent's phone number from the `AgentConfiguration` object for the agent
 number that is dialed by Amazon Connect to connect calls to the agent for incoming and outgoing calls if
 softphone is not enabled.
 
-<<<<<<< HEAD
-=======
 ### `agent.getDialableCountries`
 ```
 if (agent.getDialableCountries().includes(COUNTRY_CODE)){ ... }
 ```
 Returns a list of eligible countries to be dialed / deskphone redirected.
 
->>>>>>> amazon-connect-streams/master
 ### `agent.isSoftphoneEnabled()`
 ```
 if (agent.isSoftphoneEnabled()) { ... }
@@ -385,11 +369,7 @@ Updates the agents configuration with the given `AgentConfiguration` object.  Th
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
-<<<<<<< HEAD
-### `agent.setState()`
-=======
 ### `agent.setState()` / `agent.setStatus()`
->>>>>>> amazon-connect-streams/master
 ```
 var routableState = agent.getAgentStates().filter(function(state) {
    return state.type === AgentStateType.ROUTABLE;
@@ -417,8 +397,6 @@ Creates an outbound contact to the given endpoint.  You can optionally provide a
 You can optionally provide success and failure callbacks to determine whether the
 operation succeeded.
 
-<<<<<<< HEAD
-=======
 ### `agent.getAllQueueARNs`
 ```
 const ARNs = agent.getAllQueueARNs;
@@ -447,7 +425,6 @@ Returns the endpoints associated with the queueARNs specified in `queueARNs`, al
    * `pageInfoIn.maxResults`: The maximum number of endpoints returned from this API.
    * `pageInfoIn.endpoints`: A list of endpoints to add to the final list of endpoints returned by this API.
    
->>>>>>> amazon-connect-streams/master
 ### `agent.toSnapshot()`
 ```
 var snapshot = agent.toSnapshot();
@@ -496,8 +473,6 @@ contact.onIncoming(function(contact) { ... });
 Subscribe a method to be invoked when the contact is incoming.  In this state, the contact is waiting to be
 accepted if it is a softphone call or is waiting for the agent to answer if it is not a softphone call.
 
-<<<<<<< HEAD
-=======
 ### `contact.onPending()`
 ```
 contact.onPending(function (contact) { ... });
@@ -510,7 +485,6 @@ contact.onConnecting(function (contact) { ... });
 ```
 Subscribe a method to be invoked when the contact is connecting. This works with chat and softphone contacts. This state happens after the agent has accepted a softphone call or answered if not. 
 
->>>>>>> amazon-connect-streams/master
 ### `contact.onAccepted()`
 ```
 contact.onAccepted(function(contact) { ... });
@@ -520,15 +494,12 @@ to an API call when it succeeds, and this is usually triggered by a UI interacti
 accept button.  The proper response to this API is to stop playing ringtones and remove any Accept UI buttons
 or actions, and potentially show an "Accepting..." UI to the customer.
 
-<<<<<<< HEAD
-=======
 ### `contact.onMissed()`
 ```
 contact.onMissed(function(contact) { ... });
 ```
 Subscribe a method to be invoked whenever the contact is missed. This is an event which is fired when a contact is put in state "missed" by the backend, which happens when the agent does not answer for a certain amount of time, or when the customer hangs up before the agent can answer.
 
->>>>>>> amazon-connect-streams/master
 ### `contact.onEnded()`
 ```
 contact.onEnded(function() { ... });
@@ -537,30 +508,24 @@ Subscribe a method to be invoked whenever the contact is ended or destroyed.  Th
 being ended by the agent, or due to the contact being missed.  Call `contact.getState()` to determine the state
 of the contact and take appropriate action.
 
-<<<<<<< HEAD
-=======
 ### `contact.onACW()`
 ```
 contact.onACW(function() { ... });
 ```
 Subscribe a method to be invoked whenever the contact enters the ACW state. This is after the connection has been closed, but before the contact is destroyed.
 
->>>>>>> amazon-connect-streams/master
 ### `contact.onConnected()`
 ```
 contact.onConnected(function() { ... });
 ```
 Subscribe a method to be invoked when the contact is connected.
 
-<<<<<<< HEAD
-=======
 ### `contact.getEventName()`
 ```
 logger.log(contact.getEventName(eventName));
 ```
 Returns a string with `contactId::eventName` as the format.
 
->>>>>>> amazon-connect-streams/master
 ### `contact.getContactId()`
 ```
 var contactId = contact.getContactId();
@@ -582,33 +547,19 @@ var type = contact.getType();
 ```
 Get the type of the contact.  This indicates what type of media is carried over the connections of the contact.
 
-<<<<<<< HEAD
-### `contact.getState()`
-```
-var state = contact.getState();
-```
-Get a `ContactState` object representing the state of the contact.  This object has the following fields:
-=======
 ### `contact.getStatus()`
 ```
 var state = contact.getStatus();
 ```
 Get a `ContactStatus` object representing the state of the contact.  This object has the following fields:
->>>>>>> amazon-connect-streams/master
 
 * `type`: The contact state type, as per the `ContactStateType` enumeration.
 * `duration`: A relative local state duration.  To get the actual duration of the state relative
   to the current time, use `contact.getStateDuration()`.
 
-<<<<<<< HEAD
-### `contact.getStateDuration()`
-```
-var millis = contact.getStateDuration();
-=======
 ### `contact.getStatusDuration()`
 ```
 var millis = contact.getStatusDuration();
->>>>>>> amazon-connect-streams/master
 ```
 Get the duration of the contact state in milliseconds relative to local time.  This takes into
 account time skew between the JS client and the Amazon Connect backend servers.
@@ -622,15 +573,12 @@ Get the queue associated with the contact.  This object has the following fields
 * `queueARN`: The ARN of the queue to associate with the contact.
 * `name`: The name of the queue.
 
-<<<<<<< HEAD
-=======
 ### `contact.getQueueTimestamp`
 ```
 var queueTimestamp = contact.getQueueTimestamp();
 ```
 Get the timestamp associated with when the contact was placed in the queue.
 
->>>>>>> amazon-connect-streams/master
 ### `contact.getConnections()`
 ```
 var conns = contact.getConnections();
@@ -792,25 +740,15 @@ var connectionId = connection.getConnectionId();
 ```
 Gets the unique connectionId for this connection.
 
-<<<<<<< HEAD
-### `connection.getEndpoint()`
-=======
 ### `connection.getEndpoint()` / `connection.getAddress()`
->>>>>>> amazon-connect-streams/master
 ```
 var endpoint = connection.getEndpoint();
 ```
 Gets the endpoint to which this connection is connected.
 
-<<<<<<< HEAD
-### `connection.getState()`
-```
-var state = connection.getState();
-=======
 ### `connection.getStatus()`
 ```
 var state = connection.getStatus();
->>>>>>> amazon-connect-streams/master
 ```
 Gets the `ConnectionState` object for this connection.  This object has the
 following fields:
@@ -819,15 +757,9 @@ following fields:
 * `duration`: A relative local state duration. To get the actual duration of
   the state relative to the current time, use `connection.getStateDuration()`.
 
-<<<<<<< HEAD
-### `connection.getStateDuration()`
-```
-var millis = connection.getStateDuration();
-=======
 ### `connection.getStatusDuration()`
 ```
 var millis = connection.getStatusDuration();
->>>>>>> amazon-connect-streams/master
 ```
 Get the duration of the connection state, in milliseconds, relative to local time.
 This takes into account time skew between the JS client and the Amazon Connect service.
@@ -838,8 +770,6 @@ var type = connection.getType()
 ```
 Get the type of connection. This value is either "inbound", "outbound", or "monitoring".
 
-<<<<<<< HEAD
-=======
 ### `connection.getMonitorInfo()`
 ```
 var monitorInfo = conn.getMonitorInfo();
@@ -847,7 +777,6 @@ var monitorInfo = conn.getMonitorInfo();
 Get the currently monitored contact info, or null if that does not exist.
 * `monitorInfo` = `{ agentName: string, customerName: string, joinTime: string }`
 
->>>>>>> amazon-connect-streams/master
 ### `connection.isInitialConnection()`
 ```
 if (conn.isInitialConnection()) { ... }
@@ -926,8 +855,6 @@ Resume this connection if it was on hold.
 
 Optional success and failure callbacks can be provided to determine whether the operation was successful.
 
-<<<<<<< HEAD
-=======
 ## VoiceConnection API
 The VoiceConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
 of a particular voice connection within a contact.  Like contacts, connections come and go. It is good practice not
@@ -1019,7 +946,6 @@ const mediaController = conn.getMediaController();
 ```
 Get the media controller associated with this connection.
 
->>>>>>> amazon-connect-streams/master
 ## Utility Functions
 ### `Endpoint.byPhoneNumber()` (static function)
 ```
@@ -1091,10 +1017,7 @@ This is a list of some of the special event types which are published into the l
 * `EventType.ACK_TIMEOUT`: Event which is published if the backend API shared worker fails to respond to an `EventType.SYNCHRONIZE` event in a timely manner, meaning that the tab or window has been disconnected from the shared worker.
 * `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid.  This usually requires the user to log in again for the CCP to continue to function.  See `connect.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
 * `EventType.LOG`: An event published whenever the CCP or the API shared worker creates a log entry.
-<<<<<<< HEAD
-=======
 * `EventType.TERMINATED`: Event published when the agent logged out from ccp.
->>>>>>> amazon-connect-streams/master
 
 #### Note
 The `EventBus` is used by the high-level subscription APIs to manage subscriptions
