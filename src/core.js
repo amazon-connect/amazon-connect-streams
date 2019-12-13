@@ -959,7 +959,7 @@
     .assoc(connect.EventGraph.ANY,
       connect.ContactStateType.CONNECTED,
       connect.ContactEvents.CONNECTED)
-    .assoc(connect.ContactStateType.INCOMING,
+    .assoc(connect.ContactStateType.CONNECTING,
       connect.ContactStateType.ERROR,
       connect.ContactEvents.MISSED)
     .assoc(connect.EventGraph.ANY,
