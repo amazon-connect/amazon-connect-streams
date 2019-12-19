@@ -88,13 +88,14 @@ everything set up correctly and that you are able to listen for events.
 ### `connect.core.initCCP()`
 ```
 connect.core.initCCP(containerDiv, {
-   ccpUrl:        ccpUrl,        /*REQUIRED*/
-   loginPopup:    true,          /*optional, default TRUE*/
-   loginUrl:      loginUrl,      /*optional*/
-   region: region                /*REQUIRED*/
-   softphone:     {              /*optional*/
-      disableRingtone:  true,    /*optional*/
-      ringtoneUrl: ringtoneUrl   /*optional*/
+   ccpUrl:                 ccpUrl,        /*REQUIRED*/
+   loginPopup:             true,          /*optional, default TRUE*/
+   loginPopupForceWindow:  false,          /*optional, default FALSE*/
+   loginUrl:               loginUrl,      /*optional*/
+   region:                 region         /*REQUIRED*/
+   softphone:     {                       /*optional*/
+      disableRingtone:     true,          /*optional*/
+      ringtoneUrl:         ringtoneUrl    /*optional*/
    }
 });
 ```
@@ -108,6 +109,10 @@ and made available to your JS client code.
 * `region`: Amazon connect instance region. ex: us-west-2 for PDX ccp instance.  only required for chat channel.
 * `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login
   popup which is shown when the user's authentication expires.
+  `loginPopupForceWindow`: Optional, defaults to `false`. Set to `true` to force
+  the login popup to open in a centered pop-up window. When `false`, the popup will
+  behave according to the user's browser settings, which often defaults to opening 
+  in a new tab.
 * `loginUrl`: Optional.  Allows custom URL to be used to initiate the ccp, as in
   the case of SAML authentication.
 * `softphone`: This object is optional and allows you to specify some settings
