@@ -406,16 +406,28 @@
    */
   connect.PopupManager = function () { };
 
-  connect.PopupManager.prototype.open = function(url, name) {
+  connect.PopupManager.prototype.open = function(url, name, forceWindow) {
     var then = this._getLastOpenedTimestamp(name);
     var now = new Date().getTime();
     var win = null;      
     if (now - then > ONE_DAY_MILLIS) {
-       win = window.open('', name);
-       if (win.location !== url) {
+      if (forceWindow === true) {
+        const height = 573;
+        const width = 400;
+        const y = window.top.outerHeight / 2 + window.top.screenY - (height / 2);
+        const x = window.top.outerWidth / 2 + window.top.screenX - (width / 2);
+        win = window.open('', name, `toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=no, copyhistory=no, width=${width}, height=${height}, top=${y}, left=${x}`);
+        if (win.location !== url) {
+          win = window.open(url, name, `toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=no, copyhistory=no, width=${width}, height=${height}, top=${y}, left=${x}`);
+        }
+       } else {
+        win = window.open('', name);
+        if (win.location !== url) {
           win = window.open(url, name);
-       }
-       this._setLastOpenedTimestamp(name, now);
+        }
+      }
+        this._setLastOpenedTimestamp(name, now);
+        
     }
     return win;
  };
