@@ -959,6 +959,9 @@
     .assoc(connect.EventGraph.ANY,
       connect.ContactStateType.CONNECTED,
       connect.ContactEvents.CONNECTED)
+    .assoc(connect.ContactStateType.CONNECTING,
+      connect.ContactStateType.ERROR,
+      connect.ContactEvents.MISSED)
     .assoc(connect.ContactStateType.INCOMING,
       connect.ContactStateType.ERROR,
       connect.ContactEvents.MISSED)
