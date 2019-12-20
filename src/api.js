@@ -636,6 +636,13 @@
     }, callbacks);
   };
 
+  Contact.prototype.complete = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.COMPLETE_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
   Contact.prototype.notifyIssue = function (issueCode, description, callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.NOTIFY_CONTACT_ISSUE, {
@@ -800,10 +807,8 @@
     return this._getData().monitoringInfo;
   };
 
-
   Connection.prototype.destroy = function (callbacks) {
-    var client = connect.core.getClient(), self = this;
-
+    var client = connect.core.getClient();
     client.call(connect.ClientMethods.DESTROY_CONNECTION, {
       contactId: this.getContactId(),
       connectionId: this.getConnectionId()
