@@ -22778,7 +22778,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
          'updateAgentConfiguration',
          'acceptContact',
          'createOutboundContact',
-         'completeContact',
          'destroyContact',
          'notifyContactIssue',
          'updateContactAttributes',
@@ -22926,6 +22925,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       var self = this;
       var log = connect.getLog();
 
+      params.authentication = {
+         authToken: this.authToken
+      };
+
       if (! connect.contains(this.client, method)) {
          var message = connect.sprintf('No such method exists on AWS client: %s', method);
          callbacks.failure(new connect.ValueError(message), {message: message});
@@ -22971,10 +22974,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       }
    };
 
-   AWSClient.prototype._requiresAuthenticationParam = function(method) {
-      return method !== connect.ClientMethods.COMPLETE_CONTACT;
-   };
-
    AWSClient.prototype._translateParams = function(method, params) {
       switch (method) {
          case connect.ClientMethods.UPDATE_AGENT_CONFIGURATION:
@@ -22992,12 +22991,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
          default:
             break;
-      }
-
-      if (this._requiresAuthenticationParam(method)) {
-         params.authentication = {
-            authToken: this.authToken
-         };
       }
 
       return params;
@@ -23880,13 +23873,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }, callbacks);
   };
 
-  Contact.prototype.complete = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.COMPLETE_CONTACT, {
-      contactId: this.getContactId()
-    }, callbacks);
-  };
-
   Contact.prototype.notifyIssue = function (issueCode, description, callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.NOTIFY_CONTACT_ISSUE, {
@@ -24051,8 +24037,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return this._getData().monitoringInfo;
   };
 
+
   Connection.prototype.destroy = function (callbacks) {
-    var client = connect.core.getClient();
+    var client = connect.core.getClient(), self = this;
+
     client.call(connect.ClientMethods.DESTROY_CONNECTION, {
       contactId: this.getContactId(),
       connectionId: this.getConnectionId()
