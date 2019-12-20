@@ -25357,6 +25357,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     .assoc(connect.ContactStateType.CONNECTING,
       connect.ContactStateType.ERROR,
       connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.INCOMING,
+      connect.ContactStateType.ERROR,
+      connect.ContactEvents.MISSED)
     .assoc(connect.EventGraph.ANY,
       connect.ContactStateType.ENDED,
       connect.ContactEvents.ACW)
