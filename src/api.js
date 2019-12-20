@@ -636,13 +636,6 @@
     }, callbacks);
   };
 
-  Contact.prototype.complete = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.COMPLETE_CONTACT, {
-      contactId: this.getContactId()
-    }, callbacks);
-  };
-
   Contact.prototype.notifyIssue = function (issueCode, description, callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.NOTIFY_CONTACT_ISSUE, {
@@ -807,12 +800,24 @@
     return this._getData().monitoringInfo;
   };
 
+
   Connection.prototype.destroy = function (callbacks) {
     var client = connect.core.getClient();
-    client.call(connect.ClientMethods.DESTROY_CONNECTION, {
-      contactId: this.getContactId(),
-      connectionId: this.getConnectionId()
-    }, callbacks);
+    var contact = new Contact(this.getContactId());
+    var shouldUseCompleteContact = (
+      contact.getStatus().type === connect.ContactStateType.ENDED &&
+      contact.getType() === connect.ContactType.CHAT
+    );
+    if (shouldUseCompleteContact) {
+      client.call(connect.ClientMethods.COMPLETE_CONTACT, {
+        contactId: this.getContactId()
+      }, callbacks);
+    } else {
+      client.call(connect.ClientMethods.DESTROY_CONNECTION, {
+        contactId: this.getContactId(),
+        connectionId: this.getConnectionId()
+      }, callbacks);
+    }
   };
 
   Connection.prototype.sendDigits = function (digits, callbacks) {
