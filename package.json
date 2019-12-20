@@ -1,7 +1,13 @@
 {
   "name": "amazon-connect-streams",
-  "version": "1.4.0",
+  "version": "1.4.3",
   "description": "Amazon Connect Streams Library",
+  "engines": {
+    "node": ">=10.0.0 <12.0.0 || >=13.0.0"
+  },
+  "directories": {
+    "lib": "./src"
+  },
   "main": "release/connect-streams.js",
   "repository": {
     "type": "git",
@@ -18,7 +24,8 @@
     "release": "gulp script",
     "server": "gulp webserver",
     "watch": "gulp watch",
-    "clean": "rm -rf build/ node_modules build"
+    "clean": "rm -rf build/ node_modules build package-lock.json",
+    "release-watch": "npm run release && npm run watch"
   },
   "author": "Amazon Web Services",
   "license": "Apache-2.0",
@@ -38,9 +45,9 @@
     "gulp-rev": "^8.1.1",
     "gulp-uglify": "^3.0.0",
     "gulp-watch": "^5.0.1",
+    "gulp-webserver": "^0.9.1",
     "jshint": "^2.9.7",
     "pump": "^3.0.0",
-    "sinon": "^4.5.0",
-    "gulp-webserver": "^0.9.1"
+    "sinon": "^4.5.0"
   }
 }
