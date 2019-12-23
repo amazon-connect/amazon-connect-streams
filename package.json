@@ -43,5 +43,8 @@
     "jshint": "^2.9.7",
     "pump": "^3.0.0",
     "sinon": "^4.5.0"
+  },
+  "npm-pretty-much": {
+    "runRelease": "always"
   }
 }
