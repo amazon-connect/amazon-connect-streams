@@ -996,7 +996,10 @@
   };
 
   ChatConnection.prototype._initMediaController = function () {
-    if (connect.core.mediaFactory) {
+    //note that the connectionType of the agent-side connection is always either "agent" or "monitoring"
+    //"incoming" and "outgoing" are the secondary connection types (aka the customer connection types).
+    var connectionType = this.getType();
+    if (connectionType === connect.ConnectionType.AGENT || connectionType === connect.ConnectionType.MONITORING) {
       connect.core.mediaFactory.get(this).catch(function () { });
     }
   }
