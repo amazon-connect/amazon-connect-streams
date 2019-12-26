@@ -850,6 +850,11 @@
     }
   }
 
+  // Utility method for checking whether the current connection is of the supplied type.
+  Connection.prototype._isConnectionType = function (connectionType) {
+    return connectionType === this.getType();
+  }
+
   /**
    * @class VoiceConnection
    * @param {number} contactId 
@@ -998,8 +1003,7 @@
   ChatConnection.prototype._initMediaController = function () {
     //note that the connectionType of the agent-side connection is always either "agent" or "monitoring"
     //"incoming" and "outgoing" are the secondary connection types (aka the customer connection types).
-    var connectionType = this.getType();
-    if (connectionType === connect.ConnectionType.AGENT || connectionType === connect.ConnectionType.MONITORING) {
+    if (this._isConnectionType(connect.ConnectionType.AGENT) || this._isConnectionType(connect.ConnectionType.MONITORING)) {
       connect.core.mediaFactory.get(this).catch(function () { });
     }
   }
