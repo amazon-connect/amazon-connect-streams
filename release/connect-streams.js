@@ -24094,9 +24094,12 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }
   }
 
-  // Utility method for checking whether the current connection is of the supplied type.
-  Connection.prototype._isConnectionType = function (connectionType) {
-    return connectionType === this.getType();
+  // Utility method for checking whether this connection is an agent-side connection 
+  // (type AGENT or MONITORING)
+  Connection.prototype._isAgentConnectionType = function () {
+    var connectionType = this.getType();
+    return connectionType === connect.ConnectionType.AGENT 
+      || connectionType === connect.ConnectionType.MONITORING;
   }
 
   /**
@@ -24245,9 +24248,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   };
 
   ChatConnection.prototype._initMediaController = function () {
-    //note that the connectionType of the agent-side connection is always either "agent" or "monitoring"
-    //"incoming" and "outgoing" are the secondary connection types (aka the customer connection types).
-    if (this._isConnectionType(connect.ConnectionType.AGENT) || this._isConnectionType(connect.ConnectionType.MONITORING)) {
+    // Note that a chat media controller only needs to be produced for agent type connections.
+    if (this._isAgentConnectionType()) {
       connect.core.mediaFactory.get(this).catch(function () { });
     }
   }
