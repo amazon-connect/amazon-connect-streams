@@ -98,14 +98,30 @@ describe('Core', function () {
             sinon.stub(connect.core, "getUpstream").returns({
                 sendUpstream: sinon.stub()
             });
-        });
 
+            connect.core.getAgentDataProvider = sinon.stub().returns({
+                getAgentData: () => {
+                  return {
+                    configuration: {
+                      routingProfile: {
+                        channelConcurrencyMap: {
+                          CHAT: 0,
+                          VOICE: 1
+                        }
+                      }
+                    }
+                  };
+                }
+            });
+        });
+        
         after(function () {
             connect.SoftphoneManager.restore();
             connect.ifMaster.restore();
             connect.Agent.prototype.isSoftphoneEnabled.restore();
             connect.becomeMaster.restore();
             connect.core.getUpstream.restore();
+            connect.core.getAgentDataProvider.resetBehavior();
         });
 
         it("Softphone manager should get initialized for master tab", function () {
