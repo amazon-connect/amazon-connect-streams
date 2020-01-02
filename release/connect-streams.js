@@ -24094,8 +24094,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }
   }
 
-  // Utility method for checking whether this connection is an agent-side connection 
-  // (type AGENT or MONITORING)
+  /**
+   * Utility method for checking whether this connection is an agent-side connection 
+   * (type AGENT or MONITORING)
+   * @return {boolean} True if this connection is an agent-side connection. False otherwise.
+   */
   Connection.prototype._isAgentConnectionType = function () {
     var connectionType = this.getType();
     return connectionType === connect.ConnectionType.AGENT 
