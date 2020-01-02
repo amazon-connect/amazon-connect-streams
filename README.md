@@ -143,7 +143,7 @@ this:
   CCP is reduced to 400px tall.
 * CSS styles you add to your site will NOT be applied to the CCP because it is
   rendered in an iframe.
-
+* If you are trying to use chat specific functionalities, please also include [ChatJs](https://github.com/amazon-connect/amazon-connect-chatjs) in your code. We omit ChatJs from the Makefile so that streams can be used without ChatJS. Streams only needs ChatJS when it is being used for chat.
 ## Where to go from here
 Check out the full documentation [here](Documentation.md) to read more about
 subscribing to events and enacting state changes programmatically.
