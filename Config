@@ -23,7 +23,7 @@ package.AmazonConnectStreams = {
   build-tools = {
     1.x = {
       NpmPrettyMuch = 1.0;
-      NodeJS = 8.x;
+      NodeJS = default;
     };
   };
 

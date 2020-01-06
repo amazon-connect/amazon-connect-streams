@@ -36,13 +36,13 @@ gulp.task('pre-test', function () {
     .pipe(istanbul.hookRequire());
 });
  
-gulp.task('test', ['pre-test'], function () {
+gulp.task('test', gulp.series('pre-test', function () {
   return gulp.src(['test/unit/**/*.spec.js'])
     .pipe(mocha({exit: true, showStack:true}))
     .on('error', console.error)
     // Creating the reports after tests ran
     .pipe(istanbul.writeReports());
-});
+}));
  
 gulp.task('watch', function() {
   gulp.watch('src/*.js', ['script']);
@@ -60,4 +60,4 @@ gulp.task('script', function (cb) {
   ], cb);
 });
 
-gulp.task('default',['test','script']);
+gulp.task('default', gulp.series('test','script'));
