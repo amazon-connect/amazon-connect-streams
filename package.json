@@ -22,7 +22,6 @@
   "scripts": {
     "test": "gulp test",
     "release": "gulp script",
-    "server": "gulp webserver",
     "watch": "gulp watch",
     "clean": "rm -rf build/ node_modules build package-lock.json",
     "release-watch": "npm run release && npm run watch"
