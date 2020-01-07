@@ -82,7 +82,7 @@ $ npm run test
 ```
 
 ### Using the AWS SDK and Streams
-Streams has a "baked-in" version of the AWS-SDK in the `./src/aws-client.js` file. Make sure that you import Streams before the AWS SDK so that the AWS object bound to the Window is the object from your manually included SDK, and not from Streams.
+Streams has a "baked-in" version of the AWS-SDK in the `./src/aws-client.js` file. Make sure that you import Streams before the AWS SDK so that the `AWS` object bound to the `Window` is the object from your manually included SDK, and not from Streams.
 
 ## Initialization
 Initializing the Streams API is the first step to verify that you have
