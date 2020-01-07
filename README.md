@@ -1,6 +1,6 @@
 # About
 
-[![Build Status](https://travis-ci.org/aws/amazon-connect-streams.svg?branch=master)](https://travis-ci.org/aws/amazon-connect-streams)
+[![Build Status](https://travis-ci.org/amazon-connect/amazon-connect-streams.svg?branch=master)](https://travis-ci.org/amazon-connect/amazon-connect-streams)
 
 The Amazon Connect Streams API (Streams) gives you the power to integrate your
 existing web applications with Amazon Connect.  Streams lets you
