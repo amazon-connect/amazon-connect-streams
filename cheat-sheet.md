@@ -230,7 +230,7 @@ Download agent logs
 	connect.getLog().download()
 
 
-Media Controller API for chat - ***New***
+Media Controller API for chat - ***New,ChatJS Required***
 
     connect.contact(function(contact){
     contact.getAgentConnections().forEach(function(connection){

@@ -81,6 +81,9 @@ To run unit tests:
 $ npm run test
 ```
 
+### Using the AWS SDK and Streams
+Streams has a "baked-in" version of the AWS-SDK in the `./src/aws-client.js` file. Make sure that you import Streams before the AWS SDK so that the `AWS` object bound to the `Window` is the object from your manually included SDK, and not from Streams.
+
 ## Initialization
 Initializing the Streams API is the first step to verify that you have
 everything set up correctly and that you are able to listen for events.
@@ -141,6 +144,12 @@ this:
   CCP is reduced to 400px tall.
 * CSS styles you add to your site will NOT be applied to the CCP because it is
   rendered in an iframe.
+* If you are trying to use chat specific functionalities, please also include
+  [ChatJS](https://github.com/amazon-connect/amazon-connect-chatjs) in your code.
+  We omit ChatJS from the Makefile so that streams can be used without ChatJS. 
+  Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
+  it must be imported after StreamsJS, or there will be AWS SDK issues 
+  (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
 
 ### Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
