@@ -71,15 +71,18 @@ $ npm install -g gulp
 $ git clone https://github.com/aws/amazon-connect-streams
 $ cd amazon-connect-streams
 $ npm install
-$ gulp 
+$ npm run release 
 ```
 
 Find build artifacts in **release** directory -  This will generate a file called `connect-streams.js` and the minified version of the same `connect-streams-min.js`  - this is the full Connect Streams API which you will want to include in your page.
 
 To run unit tests:
 ```
-$ gulp test
+$ npm run test
 ```
+
+### Using the AWS SDK and Streams
+Streams has a "baked-in" version of the AWS-SDK in the `./src/aws-client.js` file. Make sure that you import Streams before the AWS SDK so that the `AWS` object bound to the `Window` is the object from your manually included SDK, and not from Streams.
 
 ## Initialization
 Initializing the Streams API is the first step to verify that you have
@@ -92,6 +95,7 @@ connect.core.initCCP(containerDiv, {
    loginPopup:    true,          /*optional, default TRUE*/
    loginUrl:      loginUrl,      /*optional*/
    loginPopupAutoClose:    true,  /*optional*/
+   region: region                /*REQUIRED*/
    softphone:     {              /*optional*/
       disableRingtone:  true,    /*optional*/
       ringtoneUrl: ringtoneUrl   /*optional*/
@@ -105,9 +109,12 @@ and made available to your JS client code.
 * `ccpUrl`: The URL of the CCP.  This is the page you would normally navigate to
   in order to use the CCP in a standalone page, it is different for each
   instance.
+* `region`: Amazon connect instance region. ex: us-west-2 for PDX ccp instance.  only required for chat channel.
 * `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login
   popup which is shown when the user's authentication expires.
-*  `loginPopupAutoClose`: Optional, defaults to `false`. Set to `true` in conjunction with the `loginPopup` parameter to automatically close the login Popup window once the authentication step has completed. If the login page opened in a new tab, this parameter will also auto-close that tab.
+* `loginPopupAutoClose`: Optional, defaults to `false`. Set to `true` in conjunction with the `loginPopup` parameter 
+  to automatically close the login Popup window once the authentication step has completed. 
+  If the login page opened in a new tab, this parameter will also auto-close that tab.
 * `loginUrl`: Optional.  Allows custom URL to be used to initiate the ccp, as in
   the case of SAML authentication.
 * `softphone`: This object is optional and allows you to specify some settings
@@ -141,6 +148,12 @@ this:
   CCP is reduced to 400px tall.
 * CSS styles you add to your site will NOT be applied to the CCP because it is
   rendered in an iframe.
+* If you are trying to use chat specific functionalities, please also include
+  [ChatJS](https://github.com/amazon-connect/amazon-connect-chatjs) in your code.
+  We omit ChatJS from the Makefile so that streams can be used without ChatJS. 
+  Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
+  it must be imported after StreamsJS, or there will be AWS SDK issues 
+  (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
 
 ### Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
@@ -181,6 +194,12 @@ The Agent API provides event subscription methods and action methods which can
 be called on behalf of the agent.  There is only ever one agent per Streams
 instantiation and all contacts and actions are assumed to be taken on behalf of
 this one agent.
+
+### `agent.onContactPending()`
+```
+agent.onContactPending((agent) { ... });
+```
+Subscribe a method to be called whenever a contact enters the pending state for this particular agent.
 
 ### `agent.onRefresh()`
 ```
@@ -229,13 +248,19 @@ accept an incoming contact, or in other error cases.  It means that the agent is
 not routable, and may require that the agent switch to a routable state before
 being able to be routed contacts again.
 
+### `agent.onSoftphoneError()`
+```
+agent.onSoftphoneError(function(agent) { ... });
+```
+Subscribe a method to be called when the agent is put into an error state specific to softphone funcionality.
+
 ### `agent.onAfterCallWork()`
 ```
 agent.onAfterCallWork(function(agent) { ... });
 ```
 Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state.  This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
 
-### `agent.getState()`
+### `agent.getState()` / `agent.getStatus()`
 ```
 var state = agent.getState()
 ```
@@ -305,6 +330,18 @@ Gets the agent's routing profile.  The routing profile contains the following fi
 * `queues`: The queues contained in the routing profile.
 * `defaultOutboundQueue`: The default queue which should be associated with outbound contacts.
 
+### `agent.getChannelConcurrency`
+```
+if (agent.getChannelConcurrency("VOICE")) { ... }
+```
+OR
+```
+const concurrencyMap = agent.getChannelConcurrency();
+```
+Gets either a boolean represented by a 1 or 0, or a map of channel type to 1 or 0. 1 represents an enabled channel. 0 represents a disabled channel.
+* `channel`: A string ENUM representing the channel whose value to return. 
+The ENUM options are currently `"VOICE"` and `"CHAT"`
+
 ### `agent.getName()`
 ```
 var name = agent.getName();
@@ -318,6 +355,12 @@ var extension = agent.getExtension();
 Gets the agent's phone number from the `AgentConfiguration` object for the agent.  This is the phone
 number that is dialed by Amazon Connect to connect calls to the agent for incoming and outgoing calls if
 softphone is not enabled.
+
+### `agent.getDialableCountries`
+```
+if (agent.getDialableCountries().includes(COUNTRY_CODE)){ ... }
+```
+Returns a list of eligible countries to be dialed / deskphone redirected.
 
 ### `agent.isSoftphoneEnabled()`
 ```
@@ -339,7 +382,7 @@ Updates the agents configuration with the given `AgentConfiguration` object.  Th
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
-### `agent.setState()`
+### `agent.setState()` / `agent.setStatus()`
 ```
 var routableState = agent.getAgentStates().filter(function(state) {
    return state.type === AgentStateType.ROUTABLE;
@@ -367,6 +410,34 @@ Creates an outbound contact to the given endpoint.  You can optionally provide a
 You can optionally provide success and failure callbacks to determine whether the
 operation succeeded.
 
+### `agent.getAllQueueARNs`
+```
+const ARNs = agent.getAllQueueARNs;
+```
+Returns a list of the ARNs associated with this agent's routing profile's queues. 
+
+### `agent.getEndpoints` / `agent.getAddresses`
+```
+const endpoints = agent.getEndpoints(
+   queue_array,
+   {
+      succes: function_1,
+      failure: function_2
+   },
+   {
+      endpoints: [endpoint1, endpoint2, etc.]
+      maxResults: 95
+); 
+```
+Returns the endpoints associated with the queueARNs specified in `queueARNs`, along with any endpoints specified in `pageInfoIn.endpoints`.
+* `queueARNs`: Required. Can be a signle QueueARN or a list of QueueARNs associated with the desired queues.
+* `callbacks`: Optional. A structure containing success and failure handlers.
+   * `callbacks.success`: A function for handling a successful API call.
+   * `callbacks.failure`: A function for handling a failed API call.
+* `pageInfoIn`: Optional. A structure containing options for the call to the LARS CTI API getEndpoints. 
+   * `pageInfoIn.maxResults`: The maximum number of endpoints returned from this API.
+   * `pageInfoIn.endpoints`: A list of endpoints to add to the final list of endpoints returned by this API.
+   
 ### `agent.toSnapshot()`
 ```
 var snapshot = agent.toSnapshot();
@@ -415,6 +486,18 @@ contact.onIncoming(function(contact) { ... });
 Subscribe a method to be invoked when the contact is incoming.  In this state, the contact is waiting to be
 accepted if it is a softphone call or is waiting for the agent to answer if it is not a softphone call.
 
+### `contact.onPending()`
+```
+contact.onPending(function (contact) { ... });
+```
+Subscribe a method to be invoked when the contact is pending. Pending occurs after incoming and before connecting, when an agent has accepted or answered, but the backend has not yet acknowledged that a connection is being formed.
+
+### `contact.onConnecting()`
+```
+contact.onConnecting(function (contact) { ... });
+```
+Subscribe a method to be invoked when the contact is connecting. This works with chat and softphone contacts. This state happens after the agent has accepted a softphone call or answered if not. 
+
 ### `contact.onAccepted()`
 ```
 contact.onAccepted(function(contact) { ... });
@@ -424,6 +507,12 @@ to an API call when it succeeds, and this is usually triggered by a UI interacti
 accept button.  The proper response to this API is to stop playing ringtones and remove any Accept UI buttons
 or actions, and potentially show an "Accepting..." UI to the customer.
 
+### `contact.onMissed()`
+```
+contact.onMissed(function(contact) { ... });
+```
+Subscribe a method to be invoked whenever the contact is missed. This is an event which is fired when a contact is put in state "missed" by the backend, which happens when the agent does not answer for a certain amount of time, or when the customer hangs up before the agent can answer.
+
 ### `contact.onEnded()`
 ```
 contact.onEnded(function() { ... });
@@ -432,11 +521,23 @@ Subscribe a method to be invoked whenever the contact is ended or destroyed.  Th
 being ended by the agent, or due to the contact being missed.  Call `contact.getState()` to determine the state
 of the contact and take appropriate action.
 
+### `contact.onACW()`
+```
+contact.onACW(function() { ... });
+```
+Subscribe a method to be invoked whenever the contact enters the ACW state. This is after the connection has been closed, but before the contact is destroyed.
+
 ### `contact.onConnected()`
 ```
 contact.onConnected(function() { ... });
 ```
 Subscribe a method to be invoked when the contact is connected.
+
+### `contact.getEventName()`
+```
+logger.log(contact.getEventName(eventName));
+```
+Returns a string with `contactId::eventName` as the format.
 
 ### `contact.getContactId()`
 ```
@@ -459,19 +560,19 @@ var type = contact.getType();
 ```
 Get the type of the contact.  This indicates what type of media is carried over the connections of the contact.
 
-### `contact.getState()`
+### `contact.getStatus()`
 ```
-var state = contact.getState();
+var state = contact.getStatus();
 ```
-Get a `ContactState` object representing the state of the contact.  This object has the following fields:
+Get a `ContactStatus` object representing the state of the contact.  This object has the following fields:
 
 * `type`: The contact state type, as per the `ContactStateType` enumeration.
 * `duration`: A relative local state duration.  To get the actual duration of the state relative
   to the current time, use `contact.getStateDuration()`.
 
-### `contact.getStateDuration()`
+### `contact.getStatusDuration()`
 ```
-var millis = contact.getStateDuration();
+var millis = contact.getStatusDuration();
 ```
 Get the duration of the contact state in milliseconds relative to local time.  This takes into
 account time skew between the JS client and the Amazon Connect backend servers.
@@ -484,6 +585,12 @@ Get the queue associated with the contact.  This object has the following fields
 
 * `queueARN`: The ARN of the queue to associate with the contact.
 * `name`: The name of the queue.
+
+### `contact.getQueueTimestamp`
+```
+var queueTimestamp = contact.getQueueTimestamp();
+```
+Get the timestamp associated with when the contact was placed in the queue.
 
 ### `contact.getConnections()`
 ```
@@ -646,15 +753,15 @@ var connectionId = connection.getConnectionId();
 ```
 Gets the unique connectionId for this connection.
 
-### `connection.getEndpoint()`
+### `connection.getEndpoint()` / `connection.getAddress()`
 ```
 var endpoint = connection.getEndpoint();
 ```
 Gets the endpoint to which this connection is connected.
 
-### `connection.getState()`
+### `connection.getStatus()`
 ```
-var state = connection.getState();
+var state = connection.getStatus();
 ```
 Gets the `ConnectionState` object for this connection.  This object has the
 following fields:
@@ -663,9 +770,9 @@ following fields:
 * `duration`: A relative local state duration. To get the actual duration of
   the state relative to the current time, use `connection.getStateDuration()`.
 
-### `connection.getStateDuration()`
+### `connection.getStatusDuration()`
 ```
-var millis = connection.getStateDuration();
+var millis = connection.getStatusDuration();
 ```
 Get the duration of the connection state, in milliseconds, relative to local time.
 This takes into account time skew between the JS client and the Amazon Connect service.
@@ -675,6 +782,13 @@ This takes into account time skew between the JS client and the Amazon Connect s
 var type = connection.getType()
 ```
 Get the type of connection. This value is either "inbound", "outbound", or "monitoring".
+
+### `connection.getMonitorInfo()`
+```
+var monitorInfo = conn.getMonitorInfo();
+```
+Get the currently monitored contact info, or null if that does not exist.
+* `monitorInfo` = `{ agentName: string, customerName: string, joinTime: string }`
 
 ### `connection.isInitialConnection()`
 ```
@@ -754,6 +868,97 @@ Resume this connection if it was on hold.
 
 Optional success and failure callbacks can be provided to determine whether the operation was successful.
 
+## VoiceConnection API
+The VoiceConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
+of a particular voice connection within a contact.  Like contacts, connections come and go. It is good practice not
+to persist these object or keep them as internal state. If you need to, store the `contactId` and `connectionId`
+of the connection and make sure that the contact and connection still exist by fetching them in order from
+the `Agent` API object before calling methods on them.
+
+### `voiceConnection.sendDigits()`
+```
+conn.sendDigits(digits, {
+   success: function() { ... },
+   failure: function() { ... }
+});
+```
+Send a digit or string of digits through this connection.
+
+### `voiceConnection.hold()`
+```
+conn.hold({
+   success: function() { ... },
+   failure: function() { ... }
+});
+```
+Put this voice connection on hold.
+
+### `voiceConnection.resume()`
+```
+conn.resume({
+   success: function() { ... },
+   failure: function() { ... }
+});
+```
+Only has an effect if this connection was on hold when called.
+
+### `voiceConnection.isOnHold()`
+```
+if (conn.isOnHold()) { ... }
+```
+Returns true if this connection is on hold, false otherwise.
+
+### `voiceConnection.getMediaInfo()`
+```
+const mediaInfo = conn.getMediaInfo();
+```
+Returns the media info object associated with this connection.
+
+### `voiceConnection.getMediaType()`
+```
+if (conn.getMediaType()==="SOFTPHONE") { ... }
+```
+Returns the softphone media type enum: `"SOFTPHONE"`.
+
+### `voiceConnection.getMediaController`
+```
+const voiceController = conn.getMediaController();
+```
+Get the media controller associated with this connection.
+
+## ChatConnection API
+The ChatConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
+of a particular chat connection within a contact.  Like contacts, connections come and go. It is good practice not
+to persist these object or keep them as internal state. If you need to, store the `contactId` and `connectionId`
+of the connection and make sure that the contact and connection still exist by fetching them in order from
+the `Agent` API object before calling methods on them.
+
+### `chatConnection.getMediaInfo()`
+```
+const mediaInfo = conn.getMediaInfo();
+```
+Get the media info object associated with this connection.
+
+### `chatConnection.getConnectionToken()`
+```
+conn.getConnectionToken()
+  .then(response => {})
+  .catch(error => {});
+```
+Provides a promise which resolves with the API response from createTransport transportType chat_token for this connection through the createTransport LARS CTI API.
+
+### `chatConnection.getMediaType()`
+```
+if (conn.getMediaType()==="CHAT") { ... }
+```
+Returns mediaType for a chat connection, which is `"CHAT"`.
+
+### `chatConnection.getMediaController()`
+```
+const mediaController = conn.getMediaController();
+```
+Get the media controller associated with this connection.
+
 ## Utility Functions
 ### `Endpoint.byPhoneNumber()` (static function)
 ```
@@ -825,6 +1030,7 @@ This is a list of some of the special event types which are published into the l
 * `EventType.ACK_TIMEOUT`: Event which is published if the backend API shared worker fails to respond to an `EventType.SYNCHRONIZE` event in a timely manner, meaning that the tab or window has been disconnected from the shared worker.
 * `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid.  This usually requires the user to log in again for the CCP to continue to function.  See `connect.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
 * `EventType.LOG`: An event published whenever the CCP or the API shared worker creates a log entry.
+* `EventType.TERMINATED`: Event published when the agent logged out from ccp.
 
 #### Note
 The `EventBus` is used by the high-level subscription APIs to manage subscriptions

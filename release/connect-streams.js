@@ -20986,3 +20986,6244 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
 },{"../apis/connect-2017-02-15.min":3,"../apis/sts-2011-06-15.min":5,"./browser_loader":16,"./core":18,"./services/sts":61}]},{},[107]);
 
+
+/*! @license sprintf.js | Copyright (c) 2007-2013 Alexandru Marasteanu <hello at alexei dot ro> | 3 clause BSD license */
+
+(function() {
+   var ctx = this;
+
+	var sprintf = function() {
+		if (!sprintf.cache.hasOwnProperty(arguments[0])) {
+			sprintf.cache[arguments[0]] = sprintf.parse(arguments[0]);
+		}
+		return sprintf.format.call(null, sprintf.cache[arguments[0]], arguments);
+	};
+
+	sprintf.format = function(parse_tree, argv) {
+		var cursor = 1, tree_length = parse_tree.length, node_type = '', arg, output = [], i, k, match, pad, pad_character, pad_length;
+		for (i = 0; i < tree_length; i++) {
+			node_type = get_type(parse_tree[i]);
+			if (node_type === 'string') {
+				output.push(parse_tree[i]);
+			}
+			else if (node_type === 'array') {
+				match = parse_tree[i]; // convenience purposes only
+				if (match[2]) { // keyword argument
+					arg = argv[cursor];
+					for (k = 0; k < match[2].length; k++) {
+						if (!arg.hasOwnProperty(match[2][k])) {
+							throw(sprintf('[sprintf] property "%s" does not exist', match[2][k]));
+						}
+						arg = arg[match[2][k]];
+					}
+				}
+				else if (match[1]) { // positional argument (explicit)
+					arg = argv[match[1]];
+				}
+				else { // positional argument (implicit)
+					arg = argv[cursor++];
+				}
+
+				if (/[^s]/.test(match[8]) && (get_type(arg) != 'number')) {
+					throw(sprintf('[sprintf] expecting number but found %s', get_type(arg)));
+				}
+				switch (match[8]) {
+					case 'b': arg = arg.toString(2); break;
+					case 'c': arg = String.fromCharCode(arg); break;
+					case 'd': arg = parseInt(arg, 10); break;
+					case 'e': arg = match[7] ? arg.toExponential(match[7]) : arg.toExponential(); break;
+					case 'f': arg = match[7] ? parseFloat(arg).toFixed(match[7]) : parseFloat(arg); break;
+					case 'o': arg = arg.toString(8); break;
+					case 's': arg = ((arg = String(arg)) && match[7] ? arg.substring(0, match[7]) : arg); break;
+					case 'u': arg = arg >>> 0; break;
+					case 'x': arg = arg.toString(16); break;
+					case 'X': arg = arg.toString(16).toUpperCase(); break;
+				}
+				arg = (/[def]/.test(match[8]) && match[3] && arg >= 0 ? '+'+ arg : arg);
+				pad_character = match[4] ? match[4] == '0' ? '0' : match[4].charAt(1) : ' ';
+				pad_length = match[6] - String(arg).length;
+				pad = match[6] ? str_repeat(pad_character, pad_length) : '';
+				output.push(match[5] ? arg + pad : pad + arg);
+			}
+		}
+		return output.join('');
+	};
+
+	sprintf.cache = {};
+
+	sprintf.parse = function(fmt) {
+		var _fmt = fmt, match = [], parse_tree = [], arg_names = 0;
+		while (_fmt) {
+			if ((match = /^[^\x25]+/.exec(_fmt)) !== null) {
+				parse_tree.push(match[0]);
+			}
+			else if ((match = /^\x25{2}/.exec(_fmt)) !== null) {
+				parse_tree.push('%');
+			}
+			else if ((match = /^\x25(?:([1-9]\d*)\$|\(([^\)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-fosuxX])/.exec(_fmt)) !== null) {
+				if (match[2]) {
+					arg_names |= 1;
+					var field_list = [], replacement_field = match[2], field_match = [];
+					if ((field_match = /^([a-z_][a-z_\d]*)/i.exec(replacement_field)) !== null) {
+						field_list.push(field_match[1]);
+						while ((replacement_field = replacement_field.substring(field_match[0].length)) !== '') {
+							if ((field_match = /^\.([a-z_][a-z_\d]*)/i.exec(replacement_field)) !== null) {
+								field_list.push(field_match[1]);
+							}
+							else if ((field_match = /^\[(\d+)\]/.exec(replacement_field)) !== null) {
+								field_list.push(field_match[1]);
+							}
+							else {
+								throw('[sprintf] huh?');
+							}
+						}
+					}
+					else {
+						throw('[sprintf] huh?');
+					}
+					match[2] = field_list;
+				}
+				else {
+					arg_names |= 2;
+				}
+				if (arg_names === 3) {
+					throw('[sprintf] mixing positional and named placeholders is not (yet) supported');
+				}
+				parse_tree.push(match);
+			}
+			else {
+				throw('[sprintf] huh?');
+			}
+			_fmt = _fmt.substring(match[0].length);
+		}
+		return parse_tree;
+	};
+
+	var vsprintf = function(fmt, argv, _argv) {
+		_argv = argv.slice(0);
+		_argv.splice(0, 0, fmt);
+		return sprintf.apply(null, _argv);
+	};
+
+	/**
+	 * helpers
+	 */
+	function get_type(variable) {
+		return Object.prototype.toString.call(variable).slice(8, -1).toLowerCase();
+	}
+
+	function str_repeat(input, multiplier) {
+		for (var output = []; multiplier > 0; output[--multiplier] = input) {/* do nothing */}
+		return output.join('');
+	}
+
+	/**
+	 * export to either browser or node.js
+	 */
+	ctx.sprintf = sprintf;
+	ctx.vsprintf = vsprintf;
+})();
+
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+  global.lily = connect;
+
+  // How frequently logs should be collected and reported to shared worker.
+  var LOG_REPORT_INTERVAL_MILLIS = 5000;
+
+  // The default log roll interval (30min)
+  var DEFAULT_LOG_ROLL_INTERVAL = 1800000;
+
+  /**
+   * An enumeration of common logging levels.
+   */
+  var LogLevel = {
+    TEST: "TEST",
+    TRACE: "TRACE",
+    DEBUG: "DEBUG",
+    INFO: "INFO",
+    LOG: "LOG",
+    WARN: "WARN",
+    ERROR: "ERROR",
+    CRITICAL: "CRITICAL"
+  };
+
+  /**
+   * An enumeration of common logging components.
+   */
+  var LogComponent = {
+    CCP: "ccp",
+    SOFTPHONE: "softphone",
+    CHAT: "chat"
+  };
+
+  /**
+   * The numeric order of the logging levels above.
+   * They are spaced to allow the addition of other log
+   * levels at a later time.
+   */
+  var LogLevelOrder = {
+    TEST: 0,
+    TRACE: 10,
+    DEBUG: 20,
+    INFO: 30,
+    LOG: 40,
+    WARN: 50,
+    ERROR: 100,
+    CRITICAL: 200
+
+  };
+
+  /**
+   * A map from log level to console logger function.
+   */
+  var CONSOLE_LOGGER_MAP = {
+    TRACE: function (text) { console.info(text); },
+    DEBUG: function (text) { console.info(text); },
+    INFO: function (text) { console.info(text); },
+    LOG: function (text) { console.log(text); },
+    TEST: function (text) { console.log(text); },
+    WARN: function (text) { console.warn(text); },
+    ERROR: function (text) { console.error(text); },
+    CRITICAL: function (text) { console.error(text); }
+  };
+
+  /**
+  * Checks if it is a valid log component enum
+  */
+
+  var isValidLogComponent = function (component) {
+    return [LogComponent.SOFTPHONE, LogComponent.CCP, LogComponent.CHAT].indexOf(component) !== -1;
+  };
+
+  /**
+  * Extract the custom arguments as required by the logger
+  */
+  var extractLoggerArgs = function (loggerArgs) {
+    var args = Array.prototype.slice.call(loggerArgs, 0);
+    var firstArg = args.shift();
+    var format;
+    var component;
+    if (isValidLogComponent(firstArg)) {
+      component = firstArg;
+      format = args.shift();
+    } else {
+      //default to CCP component
+      format = firstArg;
+      component = LogComponent.CCP;
+    }
+    return {
+      format: format,
+      component: component,
+      args: args
+    };
+  };
+
+  /**
+   * A log entry.
+   *
+   * @param level The log level of this log entry.
+   * @param text The text contained in the log entry.
+   *
+   * Log entries are aware of their timestamp, order,
+   * and can contain objects and exception stack traces.
+   */
+  var LogEntry = function (component, level, text) {
+    this.component = component;
+    this.level = level;
+    this.text = text;
+    this.time = new Date();
+    this.exception = null;
+    this.objects = [];
+    this.line = 0;
+  };
+
+  LogEntry.fromObject = function (obj) {
+    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text);
+
+    // Required to check for Date objects sent across frame boundaries
+    if (Object.prototype.toString.call(obj.time) === '[object Date]') {
+      entry.time = new Date(obj.time.getTime());
+    } else if (typeof obj.time === 'number') {
+      entry.time = new Date(obj.time);
+    } else if (typeof obj.time === 'string') {
+      entry.time = Date.parse(obj.time);
+    } else {
+      entry.time = new Date();
+    }
+    entry.exception = obj.exception;
+    entry.objects = obj.objects;
+    return entry;
+  };
+
+  /**
+   * Pulls the type, message, and stack trace
+   * out of the given exception for JSON serialization.
+   */
+  var LoggedException = function (e) {
+    this.type = Object.prototype.toString.call(e);
+    this.message = e.message;
+    this.stack = e.stack ? e.stack.split('\n') : [];
+  };
+
+  /**
+   * Minimally stringify this log entry for printing
+   * to the console.
+   */
+  LogEntry.prototype.toString = function () {
+    return connect.sprintf("[%s] [%s]: %s",
+      this.getTime() && this.getTime().toISOString ? this.getTime().toISOString() : "???",
+      this.getLevel(),
+      this.getText());
+  };
+
+  /**
+   * Get the log entry timestamp.
+   */
+  LogEntry.prototype.getTime = function () {
+    return this.time;
+  };
+
+  /**
+   * Get the level of the log entry.
+   */
+  LogEntry.prototype.getLevel = function () {
+    return this.level;
+  };
+
+  /**
+   * Get the log entry text.
+   */
+  LogEntry.prototype.getText = function () {
+    return this.text;
+  };
+
+  /**
+   * Get the log entry component.
+   */
+  LogEntry.prototype.getComponent = function () {
+    return this.component;
+  };
+
+  /**
+   * Add an exception stack trace to this log entry.
+   * A log entry may contain only one exception stack trace.
+   */
+  LogEntry.prototype.withException = function (e) {
+    this.exception = new LoggedException(e);
+    return this;
+  };
+
+  /**
+   * Add an arbitrary object to the log entry.  A log entry
+   * may contain any number of objects.
+   */
+  LogEntry.prototype.withObject = function (obj) {
+    this.objects.push(connect.deepcopy(obj));
+    return this;
+  };
+
+  /**
+   * The logger instance.
+   */
+  var Logger = function () {
+    this._logs = [];
+    this._rolledLogs = [];
+    this._logsToPush = [];
+    this._echoLevel = LogLevelOrder.INFO;
+    this._logLevel = LogLevelOrder.INFO;
+    this._lineCount = 0;
+    this._logRollInterval = 0;
+    this._logRollTimer = null;
+    this.setLogRollInterval(DEFAULT_LOG_ROLL_INTERVAL);
+  };
+
+  /**
+   * Sets the interval in milliseconds that the logs will be rotated.
+   * Logs are rotated out completely at the end of the second roll
+   * and will eventually be garbage collected.
+   */
+  Logger.prototype.setLogRollInterval = function (interval) {
+    var self = this;
+
+    if (!(this._logRollTimer) || interval !== this._logRollInterval) {
+      if (this._logRollTimer) {
+        global.clearInterval(this._logRollTimer);
+      }
+      this._logRollInterval = interval;
+      this._logRollTimer = global.setInterval(function () {
+        this._rolledLogs = this._logs;
+        this._logs = [];
+        self.info("Log roll interval occurred.");
+      }, this._logRollInterval);
+    } else {
+      this.warn("Logger is already set to the given interval: %d", this._logRollInterval);
+    }
+  };
+
+  /**
+   * Set the log level.  This is the minimum level at which logs will
+   * be kept for later archiving.
+   */
+  Logger.prototype.setLogLevel = function (level) {
+    if (level in LogLevelOrder) {
+      this._logLevel = LogLevelOrder[level];
+    } else {
+      throw new Error("Unknown logging level: " + level);
+    }
+  };
+
+  /**
+   * Set the echo level.  This is the minimum level at which logs will
+   * be printed to the javascript console.
+   */
+  Logger.prototype.setEchoLevel = function (level) {
+    if (level in LogLevelOrder) {
+      this._echoLevel = LogLevelOrder[level];
+    } else {
+      throw new Error("Unknown logging level: " + level);
+    }
+  };
+
+  /**
+   * Write a particular log entry.
+   *
+   * @param level The logging level of the entry.
+   * @param text The text contents of the entry.
+   *
+   * @returns The new log entry.
+   */
+  Logger.prototype.write = function (component, level, text) {
+    var logEntry = new LogEntry(component, level, text);
+    this.addLogEntry(logEntry);
+    return logEntry;
+  };
+
+  Logger.prototype.addLogEntry = function (logEntry) {
+    this._logs.push(logEntry);
+    //For now only send softphone logs only.
+    //TODO add CCP logs once we are sure that no sensitive data is being logged.
+    if (LogComponent.SOFTPHONE === logEntry.component) {
+      this._logsToPush.push(logEntry);
+    }
+
+    if (logEntry.level in LogLevelOrder &&
+      LogLevelOrder[logEntry.level] >= this._logLevel) {
+
+      if (LogLevelOrder[logEntry.level] >= this._echoLevel) {
+        CONSOLE_LOGGER_MAP[logEntry.getLevel()](logEntry.toString());
+      }
+
+      logEntry.line = this._lineCount++;
+    }
+  };
+
+  /**
+   * Remove all objects from all log entries.
+   */
+  Logger.prototype.clearObjects = function () {
+    for (var x = 0; x < this._logs.length; x++) {
+      if (this._logs[x].objects) {
+        delete this._logs[x].objects;
+      }
+    }
+  };
+
+  /**
+   * Remove all exception stack traces from the log entries.
+   */
+  Logger.prototype.clearExceptions = function () {
+    for (var x = 0; x < this._logs.length; x++) {
+      if (this._logs[x].exception) {
+        delete this._logs[x].exception;
+      }
+    }
+  };
+
+  Logger.prototype.trace = function () {
+    var logArgs = extractLoggerArgs(arguments);
+    return this.write(logArgs.component, LogLevel.TRACE, connect.vsprintf(logArgs.format, logArgs.args));
+  };
+
+  Logger.prototype.debug = function () {
+    var logArgs = extractLoggerArgs(arguments);
+    return this.write(logArgs.component, LogLevel.DEBUG, connect.vsprintf(logArgs.format, logArgs.args));
+  };
+
+  Logger.prototype.info = function () {
+    var logArgs = extractLoggerArgs(arguments);
+    return this.write(logArgs.component, LogLevel.INFO, connect.vsprintf(logArgs.format, logArgs.args));
+  };
+
+  Logger.prototype.log = function () {
+    var logArgs = extractLoggerArgs(arguments);
+    return this.write(logArgs.component, LogLevel.LOG, connect.vsprintf(logArgs.format, logArgs.args));
+  };
+
+  Logger.prototype.test = function () {
+    var logArgs = extractLoggerArgs(arguments);
+    return this.write(logArgs.component, LogLevel.TEST, connect.vsprintf(logArgs.format, logArgs.args));
+  };
+
+  Logger.prototype.warn = function () {
+    var logArgs = extractLoggerArgs(arguments);
+    return this.write(logArgs.component, LogLevel.WARN, connect.vsprintf(logArgs.format, logArgs.args));
+  };
+
+  Logger.prototype.error = function () {
+    var logArgs = extractLoggerArgs(arguments);
+    return this.write(logArgs.component, LogLevel.ERROR, connect.vsprintf(logArgs.format, logArgs.args));
+  };
+
+  Logger.prototype.critical = function () {
+    var logArgs = extractLoggerArgs(arguments);
+    return this.write(logArgs.component, LogLevel.ERROR, connect.vsprintf(logArgs.format, logArgs.args));
+  };
+
+  /**
+   * Create a string representation of the logger contents.
+   */
+  Logger.prototype.toString = function () {
+    var lines = [];
+    for (var x = 0; x < this._logs.length; x++) {
+      lines.push(this._logs[x].toString());
+    }
+
+    return lines.join("\n");
+  };
+
+  Logger.prototype.download = function () {
+    var logBlob = new global.Blob([JSON.stringify(this._rolledLogs.concat(this._logs), undefined, 4)], ['text/plain']);
+    var downloadLink = document.createElement('a');
+    downloadLink.href = global.URL.createObjectURL(logBlob);
+    downloadLink.download = 'agent-log.txt';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  };
+
+  Logger.prototype.scheduleUpstreamLogPush = function (conduit) {
+    if (!connect.upstreamLogPushScheduled) {
+      connect.upstreamLogPushScheduled = true;
+      /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to LARS*/
+      global.setInterval(connect.hitch(this, this.reportMasterLogsUpStream, conduit), LOG_REPORT_INTERVAL_MILLIS);
+    }
+  };
+
+  Logger.prototype.reportMasterLogsUpStream = function (conduit) {
+    var logsToPush = this._logsToPush.slice();
+    this._logsToPush = [];
+    connect.ifMaster(connect.MasterTopics.SEND_LOGS, function () {
+      if (logsToPush.length > 0) {
+        conduit.sendUpstream(connect.EventType.SEND_LOGS, logsToPush);
+      }
+    });
+  };
+
+  var DownstreamConduitLogger = function (conduit) {
+    Logger.call(this);
+    this.conduit = conduit;
+    global.setInterval(connect.hitch(this, this._pushLogsDownstream),
+      DownstreamConduitLogger.LOG_PUSH_INTERVAL);
+
+    // Disable log rolling, we will purge our own logs once they have
+    // been pushed downstream.
+    global.clearInterval(this._logRollTimer);
+    this._logRollTimer = null;
+  };
+  // How frequently logs should be collected and delivered downstream.
+  DownstreamConduitLogger.LOG_PUSH_INTERVAL = 1000;
+  DownstreamConduitLogger.prototype = Object.create(Logger.prototype);
+  DownstreamConduitLogger.prototype.constructor = DownstreamConduitLogger;
+
+  DownstreamConduitLogger.prototype._pushLogsDownstream = function () {
+    var self = this;
+    this._logs.forEach(function (log) {
+      self.conduit.sendDownstream(connect.EventType.LOG, log);
+    });
+    this._logs = [];
+  };
+
+  /** Create the singleton logger instance. */
+  connect.rootLogger = new Logger();
+
+  /** Fetch the singleton logger instance. */
+  var getLog = function () {
+    return connect.rootLogger;
+  };
+
+  connect = connect || {};
+  connect.getLog = getLog;
+  connect.LogEntry = LogEntry;
+  connect.Logger = Logger;
+  connect.LogLevel = LogLevel;
+  connect.LogComponent = LogComponent;
+  connect.DownstreamConduitLogger = DownstreamConduitLogger;
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+  global.lily = connect;
+
+  var userAgent = navigator.userAgent;
+  var ONE_DAY_MILLIS = 24 * 60 * 60 * 1000;
+
+  /**
+   * Unpollute sprintf functions from the global namespace.
+   */
+  connect.sprintf = global.sprintf;
+  connect.vsprintf = global.vsprintf;
+  delete global.sprintf;
+  delete global.vsprintf;
+
+  connect.HTTP_STATUS_CODES = {
+    SUCCESS: 200,
+    TOO_MANY_REQUESTS: 429,
+    INTERNAL_SERVER_ERROR: 500
+  };
+
+  connect.TRANSPORT_TYPES = {
+    CHAT_TOKEN: "chat_token",
+    WEB_SOCKET: "web_socket"
+  };
+
+  /**
+   * Binds the given instance object as the context for
+   * the method provided.
+   *
+   * @param scope The instance object to be set as the scope
+   *    of the function.
+   * @param method The method to be encapsulated.
+   *
+   * All other arguments, if any, are bound to the method
+   * invocation inside the closure.
+   *
+   * @return A closure encapsulating the invocation of the
+   *    method provided in context of the given instance.
+   */
+  connect.hitch = function () {
+    var args = Array.prototype.slice.call(arguments);
+    var scope = args.shift();
+    var method = args.shift();
+
+    connect.assertNotNull(scope, 'scope');
+    connect.assertNotNull(method, 'method');
+    connect.assertTrue(connect.isFunction(method), 'method must be a function');
+
+    return function () {
+      var closureArgs = Array.prototype.slice.call(arguments);
+      return method.apply(scope, args.concat(closureArgs));
+    };
+  };
+
+  /**
+   * Determine if the given value is a callable function type.
+   * Borrowed from Underscore.js.
+   */
+  connect.isFunction = function (obj) {
+    return !!(obj && obj.constructor && obj.call && obj.apply);
+  };
+
+  /**
+   * Determine if the given value is an array.
+   */
+  connect.isArray = function (obj) {
+    return Object.prototype.toString.call(obj) === '[object Array]';
+  };
+
+  /**
+   * Get a list of keys from a Javascript object used
+   * as a hash map.
+   */
+  connect.keys = function (map) {
+    var keys = [];
+
+    connect.assertNotNull(map, 'map');
+
+    for (var k in map) {
+      keys.push(k);
+    }
+
+    return keys;
+  };
+
+  /**
+   * Get a list of values from a Javascript object used
+   * as a hash map.
+   */
+  connect.values = function (map) {
+    var values = [];
+
+    connect.assertNotNull(map, 'map');
+
+    for (var k in map) {
+      values.push(map[k]);
+    }
+
+    return values;
+  };
+
+  /**
+   * Get a list of key/value pairs from the given map.
+   */
+  connect.entries = function (map) {
+    var entries = [];
+
+    for (var k in map) {
+      entries.push({ key: k, value: map[k] });
+    }
+
+    return entries;
+  };
+
+  /**
+   * Merge two or more maps together into a new map,
+   * or simply copy a single map.
+   */
+  connect.merge = function () {
+    var argMaps = Array.prototype.slice.call(arguments, 0);
+    var resultMap = {};
+
+    argMaps.forEach(function (map) {
+      connect.entries(map).forEach(function (kv) {
+        resultMap[kv.key] = kv.value;
+      });
+    });
+
+    return resultMap;
+  };
+
+  connect.now = function () {
+    return new Date().getTime();
+  };
+
+  connect.find = function (array, predicate) {
+    for (var x = 0; x < array.length; x++) {
+      if (predicate(array[x])) {
+        return array[x];
+      }
+    }
+
+    return null;
+  };
+
+  connect.contains = function (obj, value) {
+    if (obj instanceof Array) {
+      return connect.find(obj, function (v) { return v === value; }) != null;
+
+    } else {
+      return (value in obj);
+    }
+  };
+
+  connect.containsValue = function (obj, value) {
+    if (obj instanceof Array) {
+      return connect.find(obj, function (v) { return v === value; }) != null;
+
+    } else {
+      return connect.find(connect.values(obj), function (v) { return v === value; }) != null;
+    }
+  };
+
+  /**
+   * Generate a random ID consisting of the current timestamp
+   * and a random base-36 number based on Math.random().
+   */
+  connect.randomId = function () {
+    return connect.sprintf("%s-%s", connect.now(), Math.random().toString(36).slice(2));
+  };
+
+  /**
+   * Generate an enum from the given list of lower-case enum values,
+   * where the enum keys will be upper case.
+   *
+   * Conversion from pascal case based on code from here:
+   * http://stackoverflow.com/questions/30521224
+   */
+  connect.makeEnum = function (values) {
+    var enumObj = {};
+
+    values.forEach(function (value) {
+      var key = value.replace(/\.?([a-z]+)_?/g, function (x, y) { return y.toUpperCase() + "_"; })
+        .replace(/_$/, "");
+
+      enumObj[key] = value;
+    });
+
+    return enumObj;
+  };
+
+  connect.makeNamespacedEnum = function (prefix, values) {
+    var enumObj = connect.makeEnum(values);
+    connect.keys(enumObj).forEach(function (key) {
+      enumObj[key] = connect.sprintf("%s::%s", prefix, enumObj[key]);
+    });
+    return enumObj;
+  };
+
+  /**
+  * Methods to determine browser type and versions, used for softphone initialization.
+  */
+  connect.isChromeBrowser = function () {
+    return userAgent.indexOf("Chrome") !== -1;
+  };
+
+  connect.isFirefoxBrowser = function () {
+    return userAgent.indexOf("Firefox") !== -1;
+  };
+
+  connect.isOperaBrowser = function () {
+    return userAgent.indexOf("Opera") !== -1;
+  };
+
+  connect.getChromeBrowserVersion = function () {
+    var chromeVersion = userAgent.substring(userAgent.indexOf("Chrome") + 7);
+    if (chromeVersion) {
+      return parseFloat(chromeVersion);
+    } else {
+      return -1;
+    }
+  };
+
+  connect.getFirefoxBrowserVersion = function () {
+    var firefoxVersion = userAgent.substring(userAgent.indexOf("Firefox") + 8);
+    if (firefoxVersion) {
+      return parseFloat(firefoxVersion);
+    } else {
+      return -1;
+    }
+  };
+
+  connect.getOperaBrowserVersion = function () {
+    var versionOffset = userAgent.indexOf("Opera");
+    var operaVersion = (userAgent.indexOf("Version") !== -1) ? userAgent.substring(versionOffset + 8) : userAgent.substring(versionOffset + 6);
+    if (operaVersion) {
+      return parseFloat(operaVersion);
+    } else {
+      return -1;
+    }
+  };
+
+  /**
+   * Return a map of items in the given list indexed by
+   * keys determined by the closure provided.
+   *
+   * @param iterable A list-like object.
+   * @param closure A closure to determine the index for the
+   *    items in the iterable.
+   * @return A map from index to item for each item in the iterable.
+   */
+  connect.index = function (iterable, closure) {
+    var map = {};
+
+    iterable.forEach(function (item) {
+      map[closure(item)] = item;
+    });
+
+    return map;
+  };
+
+  /**
+   * Converts the given array into a map as a set,
+   * where elements in the array are mapped to 1.
+   */
+  connect.set = function (arrayIn) {
+    var setMap = {};
+
+    arrayIn.forEach(function (key) {
+      setMap[key] = 1;
+    });
+
+    return setMap;
+  };
+
+  /**
+   * Returns a map for each key in mapB which
+   * is NOT in mapA.
+   */
+  connect.relativeComplement = function (mapA, mapB) {
+    var compMap = {};
+
+    connect.keys(mapB).forEach(function (key) {
+      if (!(key in mapA)) {
+        compMap[key] = mapB[key];
+      }
+    });
+
+    return compMap;
+  };
+
+  /**
+   * Asserts that a premise is true.
+   */
+  connect.assertTrue = function (premise, message) {
+    if (!premise) {
+      throw new connect.ValueError(message);
+    }
+  };
+
+  /**
+   * Asserts that a value is not null or undefined.
+   */
+  connect.assertNotNull = function (value, name) {
+    connect.assertTrue(value != null && typeof value !== undefined,
+      connect.sprintf("%s must be provided", name || 'A value'));
+    return value;
+  };
+
+  connect.deepcopy = function (src) {
+    return JSON.parse(JSON.stringify(src));
+  };
+
+  /**
+   * Get the current base url of the open page, e.g. if the page is
+   * https://example.com:9494/oranges, this will be "https://example.com:9494".
+   */
+  connect.getBaseUrl = function () {
+    var location = global.location;
+    return connect.sprintf("%s//%s:%s", location.protocol, location.hostname, location.port);
+  };
+
+  /**
+   * Determine if the current window is in an iframe.
+   * Courtesy: http://stackoverflow.com/questions/326069/
+   */
+  connect.isFramed = function () {
+    try {
+      return window.self !== window.top;
+    } catch (e) {
+      return true;
+    }
+  };
+
+  connect.fetch = function (endpoint, options, milliInterval, maxRetry) {
+    maxRetry = maxRetry || 5;
+    milliInterval = milliInterval || 1000;
+    options = options || {};
+    return new Promise(function (resolve, reject) {
+      function fetchData(maxRetry) {
+        fetch(endpoint, options).then(function (res) {
+          if (res.status === connect.HTTP_STATUS_CODES.SUCCESS) {
+            resolve(res.json());
+          } else if (maxRetry !== 1 && (res.status >= connect.HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR || res.status === connect.HTTP_STATUS_CODES.TOO_MANY_REQUESTS)) {
+            setTimeout(function () {
+              fetchData(--maxRetry);
+            }, milliInterval);
+          } else {
+            reject(res);
+          }
+        }).catch(function (e) {
+          reject(e);
+        });
+      }
+      fetchData(maxRetry);
+    });
+  };
+
+  /**
+   * Calling a function with exponential backoff with full jitter retry strategy
+   * It will retry calling the function for maximum maxRetry times if it fails.
+   * Success callback will be called if the function succeeded.
+   * Failure callback will be called only if the last try failed.
+   */
+  connect.backoff = function (func, milliInterval, maxRetry, callbacks) {
+    connect.assertTrue(connect.isFunction(func), "func must be a Function");
+    var self = this;
+    var ratio = 2;
+
+    func({
+      success: function (data) {
+        if (callbacks && callbacks.success) {
+          callbacks.success(data);
+        }
+      },
+      failure: function (err, data) {
+        if (maxRetry > 0) {
+          var interval = milliInterval * 2 * Math.random();
+          global.setTimeout(function () {
+            self.backoff(func, interval * ratio, --maxRetry, callbacks);
+          }, interval);
+        } else {
+          if (callbacks && callbacks.failure) {
+            callbacks.failure(err, data);
+          }
+        }
+      }
+    });
+  };
+
+  connect.publishMetric = function (metricData) {
+    var bus = connect.core.getEventBus();
+    bus.trigger(connect.EventType.CLIENT_METRIC, metricData);
+  };
+
+  /**
+   * A wrapper around Window.open() for managing single instance popups.
+   */
+  connect.PopupManager = function () { };
+
+  connect.PopupManager.prototype.open = function(url, name) {
+    var then = this._getLastOpenedTimestamp(name);
+    var now = new Date().getTime();
+    var win = null;      
+    if (now - then > ONE_DAY_MILLIS) {
+       win = window.open('', name);
+       if (win.location !== url) {
+          win = window.open(url, name);
+       }
+       this._setLastOpenedTimestamp(name, now);
+    }
+    return win;
+ };
+
+  connect.PopupManager.prototype.clear = function (name) {
+    var key = this._getLocalStorageKey(name);
+    global.localStorage.removeItem(key);
+  };
+
+  connect.PopupManager.prototype._getLastOpenedTimestamp = function (name) {
+    var key = this._getLocalStorageKey(name);
+    var value = global.localStorage.getItem(key);
+
+    if (value) {
+      return parseInt(value, 10);
+
+    } else {
+      return 0;
+    }
+  };
+
+  connect.PopupManager.prototype._setLastOpenedTimestamp = function (name, ts) {
+    var key = this._getLocalStorageKey(name);
+    global.localStorage.setItem(key, '' + ts);
+  };
+
+  connect.PopupManager.prototype._getLocalStorageKey = function (name) {
+    return "connectPopupManager::" + name;
+  };
+
+  /**
+   * An enumeration of the HTML5 notification permission values.
+   */
+  var NotificationPermission = connect.makeEnum([
+    'granted',
+    'denied',
+    'default'
+  ]);
+
+  /**
+   * A simple engine for showing notification popups.
+   */
+  connect.NotificationManager = function () {
+    this.queue = [];
+    this.permission = NotificationPermission.DEFAULT;
+  };
+
+  connect.NotificationManager.prototype.requestPermission = function () {
+    var self = this;
+    if (!("Notification" in global)) {
+      connect.getLog().warn("This browser doesn't support notifications.");
+      this.permission = NotificationPermission.DENIED;
+
+    } else if (global.Notification.permission === NotificationPermission.DENIED) {
+      connect.getLog().warn("The user has requested to not receive notifications.");
+      this.permission = NotificationPermission.DENIED;
+
+    } else if (this.permission !== NotificationPermission.GRANTED) {
+      global.Notification.requestPermission().then(function (permission) {
+        self.permission = permission;
+        if (permission === NotificationPermission.GRANTED) {
+          self._showQueued();
+
+        } else {
+          self.queue = [];
+        }
+      });
+    }
+  };
+
+  connect.NotificationManager.prototype.show = function (title, options) {
+    if (this.permission === NotificationPermission.GRANTED) {
+      return this._showImpl({ title: title, options: options });
+
+    } else if (this.permission === NotificationPermission.DENIED) {
+      connect.getLog().warn("Unable to show notification.").withObject({
+        title: title,
+        options: options
+      });
+
+    } else {
+      var params = { title: title, options: options };
+      connect.getLog().warn("Deferring notification until user decides to allow or deny.")
+        .withObject(params);
+      this.queue.push(params);
+    }
+  };
+
+  connect.NotificationManager.prototype._showQueued = function () {
+    var self = this;
+    var notifications = this.queue.map(function (params) {
+      return self._showImpl(params);
+    });
+    this.queue = [];
+    return notifications;
+  };
+
+  connect.NotificationManager.prototype._showImpl = function (params) {
+    var notification = new global.Notification(params.title, params.options);
+    if (params.options.clicked) {
+      notification.onclick = function () {
+        params.options.clicked.call(notification);
+      };
+    }
+    return notification;
+  };
+
+  connect.BaseError = function (format, args) {
+    global.Error.call(this, connect.vsprintf(format, args));
+  };
+  connect.BaseError.prototype = Object.create(Error.prototype);
+  connect.BaseError.prototype.constructor = connect.BaseError;
+
+  connect.ValueError = function () {
+    var args = Array.prototype.slice.call(arguments, 0);
+    var format = args.shift();
+    connect.BaseError.call(this, format, args);
+  };
+  connect.ValueError.prototype = Object.create(connect.BaseError.prototype);
+  connect.ValueError.prototype.constructor = connect.ValueError;
+
+  connect.NotImplementedError = function () {
+    var args = Array.prototype.slice.call(arguments, 0);
+    var format = args.shift();
+    connect.BaseError.call(this, format, args);
+  };
+  connect.NotImplementedError.prototype = Object.create(connect.BaseError.prototype);
+  connect.NotImplementedError.prototype.constructor = connect.NotImplementedError;
+
+  connect.StateError = function () {
+    var args = Array.prototype.slice.call(arguments, 0);
+    var format = args.shift();
+    connect.BaseError.call(this, format, args);
+  };
+  connect.StateError.prototype = Object.create(connect.BaseError.prototype);
+  connect.StateError.prototype.constructor = connect.StateError;
+
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+
+  var ALL_EVENTS = '<<all>>';
+
+  /**---------------------------------------------------------------
+   * enum EventType
+   */
+  var EventType = connect.makeEnum([
+    'acknowledge',
+    'ack_timeout',
+    'api_request',
+    'api_response',
+    'auth_fail',
+    'access_denied',
+    'close',
+    'configure',
+    'log',
+    'master_request',
+    'master_response',
+    'synchronize',
+    'terminate',
+    'terminated',
+    'send_logs',
+    'reload_agent_configuration',
+    'broadcast',
+    'api_metric',
+    'client_metric',
+    'mute'
+  ]);
+
+  /**---------------------------------------------------------------
+   * enum MasterTopics
+   */
+  var MasterTopics = connect.makeNamespacedEnum('connect', [
+    'loginPopup',
+    'sendLogs',
+    'softphone',
+    'ringtone',
+    'metrics'
+  ]);
+
+  /**---------------------------------------------------------------
+   * enum AgentEvents
+   */
+  var AgentEvents = connect.makeNamespacedEnum('agent', [
+    'init',
+    'update',
+    'refresh',
+    'routable',
+    'not_routable',
+    'pending',
+    'contact_pending',
+    'offline',
+    'error',
+    'softphone_error',
+    'state_change',
+    'acw',
+    'mute_toggle'
+  ]);
+
+  /**---------------------------------------------------------------
+  * enum WebSocketEvents
+  */
+  var WebSocketEvents = connect.makeNamespacedEnum('webSocket', [
+    'init_failure',
+    'connection_gain',
+    'connection_lost',
+    'subscription_update',
+    'subscription_failure',
+    'all_message',
+    'send',
+    'subscribe'
+  ]);
+
+  /**---------------------------------------------------------------
+    * enum ContactEvents
+    */
+  var ContactEvents = connect.makeNamespacedEnum('contact', [
+    'init',
+    'refresh',
+    'destroyed',
+    'incoming',
+    'pending',
+    'connecting',
+    'connected',
+    'missed',
+    'acw',
+    'view',
+    'ended',
+    'error',
+    'accepted'
+  ]);
+
+
+  /**---------------------------------------------------------------
+  * enum ConnnectionEvents
+  */
+  var ConnnectionEvents = connect.makeNamespacedEnum('connection', [
+    'session_init'
+  ]);
+
+  /**---------------------------------------------------------------
+   * class EventFactory
+   */
+  var EventFactory = function () { };
+  EventFactory.createRequest = function (type, method, params) {
+    return {
+      event: type,
+      requestId: connect.randomId(),
+      method: method,
+      params: params
+    };
+  };
+
+  EventFactory.createResponse = function (type, request, data, err) {
+    return {
+      event: type,
+      requestId: request.requestId,
+      data: data,
+      err: err || null
+    };
+  };
+
+  /**
+   * An object representing an event subscription in an EventBus.
+   */
+  var Subscription = function (subMap, eventName, f) {
+    this.subMap = subMap;
+    this.id = connect.randomId();
+    this.eventName = eventName;
+    this.f = f;
+  };
+
+  /**
+   * Unsubscribe the handler of this subscription from the EventBus
+   * from which it was created.
+   */
+  Subscription.prototype.unsubscribe = function () {
+    this.subMap.unsubscribe(this.eventName, this.id);
+  };
+
+  /**
+   * A map of event subscriptions, used by the EventBus.
+   */
+  var SubscriptionMap = function () {
+    this.subIdMap = {};
+    this.subEventNameMap = {};
+  };
+
+  /**
+   * Add a subscription for the named event.  Creates a new Subscription
+   * object and returns it.  This object can be used to unsubscribe.
+   */
+  SubscriptionMap.prototype.subscribe = function (eventName, f) {
+    var sub = new Subscription(this, eventName, f);
+
+    this.subIdMap[sub.id] = sub;
+    var subList = this.subEventNameMap[eventName] || [];
+    subList.push(sub);
+    this.subEventNameMap[eventName] = subList;
+    return sub;
+  };
+
+  /**
+   * Unsubscribe a subscription matching the given event name and id.
+   */
+  SubscriptionMap.prototype.unsubscribe = function (eventName, subId) {
+    if (connect.contains(this.subEventNameMap, eventName)) {
+      this.subEventNameMap[eventName] = this.subEventNameMap[eventName].filter(function (s) { return s.id !== subId; });
+
+      if (this.subEventNameMap[eventName].length < 1) {
+        delete this.subEventNameMap[eventName];
+      }
+    }
+
+    if (connect.contains(this.subIdMap, subId)) {
+      delete this.subIdMap[subId];
+    }
+  };
+
+  /**
+   * Get a list of all subscriptions in the subscription map.
+   */
+  SubscriptionMap.prototype.getAllSubscriptions = function () {
+    return connect.values(this.subEventNameMap).reduce(function (a, b) {
+      return a.concat(b);
+    }, []);
+  };
+
+  /**
+   * Get a list of subscriptions for the given event name, or an empty
+   * list if there are no subscriptions.
+   */
+  SubscriptionMap.prototype.getSubscriptions = function (eventName) {
+    return this.subEventNameMap[eventName] || [];
+  };
+
+  /**
+   * An object which maintains a map of subscriptions and serves as the
+   * mechanism for triggering events to be handled by subscribers.
+   */
+  var EventBus = function (paramsIn) {
+    var params = paramsIn || {};
+
+    this.subMap = new SubscriptionMap();
+    this.logEvents = params.logEvents || false;
+  };
+
+  /**
+   * Subscribe to the named event.  Returns a new Subscription object
+   * which can be used to unsubscribe.
+   */
+  EventBus.prototype.subscribe = function (eventName, f) {
+    connect.assertNotNull(eventName, 'eventName');
+    connect.assertNotNull(f, 'f');
+    connect.assertTrue(connect.isFunction(f), 'f must be a function');
+    return this.subMap.subscribe(eventName, f);
+  };
+
+  /**
+   * Subscribe a function to be called on all events.
+   */
+  EventBus.prototype.subscribeAll = function (f) {
+    connect.assertNotNull(f, 'f');
+    connect.assertTrue(connect.isFunction(f), 'f must be a function');
+    return this.subMap.subscribe(ALL_EVENTS, f);
+  };
+
+  /**
+   * Get a list of subscriptions for the given event name, or an empty
+   * list if there are no subscriptions.
+   */
+  EventBus.prototype.getSubscriptions = function (eventName) {
+    return this.subMap.getSubscriptions(eventName);
+  };
+
+  /**
+   * Trigger the given event with the given data.  All methods subscribed
+   * to this event will be called and are provided with the given arbitrary
+   * data object and the name of the event, in that order.
+   */
+  EventBus.prototype.trigger = function (eventName, data) {
+    connect.assertNotNull(eventName, 'eventName');
+    var self = this;
+    var allEventSubs = this.subMap.getSubscriptions(ALL_EVENTS);
+    var eventSubs = this.subMap.getSubscriptions(eventName);
+
+    if (this.logEvents && (eventName !== connect.EventType.LOG && eventName !== connect.EventType.MASTER_RESPONSE && eventName !== connect.EventType.API_METRIC)) {
+      connect.getLog().trace("Publishing event: %s", eventName);
+    }
+
+    allEventSubs.concat(eventSubs).forEach(function (sub) {
+      try {
+        sub.f(data || null, eventName, self);
+
+      } catch (e) {
+        connect.getLog().error("'%s' event handler failed.", eventName).withException(e);
+      }
+    });
+  };
+
+  /**
+   * Returns a closure which bridges an event from another EventBus to this bus.
+   *
+   * Usage:
+   * conduit.onUpstream("MyEvent", bus.bridge());
+   */
+  EventBus.prototype.bridge = function () {
+    var self = this;
+    return function (data, event) {
+      self.trigger(event, data);
+    };
+  };
+
+  /**
+   * Unsubscribe all events in the event bus.
+   */
+  EventBus.prototype.unsubscribeAll = function () {
+    this.subMap.getAllSubscriptions().forEach(function (sub) {
+      sub.unsubscribe();
+    });
+  };
+
+  connect.EventBus = EventBus;
+  connect.EventFactory = EventFactory;
+  connect.EventType = EventType;
+  connect.AgentEvents = AgentEvents;
+  connect.ConnnectionEvents = ConnnectionEvents;
+  connect.ContactEvents = ContactEvents;
+  connect.WebSocketEvents = WebSocketEvents;
+  connect.MasterTopics = MasterTopics;
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function() {
+   var global = this;
+   connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
+
+   /**---------------------------------------------------------------
+    * class Stream
+    *
+    * Represents an object from which messages can be read and to which
+    * messages can be sent.
+    */
+   var Stream = function() {};
+
+   /**
+    * Send a message to the stream.  This method must be implemented by subclasses.
+    */
+   Stream.prototype.send = function(message) {
+      throw new connect.NotImplementedError();
+   };
+
+   /**
+    * Provide a method to be called when messages are received from this stream.
+    * This method must be implemented by subclasses.
+    */
+   Stream.prototype.onMessage = function(f) {
+      throw new connect.NotImplementedError();
+   };
+
+   /**---------------------------------------------------------------
+    * class NullStream extends Stream
+    *
+    * A null stream which provides no message sending or receiving facilities.
+    */
+   var NullStream = function() {
+      Stream.call(this);
+   };
+   NullStream.prototype = Object.create(Stream.prototype);
+   NullStream.prototype.constructor = NullStream;
+
+   NullStream.prototype.onMessage = function(f) {};
+   NullStream.prototype.send = function(message) {};
+
+   /**---------------------------------------------------------------
+    * class WindowStream extends Stream
+    *
+    * A stream for communicating with a window object.  The domain provided
+    * must match the allowed message domains of the downstream receiver
+    * or messages will be rejected, see https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage
+    * for more info.
+    */
+   var WindowStream = function(win, domain) {
+      Stream.call(this);
+      this.window = win;
+      this.domain = domain || '*';
+   };
+   WindowStream.prototype = Object.create(Stream.prototype);
+   WindowStream.prototype.constructor = WindowStream;
+
+   WindowStream.prototype.send = function(message) {
+      this.window.postMessage(message, this.domain);
+   };
+
+   WindowStream.prototype.onMessage = function(f) {
+      this.window.addEventListener("message", f);
+   };
+
+   /**---------------------------------------------------------------
+    * class WindowIOStream extends Stream
+    *
+    * A stream used by IFrame/popup windows to communicate with their parents
+    * and vise versa.
+    *
+    * This object encapsulates the fact that incoming and outgoing messages
+    * arrive on different windows and allows this to be managed as a single
+    * Stream object.
+    */
+   var WindowIOStream = function(inputwin, outputwin, domain) {
+      Stream.call(this);
+      this.input = inputwin;
+      this.output = outputwin;
+      this.domain = domain || '*';
+   };
+   WindowIOStream.prototype = Object.create(Stream.prototype);
+   WindowIOStream.prototype.constructor = WindowIOStream;
+
+   WindowIOStream.prototype.send = function(message) {
+      this.output.postMessage(message, this.domain);
+   };
+
+   WindowIOStream.prototype.onMessage = function(f) {
+      this.input.addEventListener("message", f);
+   };
+
+   /**---------------------------------------------------------------
+    * class PortStream extends Stream
+    *
+    * A stream wrapping an HTML5 Worker port.  This could be the port
+    * used to connect to a Worker or one of the multitude of ports
+    * made available to a SharedWorker for communication back to
+    * its connected clients.
+    */
+   var PortStream = function(port) {
+      Stream.call(this);
+      this.port = port;
+      this.id = connect.randomId();
+   };
+   PortStream.prototype = Object.create(Stream.prototype);
+   PortStream.prototype.constructor = PortStream;
+
+   PortStream.prototype.send = function(message) {
+      this.port.postMessage(message);
+   };
+
+   PortStream.prototype.onMessage = function(f) {
+      this.port.addEventListener("message", f);
+   };
+
+   PortStream.prototype.getId = function() {
+      return this.id;
+   };
+
+   /**---------------------------------------------------------------
+    * class StreamMultiplexer extends Stream
+    *
+    * A wrapper for multiplexed downstream communication with
+    * multiple streams at once.  Mainly useful for the SharedWorker to
+    * broadcast events to many PortStream objects at once.
+    */
+   var StreamMultiplexer = function(streams) {
+      Stream.call(this);
+      this.streamMap = streams ?
+         connect.index(streams, function(s) { return s.getId(); }) : {};
+      this.messageListeners = [];
+   };
+   StreamMultiplexer.prototype = Object.create(Stream.prototype);
+   StreamMultiplexer.prototype.constructor = StreamMultiplexer;
+
+   /**
+    * Send a message to all ports in the multiplexer.
+    */
+   StreamMultiplexer.prototype.send = function(message) {
+      this.getStreams().forEach(function(stream) {
+         try {
+            stream.send(message);
+
+         } catch (e) {
+            // Couldn't send message to one of the downstreams for some reason...
+            // No reliable logging possible without further failures,
+            // no recovery, just eat it.
+         }
+      });
+   };
+
+   /**
+    * Register a method which will be called when a message is received from
+    * any of the downstreams.
+    */
+   StreamMultiplexer.prototype.onMessage = function(f) {
+      this.messageListeners.push(f);
+
+      // Update existing streams with the new listener.
+      this.getStreams().forEach(function(stream) {
+         stream.onMessage(f);
+      });
+   };
+
+   /**
+    * Add a stream to the multiplexer.
+    */
+   StreamMultiplexer.prototype.addStream = function(stream) {
+      var self = this;
+      this.streamMap[stream.getId()] = stream;
+
+      // Update stream with existing listeners.
+      this.messageListeners.forEach(function(messageListener) {
+         stream.onMessage(messageListener);
+      });
+   };
+
+   /**
+    * Remove the given downstream.  This is typically used in response
+    * to the SharedWorker's onclose event, indicating that a consumer
+    * tab has been closed.
+    */
+   StreamMultiplexer.prototype.removeStream = function(stream) {
+      delete this.streamMap[stream.getId()];
+   };
+
+   /**
+    * Get a list of streams in the multiplexer.
+    */
+   StreamMultiplexer.prototype.getStreams = function(stream) {
+      return connect.values(this.streamMap);
+   };
+
+   /**
+    * Get the stream matching the given port.
+    */
+   StreamMultiplexer.prototype.getStreamForPort = function(port) {
+      return connect.find(this.getStreams(), function(s) {
+         return s.port === port;
+      });
+   };
+
+   /**---------------------------------------------------------------
+    * class Conduit
+    *
+    * An object which bridges an upstream and a downstream, allowing messages
+    * to be passed to and from each and providing an event bus for event
+    * subscriptions to be made upstream and downstream.
+    */
+   var Conduit = function(name, upstream, downstream) {
+      this.name = name;
+      this.upstream = upstream || new NullStream();
+      this.downstream = downstream || new NullStream();
+      this.downstreamBus = new connect.EventBus();
+      this.upstreamBus = new connect.EventBus();
+
+      this.upstream.onMessage(connect.hitch(this, this._dispatchEvent, this.upstreamBus));
+      this.downstream.onMessage(connect.hitch(this, this._dispatchEvent, this.downstreamBus));
+   };
+
+   Conduit.prototype.onUpstream = function(eventName, f) {
+      connect.assertNotNull(eventName, 'eventName');
+      connect.assertNotNull(f, 'f');
+      connect.assertTrue(connect.isFunction(f), 'f must be a function');
+      return this.upstreamBus.subscribe(eventName, f);
+   };
+
+   Conduit.prototype.onAllUpstream = function(f) {
+      connect.assertNotNull(f, 'f');
+      connect.assertTrue(connect.isFunction(f), 'f must be a function');
+      return this.upstreamBus.subscribeAll(f);
+   };
+
+   Conduit.prototype.onDownstream = function(eventName, f) {
+      connect.assertNotNull(eventName, 'eventName');
+      connect.assertNotNull(f, 'f');
+      connect.assertTrue(connect.isFunction(f), 'f must be a function');
+      return this.downstreamBus.subscribe(eventName, f);
+   };
+
+   Conduit.prototype.onAllDownstream = function(f) {
+      connect.assertNotNull(f, 'f');
+      connect.assertTrue(connect.isFunction(f), 'f must be a function');
+      return this.downstreamBus.subscribeAll(f);
+   };
+
+   Conduit.prototype.sendUpstream = function(eventName, data) {
+      connect.assertNotNull(eventName, 'eventName');
+      this.upstream.send({event: eventName, data: data});
+   };
+
+   Conduit.prototype.sendDownstream = function(eventName, data) {
+      connect.assertNotNull(eventName, 'eventName');
+      this.downstream.send({event: eventName, data: data});
+   };
+
+   Conduit.prototype._dispatchEvent = function(bus, messageEvent) {
+      var message = messageEvent.data;
+      if (message.event) {
+         bus.trigger(message.event, message.data);
+      }
+   };
+
+   /**
+    * Returns a closure which passes events upstream.
+    *
+    * Usage:
+    * conduit.onDownstream("MyEvent", conduit.passUpstream());
+    */
+   Conduit.prototype.passUpstream = function() {
+      var self = this;
+      return function(data, eventName) {
+         self.upstream.send({event: eventName, data: data});
+      };
+   };
+
+   /**
+    * Returns a closure which passes events downstream.
+    *
+    * Usage:
+    * conduit.onUpstream("MyEvent", conduit.passDownstream());
+    */
+   Conduit.prototype.passDownstream = function() {
+      var self = this;
+      return function(data, eventName) {
+         self.downstream.send({event: eventName, data: data});
+      };
+   };
+
+   /**
+    * Shutdown the conduit's event busses and remove all subscriptions.
+    */
+   Conduit.prototype.shutdown = function() {
+      this.upstreamBus.unsubscribeAll();
+      this.downstreamBus.unsubscribeAll();
+   };
+
+   /**---------------------------------------------------------------
+    * class IFrameConduit extends Conduit
+    *
+    * Creates a conduit for the given IFrame element.
+    */
+   var IFrameConduit = function(name, window, iframe, domain) {
+      Conduit.call(this, name, new WindowIOStream(window, iframe.contentWindow, domain || '*'), null);
+   };
+   IFrameConduit.prototype = Object.create(Conduit.prototype);
+   IFrameConduit.prototype.constructor = IFrameConduit;
+
+   connect.Stream = Stream;
+   connect.NullStream = NullStream;
+   connect.WindowStream = WindowStream;
+   connect.WindowIOStream = WindowIOStream;
+   connect.PortStream = PortStream;
+   connect.StreamMultiplexer = StreamMultiplexer;
+   connect.Conduit = Conduit;
+   connect.IFrameConduit = IFrameConduit;
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function() {
+   var global = this;
+   connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
+
+   /**---------------------------------------------------------------
+    * enum ClientMethods
+    */
+   connect.ClientMethods = connect.makeEnum([
+         'getAgentSnapshot',
+         'putAgentState',
+         'getAgentStates',
+         'getDialableCountryCodes',
+         'getRoutingProfileQueues',
+         'getAgentPermissions',
+         'getAgentConfiguration',
+         'updateAgentConfiguration',
+         'acceptContact',
+         'createOutboundContact',
+         'completeContact',
+         'destroyContact',
+         'notifyContactIssue',
+         'updateContactAttributes',
+         'createAdditionalConnection',
+         'destroyConnection',
+         'holdConnection',
+         'resumeConnection',
+         'toggleActiveConnections',
+         'conferenceConnections',
+         'sendClientLogs',
+         'sendDigits',
+         'sendSoftphoneCallReport',
+         'sendSoftphoneCallMetrics',
+         'getEndpoints',
+         'getNewAuthToken',
+         'createTransport'
+   ]);
+
+   /**---------------------------------------------------------------
+    * enum MasterMethods
+    */
+   connect.MasterMethods = connect.makeEnum([
+         'becomeMaster',
+         'checkMaster'
+   ]);
+
+   /**---------------------------------------------------------------
+    * abstract class ClientBase
+    */
+   var ClientBase = function() {};
+   ClientBase.EMPTY_CALLBACKS = {
+      success: function() { },
+      failure: function() { }
+   };
+
+   ClientBase.prototype.call = function(method, paramsIn, callbacksIn) {
+      connect.assertNotNull(method, 'method');
+      var params = paramsIn || {};
+      var callbacks = callbacksIn || ClientBase.EMPTY_CALLBACKS;
+      this._callImpl(method, params, callbacks);
+   };
+
+   ClientBase.prototype._callImpl = function(method, params, callbacks) {
+      throw new connect.NotImplementedError();
+   };
+
+   /**---------------------------------------------------------------
+    * class NullClient extends ClientBase
+    */
+   var NullClient = function() {
+      ClientBase.call(this);
+   };
+   NullClient.prototype = Object.create(ClientBase.prototype);
+   NullClient.prototype.constructor = NullClient;
+
+   NullClient.prototype._callImpl = function(method, params, callbacks) {
+      if (callbacks && callbacks.failure) {
+         var message = connect.sprintf('No such method exists on NULL client: %s', method);
+         callbacks.failure(new connect.ValueError(message), {message: message});
+      }
+   };
+
+   /**---------------------------------------------------------------
+    * abstract class UpstreamConduitClientBase extends ClientBase
+    */
+   var UpstreamConduitClientBase = function(conduit, requestEvent, responseEvent) {
+      ClientBase.call(this);
+      this.conduit = conduit;
+      this.requestEvent = requestEvent;
+      this.responseEvent = responseEvent;
+      this._requestIdCallbacksMap = {};
+
+      this.conduit.onUpstream(responseEvent, connect.hitch(this, this._handleResponse));
+   };
+
+   UpstreamConduitClientBase.prototype = Object.create(ClientBase.prototype);
+   UpstreamConduitClientBase.prototype.constructor = UpstreamConduitClientBase;
+
+   UpstreamConduitClientBase.prototype._callImpl = function(method, params, callbacks) {
+      var request = connect.EventFactory.createRequest(this.requestEvent, method, params);
+      this._requestIdCallbacksMap[request.requestId] = callbacks;
+      this.conduit.sendUpstream(request.event, request);
+   };
+
+   UpstreamConduitClientBase.prototype._getCallbacksForRequest = function(requestId) {
+      var callbacks = this._requestIdCallbacksMap[requestId] || null;
+
+      if (callbacks != null) {
+         delete this._requestIdCallbacksMap[requestId];
+      }
+
+      return callbacks;
+   };
+
+   UpstreamConduitClientBase.prototype._handleResponse = function(data) {
+      var callbacks = this._getCallbacksForRequest(data.requestId);
+      if (callbacks == null) {
+         return;
+      }
+
+      if (data.err && callbacks.failure) {
+         callbacks.failure(data.err, data.data);
+
+      } else if (callbacks.success) {
+         callbacks.success(data.data);
+      }
+   };
+
+   /**---------------------------------------------------------------
+    * class UpstreamConduitClient extends ClientBase
+    */
+   var UpstreamConduitClient = function(conduit) {
+      UpstreamConduitClientBase.call(this, conduit, connect.EventType.API_REQUEST, connect.EventType.API_RESPONSE);
+   };
+   UpstreamConduitClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
+   UpstreamConduitClient.prototype.constructor = UpstreamConduitClient;
+
+   /**---------------------------------------------------------------
+    * class UpstreamConduitMasterClient extends ClientBase
+    */
+   var UpstreamConduitMasterClient = function(conduit) {
+      UpstreamConduitClientBase.call(this, conduit, connect.EventType.MASTER_REQUEST, connect.EventType.MASTER_RESPONSE);
+   };
+   UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
+   UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
+
+   /**---------------------------------------------------------------
+    * class AWSClient extends ClientBase
+    */
+   var AWSClient = function(authToken, region, endpointIn) {
+      connect.assertNotNull(authToken, 'authToken');
+      connect.assertNotNull(region, 'region');
+      ClientBase.call(this);
+      AWS.config.credentials = new AWS.Credentials({});
+      AWS.config.region = region;
+      this.authToken = authToken;
+      var endpointUrl = endpointIn || connect.getBaseUrl() + '/connect/api';
+      var endpoint = new AWS.Endpoint(endpointUrl);
+      this.client = new AWS.Connect({endpoint: endpoint});
+   };
+   AWSClient.prototype = Object.create(ClientBase.prototype);
+   AWSClient.prototype.constructor = AWSClient;
+
+   AWSClient.prototype._callImpl = function(method, params, callbacks) {
+      var self = this;
+      var log = connect.getLog();
+
+      if (! connect.contains(this.client, method)) {
+         var message = connect.sprintf('No such method exists on AWS client: %s', method);
+         callbacks.failure(new connect.ValueError(message), {message: message});
+
+      } else {
+         params = this._translateParams(method, params);
+
+         log.trace("AWSClient: --> Calling operation '%s'", method);
+
+         this.client[method](params)
+            .on('build', function(request) {
+               request.httpRequest.headers['X-Amz-Bearer'] = self.authToken;
+            })
+            .send(function(err, data) {
+               try {
+                  if (err) {
+                     if (err.code === connect.CTIExceptions.UNAUTHORIZED_EXCEPTION) {
+                        callbacks.authFailure();
+                     } else if (callbacks.accessDenied && (err.code === connect.CTIExceptions.ACCESS_DENIED_EXCEPTION || err.statusCode === 403)) {
+                        callbacks.accessDenied();
+                     } else {
+                        // Can't pass err directly to postMessage
+                        // postMessage() tries to clone the err object and failed.
+                        // Refer to https://github.com/goatslacker/alt-devtool/issues/5
+                        var error = {};
+                        error.type = err.code;
+                        error.message = err.message;
+                        error.stack = err.stack ? err.stack.split('\n') : [];
+                        callbacks.failure(error, data);
+                     }
+
+                     log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err));
+
+                  } else {
+                     log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data);
+                     callbacks.success(data);
+                  }
+               } catch (e) {
+                  connect.getLog().error("Failed to handle AWS API request for method %s", method)
+                        .withException(e);
+               }
+            });
+      }
+   };
+
+   AWSClient.prototype._requiresAuthenticationParam = function(method) {
+      return method !== connect.ClientMethods.COMPLETE_CONTACT;
+   };
+
+   AWSClient.prototype._translateParams = function(method, params) {
+      switch (method) {
+         case connect.ClientMethods.UPDATE_AGENT_CONFIGURATION:
+            params.configuration = this._translateAgentConfiguration(params.configuration);
+            break;
+
+         case connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS:
+            params.softphoneStreamStatistics = this._translateSoftphoneStreamStatistics(
+                  params.softphoneStreamStatistics);
+            break;
+
+         case connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT:
+            params.report = this._translateSoftphoneCallReport(params.report);
+            break;
+
+         default:
+            break;
+      }
+
+      if (this._requiresAuthenticationParam(method)) {
+         params.authentication = {
+            authToken: this.authToken
+         };
+      }
+
+      return params;
+   };
+
+   AWSClient.prototype._translateAgentConfiguration = function(config) {
+      return {
+         name: config.name,
+         softphoneEnabled: config.softphoneEnabled,
+         softphoneAutoAccept: config.softphoneAutoAccept,
+         extension: config.extension,
+         routingProfile: this._translateRoutingProfile(config.routingProfile),
+         agentPreferences: config.agentPreferences
+      };
+   };
+
+   AWSClient.prototype._translateRoutingProfile = function(profile) {
+      return {
+         name: profile.name,
+         routingProfileARN: profile.routingProfileARN,
+         defaultOutboundQueue: this._translateQueue(profile.defaultOutboundQueue)
+      };
+   };
+
+   AWSClient.prototype._translateQueue = function(queue) {
+      return {
+         queueARN:   queue.queueARN,
+         name:       queue.name
+      };
+   };
+
+   AWSClient.prototype._translateSoftphoneStreamStatistics = function(stats) {
+      stats.forEach(function(stat) {
+         if ('packetsCount' in stat) {
+            stat.packetCount = stat.packetsCount;
+            delete stat.packetsCount;
+         }
+      });
+
+      return stats;
+   };
+
+   AWSClient.prototype._translateSoftphoneCallReport = function(report) {
+      if ('handshakingTimeMillis' in report) {
+         report.handshakeTimeMillis = report.handshakingTimeMillis;
+         delete report.handshakingTimeMillis;
+      }
+
+      if ('preTalkingTimeMillis' in report) {
+         report.preTalkTimeMillis = report.preTalkingTimeMillis;
+         delete report.preTalkingTimeMillis;
+      }
+
+      if ('handshakingFailure' in report) {
+         report.handshakeFailure = report.handshakingFailure;
+         delete report.handshakingFailure;
+      }
+
+      if ('talkingTimeMillis' in report) {
+         report.talkTimeMillis = report.talkingTimeMillis;
+         delete report.talkingTimeMillis;
+      }
+
+      report.softphoneStreamStatistics = this._translateSoftphoneStreamStatistics(
+            report.softphoneStreamStatistics);
+
+      return report;
+   };
+
+   connect.ClientBase = ClientBase;
+   connect.NullClient = NullClient;
+   connect.UpstreamConduitClient = UpstreamConduitClient;
+   connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
+   connect.AWSClient = AWSClient;
+
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function() {
+   var global = this;
+   connect = global.connect || {};
+   global.connect = connect;
+   global.lily = connect;
+
+   /**-------------------------------------------------------------------------
+    * GraphLink <<abstract class>>
+    *
+    * Represents the association of one or more attributes to a state transition.
+    */
+   var GraphLink = function(fromState, toState) {
+      connect.assertNotNull(fromState, 'fromState');
+      connect.assertNotNull(toState, 'toState');
+      this.fromState = fromState;
+      this.toState = toState;
+   };
+
+   GraphLink.prototype.getAssociations = function(context) {
+      throw connect.NotImplementedError();
+   };
+
+   GraphLink.prototype.getFromState = function() {
+      return this.fromState;
+   };
+
+   GraphLink.prototype.getToState = function() {
+      return this.toState;
+   };
+
+   /**-------------------------------------------------------------------------
+    * DirectGraphLink <<concrete class>> extends GraphLink
+    *
+    * Represents the by-value representation of one or more attributes to a
+    * state transition.
+    */
+   var DirectGraphLink = function(fromState, toState, associations) {
+      connect.assertNotNull(fromState, 'fromState');
+      connect.assertNotNull(toState, 'toState');
+      connect.assertNotNull(associations, 'associations');
+      GraphLink.call(this, fromState, toState);
+      this.associations = associations;
+   };
+   DirectGraphLink.prototype = Object.create(GraphLink.prototype);
+   DirectGraphLink.prototype.constructor = DirectGraphLink;
+
+   DirectGraphLink.prototype.getAssociations = function(context) {
+      return this.associations;
+   };
+
+   /**
+    * FunctionalGraphLink <<concrete class>> extends GraphLink
+    *
+    * Represents a functional association of one or more attributes to a
+    * state transition.
+    */
+   var FunctionalGraphLink = function(fromState, toState, closure) {
+      connect.assertNotNull(fromState, 'fromState');
+      connect.assertNotNull(toState, 'toState');
+      connect.assertNotNull(closure, 'closure');
+      connect.assertTrue(connect.isFunction(closure), 'closure must be a function');
+      GraphLink.call(this, fromState, toState);
+      this.closure = closure;
+   };
+   FunctionalGraphLink.prototype = Object.create(GraphLink.prototype);
+   FunctionalGraphLink.prototype.constructor = FunctionalGraphLink;
+
+   FunctionalGraphLink.prototype.getAssociations = function(context) {
+      return this.closure(context, this.getFromState(), this.getToState());
+   };
+
+   /**-------------------------------------------------------------------------
+    * EventGraph <<class>>
+    *
+    * Builds a map of associations from one state to another in context of a
+    * particular object.  The associations can be direct (one or more values)
+    * or functional (a method returning one or more values), and are used to
+    * provide additional contextual event hooks for the UI to consume.
+    */
+   var EventGraph = function() {
+      this.fromMap = {};
+   };
+   EventGraph.ANY = "<<any>>";
+
+   EventGraph.prototype.assoc = function(fromStateObj, toStateObj, assocObj) {
+      var self = this;
+
+      if (! fromStateObj) {
+         throw new Error("fromStateObj is not defined.");
+      }
+
+      if (! toStateObj) {
+         throw new Error("toStateObj is not defined.");
+      }
+
+      if (! assocObj) {
+         throw new Error("assocObj is not defined.");
+      }
+
+      if (fromStateObj instanceof Array) {
+         fromStateObj.forEach(function(fromState) {
+            self.assoc(fromState, toStateObj, assocObj);
+         });
+      } else if (toStateObj instanceof Array) {
+         toStateObj.forEach(function(toState) {
+            self.assoc(fromStateObj, toState, assocObj);
+         });
+      } else {
+         if (typeof assocObj === "function") {
+            this._addAssociation(new FunctionalGraphLink(fromStateObj, toStateObj, assocObj));
+         } else if (assocObj instanceof Array) {
+            this._addAssociation(new DirectGraphLink(fromStateObj, toStateObj, assocObj));
+         } else {
+            this._addAssociation(new DirectGraphLink(fromStateObj, toStateObj, [assocObj]));
+         }
+      }
+      return this;
+   };
+
+   EventGraph.prototype.getAssociations = function(context, fromState, toState) {
+      connect.assertNotNull(fromState, 'fromState');
+      connect.assertNotNull(toState, 'toState');
+      var associations = [];
+
+      var toMapFromAny = this.fromMap[EventGraph.ANY] || {};
+      var toMap = this.fromMap[fromState] || {};
+
+      associations = associations.concat(this._getAssociationsFromMap(
+               toMapFromAny, context, fromState, toState));
+      associations = associations.concat(this._getAssociationsFromMap(
+               toMap, context, fromState, toState));
+
+      return associations;
+   };
+
+   EventGraph.prototype._addAssociation = function(assoc) {
+      var toMap = this.fromMap[assoc.getFromState()];
+
+      if (! toMap) {
+         toMap = this.fromMap[assoc.getFromState()] = {};
+      }
+
+      var assocList = toMap[assoc.getToState()];
+
+      if (! assocList) {
+         assocList = toMap[assoc.getToState()] = [];
+      }
+
+      assocList.push(assoc);
+   };
+
+   EventGraph.prototype._getAssociationsFromMap = function(map, context, fromState, toState) {
+      var assocList = (map[EventGraph.ANY] || []).concat(map[toState] || []);
+      return assocList.reduce(function(prev, assoc) {
+         return prev.concat(assoc.getAssociations(context));
+      }, []);
+   };
+
+   connect.EventGraph = EventGraph;
+
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+  global.lily = connect;
+
+  /*----------------------------------------------------------------
+   * enum AgentStateType
+   */
+  connect.AgentStateType = connect.makeEnum([
+    'init',
+    'routable',
+    'not_routable',
+    'offline'
+  ]);
+  connect.AgentStatusType = connect.AgentStateType;
+
+  /**
+   * enum AgentAvailStates
+   */
+  connect.AgentAvailStates = connect.makeEnum([
+    'Init',
+    'Busy',
+    'AfterCallWork',
+    'CallingCustomer',
+    'Dialing',
+    'Joining',
+    'PendingAvailable',
+    'PendingBusy'
+  ]);
+
+  /**
+   * enum AgentErrorStates
+   */
+  connect.AgentErrorStates = connect.makeEnum([
+    'Error',
+    'AgentHungUp',
+    'BadAddressAgent',
+    'BadAddressCustomer',
+    'Default',
+    'FailedConnectAgent',
+    'FailedConnectCustomer',
+    'LineEngagedAgent',
+    'LineEngagedCustomer',
+    'MissedCallAgent',
+    'MissedCallCustomer',
+    'MultipleCcpWindows',
+    'RealtimeCommunicationError'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum AddressType
+   */
+  connect.EndpointType = connect.makeEnum([
+    'phone_number',
+    'agent',
+    'queue'
+  ]);
+  connect.AddressType = connect.EndpointType;
+
+  /*----------------------------------------------------------------
+   * enum ConnectionType
+   */
+  connect.ConnectionType = connect.makeEnum([
+    'agent',
+    'inbound',
+    'outbound',
+    'monitoring'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum ConnectionStateType
+   */
+  connect.ConnectionStateType = connect.makeEnum([
+    'init',
+    'connecting',
+    'connected',
+    'hold',
+    'disconnected'
+  ]);
+  connect.ConnectionStatusType = connect.ConnectionStateType;
+
+  connect.CONNECTION_ACTIVE_STATES = connect.set([
+    connect.ConnectionStateType.CONNECTING,
+    connect.ConnectionStateType.CONNECTED,
+    connect.ConnectionStateType.HOLD
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum ContactStateType
+   */
+  connect.ContactStateType = connect.makeEnum([
+    'init',
+    'incoming',
+    'pending',
+    'connecting',
+    'connected',
+    'missed',
+    'error',
+    'ended'
+  ]);
+  connect.ContactStatusType = connect.ContactStateType;
+
+  connect.CONTACT_ACTIVE_STATES = connect.makeEnum([
+    'incoming',
+    'connecting',
+    'connected'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum ContactType
+   */
+  connect.ContactType = connect.makeEnum([
+    'voice',
+    'queue_callback',
+    'chat'
+  ]);
+
+  /*----------------------------------------------------------------
+  * enum ChannelType
+  */
+  connect.ChannelType = connect.makeEnum([
+    'VOICE',
+    'CHAT'
+  ]);
+
+  /*----------------------------------------------------------------
+  * enum MediaType
+  */
+  connect.MediaType = connect.makeEnum([
+    'softphone',
+    'chat'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum SoftphoneCallType
+   */
+  connect.SoftphoneCallType = connect.makeEnum([
+    'audio_video',
+    'video_only',
+    'audio_only',
+    'none'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for SoftphoneErrorTypes
+   */
+  connect.SoftphoneErrorTypes = connect.makeEnum([
+    'unsupported_browser',
+    'microphone_not_shared',
+    'signalling_handshake_failure',
+    'signalling_connection_failure',
+    'ice_collection_timeout',
+    'user_busy_error',
+    'webrtc_error',
+    'realtime_communication_error',
+    'other'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for CTI exceptions
+   */
+  connect.CTIExceptions = connect.makeEnum([
+    "AccessDeniedException",
+    "InvalidStateException",
+    "BadEndpointException",
+    "InvalidAgentARNException",
+    "InvalidConfigurationException",
+    "InvalidContactTypeException",
+    "PaginationException",
+    "RefreshTokenExpiredException",
+    "SendDataFailedException",
+    "UnauthorizedException"
+  ]);
+  /*----------------------------------------------------------------
+   * class Agent
+   */
+  var Agent = function () {
+    if (!connect.agent.initialized) {
+      throw new connect.StateError("The agent is not yet initialized!");
+    }
+  };
+
+  Agent.prototype._getData = function () {
+    return connect.core.getAgentDataProvider().getAgentData();
+  };
+
+  Agent.prototype._createContactAPI = function (contactData) {
+    return new connect.Contact(contactData.contactId);
+  };
+
+  Agent.prototype.onContactPending = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.CONTACT_PENDING, f);
+  };
+
+  Agent.prototype.onRefresh = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.REFRESH, f);
+  };
+
+  Agent.prototype.onRoutable = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.ROUTABLE, f);
+  };
+
+  Agent.prototype.onNotRoutable = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.NOT_ROUTABLE, f);
+  };
+
+  Agent.prototype.onOffline = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.OFFLINE, f);
+  };
+
+  Agent.prototype.onError = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.ERROR, f);
+  };
+
+  Agent.prototype.onSoftphoneError = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.SOFTPHONE_ERROR, f);
+  };
+
+  Agent.prototype.onAfterCallWork = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.ACW, f);
+  };
+
+  Agent.prototype.onStateChange = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.STATE_CHANGE, f);
+  };
+
+  Agent.prototype.onMuteToggle = function (f) {
+    connect.core.getUpstream().onUpstream(connect.AgentEvents.MUTE_TOGGLE, f);
+  };
+
+  Agent.prototype.mute = function () {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+      {
+        event: connect.EventType.MUTE,
+        data: { mute: true }
+      });
+  };
+
+  Agent.prototype.unmute = function () {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+      {
+        event: connect.EventType.MUTE,
+        data: { mute: false }
+      });
+  };
+
+  Agent.prototype.getState = function () {
+    return this._getData().snapshot.state;
+  };
+
+  Agent.prototype.getStatus = Agent.prototype.getState;
+
+  Agent.prototype.getStateDuration = function () {
+    return connect.now() - this._getData().snapshot.state.startTimestamp.getTime() + connect.core.getSkew();
+  };
+
+  Agent.prototype.getStatusDuration = Agent.prototype.getStateDuration;
+
+  Agent.prototype.getPermissions = function () {
+    return this.getConfiguration().permissions;
+  };
+
+  Agent.prototype.getContacts = function (contactTypeFilter) {
+    var self = this;
+    return this._getData().snapshot.contacts.map(function (contactData) {
+      return self._createContactAPI(contactData);
+    }).filter(function (contact) {
+      return (!contactTypeFilter) || contact.getType() === contactTypeFilter;
+    });
+  };
+
+  Agent.prototype.getConfiguration = function () {
+    return this._getData().configuration;
+  };
+
+  Agent.prototype.getAgentStates = function () {
+    return this.getConfiguration().agentStates;
+  };
+
+  Agent.prototype.getRoutingProfile = function () {
+    return this.getConfiguration().routingProfile;
+  };
+
+  Agent.prototype.getChannelConcurrency = function (channel) {
+    var channelConcurrencyMap = this.getRoutingProfile().channelConcurrencyMap;
+    if (!channelConcurrencyMap) {
+      channelConcurrencyMap = Object.keys(connect.ChannelType).reduce(function (acc, key) {
+        acc[connect.ChannelType[key]] = 1;
+        return acc;
+      }, {});
+    }
+    return channel
+      ? (channelConcurrencyMap[channel] || 0)
+      : channelConcurrencyMap;
+  };
+
+  Agent.prototype.getName = function () {
+    return this.getConfiguration().name;
+  };
+
+  Agent.prototype.getExtension = function () {
+    return this.getConfiguration().extension;
+  };
+
+  Agent.prototype.getDialableCountries = function () {
+    return this.getConfiguration().dialableCountries;
+  };
+
+  Agent.prototype.isSoftphoneEnabled = function () {
+    return this.getConfiguration().softphoneEnabled;
+  };
+
+  Agent.prototype.setConfiguration = function (configuration, callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.UPDATE_AGENT_CONFIGURATION, {
+      configuration: connect.assertNotNull(configuration, 'configuration')
+    }, {
+        success: function (data) {
+          // We need to ask the shared worker to reload agent config
+          // once we change it so every tab has accurate config.
+          var conduit = connect.core.getUpstream();
+          conduit.sendUpstream(connect.EventType.RELOAD_AGENT_CONFIGURATION);
+
+          if (callbacks.success) {
+            callbacks.success(data);
+          }
+        },
+        failure: callbacks.failure
+      });
+  };
+
+  Agent.prototype.setState = function (state, callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.PUT_AGENT_STATE, {
+      state: connect.assertNotNull(state, 'state')
+    }, callbacks);
+  };
+
+  Agent.prototype.setStatus = Agent.prototype.setState;
+
+  Agent.prototype.connect = function (endpointIn, params) {
+    var client = connect.core.getClient();
+    var endpoint = new connect.Endpoint(endpointIn);
+    // Have to remove the endpointId field or AWS JS SDK gets mad.
+    delete endpoint.endpointId;
+
+    client.call(connect.ClientMethods.CREATE_OUTBOUND_CONTACT, {
+      endpoint: connect.assertNotNull(endpoint, 'endpoint'),
+      queueARN: params.queueARN || params.queueId || this.getRoutingProfile().defaultOutboundQueue.queueARN
+    }, {
+        success: params.success,
+        failure: params.failure
+      });
+  };
+
+  Agent.prototype.getAllQueueARNs = function () {
+    return this.getConfiguration().routingProfile.queues.map(function (queue) {
+      return queue.queueARN;
+    });
+  };
+
+  Agent.prototype.getEndpoints = function (queueARNs, callbacks, pageInfoIn) {
+    var self = this;
+    var client = connect.core.getClient();
+    var pageInfo = pageInfoIn || { endpoints: [] };
+
+    pageInfo.maxResults = pageInfo.maxResults || connect.DEFAULT_BATCH_SIZE;
+
+    // Backwards compatibility allowing a single queueARN to be specified
+    // instead of an array.
+    if (!connect.isArray(queueARNs)) {
+      queueARNs = [queueARNs];
+    }
+
+    client.call(connect.ClientMethods.GET_ENDPOINTS, {
+      queueARNs: queueARNs,
+      nextToken: pageInfo.nextToken || null,
+      maxResults: pageInfo.maxResults
+    }, {
+        success: function (data) {
+          if (data.nextToken) {
+            self.getEndpoints(queueARNs, callbacks, {
+              nextToken: data.nextToken,
+              maxResults: pageInfo.maxResults,
+              endpoints: pageInfo.endpoints.concat(data.endpoints)
+            });
+          } else {
+            pageInfo.endpoints = pageInfo.endpoints.concat(data.endpoints);
+            var endpoints = pageInfo.endpoints.map(function (endpoint) {
+              return new connect.Endpoint(endpoint);
+            });
+
+            callbacks.success({
+              endpoints: endpoints,
+              addresses: endpoints
+            });
+          }
+        },
+        failure: callbacks.failure
+      });
+  };
+
+  Agent.prototype.getAddresses = Agent.prototype.getEndpoints;
+
+  Agent.prototype.toSnapshot = function () {
+    return new connect.AgentSnapshot(this._getData());
+  };
+
+  /*----------------------------------------------------------------
+   * class AgentSnapshot
+   */
+  var AgentSnapshot = function (agentData) {
+    connect.Agent.call(this);
+    this.agentData = agentData;
+  };
+  AgentSnapshot.prototype = Object.create(Agent.prototype);
+  AgentSnapshot.prototype.constructor = AgentSnapshot;
+
+  AgentSnapshot.prototype._getData = function () {
+    return this.agentData;
+  };
+
+  AgentSnapshot.prototype._createContactAPI = function (contactData) {
+    return new connect.ContactSnapshot(contactData);
+  };
+
+  /*----------------------------------------------------------------
+   * class Contact
+   */
+  var Contact = function (contactId) {
+    this.contactId = contactId;
+  };
+
+  Contact.prototype._getData = function () {
+    return connect.core.getAgentDataProvider().getContactData(this.getContactId());
+  };
+
+  Contact.prototype._createConnectionAPI = function (connectionData) {
+    if (this.getType() === connect.ContactType.CHAT) {
+      return new connect.ChatConnection(this.contactId, connectionData.connectionId);
+    } else {
+      return new connect.VoiceConnection(this.contactId, connectionData.connectionId);
+    }
+  };
+
+  Contact.prototype.getEventName = function (eventName) {
+    return connect.core.getContactEventName(eventName, this.getContactId());
+  };
+
+  Contact.prototype.onRefresh = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.REFRESH), f);
+  };
+
+  Contact.prototype.onIncoming = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.INCOMING), f);
+  };
+
+  Contact.prototype.onConnecting = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTING), f);
+  };
+
+  Contact.prototype.onPending = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.PENDING), f);
+  };
+
+  Contact.prototype.onAccepted = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.ACCEPTED), f);
+  };
+
+  Contact.prototype.onMissed = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.MISSED), f);
+  };
+
+  Contact.prototype.onEnded = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.ENDED), f);
+    bus.subscribe(this.getEventName(connect.ContactEvents.DESTROYED), f);
+  };
+
+  Contact.prototype.onDestroy = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.DESTROYED), f);
+  };
+
+  Contact.prototype.onACW = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.ACW), f);
+  };
+
+  Contact.prototype.onConnected = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTED), f);
+  };
+
+  Contact.prototype.getContactId = function () {
+    return this.contactId;
+  };
+
+  Contact.prototype.getOriginalContactId = function () {
+    return this._getData().initialContactId;
+  };
+
+  Contact.prototype.getType = function () {
+    return this._getData().type;
+  };
+
+  Contact.prototype.getStatus = function () {
+    return this._getData().state;
+  };
+
+  Contact.prototype.getStatusDuration = function () {
+    return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
+  };
+
+  Contact.prototype.getQueue = function () {
+    return this._getData().queue;
+  };
+
+  Contact.prototype.getQueueTimestamp = function () {
+    return this._getData().queueTimestamp;
+  };
+
+  Contact.prototype.getConnections = function () {
+    var self = this;
+    return this._getData().connections.map(function (connData) {
+      if (self.getType() === connect.ContactType.CHAT) {
+        return new connect.ChatConnection(self.contactId, connData.connectionId);
+      } else {
+        return new connect.VoiceConnection(self.contactId, connData.connectionId);
+      }
+    });
+  };
+
+  Contact.prototype.getInitialConnection = function () {
+    return connect.find(this.getConnections(), function (conn) {
+      return conn.isInitialConnection();
+    }) || null;
+  };
+
+  Contact.prototype.getActiveInitialConnection = function () {
+    var initialConn = this.getInitialConnection();
+    if (initialConn != null && initialConn.isActive()) {
+      return initialConn;
+    } else {
+      return null;
+    }
+  };
+
+  Contact.prototype.getThirdPartyConnections = function () {
+    return this.getConnections().filter(function (conn) {
+      return !conn.isInitialConnection() && conn.getType() !== connect.ConnectionType.AGENT;
+    });
+  };
+
+  Contact.prototype.getSingleActiveThirdPartyConnection = function () {
+    return this.getThirdPartyConnections().filter(function (conn) {
+      return conn.isActive();
+    })[0] || null;
+  };
+
+  Contact.prototype.getAgentConnection = function () {
+    return connect.find(this.getConnections(), function (conn) {
+      var connType = conn.getType();
+      return connType === connect.ConnectionType.AGENT || connType === connect.ConnectionType.MONITORING;
+    });
+  };
+
+  Contact.prototype.getAttributes = function () {
+    return this._getData().attributes;
+  };
+
+  Contact.prototype.isSoftphoneCall = function () {
+    return connect.find(this.getConnections(), function (conn) {
+      return conn.getSoftphoneMediaInfo() != null;
+    }) != null;
+  };
+
+  Contact.prototype.isInbound = function () {
+    var conn = this.getInitialConnection();
+    return conn ? conn.getType() === connect.ConnectionType.INBOUND : false;
+  };
+
+  Contact.prototype.isConnected = function () {
+    return this.getStatus().type === connect.ContactStateType.CONNECTED;
+  };
+
+  Contact.prototype.accept = function (callbacks) {
+    var client = connect.core.getClient();
+    var self = this;
+    client.call(connect.ClientMethods.ACCEPT_CONTACT, {
+      contactId: this.getContactId()
+    }, {
+        success: function (data) {
+          var conduit = connect.core.getUpstream();
+          conduit.sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.ContactEvents.ACCEPTED
+          });
+          conduit.sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED,
+              self.getContactId())
+          });
+
+          if (callbacks && callbacks.success) {
+            callbacks.success(data);
+          }
+        },
+        failure: callbacks ? callbacks.failure : null
+      });
+  };
+
+  Contact.prototype.destroy = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.DESTROY_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
+  Contact.prototype.complete = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.COMPLETE_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
+  Contact.prototype.notifyIssue = function (issueCode, description, callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.NOTIFY_CONTACT_ISSUE, {
+      contactId: this.getContactId(),
+      issueCode: issueCode,
+      description: description
+    }, callbacks);
+  };
+
+  Contact.prototype.addConnection = function (endpointIn, callbacks) {
+    var client = connect.core.getClient();
+    var endpoint = new connect.Endpoint(endpointIn);
+    // Have to remove the endpointId field or AWS JS SDK gets mad.
+    delete endpoint.endpointId;
+
+    client.call(connect.ClientMethods.CREATE_ADDITIONAL_CONNECTION, {
+      contactId: this.getContactId(),
+      endpoint: endpoint
+    }, callbacks);
+  };
+
+  Contact.prototype.toggleActiveConnections = function (callbacks) {
+    var client = connect.core.getClient();
+    var connectionId = null;
+    var holdingConn = connect.find(this.getConnections(), function (conn) {
+      return conn.getStatus().type === connect.ConnectionStateType.HOLD;
+    });
+
+    if (holdingConn != null) {
+      connectionId = holdingConn.getConnectionId();
+
+    } else {
+      var activeConns = this.getConnections().filter(function (conn) {
+        return conn.isActive();
+      });
+      if (activeConns.length > 0) {
+        connectionId = activeConns[0].getConnectionId();
+      }
+    }
+
+    client.call(connect.ClientMethods.TOGGLE_ACTIVE_CONNECTIONS, {
+      contactId: this.getContactId(),
+      connectionId: connectionId
+    }, callbacks);
+  };
+
+  Contact.prototype.sendSoftphoneMetrics = function (softphoneStreamStatistics, callbacks) {
+    var client = connect.core.getClient();
+
+    client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS, {
+      contactId: this.getContactId(),
+      softphoneStreamStatistics: softphoneStreamStatistics
+    }, callbacks);
+  };
+
+  Contact.prototype.sendSoftphoneReport = function (report, callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT, {
+      contactId: this.getContactId(),
+      report: report
+    }, callbacks);
+  };
+
+  Contact.prototype.conferenceConnections = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.CONFERENCE_CONNECTIONS, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
+  Contact.prototype.toSnapshot = function () {
+    return new connect.ContactSnapshot(this._getData());
+  };
+
+  /*----------------------------------------------------------------
+   * class ContactSnapshot
+   */
+  var ContactSnapshot = function (contactData) {
+    connect.Contact.call(this, contactData.contactId);
+    this.contactData = contactData;
+  };
+  ContactSnapshot.prototype = Object.create(Contact.prototype);
+  ContactSnapshot.prototype.constructor = ContactSnapshot;
+
+  ContactSnapshot.prototype._getData = function () {
+    return this.contactData;
+  };
+
+  ContactSnapshot.prototype._createConnectionAPI = function (connectionData) {
+    return new connect.ConnectionSnapshot(connectionData);
+  };
+
+  /*----------------------------------------------------------------
+   * class Connection
+   */
+  var Connection = function (contactId, connectionId) {
+    this.contactId = contactId;
+    this.connectionId = connectionId;
+    this._initMediaController();
+  };
+
+  Connection.prototype._getData = function () {
+    return connect.core.getAgentDataProvider().getConnectionData(
+      this.getContactId(), this.getConnectionId());
+  };
+
+  Connection.prototype.getContactId = function () {
+    return this.contactId;
+  };
+
+  Connection.prototype.getConnectionId = function () {
+    return this.connectionId;
+  };
+
+  Connection.prototype.getEndpoint = function () {
+    return new connect.Endpoint(this._getData().endpoint);
+  };
+
+  Connection.prototype.getAddress = Connection.prototype.getEndpoint;
+
+  Connection.prototype.getStatus = function () {
+    return this._getData().state;
+  };
+
+  Connection.prototype.getStatusDuration = function () {
+    return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
+  };
+
+  Connection.prototype.getType = function () {
+    return this._getData().type;
+  };
+
+  Connection.prototype.isInitialConnection = function () {
+    return this._getData().initial;
+  };
+
+  Connection.prototype.isActive = function () {
+    return connect.contains(connect.CONNECTION_ACTIVE_STATES, this.getStatus().type);
+  };
+
+  Connection.prototype.isConnected = function () {
+    return this.getStatus().type === connect.ConnectionStateType.CONNECTED;
+  };
+
+  Connection.prototype.isConnecting = function () {
+    return this.getStatus().type === connect.ConnectionStateType.CONNECTING;
+  };
+
+  Connection.prototype.isOnHold = function () {
+    return this.getStatus().type === connect.ConnectionStateType.HOLD;
+  };
+
+  Connection.prototype.getSoftphoneMediaInfo = function () {
+    return this._getData().softphoneMediaInfo;
+  };
+
+  /**
+   * Gets the currently monitored contact info, Returns null if does not exists.
+   * @return {{agentName:string, customerName:string, joinTime:Date}}
+   */
+  Connection.prototype.getMonitorInfo = function () {
+    return this._getData().monitoringInfo;
+  };
+
+  Connection.prototype.destroy = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.DESTROY_CONNECTION, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId()
+    }, callbacks);
+  };
+
+  Connection.prototype.sendDigits = function (digits, callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.SEND_DIGITS, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId(),
+      digits: digits
+    }, callbacks);
+  };
+
+  Connection.prototype.hold = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.HOLD_CONNECTION, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId()
+    }, callbacks);
+  };
+
+  Connection.prototype.resume = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.RESUME_CONNECTION, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId()
+    }, callbacks);
+  };
+
+  Connection.prototype.toSnapshot = function () {
+    return new connect.ConnectionSnapshot(this._getData());
+  };
+
+  Connection.prototype._initMediaController = function () {
+    if (this.getMediaInfo()) {
+      connect.core.mediaFactory.get(this).catch(function () { });
+    }
+  }
+
+  /**
+   * Utility method for checking whether this connection is an agent-side connection 
+   * (type AGENT or MONITORING)
+   * @return {boolean} True if this connection is an agent-side connection. False otherwise.
+   */
+  Connection.prototype._isAgentConnectionType = function () {
+    var connectionType = this.getType();
+    return connectionType === connect.ConnectionType.AGENT 
+      || connectionType === connect.ConnectionType.MONITORING;
+  }
+
+  /**
+   * @class VoiceConnection
+   * @param {number} contactId 
+   * @param {number} connectionId 
+   * @description - Provides voice media specific operations
+   */
+  var VoiceConnection = function (contactId, connectionId) {
+    Connection.call(this, contactId, connectionId);
+  };
+
+  VoiceConnection.prototype = Object.create(Connection.prototype);
+  VoiceConnection.prototype.constructor = VoiceConnection;
+
+  VoiceConnection.prototype.sendDigits = function (digits, callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.SEND_DIGITS, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId(),
+      digits: digits
+    }, callbacks);
+  };
+
+  VoiceConnection.prototype.hold = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.HOLD_CONNECTION, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId()
+    }, callbacks);
+  };
+
+  VoiceConnection.prototype.resume = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.RESUME_CONNECTION, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId()
+    }, callbacks);
+  };
+
+  VoiceConnection.prototype.isOnHold = function () {
+    return this.getStatus().type === connect.ConnectionStateType.HOLD;
+  };
+
+  /**
+  * @deprecated
+  * Please use getMediaInfo 
+  */
+  VoiceConnection.prototype.getSoftphoneMediaInfo = function () {
+    return this._getData().softphoneMediaInfo;
+  };
+
+  VoiceConnection.prototype.getMediaInfo = function () {
+    return this._getData().softphoneMediaInfo;
+  };
+
+  VoiceConnection.prototype.getMediaType = function () {
+    return connect.MediaType.SOFTPHONE;
+  };
+
+  VoiceConnection.prototype.getMediaController = function () {
+    return connect.core.mediaFactory.get(this);
+  }
+
+
+  /**
+   * @class ChatConnection
+   * @param {*} contactId 
+   * @param {*} connectionId 
+   * @description adds the chat media specific functionality
+   */
+  var ChatConnection = function (contactId, connectionId) {
+    Connection.call(this, contactId, connectionId);
+  };
+
+  ChatConnection.prototype = Object.create(Connection.prototype);
+  ChatConnection.prototype.constructor = ChatConnection;
+
+  ChatConnection.prototype.getMediaInfo = function () {
+    var data = this._getData().chatMediaInfo;
+    if (!data) {
+      return null;
+    } else {
+      var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+      var mediaObject = {
+        contactId: this.contactId,
+        initialContactId: contactData.initialContactId || this.contactId,
+        participantId: this.connectionId,
+        getConnectionToken: connect.hitch(this, this.getConnectionToken)
+      };
+      if (data.connectionData) {
+        try {
+          mediaObject.participantToken = JSON.parse(data.connectionData).ConnectionAuthenticationToken;
+        } catch (e) {
+          connect.getLog().error(connect.LogComponent.CHAT, "Connection data is invalid").withObject(data).withException(e);
+          mediaObject.participantToken = null;
+        }
+      }
+      mediaObject.participantToken = mediaObject.participantToken || null;
+      /** Just to keep the data accessible */
+      mediaObject.originalInfo = this._getData().chatMediaInfo;
+      return mediaObject;
+    }
+  };
+
+  /**
+  * Provides the chat connectionToken through the create_transport API for a specific contact and participant Id. 
+  * @returns a promise which, upon success, returns the response from the createTransport API.
+  * Usage:
+  * connect.core.getConnectionToken()
+  *  .then(response => {})
+  *  .catch(error => {})
+  */
+  ChatConnection.prototype.getConnectionToken = function () {
+
+    client = connect.core.getClient();
+    var transportDetails = {
+      transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
+      participantId: this.connectionId,
+      contactId: this.contactId
+    };
+    return new Promise(function (resolve, reject) {
+      client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
+        success: function (data) {
+          connect.getLog().info("getConnectionToken succeeded");
+          resolve(data);
+        },
+        failure: function (err, data) {
+          connect.getLog().error("getConnectionToken failed")
+            .withObject({
+              err: err,
+              data: data
+            });
+          reject(Error("getConnectionToken failed"));
+        }
+      });
+    });
+  };
+
+  ChatConnection.prototype.getMediaType = function () {
+    return connect.MediaType.CHAT;
+  };
+
+  ChatConnection.prototype.getMediaController = function () {
+    return connect.core.mediaFactory.get(this);
+  };
+
+  ChatConnection.prototype._initMediaController = function () {
+    // Note that a chat media controller only needs to be produced for agent type connections.
+    if (this._isAgentConnectionType()) {
+      connect.core.mediaFactory.get(this).catch(function () { });
+    }
+  }
+
+  /*----------------------------------------------------------------
+   * class ConnectionSnapshot
+   */
+  var ConnectionSnapshot = function (connectionData) {
+    connect.Connection.call(this, connectionData.contactId, connectionData.connectionId);
+    this.connectionData = connectionData;
+  };
+  ConnectionSnapshot.prototype = Object.create(Connection.prototype);
+  ConnectionSnapshot.prototype.constructor = ConnectionSnapshot;
+
+  ConnectionSnapshot.prototype._getData = function () {
+    return this.connectionData;
+  };
+
+  ConnectionSnapshot.prototype._initMediaController = function () { };
+
+  var Endpoint = function (paramsIn) {
+    var params = paramsIn || {};
+    this.endpointARN = params.endpointId || params.endpointARN || null;
+    this.endpointId = this.endpointARN;
+    this.type = params.type || null;
+    this.name = params.name || null;
+    this.phoneNumber = params.phoneNumber || null;
+    this.agentLogin = params.agentLogin || null;
+    this.queue = params.queue || null;
+  };
+
+  /**
+   * Strip the SIP endpoint components from the phoneNumber field.
+   */
+  Endpoint.prototype.stripPhoneNumber = function () {
+    return this.phoneNumber ? this.phoneNumber.replace(/sip:([^@]*)@.*/, "$1") : "";
+  };
+
+  /**
+   * Create an Endpoint object from the given phone number and name.
+   */
+  Endpoint.byPhoneNumber = function (number, name) {
+    return new Endpoint({
+      type: connect.EndpointType.PHONE_NUMBER,
+      phoneNumber: number,
+      name: name || null
+    });
+  };
+
+  /*----------------------------------------------------------------
+   * class SoftphoneError
+   */
+  var SoftphoneError = function (errorType, errorMessage, endPointUrl) {
+    this.errorType = errorType;
+    this.errorMessage = errorMessage;
+    this.endPointUrl = endPointUrl;
+  };
+  SoftphoneError.prototype.getErrorType = function () {
+    return this.errorType;
+  };
+  SoftphoneError.prototype.getErrorMessage = function () {
+    return this.errorMessage;
+  };
+  SoftphoneError.prototype.getEndPointUrl = function () {
+    return this.endPointUrl;
+  };
+
+  /*----------------------------------------------------------------
+   * Root Subscription APIs.
+   */
+  connect.agent = function (f) {
+    var bus = connect.core.getEventBus();
+    var sub = bus.subscribe(connect.AgentEvents.INIT, f);
+    if (connect.agent.initialized) {
+      f(new connect.Agent());
+    }
+    return sub;
+  };
+  connect.agent.initialized = false;
+
+  connect.contact = function (f) {
+    var bus = connect.core.getEventBus();
+    return bus.subscribe(connect.ContactEvents.INIT, f);
+  };
+
+  /**
+   * Execute the given function asynchronously only if the shared worker
+   * says we are the master for the given topic.  If there is no master for
+   * the given topic, we become the master and execute the function.
+   *
+   * @param topic The master topic we are concerned about.
+   * @param f_true The callback to be invoked if we are the master.
+   * @param f_else [optional] A callback to be invoked if we are not the master.
+   */
+  connect.ifMaster = function (topic, f_true, f_else) {
+    connect.assertNotNull(topic, "A topic must be provided.");
+    connect.assertNotNull(f_true, "A true callback must be provided.");
+
+    if (!connect.core.masterClient) {
+      // We can't be the master because there is no master client!
+      connect.getLog().warn("We can't be the master for topic '%s' because there is no master client!", topic);
+      if (f_else) {
+        f_else();
+      }
+      return;
+    }
+
+    var masterClient = connect.core.getMasterClient();
+    masterClient.call(connect.MasterMethods.CHECK_MASTER, {
+      topic: topic
+    }, {
+        success: function (data) {
+          if (data.isMaster) {
+            f_true();
+
+          } else if (f_else) {
+            f_else();
+          }
+        }
+      });
+  };
+
+  /**
+   * Notify the shared worker that we are now the master for the given topic.
+   */
+  connect.becomeMaster = function (topic) {
+    connect.assertNotNull(topic, "A topic must be provided.");
+    var masterClient = connect.core.getMasterClient();
+    masterClient.call(connect.MasterMethods.BECOME_MASTER, {
+      topic: topic
+    });
+  };
+
+  connect.Agent = Agent;
+  connect.AgentSnapshot = AgentSnapshot;
+  connect.Contact = Contact;
+  connect.ContactSnapshot = ContactSnapshot;
+  /** Default will get the Voice connection */
+  connect.Connection = VoiceConnection;
+  connect.BaseConnection = Connection;
+  connect.VoiceConnection = VoiceConnection;
+  connect.ChatConnection = ChatConnection;
+  connect.ConnectionSnapshot = ConnectionSnapshot;
+  connect.Endpoint = Endpoint;
+  connect.Address = Endpoint;
+  connect.SoftphoneError = SoftphoneError;
+
+})();
+
+!function(e){var n={};function t(r){if(n[r])return n[r].exports;var o=n[r]={i:r,l:!1,exports:{}};return e[r].call(o.exports,o,o.exports,t),o.l=!0,o.exports}t.m=e,t.c=n,t.d=function(e,n,r){t.o(e,n)||Object.defineProperty(e,n,{enumerable:!0,get:r})},t.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},t.t=function(e,n){if(1&n&&(e=t(e)),8&n)return e;if(4&n&&"object"==typeof e&&e&&e.__esModule)return e;var r=Object.create(null);if(t.r(r),Object.defineProperty(r,"default",{enumerable:!0,value:e}),2&n&&"string"!=typeof e)for(var o in e)t.d(r,o,function(n){return e[n]}.bind(null,o));return r},t.n=function(e){var n=e&&e.__esModule?function(){return e.default}:function(){return e};return t.d(n,"a",n),n},t.o=function(e,n){return Object.prototype.hasOwnProperty.call(e,n)},t.p="",t(t.s=2)}([function(e,n,t){"use strict";var r=t(1);function o(e){return(o="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var i={assertTrue:function(e,n){if(!e)throw new Error(n)},assertNotNull:function(e,n){return i.assertTrue(null!==e&&void 0!==o(e),Object(r.sprintf)("%s must be provided",n||"A value")),e},isString:function(e){return"string"==typeof e},assertIsNonEmptyString:function(e,n){if(!e||"string"!=typeof e)throw new Error(n+" is not a non-empty string!")},assertIsList:function(e,n){if(!Array.isArray(e))throw new Error(n+" is not an array")},assertIsEnum:function(e,n,t){var r;for(r=0;r<n.length;r++)if(n[r]===e)return;throw new Error(t+" passed is not valid. Allowed values are: "+n)},makeEnum:function(e){var n={};return e.forEach(function(e){var t=e.replace(/\.?([a-z]+)_?/g,function(e,n){return n.toUpperCase()+"_"}).replace(/_$/,"");n[t]=e}),n},isFunction:function(e){return!!(e&&e.constructor&&e.call&&e.apply)},isObject:function(e){return!("object"!==o(e)||null===e)}};i.isString=function(e){return"string"==typeof e},i.isNumber=function(e){return"number"==typeof e};var a=new RegExp("^(wss://)\\w*");i.validWSUrl=function(e){return a.test(e)},i.assertIsObject=function(e,n){if(!i.isObject(e))throw new Error(n+" is not an object!")};var c=i,s="NULL",u="CLIENT_LOGGER",l="DEBUG",f="aws/subscribe",p="aws/unsubscribe",g="aws/heartbeat";function d(e){return(d="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function b(e,n){return!n||"object"!==d(n)&&"function"!=typeof n?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):n}function y(e){return(y=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}function m(e,n){return(m=Object.setPrototypeOf||function(e,n){return e.__proto__=n,e})(e,n)}function v(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}function h(e,n){for(var t=0;t<n.length;t++){var r=n[t];r.enumerable=r.enumerable||!1,r.configurable=!0,"value"in r&&(r.writable=!0),Object.defineProperty(e,r.key,r)}}function S(e,n,t){return n&&h(e.prototype,n),t&&h(e,t),e}var w=function(){function e(){v(this,e)}return S(e,[{key:"debug",value:function(e){}},{key:"info",value:function(e){}},{key:"warn",value:function(e){}},{key:"error",value:function(e){}}]),e}(),k={DEBUG:10,INFO:20,WARN:30,ERROR:40},_=function(){function e(){v(this,e),this.updateLoggerConfig(),this.consoleLoggerWrapper=O()}return S(e,[{key:"writeToClientLogger",value:function(e,n){if(this.hasClientLogger())switch(e){case k.DEBUG:return this._clientLogger.debug(n);case k.INFO:return this._clientLogger.info(n);case k.WARN:return this._clientLogger.warn(n);case k.ERROR:return this._clientLogger.error(n)}}},{key:"isLevelEnabled",value:function(e){return e>=this._level}},{key:"hasClientLogger",value:function(){return null!==this._clientLogger}},{key:"getLogger",value:function(e){var n=e.prefix||"";return this._logsDestination===l?this.consoleLoggerWrapper:new C(n)}},{key:"updateLoggerConfig",value:function(e){var n=e||{};this._level=n.level||k.INFO,this._clientLogger=n.logger||null,this._logsDestination=s,n.debug&&(this._logsDestination=l),n.logger&&(this._logsDestination=u)}}]),e}(),T=function(){function e(){v(this,e)}return S(e,[{key:"debug",value:function(){}},{key:"info",value:function(){}},{key:"warn",value:function(){}},{key:"error",value:function(){}}]),e}(),C=function(e){function n(e){var t;return v(this,n),(t=b(this,y(n).call(this))).prefix=e||"",t}return function(e,n){if("function"!=typeof n&&null!==n)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(n&&n.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),n&&m(e,n)}(n,T),S(n,[{key:"debug",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(k.DEBUG,n)}},{key:"info",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(k.INFO,n)}},{key:"warn",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(k.WARN,n)}},{key:"error",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(k.ERROR,n)}},{key:"_shouldLog",value:function(e){return x.hasClientLogger()&&x.isLevelEnabled(e)}},{key:"_writeToClientLogger",value:function(e,n){x.writeToClientLogger(e,n)}},{key:"_log",value:function(e,n){if(this._shouldLog(e)){var t=this._convertToSingleStatement(n);this._writeToClientLogger(e,t)}}},{key:"_convertToSingleStatement",value:function(e){var n="";this.prefix&&(n+=this.prefix+" ");for(var t=0;t<e.length;t++){var r=e[t];n+=this._convertToString(r)+" "}return n}},{key:"_convertToString",value:function(e){try{if(!e)return"";if(c.isString(e))return e;if(c.isObject(e)&&c.isFunction(e.toString)){var n=e.toString();if("[object Object]"!==n)return n}return JSON.stringify(e)}catch(n){return console.error("Error while converting argument to string",e,n),""}}}]),n}(),O=function(){var e=new T;return e.debug=console.debug,e.info=console.info,e.warn=console.warn,e.error=console.error,e},x=new _;t.d(n,"a",function(){return L});var E=function(){var e=x.getLogger({}),n=null,t={reconnectWebSocket:!1,websocketInitFailed:!1,linearConnectAttempt:0,exponentialConnectAttempt:0,exponentialBackOffTime:1,exponentialTimeoutHandle:null,lifeTimeTimeoutHandle:null},r={pendingResponse:!1,intervalHandle:null},o={initFailure:new Set,getWebSocketTransport:null,subscriptionUpdate:new Set,subscriptionFailure:new Set,topic:new Map,allMessage:new Set,connectionGain:new Set,connectionLost:new Set},i={connConfig:null,promiseHandle:null,promiseCompleted:!1},a={subscribed:new Set,pending:new Set},s=new Set([f,p,g]),u=navigator.onLine,l=setInterval(function(){u!==navigator.onLine&&(u=navigator.onLine)&&(!n||n.readyState>1)&&(e.info("Network online, Connecting to websocket"),O())},250),d=function(e,n){e.forEach(function(e){e(n)})},b=function(){if(r.pendingResponse)return e.warn("Heartbeat response not received"),clearInterval(r.intervalHandle),r.pendingResponse=!1,void k();e.debug("Sending heartbeat"),n.send(T(g)),r.pendingResponse=!0},y=function(){t.linearConnectAttempt=0,t.exponentialConnectAttempt=0,t.exponentialBackOffTime=1,r.pendingResponse=!1,t.reconnectWebSocket=!1,clearTimeout(t.lifeTimeTimeoutHandle),clearInterval(r.intervalHandle),clearTimeout(t.exponentialTimeoutHandle)},m=function(){try{if(e.info("WebSocket connection established!"),d(o.connectionGain),y(),a.subscribed.size>0||a.pending.size>0){var c=Array.from(a.subscribed.values());c=c.concat(Array.from(a.pending.values())),a.subscribed.clear(),n.send(T(f,{topics:c}))}b(),r.intervalHandle=setInterval(b,1e4),t.lifeTimeTimeoutHandle=setTimeout(function(){e.debug("Starting scheduled WebSocket manager reconnect"),k()},1e3*i.connConfig.webSocketTransport.transportLifeTimeInSeconds)}catch(n){e.error("Error after establishing web socket connection, error: ",n)}},v=function(n){t.linearConnectAttempt<=1&&d(o.connectionLost),e.info("Socket connection is closed. event: ",n),t.reconnectWebSocket&&E()},h=function(n){e.error("WebSocketManager Error, error_event: ",n),k()},S=function(n){e.debug("Message received from webSocket server",n.data);var t=JSON.parse(n.data);switch(t.topic){case f:"success"===t.content.status?(t.content.topics.forEach(function(e){a.subscribed.add(e),a.pending.delete(e)}),d(o.subscriptionUpdate,t)):d(o.subscriptionFailure,t);break;case g:e.debug("Heartbeat response received"),r.pendingResponse=!1;break;default:if(t.topic){if(0===o.allMessage.size&&0===o.topic.size)return void e.warn("No registered callback listener for Topic: ",t);d(o.allMessage,t),o.topic.has(t.topic)&&d(o.topic.get(t.topic),t)}else t.message?e.warn("WebSocketManager Message Error, error: ",t):e.warn("Invalid incoming message, error: ",t)}},w=function(e){return!(!n||n.readyState===WebSocket.CLOSED)&&(n.close(1e3,e),!0)},k=function(){u?(clearTimeout(t.lifeTimeTimeoutHandle),clearInterval(r.intervalHandle),t.linearConnectAttempt<3?(t.linearConnectAttempt++,e.debug("Starting Consecutive WebSocket reconnect, Attempt : "+t.linearConnectAttempt),t.reconnectWebSocket=!0,O()):t.exponentialConnectAttempt<5?(t.exponentialConnectAttempt++,t.exponentialBackOffTime*=2,e.debug("Starting Exponential WebSocket reconnect, Attempt : "+t.exponentialConnectAttempt+" with delay "+t.exponentialBackOffTime+" sec."),i.promiseCompleted=!1,i.connConfig=null,t.exponentialTimeoutHandle=setTimeout(function(){t.reconnectWebSocket=!0,O()},1e3*t.exponentialBackOffTime)):i.promiseCompleted&&(e.error("Could not connect to WebSocket after several attempts"),_())):w("Network Offline, Closing WebSocket Manager")},_=function(){y(),w("Terminating WebSocket Manager"),e.error("WebSocket Initialization failed"),t.websocketInitFailed=!0,clearInterval(l),d(o.initFailure)},T=function(e,n){return JSON.stringify({topic:e,content:n})},C=function(n){return!!(c.isObject(n)&&c.isObject(n.webSocketTransport)&&c.isString(n.webSocketTransport.url)&&c.validWSUrl(n.webSocketTransport.url)&&c.isNumber(n.webSocketTransport.transportLifeTimeInSeconds)&&n.webSocketTransport.transportLifeTimeInSeconds>=3600)||(e.error("Invalid WebSocket Connection Configuration",n),!1)},O=function(){t.websocketInitFailed||(i.connConfig=null,i.promiseCompleted=!1,i.promiseHandle=o.getWebSocketTransport(),i.promiseHandle.then(function(n){i.promiseCompleted=!0,e.debug("Successfully fetched webSocket connection configuration"),C(n)?(i.connConfig=n,u&&(w("Restarting WebSocket Manager")||E())):_()},function(n){i.promiseCompleted=!0,e.error("Failed to fetch webSocket connection configuration",n),k()}))},E=function(){if(!t.websocketInitFailed){e.debug("Initializing Websocket Manager");try{C(i.connConfig)?((n=new WebSocket(i.connConfig.webSocketTransport.url)).addEventListener("open",m),n.addEventListener("message",S),n.addEventListener("error",h),n.addEventListener("close",v)):i.promiseCompleted&&_()}catch(n){e.error("Error Initializing web-socket-manager",n),_()}}};this.init=function(n){c.assertTrue(c.isFunction(n),"transportHandle must be a function"),null===o.getWebSocketTransport?(o.getWebSocketTransport=n,O()):e.warn("Web Socket Manager was already initialized")},this.onInitFailure=function(e){return c.assertTrue(c.isFunction(e),"cb must be a function"),o.initFailure.add(e),t.websocketInitFailed&&e(),function(){return o.initFailure.delete(e)}},this.onConnectionGain=function(e){return c.assertTrue(c.isFunction(e),"cb must be a function"),o.connectionGain.add(e),n&&n.readyState===WebSocket.OPEN&&e(),function(){return o.connectionGain.delete(e)}},this.onConnectionLost=function(e){return c.assertTrue(c.isFunction(e),"cb must be a function"),o.connectionLost.add(e),n&&n.readyState===WebSocket.CLOSED&&e(),function(){return o.connectionLost.delete(e)}},this.onSubscriptionUpdate=function(e){return c.assertTrue(c.isFunction(e),"cb must be a function"),o.subscriptionUpdate.add(e),function(){return o.subscriptionUpdate.delete(e)}},this.onSubscriptionFailure=function(e){return c.assertTrue(c.isFunction(e),"cb must be a function"),o.subscriptionFailure.add(e),function(){return o.subscriptionFailure.delete(e)}},this.onMessage=function(e,n){return c.assertNotNull(e,"topicName"),c.assertTrue(c.isFunction(n),"cb must be a function"),o.topic.has(e)?o.topic.get(e).add(n):o.topic.set(e,new Set([n])),function(){return o.topic.get(e).delete(n)}},this.onAllMessage=function(e){return c.assertTrue(c.isFunction(e),"cb must be a function"),o.allMessage.add(e),function(){return o.allMessage.delete(e)}},this.subscribeTopics=function(e){c.assertNotNull(e,"topics"),c.assertIsList(e),e.forEach(function(e){a.pending.add(e)}),n&&n.readyState===WebSocket.OPEN&&n.send(T(f,{topics:e}))},this.sendMessage=function(t){if(c.assertIsObject(t,"payload"),void 0===t.topic||s.has(t.topic))e.warn("Cannot send message, Invalid topic",t);else{try{t=JSON.stringify(t)}catch(n){return void e.warn("Error stringify message",t)}n&&n.readyState===WebSocket.OPEN?(e.debug("WebSocketManager sending message",t),n.send(t)):e.warn("Cannot send message, web socket connection is not open")}},this.closeWebSocket=function(){y(),clearInterval(l),w("User request to close WebSocket")}},L={create:function(){return new E},setGlobalConfig:function(e){var n=e.loggerConfig;x.updateLoggerConfig(n)},LogLevel:k,Logger:w}},function(e,n,t){var r;!function(){"use strict";var o={not_string:/[^s]/,not_bool:/[^t]/,not_type:/[^T]/,not_primitive:/[^v]/,number:/[diefg]/,numeric_arg:/[bcdiefguxX]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijostTuvxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[+-]/};function i(e){return function(e,n){var t,r,a,c,s,u,l,f,p,g=1,d=e.length,b="";for(r=0;r<d;r++)if("string"==typeof e[r])b+=e[r];else if("object"==typeof e[r]){if((c=e[r]).keys)for(t=n[g],a=0;a<c.keys.length;a++){if(null==t)throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"',c.keys[a],c.keys[a-1]));t=t[c.keys[a]]}else t=c.param_no?n[c.param_no]:n[g++];if(o.not_type.test(c.type)&&o.not_primitive.test(c.type)&&t instanceof Function&&(t=t()),o.numeric_arg.test(c.type)&&"number"!=typeof t&&isNaN(t))throw new TypeError(i("[sprintf] expecting number but found %T",t));switch(o.number.test(c.type)&&(f=t>=0),c.type){case"b":t=parseInt(t,10).toString(2);break;case"c":t=String.fromCharCode(parseInt(t,10));break;case"d":case"i":t=parseInt(t,10);break;case"j":t=JSON.stringify(t,null,c.width?parseInt(c.width):0);break;case"e":t=c.precision?parseFloat(t).toExponential(c.precision):parseFloat(t).toExponential();break;case"f":t=c.precision?parseFloat(t).toFixed(c.precision):parseFloat(t);break;case"g":t=c.precision?String(Number(t.toPrecision(c.precision))):parseFloat(t);break;case"o":t=(parseInt(t,10)>>>0).toString(8);break;case"s":t=String(t),t=c.precision?t.substring(0,c.precision):t;break;case"t":t=String(!!t),t=c.precision?t.substring(0,c.precision):t;break;case"T":t=Object.prototype.toString.call(t).slice(8,-1).toLowerCase(),t=c.precision?t.substring(0,c.precision):t;break;case"u":t=parseInt(t,10)>>>0;break;case"v":t=t.valueOf(),t=c.precision?t.substring(0,c.precision):t;break;case"x":t=(parseInt(t,10)>>>0).toString(16);break;case"X":t=(parseInt(t,10)>>>0).toString(16).toUpperCase()}o.json.test(c.type)?b+=t:(!o.number.test(c.type)||f&&!c.sign?p="":(p=f?"+":"-",t=t.toString().replace(o.sign,"")),u=c.pad_char?"0"===c.pad_char?"0":c.pad_char.charAt(1):" ",l=c.width-(p+t).length,s=c.width&&l>0?u.repeat(l):"",b+=c.align?p+t+s:"0"===u?p+s+t:s+p+t)}return b}(function(e){if(c[e])return c[e];var n,t=e,r=[],i=0;for(;t;){if(null!==(n=o.text.exec(t)))r.push(n[0]);else if(null!==(n=o.modulo.exec(t)))r.push("%");else{if(null===(n=o.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(n[2]){i|=1;var a=[],s=n[2],u=[];if(null===(u=o.key.exec(s)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(a.push(u[1]);""!==(s=s.substring(u[0].length));)if(null!==(u=o.key_access.exec(s)))a.push(u[1]);else{if(null===(u=o.index_access.exec(s)))throw new SyntaxError("[sprintf] failed to parse named argument key");a.push(u[1])}n[2]=a}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");r.push({placeholder:n[0],param_no:n[1],keys:n[2],sign:n[3],pad_char:n[4],align:n[5],width:n[6],precision:n[7],type:n[8]})}t=t.substring(n[0].length)}return c[e]=r}(e),arguments)}function a(e,n){return i.apply(null,[e].concat(n||[]))}var c=Object.create(null);n.sprintf=i,n.vsprintf=a,"undefined"!=typeof window&&(window.sprintf=i,window.vsprintf=a,void 0===(r=function(){return{sprintf:i,vsprintf:a}}.call(n,t,n,e))||(e.exports=r))}()},function(e,n,t){"use strict";t.r(n),function(e){t.d(n,"WebSocketManager",function(){return o});var r=t(0);e.connect=e.connect||{},connect.WebSocketManager=r.a;var o=r.a}.call(this,t(3))},function(e,n){var t;t=function(){return this}();try{t=t||new Function("return this")()}catch(e){"object"==typeof window&&(t=window)}e.exports=t}]);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8vd2VicGFjay9ib290c3RyYXAiLCJ3ZWJwYWNrOi8vLy4vc3JjL3V0aWxzLmpzIiwid2VicGFjazovLy8uL3NyYy9jb25zdGFudHMuanMiLCJ3ZWJwYWNrOi8vLy4vc3JjL2xvZy5qcyIsIndlYnBhY2s6Ly8vLi9zcmMvd2ViU29ja2V0TWFuYWdlci5qcyIsIndlYnBhY2s6Ly8vLi9ub2RlX21vZHVsZXMvc3ByaW50Zi1qcy9zcmMvc3ByaW50Zi5qcyIsIndlYnBhY2s6Ly8vLi9zcmMvaW5kZXguanMiLCJ3ZWJwYWNrOi8vLyh3ZWJwYWNrKS9idWlsZGluL2dsb2JhbC5qcyJdLCJuYW1lcyI6WyJpbnN0YWxsZWRNb2R1bGVzIiwiX193ZWJwYWNrX3JlcXVpcmVfXyIsIm1vZHVsZUlkIiwiZXhwb3J0cyIsIm1vZHVsZSIsImkiLCJsIiwibW9kdWxlcyIsImNhbGwiLCJtIiwiYyIsImQiLCJuYW1lIiwiZ2V0dGVyIiwibyIsIk9iamVjdCIsImRlZmluZVByb3BlcnR5IiwiZW51bWVyYWJsZSIsImdldCIsInIiLCJTeW1ib2wiLCJ0b1N0cmluZ1RhZyIsInZhbHVlIiwidCIsIm1vZGUiLCJfX2VzTW9kdWxlIiwibnMiLCJjcmVhdGUiLCJrZXkiLCJiaW5kIiwibiIsIm9iamVjdCIsInByb3BlcnR5IiwicHJvdG90eXBlIiwiaGFzT3duUHJvcGVydHkiLCJwIiwicyIsIlV0aWxzIiwicHJlbWlzZSIsIm1lc3NhZ2UiLCJFcnJvciIsImFzc2VydFRydWUiLCJ1bmRlZmluZWQiLCJzcHJpbnRmIiwiQXJyYXkiLCJpc0FycmF5IiwiYWxsb3dlZFZhbHVlcyIsImxlbmd0aCIsInZhbHVlcyIsImVudW1PYmoiLCJmb3JFYWNoIiwicmVwbGFjZSIsIngiLCJ5IiwidG9VcHBlckNhc2UiLCJvYmoiLCJjb25zdHJ1Y3RvciIsImFwcGx5IiwiaXNTdHJpbmciLCJpc051bWJlciIsIndzUmVnZXgiLCJSZWdFeHAiLCJ2YWxpZFdTVXJsIiwid3NVcmwiLCJ0ZXN0IiwiYXNzZXJ0SXNPYmplY3QiLCJpc09iamVjdCIsIkxPR1NfREVTVElOQVRJT04iLCJST1VURV9LRVkiLCJMb2dnZXIiLCJkYXRhIiwiTG9nTGV2ZWwiLCJERUJVRyIsIklORk8iLCJXQVJOIiwiRVJST1IiLCJMb2dNYW5hZ2VySW1wbCIsInRoaXMiLCJ1cGRhdGVMb2dnZXJDb25maWciLCJjb25zb2xlTG9nZ2VyV3JhcHBlciIsImNyZWF0ZUNvbnNvbGVMb2dnZXIiLCJsZXZlbCIsImxvZ1N0YXRlbWVudCIsImhhc0NsaWVudExvZ2dlciIsIl9jbGllbnRMb2dnZXIiLCJkZWJ1ZyIsImluZm8iLCJ3YXJuIiwiZXJyb3IiLCJfbGV2ZWwiLCJvcHRpb25zIiwicHJlZml4IiwiX2xvZ3NEZXN0aW5hdGlvbiIsIkxvZ2dlcldyYXBwZXJJbXBsIiwiaW5wdXRDb25maWciLCJjb25maWciLCJsb2dnZXIiLCJMb2dnZXJXcmFwcGVyIiwiYXJncyIsIl9sb2ciLCJMb2dNYW5hZ2VyIiwiaXNMZXZlbEVuYWJsZWQiLCJ3cml0ZVRvQ2xpZW50TG9nZ2VyIiwiX3Nob3VsZExvZyIsIl9jb252ZXJ0VG9TaW5nbGVTdGF0ZW1lbnQiLCJfd3JpdGVUb0NsaWVudExvZ2dlciIsImluZGV4IiwiYXJnIiwiX2NvbnZlcnRUb1N0cmluZyIsImlzRnVuY3Rpb24iLCJ0b1N0cmluZyIsInRvU3RyaW5nUmVzdWx0IiwiSlNPTiIsInN0cmluZ2lmeSIsImNvbnNvbGUiLCJXZWJTb2NrZXRNYW5hZ2VyIiwiZ2V0TG9nZ2VyIiwid2ViU29ja2V0IiwicmVjb25uZWN0Q29uZmlnIiwicmVjb25uZWN0V2ViU29ja2V0Iiwid2Vic29ja2V0SW5pdEZhaWxlZCIsImxpbmVhckNvbm5lY3RBdHRlbXB0IiwiZXhwb25lbnRpYWxDb25uZWN0QXR0ZW1wdCIsImV4cG9uZW50aWFsQmFja09mZlRpbWUiLCJleHBvbmVudGlhbFRpbWVvdXRIYW5kbGUiLCJsaWZlVGltZVRpbWVvdXRIYW5kbGUiLCJoZWFydGJlYXRDb25maWciLCJwZW5kaW5nUmVzcG9uc2UiLCJpbnRlcnZhbEhhbmRsZSIsImNhbGxiYWNrcyIsImluaXRGYWlsdXJlIiwiU2V0IiwiZ2V0V2ViU29ja2V0VHJhbnNwb3J0Iiwic3Vic2NyaXB0aW9uVXBkYXRlIiwic3Vic2NyaXB0aW9uRmFpbHVyZSIsInRvcGljIiwiTWFwIiwiYWxsTWVzc2FnZSIsImNvbm5lY3Rpb25HYWluIiwiY29ubmVjdGlvbkxvc3QiLCJ3ZWJTb2NrZXRDb25maWciLCJjb25uQ29uZmlnIiwicHJvbWlzZUhhbmRsZSIsInByb21pc2VDb21wbGV0ZWQiLCJ0b3BpY1N1YnNjcmlwdGlvbiIsInN1YnNjcmliZWQiLCJwZW5kaW5nIiwiaW52YWxpZFNlbmRNZXNzYWdlUm91dGVLZXlzIiwib25saW5lIiwibmF2aWdhdG9yIiwib25MaW5lIiwibmV0d29ya0Nvbm5lY3Rpdml0eUNoZWNrZXIiLCJzZXRJbnRlcnZhbCIsInJlYWR5U3RhdGUiLCJnZXRXZWJTb2NrZXRDb25uQ29uZmlnIiwiaW52b2tlQ2FsbGJhY2tzIiwicmVzcG9uc2UiLCJjYWxsYmFjayIsInNlbmRIZWFydEJlYXQiLCJjbGVhckludGVydmFsIiwicmVmcmVzaFdlYlNvY2tldENvbm5lY3Rpb24iLCJzZW5kIiwiY3JlYXRlV2ViU29ja2V0UGF5bG9hZCIsInJlc2V0U3RhdGUiLCJjbGVhclRpbWVvdXQiLCJ3ZWJTb2NrZXRPbk9wZW4iLCJzaXplIiwidG9waWNzIiwiZnJvbSIsImNvbmNhdCIsImNsZWFyIiwic2V0VGltZW91dCIsIndlYlNvY2tldFRyYW5zcG9ydCIsInRyYW5zcG9ydExpZmVUaW1lSW5TZWNvbmRzIiwid2ViU29ja2V0T25DbG9zZSIsImV2ZW50IiwiaW5pdFdlYlNvY2tldCIsIndlYlNvY2tldE9uRXJyb3IiLCJ3ZWJTb2NrZXRPbk1lc3NhZ2UiLCJwYXJzZSIsImNvbnRlbnQiLCJzdGF0dXMiLCJ0b3BpY05hbWUiLCJhZGQiLCJoYXMiLCJjbG9zZVdlYlNvY2tldCIsInJlYXNvbiIsIldlYlNvY2tldCIsIkNMT1NFRCIsImNsb3NlIiwidGVybWluYXRlV2ViU29ja2V0TWFuYWdlciIsInZhbGlkV2ViU29ja2V0Q29ubkNvbmZpZyIsInVybCIsInRoZW4iLCJhZGRFdmVudExpc3RlbmVyIiwiaW5pdCIsInRyYW5zcG9ydEhhbmRsZSIsIm9uSW5pdEZhaWx1cmUiLCJjYiIsIm9uQ29ubmVjdGlvbkdhaW4iLCJPUEVOIiwib25Db25uZWN0aW9uTG9zdCIsIm9uU3Vic2NyaXB0aW9uVXBkYXRlIiwib25TdWJzY3JpcHRpb25GYWlsdXJlIiwib25NZXNzYWdlIiwiYXNzZXJ0Tm90TnVsbCIsInNldCIsIm9uQWxsTWVzc2FnZSIsInN1YnNjcmliZVRvcGljcyIsImFzc2VydElzTGlzdCIsInNlbmRNZXNzYWdlIiwicGF5bG9hZCIsIldlYlNvY2tldE1hbmFnZXJPYmplY3QiLCJzZXRHbG9iYWxDb25maWciLCJsb2dnZXJDb25maWciLCJyZSIsIm5vdF9zdHJpbmciLCJub3RfYm9vbCIsIm5vdF90eXBlIiwibm90X3ByaW1pdGl2ZSIsIm51bWJlciIsIm51bWVyaWNfYXJnIiwianNvbiIsIm5vdF9qc29uIiwidGV4dCIsIm1vZHVsbyIsInBsYWNlaG9sZGVyIiwia2V5X2FjY2VzcyIsImluZGV4X2FjY2VzcyIsInNpZ24iLCJwYXJzZV90cmVlIiwiYXJndiIsImsiLCJwaCIsInBhZCIsInBhZF9jaGFyYWN0ZXIiLCJwYWRfbGVuZ3RoIiwiaXNfcG9zaXRpdmUiLCJjdXJzb3IiLCJ0cmVlX2xlbmd0aCIsIm91dHB1dCIsImtleXMiLCJwYXJhbV9ubyIsInR5cGUiLCJGdW5jdGlvbiIsImlzTmFOIiwiVHlwZUVycm9yIiwicGFyc2VJbnQiLCJTdHJpbmciLCJmcm9tQ2hhckNvZGUiLCJ3aWR0aCIsInByZWNpc2lvbiIsInBhcnNlRmxvYXQiLCJ0b0V4cG9uZW50aWFsIiwidG9GaXhlZCIsIk51bWJlciIsInRvUHJlY2lzaW9uIiwic3Vic3RyaW5nIiwic2xpY2UiLCJ0b0xvd2VyQ2FzZSIsInZhbHVlT2YiLCJwYWRfY2hhciIsImNoYXJBdCIsInJlcGVhdCIsImFsaWduIiwic3ByaW50Zl9mb3JtYXQiLCJmbXQiLCJzcHJpbnRmX2NhY2hlIiwibWF0Y2giLCJfZm10IiwiYXJnX25hbWVzIiwiZXhlYyIsInB1c2giLCJTeW50YXhFcnJvciIsImZpZWxkX2xpc3QiLCJyZXBsYWNlbWVudF9maWVsZCIsImZpZWxkX21hdGNoIiwic3ByaW50Zl9wYXJzZSIsImFyZ3VtZW50cyIsInZzcHJpbnRmIiwid2luZG93IiwiZ2xvYmFsIiwiY29ubmVjdCIsImciLCJlIl0sIm1hcHBpbmdzIjoiYUFDRSxJQUFJQSxFQUFtQixHQUd2QixTQUFTQyxFQUFvQkMsR0FHNUIsR0FBR0YsRUFBaUJFLEdBQ25CLE9BQU9GLEVBQWlCRSxHQUFVQyxRQUduQyxJQUFJQyxFQUFTSixFQUFpQkUsR0FBWSxDQUN6Q0csRUFBR0gsRUFDSEksR0FBRyxFQUNISCxRQUFTLElBVVYsT0FOQUksRUFBUUwsR0FBVU0sS0FBS0osRUFBT0QsUUFBU0MsRUFBUUEsRUFBT0QsUUFBU0YsR0FHL0RHLEVBQU9FLEdBQUksRUFHSkYsRUFBT0QsUUFLZkYsRUFBb0JRLEVBQUlGLEVBR3hCTixFQUFvQlMsRUFBSVYsRUFHeEJDLEVBQW9CVSxFQUFJLFNBQVNSLEVBQVNTLEVBQU1DLEdBQzNDWixFQUFvQmEsRUFBRVgsRUFBU1MsSUFDbENHLE9BQU9DLGVBQWViLEVBQVNTLEVBQU0sQ0FBRUssWUFBWSxFQUFNQyxJQUFLTCxLQUtoRVosRUFBb0JrQixFQUFJLFNBQVNoQixHQUNYLG9CQUFYaUIsUUFBMEJBLE9BQU9DLGFBQzFDTixPQUFPQyxlQUFlYixFQUFTaUIsT0FBT0MsWUFBYSxDQUFFQyxNQUFPLFdBRTdEUCxPQUFPQyxlQUFlYixFQUFTLGFBQWMsQ0FBRW1CLE9BQU8sS0FRdkRyQixFQUFvQnNCLEVBQUksU0FBU0QsRUFBT0UsR0FFdkMsR0FEVSxFQUFQQSxJQUFVRixFQUFRckIsRUFBb0JxQixJQUMvQixFQUFQRSxFQUFVLE9BQU9GLEVBQ3BCLEdBQVcsRUFBUEUsR0FB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QU0sS0FBTSxDQUFDaU4sR0FBS2pHLE9BQU84RCxHQUFRLEtBZ0hwRCxJQUFJb0MsRUFBZ0I1UCxPQUFPWSxPQUFPLE1Bd0U5QnhCLEVBQWlCLFFBQUl3QyxFQUNyQnhDLEVBQWtCLFNBQUlvUixFQUVKLG9CQUFYQyxTQUNQQSxPQUFnQixRQUFJN08sRUFDcEI2TyxPQUFpQixTQUFJRCxPQVFoQixLQUxELGFBQ0ksTUFBTyxDQUNILFFBQVc1TyxFQUNYLFNBQVk0TyxJQUVuQiwrQkFoT1osSSw2QkNGRCw2RUFHQUUsRUFBT0MsUUFBVUQsRUFBT0MsU0FBVyxHQUNuQ0EsUUFBUXZLLGlCQUFtQmlHLElBRXBCLElBQU1qRyxFQUFtQmlHLEssK0JDTmhDLElBQUl1RSxFQUdKQSxFQUFJLFdBQ0gsT0FBTzlNLEtBREosR0FJSixJQUVDOE0sRUFBSUEsR0FBSyxJQUFJdkMsU0FBUyxjQUFiLEdBQ1IsTUFBT3dDLEdBRWMsaUJBQVhKLFNBQXFCRyxFQUFJSCxRQU9yQ3BSLEVBQU9ELFFBQVV3UiIsImZpbGUiOiJhbWF6b24tY29ubmVjdC13ZWJzb2NrZXQtbWFuYWdlci5qcyIsInNvdXJjZXNDb250ZW50IjpbIiBcdC8vIFRoZSBtb2R1bGUgY2FjaGVcbiBcdHZhciBpbnN0YWxsZWRNb2R1bGVzID0ge307XG5cbiBcdC8vIFRoZSByZXF1aXJlIGZ1bmN0aW9uXG4gXHRmdW5jdGlvbiBfX3dlYnBhY2tfcmVxdWlyZV9fKG1vZHVsZUlkKSB7XG5cbiBcdFx0Ly8gQ2hlY2sgaWYgbW9kdWxlIGlzIGluIGNhY2hlXG4gXHRcdGlmKGluc3RhbGxlZE1vZHVsZXNbbW9kdWxlSWRdKSB7XG4gXHRcdFx0cmV0dXJuIGluc3RhbGxlZE1vZHVsZXNbbW9kdWxlSWRdLmV4cG9ydHM7XG4gXHRcdH1cbiBcdFx0Ly8gQ3JlYXRlIGEgbmV3IG1vZHVsZSAoYW5kIHB1dCBpdCBpbnRvIHRoZSBjYWNoZSlcbiBcdFx0dmFyIG1vZHVsZSA9IGluc3RhbGxlZE1vZHVsZXNbbW9kdWxlSWRdID0ge1xuIFx0XHRcdGk6IG1vZHVsZUlkLFxuIFx0XHRcdGw6IGZhbHNlLFxuIFx0XHRcdGV4cG9ydHM6IHt9XG4gXHRcdH07XG5cbiBcdFx0Ly8gRXhlY3V0ZSB0aGUgbW9kdWxlIGZ1bmN0aW9uXG4gXHRcdG1vZHVsZXNbbW9kdWxlSWRdLmNhbGwobW9kdWxlLmV4cG9ydHMsIG1vZHVsZSwgbW9kdWxlLmV4cG9ydHMsIF9fd2VicGFja19yZXF1aXJlX18pO1xuXG4gXHRcdC8vIEZsYWcgdGhlIG1vZHVsZSBhcyBsb2FkZWRcbiBcdFx0bW9kdWxlLmwgPSB0cnVlO1xuXG4gXHRcdC8vIFJldHVybiB0aGUgZXhwb3J0cyBvZiB0aGUgbW9kdWxlXG4gXHRcdHJldHVybiBtb2R1bGUuZXhwb3J0cztcbiBcdH1cblxuXG4gXHQvLyBleHBvc2UgdGhlIG1vZHVsZXMgb2JqZWN0IChfX3dlYnBhY2tfbW9kdWxlc19fKVxuIFx0X193ZWJwYWNrX3JlcXVpcmVfXy5tID0gbW9kdWxlcztcblxuIFx0Ly8gZXhwb3NlIHRoZSBtb2R1bGUgY2FjaGVcbiBcdF9fd2VicGFja19yZXF1aXJlX18uYyA9IGluc3RhbGxlZE1vZHVsZXM7XG5cbiBcdC8vIGRlZmluZSBnZXR0ZXIgZnVuY3Rpb24gZm9yIGhhcm1vbnkgZXhwb3J0c1xuIFx0X193ZWJwYWNrX3JlcXVpcmVfXy5kID0gZnVuY3Rpb24oZXhwb3J0cywgbmFtZSwgZ2V0dGVyKSB7XG4gXHRcdGlmKCFfX3dlYnBhY2tfcmVxdWlyZV9fLm8oZXhwb3J0cywgbmFtZSkpIHtcbiBcdFx0XHRPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgbmFtZSwgeyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGdldHRlciB9KTtcbiBcdFx0fVxuIFx0fTtcblxuIFx0Ly8gZGVmaW5lIF9fZXNNb2R1bGUgb24gZXhwb3J0c1xuIFx0X193ZWJwYWNrX3JlcXVpcmVfXy5yID0gZnVuY3Rpb24oZXhwb3J0cykge1xuIFx0XHRpZih0eXBlb2YgU3ltYm9sICE9PSAndW5kZWZpbmVkJyAmJiBTeW1ib2wudG9TdHJpbmdUYWcpIHtcbiBcdFx0XHRPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgU3ltYm9sLnRvU3RyaW5nVGFnLCB7IHZhbHVlOiAnTW9kdWxlJyB9KTtcbiBcdFx0fVxuIFx0XHRPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgJ19fZXNNb2R1bGUnLCB7IHZhbHVlOiB0cnVlIH0pO1xuIFx0fTtcblxuIFx0Ly8gY3JlYXRlIGEgZmFrZSBuYW1lc3BhY2Ugb2JqZWN0XG4gXHQvLyBtb2RlICYgMTogdmFsdWUgaXMgYSBtb2R1bGUgaWQsIHJlcXVpcmUgaXRcbiBcdC8vIG1vZGUgJiAyOiBtZXJnZSBhbGwgcHJvcGVydGllcyBvZiB2YWx1ZSBpbnRvIHRoZSBuc1xuIFx0Ly8gbW9kZSAmIDQ6IHJldHVybiB2YWx1ZSB3aGVuIGFscmVhZHkgbnMgb2JqZWN0XG4gXHQvLyBtb2RlICYgOHwxOiBiZWhhdmUgbGlrZSByZXF1aXJlXG4gXHRfX3dlYnBhY2tfcmVxdWlyZV9fLnQgPSBmdW5jdGlvbih2YWx1ZSwgbW9kZSkge1xuIFx0XHRpZihtb2RlICYgMSkgdmFsdWUgPSBfX3dlYnBhY2tfcmVxdWlyZV9fKHZhbHVlKTtcbiBcdFx0aWYobW9kZSAmIDgpIHJldHVybiB2YWx1ZTtcbiBcdFx0aWYoKG1vZGUgJiA0KSAmJiB0eXBlb2YgdmFsdWUgPT09ICdvYmplY3QnICYmIHZhbHVlICYmIHZhbHVlLl9fZXNNb2R1bGUpIHJldHVybiB2YWx1ZTtcbiBcdFx0dmFyIG5zID0gT2JqZWN0LmNyZWF0ZShudWxsKTtcbiBcdFx0X193ZWJwYWNrX3JlcXVpcmVfXy5yKG5zKTtcbiBcdFx0T2JqZWN0LmRlZmluZVByb3BlcnR5KG5zLCAnZGVmYXVsdCcsIHsgZW51bWVyYWJsZTogdHJ1ZSwgdmFsdWU6IHZhbHVlIH0pO1xuIFx0XHRpZihtb2RlICYgMiAmJiB0eXBlb2YgdmFsdWUgIT0gJ3N0cmluZycpIGZvcih2YXIga2V5IGluIHZhbHVlKSBfX3dlYnBhY2tfcmVxdWlyZV9fLmQobnMsIGtleSwgZnVuY3Rpb24oa2V5KSB7IHJldHVybiB2YWx1ZVtrZXldOyB9LmJpbmQobnVsbCwga2V5KSk7XG4gXHRcdHJldHVybiBucztcbiBcdH07XG5cbiBcdC8vIGdldERlZmF1bHRFeHBvcnQgZnVuY3Rpb24gZm9yIGNvbXBhdGliaWxpdHkgd2l0aCBub24taGFybW9ueSBtb2R1bGVzXG4gXHRfX3dlYnBhY2tfcmVxdWlyZV9fLm4gPSBmdW5jdGlvbihtb2R1bGUpIHtcbiBcdFx0dmFyIGdldHRlciA9IG1vZHVsZSAmJiBtb2R1bGUuX19lc01vZHVsZSA/XG4gXHRcdFx0ZnVuY3Rpb24gZ2V0RGVmYXVsdCgpIHsgcmV0dXJuIG1vZHVsZVsnZGVmYXVsdCddOyB9IDpcbiBcdFx0XHRmdW5jdGlvbiBnZXRNb2R1bGVFeHBvcnRzKCkgeyByZXR1cm4gbW9kdWxlOyB9O1xuIFx0XHRfX3dlYnBhY2tfcmVxdWlyZV9fLmQoZ2V0dGVyLCAnYScsIGdldHRlcik7XG4gXHRcdHJldHVybiBnZXR0ZXI7XG4gXHR9O1xuXG4gXHQvLyBPYmplY3QucHJvdG90eXBlLmhhc093blByb3BlcnR5LmNhbGxcbiBcdF9fd2VicGFja19yZXF1aXJlX18ubyA9IGZ1bmN0aW9uKG9iamVjdCwgcHJvcGVydHkpIHsgcmV0dXJuIE9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChvYmplY3QsIHByb3BlcnR5KTsgfTtcblxuIFx0Ly8gX193ZWJwYWNrX3B1YmxpY19wYXRoX19cbiBcdF9fd2VicGFja19yZXF1aXJlX18ucCA9IFwiXCI7XG5cblxuIFx0Ly8gTG9hZCBlbnRyeSBtb2R1bGUgYW5kIHJldHVybiBleHBvcnRzXG4gXHRyZXR1cm4gX193ZWJwYWNrX3JlcXVpcmVfXyhfX3dlYnBhY2tfcmVxdWlyZV9fLnMgPSAyKTtcbiIsImltcG9ydCB7IHNwcmludGYgfSBmcm9tIFwic3ByaW50Zi1qc1wiO1xuY29uc3QgVXRpbHMgPSB7fTtcblxuLyoqXG4gKiBBc3NlcnRzIHRoYXQgYSBwcmVtaXNlIGlzIHRydWUuXG4gKi9cblV0aWxzLmFzc2VydFRydWUgPSBmdW5jdGlvbihwcmVtaXNlLCBtZXNzYWdlKSB7XG4gIGlmICghcHJlbWlzZSkge1xuICAgIHRocm93IG5ldyBFcnJvcihtZXNzYWdlKTtcbiAgfVxufTtcblxuLyoqXG4gKiBBc3NlcnRzIHRoYXQgYSB2YWx1ZSBpcyBub3QgbnVsbCBvciB1bmRlZmluZWQuXG4gKi9cblV0aWxzLmFzc2VydE5vdE51bGwgPSBmdW5jdGlvbih2YWx1ZSwgbmFtZSkge1xuICBVdGlscy5hc3NlcnRUcnVlKFxuICAgIHZhbHVlICE9PSBudWxsICYmIHR5cGVvZiB2YWx1ZSAhPT0gdW5kZWZpbmVkLFxuICAgIHNwcmludGYoXCIlcyBtdXN0IGJlIHByb3ZpZGVkXCIsIG5hbWUgfHwgXCJBIHZhbHVlXCIpXG4gICk7XG4gIHJldHVybiB2YWx1ZTtcbn07XG5cblV0aWxzLmlzU3RyaW5nID0gZnVuY3Rpb24odmFsdWUpIHtcbiAgcmV0dXJuIHR5cGVvZiB2YWx1ZSA9PT0gXCJzdHJpbmdcIjtcbn07XG5cblV0aWxzLmFzc2VydElzTm9uRW1wdHlTdHJpbmcgPSBmdW5jdGlvbih2YWx1ZSwga2V5KSB7XG4gIGlmICghdmFsdWUgfHwgdHlwZW9mIHZhbHVlICE9PSBcInN0cmluZ1wiKSB7XG4gICAgdGhyb3cgbmV3IEVycm9yKGtleSArIFwiIGlzIG5vdCBhIG5vbi1lbXB0eSBzdHJpbmchXCIpO1xuICB9XG59O1xuXG5VdGlscy5hc3NlcnRJc0xpc3QgPSBmdW5jdGlvbih2YWx1ZSwga2V5KSB7XG4gIGlmICghQXJyYXkuaXNBcnJheSh2YWx1ZSkpIHtcbiAgICB0aHJvdyBuZXcgRXJyb3Ioa2V5ICsgXCIgaXMgbm90IGFuIGFycmF5XCIpO1xuICB9XG59O1xuXG5VdGlscy5hc3NlcnRJc0VudW0gPSBmdW5jdGlvbih2YWx1ZSwgYWxsb3dlZFZhbHVlcywga2V5KSB7XG4gIHZhciBpO1xuICBmb3IgKGkgPSAwOyBpIDwgYWxsb3dlZFZhbHVlcy5sZW5ndGg7IGkrKykge1xuICAgIGlmIChhbGxvd2VkVmFsdWVzW2ldID09PSB2YWx1ZSkge1xuICAgICAgcmV0dXJuO1xuICAgIH1cbiAgfVxuICB0aHJvdyBuZXcgRXJyb3IoXG4gICAga2V5ICsgXCIgcGFzc2VkIGlzIG5vdCB2YWxpZC4gXCIgKyBcIkFsbG93ZWQgdmFsdWVzIGFyZTogXCIgKyBhbGxvd2VkVmFsdWVzXG4gICk7XG59O1xuXG4vKipcbiAqIEdlbmVyYXRlIGFuIGVudW0gZnJvbSB0aGUgZ2l2ZW4gbGlzdCBvZiBsb3dlci1jYXNlIGVudW0gdmFsdWVzLFxuICogd2hlcmUgdGhlIGVudW0ga2V5cyB3aWxsIGJlIHVwcGVyIGNhc2UuXG4gKlxuICogQ29udmVyc2lvbiBmcm9tIHBhc2NhbCBjYXNlIGJhc2VkIG9uIGNvZGUgZnJvbSBoZXJlOlxuICogaHR0cDovL3N0YWNrb3ZlcmZsb3cuY29tL3F1ZXN0aW9ucy8zMDUyMTIyNFxuICovXG5VdGlscy5tYWtlRW51bSA9IGZ1bmN0aW9uKHZhbHVlcykge1xuICB2YXIgZW51bU9iaiA9IHt9O1xuXG4gIHZhbHVlcy5mb3JFYWNoKGZ1bmN0aW9uKHZhbHVlKSB7XG4gICAgdmFyIGtleSA9IHZhbHVlXG4gICAgICAucmVwbGFjZSgvXFwuPyhbYS16XSspXz8vZywgZnVuY3Rpb24oeCwgeSkge1xuICAgICAgICByZXR1cm4geS50b1VwcGVyQ2FzZSgpICsgXCJfXCI7XG4gICAgICB9KVxuICAgICAgLnJlcGxhY2UoL18kLywgXCJcIik7XG5cbiAgICBlbnVtT2JqW2tleV0gPSB2YWx1ZTtcbiAgfSk7XG5cbiAgcmV0dXJuIGVudW1PYmo7XG59O1xuXG4vKipcbiAqIERldGVybWluZSBpZiB0aGUgZ2l2ZW4gdmFsdWUgaXMgYSBjYWxsYWJsZSBmdW5jdGlvbiB0eXBlLlxuICogQm9ycm93ZWQgZnJvbSBVbmRlcnNjb3JlLmpzLlxuICovXG5VdGlscy5pc0Z1bmN0aW9uID0gZnVuY3Rpb24ob2JqKSB7XG4gIHJldHVybiAhIShvYmogJiYgb2JqLmNvbnN0cnVjdG9yICYmIG9iai5jYWxsICYmIG9iai5hcHBseSk7XG59O1xuXG5VdGlscy5pc09iamVjdCA9IGZ1bmN0aW9uKHZhbHVlKSB7XG4gIHJldHVybiAhKHR5cGVvZiB2YWx1ZSAhPT0gXCJvYmplY3RcIiB8fCB2YWx1ZSA9PT0gbnVsbCk7XG59O1xuXG5VdGlscy5pc1N0cmluZyA9IGZ1bmN0aW9uKHZhbHVlKSB7XG4gIHJldHVybiB0eXBlb2YgdmFsdWUgPT09IFwic3RyaW5nXCI7XG59O1xuXG5VdGlscy5pc051bWJlciA9IGZ1bmN0aW9uKHZhbHVlKSB7XG4gIHJldHVybiB0eXBlb2YgdmFsdWUgPT09IFwibnVtYmVyXCI7XG59O1xuXG5jb25zdCB3c1JlZ2V4ID0gbmV3IFJlZ0V4cChcIl4od3NzOi8vKVxcXFx3KlwiKTtcblV0aWxzLnZhbGlkV1NVcmwgPSBmdW5jdGlvbiAod3NVcmwpIHtcbiAgcmV0dXJuIHdzUmVnZXgudGVzdCh3c1VybCk7XG59O1xuXG5VdGlscy5hc3NlcnRJc09iamVjdCA9IGZ1bmN0aW9uKHZhbHVlLCBrZXkpIHtcbiAgaWYgKCFVdGlscy5pc09iamVjdCh2YWx1ZSkpIHtcbiAgICB0aHJvdyBuZXcgRXJyb3Ioa2V5ICsgXCIgaXMgbm90IGFuIG9iamVjdCFcIik7XG4gIH1cbn07XG5cbmV4cG9ydCBkZWZhdWx0IFV0aWxzO1xuXG4iLCJcbmV4cG9ydCBjb25zdCBMT0dTX0RFU1RJTkFUSU9OID0ge1xuICBOVUxMOiBcIk5VTExcIixcbiAgQ0xJRU5UX0xPR0dFUjogXCJDTElFTlRfTE9HR0VSXCIsXG4gIERFQlVHOiBcIkRFQlVHXCJcbn07XG5cbmV4cG9ydCBjb25zdCBNSU5fV0VCU09DS0VUX0xJRkVUSU1FID0gMzYwMDtcbmV4cG9ydCBjb25zdCBNQVhfTElORUFSX0NPTk5FQ1RfQVRURU1QVFMgPSAzO1xuZXhwb3J0IGNvbnN0IE1BWF9FWFBPTkVOVElBTF9DT05ORUNUX0FUVEVNUFRTID0gNTtcbmV4cG9ydCBjb25zdCBIRUFSVEJFQVRfSU5URVJWQUwgPSAxMDsgLy9zZWNvbmRzXG5cbmV4cG9ydCBjb25zdCBST1VURV9LRVkgPSB7XG4gIFNVQlNDUklCRTogXCJhd3Mvc3Vic2NyaWJlXCIsXG4gIFVOU1VCU0NSSUJFOiBcImF3cy91bnN1YnNjcmliZVwiLFxuICBIRUFSVEJFQVQ6IFwiYXdzL2hlYXJ0YmVhdFwiXG59O1xuIiwiaW1wb3J0IFV0aWxzIGZyb20gXCIuL3V0aWxzXCI7XG5pbXBvcnQgeyBMT0dTX0RFU1RJTkFUSU9OIH0gZnJvbSBcIi4vY29uc3RhbnRzXCI7XG5cbi8qZXNsaW50LWRpc2FibGUgbm8tdW51c2VkLXZhcnMqL1xuY2xhc3MgTG9nZ2VyIHtcbiAgZGVidWcoZGF0YSkge31cblxuICBpbmZvKGRhdGEpIHt9XG5cbiAgd2FybihkYXRhKSB7fVxuXG4gIGVycm9yKGRhdGEpIHt9XG59XG4vKmVzbGludC1lbmFibGUgbm8tdW51c2VkLXZhcnMqL1xuXG5jb25zdCBMb2dMZXZlbCA9IHtcbiAgREVCVUc6IDEwLFxuICBJTkZPOiAyMCxcbiAgV0FSTjogMzAsXG4gIEVSUk9SOiA0MFxufTtcblxuY2xhc3MgTG9nTWFuYWdlckltcGwge1xuICBjb25zdHJ1Y3RvcigpIHtcbiAgICB0aGlzLnVwZGF0ZUxvZ2dlckNvbmZpZygpO1xuICAgIHRoaXMuY29uc29sZUxvZ2dlcldyYXBwZXIgPSBjcmVhdGVDb25zb2xlTG9nZ2VyKCk7XG4gIH1cblxuICB3cml0ZVRvQ2xpZW50TG9nZ2VyKGxldmVsLCBsb2dTdGF0ZW1lbnQpIHtcbiAgICBpZiAoIXRoaXMuaGFzQ2xpZW50TG9nZ2VyKCkpIHtcbiAgICAgIHJldHVybjtcbiAgICB9XG4gICAgc3dpdGNoIChsZXZlbCkge1xuICAgICAgY2FzZSBMb2dMZXZlbC5ERUJVRzpcbiAgICAgICAgcmV0dXJuIHRoaXMuX2NsaWVudExvZ2dlci5kZWJ1Zyhsb2dTdGF0ZW1lbnQpO1xuICAgICAgY2FzZSBMb2dMZXZlbC5JTkZPOlxuICAgICAgICByZXR1cm4gdGhpcy5fY2xpZW50TG9nZ2VyLmluZm8obG9nU3RhdGVtZW50KTtcbiAgICAgIGNhc2UgTG9nTGV2ZWwuV0FSTjpcbiAgICAgICAgcmV0dXJuIHRoaXMuX2NsaWVudExvZ2dlci53YXJuKGxvZ1N0YXRlbWVudCk7XG4gICAgICBjYXNlIExvZ0xldmVsLkVSUk9SOlxuICAgICAgICByZXR1cm4gdGhpcy5fY2xpZW50TG9nZ2VyLmVycm9yKGxvZ1N0YXRlbWVudCk7XG4gICAgfVxuICB9XG5cbiAgaXNMZXZlbEVuYWJsZWQobGV2ZWwpIHtcbiAgICByZXR1cm4gbGV2ZWwgPj0gdGhpcy5fbGV2ZWw7XG4gIH1cblxuICBoYXNDbGllbnRMb2dnZXIoKSB7XG4gICAgcmV0dXJuIHRoaXMuX2NsaWVudExvZ2dlciAhPT0gbnVsbDtcbiAgfVxuXG4gIGdldExvZ2dlcihvcHRpb25zKSB7XG4gICAgdmFyIHByZWZpeCA9IG9wdGlvbnMucHJlZml4IHx8IFwiXCI7XG4gICAgaWYgKHRoaXMuX2xvZ3NEZXN0aW5hdGlvbiA9PT0gTE9HU19ERVNUSU5BVElPTi5ERUJVRykge1xuICAgICAgcmV0dXJuIHRoaXMuY29uc29sZUxvZ2dlcldyYXBwZXI7XG4gICAgfVxuICAgIHJldHVybiBuZXcgTG9nZ2VyV3JhcHBlckltcGwocHJlZml4KTtcbiAgfVxuXG4gIHVwZGF0ZUxvZ2dlckNvbmZpZyhpbnB1dENvbmZpZykge1xuICAgIHZhciBjb25maWcgPSBpbnB1dENvbmZpZyB8fCB7fTtcbiAgICB0aGlzLl9sZXZlbCA9IGNvbmZpZy5sZXZlbCB8fCBMb2dMZXZlbC5JTkZPO1xuICAgIHRoaXMuX2NsaWVudExvZ2dlciA9IGNvbmZpZy5sb2dnZXIgfHwgbnVsbDtcbiAgICB0aGlzLl9sb2dzRGVzdGluYXRpb24gPSBMT0dTX0RFU1RJTkFUSU9OLk5VTEw7XG4gICAgaWYgKGNvbmZpZy5kZWJ1Zykge1xuICAgICAgdGhpcy5fbG9nc0Rlc3RpbmF0aW9uID0gTE9HU19ERVNUSU5BVElPTi5ERUJVRztcbiAgICB9XG4gICAgaWYgKGNvbmZpZy5sb2dnZXIpIHtcbiAgICAgIHRoaXMuX2xvZ3NEZXN0aW5hdGlvbiA9IExPR1NfREVTVElOQVRJT04uQ0xJRU5UX0xPR0dFUjtcbiAgICB9XG4gIH1cbn1cblxuY2xhc3MgTG9nZ2VyV3JhcHBlciB7XG4gIGRlYnVnKCkge31cblxuICBpbmZvKCkge31cblxuICB3YXJuKCkge31cblxuICBlcnJvcigpIHt9XG59XG5cbmNsYXNzIExvZ2dlcldyYXBwZXJJbXBsIGV4dGVuZHMgTG9nZ2VyV3JhcHBlciB7XG4gIGNvbnN0cnVjdG9yKHByZWZpeCkge1xuICAgIHN1cGVyKCk7XG4gICAgdGhpcy5wcmVmaXggPSBwcmVmaXggfHwgXCJcIjtcbiAgfVxuXG4gIGRlYnVnKC4uLmFyZ3MpIHtcbiAgICB0aGlzLl9sb2coTG9nTGV2ZWwuREVCVUcsIGFyZ3MpO1xuICB9XG5cbiAgaW5mbyguLi5hcmdzKSB7XG4gICAgdGhpcy5fbG9nKExvZ0xldmVsLklORk8sIGFyZ3MpO1xuICB9XG5cbiAgd2FybiguLi5hcmdzKSB7XG4gICAgdGhpcy5fbG9nKExvZ0xldmVsLldBUk4sIGFyZ3MpO1xuICB9XG5cbiAgZXJyb3IoLi4uYXJncykge1xuICAgIHRoaXMuX2xvZyhMb2dMZXZlbC5FUlJPUiwgYXJncyk7XG4gIH1cblxuICBfc2hvdWxkTG9nKGxldmVsKSB7XG4gICAgcmV0dXJuIExvZ01hbmFnZXIuaGFzQ2xpZW50TG9nZ2VyKCkgJiYgTG9nTWFuYWdlci5pc0xldmVsRW5hYmxlZChsZXZlbCk7XG4gIH1cblxuICBfd3JpdGVUb0NsaWVudExvZ2dlcihsZXZlbCwgbG9nU3RhdGVtZW50KSB7XG4gICAgTG9nTWFuYWdlci53cml0ZVRvQ2xpZW50TG9nZ2VyKGxldmVsLCBsb2dTdGF0ZW1lbnQpO1xuICB9XG5cbiAgX2xvZyhsZXZlbCwgYXJncykge1xuICAgIGlmICh0aGlzLl9zaG91bGRMb2cobGV2ZWwpKSB7XG4gICAgICB2YXIgbG9nU3RhdGVtZW50ID0gdGhpcy5fY29udmVydFRvU2luZ2xlU3RhdGVtZW50KGFyZ3MpO1xuICAgICAgdGhpcy5fd3JpdGVUb0NsaWVudExvZ2dlcihsZXZlbCwgbG9nU3RhdGVtZW50KTtcbiAgICB9XG4gIH1cblxuICBfY29udmVydFRvU2luZ2xlU3RhdGVtZW50KGFyZ3MpIHtcbiAgICB2YXIgbG9nU3RhdGVtZW50ID0gXCJcIjtcbiAgICBpZiAodGhpcy5wcmVmaXgpIHtcbiAgICAgIGxvZ1N0YXRlbWVudCArPSB0aGlzLnByZWZpeCArIFwiIFwiO1xuICAgIH1cbiAgICBmb3IgKHZhciBpbmRleCA9IDA7IGluZGV4IDwgYXJncy5sZW5ndGg7IGluZGV4KyspIHtcbiAgICAgIHZhciBhcmcgPSBhcmdzW2luZGV4XTtcbiAgICAgIGxvZ1N0YXRlbWVudCArPSB0aGlzLl9jb252ZXJ0VG9TdHJpbmcoYXJnKSArIFwiIFwiO1xuICAgIH1cbiAgICByZXR1cm4gbG9nU3RhdGVtZW50O1xuICB9XG5cbiAgX2NvbnZlcnRUb1N0cmluZyhhcmcpIHtcbiAgICB0cnkge1xuICAgICAgaWYgKCFhcmcpIHtcbiAgICAgICAgcmV0dXJuIFwiXCI7XG4gICAgICB9XG4gICAgICBpZiAoVXRpbHMuaXNTdHJpbmcoYXJnKSkge1xuICAgICAgICByZXR1cm4gYXJnO1xuICAgICAgfVxuICAgICAgaWYgKFV0aWxzLmlzT2JqZWN0KGFyZykgJiYgVXRpbHMuaXNGdW5jdGlvbihhcmcudG9TdHJpbmcpKSB7XG4gICAgICAgIHZhciB0b1N0cmluZ1Jlc3VsdCA9IGFyZy50b1N0cmluZygpO1xuICAgICAgICBpZiAodG9TdHJpbmdSZXN1bHQgIT09IFwiW29iamVjdCBPYmplY3RdXCIpIHtcbiAgICAgICAgICByZXR1cm4gdG9TdHJpbmdSZXN1bHQ7XG4gICAgICAgIH1cbiAgICAgIH1cbiAgICAgIHJldHVybiBKU09OLnN0cmluZ2lmeShhcmcpO1xuICAgIH0gY2F0Y2ggKGVycm9yKSB7XG4gICAgICBjb25zb2xlLmVycm9yKFwiRXJyb3Igd2hpbGUgY29udmVydGluZyBhcmd1bWVudCB0byBzdHJpbmdcIiwgYXJnLCBlcnJvcik7XG4gICAgICByZXR1cm4gXCJcIjtcbiAgICB9XG4gIH1cbn1cblxudmFyIGNyZWF0ZUNvbnNvbGVMb2dnZXIgPSAoKSA9PiB7XG4gIHZhciBsb2dnZXIgPSBuZXcgTG9nZ2VyV3JhcHBlcigpO1xuICBsb2dnZXIuZGVidWcgPSBjb25zb2xlLmRlYnVnO1xuICBsb2dnZXIuaW5mbyA9IGNvbnNvbGUuaW5mbztcbiAgbG9nZ2VyLndhcm4gPSBjb25zb2xlLndhcm47XG4gIGxvZ2dlci5lcnJvciA9IGNvbnNvbGUuZXJyb3I7XG4gIHJldHVybiBsb2dnZXI7XG59O1xuXG5jb25zdCBMb2dNYW5hZ2VyID0gbmV3IExvZ01hbmFnZXJJbXBsKCk7XG5cbmV4cG9ydCB7IExvZ01hbmFnZXIsIExvZ2dlciwgTG9nTGV2ZWwgfTtcbiIsImltcG9ydCBVdGlscyBmcm9tIFwiLi91dGlsc1wiO1xuaW1wb3J0IHsgTG9nTWFuYWdlciwgTG9nTGV2ZWwsIExvZ2dlciB9IGZyb20gXCIuL2xvZ1wiO1xuaW1wb3J0IHtcbiAgICBNSU5fV0VCU09DS0VUX0xJRkVUSU1FLFxuICAgIE1BWF9MSU5FQVJfQ09OTkVDVF9BVFRFTVBUUyxcbiAgICBNQVhfRVhQT05FTlRJQUxfQ09OTkVDVF9BVFRFTVBUUyxcbiAgICBIRUFSVEJFQVRfSU5URVJWQUwsXG4gICAgUk9VVEVfS0VZXG59IGZyb20gXCIuL2NvbnN0YW50c1wiO1xuXG5cbmNvbnN0IFdlYlNvY2tldE1hbmFnZXIgPSBmdW5jdGlvbigpIHtcblxuICAgIGNvbnN0IGxvZ2dlciA9IExvZ01hbmFnZXIuZ2V0TG9nZ2VyKHt9KTtcblxuICAgIGxldCB3ZWJTb2NrZXQgPSBudWxsO1xuXG4gICAgbGV0IHJlY29ubmVjdENvbmZpZyA9IHtcbiAgICAgICAgcmVjb25uZWN0V2ViU29ja2V0OiBmYWxzZSxcbiAgICAgICAgd2Vic29ja2V0SW5pdEZhaWxlZDogZmFsc2UsXG4gICAgICAgIGxpbmVhckNvbm5lY3RBdHRlbXB0OiAwLFxuICAgICAgICBleHBvbmVudGlhbENvbm5lY3RBdHRlbXB0OiAwLFxuICAgICAgICBleHBvbmVudGlhbEJhY2tPZmZUaW1lOiAxLFxuICAgICAgICBleHBvbmVudGlhbFRpbWVvdXRIYW5kbGU6IG51bGwsXG4gICAgICAgIGxpZmVUaW1lVGltZW91dEhhbmRsZTogbnVsbFxuICAgIH07XG5cbiAgICBsZXQgaGVhcnRiZWF0Q29uZmlnID0ge1xuICAgICAgICBwZW5kaW5nUmVzcG9uc2U6IGZhbHNlLFxuICAgICAgICBpbnRlcnZhbEhhbmRsZTogbnVsbFxuICAgIH07XG5cbiAgICBsZXQgY2FsbGJhY2tzID0ge1xuICAgICAgICBpbml0RmFpbHVyZTogbmV3IFNldCgpLFxuICAgICAgICBnZXRXZWJTb2NrZXRUcmFuc3BvcnQ6IG51bGwsXG4gICAgICAgIHN1YnNjcmlwdGlvblVwZGF0ZTogbmV3IFNldCgpLFxuICAgICAgICBzdWJzY3JpcHRpb25GYWlsdXJlOiBuZXcgU2V0KCksXG4gICAgICAgIHRvcGljOiBuZXcgTWFwKCksXG4gICAgICAgIGFsbE1lc3NhZ2U6IG5ldyBTZXQoKSxcbiAgICAgICAgY29ubmVjdGlvbkdhaW46IG5ldyBTZXQoKSxcbiAgICAgICAgY29ubmVjdGlvbkxvc3Q6IG5ldyBTZXQoKVxuICAgIH07XG5cbiAgICBsZXQgd2ViU29ja2V0Q29uZmlnID0ge1xuICAgICAgICBjb25uQ29uZmlnOiBudWxsLFxuICAgICAgICBwcm9taXNlSGFuZGxlOiBudWxsLFxuICAgICAgICBwcm9taXNlQ29tcGxldGVkOiBmYWxzZVxuICAgIH07XG5cbiAgICBsZXQgdG9waWNTdWJzY3JpcHRpb24gPSB7XG4gICAgICAgIHN1YnNjcmliZWQ6IG5ldyBTZXQoKSxcbiAgICAgICAgcGVuZGluZzogbmV3IFNldCgpXG4gICAgfTtcblxuICAgIGNvbnN0IGludmFsaWRTZW5kTWVzc2FnZVJvdXRlS2V5cyA9IG5ldyBTZXQoW1JPVVRFX0tFWS5TVUJTQ1JJQkUsIFJPVVRFX0tFWS5VTlNVQlNDUklCRSwgUk9VVEVfS0VZLkhFQVJUQkVBVF0pO1xuXG4gICAgbGV0IG9ubGluZSA9IG5hdmlnYXRvci5vbkxpbmU7XG4gICAgY29uc3QgbmV0d29ya0Nvbm5lY3Rpdml0eUNoZWNrZXIgPSBzZXRJbnRlcnZhbChmdW5jdGlvbiAoKSB7XG4gICAgICAgIGlmIChvbmxpbmUgIT09IG5hdmlnYXRvci5vbkxpbmUpIHtcbiAgICAgICAgICAgIG9ubGluZSA9IG5hdmlnYXRvci5vbkxpbmU7XG4gICAgICAgICAgICBpZiAob25saW5lICYmICghd2ViU29ja2V0IHx8IHdlYlNvY2tldC5yZWFkeVN0YXRlID4gMSkpIHtcbiAgICAgICAgICAgICAgICBsb2dnZXIuaW5mbyhcIk5ldHdvcmsgb25saW5lLCBDb25uZWN0aW5nIHRvIHdlYnNvY2tldFwiKTtcbiAgICAgICAgICAgICAgICBnZXRXZWJTb2NrZXRDb25uQ29uZmlnKCk7XG4gICAgICAgICAgICB9XG4gICAgICAgIH1cbiAgICB9LCAyNTApO1xuXG4gICAgY29uc3QgaW52b2tlQ2FsbGJhY2tzID0gZnVuY3Rpb24oY2FsbGJhY2tzLCByZXNwb25zZSkge1xuICAgICAgICBjYWxsYmFja3MuZm9yRWFjaChmdW5jdGlvbiAoY2FsbGJhY2spIHtcbiAgICAgICAgICAgIGNhbGxiYWNrKHJlc3BvbnNlKTtcbiAgICAgICAgfSk7XG4gICAgfTtcblxuICAgIGNvbnN0IHNlbmRIZWFydEJlYXQgPSBmdW5jdGlvbigpIHtcbiAgICAgICAgaWYgKGhlYXJ0YmVhdENvbmZpZy5wZW5kaW5nUmVzcG9uc2UpIHtcbiAgICAgICAgICAgIGxvZ2dlci53YXJuKFwiSGVhcnRiZWF0IHJlc3BvbnNlIG5vdCByZWNlaXZlZFwiKTtcbiAgICAgICAgICAgIGNsZWFySW50ZXJ2YWwoaGVhcnRiZWF0Q29uZmlnLmludGVydmFsSGFuZGxlKTtcbiAgICAgICAgICAgIGhlYXJ0YmVhdENvbmZpZy5wZW5kaW5nUmVzcG9uc2UgPSBmYWxzZTtcbiAgICAgICAgICAgIHJlZnJlc2hXZWJTb2NrZXRDb25uZWN0aW9uKCk7XG4gICAgICAgICAgICByZXR1cm47XG4gICAgICAgIH1cbiAgICAgICAgbG9nZ2VyLmRlYnVnKFwiU2VuZGluZyBoZWFydGJlYXRcIik7XG4gICAgICAgIHdlYlNvY2tldC5zZW5kKGNyZWF0ZVdlYlNvY2tldFBheWxvYWQoUk9VVEVfS0VZLkhFQVJUQkVBVCkpO1xuICAgICAgICBoZWFydGJlYXRDb25maWcucGVuZGluZ1Jlc3BvbnNlID0gdHJ1ZTtcbiAgICB9O1xuXG4gICAgY29uc3QgcmVzZXRTdGF0ZSA9IGZ1bmN0aW9uKCkge1xuICAgICAgICByZWNvbm5lY3RDb25maWcubGluZWFyQ29ubmVjdEF0dGVtcHQgPSAwO1xuICAgICAgICByZWNvbm5lY3RDb25maWcuZXhwb25lbnRpYWxDb25uZWN0QXR0ZW1wdCA9IDA7XG4gICAgICAgIHJlY29ubmVjdENvbmZpZy5leHBvbmVudGlhbEJhY2tPZmZUaW1lID0gMTtcbiAgICAgICAgaGVhcnRiZWF0Q29uZmlnLnBlbmRpbmdSZXNwb25zZSA9IGZhbHNlO1xuICAgICAgICByZWNvbm5lY3RDb25maWcucmVjb25uZWN0V2ViU29ja2V0ID0gZmFsc2U7XG5cbiAgICAgICAgY2xlYXJUaW1lb3V0KHJlY29ubmVjdENvbmZpZy5saWZlVGltZVRpbWVvdXRIYW5kbGUpO1xuICAgICAgICBjbGVhckludGVydmFsKGhlYXJ0YmVhdENvbmZpZy5pbnRlcnZhbEhhbmRsZSk7XG4gICAgICAgIGNsZWFyVGltZW91dChyZWNvbm5lY3RDb25maWcuZXhwb25lbnRpYWxUaW1lb3V0SGFuZGxlKTtcbiAgICB9O1xuXG4gICAgY29uc3Qgd2ViU29ja2V0T25PcGVuID0gZnVuY3Rpb24oKSB7XG4gICAgICAgIHRyeSB7XG4gICAgICAgICAgICBsb2dnZXIuaW5mbyhcIldlYlNvY2tldCBjb25uZWN0aW9uIGVzdGFibGlzaGVkIVwiKTtcbiAgICAgICAgICAgIGludm9rZUNhbGxiYWNrcyhjYWxsYmFja3MuY29ubmVjdGlvbkdhaW4pO1xuXG4gICAgICAgICAgICByZXNldFN0YXRlKCk7XG5cbiAgICAgICAgICAgIGlmICh0b3BpY1N1YnNjcmlwdGlvbi5zdWJzY3JpYmVkLnNpemUgPiAwIHx8IHRvcGljU3Vic2NyaXB0aW9uLnBlbmRpbmcuc2l6ZSA+IDApIHtcbiAgICAgICAgICAgICAgICBsZXQgdG9waWNzID0gQXJyYXkuZnJvbSh0b3BpY1N1YnNjcmlwdGlvbi5zdWJzY3JpYmVkLnZhbHVlcygpKTtcbiAgICAgICAgICAgICAgICB0b3BpY3MgPSB0b3BpY3MuY29uY2F0KEFycmF5LmZyb20odG9waWNTdWJzY3JpcHRpb24ucGVuZGluZy52YWx1ZXMoKSkpO1xuICAgICAgICAgICAgICAgIHRvcGljU3Vic2NyaXB0aW9uLnN1YnNjcmliZWQuY2xlYXIoKTtcbiAgICAgICAgICAgICAgICB3ZWJTb2NrZXQuc2VuZChjcmVhdGVXZWJTb2NrZXRQYXlsb2FkKFJPVVRFX0tFWS5TVUJTQ1JJQkUsIHtcInRvcGljc1wiOiB0b3BpY3N9KSk7XG4gICAgICAgICAgICB9XG5cbiAgICAgICAgICAgIHNlbmRIZWFydEJlYXQoKTtcbiAgICAgICAgICAgIGhlYXJ0YmVhdENvbmZpZy5pbnRlcnZhbEhhbmRsZSA9IHNldEludGVydmFsKHNlbmRIZWFydEJlYXQsIDEwMDAgKiBIRUFSVEJFQVRfSU5URVJWQUwpO1xuXG4gICAgICAgICAgICByZWNvbm5lY3RDb25maWcubGlmZVRpbWVUaW1lb3V0SGFuZGxlID0gc2V0VGltZW91dChmdW5jdGlvbigpIHtcbiAgICAgICAgICAgICAgICBsb2dnZXIuZGVidWcoXCJTdGFydGluZyBzY2hlZHVsZWQgV2ViU29ja2V0IG1hbmFnZXIgcmVjb25uZWN0XCIpO1xuICAgICAgICAgICAgICAgIHJlZnJlc2hXZWJTb2NrZXRDb25uZWN0aW9uKCk7XG4gICAgICAgICAgICB9LCAxMDAwICogd2ViU29ja2V0Q29uZmlnLmNvbm5Db25maWcud2ViU29ja2V0VHJhbnNwb3J0LnRyYW5zcG9ydExpZmVUaW1lSW5TZWNvbmRzKTtcbiAgICAgICAgfSBjYXRjaCAoZXJyb3IpIHtcbiAgICAgICAgICAgIGxvZ2dlci5lcnJvcihcIkVycm9yIGFmdGVyIGVzdGFibGlzaGluZyB3ZWIgc29ja2V0IGNvbm5lY3Rpb24sIGVycm9yOiBcIiwgZXJyb3IpO1xuICAgICAgICB9XG4gICAgfTtcblxuICAgIGNvbnN0IHdlYlNvY2tldE9uQ2xvc2UgPSBmdW5jdGlvbihldmVudCkge1xuICAgICAgICBpZiAocmVjb25uZWN0Q29uZmlnLmxpbmVhckNvbm5lY3RBdHRlbXB0IDw9IDEpIHtcbiAgICAgICAgICAgIGludm9rZUNhbGxiYWNrcyhjYWxsYmFja3MuY29ubmVjdGlvbkxvc3QpO1xuICAgICAgICB9XG4gICAgICAgIGxvZ2dlci5pbmZvKFwiU29ja2V0IGNvbm5lY3Rpb24gaXMgY2xvc2VkLiBldmVudDogXCIsIGV2ZW50KTtcbiAgICAgICAgaWYgKHJlY29ubmVjdENvbmZpZy5yZWNvbm5lY3RXZWJTb2NrZXQpIHtcbiAgICAgICAgICAgIGluaXRXZWJTb2NrZXQoKTtcbiAgICAgICAgfVxuICAgIH07XG5cbiAgICBjb25zdCB3ZWJTb2NrZXRPbkVycm9yID0gZnVuY3Rpb24oZXZlbnQpIHtcbiAgICAgICAgbG9nZ2VyLmVycm9yKFwiV2ViU29ja2V0TWFuYWdlciBFcnJvciwgZXJyb3JfZXZlbnQ6IFwiLCBldmVudCk7XG4gICAgICAgIHJlZnJlc2hXZWJTb2NrZXRDb25uZWN0aW9uKCk7XG4gICAgfTtcblxuICAgIGNvbnN0IHdlYlNvY2tldE9uTWVzc2FnZSA9IGZ1bmN0aW9uKGV2ZW50KSB7XG4gICAgICAgIGxvZ2dlci5kZWJ1ZyhcIk1lc3NhZ2UgcmVjZWl2ZWQgZnJvbSB3ZWJTb2NrZXQgc2VydmVyXCIsIGV2ZW50LmRhdGEpO1xuICAgICAgICBjb25zdCByZXNwb25zZSA9IEpTT04ucGFyc2UoZXZlbnQuZGF0YSk7XG4gICAgICAgIHN3aXRjaCAocmVzcG9uc2UudG9waWMpIHtcbiAgICAgICAgICAgIGNhc2UgUk9VVEVfS0VZLlNVQlNDUklCRTpcbiAgICAgICAgICAgICAgICBpZiAocmVzcG9uc2UuY29udGVudC5zdGF0dXMgPT09IFwic3VjY2Vzc1wiKSB7XG4gICAgICAgICAgICAgICAgICAgIHJlc3BvbnNlLmNvbnRlbnQudG9waWNzLmZvckVhY2goKGZ1bmN0aW9uICh0b3BpY05hbWUpIHtcbiAgICAgICAgICAgICAgICAgICAgICAgIHRvcGljU3Vic2NyaXB0aW9uLnN1YnNjcmliZWQuYWRkKHRvcGljTmFtZSk7XG4gICAgICAgICAgICAgICAgICAgICAgICB0b3BpY1N1YnNjcmlwdGlvbi5wZW5kaW5nLmRlbGV0ZSh0b3BpY05hbWUpO1xuICAgICAgICAgICAgICAgICAgICB9KSk7XG4gICAgICAgICAgICAgICAgICAgIGludm9rZUNhbGxiYWNrcyhjYWxsYmFja3Muc3Vic2NyaXB0aW9uVXBkYXRlLCByZXNwb25zZSk7XG4gICAgICAgICAgICAgICAgfSBlbHNlIHtcbiAgICAgICAgICAgICAgICAgICAgaW52b2tlQ2FsbGJhY2tzKGNhbGxiYWNrcy5zdWJzY3JpcHRpb25GYWlsdXJlLCByZXNwb25zZSk7XG4gICAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgICAgIGJyZWFrO1xuICAgICAgICAgICAgY2FzZSBST1VURV9LRVkuSEVBUlRCRUFUOlxuICAgICAgICAgICAgICAgIGxvZ2dlci5kZWJ1ZyhcIkhlYXJ0YmVhdCByZXNwb25zZSByZWNlaXZlZFwiKTtcbiAgICAgICAgICAgICAgICBoZWFydGJlYXRDb25maWcucGVuZGluZ1Jlc3BvbnNlID0gZmFsc2U7XG4gICAgICAgICAgICAgICAgYnJlYWs7XG4gICAgICAgICAgICBkZWZhdWx0OlxuICAgICAgICAgICAgICAgIGlmIChyZXNwb25zZS50b3BpYykge1xuICAgICAgICAgICAgICAgICAgICBpZiAoY2FsbGJhY2tzLmFsbE1lc3NhZ2Uuc2l6ZSA9PT0gMCAmJiBjYWxsYmFja3MudG9waWMuc2l6ZSA9PT0gMCkge1xuICAgICAgICAgICAgICAgICAgICAgICAgbG9nZ2VyLndhcm4oJ05vIHJlZ2lzdGVyZWQgY2FsbGJhY2sgbGlzdGVuZXIgZm9yIFRvcGljOiAnLCByZXNwb25zZSk7XG4gICAgICAgICAgICAgICAgICAgICAgICByZXR1cm47XG4gICAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICAgICAgaW52b2tlQ2FsbGJhY2tzKGNhbGxiYWNrcy5hbGxNZXNzYWdlLCByZXNwb25zZSk7XG4gICAgICAgICAgICAgICAgICAgIGlmIChjYWxsYmFja3MudG9waWMuaGFzKHJlc3BvbnNlLnRvcGljKSkge1xuICAgICAgICAgICAgICAgICAgICAgICAgaW52b2tlQ2FsbGJhY2tzKGNhbGxiYWNrcy50b3BpYy5nZXQocmVzcG9uc2UudG9waWMpLCByZXNwb25zZSk7XG4gICAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICB9IGVsc2UgaWYgKHJlc3BvbnNlLm1lc3NhZ2UpIHtcbiAgICAgICAgICAgICAgICAgICAgbG9nZ2VyLndhcm4oXCJXZWJTb2NrZXRNYW5hZ2VyIE1lc3NhZ2UgRXJyb3IsIGVycm9yOiBcIiwgcmVzcG9uc2UpO1xuICAgICAgICAgICAgICAgIH0gZWxzZSB7XG4gICAgICAgICAgICAgICAgICAgIGxvZ2dlci53YXJuKFwiSW52YWxpZCBpbmNvbWluZyBtZXNzYWdlLCBlcnJvcjogXCIsIHJlc3BvbnNlKTtcbiAgICAgICAgICAgICAgICB9XG4gICAgICAgIH1cbiAgICB9O1xuXG4gICAgY29uc3QgY2xvc2VXZWJTb2NrZXQgPSBmdW5jdGlvbihyZWFzb24pIHtcbiAgICAgICAgaWYgKHdlYlNvY2tldCAmJiB3ZWJTb2NrZXQucmVhZHlTdGF0ZSAhPT0gV2ViU29ja2V0LkNMT1NFRCkge1xuICAgICAgICAgICAgd2ViU29ja2V0LmNsb3NlKDEwMDAsIHJlYXNvbik7XG4gICAgICAgICAgICByZXR1cm4gdHJ1ZTtcbiAgICAgICAgfVxuICAgICAgICByZXR1cm4gZmFsc2U7XG4gICAgfTtcblxuICAgIGNvbnN0IHJlZnJlc2hXZWJTb2NrZXRDb25uZWN0aW9uID0gZnVuY3Rpb24gKCkge1xuICAgICAgICBpZiAoIW9ubGluZSkge1xuICAgICAgICAgICAgY2xvc2VXZWJTb2NrZXQoXCJOZXR3b3JrIE9mZmxpbmUsIENsb3NpbmcgV2ViU29ja2V0IE1hbmFnZXJcIik7XG4gICAgICAgICAgICByZXR1cm47XG4gICAgICAgIH1cbiAgICAgICAgY2xlYXJUaW1lb3V0KHJlY29ubmVjdENvbmZpZy5saWZlVGltZVRpbWVvdXRIYW5kbGUpO1xuICAgICAgICBjbGVhckludGVydmFsKGhlYXJ0YmVhdENvbmZpZy5pbnRlcnZhbEhhbmRsZSk7XG5cbiAgICAgICAgaWYgKHJlY29ubmVjdENvbmZpZy5saW5lYXJDb25uZWN0QXR0ZW1wdCA8IE1BWF9MSU5FQVJfQ09OTkVDVF9BVFRFTVBUUykge1xuICAgICAgICAgICAgcmVjb25uZWN0Q29uZmlnLmxpbmVhckNvbm5lY3RBdHRlbXB0Kys7XG4gICAgICAgICAgICBsb2dnZXIuZGVidWcoXCJTdGFydGluZyBDb25zZWN1dGl2ZSBXZWJTb2NrZXQgcmVjb25uZWN0LCBBdHRlbXB0IDogXCIgKyByZWNvbm5lY3RDb25maWcubGluZWFyQ29ubmVjdEF0dGVtcHQpO1xuICAgICAgICAgICAgcmVjb25uZWN0Q29uZmlnLnJlY29ubmVjdFdlYlNvY2tldCA9IHRydWU7XG4gICAgICAgICAgICBnZXRXZWJTb2NrZXRDb25uQ29uZmlnKCk7XG4gICAgICAgIH0gZWxzZSBpZiAocmVjb25uZWN0Q29uZmlnLmV4cG9uZW50aWFsQ29ubmVjdEF0dGVtcHQgPCBNQVhfRVhQT05FTlRJQUxfQ09OTkVDVF9BVFRFTVBUUykge1xuICAgICAgICAgICAgcmVjb25uZWN0Q29uZmlnLmV4cG9uZW50aWFsQ29ubmVjdEF0dGVtcHQrKztcbiAgICAgICAgICAgIHJlY29ubmVjdENvbmZpZy5leHBvbmVudGlhbEJhY2tPZmZUaW1lICo9IDI7XG4gICAgICAgICAgICBsb2dnZXIuZGVidWcoXCJTdGFydGluZyBFeHBvbmVudGlhbCBXZWJTb2NrZXQgcmVjb25uZWN0LCBBdHRlbXB0IDogXCJcbiAgICAgICAgICAgICAgICArIHJlY29ubmVjdENvbmZpZy5leHBvbmVudGlhbENvbm5lY3RBdHRlbXB0ICsgXCIgd2l0aCBkZWxheSBcIlxuICAgICAgICAgICAgICAgICsgcmVjb25uZWN0Q29uZmlnLmV4cG9uZW50aWFsQmFja09mZlRpbWUgKyBcIiBzZWMuXCIpO1xuXG4gICAgICAgICAgICAvLyByZXF1aXJlZCBmb3Igc2NlbmFyaW9zIHdoZW4gZXJyb3IgYW5kIGNsb3NlIGV2ZW50cyBhcmUgZmlyZWQgYmFjayB0byBiYWNrXG4gICAgICAgICAgICB3ZWJTb2NrZXRDb25maWcucHJvbWlzZUNvbXBsZXRlZCA9IGZhbHNlO1xuICAgICAgICAgICAgd2ViU29ja2V0Q29uZmlnLmNvbm5Db25maWcgPSBudWxsO1xuXG4gICAgICAgICAgICByZWNvbm5lY3RDb25maWcuZXhwb25lbnRpYWxUaW1lb3V0SGFuZGxlID0gc2V0VGltZW91dChmdW5jdGlvbigpIHtcbiAgICAgICAgICAgICAgICByZWNvbm5lY3RDb25maWcucmVjb25uZWN0V2ViU29ja2V0ID0gdHJ1ZTtcbiAgICAgICAgICAgICAgICBnZXRXZWJTb2NrZXRDb25uQ29uZmlnKCk7XG4gICAgICAgICAgICB9LCAxMDAwICogcmVjb25uZWN0Q29uZmlnLmV4cG9uZW50aWFsQmFja09mZlRpbWUpO1xuICAgICAgICB9IGVsc2UgaWYgKHdlYlNvY2tldENvbmZpZy5wcm9taXNlQ29tcGxldGVkKSB7XG4gICAgICAgICAgICBsb2dnZXIuZXJyb3IoXCJDb3VsZCBub3QgY29ubmVjdCB0byBXZWJTb2NrZXQgYWZ0ZXIgc2V2ZXJhbCBhdHRlbXB0c1wiKTtcbiAgICAgICAgICAgIHRlcm1pbmF0ZVdlYlNvY2tldE1hbmFnZXIoKTtcbiAgICAgICAgfVxuICAgIH07XG5cbiAgICBjb25zdCB0ZXJtaW5hdGVXZWJTb2NrZXRNYW5hZ2VyID0gZnVuY3Rpb24gKCkge1xuICAgICAgICByZXNldFN0YXRlKCk7XG4gICAgICAgIGNsb3NlV2ViU29ja2V0KFwiVGVybWluYXRpbmcgV2ViU29ja2V0IE1hbmFnZXJcIik7XG4gICAgICAgIGxvZ2dlci5lcnJvcihcIldlYlNvY2tldCBJbml0aWFsaXphdGlvbiBmYWlsZWRcIik7XG4gICAgICAgIHJlY29ubmVjdENvbmZpZy53ZWJzb2NrZXRJbml0RmFpbGVkID0gdHJ1ZTtcbiAgICAgICAgY2xlYXJJbnRlcnZhbChuZXR3b3JrQ29ubmVjdGl2aXR5Q2hlY2tlcik7XG4gICAgICAgIGludm9rZUNhbGxiYWNrcyhjYWxsYmFja3MuaW5pdEZhaWx1cmUpO1xuICAgIH07XG5cbiAgICBjb25zdCBjcmVhdGVXZWJTb2NrZXRQYXlsb2FkID0gZnVuY3Rpb24gKGtleSwgY29udGVudCkge1xuICAgICAgICByZXR1cm4gSlNPTi5zdHJpbmdpZnkoe1xuICAgICAgICAgICAgXCJ0b3BpY1wiOiBrZXksXG4gICAgICAgICAgICBcImNvbnRlbnRcIjogY29udGVudFxuICAgICAgICB9KTtcbiAgICB9O1xuXG4gICAgY29uc3Qgc2VuZE1lc3NhZ2UgPSBmdW5jdGlvbihwYXlsb2FkKSB7XG4gICAgICAgIFV0aWxzLmFzc2VydElzT2JqZWN0KHBheWxvYWQsIFwicGF5bG9hZFwiKTtcbiAgICAgICAgaWYgKHBheWxvYWQudG9waWMgPT09IHVuZGVmaW5lZCB8fCBpbnZhbGlkU2VuZE1lc3NhZ2VSb3V0ZUtleXMuaGFzKHBheWxvYWQudG9waWMpKSB7XG4gICAgICAgICAgICBsb2dnZXIud2FybihcIkNhbm5vdCBzZW5kIG1lc3NhZ2UsIEludmFsaWQgdG9waWNcIiwgcGF5bG9hZCk7XG4gICAgICAgICAgICByZXR1cm47XG4gICAgICAgIH1cbiAgICAgICAgdHJ5IHtcbiAgICAgICAgICAgIHBheWxvYWQgPSBKU09OLnN0cmluZ2lmeShwYXlsb2FkKTtcbiAgICAgICAgfSBjYXRjaCAoZXJyb3IpIHtcbiAgICAgICAgICAgIGxvZ2dlci53YXJuKFwiRXJyb3Igc3RyaW5naWZ5IG1lc3NhZ2VcIiwgcGF5bG9hZCk7XG4gICAgICAgICAgICByZXR1cm47XG4gICAgICAgIH1cbiAgICAgICAgaWYgKHdlYlNvY2tldCAmJiB3ZWJTb2NrZXQucmVhZHlTdGF0ZSA9PT0gV2ViU29ja2V0Lk9QRU4pIHtcbiAgICAgICAgICAgIGxvZ2dlci5kZWJ1ZygnV2ViU29ja2V0TWFuYWdlciBzZW5kaW5nIG1lc3NhZ2UnLCBwYXlsb2FkKTtcbiAgICAgICAgICAgIHdlYlNvY2tldC5zZW5kKHBheWxvYWQpO1xuICAgICAgICB9IGVsc2Uge1xuICAgICAgICAgICAgbG9nZ2VyLndhcm4oXCJDYW5ub3Qgc2VuZCBtZXNzYWdlLCB3ZWIgc29ja2V0IGNvbm5lY3Rpb24gaXMgbm90IG9wZW5cIik7XG4gICAgICAgIH1cbiAgICB9O1xuXG4gICAgY29uc3Qgc3Vic2NyaWJlVG9waWNzID0gZnVuY3Rpb24odG9waWNzKSB7XG4gICAgICAgIFV0aWxzLmFzc2VydE5vdE51bGwodG9waWNzLCAndG9waWNzJyk7XG4gICAgICAgIFV0aWxzLmFzc2VydElzTGlzdCh0b3BpY3MpO1xuXG4gICAgICAgIHRvcGljcy5mb3JFYWNoKGZ1bmN0aW9uICh0b3BpYykge1xuICAgICAgICAgICAgdG9waWNTdWJzY3JpcHRpb24ucGVuZGluZy5hZGQodG9waWMpO1xuICAgICAgICB9KTtcblxuICAgICAgICBpZiAod2ViU29ja2V0ICYmIHdlYlNvY2tldC5yZWFkeVN0YXRlID09PSBXZWJTb2NrZXQuT1BFTikge1xuICAgICAgICAgICAgd2ViU29ja2V0LnNlbmQoY3JlYXRlV2ViU29ja2V0UGF5bG9hZChST1VURV9LRVkuU1VCU0NSSUJFLCB7XCJ0b3BpY3NcIjogdG9waWNzfSkpO1xuICAgICAgICB9XG4gICAgfTtcblxuICAgIGNvbnN0IHZhbGlkV2ViU29ja2V0Q29ubkNvbmZpZyA9IGZ1bmN0aW9uIChjb25uQ29uZmlnKSB7XG4gICAgICAgIGlmIChVdGlscy5pc09iamVjdChjb25uQ29uZmlnKSAmJiBVdGlscy5pc09iamVjdChjb25uQ29uZmlnLndlYlNvY2tldFRyYW5zcG9ydClcbiAgICAgICAgICAgICYmIFV0aWxzLmlzU3RyaW5nKGNvbm5Db25maWcud2ViU29ja2V0VHJhbnNwb3J0LnVybClcbiAgICAgICAgICAgICYmIFV0aWxzLnZhbGlkV1NVcmwoY29ubkNvbmZpZy53ZWJTb2NrZXRUcmFuc3BvcnQudXJsKVxuICAgICAgICAgICAgJiYgVXRpbHMuaXNOdW1iZXIoY29ubkNvbmZpZy53ZWJTb2NrZXRUcmFuc3BvcnQudHJhbnNwb3J0TGlmZVRpbWVJblNlY29uZHMpICYmXG4gICAgICAgICAgICBjb25uQ29uZmlnLndlYlNvY2tldFRyYW5zcG9ydC50cmFuc3BvcnRMaWZlVGltZUluU2Vjb25kcyA+PSBNSU5fV0VCU09DS0VUX0xJRkVUSU1FKSB7XG4gICAgICAgICAgICByZXR1cm4gdHJ1ZTtcbiAgICAgICAgfVxuICAgICAgICBsb2dnZXIuZXJyb3IoXCJJbnZhbGlkIFdlYlNvY2tldCBDb25uZWN0aW9uIENvbmZpZ3VyYXRpb25cIiwgY29ubkNvbmZpZyk7XG4gICAgICAgIHJldHVybiBmYWxzZTtcbiAgICB9O1xuXG4gICAgY29uc3QgZ2V0V2ViU29ja2V0Q29ubkNvbmZpZyA9IGZ1bmN0aW9uICgpIHtcbiAgICAgICAgaWYgKHJlY29ubmVjdENvbmZpZy53ZWJzb2NrZXRJbml0RmFpbGVkKSB7XG4gICAgICAgICAgICByZXR1cm47XG4gICAgICAgIH1cbiAgICAgICAgd2ViU29ja2V0Q29uZmlnLmNvbm5Db25maWcgPSBudWxsO1xuICAgICAgICB3ZWJTb2NrZXRDb25maWcucHJvbWlzZUNvbXBsZXRlZCA9IGZhbHNlO1xuICAgICAgICB3ZWJTb2NrZXRDb25maWcucHJvbWlzZUhhbmRsZSA9IGNhbGxiYWNrcy5nZXRXZWJTb2NrZXRUcmFuc3BvcnQoKTtcbiAgICAgICAgd2ViU29ja2V0Q29uZmlnLnByb21pc2VIYW5kbGVcbiAgICAgICAgICAgIC50aGVuKGZ1bmN0aW9uKHJlc3BvbnNlKSB7XG4gICAgICAgICAgICAgICAgICAgIHdlYlNvY2tldENvbmZpZy5wcm9taXNlQ29tcGxldGVkID0gdHJ1ZTtcbiAgICAgICAgICAgICAgICAgICAgbG9nZ2VyLmRlYnVnKFwiU3VjY2Vzc2Z1bGx5IGZldGNoZWQgd2ViU29ja2V0IGNvbm5lY3Rpb24gY29uZmlndXJhdGlvblwiKTtcbiAgICAgICAgICAgICAgICAgICAgaWYgKCF2YWxpZFdlYlNvY2tldENvbm5Db25maWcocmVzcG9uc2UpKSB7XG4gICAgICAgICAgICAgICAgICAgICAgICB0ZXJtaW5hdGVXZWJTb2NrZXRNYW5hZ2VyKCk7XG4gICAgICAgICAgICAgICAgICAgICAgICByZXR1cm47XG4gICAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICAgICAgd2ViU29ja2V0Q29uZmlnLmNvbm5Db25maWcgPSByZXNwb25zZTtcbiAgICAgICAgICAgICAgICAgICAgaWYgKCFvbmxpbmUpIHtcbiAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybjtcbiAgICAgICAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgICAgICAgICBpZiAoY2xvc2VXZWJTb2NrZXQoXCJSZXN0YXJ0aW5nIFdlYlNvY2tldCBNYW5hZ2VyXCIpKSB7XG4gICAgICAgICAgICAgICAgICAgICAgICByZXR1cm47XG4gICAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICAgICAgaW5pdFdlYlNvY2tldCgpO1xuICAgICAgICAgICAgICAgIH0sXG4gICAgICAgICAgICAgICAgZnVuY3Rpb24ocmVhc29uKSB7XG4gICAgICAgICAgICAgICAgICAgIHdlYlNvY2tldENvbmZpZy5wcm9taXNlQ29tcGxldGVkID0gdHJ1ZTtcbiAgICAgICAgICAgICAgICAgICAgbG9nZ2VyLmVycm9yKFwiRmFpbGVkIHRvIGZldGNoIHdlYlNvY2tldCBjb25uZWN0aW9uIGNvbmZpZ3VyYXRpb25cIiwgcmVhc29uKTtcbiAgICAgICAgICAgICAgICAgICAgcmVmcmVzaFdlYlNvY2tldENvbm5lY3Rpb24oKTtcbiAgICAgICAgICAgICAgICB9KTtcbiAgICB9O1xuXG4gICAgY29uc3QgaW5pdFdlYlNvY2tldCA9IGZ1bmN0aW9uKCkge1xuICAgICAgICBpZiAocmVjb25uZWN0Q29uZmlnLndlYnNvY2tldEluaXRGYWlsZWQpIHtcbiAgICAgICAgICAgIHJldHVybjtcbiAgICAgICAgfVxuICAgICAgICBsb2dnZXIuZGVidWcoXCJJbml0aWFsaXppbmcgV2Vic29ja2V0IE1hbmFnZXJcIik7XG4gICAgICAgIHRyeSB7XG4gICAgICAgICAgICBpZiAodmFsaWRXZWJTb2NrZXRDb25uQ29uZmlnKHdlYlNvY2tldENvbmZpZy5jb25uQ29uZmlnKSkge1xuXG4gICAgICAgICAgICAgICAgd2ViU29ja2V0ID0gbmV3IFdlYlNvY2tldCh3ZWJTb2NrZXRDb25maWcuY29ubkNvbmZpZy53ZWJTb2NrZXRUcmFuc3BvcnQudXJsKTtcbiAgICAgICAgICAgICAgICB3ZWJTb2NrZXQuYWRkRXZlbnRMaXN0ZW5lcihcIm9wZW5cIiwgd2ViU29ja2V0T25PcGVuKTtcbiAgICAgICAgICAgICAgICB3ZWJTb2NrZXQuYWRkRXZlbnRMaXN0ZW5lcihcIm1lc3NhZ2VcIiwgd2ViU29ja2V0T25NZXNzYWdlKTtcbiAgICAgICAgICAgICAgICB3ZWJTb2NrZXQuYWRkRXZlbnRMaXN0ZW5lcihcImVycm9yXCIsIHdlYlNvY2tldE9uRXJyb3IpO1xuICAgICAgICAgICAgICAgIHdlYlNvY2tldC5hZGRFdmVudExpc3RlbmVyKFwiY2xvc2VcIiwgd2ViU29ja2V0T25DbG9zZSk7XG4gICAgICAgICAgICB9IGVsc2Uge1xuICAgICAgICAgICAgICAgIGlmICh3ZWJTb2NrZXRDb25maWcucHJvbWlzZUNvbXBsZXRlZCkge1xuICAgICAgICAgICAgICAgICAgICB0ZXJtaW5hdGVXZWJTb2NrZXRNYW5hZ2VyKCk7XG4gICAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgfVxuICAgICAgICB9IGNhdGNoIChlcnJvcikge1xuICAgICAgICAgICAgbG9nZ2VyLmVycm9yKFwiRXJyb3IgSW5pdGlhbGl6aW5nIHdlYi1zb2NrZXQtbWFuYWdlclwiLCBlcnJvcik7XG4gICAgICAgICAgICB0ZXJtaW5hdGVXZWJTb2NrZXRNYW5hZ2VyKCk7XG4gICAgICAgIH1cbiAgICB9O1xuXG4gICAgY29uc3Qgb25Db25uZWN0aW9uR2FpbiA9IGZ1bmN0aW9uKGNiKSB7XG4gICAgICAgIFV0aWxzLmFzc2VydFRydWUoVXRpbHMuaXNGdW5jdGlvbihjYiksICdjYiBtdXN0IGJlIGEgZnVuY3Rpb24nKTtcbiAgICAgICAgY2FsbGJhY2tzLmNvbm5lY3Rpb25HYWluLmFkZChjYik7XG4gICAgICAgIGlmICh3ZWJTb2NrZXQgJiYgd2ViU29ja2V0LnJlYWR5U3RhdGUgPT09IFdlYlNvY2tldC5PUEVOKSB7XG4gICAgICAgICAgICBjYigpO1xuICAgICAgICB9XG4gICAgICAgIHJldHVybiAoKSA9PiBjYWxsYmFja3MuY29ubmVjdGlvbkdhaW4uZGVsZXRlKGNiKTtcbiAgICB9O1xuXG4gICAgY29uc3Qgb25Db25uZWN0aW9uTG9zdCA9IGZ1bmN0aW9uKGNiKSB7XG4gICAgICAgIFV0aWxzLmFzc2VydFRydWUoVXRpbHMuaXNGdW5jdGlvbihjYiksICdjYiBtdXN0IGJlIGEgZnVuY3Rpb24nKTtcbiAgICAgICAgY2FsbGJhY2tzLmNvbm5lY3Rpb25Mb3N0LmFkZChjYik7XG4gICAgICAgIGlmICh3ZWJTb2NrZXQgJiYgd2ViU29ja2V0LnJlYWR5U3RhdGUgPT09IFdlYlNvY2tldC5DTE9TRUQpIHtcbiAgICAgICAgICAgIGNiKCk7XG4gICAgICAgIH1cbiAgICAgICAgcmV0dXJuICgpID0+IGNhbGxiYWNrcy5jb25uZWN0aW9uTG9zdC5kZWxldGUoY2IpO1xuICAgIH07XG5cbiAgICBjb25zdCBvbkluaXRGYWlsdXJlID0gZnVuY3Rpb24oY2IpIHtcbiAgICAgICAgVXRpbHMuYXNzZXJ0VHJ1ZShVdGlscy5pc0Z1bmN0aW9uKGNiKSwgJ2NiIG11c3QgYmUgYSBmdW5jdGlvbicpO1xuICAgICAgICBjYWxsYmFja3MuaW5pdEZhaWx1cmUuYWRkKGNiKTtcbiAgICAgICAgaWYgKHJlY29ubmVjdENvbmZpZy53ZWJzb2NrZXRJbml0RmFpbGVkKSB7XG4gICAgICAgICAgICBjYigpO1xuICAgICAgICB9XG4gICAgICAgIHJldHVybiAoKSA9PiBjYWxsYmFja3MuaW5pdEZhaWx1cmUuZGVsZXRlKGNiKTtcbiAgICB9O1xuXG4gICAgY29uc3QgaW5pdCA9IGZ1bmN0aW9uKHRyYW5zcG9ydEhhbmRsZSkge1xuICAgICAgICBVdGlscy5hc3NlcnRUcnVlKFV0aWxzLmlzRnVuY3Rpb24odHJhbnNwb3J0SGFuZGxlKSwgJ3RyYW5zcG9ydEhhbmRsZSBtdXN0IGJlIGEgZnVuY3Rpb24nKTtcbiAgICAgICAgaWYgKGNhbGxiYWNrcy5nZXRXZWJTb2NrZXRUcmFuc3BvcnQgIT09IG51bGwpIHtcbiAgICAgICAgICAgIGxvZ2dlci53YXJuKFwiV2ViIFNvY2tldCBNYW5hZ2VyIHdhcyBhbHJlYWR5IGluaXRpYWxpemVkXCIpO1xuICAgICAgICAgICAgcmV0dXJuO1xuICAgICAgICB9XG4gICAgICAgIGNhbGxiYWNrcy5nZXRXZWJTb2NrZXRUcmFuc3BvcnQgPSB0cmFuc3BvcnRIYW5kbGU7XG5cbiAgICAgICAgZ2V0V2ViU29ja2V0Q29ubkNvbmZpZygpO1xuICAgIH07XG5cbiAgICBjb25zdCBvblN1YnNjcmlwdGlvblVwZGF0ZSA9IGZ1bmN0aW9uKGNiKSB7XG4gICAgICAgIFV0aWxzLmFzc2VydFRydWUoVXRpbHMuaXNGdW5jdGlvbihjYiksICdjYiBtdXN0IGJlIGEgZnVuY3Rpb24nKTtcbiAgICAgICAgY2FsbGJhY2tzLnN1YnNjcmlwdGlvblVwZGF0ZS5hZGQoY2IpO1xuICAgICAgICByZXR1cm4gKCkgPT4gY2FsbGJhY2tzLnN1YnNjcmlwdGlvblVwZGF0ZS5kZWxldGUoY2IpO1xuICAgIH07XG5cbiAgICBjb25zdCBvblN1YnNjcmlwdGlvbkZhaWx1cmUgPSBmdW5jdGlvbihjYikge1xuICAgICAgICBVdGlscy5hc3NlcnRUcnVlKFV0aWxzLmlzRnVuY3Rpb24oY2IpLCAnY2IgbXVzdCBiZSBhIGZ1bmN0aW9uJyk7XG4gICAgICAgIGNhbGxiYWNrcy5zdWJzY3JpcHRpb25GYWlsdXJlLmFkZChjYik7XG4gICAgICAgIHJldHVybiAoKSA9PiBjYWxsYmFja3Muc3Vic2NyaXB0aW9uRmFpbHVyZS5kZWxldGUoY2IpO1xuICAgIH07XG5cbiAgICBjb25zdCBvbk1lc3NhZ2UgPSBmdW5jdGlvbih0b3BpY05hbWUsIGNiKSB7XG4gICAgICAgIFV0aWxzLmFzc2VydE5vdE51bGwodG9waWNOYW1lLCAndG9waWNOYW1lJyk7XG4gICAgICAgIFV0aWxzLmFzc2VydFRydWUoVXRpbHMuaXNGdW5jdGlvbihjYiksICdjYiBtdXN0IGJlIGEgZnVuY3Rpb24nKTtcbiAgICAgICAgaWYgKGNhbGxiYWNrcy50b3BpYy5oYXModG9waWNOYW1lKSkge1xuICAgICAgICAgICAgY2FsbGJhY2tzLnRvcGljLmdldCh0b3BpY05hbWUpLmFkZChjYik7XG4gICAgICAgIH0gZWxzZSB7XG4gICAgICAgICAgICBjYWxsYmFja3MudG9waWMuc2V0KHRvcGljTmFtZSwgbmV3IFNldChbY2JdKSk7XG4gICAgICAgIH1cbiAgICAgICAgcmV0dXJuICgpID0+IGNhbGxiYWNrcy50b3BpYy5nZXQodG9waWNOYW1lKS5kZWxldGUoY2IpO1xuICAgIH07XG5cbiAgICBjb25zdCBvbkFsbE1lc3NhZ2UgPSBmdW5jdGlvbiAoY2IpIHtcbiAgICAgICAgVXRpbHMuYXNzZXJ0VHJ1ZShVdGlscy5pc0Z1bmN0aW9uKGNiKSwgJ2NiIG11c3QgYmUgYSBmdW5jdGlvbicpO1xuICAgICAgICBjYWxsYmFja3MuYWxsTWVzc2FnZS5hZGQoY2IpO1xuICAgICAgICByZXR1cm4gKCkgPT4gY2FsbGJhY2tzLmFsbE1lc3NhZ2UuZGVsZXRlKGNiKTtcbiAgICB9O1xuXG4gICAgdGhpcy5pbml0ID0gaW5pdDtcbiAgICB0aGlzLm9uSW5pdEZhaWx1cmUgPSBvbkluaXRGYWlsdXJlO1xuICAgIHRoaXMub25Db25uZWN0aW9uR2FpbiA9IG9uQ29ubmVjdGlvbkdhaW47XG4gICAgdGhpcy5vbkNvbm5lY3Rpb25Mb3N0ID0gb25Db25uZWN0aW9uTG9zdDtcbiAgICB0aGlzLm9uU3Vic2NyaXB0aW9uVXBkYXRlID0gb25TdWJzY3JpcHRpb25VcGRhdGU7XG4gICAgdGhpcy5vblN1YnNjcmlwdGlvbkZhaWx1cmUgPSBvblN1YnNjcmlwdGlvbkZhaWx1cmU7XG4gICAgdGhpcy5vbk1lc3NhZ2UgPSBvbk1lc3NhZ2U7XG4gICAgdGhpcy5vbkFsbE1lc3NhZ2UgPSBvbkFsbE1lc3NhZ2U7XG4gICAgdGhpcy5zdWJzY3JpYmVUb3BpY3MgPSBzdWJzY3JpYmVUb3BpY3M7XG4gICAgdGhpcy5zZW5kTWVzc2FnZSA9IHNlbmRNZXNzYWdlO1xuXG4gICAgdGhpcy5jbG9zZVdlYlNvY2tldCA9IGZ1bmN0aW9uKCkge1xuICAgICAgICByZXNldFN0YXRlKCk7XG4gICAgICAgIGNsZWFySW50ZXJ2YWwobmV0d29ya0Nvbm5lY3Rpdml0eUNoZWNrZXIpO1xuICAgICAgICBjbG9zZVdlYlNvY2tldChcIlVzZXIgcmVxdWVzdCB0byBjbG9zZSBXZWJTb2NrZXRcIik7XG4gICAgfTtcbn07XG5cbmNvbnN0IFdlYlNvY2tldE1hbmFnZXJDb25zdHJ1Y3RvciA9ICgpID0+IHtcbiAgICByZXR1cm4gbmV3IFdlYlNvY2tldE1hbmFnZXIoKTtcbn07XG5cbmNvbnN0IHNldEdsb2JhbENvbmZpZyA9IGNvbmZpZyA9PiB7XG4gICAgY29uc3QgbG9nZ2VyQ29uZmlnID0gY29uZmlnLmxvZ2dlckNvbmZpZztcbiAgICBMb2dNYW5hZ2VyLnVwZGF0ZUxvZ2dlckNvbmZpZyhsb2dnZXJDb25maWcpO1xufTtcblxuY29uc3QgV2ViU29ja2V0TWFuYWdlck9iamVjdCA9IHtcbiAgICBjcmVhdGU6IFdlYlNvY2tldE1hbmFnZXJDb25zdHJ1Y3RvcixcbiAgICBzZXRHbG9iYWxDb25maWc6IHNldEdsb2JhbENvbmZpZyxcbiAgICBMb2dMZXZlbDogTG9nTGV2ZWwsXG4gICAgTG9nZ2VyOiBMb2dnZXJcbn07XG5cbmV4cG9ydCB7IFdlYlNvY2tldE1hbmFnZXJPYmplY3QgfTsiLCIvKiBnbG9iYWwgd2luZG93LCBleHBvcnRzLCBkZWZpbmUgKi9cblxuIWZ1bmN0aW9uKCkge1xuICAgICd1c2Ugc3RyaWN0J1xuXG4gICAgdmFyIHJlID0ge1xuICAgICAgICBub3Rfc3RyaW5nOiAvW15zXS8sXG4gICAgICAgIG5vdF9ib29sOiAvW150XS8sXG4gICAgICAgIG5vdF90eXBlOiAvW15UXS8sXG4gICAgICAgIG5vdF9wcmltaXRpdmU6IC9bXnZdLyxcbiAgICAgICAgbnVtYmVyOiAvW2RpZWZnXS8sXG4gICAgICAgIG51bWVyaWNfYXJnOiAvW2JjZGllZmd1eFhdLyxcbiAgICAgICAganNvbjogL1tqXS8sXG4gICAgICAgIG5vdF9qc29uOiAvW15qXS8sXG4gICAgICAgIHRleHQ6IC9eW15cXHgyNV0rLyxcbiAgICAgICAgbW9kdWxvOiAvXlxceDI1ezJ9LyxcbiAgICAgICAgcGxhY2Vob2xkZXI6IC9eXFx4MjUoPzooWzEtOV1cXGQqKVxcJHxcXCgoW14pXSspXFwpKT8oXFwrKT8oMHwnW14kXSk/KC0pPyhcXGQrKT8oPzpcXC4oXFxkKykpPyhbYi1naWpvc3RUdXZ4WF0pLyxcbiAgICAgICAga2V5OiAvXihbYS16X11bYS16X1xcZF0qKS9pLFxuICAgICAgICBrZXlfYWNjZXNzOiAvXlxcLihbYS16X11bYS16X1xcZF0qKS9pLFxuICAgICAgICBpbmRleF9hY2Nlc3M6IC9eXFxbKFxcZCspXFxdLyxcbiAgICAgICAgc2lnbjogL15bKy1dL1xuICAgIH1cblxuICAgIGZ1bmN0aW9uIHNwcmludGYoa2V5KSB7XG4gICAgICAgIC8vIGBhcmd1bWVudHNgIGlzIG5vdCBhbiBhcnJheSwgYnV0IHNob3VsZCBiZSBmaW5lIGZvciB0aGlzIGNhbGxcbiAgICAgICAgcmV0dXJuIHNwcmludGZfZm9ybWF0KHNwcmludGZfcGFyc2Uoa2V5KSwgYXJndW1lbnRzKVxuICAgIH1cblxuICAgIGZ1bmN0aW9uIHZzcHJpbnRmKGZtdCwgYXJndikge1xuICAgICAgICByZXR1cm4gc3ByaW50Zi5hcHBseShudWxsLCBbZm10XS5jb25jYXQoYXJndiB8fCBbXSkpXG4gICAgfVxuXG4gICAgZnVuY3Rpb24gc3ByaW50Zl9mb3JtYXQocGFyc2VfdHJlZSwgYXJndikge1xuICAgICAgICB2YXIgY3Vyc29yID0gMSwgdHJlZV9sZW5ndGggPSBwYXJzZV90cmVlLmxlbmd0aCwgYXJnLCBvdXRwdXQgPSAnJywgaSwgaywgcGgsIHBhZCwgcGFkX2NoYXJhY3RlciwgcGFkX2xlbmd0aCwgaXNfcG9zaXRpdmUsIHNpZ25cbiAgICAgICAgZm9yIChpID0gMDsgaSA8IHRyZWVfbGVuZ3RoOyBpKyspIHtcbiAgICAgICAgICAgIGlmICh0eXBlb2YgcGFyc2VfdHJlZVtpXSA9PT0gJ3N0cmluZycpIHtcbiAgICAgICAgICAgICAgICBvdXRwdXQgKz0gcGFyc2VfdHJlZVtpXVxuICAgICAgICAgICAgfVxuICAgICAgICAgICAgZWxzZSBpZiAodHlwZW9mIHBhcnNlX3RyZWVbaV0gPT09ICdvYmplY3QnKSB7XG4gICAgICAgICAgICAgICAgcGggPSBwYXJzZV90cmVlW2ldIC8vIGNvbnZlbmllbmNlIHB1cnBvc2VzIG9ubHlcbiAgICAgICAgICAgICAgICBpZiAocGgua2V5cykgeyAvLyBrZXl3b3JkIGFyZ3VtZW50XG4gICAgICAgICAgICAgICAgICAgIGFyZyA9IGFyZ3ZbY3Vyc29yXVxuICAgICAgICAgICAgICAgICAgICBmb3IgKGsgPSAwOyBrIDwgcGgua2V5cy5sZW5ndGg7IGsrKykge1xuICAgICAgICAgICAgICAgICAgICAgICAgaWYgKGFyZyA9PSB1bmRlZmluZWQpIHtcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICB0aHJvdyBuZXcgRXJyb3Ioc3ByaW50ZignW3NwcmludGZdIENhbm5vdCBhY2Nlc3MgcHJvcGVydHkgXCIlc1wiIG9mIHVuZGVmaW5lZCB2YWx1ZSBcIiVzXCInLCBwaC5rZXlzW2tdLCBwaC5rZXlzW2stMV0pKVxuICAgICAgICAgICAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgICAgICAgICAgICAgYXJnID0gYXJnW3BoLmtleXNba11dXG4gICAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgZWxzZSBpZiAocGgucGFyYW1fbm8pIHsgLy8gcG9zaXRpb25hbCBhcmd1bWVudCAoZXhwbGljaXQpXG4gICAgICAgICAgICAgICAgICAgIGFyZyA9IGFyZ3ZbcGgucGFyYW1fbm9dXG4gICAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgICAgIGVsc2UgeyAvLyBwb3NpdGlvbmFsIGFyZ3VtZW50IChpbXBsaWNpdClcbiAgICAgICAgICAgICAgICAgICAgYXJnID0gYXJndltjdXJzb3IrK11cbiAgICAgICAgICAgICAgICB9XG5cbiAgICAgICAgICAgICAgICBpZiAocmUubm90X3R5cGUudGVzdChwaC50eXBlKSAmJiByZS5ub3RfcHJpbWl0aXZlLnRlc3QocGgudHlwZSkgJiYgYXJnIGluc3RhbmNlb2YgRnVuY3Rpb24pIHtcbiAgICAgICAgICAgICAgICAgICAgYXJnID0gYXJnKClcbiAgICAgICAgICAgICAgICB9XG5cbiAgICAgICAgICAgICAgICBpZiAocmUubnVtZXJpY19hcmcudGVzdChwaC50eXBlKSAmJiAodHlwZW9mIGFyZyAhPT0gJ251bWJlcicgJiYgaXNOYU4oYXJnKSkpIHtcbiAgICAgICAgICAgICAgICAgICAgdGhyb3cgbmV3IFR5cGVFcnJvcihzcHJpbnRmKCdbc3ByaW50Zl0gZXhwZWN0aW5nIG51bWJlciBidXQgZm91bmQgJVQnLCBhcmcpKVxuICAgICAgICAgICAgICAgIH1cblxuICAgICAgICAgICAgICAgIGlmIChyZS5udW1iZXIudGVzdChwaC50eXBlKSkge1xuICAgICAgICAgICAgICAgICAgICBpc19wb3NpdGl2ZSA9IGFyZyA+PSAwXG4gICAgICAgICAgICAgICAgfVxuXG4gICAgICAgICAgICAgICAgc3dpdGNoIChwaC50eXBlKSB7XG4gICAgICAgICAgICAgICAgICAgIGNhc2UgJ2InOlxuICAgICAgICAgICAgICAgICAgICAgICAgYXJnID0gcGFyc2VJbnQoYXJnLCAxMCkudG9TdHJpbmcoMilcbiAgICAgICAgICAgICAgICAgICAgICAgIGJyZWFrXG4gICAgICAgICAgICAgICAgICAgIGNhc2UgJ2MnOlxuICAgICAgICAgICAgICAgICAgICAgICAgYXJnID0gU3RyaW5nLmZyb21DaGFyQ29kZShwYXJzZUludChhcmcsIDEwKSlcbiAgICAgICAgICAgICAgICAgICAgICAgIGJyZWFrXG4gICAgICAgICAgICAgICAgICAgIGNhc2UgJ2QnOlxuICAgICAgICAgICAgICAgICAgICBjYXNlICdpJzpcbiAgICAgICAgICAgICAgICAgICAgICAgIGFyZyA9IHBhcnNlSW50KGFyZywgMTApXG4gICAgICAgICAgICAgICAgICAgICAgICBicmVha1xuICAgICAgICAgICAgICAgICAgICBjYXNlICdqJzpcbiAgICAgICAgICAgICAgICAgICAgICAgIGFyZyA9IEpTT04uc3RyaW5naWZ5KGFyZywgbnVsbCwgcGgud2lkdGggPyBwYXJzZUludChwaC53aWR0aCkgOiAwKVxuICAgICAgICAgICAgICAgICAgICAgICAgYnJlYWtcbiAgICAgICAgICAgICAgICAgICAgY2FzZSAnZSc6XG4gICAgICAgICAgICAgICAgICAgICAgICBhcmcgPSBwaC5wcmVjaXNpb24gPyBwYXJzZUZsb2F0KGFyZykudG9FeHBvbmVudGlhbChwaC5wcmVjaXNpb24pIDogcGFyc2VGbG9hdChhcmcpLnRvRXhwb25lbnRpYWwoKVxuICAgICAgICAgICAgICAgICAgICAgICAgYnJlYWtcbiAgICAgICAgICAgICAgICAgICAgY2FzZSAnZic6XG4gICAgICAgICAgICAgICAgICAgICAgICBhcmcgPSBwaC5wcmVjaXNpb24gPyBwYXJzZUZsb2F0KGFyZykudG9GaXhlZChwaC5wcmVjaXNpb24pIDogcGFyc2VGbG9hdChhcmcpXG4gICAgICAgICAgICAgICAgICAgICAgICBicmVha1xuICAgICAgICAgICAgICAgICAgICBjYXNlICdnJzpcbiAgICAgICAgICAgICAgICAgICAgICAgIGFyZyA9IHBoLnByZWNpc2lvbiA/IFN0cmluZyhOdW1iZXIoYXJnLnRvUHJlY2lzaW9uKHBoLnByZWNpc2lvbikpKSA6IHBhcnNlRmxvYXQoYXJnKVxuICAgICAgICAgICAgICAgICAgICAgICAgYnJlYWtcbiAgICAgICAgICAgICAgICAgICAgY2FzZSAnbyc6XG4gICAgICAgICAgICAgICAgICAgICAgICBhcmcgPSAocGFyc2VJbnQoYXJnLCAxMCkgPj4+IDApLnRvU3RyaW5nKDgpXG4gICAgICAgICAgICAgICAgICAgICAgICBicmVha1xuICAgICAgICAgICAgICAgICAgICBjYXNlICdzJzpcbiAgICAgICAgICAgICAgICAgICAgICAgIGFyZyA9IFN0cmluZyhhcmcpXG4gICAgICAgICAgICAgICAgICAgICAgICBhcmcgPSAocGgucHJlY2lzaW9uID8gYXJnLnN1YnN0cmluZygwLCBwaC5wcmVjaXNpb24pIDogYXJnKVxuICAgICAgICAgICAgICAgICAgICAgICAgYnJlYWtcbiAgICAgICAgICAgICAgICAgICAgY2FzZSAndCc6XG4gICAgICAgICAgICAgICAgICAgICAgICBhcmcgPSBTdHJpbmcoISFhcmcpXG4gICAgICAgICAgICAgICAgICAgICAgICBhcmcgPSAocGgucHJlY2lzaW9uID8gYXJnLnN1YnN0cmluZygwLCBwaC5wcmVjaXNpb24pIDogYXJnKVxuICAgICAgICAgICAgICAgICAgICAgICAgYnJlYWtcbiAgICAgICAgICAgICAgICAgICAgY2FzZSAnVCc6XG4gICAgICAgICAgICAgICAgICAgICAgICBhcmcgPSBPYmplY3QucHJvdG90eXBlLnRvU3RyaW5nLmNhbGwoYXJnKS5zbGljZSg4LCAtMSkudG9Mb3dlckNhc2UoKVxuICAgICAgICAgICAgICAgICAgICAgICAgYXJnID0gKHBoLnByZWNpc2lvbiA/IGFyZy5zdWJzdHJpbmcoMCwgcGgucHJlY2lzaW9uKSA6IGFyZylcbiAgICAgICAgICAgICAgICAgICAgICAgIGJyZWFrXG4gICAgICAgICAgICAgICAgICAgIGNhc2UgJ3UnOlxuICAgICAgICAgICAgICAgICAgICAgICAgYXJnID0gcGFyc2VJbnQoYXJnLCAxMCkgPj4+IDBcbiAgICAgICAgICAgICAgICAgICAgICAgIGJyZWFrXG4gICAgICAgICAgICAgICAgICAgIGNhc2UgJ3YnOlxuICAgICAgICAgICAgICAgICAgICAgICAgYXJnID0gYXJnLnZhbHVlT2YoKVxuICAgICAgICAgICAgICAgICAgICAgICAgYXJnID0gKHBoLnByZWNpc2lvbiA/IGFyZy5zdWJzdHJpbmcoMCwgcGgucHJlY2lzaW9uKSA6IGFyZylcbiAgICAgICAgICAgICAgICAgICAgICAgIGJyZWFrXG4gICAgICAgICAgICAgICAgICAgIGNhc2UgJ3gnOlxuICAgICAgICAgICAgICAgICAgICAgICAgYXJnID0gKHBhcnNlSW50KGFyZywgMTApID4+PiAwKS50b1N0cmluZygxNilcbiAgICAgICAgICAgICAgICAgICAgICAgIGJyZWFrXG4gICAgICAgICAgICAgICAgICAgIGNhc2UgJ1gnOlxuICAgICAgICAgICAgICAgICAgICAgICAgYXJnID0gKHBhcnNlSW50KGFyZywgMTApID4+PiAwKS50b1N0cmluZygxNikudG9VcHBlckNhc2UoKVxuICAgICAgICAgICAgICAgICAgICAgICAgYnJlYWtcbiAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgaWYgKHJlLmpzb24udGVzdChwaC50eXBlKSkge1xuICAgICAgICAgICAgICAgICAgICBvdXRwdXQgKz0gYXJnXG4gICAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgICAgIGVsc2Uge1xuICAgICAgICAgICAgICAgICAgICBpZiAocmUubnVtYmVyLnRlc3QocGgudHlwZSkgJiYgKCFpc19wb3NpdGl2ZSB8fCBwaC5zaWduKSkge1xuICAgICAgICAgICAgICAgICAgICAgICAgc2lnbiA9IGlzX3Bvc2l0aXZlID8gJysnIDogJy0nXG4gICAgICAgICAgICAgICAgICAgICAgICBhcmcgPSBhcmcudG9TdHJpbmcoKS5yZXBsYWNlKHJlLnNpZ24sICcnKVxuICAgICAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgICAgIGVsc2Uge1xuICAgICAgICAgICAgICAgICAgICAgICAgc2lnbiA9ICcnXG4gICAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICAgICAgcGFkX2NoYXJhY3RlciA9IHBoLnBhZF9jaGFyID8gcGgucGFkX2NoYXIgPT09ICcwJyA/ICcwJyA6IHBoLnBhZF9jaGFyLmNoYXJBdCgxKSA6ICcgJ1xuICAgICAgICAgICAgICAgICAgICBwYWRfbGVuZ3RoID0gcGgud2lkdGggLSAoc2lnbiArIGFyZykubGVuZ3RoXG4gICAgICAgICAgICAgICAgICAgIHBhZCA9IHBoLndpZHRoID8gKHBhZF9sZW5ndGggPiAwID8gcGFkX2NoYXJhY3Rlci5yZXBlYXQocGFkX2xlbmd0aCkgOiAnJykgOiAnJ1xuICAgICAgICAgICAgICAgICAgICBvdXRwdXQgKz0gcGguYWxpZ24gPyBzaWduICsgYXJnICsgcGFkIDogKHBhZF9jaGFyYWN0ZXIgPT09ICcwJyA/IHNpZ24gKyBwYWQgKyBhcmcgOiBwYWQgKyBzaWduICsgYXJnKVxuICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgIH1cbiAgICAgICAgfVxuICAgICAgICByZXR1cm4gb3V0cHV0XG4gICAgfVxuXG4gICAgdmFyIHNwcmludGZfY2FjaGUgPSBPYmplY3QuY3JlYXRlKG51bGwpXG5cbiAgICBmdW5jdGlvbiBzcHJpbnRmX3BhcnNlKGZtdCkge1xuICAgICAgICBpZiAoc3ByaW50Zl9jYWNoZVtmbXRdKSB7XG4gICAgICAgICAgICByZXR1cm4gc3ByaW50Zl9jYWNoZVtmbXRdXG4gICAgICAgIH1cblxuICAgICAgICB2YXIgX2ZtdCA9IGZtdCwgbWF0Y2gsIHBhcnNlX3RyZWUgPSBbXSwgYXJnX25hbWVzID0gMFxuICAgICAgICB3aGlsZSAoX2ZtdCkge1xuICAgICAgICAgICAgaWYgKChtYXRjaCA9IHJlLnRleHQuZXhlYyhfZm10KSkgIT09IG51bGwpIHtcbiAgICAgICAgICAgICAgICBwYXJzZV90cmVlLnB1c2gobWF0Y2hbMF0pXG4gICAgICAgICAgICB9XG4gICAgICAgICAgICBlbHNlIGlmICgobWF0Y2ggPSByZS5tb2R1bG8uZXhlYyhfZm10KSkgIT09IG51bGwpIHtcbiAgICAgICAgICAgICAgICBwYXJzZV90cmVlLnB1c2goJyUnKVxuICAgICAgICAgICAgfVxuICAgICAgICAgICAgZWxzZSBpZiAoKG1hdGNoID0gcmUucGxhY2Vob2xkZXIuZXhlYyhfZm10KSkgIT09IG51bGwpIHtcbiAgICAgICAgICAgICAgICBpZiAobWF0Y2hbMl0pIHtcbiAgICAgICAgICAgICAgICAgICAgYXJnX25hbWVzIHw9IDFcbiAgICAgICAgICAgICAgICAgICAgdmFyIGZpZWxkX2xpc3QgPSBbXSwgcmVwbGFjZW1lbnRfZmllbGQgPSBtYXRjaFsyXSwgZmllbGRfbWF0Y2ggPSBbXVxuICAgICAgICAgICAgICAgICAgICBpZiAoKGZpZWxkX21hdGNoID0gcmUua2V5LmV4ZWMocmVwbGFjZW1lbnRfZmllbGQpKSAhPT0gbnVsbCkge1xuICAgICAgICAgICAgICAgICAgICAgICAgZmllbGRfbGlzdC5wdXNoKGZpZWxkX21hdGNoWzFdKVxuICAgICAgICAgICAgICAgICAgICAgICAgd2hpbGUgKChyZXBsYWNlbWVudF9maWVsZCA9IHJlcGxhY2VtZW50X2ZpZWxkLnN1YnN0cmluZyhmaWVsZF9tYXRjaFswXS5sZW5ndGgpKSAhPT0gJycpIHtcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBpZiAoKGZpZWxkX21hdGNoID0gcmUua2V5X2FjY2Vzcy5leGVjKHJlcGxhY2VtZW50X2ZpZWxkKSkgIT09IG51bGwpIHtcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZmllbGRfbGlzdC5wdXNoKGZpZWxkX21hdGNoWzFdKVxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBlbHNlIGlmICgoZmllbGRfbWF0Y2ggPSByZS5pbmRleF9hY2Nlc3MuZXhlYyhyZXBsYWNlbWVudF9maWVsZCkpICE9PSBudWxsKSB7XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZpZWxkX2xpc3QucHVzaChmaWVsZF9tYXRjaFsxXSlcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgZWxzZSB7XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHRocm93IG5ldyBTeW50YXhFcnJvcignW3NwcmludGZdIGZhaWxlZCB0byBwYXJzZSBuYW1lZCBhcmd1bWVudCBrZXknKVxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgICAgICAgICBlbHNlIHtcbiAgICAgICAgICAgICAgICAgICAgICAgIHRocm93IG5ldyBTeW50YXhFcnJvcignW3NwcmludGZdIGZhaWxlZCB0byBwYXJzZSBuYW1lZCBhcmd1bWVudCBrZXknKVxuICAgICAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgICAgIG1hdGNoWzJdID0gZmllbGRfbGlzdFxuICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICBlbHNlIHtcbiAgICAgICAgICAgICAgICAgICAgYXJnX25hbWVzIHw9IDJcbiAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgaWYgKGFyZ19uYW1lcyA9PT0gMykge1xuICAgICAgICAgICAgICAgICAgICB0aHJvdyBuZXcgRXJyb3IoJ1tzcHJpbnRmXSBtaXhpbmcgcG9zaXRpb25hbCBhbmQgbmFtZWQgcGxhY2Vob2xkZXJzIGlzIG5vdCAoeWV0KSBzdXBwb3J0ZWQnKVxuICAgICAgICAgICAgICAgIH1cblxuICAgICAgICAgICAgICAgIHBhcnNlX3RyZWUucHVzaChcbiAgICAgICAgICAgICAgICAgICAge1xuICAgICAgICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI6IG1hdGNoWzBdLFxuICAgICAgICAgICAgICAgICAgICAgICAgcGFyYW1fbm86ICAgIG1hdGNoWzFdLFxuICAgICAgICAgICAgICAgICAgICAgICAga2V5czogICAgICAgIG1hdGNoWzJdLFxuICAgICAgICAgICAgICAgICAgICAgICAgc2lnbjogICAgICAgIG1hdGNoWzNdLFxuICAgICAgICAgICAgICAgICAgICAgICAgcGFkX2NoYXI6ICAgIG1hdGNoWzRdLFxuICAgICAgICAgICAgICAgICAgICAgICAgYWxpZ246ICAgICAgIG1hdGNoWzVdLFxuICAgICAgICAgICAgICAgICAgICAgICAgd2lkdGg6ICAgICAgIG1hdGNoWzZdLFxuICAgICAgICAgICAgICAgICAgICAgICAgcHJlY2lzaW9uOiAgIG1hdGNoWzddLFxuICAgICAgICAgICAgICAgICAgICAgICAgdHlwZTogICAgICAgIG1hdGNoWzhdXG4gICAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICApXG4gICAgICAgICAgICB9XG4gICAgICAgICAgICBlbHNlIHtcbiAgICAgICAgICAgICAgICB0aHJvdyBuZXcgU3ludGF4RXJyb3IoJ1tzcHJpbnRmXSB1bmV4cGVjdGVkIHBsYWNlaG9sZGVyJylcbiAgICAgICAgICAgIH1cbiAgICAgICAgICAgIF9mbXQgPSBfZm10LnN1YnN0cmluZyhtYXRjaFswXS5sZW5ndGgpXG4gICAgICAgIH1cbiAgICAgICAgcmV0dXJuIHNwcmludGZfY2FjaGVbZm10XSA9IHBhcnNlX3RyZWVcbiAgICB9XG5cbiAgICAvKipcbiAgICAgKiBleHBvcnQgdG8gZWl0aGVyIGJyb3dzZXIgb3Igbm9kZS5qc1xuICAgICAqL1xuICAgIC8qIGVzbGludC1kaXNhYmxlIHF1b3RlLXByb3BzICovXG4gICAgaWYgKHR5cGVvZiBleHBvcnRzICE9PSAndW5kZWZpbmVkJykge1xuICAgICAgICBleHBvcnRzWydzcHJpbnRmJ10gPSBzcHJpbnRmXG4gICAgICAgIGV4cG9ydHNbJ3ZzcHJpbnRmJ10gPSB2c3ByaW50ZlxuICAgIH1cbiAgICBpZiAodHlwZW9mIHdpbmRvdyAhPT0gJ3VuZGVmaW5lZCcpIHtcbiAgICAgICAgd2luZG93WydzcHJpbnRmJ10gPSBzcHJpbnRmXG4gICAgICAgIHdpbmRvd1sndnNwcmludGYnXSA9IHZzcHJpbnRmXG5cbiAgICAgICAgaWYgKHR5cGVvZiBkZWZpbmUgPT09ICdmdW5jdGlvbicgJiYgZGVmaW5lWydhbWQnXSkge1xuICAgICAgICAgICAgZGVmaW5lKGZ1bmN0aW9uKCkge1xuICAgICAgICAgICAgICAgIHJldHVybiB7XG4gICAgICAgICAgICAgICAgICAgICdzcHJpbnRmJzogc3ByaW50ZixcbiAgICAgICAgICAgICAgICAgICAgJ3ZzcHJpbnRmJzogdnNwcmludGZcbiAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICB9KVxuICAgICAgICB9XG4gICAgfVxuICAgIC8qIGVzbGludC1lbmFibGUgcXVvdGUtcHJvcHMgKi9cbn0oKTsgLy8gZXNsaW50LWRpc2FibGUtbGluZVxuIiwiLyplc2xpbnQgbm8tdW51c2VkLXZhcnM6IFwib2ZmXCIqL1xuaW1wb3J0IHsgV2ViU29ja2V0TWFuYWdlck9iamVjdCB9IGZyb20gXCIuL3dlYlNvY2tldE1hbmFnZXJcIjtcblxuZ2xvYmFsLmNvbm5lY3QgPSBnbG9iYWwuY29ubmVjdCB8fCB7fTtcbmNvbm5lY3QuV2ViU29ja2V0TWFuYWdlciA9IFdlYlNvY2tldE1hbmFnZXJPYmplY3Q7XG5cbmV4cG9ydCBjb25zdCBXZWJTb2NrZXRNYW5hZ2VyID0gV2ViU29ja2V0TWFuYWdlck9iamVjdDtcbiIsInZhciBnO1xuXG4vLyBUaGlzIHdvcmtzIGluIG5vbi1zdHJpY3QgbW9kZVxuZyA9IChmdW5jdGlvbigpIHtcblx0cmV0dXJuIHRoaXM7XG59KSgpO1xuXG50cnkge1xuXHQvLyBUaGlzIHdvcmtzIGlmIGV2YWwgaXMgYWxsb3dlZCAoc2VlIENTUClcblx0ZyA9IGcgfHwgbmV3IEZ1bmN0aW9uKFwicmV0dXJuIHRoaXNcIikoKTtcbn0gY2F0Y2ggKGUpIHtcblx0Ly8gVGhpcyB3b3JrcyBpZiB0aGUgd2luZG93IHJlZmVyZW5jZSBpcyBhdmFpbGFibGVcblx0aWYgKHR5cGVvZiB3aW5kb3cgPT09IFwib2JqZWN0XCIpIGcgPSB3aW5kb3c7XG59XG5cbi8vIGcgY2FuIHN0aWxsIGJlIHVuZGVmaW5lZCwgYnV0IG5vdGhpbmcgdG8gZG8gYWJvdXQgaXQuLi5cbi8vIFdlIHJldHVybiB1bmRlZmluZWQsIGluc3RlYWQgb2Ygbm90aGluZyBoZXJlLCBzbyBpdCdzXG4vLyBlYXNpZXIgdG8gaGFuZGxlIHRoaXMgY2FzZS4gaWYoIWdsb2JhbCkgeyAuLi59XG5cbm1vZHVsZS5leHBvcnRzID0gZztcbiJdLCJzb3VyY2VSb290IjoiIn0=
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+  global.lily = connect;
+
+  connect.core = {};
+
+  connect.core.initialized = false;
+
+  connect.DEFAULT_BATCH_SIZE = 100;
+
+  var CCP_SYN_TIMEOUT = 1000; // 1 sec
+  var CCP_ACK_TIMEOUT = 3000; // 3 sec
+  var CCP_LOAD_TIMEOUT = 3000; // 3 sec
+  var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
+
+  var LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
+  var CLIENT_ID_MAP = {
+    "us-east-1": "06919f4fd8ed324e"
+  };
+
+  var AUTHORIZE_ENDPOINT = "/connect/auth/authorize";
+  var AUTHORIZE_RETRY_INTERVAL = 2000;
+  var AUTHORIZE_MAX_RETRY = 5;
+
+  var WHITELISTED_ORIGINS_ENDPOINT = "/connect/whitelisted-origins";
+  var WHITELISTED_ORIGINS_RETRY_INTERVAL = 2000;
+  var WHITELISTED_ORIGINS_MAX_RETRY = 5;
+
+  /**
+   * @deprecated
+   * We will no longer need this function soon.
+   */
+  var createLoginUrl = function (params) {
+    var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
+    connect.assertNotNull(redirect);
+
+    if (params.loginUrl) {
+      return params.loginUrl
+    } else if (params.alias) {
+      return LOGIN_URL_PATTERN
+        .replace("{alias}", params.alias)
+        .replace("{client_id}", CLIENT_ID_MAP["us-east-1"])
+        .replace("{redirect}", global.encodeURIComponent(
+          redirect));
+    } else {
+      return params.ccpUrl;
+    }
+  };
+
+  /**-------------------------------------------------------------------------
+  * Returns scheme://host:port for a given url
+  */
+  function sanitizeDomain(url) {
+    var domain = url.match(/^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/ig);
+    return domain.length ? domain[0] : "";
+  }
+
+  /**-------------------------------------------------------------------------
+    * Print a warning message if the Connect core is not initialized.
+    */
+  connect.core.checkNotInitialized = function () {
+    if (connect.core.initialized) {
+      var log = connect.getLog();
+      log.warn("Connect core already initialized, only needs to be initialized once.");
+    }
+  };
+  /**-------------------------------------------------------------------------
+   * Basic Connect client initialization.
+   * Should be used only by the API Shared Worker.
+   */
+  connect.core.init = function (params) {
+    connect.core.eventBus = new connect.EventBus();
+    connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
+    connect.core.initClient(params);
+    connect.core.initialized = true;
+  };
+
+  /**-------------------------------------------------------------------------
+   * Initialized AWS client
+   * Should be used by Shared Worker to update AWS client with new credentials
+   * after refreshed authentication.
+   */
+  connect.core.initClient = function (params) {
+    connect.assertNotNull(params, 'params');
+
+    var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
+    var region = connect.assertNotNull(params.region, 'params.region');
+    var endpoint = params.endpoint || null;
+
+    connect.core.client = new connect.AWSClient(authToken, region, endpoint);
+  };
+
+  /**-------------------------------------------------------------------------
+   * Uninitialize Connect.
+   */
+  connect.core.terminate = function () {
+    connect.core.client = new connect.NullClient();
+    connect.core.masterClient = new connect.NullClient();
+    var bus = connect.core.getEventBus();
+    if (bus) bus.unsubscribeAll();
+    connect.core.bus = new connect.EventBus();
+    connect.core.agentDataProvider = null;
+    connect.core.upstream = null;
+    connect.core.keepaliveManager = null;
+    connect.agent.initialized = false;
+    connect.core.initialized = false;
+  };
+
+  /**-------------------------------------------------------------------------
+   * Setup the SoftphoneManager to be initialized when the agent
+   * is determined to have softphone enabled.
+   */
+  connect.core.softphoneUserMediaStream = null;
+
+  connect.core.getSoftphoneUserMediaStream = function () {
+    return connect.core.softphoneUserMediaStream;
+  };
+
+  connect.core.setSoftphoneUserMediaStream = function (stream) {
+    connect.core.softphoneUserMediaStream = stream;
+  };
+
+  connect.core.initRingtoneEngines = function (params) {
+    connect.assertNotNull(params, "params");
+
+    var setupRingtoneEngines = function (ringtoneSettings) {
+      connect.assertNotNull(ringtoneSettings, "ringtoneSettings");
+      connect.assertNotNull(ringtoneSettings.voice, "ringtoneSettings.voice");
+      connect.assertTrue(ringtoneSettings.voice.ringtoneUrl || ringtoneSettings.voice.disabled, "ringtoneSettings.voice.ringtoneUrl must be provided or ringtoneSettings.voice.disabled must be true");
+      connect.assertNotNull(ringtoneSettings.queue_callback, "ringtoneSettings.queue_callback");
+      connect.assertTrue(ringtoneSettings.queue_callback.ringtoneUrl || ringtoneSettings.queue_callback.disabled, "ringtoneSettings.voice.ringtoneUrl must be provided or ringtoneSettings.queue_callback.disabled must be true");
+
+      connect.core.ringtoneEngines = {};
+
+      connect.agent(function (agent) {
+        agent.onRefresh(function () {
+          connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
+            if (!ringtoneSettings.voice.disabled && !connect.core.ringtoneEngines.voice) {
+              connect.core.ringtoneEngines.voice =
+                new connect.VoiceRingtoneEngine(ringtoneSettings.voice);
+              connect.getLog().info("VoiceRingtoneEngine initialized.");
+            }
+
+            if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
+              connect.core.ringtoneEngines.chat =
+                new connect.ChatRingtoneEngine(ringtoneSettings.chat);
+              connect.getLog().info("ChatRingtoneEngine initialized.");
+            }
+
+            if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
+              connect.core.ringtoneEngines.queue_callback =
+                new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
+              connect.getLog().info("QueueCallbackRingtoneEngine initialized.");
+            }
+          });
+        });
+      });
+    };
+
+    var mergeParams = function (params, otherParams) {
+      // For backwards compatibility: support pulling disabled flag and ringtoneUrl
+      // from softphone config if it exists from downstream into the ringtone config.
+      params.ringtone = params.ringtone || {};
+      params.ringtone.voice = params.ringtone.voice || {};
+      params.ringtone.queue_callback = params.ringtone.queue_callback || {};
+      params.ringtone.chat = params.ringtone.chat || { disabled: true };
+
+      if (otherParams.softphone) {
+        if (otherParams.softphone.disableRingtone) {
+          params.ringtone.voice.disabled = true;
+          params.ringtone.queue_callback.disabled = true;
+        }
+
+        if (otherParams.softphone.ringtoneUrl) {
+          params.ringtone.voice.ringtoneUrl = otherParams.softphone.ringtoneUrl;
+          params.ringtone.queue_callback.ringtoneUrl = otherParams.softphone.ringtoneUrl;
+        }
+      }
+
+      // Merge in ringtone settings from downstream.
+      if (otherParams.ringtone) {
+        params.ringtone.voice = connect.merge(params.ringtone.voice,
+          otherParams.ringtone.voice || {});
+        params.ringtone.queue_callback = connect.merge(params.ringtone.queue_callback,
+          otherParams.ringtone.voice || {});
+        params.ringtone.chat = connect.merge(params.ringtone.chat,
+          otherParams.ringtone.chat || {});
+      }
+    };
+
+    // Merge params from params.softphone into params.ringtone
+    // for embedded and non-embedded use cases so that defaults
+    // are picked up.
+    mergeParams(params, params);
+
+    if (connect.isFramed()) {
+      // If the CCP is in a frame, wait for configuration from downstream.
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.EventType.CONFIGURE, function (data) {
+        this.unsubscribe();
+        // Merge all params from data into params for any overridden
+        // values in either legacy "softphone" or "ringtone" settings.
+        mergeParams(params, data);
+        setupRingtoneEngines(params.ringtone);
+      });
+
+    } else {
+      setupRingtoneEngines(params.ringtone);
+    }
+  };
+
+  connect.core.initSoftphoneManager = function (paramsIn) {
+    var params = paramsIn || {};
+
+    var competeForMasterOnAgentUpdate = function (softphoneParamsIn) {
+      var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
+
+      connect.agent(function (agent) {
+        if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
+          return;
+        }
+        agent.onRefresh(function () {
+          var sub = this;
+
+          connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
+            if (!connect.core.softphoneManager && agent.isSoftphoneEnabled()) {
+              // Become master to send logs, since we need logs from softphone tab.
+              connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
+              connect.core.softphoneManager = new connect.SoftphoneManager(softphoneParams);
+              sub.unsubscribe();
+            }
+          });
+        });
+      });
+    };
+
+    /**
+     * If the window is framed, we need to wait for a CONFIGURE message from
+     * downstream before we try to initialize, unless params.allowFramedSoftphone is true.
+     */
+    if (connect.isFramed() && !params.allowFramedSoftphone) {
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.EventType.CONFIGURE, function (data) {
+        if (data.softphone && data.softphone.allowFramedSoftphone) {
+          this.unsubscribe();
+          competeForMasterOnAgentUpdate(data.softphone);
+        }
+      });
+    } else {
+      competeForMasterOnAgentUpdate(params);
+    }
+
+
+    connect.agent(function (agent) {
+      // Sync mute across all tabs 
+      if (agent.isSoftphoneEnabled() && agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
+        connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+          {
+            event: connect.EventType.MUTE
+          });
+      }
+    });
+  };
+
+  connect.core.authorize = function (endpoint) {
+    var options = {
+      credentials: 'include'
+    };
+    return connect.fetch(endpoint || AUTHORIZE_ENDPOINT, options, AUTHORIZE_RETRY_INTERVAL, AUTHORIZE_MAX_RETRY);
+  };
+
+  connect.core.verifyDomainAccess = function (authToken, endpoint) {
+    if (!connect.isFramed()) {
+      return Promise.resolve();
+    }
+    var options = {
+      headers: {
+        'X-Amz-Bearer': authToken
+      }
+    };
+    return connect.fetch(endpoint || WHITELISTED_ORIGINS_ENDPOINT, options, WHITELISTED_ORIGINS_RETRY_INTERVAL, WHITELISTED_ORIGINS_MAX_RETRY).then(function (response) {
+      var topDomain = sanitizeDomain(window.document.referrer);
+      var isAllowed = response.whitelistedOrigins.some(function (origin) {
+        return topDomain === sanitizeDomain(origin);
+      });
+      return isAllowed ? Promise.resolve() : Promise.reject();
+    });
+  };
+
+  /**-------------------------------------------------------------------------
+   * Initializes Connect by creating or connecting to the API Shared Worker.
+   * Used primarily by the CCP.
+   */
+  connect.core.initSharedWorker = function (params) {
+    connect.core.checkNotInitialized();
+    if (connect.core.initialized) {
+      return;
+    }
+    connect.assertNotNull(params, 'params');
+
+    var sharedWorkerUrl = connect.assertNotNull(params.sharedWorkerUrl, 'params.sharedWorkerUrl');
+    var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
+    var refreshToken = connect.assertNotNull(params.refreshToken, 'params.refreshToken');
+    var authTokenExpiration = connect.assertNotNull(params.authTokenExpiration, 'params.authTokenExpiration');
+    var region = connect.assertNotNull(params.region, 'params.region');
+    var endpoint = params.endpoint || null;
+    var authorizeEndpoint = params.authorizeEndpoint || "/connect/auth/authorize";
+
+    try {
+      // Initialize the event bus and agent data providers.
+      connect.core.eventBus = new connect.EventBus({ logEvents: true });
+      connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
+      connect.core.mediaFactory = new connect.MediaFactory(params);
+      // Create the shared worker and upstream conduit.
+      var worker = new SharedWorker(sharedWorkerUrl, "ConnectSharedWorker");
+      var conduit = new connect.Conduit("ConnectSharedWorkerConduit",
+        new connect.PortStream(worker.port),
+        new connect.WindowIOStream(window, parent));
+
+      // Set the global upstream conduit for external use.
+      connect.core.upstream = conduit;
+
+      connect.core.webSocketProvider = new WebSocketProvider();
+
+      // Close our port to the shared worker before the window closes.
+      global.onunload = function () {
+        conduit.sendUpstream(connect.EventType.CLOSE);
+        worker.port.close();
+      };
+
+      connect.getLog().scheduleUpstreamLogPush(conduit);
+      // Bridge all upstream messages into the event bus.
+      conduit.onAllUpstream(connect.core.getEventBus().bridge());
+      // Bridge all downstream messages into the event bus.
+      conduit.onAllDownstream(connect.core.getEventBus().bridge());
+      // Pass all upstream messages (from shared worker) downstream (to CCP consumer).
+      conduit.onAllUpstream(conduit.passDownstream());
+      // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
+      conduit.onAllDownstream(conduit.passUpstream());
+      // Send configuration up to the shared worker.
+
+      conduit.sendUpstream(connect.EventType.CONFIGURE, {
+        authToken: authToken,
+        authTokenExpiration: authTokenExpiration,
+        endpoint: endpoint,
+        refreshToken: refreshToken,
+        region: region,
+        authorizeEndpoint: authorizeEndpoint
+      });
+
+      conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+        connect.getLog().info("Acknowledged by the ConnectSharedWorker!");
+        connect.core.initialized = true;
+        this.unsubscribe();
+      });
+      // Add all upstream log entries to our own logger.
+      conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
+        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+      });
+      // Reload the page if the shared worker detects an API auth failure.
+      conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
+        location.reload();
+      });
+
+      connect.core.client = new connect.UpstreamConduitClient(conduit);
+      connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
+
+      // Pass the TERMINATE request upstream to the shared worker.
+      connect.core.getEventBus().subscribe(connect.EventType.TERMINATE,
+        conduit.passUpstream());
+
+      // Refresh the page when we receive the TERMINATED response from the
+      // shared worker.
+      connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
+        window.location.reload(true);
+      });
+
+      worker.port.start();
+
+      // Attempt to get permission to show notifications.
+      var nm = connect.core.getNotificationManager();
+      nm.requestPermission();
+
+    } catch (e) {
+      connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
+        .withException(e);
+    }
+  };
+
+  /**-------------------------------------------------------------------------
+   * Initializes Connect by creating or connecting to the API Shared Worker.
+   * Initializes Connect by loading the CCP in an iframe and connecting to it.
+   */
+  connect.core.initCCP = function (containerDiv, paramsIn) {
+    connect.core.checkNotInitialized();
+    if (connect.core.initialized) {
+      return;
+    }
+
+    // For backwards compatibility, when instead of taking a params object
+    // as input we only accepted ccpUrl.
+    var params = {};
+    if (typeof (paramsIn) === 'string') {
+      params.ccpUrl = paramsIn;
+    } else {
+      params = paramsIn;
+    }
+
+    var softphoneParams = params.softphone || null;
+
+    connect.assertNotNull(containerDiv, 'containerDiv');
+    connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
+
+    // Create the CCP iframe and append it to the container div.
+    var iframe = document.createElement('iframe');
+    iframe.src = params.ccpUrl;
+    iframe.allow = "microphone; autoplay";
+    iframe.style = "width: 100%; height: 100%";
+    containerDiv.appendChild(iframe);
+
+    // Initialize the event bus and agent data providers.
+    // NOTE: Setting logEvents here to FALSE in order to avoid duplicating
+    // events which are logged in CCP.
+    connect.core.eventBus = new connect.EventBus({ logEvents: false });
+    connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
+    connect.core.mediaFactory = new connect.MediaFactory(params);
+
+    // Build the upstream conduit communicating with the CCP iframe.
+    var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
+
+    // Set the global upstream conduit for external use.
+    connect.core.upstream = conduit;
+
+    // Init webSocketProvider
+    connect.core.webSocketProvider = new WebSocketProvider();
+
+    conduit.onAllUpstream(connect.core.getEventBus().bridge());
+
+    // Initialize the keepalive manager.
+    connect.core.keepaliveManager = new KeepaliveManager(conduit,
+      connect.core.getEventBus(),
+      params.ccpSynTimeout || CCP_SYN_TIMEOUT,
+      params.ccpAckTimeout || CCP_ACK_TIMEOUT)
+      ;
+    connect.core.iframeRefreshInterval = null;
+
+    // Allow 10 sec (default) before receiving the first ACK from the CCP.
+    connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
+      connect.core.ccpLoadTimeoutInstance = null;
+      connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
+    }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
+
+    // Once we receive the first ACK, setup our upstream API client and establish
+    // the SYN/ACK refresh flow.
+    conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+      connect.getLog().info("Acknowledged by the CCP!");
+      connect.core.client = new connect.UpstreamConduitClient(conduit);
+      connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
+      connect.core.initialized = true;
+
+      if (softphoneParams) {
+        // Send configuration up to the CCP.
+        conduit.sendUpstream(connect.EventType.CONFIGURE, {
+          softphone: softphoneParams
+        });
+      }
+
+      if (connect.core.ccpLoadTimeoutInstance) {
+        global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
+        connect.core.ccpLoadTimeoutInstance = null;
+      }
+
+      connect.core.keepaliveManager.start();
+      this.unsubscribe();
+    });
+
+    // Add any logs from the upstream to our own logger.
+    conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
+      connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+    });
+
+    // Pop a login page when we encounter an ACK timeout.
+    connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
+      // loginPopup is true by default, only false if explicitly set to false.
+      if (params.loginPopup !== false) {
+        try {
+          var loginUrl = createLoginUrl(params);
+          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
+          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
+
+        } catch (e) {
+          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
+        }
+      }
+
+      if (connect.core.iframeRefreshInterval == null) {
+        connect.core.iframeRefreshInterval = window.setInterval(function () {
+          iframe.src = params.ccpUrl;
+        }, CCP_IFRAME_REFRESH_INTERVAL);
+
+        conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+          this.unsubscribe();
+          global.clearInterval(connect.core.iframeRefreshInterval);
+          connect.core.iframeRefreshInterval = null;
+          connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+          if (params.loginPopupAutoClose && connect.core.loginWindow) {
+            connect.core.loginWindow.close();
+            connect.core.loginWindow = null;
+          }
+        });
+      }
+    });
+  };
+
+  /**-----------------------------------------------------------------------*/
+  var KeepaliveManager = function (conduit, eventBus, synTimeout, ackTimeout) {
+    this.conduit = conduit;
+    this.eventBus = eventBus;
+    this.synTimeout = synTimeout;
+    this.ackTimeout = ackTimeout;
+    this.ackTimer = null;
+    this.synTimer = null;
+    this.ackSub = null;
+  };
+
+  KeepaliveManager.prototype.start = function () {
+    var self = this;
+
+    this.conduit.sendUpstream(connect.EventType.SYNCHRONIZE);
+    this.ackSub = this.conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+      this.unsubscribe();
+      global.clearTimeout(self.ackTimer);
+      self.deferStart();
+    });
+    this.ackTimer = global.setTimeout(function () {
+      self.ackSub.unsubscribe();
+      self.eventBus.trigger(connect.EventType.ACK_TIMEOUT);
+      self.deferStart();
+    }, this.ackTimeout);
+  };
+
+  KeepaliveManager.prototype.deferStart = function () {
+    if (this.synTimer == null) {
+      this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
+    }
+  };
+
+  /**-----------------------------------------------------------------------*/
+
+  var WebSocketProvider = function () {
+
+    var callbacks = {
+      initFailure: new Set(),
+      subscriptionUpdate: new Set(),
+      subscriptionFailure: new Set(),
+      topic: new Map(),
+      allMessage: new Set(),
+      connectionGain: new Set(),
+      connectionLost: new Set()
+    };
+
+    var invokeCallbacks = function (callbacks, response) {
+      callbacks.forEach(function (callback) {
+        callback(response);
+      });
+    };
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.INIT_FAILURE, function () {
+      invokeCallbacks(callbacks.initFailure);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_GAIN, function () {
+      invokeCallbacks(callbacks.connectionGain);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_LOST, function () {
+      invokeCallbacks(callbacks.connectionLost);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.SUBSCRIPTION_UPDATE, function (response) {
+      invokeCallbacks(callbacks.subscriptionUpdate, response);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.SUBSCRIPTION_FAILURE, function (response) {
+      invokeCallbacks(callbacks.subscriptionFailure, response);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.ALL_MESSAGE, function (response) {
+      invokeCallbacks(callbacks.allMessage, response);
+      if (callbacks.topic.has(response.topic)) {
+        invokeCallbacks(callbacks.topic.get(response.topic), response);
+      }
+    });
+
+    this.sendMessage = function (webSocketPayload) {
+      connect.core.getUpstream().sendUpstream(connect.WebSocketEvents.SEND, webSocketPayload);
+    };
+
+    this.onInitFailure = function (cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.initFailure.add(cb);
+      return function () {
+        return callbacks.initFailure.delete(cb);
+      };
+    };
+
+    this.onConnectionGain = function (cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.connectionGain.add(cb);
+      return function () {
+        return callbacks.connectionGain.delete(cb);
+      };
+    };
+
+    this.onConnectionLost = function (cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.connectionLost.add(cb);
+      return function () {
+        return callbacks.connectionLost.delete(cb);
+      };
+    };
+
+    this.onSubscriptionUpdate = function (cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.subscriptionUpdate.add(cb);
+      return function () {
+        return callbacks.subscriptionUpdate.delete(cb);
+      };
+    };
+
+    this.onSubscriptionFailure = function (cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.subscriptionFailure.add(cb);
+      return function () {
+        return callbacks.subscriptionFailure.delete(cb);
+      };
+    };
+
+    this.subscribeTopics = function (topics) {
+      connect.assertNotNull(topics, 'topics');
+      connect.assertTrue(connect.isArray(topics), 'topics must be a array');
+      connect.core.getUpstream().sendUpstream(connect.WebSocketEvents.SUBSCRIBE, topics);
+    };
+
+    this.onMessage = function (topicName, cb) {
+      connect.assertNotNull(topicName, 'topicName');
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      if (callbacks.topic.has(topicName)) {
+        callbacks.topic.get(topicName).add(cb);
+      } else {
+        callbacks.topic.set(topicName, new Set([cb]));
+      }
+      return function () {
+        return callbacks.topic.get(topicName).delete(cb);
+      };
+    };
+
+    this.onAllMessage = function (cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.allMessage.add(cb);
+      return function () {
+        return callbacks.allMessage.delete(cb);
+      };
+    };
+
+  };
+
+  /**-----------------------------------------------------------------------*/
+  var AgentDataProvider = function (bus) {
+    var agentData = null;
+    this.bus = bus;
+    this.bus.subscribe(connect.AgentEvents.UPDATE, connect.hitch(this, this.updateAgentData));
+  };
+
+  AgentDataProvider.prototype.updateAgentData = function (agentData) {
+    var oldAgentData = this.agentData;
+    this.agentData = agentData;
+
+    if (oldAgentData == null) {
+      connect.agent.initialized = true;
+      this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
+    }
+
+    this.bus.trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+
+    this._fireAgentUpdateEvents(oldAgentData);
+  };
+
+  AgentDataProvider.prototype.getAgentData = function () {
+    if (this.agentData == null) {
+      throw new connect.StateError('No agent data is available yet!');
+    }
+
+    return this.agentData;
+  };
+
+  AgentDataProvider.prototype.getContactData = function (contactId) {
+    var agentData = this.getAgentData();
+    var contactData = connect.find(agentData.snapshot.contacts, function (ctdata) {
+      return ctdata.contactId === contactId;
+    });
+
+    if (contactData == null) {
+      throw new connect.StateError('Contact %s no longer exists.', contactId);
+    }
+
+    return contactData;
+  };
+
+  AgentDataProvider.prototype.getConnectionData = function (contactId, connectionId) {
+    var contactData = this.getContactData(contactId);
+    var connectionData = connect.find(contactData.connections, function (cdata) {
+      return cdata.connectionId === connectionId;
+    });
+
+    if (connectionData == null) {
+      throw new connect.StateError('Connection %s for contact %s no longer exists.', connectionId, contactId);
+    }
+
+    return connectionData;
+  };
+
+  AgentDataProvider.prototype._diffContacts = function (oldAgentData) {
+    var diff = {
+      added: {},
+      removed: {},
+      common: {},
+      oldMap: connect.index(oldAgentData == null ? [] : oldAgentData.snapshot.contacts, function (contact) { return contact.contactId; }),
+      newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; })
+    };
+
+    connect.keys(diff.oldMap).forEach(function (contactId) {
+      if (connect.contains(diff.newMap, contactId)) {
+        diff.common[contactId] = diff.newMap[contactId];
+      } else {
+        diff.removed[contactId] = diff.oldMap[contactId];
+      }
+    });
+
+    connect.keys(diff.newMap).forEach(function (contactId) {
+      if (!connect.contains(diff.oldMap, contactId)) {
+        diff.added[contactId] = diff.newMap[contactId];
+      }
+    });
+
+    return diff;
+  };
+
+  AgentDataProvider.prototype._fireAgentUpdateEvents = function (oldAgentData) {
+    var self = this;
+    var diff = null;
+    var oldAgentState = oldAgentData == null ? connect.AgentAvailStates.INIT : oldAgentData.snapshot.state.name;
+    var newAgentState = this.agentData.snapshot.state.name;
+    var oldRoutingState = oldAgentData == null ? connect.AgentStateType.INIT : oldAgentData.snapshot.state.type;
+    var newRoutingState = this.agentData.snapshot.state.type;
+
+    if (oldRoutingState !== newRoutingState) {
+      connect.core.getAgentRoutingEventGraph().getAssociations(this, oldRoutingState, newRoutingState).forEach(function (event) {
+        self.bus.trigger(event, new connect.Agent());
+      });
+    }
+
+    if (oldAgentState !== newAgentState) {
+      this.bus.trigger(connect.AgentEvents.STATE_CHANGE, {
+        agent: new connect.Agent(),
+        oldState: oldAgentState,
+        newState: newAgentState
+
+      });
+      connect.core.getAgentStateEventGraph().getAssociations(this, oldAgentState, newAgentState).forEach(function (event) {
+        self.bus.trigger(event, new connect.Agent());
+      });
+    }
+
+    if (oldAgentData !== null) {
+      diff = this._diffContacts(oldAgentData);
+
+    } else {
+      diff = {
+        added: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
+        removed: {},
+        common: {},
+        oldMap: {},
+        newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; })
+      };
+    }
+
+    connect.values(diff.added).forEach(function (contactData) {
+      self.bus.trigger(connect.ContactEvents.INIT, new connect.Contact(contactData.contactId));
+      self._fireContactUpdateEvents(contactData.contactId, connect.ContactStateType.INIT, contactData.state.type);
+    });
+
+    connect.values(diff.removed).forEach(function (contactData) {
+      self.bus.trigger(connect.ContactEvents.DESTROYED, new connect.ContactSnapshot(contactData));
+      self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.DESTROYED, contactData.contactId), new connect.ContactSnapshot(contactData));
+      self._unsubAllContactEventsForContact(contactData.contactId);
+    });
+
+    connect.keys(diff.common).forEach(function (contactId) {
+      self._fireContactUpdateEvents(contactId, diff.oldMap[contactId].state.type, diff.newMap[contactId].state.type);
+    });
+  };
+
+  AgentDataProvider.prototype._fireContactUpdateEvents = function (contactId, oldContactState, newContactState) {
+    var self = this;
+    if (oldContactState !== newContactState) {
+      connect.core.getContactEventGraph().getAssociations(this, oldContactState, newContactState).forEach(function (event) {
+        self.bus.trigger(event, new connect.Contact(contactId));
+        self.bus.trigger(connect.core.getContactEventName(event, contactId), new connect.Contact(contactId));
+      });
+    }
+
+    self.bus.trigger(connect.ContactEvents.REFRESH, new connect.Contact(contactId));
+    self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), new connect.Contact(contactId));
+  };
+
+  AgentDataProvider.prototype._unsubAllContactEventsForContact = function (contactId) {
+    var self = this;
+    connect.values(connect.ContactEvents).forEach(function (eventName) {
+      self.bus.getSubscriptions(connect.core.getContactEventName(eventName, contactId))
+        .map(function (sub) { sub.unsubscribe(); });
+    });
+  };
+
+  /** ----- minimal view layer event handling **/
+
+  connect.core.onViewContact = function (f) {
+    connect.core.getUpstream().onUpstream(connect.ContactEvents.VIEW, f);
+  };
+
+  /**
+   * Used of agent interface control. 
+   * connect.core.viewContact("contactId") ->  this is curently programmed to get the contact into view.
+   */
+  connect.core.viewContact = function (contactId) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ContactEvents.VIEW,
+      data: {
+        contactId: contactId
+      }
+    });
+  };
+
+  /** ------------------------------------------------- */
+
+  /**
+  * This will be helpful for the custom and embedded CCPs 
+  * to handle the access denied use case. 
+  */
+  connect.core.onAccessDenied = function (f) {
+    connect.core.getUpstream().onUpstream(connect.EventType.ACCESS_DENIED, f);
+  };
+
+  /**
+  * This will be helpful for SAML use cases to handle the custom logins. 
+  */
+  connect.core.onAuthFail = function (f) {
+    connect.core.getUpstream().onUpstream(connect.EventType.AUTH_FAIL, f);
+  };
+
+  /** ------------------------------------------------- */
+
+  /**
+   * Used for handling the rtc session stats.
+   * Usage
+   * connect.core.onSoftphoneSessionInit(function({ connectionId }) {
+   *     var softphoneManager = connect.core.getSoftphoneManager();
+   *     if(softphoneManager){
+   *        // access session
+   *        var session = softphoneManager.getSession(connectionId); 
+   *      }
+   * });
+   */
+
+  connect.core.onSoftphoneSessionInit = function (f) {
+    connect.core.getUpstream().onUpstream(connect.ConnnectionEvents.SESSION_INIT, f);
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getContactEventName = function (eventName, contactId) {
+    connect.assertNotNull(eventName, 'eventName');
+    connect.assertNotNull(contactId, 'contactId');
+    if (!connect.contains(connect.values(connect.ContactEvents), eventName)) {
+      throw new connect.ValueError('%s is not a valid contact event.', eventName);
+    }
+    return connect.sprintf('%s::%s', eventName, contactId);
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getEventBus = function () {
+    return connect.core.eventBus;
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getWebSocketManager = function () {
+    return connect.core.webSocketProvider;
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getAgentDataProvider = function () {
+    return connect.core.agentDataProvider;
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getLocalTimestamp = function () {
+    return connect.core.getAgentDataProvider().getAgentData().snapshot.localTimestamp;
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getSkew = function () {
+    return connect.core.getAgentDataProvider().getAgentData().snapshot.skew;
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getAgentRoutingEventGraph = function () {
+    return connect.core.agentRoutingEventGraph;
+  };
+  connect.core.agentRoutingEventGraph = new connect.EventGraph()
+    .assoc(connect.EventGraph.ANY, connect.AgentStateType.ROUTABLE,
+      connect.AgentEvents.ROUTABLE)
+    .assoc(connect.EventGraph.ANY, connect.AgentStateType.NOT_ROUTABLE,
+      connect.AgentEvents.NOT_ROUTABLE)
+    .assoc(connect.EventGraph.ANY, connect.AgentStateType.OFFLINE,
+      connect.AgentEvents.OFFLINE);
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getAgentStateEventGraph = function () {
+    return connect.core.agentStateEventGraph;
+  };
+  connect.core.agentStateEventGraph = new connect.EventGraph()
+    .assoc(connect.EventGraph.ANY,
+      connect.values(connect.AgentErrorStates),
+      connect.AgentEvents.ERROR)
+    .assoc(connect.EventGraph.ANY, connect.AgentAvailStates.AFTER_CALL_WORK,
+      connect.AgentEvents.ACW);
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getContactEventGraph = function () {
+    return connect.core.contactEventGraph;
+  };
+
+  connect.core.contactEventGraph = new connect.EventGraph()
+    .assoc(connect.EventGraph.ANY,
+      connect.ContactStateType.INCOMING,
+      connect.ContactEvents.INCOMING)
+    .assoc(connect.EventGraph.ANY,
+      connect.ContactStateType.PENDING,
+      connect.ContactEvents.PENDING)
+    .assoc(connect.EventGraph.ANY,
+      connect.ContactStateType.CONNECTING,
+      connect.ContactEvents.CONNECTING)
+    .assoc(connect.EventGraph.ANY,
+      connect.ContactStateType.CONNECTED,
+      connect.ContactEvents.CONNECTED)
+    .assoc(connect.ContactStateType.CONNECTING,
+      connect.ContactStateType.ERROR,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.INCOMING,
+      connect.ContactStateType.ERROR,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.EventGraph.ANY,
+      connect.ContactStateType.ENDED,
+      connect.ContactEvents.ACW)
+    .assoc(connect.values(connect.CONTACT_ACTIVE_STATES),
+      connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
+      connect.ContactEvents.ENDED);
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getClient = function () {
+    if (!connect.core.client) {
+      throw new connect.StateError('The connect core has not been initialized!');
+    }
+    return connect.core.client;
+  };
+  connect.core.client = null;
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getMasterClient = function () {
+    if (!connect.core.masterClient) {
+      throw new connect.StateError('The connect master client has not been initialized!');
+    }
+    return connect.core.masterClient;
+  };
+  connect.core.masterClient = null;
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getSoftphoneManager = function () {
+    return connect.core.softphoneManager;
+  };
+  connect.core.softphoneManager = null;
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getNotificationManager = function () {
+    if (!connect.core.notificationManager) {
+      connect.core.notificationManager = new connect.NotificationManager();
+    }
+    return connect.core.notificationManager;
+  };
+  connect.core.notificationManager = null;
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getPopupManager = function () {
+    return connect.core.popupManager;
+  };
+  connect.core.popupManager = new connect.PopupManager();
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getPopupManager = function () {
+    return connect.core.popupManager;
+  };
+  connect.core.popupManager = new connect.PopupManager();
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getUpstream = function () {
+    if (!connect.core.upstream) {
+      throw new connect.StateError('There is no upstream conduit!');
+    }
+    return connect.core.upstream;
+  };
+  connect.core.upstream = null;
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.AgentDataProvider = AgentDataProvider;
+
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function () {
+  var global = this;
+  var connect = global.connect || {};
+  global.connect = connect;
+  global.lily = connect;
+
+  var RingtoneEngineBase = function (ringtoneConfig) {
+    var self = this;
+    this._prevContactId = null;
+
+    connect.assertNotNull(ringtoneConfig, "ringtoneConfig");
+    if (!ringtoneConfig.ringtoneUrl) {
+      throw new Error("ringtoneUrl is required!");
+    }
+
+    if (global.Audio && typeof global.Promise !== "undefined") {
+      this._playableAudioPromise = new Promise(function (resolve, reject) {
+        self._audio = new Audio(ringtoneConfig.ringtoneUrl);
+        self._audio.loop = true;
+        self._audio.addEventListener("canplay", function () {
+          self._audioPlayable = true;
+          resolve(self._audio);
+        });
+      });
+
+    } else {
+      this._audio = null;
+      connect.getLog().error("Unable to provide a ringtone.");
+    }
+
+    self._driveRingtone();
+  };
+
+  RingtoneEngineBase.prototype._driveRingtone = function () {
+    throw new Error("Not implemented.");
+  };
+
+  RingtoneEngineBase.prototype._startRingtone = function (contact) {
+    if (this._audio) {
+      this._audio.play();
+      this._publishTelemetryEvent("Ringtone Start", contact);
+    }
+  };
+
+  RingtoneEngineBase.prototype._stopRingtone = function (contact) {
+    if (this._audio) {
+      this._audio.pause();
+      this._audio.currentTime = 0;
+      this._publishTelemetryEvent("Ringtone Stop", contact);
+    }
+  };
+
+  /**
+   * Stop ringtone.
+   */
+  RingtoneEngineBase.prototype.stopRingtone = function () {
+    this._stopRingtone();
+  };
+
+  RingtoneEngineBase.prototype._ringtoneSetup = function (contact) {
+    var self = this;
+    connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
+      self._startRingtone(contact);
+      self._prevContactId = contact.getContactId();
+
+      contact.onConnected(lily.hitch(self, self._stopRingtone));
+      contact.onAccepted(lily.hitch(self, self._stopRingtone));
+      contact.onEnded(lily.hitch(self, self._stopRingtone));
+      // Just to make sure to stop the ringtone in case of the failures of specific callbacks(onAccepted,onConnected);
+      contact.onRefresh(function (contact) {
+        if (contact.getStatus().type !== connect.ContactStatusType.CONNECTING &&
+          contact.getStatus().type !== connect.ContactStatusType.INCOMING) {
+          self._stopRingtone();
+        }
+      });
+    });
+  };
+
+  RingtoneEngineBase.prototype._publishTelemetryEvent = function (eventName, contact) {
+    if (contact && contact.getContactId()) {
+      connect.publishMetric({
+        name: eventName,
+        contactId: contact.getContactId()
+      });
+    }
+  };
+
+  /**
+   * Change the audio device used to play ringtone.
+   * If audio element is not fully initialized, the API will wait _audioPlayablePromise for 3 seconds and fail on timeout.
+   * This API is supported only by browsers that implemented ES6 Promise and http://www.w3.org/TR/audio-output/
+   * Return a Promise that indicates the result of changing output device.
+   */
+  RingtoneEngineBase.prototype.setOutputDevice = function (deviceId) {
+    if (this._playableAudioPromise) {
+      var playableAudioWithTimeout = Promise.race([
+        this._playableAudioPromise,
+        new Promise(function (resolve, reject) {
+          global.setTimeout(function () { reject("Timed out waiting for playable audio"); }, 3000/*ms*/);
+        })
+      ]);
+      return playableAudioWithTimeout.then(function (audio) {
+        if (audio.setSinkId) {
+          return Promise.resolve(audio.setSinkId(deviceId));
+        } else {
+          return Promise.reject("Not supported");
+        }
+      });
+    }
+
+    if (global.Promise) {
+      return Promise.reject("Not eligible ringtone owner");
+    }
+  };
+
+  var VoiceRingtoneEngine = function (ringtoneConfig) {
+    RingtoneEngineBase.call(this, ringtoneConfig);
+  };
+  VoiceRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
+  VoiceRingtoneEngine.prototype.constructor = VoiceRingtoneEngine;
+
+  VoiceRingtoneEngine.prototype._driveRingtone = function () {
+    var self = this;
+
+    var onContactConnect = function (contact) {
+      if (contact.getType() === lily.ContactType.VOICE &&
+        contact.isSoftphoneCall() && contact.isInbound()) {
+        self._ringtoneSetup(contact);
+        self._publishTelemetryEvent("Ringtone Connecting", contact);
+      }
+    };
+
+    connect.contact(function (contact) {
+      contact.onConnecting(onContactConnect);
+    });
+
+    new connect.Agent().getContacts().forEach(function (contact) {
+      if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
+        onContactConnect(contact);
+      }
+    });
+  };
+
+
+  var ChatRingtoneEngine = function (ringtoneConfig) {
+    RingtoneEngineBase.call(this, ringtoneConfig);
+  };
+  ChatRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
+  ChatRingtoneEngine.prototype.constructor = ChatRingtoneEngine;
+
+  ChatRingtoneEngine.prototype._driveRingtone = function () {
+    var self = this;
+
+    var onContactConnect = function (contact) {
+      if (contact.getType() === lily.ContactType.CHAT && contact.isInbound()) {
+        self._ringtoneSetup(contact);
+        self._publishTelemetryEvent("Chat Ringtone Connecting", contact);
+      }
+    };
+
+    connect.contact(function (contact) {
+      contact.onConnecting(onContactConnect);
+    });
+  };
+
+  var QueueCallbackRingtoneEngine = function (ringtoneConfig) {
+    RingtoneEngineBase.call(this, ringtoneConfig);
+  };
+  QueueCallbackRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
+  QueueCallbackRingtoneEngine.prototype.constructor = QueueCallbackRingtoneEngine;
+
+  QueueCallbackRingtoneEngine.prototype._driveRingtone = function () {
+    var self = this;
+
+    connect.contact(function (contact) {
+      contact.onIncoming(function () {
+        if (contact.getType() === lily.ContactType.QUEUE_CALLBACK) {
+          self._ringtoneSetup(contact);
+          self._publishTelemetryEvent("Callback Ringtone Connecting", contact);
+        }
+      });
+    });
+  };
+
+  /* export connect.RingtoneEngine */
+  connect.VoiceRingtoneEngine = VoiceRingtoneEngine;
+  connect.ChatRingtoneEngine = ChatRingtoneEngine;
+  connect.QueueCallbackRingtoneEngine = QueueCallbackRingtoneEngine;
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+  global.lily = connect;
+
+  var RTPJobIntervalMs = 1000;
+  var statsReportingJobIntervalMs = 30000;
+  var streamBufferSize = 500;
+  var CallTypeMap = {};
+  CallTypeMap[connect.SoftphoneCallType.AUDIO_ONLY] = 'Audio';
+  CallTypeMap[connect.SoftphoneCallType.VIDEO_ONLY] = 'Video';
+  CallTypeMap[connect.SoftphoneCallType.AUDIO_VIDEO] = 'AudioVideo';
+  CallTypeMap[connect.SoftphoneCallType.NONE] = 'None';
+  var AUDIO_INPUT = 'audio_input';
+  var AUDIO_OUTPUT = 'audio_output';
+
+  var MediaTypeMap = {};
+  MediaTypeMap[connect.ContactType.VOICE] = "Voice";
+  var UNKNOWN_MEDIA_TYPE = "Unknown";
+
+  var timeSeriesStreamStatsBuffer = [];
+  var aggregatedUserAudioStats = {};
+  var aggregatedRemoteAudioStats = {};
+  var rtpStatsJob = null;
+  var reportStatsJob = null;
+  //Logger specific to softphone.
+  var logger = null;
+  var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
+  var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
+  var MULTIPLE_SESSIONS_EVENT = "MultiSessions";
+
+  var localMediaStream = {};
+
+  var softphoneClientId = connect.randomId();
+
+  var requestIceAccess = function (transport) {
+    return new Promise(function (resolve, reject) {
+      connect.core.getClient().call(connect.ClientMethods.CREATE_TRANSPORT, transport, {
+        success: function (data) {
+          resolve(data.softphoneTransport.softphoneMediaConnections);
+        },
+        failure: function (reason) {
+          if (reason.message && reason.message.includes("SoftphoneConnectionLimitBreachedException")) {
+            publishError("multiple_softphone_active_sessions", "Number of active sessions are more then allowed limit.");
+          }
+          reject(Error("requestIceAccess failed"));
+        },
+        authFailure: function () {
+          reject(Error("Authentication failed while requestIceAccess"));
+        },
+        accessDenied: function () {
+          reject(Error("Access Denied while requestIceAccess"));
+        }
+      });
+    });
+  };
+
+  var SoftphoneManager = function (softphoneParams) {
+    var self = this;
+    logger = new SoftphoneLogger(connect.getLog());
+    var rtcPeerConnectionFactory;
+    if (connect.RtcPeerConnectionFactory) {
+      rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
+        connect.core.getWebSocketManager(),
+        softphoneClientId,
+        connect.hitch(self, requestIceAccess, {
+          transportType: "softphone",
+          softphoneClientId: softphoneClientId
+        }),
+        connect.hitch(self, publishError));
+    }
+    if (!isBrowserSoftPhoneSupported()) {
+      publishError(SoftphoneErrorTypes.UNSUPPORTED_BROWSER,
+        "Connect does not support this browser. Some functionality may not work. ",
+        "");
+    }
+    var gumPromise = fetchUserMedia({
+      success: function (stream) {
+        if (connect.isFirefoxBrowser()) {
+          connect.core.setSoftphoneUserMediaStream(stream);
+        }
+      },
+      failure: function (err) {
+        publishError(err, "Your microphone is not enabled in your browser. ", "");
+      }
+    });
+    handleSoftPhoneMuteToggle();
+
+    this.ringtoneEngine = null;
+    var cleanMultipleSessions = 'true' === softphoneParams.cleanMultipleSessions;
+    var rtcSessions = {};
+    // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
+    var callsDetected = {};
+
+    // helper method to provide access to rtc sessions
+    this.getSession = function (connectionId) {
+      return rtcSessions[connectionId];
+    }
+
+    var isContactTerminated = function (contact) {
+      return contact.getStatus().type === connect.ContactStatusType.ENDED ||
+        contact.getStatus().type === connect.ContactStatusType.ERROR ||
+        contact.getStatus().type === connect.ContactStatusType.MISSED;
+    };
+
+    var destroySession = function (agentConnectionId) {
+      if (rtcSessions.hasOwnProperty(agentConnectionId)) {
+        var session = rtcSessions[agentConnectionId];
+        // Currently the assumption is it will throw an exception only and if only it already has been hung up.
+        // TODO: Update once the hangup API does not throw exceptions
+        new Promise(function (resolve, reject) {
+          delete rtcSessions[agentConnectionId];
+          delete callsDetected[agentConnectionId];
+          session.hangup();
+        }).catch(function (err) {
+          lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message);
+        });
+      }
+    };
+
+    // When feature access control flag is on, ignore the new call and hang up the previous sessions.
+    // Otherwise just log the contact and agent in the client side metrics.
+    // TODO: Update when connect-rtc exposes an API to detect session status.
+    var sanityCheckActiveSessions = function (rtcSessions) {
+      if (Object.keys(rtcSessions).length > 0) {
+        if (cleanMultipleSessions) {
+          // Error! our state doesn't match, tear it all down.
+          for (var connectionId in rtcSessions) {
+            if (rtcSessions.hasOwnProperty(connectionId)) {
+              // Log an error for the session we are about to kill.
+              publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
+              destroySession(connectionId);
+            }
+          }
+          throw new Error("duplicate session detected, refusing to setup new connection");
+        } else {
+          for (var _connectionId in rtcSessions) {
+            if (rtcSessions.hasOwnProperty(_connectionId)) {
+              publishMultipleSessionsEvent(MULTIPLE_SESSIONS_EVENT, rtcSessions[_connectionId].callId, _connectionId);
+            }
+          }
+        }
+      }
+    };
+
+    var onRefreshContact = function (contact, agentConnectionId) {
+      if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
+        destroySession(agentConnectionId);
+      }
+      if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
+        contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
+        contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+
+        // Set to true, this will block subsequent invokes from entering.
+        callsDetected[agentConnectionId] = true;
+        logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId);
+
+        // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
+        sanityCheckActiveSessions(rtcSessions);
+
+        if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
+          publishTelemetryEvent("Softphone Connecting", contact.getContactId());
+        }
+
+        initializeParams();
+        var softphoneInfo = contact.getAgentConnection().getSoftphoneMediaInfo();
+        var callConfig = parseCallConfig(softphoneInfo.callConfigJson);
+        var webSocketProvider;
+        if (callConfig.useWebSocketProvider) {
+          webSocketProvider = connect.core.getWebSocketManager();
+        }
+        var session = new connect.RTCSession(
+          callConfig.signalingEndpoint,
+          callConfig.iceServers,
+          softphoneInfo.callContextToken,
+          logger,
+          contact.getContactId(),
+          agentConnectionId,
+          webSocketProvider);
+
+        rtcSessions[agentConnectionId] = session;
+
+        if (connect.core.getSoftphoneUserMediaStream()) {
+          session.mediaStream = connect.core.getSoftphoneUserMediaStream();
+        }
+
+        // Custom Event to indicate the session init operations
+        connect.core.upstream.sendUpstream(connect.EventType.BROADCAST, {
+          event: connect.ConnnectionEvents.SESSION_INIT,
+          data: {
+            connectionId: agentConnectionId
+          }
+        });
+
+        session.onSessionFailed = function (rtcSession, reason) {
+          delete rtcSessions[agentConnectionId];
+          delete callsDetected[agentConnectionId];
+          publishSoftphoneFailureLogs(rtcSession, reason);
+          publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
+          stopJobsAndReport(contact, rtcSession.sessionReport);
+        };
+        session.onSessionConnected = function (rtcSession) {
+          publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
+          // Become master to send logs, since we need logs from softphone tab.
+          connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
+          //start stats collection and reporting jobs
+          startStatsCollectionJob(rtcSession);
+          startStatsReportingJob(contact);
+          fireContactAcceptedEvent(contact);
+        };
+
+        session.onSessionCompleted = function (rtcSession) {
+          publishTelemetryEvent("Softphone Session Completed", contact.getContactId());
+
+          delete rtcSessions[agentConnectionId];
+          delete callsDetected[agentConnectionId];
+          // Stop all jobs and perform one last job.
+          stopJobsAndReport(contact, rtcSession.sessionReport);
+
+          // Cleanup the cached streams
+          deleteLocalMediaStream(agentConnectionId);
+        };
+
+        session.onLocalStreamAdded = function (rtcSession, stream) {
+          // Cache the streams for mute/unmute
+          localMediaStream[agentConnectionId] = {
+            stream: stream
+          };
+        };
+
+        session.remoteAudioElement = document.getElementById('remote-audio');
+        if (rtcPeerConnectionFactory) {
+          session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
+        } else {
+          session.connect();
+        }
+      }
+    };
+
+    var onInitContact = function (contact) {
+      var agentConnectionId = contact.getAgentConnection().connectionId;
+      logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId);
+
+      if (!callsDetected[agentConnectionId]) {
+        contact.onRefresh(function () {
+          onRefreshContact(contact, agentConnectionId);
+        });
+      }
+    };
+
+    connect.contact(onInitContact);
+
+    // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed. 
+    new connect.Agent().getContacts().forEach(function (contact) {
+      var agentConnectionId = contact.getAgentConnection().connectionId;
+      logger.info("Contact exist in the snapshot. Reinitiate the Contact and RTC session creation for contactId" + contact.getContactId(), "agent connectionId " + agentConnectionId);
+      onInitContact(contact);
+      onRefreshContact(contact, agentConnectionId);
+    });
+  };
+
+  var fireContactAcceptedEvent = function (contact) {
+    var conduit = connect.core.getUpstream();
+    var agentConnection = contact.getAgentConnection();
+    if (!agentConnection) {
+      logger.info("Not able to retrieve the auto-accept setting from null AgentConnection, ignoring event publish..");
+      return;
+    }
+    var softphoneMediaInfo = agentConnection.getSoftphoneMediaInfo();
+    if (!softphoneMediaInfo) {
+      logger.info("Not able to retrieve the auto-accept setting from null SoftphoneMediaInfo, ignoring event publish..");
+      return;
+    }
+    if (softphoneMediaInfo.autoAccept === true) {
+      logger.info("Auto-accept is enabled, sending out Accepted event to stop ringtone..");
+      conduit.sendUpstream(connect.EventType.BROADCAST, {
+        event: connect.ContactEvents.ACCEPTED
+      });
+      conduit.sendUpstream(connect.EventType.BROADCAST, {
+        event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contact.contactId)
+      });
+    } else {
+      logger.info("Auto-accept is disabled, ringtone will be stopped by user action.");
+    }
+  };
+
+  // Bind events for mute
+  var handleSoftPhoneMuteToggle = function () {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.EventType.MUTE, muteToggle);
+  };
+
+  // Make sure once we disconnected we get the mute state back to normal
+  var deleteLocalMediaStream = function (connectionId) {
+    delete localMediaStream[connectionId];
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.AgentEvents.MUTE_TOGGLE,
+      data: { muted: false }
+    });
+  };
+
+  // Check for the local streams if exists  -  revert it
+  // And inform other clients about the change 
+  var muteToggle = function (data) {
+    var status;
+    if (connect.keys(localMediaStream).length === 0) {
+      return;
+    }
+
+    if (data && data.mute !== undefined) {
+      status = data.mute;
+    }
+
+    for (var connectionId in localMediaStream) {
+      if (localMediaStream.hasOwnProperty(connectionId)) {
+        var localMedia = localMediaStream[connectionId].stream;
+        if (localMedia) {
+          var audioTracks = localMedia.getAudioTracks()[0];
+          if (status !== undefined) {
+            audioTracks.enabled = !status;
+            localMediaStream[connectionId].muted = status;
+
+            if (status) {
+              logger.info("Agent has muted the contact, connectionId -  " + connectionId);
+            } else {
+              logger.info("Agent has unmuted the contact, connectionId - " + connectionId);
+            }
+
+          } else {
+            status = localMediaStream[connectionId].muted || false;
+          }
+        }
+      }
+    }
+
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.AgentEvents.MUTE_TOGGLE,
+      data: { muted: status }
+    });
+  };
+
+  var publishSoftphoneFailureLogs = function (rtcSession, reason) {
+    if (reason === connect.RTCErrors.ICE_COLLECTION_TIMEOUT) {
+      var endPointUrl = "\n";
+      for (var i = 0; i < rtcSession._iceServers.length; i++) {
+        for (var j = 0; j < rtcSession._iceServers[i].urls.length; j++) {
+          endPointUrl = endPointUrl + rtcSession._iceServers[i].urls[j] + "\n";
+        }
+      }
+      publishError(SoftphoneErrorTypes.ICE_COLLECTION_TIMEOUT, "Ice collection timedout. ", endPointUrl);
+    } else if (reason === connect.RTCErrors.USER_BUSY) {
+      publishError(SoftphoneErrorTypes.USER_BUSY_ERROR,
+        "Softphone call UserBusy error. ",
+        "");
+    } else if (reason === connect.RTCErrors.SIGNALLING_HANDSHAKE_FAILURE) {
+      publishError(SoftphoneErrorTypes.SIGNALLING_HANDSHAKE_FAILURE,
+        "Handshaking with Signalling Server " + rtcSession._signalingUri + " failed. ",
+        rtcSession._signalingUri);
+    } else if (reason === connect.RTCErrors.GUM_TIMEOUT_FAILURE || reason === connect.RTCErrors.GUM_OTHER_FAILURE) {
+      publishError(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED,
+        "Your microphone is not enabled in your browser. ",
+        "");
+    } else if (reason === connect.RTCErrors.SIGNALLING_CONNECTION_FAILURE) {
+      publishError(SoftphoneErrorTypes.SIGNALLING_CONNECTION_FAILURE,
+        "URL " + rtcSession._signalingUri + " cannot be reached. ",
+        rtcSession._signalingUri);
+    } else if (reason === connect.RTCErrors.CALL_NOT_FOUND) {
+      // No need to publish any softphone error for this case. CCP UX will handle this case.
+      logger.error("Softphone call failed due to CallNotFoundException.");
+    } else {
+      publishError(SoftphoneErrorTypes.WEBRTC_ERROR,
+        "webrtc system error. ",
+        "");
+    }
+  };
+
+  /** Parse the JSON encoded web call config into the data it represents. */
+  var parseCallConfig = function (serializedConfig) {
+    // Our underscore is too old for unescape
+    // https://issues.amazon.com/issues/CSWF-1467
+    var decodedJSON = serializedConfig.replace(/&quot;/g, '"');
+    return JSON.parse(decodedJSON);
+  };
+
+  var fetchUserMedia = function (callbacksIn) {
+    var callbacks = callbacksIn || {};
+    callbacks.success = callbacks.success || function () { };
+    callbacks.failure = callbacks.failure || function () { };
+
+    var CONSTRAINT = {
+      audio: true
+    };
+
+    var promise = null;
+
+    if (typeof Promise !== "function") {
+      callbacks.failure(SoftphoneErrorTypes.UNSUPPORTED_BROWSER);
+      return;
+    }
+
+    if (typeof navigator.mediaDevices === "object" && typeof navigator.mediaDevices.getUserMedia === "function") {
+      promise = navigator.mediaDevices.getUserMedia(CONSTRAINT);
+
+    } else if (typeof navigator.webkitGetUserMedia === "function") {
+      promise = new Promise(function (resolve, reject) {
+        navigator.webkitGetUserMedia(CONSTRAINT, resolve, reject);
+      });
+
+    } else {
+      callbacks.failure(SoftphoneErrorTypes.UNSUPPORTED_BROWSER);
+      return;
+    }
+
+    promise.then(function (stream) {
+      var audioTracks = stream.getAudioTracks();
+      if (audioTracks && audioTracks.length > 0) {
+        callbacks.success(stream);
+      } else {
+        callbacks.failure(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED);
+      }
+    }, function (err) {
+      callbacks.failure(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED);
+    });
+    return promise;
+  };
+
+  var publishError = function (errorType, message, endPointUrl) {
+    var bus = connect.core.getEventBus();
+    logger.error("Softphone error occurred : ", errorType,
+      message || "");
+
+    connect.core.upstream.sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.AgentEvents.SOFTPHONE_ERROR,
+      data: new connect.SoftphoneError(errorType, message, endPointUrl)
+    });
+  };
+
+  var publishSessionFailureTelemetryEvent = function (contactId, reason) {
+    publishTelemetryEvent("Softphone Session Failed", contactId, {
+      failedReason: reason
+    });
+  };
+
+  var publishTelemetryEvent = function (eventName, contactId, data) {
+    if (contactId) {
+      connect.publishMetric({
+        name: eventName,
+        contactId: contactId,
+        data: data
+      });
+    }
+  };
+
+  // Publish the contact and agent information in a multiple sessions scenarios
+  var publishMultipleSessionsEvent = function (eventName, contactId, agentConnectionId) {
+    publishTelemetryEvent(eventName, contactId, [{
+      name: "AgentConnectionId",
+      value: agentConnectionId
+    }]);
+    logger.info("Publish multiple session error metrics", eventName, "contactId " + contactId, "agent connectionId " + agentConnectionId);
+  };
+
+  var isBrowserSoftPhoneSupported = function () {
+    // In Opera, the true version is after "Opera" or after "Version"
+    if (connect.isOperaBrowser() && connect.getOperaBrowserVersion() > 17) {
+      return true;
+    }
+    // In Chrome, the true version is after "Chrome"
+    else if (connect.isChromeBrowser() && connect.getChromeBrowserVersion() > 22) {
+      return true;
+    }
+    // In Firefox, the true version is after "Firefox"
+    else if (connect.isFirefoxBrowser() && connect.getFirefoxBrowserVersion() > 21) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  var sendSoftphoneMetrics = function (contact) {
+    var streamStats = timeSeriesStreamStatsBuffer.slice();
+    timeSeriesStreamStatsBuffer = [];
+    if (streamStats.length > 0) {
+      contact.sendSoftphoneMetrics(streamStats, {
+        success: function () {
+          logger.info("sendSoftphoneMetrics success");
+        },
+        failure: function (data) {
+          logger.error("sendSoftphoneMetrics failed.")
+            .withObject(data);
+        }
+      });
+    }
+  };
+
+  var sendSoftphoneReport = function (contact, report, userAudioStats, remoteAudioStats) {
+    report.streamStats = [addStreamTypeToStats(userAudioStats, AUDIO_INPUT),
+    addStreamTypeToStats(remoteAudioStats, AUDIO_OUTPUT)];
+    var callReport = {
+      callStartTime: report.sessionStartTime,
+      callEndTime: report.sessionEndTime,
+      gumTimeMillis: report.gumTimeMillis,
+      initializationTimeMillis: report.initializationTimeMillis,
+      iceCollectionTimeMillis: report.iceCollectionTimeMillis,
+      signallingConnectTimeMillis: report.signallingConnectTimeMillis,
+      handshakingTimeMillis: report.handshakingTimeMillis,
+      preTalkingTimeMillis: report.preTalkingTimeMillis,
+      talkingTimeMillis: report.talkingTimeMillis,
+      cleanupTimeMillis: report.cleanupTimeMillis,
+      iceCollectionFailure: report.iceCollectionFailure,
+      signallingConnectionFailure: report.signallingConnectionFailure,
+      handshakingFailure: report.handshakingFailure,
+      gumOtherFailure: report.gumOtherFailure,
+      gumTimeoutFailure: report.gumTimeoutFailure,
+      createOfferFailure: report.createOfferFailure,
+      setLocalDescriptionFailure: report.setLocalDescriptionFailure,
+      userBusyFailure: report.userBusyFailure,
+      invalidRemoteSDPFailure: report.invalidRemoteSDPFailure,
+      noRemoteIceCandidateFailure: report.noRemoteIceCandidateFailure,
+      setRemoteDescriptionFailure: report.setRemoteDescriptionFailure,
+      softphoneStreamStatistics: report.streamStats
+    };
+    contact.sendSoftphoneReport(callReport, {
+      success: function () {
+        logger.info("sendSoftphoneReport success");
+      },
+      failure: function (data) {
+        logger.error("sendSoftphoneReport failed.")
+          .withObject(data);
+      }
+    });
+  };
+
+  var startStatsCollectionJob = function (rtcSession) {
+    rtpStatsJob = window.setInterval(function () {
+      rtcSession.getUserAudioStats().then(function (stats) {
+        var previousUserStats = aggregatedUserAudioStats;
+        aggregatedUserAudioStats = stats;
+        timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT));
+      }, function (error) {
+        logger.debug("Failed to get user audio stats.", error);
+      });
+      rtcSession.getRemoteAudioStats().then(function (stats) {
+        var previousRemoteStats = aggregatedRemoteAudioStats;
+        aggregatedRemoteAudioStats = stats;
+        timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT));
+      }, function (error) {
+        logger.debug("Failed to get remote audio stats.", error);
+      });
+    }, 1000);
+  };
+
+  var startStatsReportingJob = function (contact) {
+    reportStatsJob = window.setInterval(function () {
+      sendSoftphoneMetrics(contact);
+    }, statsReportingJobIntervalMs);
+  };
+
+  var initializeParams = function () {
+    aggregatedUserAudioStats = null;
+    aggregatedRemoteAudioStats = null;
+    timeSeriesStreamStatsBuffer = [];
+    rtpStatsJob = null;
+    reportStatsJob = null;
+  };
+
+  var getTimeSeriesStats = function (currentStats, previousStats, streamType) {
+    if (previousStats && currentStats) {
+      var packetsLost = currentStats.packetsLost > previousStats.packetsLost ? currentStats.packetsLost - previousStats.packetsLost : 0;
+      var packetsCount = currentStats.packetsCount > previousStats.packetsCount ? currentStats.packetsCount - previousStats.packetsCount : 0;
+      return new RTPStreamStats(currentStats.timestamp,
+        packetsLost,
+        packetsCount,
+        streamType,
+        currentStats.audioLevel,
+        currentStats.jbMilliseconds,
+        currentStats.rttMilliseconds);
+    } else {
+      return new RTPStreamStats(currentStats.timestamp,
+        currentStats.packetsLost,
+        currentStats.packetsCount,
+        streamType,
+        currentStats.audioLevel,
+        currentStats.jbMilliseconds,
+        currentStats.rttMilliseconds);
+    }
+  };
+
+  var stopJob = function (task) {
+    if (task !== null) {
+      window.clearInterval(task);
+    }
+    return null;
+  };
+
+  var stopJobsAndReport = function (contact, sessionReport) {
+    rtpStatsJob = stopJob(rtpStatsJob);
+    reportStatsJob = stopJob(reportStatsJob);
+    sendSoftphoneReport(contact, sessionReport, addStreamTypeToStats(aggregatedUserAudioStats, AUDIO_INPUT), addStreamTypeToStats(aggregatedRemoteAudioStats, AUDIO_OUTPUT));
+    sendSoftphoneMetrics(contact);
+  };
+
+  /**
+  *   Adding streamtype parameter on top of RTCJS RTStats object.
+  */
+  var RTPStreamStats = function (timestamp, packetsLost, packetsCount, streamType, audioLevel, jitterBufferMillis, roundTripTimeMillis) {
+    this.softphoneStreamType = streamType;
+    this.timestamp = timestamp;
+    this.packetsLost = packetsLost;
+    this.packetsCount = packetsCount;
+    this.audioLevel = audioLevel;
+    this.jitterBufferMillis = jitterBufferMillis;
+    this.roundTripTimeMillis = roundTripTimeMillis;
+  };
+
+  var addStreamTypeToStats = function (stats, streamType) {
+    stats = stats || {};
+    return new RTPStreamStats(stats.timestamp, stats.packetsLost, stats.packetsCount, streamType, stats.audioLevel);
+  };
+
+  var SoftphoneLogger = function (logger) {
+    this._originalLogger = logger;
+    var self = this;
+    this._tee = function (level, method) {
+      return function () {
+        // call the original logger object to output to browser
+        //Connect logger follows %s format to print objects to console.
+        var args = Array.prototype.slice.call(arguments[0]);
+        var format = "";
+        args.forEach(function () {
+          format = format + " %s";
+        });
+        method.apply(self._originalLogger, [connect.LogComponent.SOFTPHONE, format].concat(args));
+      };
+    };
+  };
+
+  SoftphoneLogger.prototype.debug = function () {
+    this._tee(1, this._originalLogger.debug)(arguments);
+  };
+  SoftphoneLogger.prototype.info = function () {
+    this._tee(2, this._originalLogger.info)(arguments);
+  };
+  SoftphoneLogger.prototype.log = function () {
+    this._tee(3, this._originalLogger.log)(arguments);
+  };
+  SoftphoneLogger.prototype.warn = function () {
+    this._tee(4, this._originalLogger.warn)(arguments);
+  };
+  SoftphoneLogger.prototype.error = function () {
+    this._tee(5, this._originalLogger.error)(arguments);
+  };
+
+  connect.SoftphoneManager = SoftphoneManager;
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+  global.lily = connect;
+
+  connect.worker = {};
+
+  var GET_AGENT_TIMEOUT_MS = 30000;
+  var GET_AGENT_RECOVERY_TIMEOUT_MS = 5000;
+  var GET_AGENT_SUCCESS_TIMEOUT_MS = 100;
+  var LOG_BUFFER_CAP_SIZE = 400;
+
+  var CHECK_AUTH_TOKEN_INTERVAL_MS = 300000; // 5 minuts
+  var REFRESH_AUTH_TOKEN_INTERVAL_MS = 10000; // 10 seconds
+  var REFRESH_AUTH_TOKEN_MAX_TRY = 4;
+
+  var GET_AGENT_CONFIGURATION_INTERVAL_MS = 30000;
+
+  /**-----------------------------------------------------------------------*/
+  var MasterTopicCoordinator = function () {
+    this.topicMasterMap = {};
+  };
+
+  MasterTopicCoordinator.prototype.getMaster = function (topic) {
+    connect.assertNotNull(topic, 'topic');
+    return this.topicMasterMap[topic] || null;
+  };
+
+  MasterTopicCoordinator.prototype.setMaster = function (topic, id) {
+    connect.assertNotNull(topic, 'topic');
+    connect.assertNotNull(id, 'id');
+    this.topicMasterMap[topic] = id;
+  };
+
+  MasterTopicCoordinator.prototype.removeMaster = function (id) {
+    connect.assertNotNull(id, 'id');
+    var self = this;
+
+    connect.entries(this.topicMasterMap).filter(function (entry) {
+      return entry.value === id;
+    }).forEach(function (entry) {
+      delete self.topicMasterMap[entry.key];
+    });
+  };
+
+  /**---------------------------------------------------------------
+   * class WorkerClient extends ClientBase
+   */
+  var WorkerClient = function (conduit) {
+    connect.ClientBase.call(this);
+    this.conduit = conduit;
+  };
+  WorkerClient.prototype = Object.create(connect.ClientBase.prototype);
+  WorkerClient.prototype.constructor = WorkerClient;
+
+  WorkerClient.prototype._callImpl = function (method, params, callbacks) {
+    var self = this;
+    var request_start = new Date().getTime();
+    connect.core.getClient()._callImpl(method, params, {
+      success: function (data) {
+        self._recordAPILatency(method, request_start);
+        callbacks.success(data);
+      },
+      failure: function (error, data) {
+        self._recordAPILatency(method, request_start, error);
+        callbacks.failure(error, data);
+      },
+      authFailure: function () {
+        self._recordAPILatency(method, request_start);
+        callbacks.authFailure();
+      },
+      accessDenied: function () {
+        callbacks.accessDenied && callbacks.accessDenied();
+      }
+    });
+  };
+
+  WorkerClient.prototype._recordAPILatency = function (method, request_start, err) {
+    var request_end = new Date().getTime();
+    var request_time = request_end - request_start;
+    this._sendAPIMetrics(method, request_time, err);
+  };
+
+  WorkerClient.prototype._sendAPIMetrics = function (method, time, err) {
+    this.conduit.sendDownstream(connect.EventType.API_METRIC, {
+      name: method,
+      time: time,
+      dimensions: [
+        {
+          name: "Category",
+          value: "API"
+        }
+      ],
+      error: err
+    });
+  };
+
+  /**-------------------------------------------------------------------------
+   * The object responsible for polling and passing data downstream to all
+   * consumer ports.
+   */
+  var ClientEngine = function () {
+    var self = this;
+
+    this.multiplexer = new connect.StreamMultiplexer();
+    this.conduit = new connect.Conduit("AmazonConnectSharedWorker", null, this.multiplexer);
+    this.client = new WorkerClient(this.conduit);
+    this.timeout = null;
+    this.agent = null;
+    this.nextToken = null;
+    this.initData = {};
+    this.portConduitMap = {};
+    this.masterCoord = new MasterTopicCoordinator();
+    this.logsBuffer = [];
+
+    var webSocketManager = null;
+
+    connect.rootLogger = new connect.DownstreamConduitLogger(this.conduit);
+
+    this.conduit.onDownstream(connect.EventType.SEND_LOGS, function (logsToUpload) {
+      self.logsBuffer = self.logsBuffer.concat(logsToUpload);
+      //only call API to send logs if buffer reached cap
+      if (self.logsBuffer.length > LOG_BUFFER_CAP_SIZE) {
+        self.handleSendLogsRequest(self.logsBuffer);
+      }
+    });
+    this.conduit.onDownstream(connect.EventType.CONFIGURE, function (data) {
+      if (data.authToken && data.authToken !== self.initData.authToken) {
+        self.initData = data;
+        connect.core.init(data);
+
+        // Start polling for agent data.
+        if (!self.agentPolling) {
+          connect.getLog().info("Kicking off agent polling");
+          self.agentPolling = true;
+          self.pollForAgent();
+        } else {
+          connect.getLog().info("Not kicking off new agent polling, since there's already polling going on");
+        }
+        if (!self.configPolling) {
+          connect.getLog().info("Kicking off config polling");
+          self.configPolling = true;
+          self.pollForAgentConfiguration({ repeatForever: true });
+        } else {
+          connect.getLog().info("Not kicking off new config polling, since there's already polling going on");
+        }
+        if (!global.checkAuthTokenInterval) {
+          connect.getLog().info("Kicking off auth token polling");
+          global.checkAuthTokenInterval = global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
+        } else {
+          connect.getLog().info("Not kicking off auth token polling, since there's already polling going on");
+        }
+
+        // init only once.
+        if (!webSocketManager) {
+
+          connect.getLog().info("Creating a new Websocket connection for CCP");
+
+          connect.WebSocketManager.setGlobalConfig({
+            loggerConfig: { logger: connect.getLog() }
+          });
+
+          webSocketManager = connect.WebSocketManager.create();
+
+          webSocketManager.onInitFailure(function () {
+            self.conduit.sendDownstream(connect.WebSocketEvents.INIT_FAILURE);
+          });
+
+          webSocketManager.onConnectionGain(function () {
+            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_GAIN);
+          });
+
+          webSocketManager.onConnectionLost(function () {
+            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_LOST);
+          });
+
+          webSocketManager.onSubscriptionUpdate(function (response) {
+            self.conduit.sendDownstream(connect.WebSocketEvents.SUBSCRIPTION_UPDATE, response);
+          });
+
+          webSocketManager.onSubscriptionFailure(function (response) {
+            self.conduit.sendDownstream(connect.WebSocketEvents.SUBSCRIPTION_FAILURE, response);
+          });
+
+          webSocketManager.onAllMessage(function (response) {
+            self.conduit.sendDownstream(connect.WebSocketEvents.ALL_MESSAGE, response);
+          });
+
+          self.conduit.onDownstream(connect.WebSocketEvents.SEND, function (message) {
+            webSocketManager.sendMessage(message);
+          });
+
+          self.conduit.onDownstream(connect.WebSocketEvents.SUBSCRIBE, function (topics) {
+            webSocketManager.subscribeTopics(topics);
+          });
+
+          webSocketManager.init(connect.hitch(self, self.getWebSocketUrl));
+        } else {
+          connect.getLog().info("Not Creating a Websocket instance, since there's already one exist");
+        }
+      }
+    });
+    this.conduit.onDownstream(connect.EventType.TERMINATE, function () {
+      //upload pending logs before terminating.
+      self.handleSendLogsRequest(self.logsBuffer);
+      connect.core.terminate();
+      self.conduit.sendDownstream(connect.EventType.TERMINATED);
+    });
+    this.conduit.onDownstream(connect.EventType.SYNCHRONIZE, function () {
+      self.conduit.sendDownstream(connect.EventType.ACKNOWLEDGE);
+    });
+    this.conduit.onDownstream(connect.EventType.BROADCAST, function (data) {
+      self.conduit.sendDownstream(data.event, data.data);
+    });
+
+    /**
+     * Called when a consumer port connects to this SharedWorker.
+     * Let's add them to our multiplexer.
+     */
+    global.onconnect = function (event) {
+      var port = event.ports[0];
+      var stream = new connect.PortStream(port);
+      self.multiplexer.addStream(stream);
+      port.start();
+
+      var portConduit = new connect.Conduit(stream.getId(), null, stream);
+      portConduit.sendDownstream(connect.EventType.ACKNOWLEDGE, { id: stream.getId() });
+
+      self.portConduitMap[stream.getId()] = portConduit;
+
+      if (self.agent !== null) {
+        self.updateAgent();
+      }
+
+      portConduit.onDownstream(connect.EventType.API_REQUEST,
+        connect.hitch(self, self.handleAPIRequest, portConduit));
+      portConduit.onDownstream(connect.EventType.MASTER_REQUEST,
+        connect.hitch(self, self.handleMasterRequest, portConduit, stream.getId()));
+      portConduit.onDownstream(connect.EventType.RELOAD_AGENT_CONFIGURATION,
+        connect.hitch(self, self.pollForAgentConfiguration));
+      portConduit.onDownstream(connect.EventType.CLOSE, function () {
+        self.multiplexer.removeStream(stream);
+        delete self.portConduitMap[stream.getId()];
+        self.masterCoord.removeMaster(stream.getId());
+      });
+    };
+  };
+
+  ClientEngine.prototype.pollForAgent = function () {
+    var self = this;
+    var client = connect.core.getClient();
+    var onAuthFail = connect.hitch(self, self.handleAuthFail);
+
+    this.client.call(connect.ClientMethods.GET_AGENT_SNAPSHOT, {
+      nextToken: self.nextToken,
+      timeout: GET_AGENT_TIMEOUT_MS
+    }, {
+        success: function (data) {
+          try {
+            self.agent = self.agent || {};
+            self.agent.snapshot = data.snapshot;
+            self.agent.snapshot.localTimestamp = connect.now();
+            self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
+            self.nextToken = data.nextToken;
+            connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.").withObject(data);
+            self.updateAgent();
+          } catch (e) {
+            connect.getLog().error("Long poll failed to update agent.").withObject(data).withException(e);
+          } finally {
+            global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
+          }
+        },
+        failure: function (err, data) {
+          try {
+            connect.getLog().error("Failed to get agent data.")
+              .withObject({
+                err: err,
+                data: data
+              });
+
+          } finally {
+            global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_RECOVERY_TIMEOUT_MS);
+          }
+        },
+        authFailure: function () {
+          self.agentPolling = false;
+          onAuthFail();
+        },
+        accessDenied: connect.hitch(self, self.handleAccessDenied)
+
+      });
+
+  };
+
+  ClientEngine.prototype.pollForAgentConfiguration = function (paramsIn) {
+    var self = this;
+    var params = paramsIn || {};
+    var onAuthFail = connect.hitch(self, self.handleAuthFail);
+
+    this.client.call(connect.ClientMethods.GET_AGENT_CONFIGURATION, {}, {
+      success: function (data) {
+        var configuration = data.configuration;
+        self.pollForAgentPermissions(configuration);
+        self.pollForAgentStates(configuration);
+        self.pollForDialableCountryCodes(configuration);
+        self.pollForRoutingProfileQueues(configuration);
+        if (params.repeatForever) {
+          global.setTimeout(connect.hitch(self, self.pollForAgentConfiguration, params),
+            GET_AGENT_CONFIGURATION_INTERVAL_MS);
+        }
+      },
+      failure: function (err, data) {
+        try {
+          connect.getLog().error("Failed to fetch agent configuration data.")
+            .withObject({
+              err: err,
+              data: data
+            });
+        } finally {
+          if (params.repeatForever) {
+            global.setTimeout(connect.hitch(self, self.pollForAgentConfiguration),
+              GET_AGENT_CONFIGURATION_INTERVAL_MS, params);
+          }
+        }
+      },
+      authFailure: function () {
+        self.configPolling = false;
+        onAuthFail();
+      },
+      accessDenied: connect.hitch(self, self.handleAccessDenied)
+    });
+  };
+
+  ClientEngine.prototype.pollForAgentStates = function (configuration, paramsIn) {
+    var self = this;
+    var params = paramsIn || {};
+    params.maxResults = params.maxResults || connect.DEFAULT_BATCH_SIZE;
+
+    this.client.call(connect.ClientMethods.GET_AGENT_STATES, {
+      nextToken: params.nextToken || null,
+      maxResults: params.maxResults
+
+    }, {
+        success: function (data) {
+          if (data.nextToken) {
+            self.pollForAgentStates(configuration, {
+              states: (params.states || []).concat(data.states),
+              nextToken: data.nextToken,
+              maxResults: params.maxResults
+            });
+
+          } else {
+            configuration.agentStates = (params.states || []).concat(data.states);
+            self.updateAgentConfiguration(configuration);
+          }
+        },
+        failure: function (err, data) {
+          connect.getLog().error("Failed to fetch agent states list.")
+            .withObject({
+              err: err,
+              data: data
+            });
+        },
+        authFailure: connect.hitch(self, self.handleAuthFail),
+        accessDenied: connect.hitch(self, self.handleAccessDenied)
+      });
+  };
+
+  ClientEngine.prototype.pollForAgentPermissions = function (configuration, paramsIn) {
+    var self = this;
+    var params = paramsIn || {};
+    params.maxResults = params.maxResults || connect.DEFAULT_BATCH_SIZE;
+
+    this.client.call(connect.ClientMethods.GET_AGENT_PERMISSIONS, {
+      nextToken: params.nextToken || null,
+      maxResults: params.maxResults
+
+    }, {
+        success: function (data) {
+          if (data.nextToken) {
+            self.pollForAgentPermissions(configuration, {
+              permissions: (params.permissions || []).concat(data.permissions),
+              nextToken: data.nextToken,
+              maxResults: params.maxResults
+            });
+
+          } else {
+            configuration.permissions = (params.permissions || []).concat(data.permissions);
+            self.updateAgentConfiguration(configuration);
+          }
+        },
+        failure: function (err, data) {
+          connect.getLog().error("Failed to fetch agent permissions list.")
+            .withObject({
+              err: err,
+              data: data
+            });
+        },
+        authFailure: connect.hitch(self, self.handleAuthFail),
+        accessDenied: connect.hitch(self, self.handleAccessDenied)
+      });
+  };
+
+  ClientEngine.prototype.pollForDialableCountryCodes = function (configuration, paramsIn) {
+    var self = this;
+    var params = paramsIn || {};
+    params.maxResults = params.maxResults || connect.DEFAULT_BATCH_SIZE;
+
+    this.client.call(connect.ClientMethods.GET_DIALABLE_COUNTRY_CODES, {
+      nextToken: params.nextToken || null,
+      maxResults: params.maxResults
+    }, {
+        success: function (data) {
+          if (data.nextToken) {
+            self.pollForDialableCountryCodes(configuration, {
+              countryCodes: (params.countryCodes || []).concat(data.countryCodes),
+              nextToken: data.nextToken,
+              maxResults: params.maxResults
+            });
+
+          } else {
+            configuration.dialableCountries = (params.countryCodes || []).concat(data.countryCodes);
+            self.updateAgentConfiguration(configuration);
+          }
+        },
+        failure: function (err, data) {
+          connect.getLog().error("Failed to fetch dialable country codes list.")
+            .withObject({
+              err: err,
+              data: data
+            });
+        },
+        authFailure: connect.hitch(self, self.handleAuthFail),
+        accessDenied: connect.hitch(self, self.handleAccessDenied)
+      });
+  };
+
+  ClientEngine.prototype.pollForRoutingProfileQueues = function (configuration, paramsIn) {
+    var self = this;
+    var params = paramsIn || {};
+    params.maxResults = params.maxResults || connect.DEFAULT_BATCH_SIZE;
+
+    this.client.call(connect.ClientMethods.GET_ROUTING_PROFILE_QUEUES, {
+      routingProfileARN: configuration.routingProfile.routingProfileARN,
+      nextToken: params.nextToken || null,
+      maxResults: params.maxResults
+    }, {
+        success: function (data) {
+          if (data.nextToken) {
+            self.pollForRoutingProfileQueues(configuration, {
+              countryCodes: (params.queues || []).concat(data.queues),
+              nextToken: data.nextToken,
+              maxResults: params.maxResults
+            });
+
+          } else {
+            configuration.routingProfile.queues = (params.queues || []).concat(data.queues);
+            self.updateAgentConfiguration(configuration);
+          }
+        },
+        failure: function (err, data) {
+          connect.getLog().error("Failed to fetch routing profile queues list.")
+            .withObject({
+              err: err,
+              data: data
+            });
+        },
+        authFailure: connect.hitch(self, self.handleAuthFail),
+        accessDenied: connect.hitch(self, self.handleAccessDenied)
+      });
+  };
+
+  ClientEngine.prototype.handleAPIRequest = function (portConduit, request) {
+    var self = this;
+
+    this.client.call(request.method, request.params, {
+      success: function (data) {
+        var response = connect.EventFactory.createResponse(connect.EventType.API_RESPONSE, request, data);
+        portConduit.sendDownstream(response.event, response);
+      },
+      failure: function (err, data) {
+        var response = connect.EventFactory.createResponse(connect.EventType.API_RESPONSE, request, data, JSON.stringify(err));
+        portConduit.sendDownstream(response.event, response);
+        connect.getLog().error("'%s' API request failed: %s", request.method, err)
+          .withObject({ request: self.filterAuthToken(request), response: response });
+      },
+      authFailure: connect.hitch(self, self.handleAuthFail)
+    });
+  };
+
+  /**
+   * Handle incoming master query or modification requests from connected tab ports.
+   */
+  ClientEngine.prototype.handleMasterRequest = function (portConduit, portId, request) {
+    var response = null;
+
+    switch (request.method) {
+      case connect.MasterMethods.BECOME_MASTER:
+        this.masterCoord.setMaster(request.params.topic, portId);
+        response = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
+          masterId: portId,
+          isMaster: true,
+          topic: request.params.topic
+        });
+
+        break;
+
+      case connect.MasterMethods.CHECK_MASTER:
+        var masterId = this.masterCoord.getMaster(request.params.topic);
+        if (!masterId) {
+          this.masterCoord.setMaster(request.params.topic, portId);
+          masterId = portId;
+        }
+
+        response = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
+          masterId: masterId,
+          isMaster: portId === masterId,
+          topic: request.params.topic
+        });
+
+        break;
+
+      default:
+        throw new Error("Unknown master method: " + request.method);
+    }
+
+    portConduit.sendDownstream(response.event, response);
+  };
+
+  ClientEngine.prototype.updateAgentConfiguration = function (configuration) {
+    if (configuration.permissions &&
+      configuration.dialableCountries &&
+      configuration.agentStates &&
+      configuration.routingProfile.queues) {
+
+      this.agent = this.agent || {};
+      this.agent.configuration = configuration;
+      this.updateAgent();
+
+    } else {
+      connect.getLog().trace("Waiting to update agent configuration until all config data has been fetched.");
+    }
+  };
+
+  ClientEngine.prototype.updateAgent = function () {
+    if (!this.agent) {
+      connect.getLog().trace("Waiting to update agent until the agent has been fully constructed.");
+
+    } else if (!this.agent.snapshot) {
+      connect.getLog().trace("Waiting to update agent until the agent snapshot is available.");
+
+    } else if (!this.agent.configuration) {
+      connect.getLog().trace("Waiting to update agent until the agent configuration is available.");
+
+    } else {
+      // Alias some of the properties for backwards compatibility.
+      this.agent.snapshot.status = this.agent.state;
+
+      // Sort the contacts on the timestamp
+      if (this.agent.snapshot.contacts && this.agent.snapshot.contacts.length > 1) {
+        this.agent.snapshot.contacts.sort(function (contactA, contactB) {
+          return contactA.state.timestamp.getTime() - contactB.state.timestamp.getTime();
+        });
+      }
+
+      this.agent.snapshot.contacts.forEach(function (contact) {
+        contact.status = contact.state;
+
+        contact.connections.forEach(function (connection) {
+          connection.address = connection.endpoint;
+        });
+      });
+
+      this.agent.configuration.routingProfile.defaultOutboundQueue.queueId =
+        this.agent.configuration.routingProfile.defaultOutboundQueue.queueARN;
+      this.agent.configuration.routingProfile.queues.forEach(function (queue) {
+        queue.queueId = queue.queueARN;
+      });
+      this.agent.snapshot.contacts.forEach(function (contact) {
+        //contact.queue is null when monitoring
+        if (contact.queue !== undefined) {
+          contact.queue.queueId = contact.queue.queueARN;
+        }
+      });
+      this.agent.configuration.routingProfile.routingProfileId =
+        this.agent.configuration.routingProfile.routingProfileARN;
+
+      this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
+    }
+  };
+
+  /**
+ * Provides a websocket url through the create_transport API.
+ * @returns a promise which, upon success, returns the response from the createTransport API.
+ */
+  ClientEngine.prototype.getWebSocketUrl = function () {
+    var self = this;
+    var client = connect.core.getClient();
+    var onAuthFail = connect.hitch(self, self.handleAuthFail);
+    var onAccessDenied = connect.hitch(self, self.handleAccessDenied);
+    return new Promise(function (resolve, reject) {
+      client.call(connect.ClientMethods.CREATE_TRANSPORT, { transportType: connect.TRANSPORT_TYPES.WEB_SOCKET }, {
+        success: function (data) {
+          connect.getLog().info("getWebSocketUrl succeeded");
+          resolve(data);
+        },
+        failure: function (err, data) {
+          connect.getLog().error("getWebSocketUrl failed")
+            .withObject({
+              err: err,
+              data: data
+            });
+          reject(Error("getWebSocketUrl failed"));
+        },
+        authFailure: function () {
+          connect.getLog().error("getWebSocketUrl Auth Failure");
+          reject(Error("Authentication failed while getting getWebSocketUrl"));
+          onAuthFail();
+        },
+        accessDenied: function () {
+          connect.getLog().error("getWebSocketUrl Access Denied Failure");
+          reject(Error("Access Denied Failure while getting getWebSocketUrl"));
+          onAccessDenied();
+        }
+      });
+    });
+  };
+
+
+  /**
+    * Send a message downstream to all consumers when we detect that authentication
+    * against one of our APIs has failed.
+    */
+  ClientEngine.prototype.handleSendLogsRequest = function () {
+    var self = this;
+    var logEvents = [];
+    var logsToSend = self.logsBuffer.slice();
+    self.logsBuffer = [];
+    logsToSend.forEach(function (log) {
+      logEvents.push({
+        timestamp: log.time,
+        component: log.component,
+        message: log.text
+      });
+    });
+    this.client.call(connect.ClientMethods.SEND_CLIENT_LOGS, { logEvents: logEvents }, {
+      success: function (data) {
+        connect.getLog().info("SendLogs request succeeded.");
+      },
+      failure: function (err, data) {
+        connect.getLog().error("SendLogs request failed. %s", err);
+      },
+      authFailure: connect.hitch(self, self.handleAuthFail)
+    });
+  };
+
+  ClientEngine.prototype.handleAuthFail = function () {
+    var self = this;
+    self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+  };
+
+  ClientEngine.prototype.handleAccessDenied = function () {
+    var self = this;
+    self.conduit.sendDownstream(connect.EventType.ACCESS_DENIED);
+  };
+
+  ClientEngine.prototype.checkAuthToken = function () {
+    var self = this;
+    var expirationDate = new Date(self.initData.authTokenExpiration);
+    var currentTimeStamp = new Date().getTime();
+    var thirtyMins = 30 * 60 * 1000;
+
+    // refresh token 30 minutes before expiration
+    if (expirationDate.getTime() < (currentTimeStamp + thirtyMins)) {
+      connect.getLog().info("Auth token expires at " + expirationDate + " Start refreshing token with retry.");
+      connect.backoff(connect.hitch(self, self.authorize), REFRESH_AUTH_TOKEN_INTERVAL_MS, REFRESH_AUTH_TOKEN_MAX_TRY);
+    }
+  };
+
+
+  ClientEngine.prototype.authorize = function (callbacks) {
+    var self = this;
+    connect.core.authorize(this.initData.authorizeEndpoint).then(function (response) {
+      var expiration = new Date(response.expiration);
+      connect.getLog().info("Authorization succeded and the token expires at %s", expiration);
+      self.initData.authToken = response.accessToken;
+      self.initData.authTokenExpiration = expiration;
+      connect.core.initClient(self.initData);
+      callbacks.success();
+    }).catch(function (response) {
+      connect.getLog().error("Authorization failed %s ", response);
+      if (response.status === 401) {
+        self.handleAuthFail();
+      } else {
+        callbacks.failure();
+      }
+    });
+  };
+
+  /**
+   * Filter the 'authentication' field of the request params from the given API_REQUEST event.
+   */
+  ClientEngine.prototype.filterAuthToken = function (request) {
+    var new_request = {};
+
+    for (var keyA in request) {
+      if (keyA === 'params') {
+        var new_params = {};
+        for (var keyB in request.params) {
+          if (keyB !== 'authentication') {
+            new_params[keyB] = request.params[keyB];
+          }
+        }
+
+        new_request.params = new_params;
+      } else {
+        new_request[keyA] = request[keyA];
+      }
+    }
+
+    return new_request;
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.worker.main = function () {
+    connect.worker.clientEngine = new ClientEngine();
+  };
+
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
+
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+
+  connect.ChatMediaController = function (mediaInfo, metadata) {
+    var logger = connect.getLog();
+    var logComponent = connect.LogComponent.CHAT;
+
+    var createMediaInstance = function () {
+      publishTelemetryEvent("Chat media controller init", mediaInfo.contactId);
+      logger.info(logComponent, "Chat media controller init").withObject(mediaInfo);
+
+      connect.ChatSession.setGlobalConfig({
+        loggerConfig: {
+          logger: logger
+        },
+        region: metadata.region
+      });
+
+      /** Could be also CUSTOMER -  For now we are creating only Agent connection media object */
+      var controller = connect.ChatSession.create({
+        chatDetails: mediaInfo,
+        type: "AGENT",
+        websocketManager: connect.core.getWebSocketManager()
+      });
+      
+      trackChatConnectionStatus(controller);
+      return controller
+        .connect()
+        .then(function (data) {
+          logger.info(logComponent, "Chat Session Successfully established for contactId %s", mediaInfo.contactId);
+          publishTelemetryEvent("Chat Session Successfully established", mediaInfo.contactId);
+          return controller;
+        })
+        .catch(function (error) {
+          logger.error(logComponent, "Chat Session establishement failed for contact %s", mediaInfo.contactId).withException(error);
+          publishTelemetryEvent("Chat Session establishement failed", mediaInfo.contactId, error);
+          throw error;
+        });
+    };
+
+    var publishTelemetryEvent = function (eventName, data) {
+      connect.publishMetric({
+        name: eventName,
+        contactId: mediaInfo.contactId,
+        data: data || mediaInfo
+      });
+    };
+
+    var trackChatConnectionStatus = function (controller) {
+      controller.onConnectionBroken(function (data) {
+        logger.error(logComponent, "Chat Session connection broken").withException(data);
+        publishTelemetryEvent("Chat Session connection broken", data);
+      });
+
+      controller.onConnectionEstablished(function (data) {
+        logger.info(logComponent, "Chat Session connection established").withObject(data);
+        publishTelemetryEvent("Chat Session connection established", data);
+      });
+    }
+
+    return {
+      get: function () {
+        return createMediaInstance();
+      }
+    }
+  }
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
+
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+
+  connect.MediaFactory = function (params) {
+    /** controller holder */
+    var mediaControllers = {};
+
+    var logger = connect.getLog();
+    var logComponent = connect.LogComponent.CHAT;
+
+    var metadata = params || {};
+    metadata.region =  metadata.region || "us-west-2"; // Default it to us-west-2
+
+    var getMediaController = function (connectionObj) {
+      var connectionId = connectionObj.getConnectionId();
+      var mediaInfo = connectionObj.getMediaInfo();
+      /** if we do not have the media info then just reject the request */
+      if (!mediaInfo) {
+        logger.error(logComponent, "Media info does not exists for a media type %s").withObject(connectionObj);
+        return Promise.reject("Media info does not exists for this connection");
+      }
+
+      if (!mediaControllers[connectionId]) {
+        logger.info(logComponent, "media controller of type %s init", connectionObj.getMediaType()).withObject(connectionObj);
+        switch (connectionObj.getMediaType()) {
+          case connect.MediaType.CHAT:
+            return mediaControllers[connectionId] = new connect.ChatMediaController(connectionObj.getMediaInfo(), metadata).get();
+          case connect.MediaType.SOFTPHONE:
+            return mediaControllers[connectionId] = new connect.SoftphoneMediaController(connectionObj.getMediaInfo()).get();
+          default:
+            logger.error(logComponent, "Unrecognized media type %s ", connectionObj.getMediaType());
+            return Promise.reject();
+        }
+      } else {
+        return mediaControllers[connectionId];
+      }
+    };
+
+    /** Check all the active states for the connection */
+    var ifConnectionActive = function (connectionObj) {
+      return connectionObj.isActive();
+    };
+
+    var get = function (connectionObj) {
+      if (ifConnectionActive(connectionObj)) {
+        return getMediaController(connectionObj);
+      } else {
+        destroy(connectionObj.getConnectionId());
+        return Promise.reject("Media Controller is no longer available for this connection");
+      }
+    };
+
+    var destroy = function (connectionId) {
+      if (mediaControllers[connectionId]) {
+        logger.info(logComponent, "Destroying mediaController for %s", connectionId);
+        delete mediaControllers[connectionId];
+      }
+    };
+
+    return {
+      get: get,
+      destroy: destroy
+    };
+  }
+})();
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
+
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+
+  // TODO move softphone implementations here - Wil do this for GA
+  connect.SoftphoneMediaController = function (mediaInfo) {
+    return {
+      get: function () {
+        return Promise.resolve(mediaInfo)
+      }
+    }
+  }
+})();

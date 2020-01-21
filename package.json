@@ -1,7 +1,17 @@
 {
   "name": "amazon-connect-streams",
-  "version": "1.0.0",
+  "version": "1.4.4",
   "description": "Amazon Connect Streams Library",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "directories": {
+    "lib": "./release"
+  },
+  "files": [
+    "/release"
+  ],
+  "main": "release/connect-streams.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/aws/amazon-connect-streams.git"
@@ -12,24 +22,36 @@
     "rintone",
     "connect"
   ],
+  "scripts": {
+    "test": "gulp test",
+    "release": "gulp script",
+    "watch": "gulp watch",
+    "clean": "rm -rf build/ node_modules build package-lock.json",
+    "release-watch": "npm run release && npm run watch"
+  },
   "author": "Amazon Web Services",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/aws/amazon-connect-streams/issues"
   },
   "homepage": "https://github.com/aws/amazon-connect-streams#readme",
-  "dependencies": {
-    "gulp": "^4.0.2"
-  },
   "devDependencies": {
     "chai": "^4.1.2",
+    "gulp": "^4.0.2",
     "gulp-cli": "^2.0.1",
     "gulp-concat": "^2.6.1",
     "gulp-istanbul": "^1.1.3",
-    "gulp-mocha": "^7.0.0",
+    "gulp-jshint": "^2.1.0",
+    "gulp-mocha": "^5.0.0",
     "gulp-rename": "^1.2.2",
-    "gulp-rev": "^9.0.0",
+    "gulp-rev": "^8.1.1",
     "gulp-uglify": "^3.0.0",
-    "sinon": "^7.4.0"
+    "gulp-watch": "^5.0.1",
+    "jshint": "^2.9.7",
+    "pump": "^3.0.0",
+    "sinon": "^4.5.0"
+  },
+  "npm-pretty-much": {
+    "runRelease": "always"
   }
 }
