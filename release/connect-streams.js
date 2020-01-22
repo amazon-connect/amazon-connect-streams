@@ -23764,6 +23764,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   Contact.prototype.getOriginalContactId = function () {
     return this._getData().initialContactId;
   };
+  Contact.prototype.getInitialContactId = Contact.prototype.getOriginalContactId;
 
   Contact.prototype.getType = function () {
     return this._getData().type;
@@ -25217,6 +25218,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   AgentDataProvider.prototype._fireContactUpdateEvents = function (contactId, oldContactState, newContactState) {
     var self = this;
+    console.log("newcontactstate", newContactState);
     if (oldContactState !== newContactState) {
       connect.core.getContactEventGraph().getAssociations(this, oldContactState, newContactState).forEach(function (event) {
         self.bus.trigger(event, new connect.Contact(contactId));
