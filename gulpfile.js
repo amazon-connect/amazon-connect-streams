@@ -43,7 +43,7 @@ gulp.task('test', gulp.series('pre-test', function () {
 }));
  
 gulp.task('watch', function() {
-  gulp.watch('src/*.js', ['script']);
+  gulp.watch('src/*.js', gulp.series('script'));
 });
 
 gulp.task('script', function (cb) {

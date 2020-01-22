@@ -21499,12 +21499,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
     return lines.join("\n");
   };
-
-  Logger.prototype.download = function () {
+  
+  Logger.prototype.download = function(logName) {
     var logBlob = new global.Blob([JSON.stringify(this._rolledLogs.concat(this._logs), undefined, 4)], ['text/plain']);
     var downloadLink = document.createElement('a');
+    var logName = logName || 'agent-log';
     downloadLink.href = global.URL.createObjectURL(logBlob);
-    downloadLink.download = 'agent-log.txt';
+    downloadLink.download = logName + '.txt';
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
@@ -25218,7 +25219,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   AgentDataProvider.prototype._fireContactUpdateEvents = function (contactId, oldContactState, newContactState) {
     var self = this;
-    console.log("newcontactstate", newContactState);
     if (oldContactState !== newContactState) {
       connect.core.getContactEventGraph().getAssociations(this, oldContactState, newContactState).forEach(function (event) {
         self.bus.trigger(event, new connect.Contact(contactId));
