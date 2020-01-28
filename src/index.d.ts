@@ -156,6 +156,25 @@ declare namespace connect {
     readonly ringtoneUrl?: string;
   }
 
+  interface LoginOptions {
+    /*
+    * Whether to auto close the login prompt.
+    */
+    autoClose?: boolean,
+    /*
+    * Whether to force to login prompt into a new window.
+    */
+    forceWindow?: boolean,
+    /* 
+    * The height of the login prompt window.
+    */
+    height?: number,
+    /* 
+    * The width of the login prompt window.
+    */
+    width?: number,
+  }
+
   interface InitCCPOptions {
     /**
      * The URL of the CCP.
@@ -173,14 +192,7 @@ declare namespace connect {
      * Set to `false` to disable the login popup which is shown when the user's authentication expires.
      * @default true
      */
-    readonly loginPopup?: boolean;
-
-    /**
-     * Set to `true` in conjunction with the `loginPopup` parameter to automatically close the login Popup window once the authentication step has completed.
-     * If the login page opened in a new tab, this parameter will also auto-close that tab.
-     * @default false
-     */
-    readonly loginPopupAutoClose?: boolean;
+    loginPopup?: boolean | LoginOptions;
 
     /** Allows custom URL to be used to initiate the ccp, as in the case of SAML authentication. */
     readonly loginUrl?: string;
