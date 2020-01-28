@@ -406,31 +406,32 @@
    */
   connect.PopupManager = function () { };
 
-  connect.PopupManager.prototype.open = function(url, name, forceWindow) {
+  connect.PopupManager.prototype.open = function (url, name, options) {
     var then = this._getLastOpenedTimestamp(name);
     var now = new Date().getTime();
-    var win = null;      
+    var win = null;
     if (now - then > ONE_DAY_MILLIS) {
-      if (forceWindow === true) {
-        const height = 573;
-        const width = 400;
-        const y = window.top.outerHeight / 2 + window.top.screenY - (height / 2);
-        const x = window.top.outerWidth / 2 + window.top.screenX - (width / 2);
-        win = window.open('', name, `toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=no, copyhistory=no, width=${width}, height=${height}, top=${y}, left=${x}`);
+      if (options && options.forceWindow === true) {
+        // default values below are chosen to provide a minimum height without scrolling
+        // and a unform margin based on the css of the ccp login page
+        var height = options.height ? options.height : 578;
+        var width = options.width ? options.width : 433;
+        var y = window.top.outerHeight / 2 + window.top.screenY - (height / 2);
+        var x = window.top.outerWidth / 2 + window.top.screenX - (width / 2);
+        win = window.open('', name, "width="+width+", height="+height+", top="+y+", left="+x);
         if (win.location !== url) {
-          win = window.open(url, name, `toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=no, copyhistory=no, width=${width}, height=${height}, top=${y}, left=${x}`);
+          win = window.open(url, name, "width="+width+", height="+height+", top="+y+", left="+x);
         }
-       } else {
+      } else {
         win = window.open('', name);
         if (win.location !== url) {
           win = window.open(url, name);
         }
       }
-        this._setLastOpenedTimestamp(name, now);
-        
+      this._setLastOpenedTimestamp(name, now);
     }
     return win;
- };
+  };
 
   connect.PopupManager.prototype.clear = function (name) {
     var key = this._getLocalStorageKey(name);

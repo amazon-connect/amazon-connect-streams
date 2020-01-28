@@ -82,6 +82,25 @@ declare namespace connect {
     ringtoneUrl?: string;
   }
 
+  interface LoginOptions {
+    /*
+    * Whether to auto close the login prompt.
+    */
+    autoClose?: boolean,
+    /*
+    * Whether to force to login prompt into a new window.
+    */
+    forceWindow?: boolean,
+    /* 
+    * The height of the login prompt window.
+    */
+    height?: number,
+    /* 
+    * The width of the login prompt window.
+    */
+    width?: number,
+  }
+
   interface InitCCPOptions {
     /*
     * The URL for the Connect CCP.
@@ -94,11 +113,7 @@ declare namespace connect {
     /*
     * Whether to display the login view.
     */
-    loginPopup?: boolean;
-    /*
-    * Whether to auto-close the CCP popup window.
-    */
-    loginPopupAutoClose?: boolean;
+    loginPopup?: boolean | LoginOptions;
     /*
     * Options specifying softphone configuration.
     */
