@@ -107,6 +107,7 @@
     if (bus) bus.unsubscribeAll();
     connect.core.bus = new connect.EventBus();
     connect.core.agentDataProvider = null;
+    connect.core.softphoneManager = null;
     connect.core.upstream = null;
     connect.core.keepaliveManager = null;
     connect.agent.initialized = false;

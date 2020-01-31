@@ -24520,6 +24520,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     connect.core.keepaliveManager = null;
     connect.agent.initialized = false;
     connect.core.initialized = false;
+    connect.core.softphoneManager = null;
   };
 
   /**-------------------------------------------------------------------------
