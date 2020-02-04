@@ -520,6 +520,7 @@
   Contact.prototype.getOriginalContactId = function () {
     return this._getData().initialContactId;
   };
+  Contact.prototype.getInitialContactId = Contact.prototype.getOriginalContactId;
 
   Contact.prototype.getType = function () {
     return this._getData().type;

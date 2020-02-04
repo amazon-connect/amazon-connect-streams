@@ -545,14 +545,18 @@ var contactId = contact.getContactId();
 ```
 Get the unique contactId of this contact.
 
-### `contact.getOriginalContactId()`
+### `contact.getOriginalContactId()`, `contact.getInitialContactId()`
 ```
 var originalContactId = contact.getOriginalContactId();
+//OR
+var initialContactId = contact.getInitialContactId();
 ```
-Get the original contact id from which this contact was transferred, or none if this is not an internal Connect transfer.
+Get the original (initial) contact id from which this contact was transferred, or none if this is not an internal Connect transfer.
 This is typically a contact owned by another agent, thus this agent will not be able to
 manipulate it.  It is for reference and association purposes only, and can be used to share
-data between transferred contacts externally if it is linked by originalContactId.
+data between transferred contacts externally if it is linked by originalContactId. Note that `getOriginalContactId` is the original Streams API
+name, but it does not match the internal data naming scheme, which is `initialContactId`, so we added an alias for the same method called
+`getInitialContactId`.
 
 ### `contact.getType()`
 ```
