@@ -233,26 +233,49 @@ Download agent logs
 Media Controller API for chat - ***New,ChatJS Required***
 
     connect.contact(function(contact){
-    contact.getAgentConnections().forEach(function(connection){
-      // chat users
-      if(connection.getMediaType() === connect.MediaType.CHAT){
-          contact.getConnection().getMediaController()
-          .then(function(controller){
-              controller.onMessage(function(response){
-                  console.log("data", response)
-              })
+	// WE HAVE .getAgentConnection() [Singular] and not .getAgentConnections() [Plural]
+	// We fetch agentId from .getAgentConnection() to compare with the connections that we would get from .getConnections()
+	
+	var connectionId = contact.getAgentConnection()['connectionId']
+	
+	// WE HAVE .getConnections() [Plural] and not .getConnection() [Singular]
+        //It returns an array with connection between the AGENT and CUSTOMER 
+	
+	contact.getConnections().forEach(function (connection) {
+	//console.log(connection)
+	
+	//connection.getMediaType() === chat , AND  !== connect.MediaType.CHAT
+        // connection.getMediaType() returns "chat" and not connect.MediaType.CHAT
+		
+		if (connection.getMediaType() === "chat" && connection['connectionId'] === connectionId) {
+			contact.getAgentConnection().getMediaController()
+				.then(function (controller) {
+					controller.onMessage(function (response) {
+						var data = response['data']
+						console.log(data)
+						if (data['ContentType'] === "text/plain") {
+							console.log(data['DisplayName'], ":", data['Content'])
+						}
+					})
 
-              controller.sendMessage({message: "so and so", contentType: "text/plain"})
-                  .then(function(res, req){
-                    console.log(res.status)
-              });
-              
-              controller.onDisconnect(function(){
-                  console.log("on disconnect");
-              })
-          });
-      }
+					controller.sendMessage({ message: "hey ", contentType: "text/plain" })
+						.then(function (res, req) {
+							console.log(res.httpResponse.statusCode)
+							//console.log(res.status)
+					});
+
+					// there is no such function as "onDisconnect()" in connect-streams.js 
+
+					/*    
+					controller.onDisconnect(function () {
+					console.log("on disconnect");
+					})
+					*/
+				});
+			}
+		});
     });
+
 
 
 ViewContact API
