@@ -108,6 +108,7 @@
 
   connect.CONTACT_ACTIVE_STATES = connect.makeEnum([
     'incoming',
+    'pending',
     'connecting',
     'connected'
   ]);
