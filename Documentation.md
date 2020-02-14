@@ -81,6 +81,9 @@ To run unit tests:
 $ npm run test
 ```
 
+### Using the AWS SDK and Streams
+Streams has a "baked-in" version of the AWS-SDK in the `./src/aws-client.js` file. Make sure that you import Streams before the AWS SDK so that the `AWS` object bound to the `Window` is the object from your manually included SDK, and not from Streams.
+
 ## Initialization
 Initializing the Streams API is the first step to verify that you have
 everything set up correctly and that you are able to listen for events.
@@ -91,6 +94,7 @@ connect.core.initCCP(containerDiv, {
    ccpUrl:        ccpUrl,        /*REQUIRED*/
    loginPopup:    true,          /*optional, default TRUE*/
    loginUrl:      loginUrl,      /*optional*/
+   loginPopupAutoClose:    true,  /*optional*/
    region: region                /*REQUIRED*/
    softphone:     {              /*optional*/
       disableRingtone:  true,    /*optional*/
@@ -108,6 +112,9 @@ and made available to your JS client code.
 * `region`: Amazon connect instance region. ex: us-west-2 for PDX ccp instance.  only required for chat channel.
 * `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login
   popup which is shown when the user's authentication expires.
+* `loginPopupAutoClose`: Optional, defaults to `false`. Set to `true` in conjunction with the `loginPopup` parameter 
+  to automatically close the login Popup window once the authentication step has completed. 
+  If the login page opened in a new tab, this parameter will also auto-close that tab.
 * `loginUrl`: Optional.  Allows custom URL to be used to initiate the ccp, as in
   the case of SAML authentication.
 * `softphone`: This object is optional and allows you to specify some settings
@@ -141,6 +148,12 @@ this:
   CCP is reduced to 400px tall.
 * CSS styles you add to your site will NOT be applied to the CCP because it is
   rendered in an iframe.
+* If you are trying to use chat specific functionalities, please also include
+  [ChatJS](https://github.com/amazon-connect/amazon-connect-chatjs) in your code.
+  We omit ChatJS from the Makefile so that streams can be used without ChatJS. 
+  Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
+  it must be imported after StreamsJS, or there will be AWS SDK issues 
+  (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
 
 ### Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
@@ -532,14 +545,18 @@ var contactId = contact.getContactId();
 ```
 Get the unique contactId of this contact.
 
-### `contact.getOriginalContactId()`
+### `contact.getOriginalContactId()`, `contact.getInitialContactId()`
 ```
 var originalContactId = contact.getOriginalContactId();
+//OR
+var initialContactId = contact.getInitialContactId();
 ```
-Get the original contact id from which this contact was transferred, or none if this is not an internal Connect transfer.
+Get the original (initial) contact id from which this contact was transferred, or none if this is not an internal Connect transfer.
 This is typically a contact owned by another agent, thus this agent will not be able to
 manipulate it.  It is for reference and association purposes only, and can be used to share
-data between transferred contacts externally if it is linked by originalContactId.
+data between transferred contacts externally if it is linked by originalContactId. Note that `getOriginalContactId` is the original Streams API
+name, but it does not match the internal data naming scheme, which is `initialContactId`, so we added an alias for the same method called
+`getInitialContactId`.
 
 ### `contact.getType()`
 ```

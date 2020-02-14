@@ -21499,12 +21499,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
     return lines.join("\n");
   };
-
-  Logger.prototype.download = function () {
+  
+  Logger.prototype.download = function(logName) {
     var logBlob = new global.Blob([JSON.stringify(this._rolledLogs.concat(this._logs), undefined, 4)], ['text/plain']);
     var downloadLink = document.createElement('a');
+    var logName = logName || 'agent-log';
     downloadLink.href = global.URL.createObjectURL(logBlob);
-    downloadLink.download = 'agent-log.txt';
+    downloadLink.download = logName + '.txt';
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
@@ -23764,6 +23765,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   Contact.prototype.getOriginalContactId = function () {
     return this._getData().initialContactId;
   };
+  Contact.prototype.getInitialContactId = Contact.prototype.getOriginalContactId;
 
   Contact.prototype.getType = function () {
     return this._getData().type;
@@ -24096,6 +24098,17 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   // Utility method for checking whether this connection is an agent-side connection 
   // (type AGENT or MONITORING)
+  Connection.prototype._isAgentConnectionType = function () {
+    var connectionType = this.getType();
+    return connectionType === connect.ConnectionType.AGENT 
+      || connectionType === connect.ConnectionType.MONITORING;
+  }
+
+  /**
+   * Utility method for checking whether this connection is an agent-side connection 
+   * (type AGENT or MONITORING)
+   * @return {boolean} True if this connection is an agent-side connection. False otherwise.
+   */
   Connection.prototype._isAgentConnectionType = function () {
     var connectionType = this.getType();
     return connectionType === connect.ConnectionType.AGENT 
@@ -24512,6 +24525,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     if (bus) bus.unsubscribeAll();
     connect.core.bus = new connect.EventBus();
     connect.core.agentDataProvider = null;
+    connect.core.softphoneManager = null;
     connect.core.upstream = null;
     connect.core.keepaliveManager = null;
     connect.agent.initialized = false;

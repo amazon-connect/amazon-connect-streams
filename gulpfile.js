@@ -8,8 +8,6 @@ var istanbul = require('gulp-istanbul'),
     jshint = require('gulp-jshint'),
     pump = require('pump');
 
-var webserver = require('gulp-webserver');
-
 var source = [ "src/aws-client.js",
     "src/sprintf.js",
     "src/log.js", 
@@ -45,7 +43,7 @@ gulp.task('test', gulp.series('pre-test', function () {
 }));
  
 gulp.task('watch', function() {
-  gulp.watch('src/*.js', ['script']);
+  gulp.watch('src/*.js', gulp.series('script'));
 });
 
 gulp.task('script', function (cb) {

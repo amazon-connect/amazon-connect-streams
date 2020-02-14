@@ -2,11 +2,16 @@
   "name": "@amzn/amazon-connect-streams",
   "version": "1.4.0",
   "description": "Amazon Connect Streams Library",
-  "main": "release/connect-streams.js",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/aws/amazon-connect-streams.git"
+  "engines": {
+    "node": ">=12.0.0"
   },
+  "directories": {
+    "lib": "./release"
+  },
+  "files": [
+    "/release"
+  ],
+  "main": "release/connect-streams.js",
   "keywords": [
     "streams",
     "softphone",
@@ -16,7 +21,6 @@
   "scripts": {
     "test": "gulp test",
     "release": "gulp script",
-    "server": "gulp webserver",
     "watch": "gulp watch",
     "clean": "rm -rf build/ node_modules build package-lock.json",
     "release-watch": "npm run release && npm run watch"
@@ -39,7 +43,6 @@
     "gulp-rev": "^8.1.1",
     "gulp-uglify": "^3.0.0",
     "gulp-watch": "^5.0.1",
-    "gulp-webserver": "^0.9.1",
     "jshint": "^2.9.7",
     "pump": "^3.0.0",
     "sinon": "^4.5.0"

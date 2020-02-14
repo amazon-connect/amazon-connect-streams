@@ -1,11 +1,15 @@
 # About
+
+[![Build Status](https://travis-ci.org/amazon-connect/amazon-connect-streams.svg?branch=master)](https://travis-ci.org/amazon-connect/amazon-connect-streams)
+
 The Amazon Connect Streams API (Streams) gives you the power to integrate your
 existing web applications with Amazon Connect.  Streams lets you
 embed the Contact Control Panel (CCP) UI components into your page, and/or
 handle agent and contact state events directly giving you the power to control
 agent and contact state through an object oriented event driven interface.  You
 can use the built in interface or build your own from scratch: Streams gives you
-the choice.
+the choice. This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs)
+in order to utilize Amazon Connect's Chat functionality.
 
 # Learn More
 To learn more about Amazon Connect and its capabilities, please check out
@@ -82,6 +86,10 @@ To run unit tests specifically:
 ```
 $ npm run test
 ```
+
+### Using the AWS SDK and Streams
+Streams has a "baked-in" version of the AWS-SDK in the `./src/aws-client.js` file. Make sure that you import Streams before the AWS SDK so that the `AWS` object bound to the `Window` is the object from your manually included SDK, and not from Streams.
+
 ## Initialization
 Initializing the Streams API is the first step to verify that you have
 everything setup correctly and that you will be able to listen for events.
@@ -140,6 +148,12 @@ this:
   CCP is reduced to 400px tall.
 * CSS styles you add to your site will NOT be applied to the CCP because it is
   rendered in an iframe.
+* If you are trying to use chat specific functionalities, please also include
+  [ChatJS](https://github.com/amazon-connect/amazon-connect-chatjs) in your code.
+  We omit ChatJS from the Makefile so that streams can be used without ChatJS. 
+  Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
+  it must be imported after StreamsJS, or there will be AWS SDK issues 
+  (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
 
 ## Where to go from here
 Check out the full documentation [here](Documentation.md) to read more about
