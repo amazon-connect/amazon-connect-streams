@@ -494,6 +494,10 @@
         try {
           var loginUrl = createLoginUrl(params);
           connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
+          // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
+          if (params.loginUrl) {
+             connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+          }
           connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
 
         } catch (e) {
