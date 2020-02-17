@@ -96,15 +96,32 @@ everything setup correctly and that you will be able to listen for events.
 
 ### `connect.core.initCCP()`
 ```
-connect.core.initCCP(containerDiv, {
-   ccpUrl:        ccpUrl,        /*REQUIRED*/
-   loginPopup:    true,          /*optional, default TRUE*/
-   region: region                /*REQUIRED*/
-   softphone:     {              /*optional*/
-      disableRingtone:  true,    /*optional*/ 
-      ringtoneUrl: ringtoneUrl   /*optional*/
-   }
-});
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<html>
+	<head>
+		<script type="text/javascript" src="amazon-connect-1.4.js"></script>
+	</head>
+   <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
+	<body onload="init()">
+		<div id=containerDiv style="width: 400px;height: 800px;"></div>
+		<script type="text/javascript">
+			const instanceURL = "https://my-instance-domain.awsapps.com/connect/ccp-v2/";
+
+			// initialise the streams api
+			function init(){
+				// initialize the ccp
+				connect.core.initCCP(containerDiv, {
+					ccpUrl: instanceURL,
+					loginPopup: true,
+					softphone: {
+						allowFramedSoftphone: true
+					}
+				});
+			}
+		</script>
+	</body>
+</html>
 ```
 Integrates with Connect by loading the pre-built CCP located at `ccpUrl` into an
 iframe and placing it into the `containerDiv` provided.  API requests are
