@@ -517,6 +517,10 @@
         });
       }
     });
+
+    if (params.onViewContact) {
+      connect.core.onViewContact(params.onViewContact);
+    }
   };
 
   /**-----------------------------------------------------------------------*/

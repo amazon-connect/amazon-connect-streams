@@ -24922,6 +24922,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         });
       }
     });
+
+    if (params.onViewContact) {
+      connect.core.onViewContact(params.onViewContact);
+    }
   };
 
   /**-----------------------------------------------------------------------*/
