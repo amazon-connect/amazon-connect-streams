@@ -851,19 +851,8 @@
     }
   }
 
-  // Utility method for checking whether this connection is an agent-side connection 
+  // Method for checking whether this connection is an agent-side connection 
   // (type AGENT or MONITORING)
-  Connection.prototype._isAgentConnectionType = function () {
-    var connectionType = this.getType();
-    return connectionType === connect.ConnectionType.AGENT 
-      || connectionType === connect.ConnectionType.MONITORING;
-  }
-
-  /**
-   * Utility method for checking whether this connection is an agent-side connection 
-   * (type AGENT or MONITORING)
-   * @return {boolean} True if this connection is an agent-side connection. False otherwise.
-   */
   Connection.prototype._isAgentConnectionType = function () {
     var connectionType = this.getType();
     return connectionType === connect.ConnectionType.AGENT 
