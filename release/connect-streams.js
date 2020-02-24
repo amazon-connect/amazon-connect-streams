@@ -1018,7 +1018,8 @@ module.exports={
                     },
                     "attributes": {
                       "shape": "S2c"
-                    }
+                    },
+                    "contactDuration": {}
                   }
                 }
               },
@@ -23770,6 +23771,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   Contact.prototype.getType = function () {
     return this._getData().type;
   };
+
+  Contact.prototype.getContactDuration = function() {
+    return this._getData().contactDuration;
+  }
 
   Contact.prototype.getStatus = function () {
     return this._getData().state;
