@@ -526,6 +526,10 @@
     return this._getData().type;
   };
 
+  Contact.prototype.getContactDuration = function() {
+    return this._getData().contactDuration;
+  }
+
   Contact.prototype.getStatus = function () {
     return this._getData().state;
   };
