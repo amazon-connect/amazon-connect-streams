@@ -102,7 +102,7 @@ everything setup correctly and that you will be able to listen for events.
 	<head>
 		<script type="text/javascript" src="amazon-connect-1.4.js"></script>
 	</head>
-   <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
+	<!-- Add the call to init() as an onload so it will only run once the page is loaded -->
 	<body onload="init()">
 		<div id=containerDiv style="width: 400px;height: 800px;"></div>
 		<script type="text/javascript">
@@ -112,10 +112,13 @@ everything setup correctly and that you will be able to listen for events.
 			function init(){
 				// initialize the ccp
 				connect.core.initCCP(containerDiv, {
-					ccpUrl: instanceURL,
-					loginPopup: true,
-					softphone: {
-						allowFramedSoftphone: true
+					ccpUrl: instanceURL,			/*REQUIRED*/
+					loginPopup: true,			/*optional, default TRUE*/
+					region: "eu-central-1",			/*REQUIRED for chat, optional otherwise*/
+					softphone: {				/*optional*/
+						allowFramedSoftphone: true,	/*optional*/
+						disableRingtone: false,		/*optional*/
+						ringtoneUrl: "./ringtone.mp3"	/*optional*/
 					}
 				});
 			}
