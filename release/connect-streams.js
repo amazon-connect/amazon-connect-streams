@@ -23364,7 +23364,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.ContactType = connect.makeEnum([
     'voice',
     'queue_callback',
-    'chat'
+    'chat',
+    'task'
   ]);
 
   /*----------------------------------------------------------------
@@ -23372,7 +23373,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   */
   connect.ChannelType = connect.makeEnum([
     'VOICE',
-    'CHAT'
+    'CHAT',
+    'TASK'
   ]);
 
   /*----------------------------------------------------------------
@@ -23380,7 +23382,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   */
   connect.MediaType = connect.makeEnum([
     'softphone',
-    'chat'
+    'chat',
+    'task'
   ]);
 
   /*----------------------------------------------------------------
@@ -23546,7 +23549,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var channelConcurrencyMap = this.getRoutingProfile().channelConcurrencyMap;
     if (!channelConcurrencyMap) {
       channelConcurrencyMap = Object.keys(connect.ChannelType).reduce(function (acc, key) {
-        acc[connect.ChannelType[key]] = 1;
+        // Exclude TASK from default concurrency.
+        if (key !== 'TASK') {
+          acc[connect.ChannelType[key]] = 1;
+        }
         return acc;
       }, {});
     }
@@ -23699,6 +23705,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   Contact.prototype._createConnectionAPI = function (connectionData) {
     if (this.getType() === connect.ContactType.CHAT) {
       return new connect.ChatConnection(this.contactId, connectionData.connectionId);
+    } else if (this.getType() === connect.ContactType.TASK) {
+      return new connect.TaskConnection(this.contactId, connectionData.connectionId);
     } else {
       return new connect.VoiceConnection(this.contactId, connectionData.connectionId);
     }
@@ -23797,6 +23805,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return this._getData().connections.map(function (connData) {
       if (self.getType() === connect.ContactType.CHAT) {
         return new connect.ChatConnection(self.contactId, connData.connectionId);
+      } else if (self.getType() === connect.ContactType.TASK) {
+        return new connect.TaskConnection(self.contactId, connData.connectionId);
       } else {
         return new connect.VoiceConnection(self.contactId, connData.connectionId);
       }
@@ -23836,6 +23846,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       return connType === connect.ConnectionType.AGENT || connType === connect.ConnectionType.MONITORING;
     });
   };
+
+  Contact.prototype.getContactMetadata = function () {
+    return this._getData().contactMetadata;
+  }
 
   Contact.prototype.getAttributes = function () {
     return this._getData().attributes;
@@ -24260,6 +24274,22 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     if (this._isAgentConnectionType()) {
       connect.core.mediaFactory.get(this).catch(function () { });
     }
+  }
+
+  /**
+   * @class TaskConnection
+   * @param {*} contactId 
+   * @param {*} connectionId 
+   * @description adds the task media specific functionality
+   */
+  var TaskConnection = function (contactId, connectionId) {
+    Connection.call(this, contactId, connectionId);
+  };
+  TaskConnection.prototype = Object.create(Connection.prototype);
+  TaskConnection.prototype.constructor = TaskConnection;
+
+  TaskConnection.prototype.getMediaType = function () {
+    return connect.MediaType.TASK;
   }
 
   /*----------------------------------------------------------------
