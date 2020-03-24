@@ -508,7 +508,7 @@ Subscribe a method to be invoked whenever the contact is accepted.
 ```
 contact.onMissed(function(contact) { ... });
 ```
-Subscribe a method to be invoked whenever the contact is missed. This is an event which is fired when a contact is put in state "missed" by the backend, which happens when the agent does not answer for a certain amount of time, when the agent rejects the call, or when the client hangs up before the agent can accept.
+Subscribe a method to be invoked whenever the contact is missed. This is an event which is fired when a contact is put in state "missed" by the backend, which happens when the agent does not answer for a certain amount of time, when the agent rejects the call, or when the other participant hangs up before the agent can accept.
 
 ### `contact.onEnded()`
 ```
