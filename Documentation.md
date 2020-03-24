@@ -496,7 +496,7 @@ Subscribe a method to be invoked when the contact is pending. This event is expe
 ```
 contact.onConnecting(function (contact) { ... });
 ```
-Subscribe a method to be invoked when the contact is connecting. This works with chat and softphone contacts. This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is executed happens after the callback is accepted).
+Subscribe a method to be invoked when the contact is connecting. This works with chat and softphone contacts. This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is executed happens after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
 
 ### `contact.onAccepted()`
 ```
