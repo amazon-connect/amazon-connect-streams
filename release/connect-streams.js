@@ -23353,6 +23353,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   connect.CONTACT_ACTIVE_STATES = connect.makeEnum([
     'incoming',
+    'pending',
     'connecting',
     'connected'
   ]);

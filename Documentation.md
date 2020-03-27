@@ -498,42 +498,39 @@ Subscribe a method to be invoked whenever the contact is updated.
 ```
 contact.onIncoming(function(contact) { ... });
 ```
-Subscribe a method to be invoked when the contact is incoming.  In this state, the contact is waiting to be
+Subscribe a method to be invoked when a queue callback contact is incoming.  In this state, the contact is waiting to be
 accepted if it is a softphone call or is waiting for the agent to answer if it is not a softphone call.
 
 ### `contact.onPending()`
 ```
 contact.onPending(function (contact) { ... });
 ```
-Subscribe a method to be invoked when the contact is pending. Pending occurs after incoming and before connecting, when an agent has accepted or answered, but the backend has not yet acknowledged that a connection is being formed.
+Subscribe a method to be invoked when the contact is pending. This event is expected to occur before the connecting event.
 
 ### `contact.onConnecting()`
 ```
 contact.onConnecting(function (contact) { ... });
 ```
-Subscribe a method to be invoked when the contact is connecting. This works with chat and softphone contacts. This state happens after the agent has accepted a softphone call or answered if not. 
+Subscribe a method to be invoked when the contact is connecting. This works with chat and softphone contacts. This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is executed after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
 
 ### `contact.onAccepted()`
 ```
 contact.onAccepted(function(contact) { ... });
 ```
-Subscribe a method to be invoked whenever the contact is accepted.  This is an event which is fired in response
-to an API call when it succeeds, and this is usually triggered by a UI interaction such as clicking an
-accept button.  The proper response to this API is to stop playing ringtones and remove any Accept UI buttons
-or actions, and potentially show an "Accepting..." UI to the customer.
+Subscribe a method to be invoked whenever the contact is accepted.
 
 ### `contact.onMissed()`
 ```
 contact.onMissed(function(contact) { ... });
 ```
-Subscribe a method to be invoked whenever the contact is missed. This is an event which is fired when a contact is put in state "missed" by the backend, which happens when the agent does not answer for a certain amount of time, or when the customer hangs up before the agent can answer.
+Subscribe a method to be invoked whenever the contact is missed. This is an event which is fired when a contact is put in state "missed" by the backend, which happens when the agent does not answer for a certain amount of time, when the agent rejects the call, or when the other participant hangs up before the agent can accept.
 
 ### `contact.onEnded()`
 ```
 contact.onEnded(function() { ... });
 ```
 Subscribe a method to be invoked whenever the contact is ended or destroyed.  This could be due to the conversation
-being ended by the agent, or due to the contact being missed.  Call `contact.getState()` to determine the state
+being ended by the agent, or due to the contact being missed. Call `contact.getState()` to determine the state
 of the contact and take appropriate action.
 
 ### `contact.onACW()`
