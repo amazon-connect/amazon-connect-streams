@@ -970,17 +970,17 @@
   * Provides the chat connectionToken through the create_transport API for a specific contact and participant Id. 
   * @returns a promise which, upon success, returns the response from the createTransport API.
   * Usage:
-  * connect.core.getConnectionToken()
+  * connection.getConnectionToken()
   *  .then(response => {})
   *  .catch(error => {})
   */
   ChatConnection.prototype.getConnectionToken = function () {
-
     client = connect.core.getClient();
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     var transportDetails = {
       transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
       participantId: this.connectionId,
-      contactId: this.contactId
+      contactId: contactData.initialContactId || this.contactId
     };
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {

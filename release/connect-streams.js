@@ -24220,12 +24220,12 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   *  .catch(error => {})
   */
   ChatConnection.prototype.getConnectionToken = function () {
-
     client = connect.core.getClient();
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     var transportDetails = {
       transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
       participantId: this.connectionId,
-      contactId: this.contactId
+      contactId: contactData.initialContactId || this.contactId
     };
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
