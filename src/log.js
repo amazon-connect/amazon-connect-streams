@@ -35,7 +35,8 @@
   var LogComponent = {
     CCP: "ccp",
     SOFTPHONE: "softphone",
-    CHAT: "chat"
+    CHAT: "chat",
+    TASK: "task"
   };
 
   /**
@@ -74,7 +75,7 @@
   */
 
   var isValidLogComponent = function (component) {
-    return [LogComponent.SOFTPHONE, LogComponent.CCP, LogComponent.CHAT].indexOf(component) !== -1;
+    return Object.values(LogComponent).indexOf(component) !== -1;
   };
 
   /**
