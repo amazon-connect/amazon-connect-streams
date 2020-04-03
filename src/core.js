@@ -13,6 +13,8 @@
 
   connect.core.initialized = false;
 
+  connect.version = "STREAMS_VERSION";
+
   connect.DEFAULT_BATCH_SIZE = 100;
 
   var CCP_SYN_TIMEOUT = 1000; // 1 sec

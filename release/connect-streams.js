@@ -21163,7 +21163,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   var LogComponent = {
     CCP: "ccp",
     SOFTPHONE: "softphone",
-    CHAT: "chat"
+    CHAT: "chat",
+    TASK: "task"
   };
 
   /**
@@ -21202,7 +21203,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   */
 
   var isValidLogComponent = function (component) {
-    return [LogComponent.SOFTPHONE, LogComponent.CCP, LogComponent.CHAT].indexOf(component) !== -1;
+    return Object.values(LogComponent).indexOf(component) !== -1;
   };
 
   /**
@@ -24453,6 +24454,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.core = {};
 
   connect.core.initialized = false;
+
+  connect.version = "1.4.0";
 
   connect.DEFAULT_BATCH_SIZE = 100;
 
