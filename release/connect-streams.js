@@ -21546,6 +21546,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   DownstreamConduitLogger.prototype = Object.create(Logger.prototype);
   DownstreamConduitLogger.prototype.constructor = DownstreamConduitLogger;
 
+  DownstreamConduitLogger.prototype.pushLogsDownstream = function (logs) {
+    var self = this;
+    logs.forEach(function (log) {
+      self.conduit.sendDownstream(connect.EventType.LOG, log);
+    });
+  };
+
   DownstreamConduitLogger.prototype._pushLogsDownstream = function () {
     var self = this;
     this._logs.forEach(function (log) {
@@ -24776,7 +24783,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       });
       // Add all upstream log entries to our own logger.
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        connect.ifMaster(connect.MasterTopics.SEND_LOGS, function () { }, function () {
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        });
       });
       // Reload the page if the shared worker detects an API auth failure.
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
@@ -26432,6 +26441,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     connect.rootLogger = new connect.DownstreamConduitLogger(this.conduit);
 
     this.conduit.onDownstream(connect.EventType.SEND_LOGS, function (logsToUpload) {
+      // Add softphone logs downstream
+      connect.getLog().pushLogsDownstream(logsToUpload);
+
       self.logsBuffer = self.logsBuffer.concat(logsToUpload);
       //only call API to send logs if buffer reached cap
       if (self.logsBuffer.length > LOG_BUFFER_CAP_SIZE) {

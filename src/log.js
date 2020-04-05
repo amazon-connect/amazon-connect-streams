@@ -418,6 +418,13 @@
   DownstreamConduitLogger.prototype = Object.create(Logger.prototype);
   DownstreamConduitLogger.prototype.constructor = DownstreamConduitLogger;
 
+  DownstreamConduitLogger.prototype.pushLogsDownstream = function (logs) {
+    var self = this;
+    logs.forEach(function (log) {
+      self.conduit.sendDownstream(connect.EventType.LOG, log);
+    });
+  };
+
   DownstreamConduitLogger.prototype._pushLogsDownstream = function () {
     var self = this;
     this._logs.forEach(function (log) {

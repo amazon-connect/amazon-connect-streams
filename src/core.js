@@ -365,7 +365,9 @@
       });
       // Add all upstream log entries to our own logger.
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        connect.ifMaster(connect.MasterTopics.SEND_LOGS, function () { }, function () {
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        });
       });
       // Reload the page if the shared worker detects an API auth failure.
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {

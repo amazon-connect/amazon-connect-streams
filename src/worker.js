@@ -124,6 +124,9 @@
     connect.rootLogger = new connect.DownstreamConduitLogger(this.conduit);
 
     this.conduit.onDownstream(connect.EventType.SEND_LOGS, function (logsToUpload) {
+      // Add softphone logs downstream
+      connect.getLog().pushLogsDownstream(logsToUpload);
+
       self.logsBuffer = self.logsBuffer.concat(logsToUpload);
       //only call API to send logs if buffer reached cap
       if (self.logsBuffer.length > LOG_BUFFER_CAP_SIZE) {
