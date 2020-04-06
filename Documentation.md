@@ -384,11 +384,11 @@ Optional success and failure callbacks can be provided to determine if the opera
 
 ### `agent.setState()` / `agent.setStatus()`
 ```
-var routableState = agent.getAgentStates().filter(function(state) {
-   return state.type === AgentStateType.ROUTABLE;
-})[0];
-agent.setState(routableState, {
-   success: function() { ... },
+var routableState = agent.getAgentStates().filter(function(state) { 
+   return state.type === connect.AgentStateType.ROUTABLE; 
+})[0]; 
+agent.setState(routableState, { 
+   success: function() { ... }, 
    failure: function() { ... }
 });
 ```
