@@ -700,6 +700,19 @@ be disconnected from the call. Otherwise, the agent and customer are disconnecte
 
 Optional success and failure callbacks can be provided to determine whether the operation was successful.
 
+### `contact.complete()`
+```
+contact.complete({
+   success: function() { ... },
+   failure: function() { ... }
+});
+```
+This is an API that completes this contact entirely. That means that this should only be
+used for non-monitoring agent connections. 
+
+Optional success and failure callbacks can be provided to determine whether the
+operation was successful.
+
 ### `contact.notifyIssue()`
 ```
 contact.notifyIssue(issueCode, description, {
