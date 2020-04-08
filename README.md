@@ -50,7 +50,7 @@ To whitelist your pages:
   open window will be communicated to all open windows.
 
 ### Downloading Streams with npm
-`npm install amazon-connect-streams -save`
+`npm install amazon-connect-streams`
 
 #Importing Streams with npm and ES6
 `import amazon-connect-streams;`
