@@ -49,7 +49,14 @@ To whitelist your pages:
   tabs opened will be synchronized.  This means that state changes made in one
   open window will be communicated to all open windows.
 
-### Downloading Streams
+### Downloading Streams with npm
+`npm install amazon-connect-streams -save`
+
+#Importing Streams with npm and ES6
+`import amazon-connect-streams;`
+This will make the `connect` variable available in the current context.
+  
+### Downloading Streams from Github
 The next step to embedding Connect into your application is to download the
 Streams library from GitHub.  You can do that by cloning our public repository
 here:
