@@ -53,7 +53,7 @@ To whitelist your pages:
 `npm install amazon-connect-streams`
 
 #Importing Streams with npm and ES6
-`import amazon-connect-streams;`
+`import "amazon-connect-streams";`
 This will make the `connect` variable available in the current context.
   
 ### Downloading Streams from Github
