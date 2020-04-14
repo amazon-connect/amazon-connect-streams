@@ -229,6 +229,16 @@
     bus.subscribe(connect.AgentEvents.SOFTPHONE_ERROR, f);
   };
 
+  Agent.prototype.onWebSocketConnectionLost = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST, f);
+  }
+
+  Agent.prototype.onWebSocketConnectionGained = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED, f);
+  }
+
   Agent.prototype.onAfterCallWork = function (f) {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.AgentEvents.ACW, f);
@@ -1095,6 +1105,15 @@
   connect.contact = function (f) {
     var bus = connect.core.getEventBus();
     return bus.subscribe(connect.ContactEvents.INIT, f);
+  };
+
+  connect.onWebsocketInitFailure = function (f) {
+    var bus = connect.core.getEventBus();
+    var sub = bus.subscribe(connect.WebSocketEvents.INIT_FAILURE, f);
+    if (connect.webSocketInitFailed) {
+      f();
+    }
+    return sub;
   };
 
   /**

@@ -189,6 +189,15 @@ session.  This callback is provided with a `Contact` API object for this
 contact.  `Contact` API objects can also be listed from the `Agent` API by
 calling `agent.getContacts()`.
 
+### `connect.onWebSocketInitFailure()`
+```
+connect.onWebSocketInitFailure(function() { ... });
+```
+Subscribe a method to be called when the WebSocket connection fails to initialize.
+If the WebSocket has already failed at least once in initializing, the call is
+synchronous and the callback is invoked immediately.  Otherwise, the callback is
+invoked once the first attempt to initialize fails.
+
 ## Agent API
 The Agent API provides event subscription methods and action methods which can
 be called on behalf of the agent.  There is only ever one agent per Streams
@@ -253,6 +262,18 @@ being able to be routed contacts again.
 agent.onSoftphoneError(function(agent) { ... });
 ```
 Subscribe a method to be called when the agent is put into an error state specific to softphone funcionality.
+
+### `agent.onWebSocketConnectionLost()`
+```
+agent.onWebSocketConnectionLost(function(agent) { ... });
+```
+Subscribe a method to be called when the agent is put into an error state specific to losing a WebSocket connection.
+
+### `agent.onWebSocketConnectionGained()`
+```
+agent.onWebSocketConnectionGained(function(agent) { ... });
+```
+Subscribe a method to be called when the agent gains a WebSocket connection.
 
 ### `agent.onAfterCallWork()`
 ```
