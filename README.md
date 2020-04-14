@@ -49,6 +49,7 @@ To whitelist your pages:
 * All open tabs that contain an initialized Streams library or any other CCP
   tabs opened will be synchronized.  This means that state changes made in one
   open window will be communicated to all open windows.
+* Using multiple browsers at the same time for the same connect instance is not supported, and causes issues with the rtc communication.
 
 ### Downloading Streams with npm
 `npm install amazon-connect-streams`
