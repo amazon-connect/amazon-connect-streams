@@ -493,7 +493,6 @@
         try {
           var loginUrl = createLoginUrl(params);
           connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
-          debugger;
           var options = params.loginPopup && params.loginPopup.forceWindow ? params.loginPopup : {}
           connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, options);
         } catch (e) {
