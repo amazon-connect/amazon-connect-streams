@@ -3,12 +3,13 @@
 
 ## Overview
 The Amazon Connect Streams API (Streams) gives you the power to integrate your
-existing web applications with Amazon Connect.  Streams gives you the power to
+existing web applications with Amazon Connect.  Streams lets you
 embed the Contact Control Panel (CCP) UI components into your page, and/or
 handle agent and contact state events directly giving you the power to control
 agent and contact state through an object oriented event driven interface.  You
 can use the built in interface or build your own from scratch: Streams gives you
-the power to choose.
+the choice. This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs)
+in order to utilize Amazon Connect's Chat functionality.
 
 ## Architecture
 Click [here](Architecture.md) to view a quick architecture overview of how the 
@@ -40,8 +41,20 @@ To whitelist your pages:
 * All open tabs that contain an initialized Streams library or any other CCP
   tabs opened will be synchronized.  This means that state changes made in one
   open window will be communicated to all open windows.
+* Using multiple browsers at the same time for the same connect instance is not supported, and causes issues with the rtc communication.
 
-### Downloading Streams
+
+### Downloading Streams with npm
+
+`npm install amazon-connect-streams`
+
+# Importing Streams with npm and ES6
+
+`import "amazon-connect-streams";`
+
+This will make the `connect` variable available in the current context.
+  
+### Downloading Streams from Github
 The next step to embedding Amazon Connect into your application is to download the
 Streams library from GitHub.  You can do that by cloning our public repository
 here:
@@ -90,17 +103,34 @@ everything set up correctly and that you are able to listen for events.
 
 ### `connect.core.initCCP()`
 ```
-connect.core.initCCP(containerDiv, {
-   ccpUrl:        ccpUrl,        /*REQUIRED*/
-   loginPopup:    true,          /*optional, default TRUE*/
-   loginUrl:      loginUrl,      /*optional*/
-   loginPopupAutoClose:    true,  /*optional*/
-   region: region                /*REQUIRED*/
-   softphone:     {              /*optional*/
-      disableRingtone:  true,    /*optional*/
-      ringtoneUrl: ringtoneUrl   /*optional*/
-   }
-});
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<html>
+	<head>
+		<script type="text/javascript" src="amazon-connect-1.4.js"></script>
+	</head>
+	<!-- Add the call to init() as an onload so it will only run once the page is loaded -->
+	<body onload="init()">
+		<div id=containerDiv style="width: 400px;height: 800px;"></div>
+		<script type="text/javascript">
+			const instanceURL = "https://my-instance-domain.awsapps.com/connect/ccp-v2/";
+			// initialise the streams api
+			function init(){
+				// initialize the ccp
+				connect.core.initCCP(containerDiv, {
+					ccpUrl: instanceURL,			/*REQUIRED*/
+					loginPopup: true,			/*optional, default TRUE*/
+					region: "eu-central-1",			/*REQUIRED for chat, optional otherwise*/
+					softphone: {				/*optional*/
+						allowFramedSoftphone: true,	/*optional*/
+						disableRingtone: false,		/*optional*/
+						ringtoneUrl: "./ringtone.mp3"	/*optional*/
+					}
+				});
+			}
+		</script>
+	</body>
+</html>
 ```
 Integrates with Amazon Connect by loading the pre-built CCP located at `ccpUrl` into an
 iframe and placing it into the `containerDiv` provided.  API requests are

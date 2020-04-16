@@ -43,11 +43,13 @@ To whitelist your pages:
    website is hosted on a non-standard port.
 
 #### A few things to note:
+* Whitelisted domains must be HTTPS.
 * All of the pages that attempt to initialize the Streams library must be hosted
   on domains that are whitelisted as per the above steps.
 * All open tabs that contain an initialized Streams library or any other CCP
   tabs opened will be synchronized.  This means that state changes made in one
   open window will be communicated to all open windows.
+* Using multiple browsers at the same time for the same connect instance is not supported, and causes issues with the rtc communication.
 
 ### Downloading Streams with npm
 `npm install amazon-connect-streams`
@@ -144,6 +146,11 @@ and made available to your JS client code.
 * `region`: Amazon connect instance region. ex: us-west-2 for PDX ccp instance. only required for chat channel.
 * `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login
   popup which is shown when the user's authentication expires.
+* `loginPopupAutoClose`: Optional, defaults to `false`. Set to `true` in conjunction with the `loginPopup` parameter 	
+  to automatically close the login Popup window once the authentication step has completed. 	
+  If the login page opened in a new tab, this parameter will also auto-close that tab.	
+* `loginUrl`: Optional.  Allows custom URL to be used to initiate the ccp, as in	
+  the case of SAML authentication.
 * `softphone`: This object is optional and allows you to specify some settings
   surrounding the softphone feature of Connect.
   * `allowFramedSoftphone`: Normally, the softphone microphone and speaker
