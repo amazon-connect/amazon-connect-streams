@@ -39,10 +39,9 @@ describe('Connections API', function () {
     });
 
     after(function () {
-       initMediaController.reset();
-       connect.core.getAgentDataProvider.resetBehavior();
+      initMediaController.resetHistory();
+      connect.core.getAgentDataProvider.resetBehavior();
     });
-
 
     it('Should create new Chat connection Object given the chat Contact and Connection Id ', function () {
       const chatConnection = new connect.ChatConnection(contactId, connectionId);

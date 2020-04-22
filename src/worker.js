@@ -245,7 +245,6 @@
 
   ClientEngine.prototype.pollForAgent = function () {
     var self = this;
-    var client = connect.core.getClient();
     var onAuthFail = connect.hitch(self, self.handleAuthFail);
 
     this.client.call(connect.ClientMethods.GET_AGENT_SNAPSHOT, {

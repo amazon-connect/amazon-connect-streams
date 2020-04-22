@@ -49,7 +49,7 @@ describe('SoftphoneManager', function () {
             var softphoneManager = new connect.SoftphoneManager({});
             bus.trigger(connect.ContactEvents.INIT, contact);
             bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), contact);
-            assert(connect.RTCSession.calledOnce);
+            assert.isTrue(connect.RTCSession.calledOnce);
         });
 
         it('RTC session will not be created for the contact which is already connected with one RTC session', function () {
@@ -61,7 +61,7 @@ describe('SoftphoneManager', function () {
             var softphoneManager = new connect.SoftphoneManager({});
             bus.trigger(connect.ContactEvents.INIT, contact);
             bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), contact);
-            assert(connect.RTCsession.notCalled);
+            assert.isTrue(connect.RTCsession.notCalled);
         });
 
         describe("FIXME", function () {
@@ -69,7 +69,7 @@ describe('SoftphoneManager', function () {
                 connect.RTCsession = sinon.spy();
                 var softphoneManager = new connect.SoftphoneManager({});
                 bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), contact);
-                assert(connect.RTCsession.notCalled);
+                assert.isTrue(connect.RTCsession.notCalled);
             });
             // Include the test cases once we merge the changes
             it('Multiple RTC session should not be created in case of voice system failures!')

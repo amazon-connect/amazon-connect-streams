@@ -103,13 +103,15 @@
   /**
    * A log entry.
    *
+   * @param component The logging component.
    * @param level The log level of this log entry.
    * @param text The text contained in the log entry.
+   * @param loggerId The root logger id.
    *
    * Log entries are aware of their timestamp, order,
    * and can contain objects and exception stack traces.
    */
-  var LogEntry = function (component, level, text) {
+  var LogEntry = function (component, level, text, loggerId) {
     this.component = component;
     this.level = level;
     this.text = text;
@@ -117,10 +119,11 @@
     this.exception = null;
     this.objects = [];
     this.line = 0;
+    this.loggerId = loggerId;
   };
 
   LogEntry.fromObject = function (obj) {
-    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text);
+    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text, obj.loggerId);
 
     // Required to check for Date objects sent across frame boundaries
     if (Object.prototype.toString.call(obj.time) === '[object Date]') {
@@ -216,6 +219,7 @@
     this._lineCount = 0;
     this._logRollInterval = 0;
     this._logRollTimer = null;
+    this._loggerId = new Date().getTime() + "-" + Math.random().toString(36).slice(2);
     this.setLogRollInterval(DEFAULT_LOG_ROLL_INTERVAL);
   };
 
@@ -275,7 +279,7 @@
    * @returns The new log entry.
    */
   Logger.prototype.write = function (component, level, text) {
-    var logEntry = new LogEntry(component, level, text);
+    var logEntry = new LogEntry(component, level, text, this.getLoggerId());
     this.addLogEntry(logEntry);
     return logEntry;
   };
@@ -400,6 +404,10 @@
         conduit.sendUpstream(connect.EventType.SEND_LOGS, logsToPush);
       }
     });
+  };
+
+  Logger.prototype.getLoggerId = function () {
+    return this._loggerId;
   };
 
   var DownstreamConduitLogger = function (conduit) {

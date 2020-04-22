@@ -365,9 +365,9 @@
       });
       // Add all upstream log entries to our own logger.
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-        connect.ifMaster(connect.MasterTopics.SEND_LOGS, function () { }, function () {
+        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
-        });
+        }
       });
       // Reload the page if the shared worker detects an API auth failure.
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
@@ -488,7 +488,9 @@
 
     // Add any logs from the upstream to our own logger.
     conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-      connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+      }
     });
 
     // Pop a login page when we encounter an ACK timeout.

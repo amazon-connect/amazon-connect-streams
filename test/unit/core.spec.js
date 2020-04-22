@@ -3,7 +3,7 @@ require("../unit/test-setup.js");
 describe('Core', function () {
 
     before(function () {
-        this.checkNotInitiazed = sinon.stub(connect.core, "checkNotInitialized").returns(true);
+        this.checkNotInitialized = sinon.stub(connect.core, "checkNotInitialized").returns(true);
         this.params = {
             agentLogin: "abc",
             authToken: "xyz",
@@ -42,7 +42,7 @@ describe('Core', function () {
             expect(this.params.authToken).not.to.be.a("null");
             expect(this.params.region).not.to.be.a("null");
             connect.core.initSharedWorker(this.params);
-            expect(this.checkNotInitiazed.called);
+            expect(this.checkNotInitialized.called);
             expect(SharedWorker.calledWith(this.params.sharedWorkerUrl, "ConnectSharedWorker"));
         })
     });
@@ -75,7 +75,7 @@ describe('Core', function () {
             connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
             connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
             connect.ifMaster.callArg(1);
-            assert(connect.VoiceRingtoneEngine.calledWithNew);
+            assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew());
         });
 
         it("Ringtone init with QueueCallbackRingtoneEngine", function () {
@@ -84,7 +84,7 @@ describe('Core', function () {
             connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
             connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
             connect.ifMaster.callArg(1);
-            assert(connect.QueueCallbackRingtoneEngine.calledWithNew);
+            assert.isTrue(connect.QueueCallbackRingtoneEngine.calledWithNew());
         });
 
     });
@@ -131,7 +131,7 @@ describe('Core', function () {
             connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
             connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
             connect.ifMaster.callArg(1);
-            assert(connect.SoftphoneManager.calledWithNew)
+            assert.isTrue(connect.SoftphoneManager.calledWithNew());
         });
     });
 
@@ -147,9 +147,31 @@ describe('Core', function () {
             expect(this.params.ccpUrl).not.to.be.a("null");
             expect(this.containerDiv).not.to.be.a("null");
             connect.core.initCCP(this.containerDiv, this.params);
-            assert(this.checkNotInitiazed.called);
-            assert(document.createElement.calledOnce);
-            assert(this.containerDiv.appendChild.calledOnce);
+            assert.isTrue(this.checkNotInitialized.called);
+            assert.isTrue(document.createElement.calledOnce);
+            assert.isTrue(this.containerDiv.appendChild.calledOnce);
+        });
+
+        it("Replicates logs received upstream while ignoring duplicates", function () {
+            var logger = connect.getLog();
+            var loggerId = logger.getLoggerId();
+            var originalLoggerLength = logger._logs.length;
+            var newLogs = [
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some log", "some-logger-id"),
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some log with no logger id", null),
+                new connect.LogEntry("test", connect.LogLevel.INFO, "some log info", "some-logger-id"),
+                new connect.LogEntry("test", connect.LogLevel.ERROR, "some log error", "some-logger-id")
+            ];
+            var dupLogs = [
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some dup log", loggerId),
+                new connect.LogEntry("test", connect.LogLevel.INFO, "some dup log info", loggerId),
+                new connect.LogEntry("test", connect.LogLevel.ERROR, "some dup log error", loggerId)
+            ]
+            var allLogs = newLogs.concat(dupLogs);
+            for (var i = 0; i < allLogs.length; i++) {
+                connect.core.upstream.upstreamBus.trigger(connect.EventType.LOG, allLogs[i]);
+            }
+            assert.lengthOf(logger._logs, originalLoggerLength + newLogs.length);
         });
     });
 
@@ -183,7 +205,7 @@ describe('Core', function () {
             isFramed = true;
             setup();
             await connect.core.verifyDomainAccess('token', 'endpoint').catch(() => {}).finally(() => {
-                assert(connect.fetch.calledWithMatch('endpoint', {
+                assert.isTrue(connect.fetch.calledWithMatch('endpoint', {
                     headers: {
                       'X-Amz-Bearer': 'token'
                     }

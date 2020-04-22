@@ -35,7 +35,7 @@ describe('RingtoneEngine', function () {
         it('validate the VoiceRingtoneEngine implemements the _driveRingtone method and calls the  _ringtoneSetup for VOICE calls', function () {
             bus.trigger(connect.ContactEvents.INIT, contact);
             bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
-            assert(this.ringtoneSetup.withArgs(contact).calledOnce);
+            assert.isTrue(this.ringtoneSetup.withArgs(contact).calledOnce);
         });
 
         it('validate the VoiceRingtoneEngine should not call  _ringtoneSetup for non VOICE, non softphone calls', function () {
@@ -45,12 +45,12 @@ describe('RingtoneEngine', function () {
             bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
             this.ringtoneSetup.restore();
             this.ringtoneSetup = sinon.stub(this.voiceRingtoneEngine, "_ringtoneSetup");
-            assert(this.ringtoneSetup.notCalled);
+            assert.isTrue(this.ringtoneSetup.notCalled);
             contact.getType.restore();
             contact.isSoftphoneCall.restore();
             sinon.stub(contact, "isSoftphoneCall").returns(false);
             sinon.stub(contact, "getType").returns(lily.ContactType.VOICE);
-            assert(this.ringtoneSetup.notCalled);
+            assert.isTrue(this.ringtoneSetup.notCalled);
         });
     });
 
@@ -70,7 +70,7 @@ describe('RingtoneEngine', function () {
         it('validate the QueueCallbackRingtoneEngine implemements _driveRingtone method and calls the  _ringtoneSetup for QUEUE_CALLBACK calls ', function () {
             bus.trigger(connect.ContactEvents.INIT, contact);
             bus.trigger(connect.core.getContactEventName(connect.ContactEvents.INCOMING, contactId), contact);
-            assert(this.ringtoneSetup.withArgs(contact).calledOnce);
+            assert.isTrue(this.ringtoneSetup.withArgs(contact).calledOnce);
         });
 
         it('validate the QueueCallbackRingtoneEngine should not call the _ringtoneSetup for Voice calls ', function () {
@@ -80,7 +80,7 @@ describe('RingtoneEngine', function () {
             this.ringtoneSetup = sinon.stub(this.queueCallbackRingtoneEngine, "_ringtoneSetup");
             bus.trigger(connect.ContactEvents.INIT, contact);
             bus.trigger(connect.core.getContactEventName(connect.ContactEvents.INCOMING, contactId), contact);
-            assert(this.ringtoneSetup.notCalled);
+            assert.isTrue(this.ringtoneSetup.notCalled);
         });
     });
 
