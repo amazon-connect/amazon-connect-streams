@@ -1046,6 +1046,14 @@
     return connect.MediaType.TASK;
   }
 
+  TaskConnection.prototype.getMediaInfo = function () {
+    return null;
+  };
+
+  TaskConnection.prototype.getMediaController = function () {
+    return null;
+  };
+
   /*----------------------------------------------------------------
    * class ConnectionSnapshot
    */
@@ -1184,6 +1192,7 @@
   connect.BaseConnection = Connection;
   connect.VoiceConnection = VoiceConnection;
   connect.ChatConnection = ChatConnection;
+  connect.TaskConnection = TaskConnection;
   connect.ConnectionSnapshot = ConnectionSnapshot;
   connect.Endpoint = Endpoint;
   connect.Address = Endpoint;
