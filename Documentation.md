@@ -54,6 +54,16 @@ To whitelist your pages:
 
 This will make the `connect` variable available in the current context.
 
+## Usage with TypeScript
+
+`amazon-connect-streams` is compatible with TypeScript. You'll need to use version `3.0.1` or higher:
+
+```ts
+import "amazon-connect-streams";
+
+connect.initCCP({ /* ... */});
+```
+
 ## Downloading Streams from Github
 The next step to embedding Amazon Connect into your application is to download the
 Streams library from GitHub. You can do that by cloning our public repository
