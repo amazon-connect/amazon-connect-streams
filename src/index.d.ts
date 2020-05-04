@@ -829,13 +829,19 @@ declare namespace connect {
      */
     getType(): ContactType;
 
-    /** Get a ContactState object representing the state of the contact. */
+    /** Get an object representing the state of the contact. */
+    getState(): ContactState;
+
+    /** Alias for `getStatus()` */
     getStatus(): ContactState;
 
     /**
      * Get the duration of the contact state in milliseconds relative to local time.
      * This takes into account time skew between the JS client and the Amazon Connect backend servers.
      */
+    getStateDuration(): number;
+
+    /** Alias for `getStateDuration()` */
     getStatusDuration(): number;
 
     /** Get the queue associated with the contact. */
@@ -1029,12 +1035,18 @@ declare namespace connect {
     getAddress(): Endpoint;
 
     /** Gets the `ConnectionState` object for this connection. */
+    getState(): ConnectionState;
+
+    /** Alias for `getState()` */
     getStatus(): ConnectionState;
 
     /**
      * Get the duration of the connection state, in milliseconds, relative to local time.
      * This takes into account time skew between the JS client and the Amazon Connect service.
      */
+    getStateDuration(): number;
+
+    /** Alias for `getStateDuration()` */
     getStatusDuration(): number;
 
     /** Get the type of connection. */

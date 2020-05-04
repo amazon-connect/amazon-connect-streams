@@ -664,18 +664,18 @@ var type = contact.getType();
 ```
 Get the type of the contact. This indicates what type of media is carried over the connections of the contact.
 
-### `contact.getStatus()`
+###  `contact.getState()` / `contact.getStatus()`
 ```js
-var state = contact.getStatus();
+var state = contact.getState();
 ```
-Get a `ContactStatus` object representing the state of the contact. This object has the following fields:
+Get an object representing the state of the contact. This object has the following fields:
 
 * `type`: The contact state type, as per the `ContactStateType` enumeration.
 * `timestamp`: A `Date` object that indicates when the the contact was put in that state.
 
-### `contact.getStatusDuration()`
+### `contact.getStateDuration()` / `contact.getStatusDuration()`
 ```js
-var millis = contact.getStatusDuration();
+var millis = contact.getStateDuration();
 ```
 Get the duration of the contact state in milliseconds relative to local time. This takes into
 account time skew between the JS client and the Amazon Connect backend servers.
@@ -885,9 +885,9 @@ var endpoint = connection.getEndpoint();
 ```
 Gets the endpoint to which this connection is connected.
 
-### `connection.getStatus()`
+### `connection.getState()` / `connection.getStatus()`
 ```js
-var state = connection.getStatus();
+var state = connection.getState();
 ```
 Gets the `ConnectionState` object for this connection. This object has the
 following fields:
@@ -895,9 +895,9 @@ following fields:
 * `timestamp`: A `Date` object that indicates when the the connection was put in that state.
 * `type`: The connection state type, as per the `ConnectionStateType` enumeration.
 
-### `connection.getStatusDuration()`
+### `connection.getStateDuration()` / `connection.getStatusDuration()`
 ```js
-var millis = connection.getStatusDuration();
+var millis = connection.getStateDuration();
 ```
 Get the duration of the connection state, in milliseconds, relative to local time.
 This takes into account time skew between the JS client and the Amazon Connect service.

@@ -530,13 +530,17 @@
     return this._getData().type;
   };
 
-  Contact.prototype.getStatus = function () {
+  Contact.prototype.getState = function () {
     return this._getData().state;
   };
 
-  Contact.prototype.getStatusDuration = function () {
+  Contact.prototype.getStatus = Contact.prototype.getState;
+
+  Contact.prototype.getStateDuration = function () {
     return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
   };
+
+  Contact.prototype.getStatusDuration = Contact.prototype.getStateDuration;
 
   Contact.prototype.getQueue = function () {
     return this._getData().queue;
@@ -768,13 +772,17 @@
 
   Connection.prototype.getAddress = Connection.prototype.getEndpoint;
 
-  Connection.prototype.getStatus = function () {
+  Connection.prototype.getState = function () {
     return this._getData().state;
   };
 
-  Connection.prototype.getStatusDuration = function () {
+  Connection.prototype.getStatus = Connection.prototype.getState;
+
+  Connection.prototype.getStateDuration = function () {
     return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
   };
+
+  Connection.prototype.getStatusDuration = Connection.prototype.getStateDuration;
 
   Connection.prototype.getType = function () {
     return this._getData().type;
