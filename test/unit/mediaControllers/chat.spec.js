@@ -37,9 +37,9 @@ describe('Media Controllers', function () {
     it('Chat Session successfully established for active connection', function () {
       connect.ChatSession.create.resetHistory();
       connect.core.mediaController.get(connectionObj);
-      assert(connect.ChatSession.create.called);
-      assert(chatMediaConnectMethod.called);
-      assert(mediaInfoMethod.called);
+      assert.isTrue(connect.ChatSession.create.called);
+      assert.isTrue(chatMediaConnectMethod.called);
+      assert.isTrue(mediaInfoMethod.called);
     });
 
 
@@ -47,7 +47,7 @@ describe('Media Controllers', function () {
       connect.ChatSession.create.resetHistory();
       connectionObj.isActive = sinon.stub().returns(false);
       connect.core.mediaController.get(connectionObj).catch(function () { });
-      assert(connect.ChatSession.create.notCalled);
+      assert.isTrue(connect.ChatSession.create.notCalled);
     });
   });
 });

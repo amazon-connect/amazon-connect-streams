@@ -934,6 +934,15 @@ module.exports={
                   }
                 }
               },
+              "agentAvailabilityState": {
+                "type": "structure",
+                "members": {
+                  "state": {},
+                  "timeStamp": {
+                    "type": "timestamp"
+                  }
+                }
+              },
               "contacts": {
                 "type": "list",
                 "member": {

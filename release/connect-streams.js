@@ -934,6 +934,15 @@ module.exports={
                   }
                 }
               },
+              "agentAvailabilityState": {
+                "type": "structure",
+                "members": {
+                  "state": {},
+                  "timeStamp": {
+                    "type": "timestamp"
+                  }
+                }
+              },
               "contacts": {
                 "type": "list",
                 "member": {
@@ -21250,13 +21259,15 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   /**
    * A log entry.
    *
+   * @param component The logging component.
    * @param level The log level of this log entry.
    * @param text The text contained in the log entry.
+   * @param loggerId The root logger id.
    *
    * Log entries are aware of their timestamp, order,
    * and can contain objects and exception stack traces.
    */
-  var LogEntry = function (component, level, text) {
+  var LogEntry = function (component, level, text, loggerId) {
     this.component = component;
     this.level = level;
     this.text = text;
@@ -21264,10 +21275,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     this.exception = null;
     this.objects = [];
     this.line = 0;
+    this.loggerId = loggerId;
   };
 
   LogEntry.fromObject = function (obj) {
-    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text);
+    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text, obj.loggerId);
 
     // Required to check for Date objects sent across frame boundaries
     if (Object.prototype.toString.call(obj.time) === '[object Date]') {
@@ -21363,6 +21375,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     this._lineCount = 0;
     this._logRollInterval = 0;
     this._logRollTimer = null;
+    this._loggerId = new Date().getTime() + "-" + Math.random().toString(36).slice(2);
     this.setLogRollInterval(DEFAULT_LOG_ROLL_INTERVAL);
   };
 
@@ -21422,7 +21435,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    * @returns The new log entry.
    */
   Logger.prototype.write = function (component, level, text) {
-    var logEntry = new LogEntry(component, level, text);
+    var logEntry = new LogEntry(component, level, text, this.getLoggerId());
     this.addLogEntry(logEntry);
     return logEntry;
   };
@@ -21549,6 +21562,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     });
   };
 
+  Logger.prototype.getLoggerId = function () {
+    return this._loggerId;
+  };
+
   var DownstreamConduitLogger = function (conduit) {
     Logger.call(this);
     this.conduit = conduit;
@@ -21564,6 +21581,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   DownstreamConduitLogger.LOG_PUSH_INTERVAL = 1000;
   DownstreamConduitLogger.prototype = Object.create(Logger.prototype);
   DownstreamConduitLogger.prototype.constructor = DownstreamConduitLogger;
+
+  DownstreamConduitLogger.prototype.pushLogsDownstream = function (logs) {
+    var self = this;
+    logs.forEach(function (log) {
+      self.conduit.sendDownstream(connect.EventType.LOG, log);
+    });
+  };
 
   DownstreamConduitLogger.prototype._pushLogsDownstream = function () {
     var self = this;
@@ -22405,7 +22429,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     if (this.logEvents && (eventName !== connect.EventType.LOG && eventName !== connect.EventType.MASTER_RESPONSE && eventName !== connect.EventType.API_METRIC)) {
       connect.getLog().trace("Publishing event: %s", eventName);
     }
-
     allEventSubs.concat(eventSubs).forEach(function (sub) {
       try {
         sub.f(data || null, eventName, self);
@@ -24834,7 +24857,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       });
       // Add all upstream log entries to our own logger.
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        }
       });
       // Reload the page if the shared worker detects an API auth failure.
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
@@ -24955,7 +24980,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
     // Add any logs from the upstream to our own logger.
     conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-      connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+      }
     });
 
     // Pop a login page when we encounter an ACK timeout.
@@ -26490,6 +26517,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     connect.rootLogger = new connect.DownstreamConduitLogger(this.conduit);
 
     this.conduit.onDownstream(connect.EventType.SEND_LOGS, function (logsToUpload) {
+      // Add softphone logs downstream
+      connect.getLog().pushLogsDownstream(logsToUpload);
+
       self.logsBuffer = self.logsBuffer.concat(logsToUpload);
       //only call API to send logs if buffer reached cap
       if (self.logsBuffer.length > LOG_BUFFER_CAP_SIZE) {
@@ -26608,7 +26638,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   ClientEngine.prototype.pollForAgent = function () {
     var self = this;
-    var client = connect.core.getClient();
     var onAuthFail = connect.hitch(self, self.handleAuthFail);
 
     this.client.call(connect.ClientMethods.GET_AGENT_SNAPSHOT, {

@@ -11,9 +11,9 @@ describe('Utils', function () {
 
         it('calls original function with right this and args', function () {
             var proxy = connect.hitch(this.obj, this.callback, 1, 2, 3)();
-            assert(this.callback.called);
-            assert(this.callback.calledOn(this.obj));
-            assert(this.callback.calledWith(1, 2, 3));
+            assert.isTrue(this.callback.called);
+            assert.isTrue(this.callback.calledOn(this.obj));
+            assert.isTrue(this.callback.calledWith(1, 2, 3));
         });
 
         it("returns the return value from the original function", function () {
