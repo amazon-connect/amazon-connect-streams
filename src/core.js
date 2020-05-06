@@ -15,7 +15,7 @@
 
   connect.version = "STREAMS_VERSION";
 
-  connect.DEFAULT_BATCH_SIZE = 100;
+  connect.DEFAULT_BATCH_SIZE = 500;
 
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
