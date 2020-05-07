@@ -341,7 +341,7 @@
             callbacks.success(data);
           }
         },
-        failure: callbacks.failure
+        failure: callbacks && callbacks.failure
       });
   };
 
@@ -362,8 +362,8 @@
 
     client.call(connect.ClientMethods.CREATE_OUTBOUND_CONTACT, {
       endpoint: connect.assertNotNull(endpoint, 'endpoint'),
-      queueARN: params.queueARN || params.queueId || this.getRoutingProfile().defaultOutboundQueue.queueARN
-    }, {
+      queueARN: (params && (params.queueARN || params.queueId)) || this.getRoutingProfile().defaultOutboundQueue.queueARN
+    }, params && {
         success: params.success,
         failure: params.failure
       });
@@ -378,8 +378,11 @@
   Agent.prototype.getEndpoints = function (queueARNs, callbacks, pageInfoIn) {
     var self = this;
     var client = connect.core.getClient();
-    var pageInfo = pageInfoIn || { endpoints: [] };
+    connect.assertNotNull(callbacks, "callbacks");
+    connect.assertNotNull(callbacks.success, "callbacks.success");
+    var pageInfo = pageInfoIn || { };
 
+    pageInfo.endpoints = pageInfo.endpoints || [];
     pageInfo.maxResults = pageInfo.maxResults || connect.DEFAULT_BATCH_SIZE;
 
     // Backwards compatibility allowing a single queueARN to be specified
@@ -875,35 +878,6 @@
 
   VoiceConnection.prototype = Object.create(Connection.prototype);
   VoiceConnection.prototype.constructor = VoiceConnection;
-
-  VoiceConnection.prototype.sendDigits = function (digits, callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.SEND_DIGITS, {
-      contactId: this.getContactId(),
-      connectionId: this.getConnectionId(),
-      digits: digits
-    }, callbacks);
-  };
-
-  VoiceConnection.prototype.hold = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.HOLD_CONNECTION, {
-      contactId: this.getContactId(),
-      connectionId: this.getConnectionId()
-    }, callbacks);
-  };
-
-  VoiceConnection.prototype.resume = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.RESUME_CONNECTION, {
-      contactId: this.getContactId(),
-      connectionId: this.getConnectionId()
-    }, callbacks);
-  };
-
-  VoiceConnection.prototype.isOnHold = function () {
-    return this.getStatus().type === connect.ConnectionStateType.HOLD;
-  };
 
   /**
   * @deprecated

@@ -9,9 +9,11 @@
     "lib": "./release"
   },
   "files": [
-    "/release"
+    "/release",
+    "/src/index.d.ts"
   ],
   "main": "release/connect-streams.js",
+  "types": "src/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/aws/amazon-connect-streams.git"
@@ -24,7 +26,7 @@
   ],
   "scripts": {
     "test": "gulp test",
-    "release": "gulp script",
+    "release": "tsc && gulp script",
     "watch": "gulp watch",
     "clean": "rm -rf build/ node_modules build package-lock.json",
     "release-watch": "npm run release && npm run watch"
@@ -49,7 +51,8 @@
     "gulp-watch": "^5.0.1",
     "jshint": "^2.9.7",
     "pump": "^3.0.0",
-    "sinon": "^4.5.0"
+    "sinon": "^4.5.0",
+    "typescript": "3.0.1"
   },
   "npm-pretty-much": {
     "runRelease": "always"

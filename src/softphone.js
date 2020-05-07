@@ -47,7 +47,7 @@
         },
         failure: function (reason) {
           if (reason.message && reason.message.includes("SoftphoneConnectionLimitBreachedException")) {
-            publishError("multiple_softphone_active_sessions", "Number of active sessions are more then allowed limit.");
+            publishError("multiple_softphone_active_sessions", "Number of active sessions are more then allowed limit.", "");
           }
           reject(Error("requestIceAccess failed"));
         },
