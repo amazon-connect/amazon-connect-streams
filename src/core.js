@@ -440,6 +440,18 @@
     // Build the upstream conduit communicating with the CCP iframe.
     var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
 
+    // Let CCP know if iframe is visible
+    iframe.onload = setTimeout(function() {
+      var style = window.getComputedStyle(iframe, null);
+      var data = {
+        display: style.display,
+        offsetWidth: iframe.offsetWidth,
+        offsetHeight: iframe.offsetHeight,
+        clientRectsLength: iframe.getClientRects().length
+      };
+      conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
+    }, 10000);
+    
     // Set the global upstream conduit for external use.
     connect.core.upstream = conduit;
 

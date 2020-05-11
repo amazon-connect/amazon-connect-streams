@@ -33,7 +33,8 @@
     'broadcast',
     'api_metric',
     'client_metric',
-    'mute'
+    'mute',
+    "iframe_style"
   ]);
 
   /**---------------------------------------------------------------
