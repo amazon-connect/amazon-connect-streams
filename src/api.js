@@ -123,6 +123,18 @@
   ]);
 
   /*----------------------------------------------------------------
+   * enum ContactInitiationMethod
+   */
+  connect.ContactInitiationMethod = connect.makeEnum([
+    'inbound',
+    'outbound',
+    'transfer',
+    'queue_transfer',
+    'callback',
+    'api',
+  ]);
+
+  /*----------------------------------------------------------------
   * enum ChannelType
   */
   connect.ChannelType = connect.makeEnum([
@@ -615,8 +627,19 @@
     }) != null;
   };
 
+  Contact.prototype._isInbound = function () {
+    var initiationMethod = this._getData().initiationMethod;
+    return (initiationMethod === connect.ContactInitiationMethod.OUTBOUND) ? false : true;
+  }
+
   Contact.prototype.isInbound = function () {
     var conn = this.getInitialConnection();
+
+    // We will gradually change checking inbound by relying on contact initiationMethod
+    if (conn.getMediaType() === connect.MediaType.TASK) {
+      return this._isInbound();
+    }
+
     return conn ? conn.getType() === connect.ConnectionType.INBOUND : false;
   };
 

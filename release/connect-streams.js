@@ -23411,6 +23411,18 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   ]);
 
   /*----------------------------------------------------------------
+   * enum ContactInitiationMethod
+   */
+  connect.ContactInitiationMethod = connect.makeEnum([
+    'inbound',
+    'outbound',
+    'transfer',
+    'queue_transfer',
+    'callback',
+    'api',
+  ]);
+
+  /*----------------------------------------------------------------
   * enum ChannelType
   */
   connect.ChannelType = connect.makeEnum([
@@ -23903,8 +23915,19 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }) != null;
   };
 
+  Contact.prototype._isInbound = function () {
+    var initiationMethod = this._getData().initiationMethod;
+    return (initiationMethod === connect.ContactInitiationMethod.OUTBOUND) ? false : true;
+  }
+
   Contact.prototype.isInbound = function () {
     var conn = this.getInitialConnection();
+
+    // We will gradually change checking inbound by relying on contact initiationMethod
+    if (conn.getMediaType() === connect.MediaType.TASK) {
+      return this._isInbound();
+    }
+
     return conn ? conn.getType() === connect.ConnectionType.INBOUND : false;
   };
 
@@ -24507,7 +24530,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   connect.version = "1.4.0";
 
-  connect.DEFAULT_BATCH_SIZE = 100;
+  connect.DEFAULT_BATCH_SIZE = 500;
 
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
