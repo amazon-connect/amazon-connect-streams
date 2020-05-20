@@ -24672,6 +24672,12 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
               connect.getLog().info("ChatRingtoneEngine initialized.");
             }
 
+            if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
+              connect.core.ringtoneEngines.task =
+                new connect.TaskRingtoneEngine(ringtoneSettings.task);
+                connect.getLog().info("TaskRingtoneEngine initialized.");
+            }
+
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
@@ -24689,6 +24695,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       params.ringtone.voice = params.ringtone.voice || {};
       params.ringtone.queue_callback = params.ringtone.queue_callback || {};
       params.ringtone.chat = params.ringtone.chat || { disabled: true };
+      params.ringtone.task = params.ringtone.task || { disabled: true };
 
       if (otherParams.softphone) {
         if (otherParams.softphone.disableRingtone) {
@@ -25727,6 +25734,28 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     });
   };
 
+  var TaskRingtoneEngine = function (ringtoneConfig) {
+    RingtoneEngineBase.call(this, ringtoneConfig);
+  };
+  TaskRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
+  TaskRingtoneEngine.prototype.constructor = TaskRingtoneEngine;
+
+  TaskRingtoneEngine.prototype._driveRingtone = function () {
+    var self = this;
+
+    var onContactConnect = function (contact) {
+      if (contact.getType() === lily.ContactType.TASK && contact.isInbound()) {
+        self._ringtoneSetup(contact);
+        self._publishTelemetryEvent("Task Ringtone Connecting", contact);
+      }
+    };
+
+    connect.contact(function (contact) {
+      contact.onConnecting(onContactConnect);
+    });
+  };
+
+
   var QueueCallbackRingtoneEngine = function (ringtoneConfig) {
     RingtoneEngineBase.call(this, ringtoneConfig);
   };
@@ -25749,6 +25778,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   /* export connect.RingtoneEngine */
   connect.VoiceRingtoneEngine = VoiceRingtoneEngine;
   connect.ChatRingtoneEngine = ChatRingtoneEngine;
+  connect.TaskRingtoneEngine = TaskRingtoneEngine;
   connect.QueueCallbackRingtoneEngine = QueueCallbackRingtoneEngine;
 })();
 

@@ -48,43 +48,112 @@ describe('Core', function () {
     });
 
     describe('#connect.core.initRingtoneEngines()', function () {
-        before(function () {
-            this.params.ringtone = {
-                voice: {
-                    ringtoneUrl: ""
-                },
-                queue_callback: {
-                    ringtoneUrl: ""
-                }
-            };
+        describe('with default settings', function () {
+            before(function () {
+                this.params.ringtone = {
+                    voice: {
+                        ringtoneUrl: ""
+                    },
+                    queue_callback: {
+                        ringtoneUrl: ""
+                    }
+                };
 
-            sinon.stub(connect, "ifMaster");
-            sinon.stub(connect, "VoiceRingtoneEngine");
-            sinon.stub(connect, "QueueCallbackRingtoneEngine");
+                sinon.stub(connect, "ifMaster");
+                sinon.stub(connect, "VoiceRingtoneEngine");
+                sinon.stub(connect, "QueueCallbackRingtoneEngine");
+                sinon.stub(connect, "ChatRingtoneEngine");
+                sinon.stub(connect, "TaskRingtoneEngine");
+            });
+
+            after(function () {
+                connect.ifMaster.restore();
+                connect.VoiceRingtoneEngine.restore();
+                connect.QueueCallbackRingtoneEngine.restore();
+                connect.ChatRingtoneEngine.restore();
+                connect.TaskRingtoneEngine.restore();
+            });
+
+            it("Ringtone init with VoiceRingtoneEngine", function () {
+                this.params.ringtone.voice.disabled = false;
+                connect.core.initRingtoneEngines(this.params);
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew());
+            });
+
+            it("Ringtone init with QueueCallbackRingtoneEngine", function () {
+                this.params.ringtone.queue_callback.disabled = false;
+                this.params.ringtone.voice.disabled = true;
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.QueueCallbackRingtoneEngine.calledWithNew());
+            });
+
+            it("Ringtone no init with ChatRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isFalse(connect.ChatRingtoneEngine.calledWithNew());
+            });
+
+            it("Ringtone no init with TaskRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isFalse(connect.TaskRingtoneEngine.calledWithNew());
+            });
         });
+        describe('with optional chat and task ringtone params', function () {
+            before(function () {
+                this.params.ringtone = {
+                    voice: {
+                        ringtoneUrl: ""
+                    },
+                    queue_callback: {
+                        ringtoneUrl: ""
+                    },
+                    chat: {
+                        ringtoneUrl: ""
+                    },
+                    task: {
+                        ringtoneUrl: ""
+                    }
+                };
 
-        after(function () {
-            connect.ifMaster.restore();
-            connect.VoiceRingtoneEngine.restore();
-            connect.QueueCallbackRingtoneEngine.restore();
-        });
+                sinon.stub(connect, "ifMaster");
+                sinon.stub(connect, "VoiceRingtoneEngine");
+                sinon.stub(connect, "QueueCallbackRingtoneEngine");
+                sinon.stub(connect, "ChatRingtoneEngine");
+                sinon.stub(connect, "TaskRingtoneEngine");
+            });
 
-        it("Ringtone init with VoiceRingtoneEngine", function () {
-            this.params.ringtone.voice.disabled = false;
-            connect.core.initRingtoneEngines(this.params);
-            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-            connect.ifMaster.callArg(1);
-            assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew());
-        });
+            after(function () {
+                connect.ifMaster.restore();
+                connect.VoiceRingtoneEngine.restore();
+                connect.QueueCallbackRingtoneEngine.restore();
+                connect.ChatRingtoneEngine.restore();
+                connect.TaskRingtoneEngine.restore();
+            });
 
-        it("Ringtone init with QueueCallbackRingtoneEngine", function () {
-            this.params.ringtone.queue_callback.disabled = false;
-            this.params.ringtone.voice.disabled = true;
-            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-            connect.ifMaster.callArg(1);
-            assert.isTrue(connect.QueueCallbackRingtoneEngine.calledWithNew());
+            it("Ringtone init with ChatRingtoneEngine", function () {
+                connect.core.initRingtoneEngines(this.params);
+                this.params.ringtone.chat.disabled = false;
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.ChatRingtoneEngine.calledWithNew());
+            });
+
+            it("Ringtone init with TaskRingtoneEngine", function () {
+                this.params.ringtone.task.disabled = false;
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.TaskRingtoneEngine.calledWithNew());
+            });  
         });
 
     });

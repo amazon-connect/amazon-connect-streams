@@ -157,6 +157,12 @@
               connect.getLog().info("ChatRingtoneEngine initialized.");
             }
 
+            if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
+              connect.core.ringtoneEngines.task =
+                new connect.TaskRingtoneEngine(ringtoneSettings.task);
+                connect.getLog().info("TaskRingtoneEngine initialized.");
+            }
+
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
@@ -174,6 +180,7 @@
       params.ringtone.voice = params.ringtone.voice || {};
       params.ringtone.queue_callback = params.ringtone.queue_callback || {};
       params.ringtone.chat = params.ringtone.chat || { disabled: true };
+      params.ringtone.task = params.ringtone.task || { disabled: true };
 
       if (otherParams.softphone) {
         if (otherParams.softphone.disableRingtone) {

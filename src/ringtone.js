@@ -168,6 +168,28 @@
     });
   };
 
+  var TaskRingtoneEngine = function (ringtoneConfig) {
+    RingtoneEngineBase.call(this, ringtoneConfig);
+  };
+  TaskRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
+  TaskRingtoneEngine.prototype.constructor = TaskRingtoneEngine;
+
+  TaskRingtoneEngine.prototype._driveRingtone = function () {
+    var self = this;
+
+    var onContactConnect = function (contact) {
+      if (contact.getType() === lily.ContactType.TASK && contact.isInbound()) {
+        self._ringtoneSetup(contact);
+        self._publishTelemetryEvent("Task Ringtone Connecting", contact);
+      }
+    };
+
+    connect.contact(function (contact) {
+      contact.onConnecting(onContactConnect);
+    });
+  };
+
+
   var QueueCallbackRingtoneEngine = function (ringtoneConfig) {
     RingtoneEngineBase.call(this, ringtoneConfig);
   };
@@ -190,5 +212,6 @@
   /* export connect.RingtoneEngine */
   connect.VoiceRingtoneEngine = VoiceRingtoneEngine;
   connect.ChatRingtoneEngine = ChatRingtoneEngine;
+  connect.TaskRingtoneEngine = TaskRingtoneEngine;
   connect.QueueCallbackRingtoneEngine = QueueCallbackRingtoneEngine;
 })();
