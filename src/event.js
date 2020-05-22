@@ -61,6 +61,8 @@
     'offline',
     'error',
     'softphone_error',
+    'websocket_connection_lost',
+    'websocket_connection_gained',
     'state_change',
     'acw',
     'mute_toggle'
@@ -259,7 +261,6 @@
     allEventSubs.concat(eventSubs).forEach(function (sub) {
       try {
         sub.f(data || null, eventName, self);
-
       } catch (e) {
         connect.getLog().error("'%s' event handler failed.", eventName).withException(e);
       }

@@ -154,10 +154,12 @@
           });
 
           webSocketManager.onConnectionGain(function () {
+            self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED);
             self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_GAIN);
           });
 
           webSocketManager.onConnectionLost(function () {
+            self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST);
             self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_LOST);
           });
 
@@ -181,16 +183,23 @@
             webSocketManager.subscribeTopics(topics);
           });
 
-          webSocketManager.init(connect.hitch(self, self.getWebSocketUrl)).then(function() {
-            // Start polling for agent data.
-            connect.getLog().info("Kicking off agent polling");
-            self.pollForAgent();
+          webSocketManager.init(connect.hitch(self, self.getWebSocketUrl)).then(function(response) {
+            if (response && !response.webSocketConnectionFailed) {
+              // Start polling for agent data.
+              connect.getLog().info("Kicking off agent polling");
+              self.pollForAgent();
 
-            connect.getLog().info("Kicking off config polling");
-            self.pollForAgentConfiguration({ repeatForever: true });
+              connect.getLog().info("Kicking off config polling");
+              self.pollForAgentConfiguration({ repeatForever: true });
 
-            connect.getLog().info("Kicking off auth token polling");
-            global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
+              connect.getLog().info("Kicking off auth token polling");
+              global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
+            } else {
+              if (!connect.webSocketInitFailed) {
+                self.conduit.sendDownstream(connect.WebSocketEvents.INIT_FAILURE);
+                connect.webSocketInitFailed = true;
+              }
+            }
           });
         } else {
           connect.getLog().info("Not Creating a Websocket instance, since there's already one exist");
