@@ -24679,6 +24679,16 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         }
       }
 
+      if (otherParams.chat) {
+        if (otherParams.chat.disableRingtone) {
+          params.ringtone.chat.disabled = true;
+        }
+
+        if (otherParams.chat.ringtoneUrl) {
+          params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
+        }
+      }
+
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -24690,9 +24700,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       }
     };
 
-    // Merge params from params.softphone into params.ringtone
-    // for embedded and non-embedded use cases so that defaults
-    // are picked up.
+    // Merge params from params.softphone and params.chat into params.ringtone
+    // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
 
     if (connect.isFramed()) {
@@ -24910,8 +24919,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       params = paramsIn;
     }
 
-    var softphoneParams = params.softphone || null;
-
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
 
@@ -24974,10 +24981,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
 
-      if (softphoneParams) {
+      if (params.softphone || params.chat) {
         // Send configuration up to the CCP.
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
-          softphone: softphoneParams
+          softphone: params.softphone,
+          chat: params.chat
         });
       }
 
@@ -25932,7 +25940,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         }
 
         // Custom Event to indicate the session init operations
-        connect.core.upstream.sendUpstream(connect.EventType.BROADCAST, {
+        connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
           event: connect.ConnnectionEvents.SESSION_INIT,
           data: {
             connectionId: agentConnectionId
@@ -26172,11 +26180,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   };
 
   var publishError = function (errorType, message, endPointUrl) {
-    var bus = connect.core.getEventBus();
     logger.error("Softphone error occurred : ", errorType,
       message || "");
 
-    connect.core.upstream.sendUpstream(connect.EventType.BROADCAST, {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.AgentEvents.SOFTPHONE_ERROR,
       data: new connect.SoftphoneError(errorType, message, endPointUrl)
     });

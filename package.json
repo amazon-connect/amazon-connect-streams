@@ -21,8 +21,8 @@
     "connect"
   ],
   "scripts": {
-    "test": "gulp test",
-    "release": "tsc && gulp script",
+    "gulp-test": "gulp test",
+    "release": "tsc && gulp",
     "watch": "gulp watch",
     "clean": "rm -rf build/ node_modules build package-lock.json",
     "release-watch": "npm run release && npm run watch"

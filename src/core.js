@@ -187,6 +187,16 @@
         }
       }
 
+      if (otherParams.chat) {
+        if (otherParams.chat.disableRingtone) {
+          params.ringtone.chat.disabled = true;
+        }
+
+        if (otherParams.chat.ringtoneUrl) {
+          params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
+        }
+      }
+
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -198,9 +208,8 @@
       }
     };
 
-    // Merge params from params.softphone into params.ringtone
-    // for embedded and non-embedded use cases so that defaults
-    // are picked up.
+    // Merge params from params.softphone and params.chat into params.ringtone
+    // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
 
     if (connect.isFramed()) {
@@ -418,8 +427,6 @@
       params = paramsIn;
     }
 
-    var softphoneParams = params.softphone || null;
-
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
 
@@ -482,10 +489,11 @@
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
 
-      if (softphoneParams) {
+      if (params.softphone || params.chat) {
         // Send configuration up to the CCP.
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
-          softphone: softphoneParams
+          softphone: params.softphone,
+          chat: params.chat
         });
       }
 

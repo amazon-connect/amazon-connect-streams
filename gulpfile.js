@@ -59,4 +59,4 @@ gulp.task('script', function (cb) {
   ], cb);
 });
 
-gulp.task('default', gulp.series('test','script'));
+gulp.task('default', gulp.series('script', 'test'));

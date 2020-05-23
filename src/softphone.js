@@ -191,7 +191,7 @@
         }
 
         // Custom Event to indicate the session init operations
-        connect.core.upstream.sendUpstream(connect.EventType.BROADCAST, {
+        connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
           event: connect.ConnnectionEvents.SESSION_INIT,
           data: {
             connectionId: agentConnectionId
@@ -431,11 +431,10 @@
   };
 
   var publishError = function (errorType, message, endPointUrl) {
-    var bus = connect.core.getEventBus();
     logger.error("Softphone error occurred : ", errorType,
       message || "");
 
-    connect.core.upstream.sendUpstream(connect.EventType.BROADCAST, {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.AgentEvents.SOFTPHONE_ERROR,
       data: new connect.SoftphoneError(errorType, message, endPointUrl)
     });

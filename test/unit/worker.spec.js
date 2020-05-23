@@ -19,7 +19,6 @@ describe('Worker', function () {
       };
       sandbox.spy(connect.rootLogger, "pushLogsDownstream");
       sandbox.spy(connect.worker.clientEngine, "handleSendLogsRequest");
-      // sandbox.spy(connect.worker.clientEngine, "handleMasterRequest");
       sandbox.spy(connect.worker.clientEngine.conduit, "sendDownstream");
       this.wsm = {
         init: sandbox.stub().resolves({ webSocketConnectionFailed: false }),
@@ -32,9 +31,7 @@ describe('Worker', function () {
         subscribeTopics: sandbox.stub(),
         sendMessage: sandbox.stub(),
       };
-      // sandbox.spy(connect.WebSocketManager, "create");
       sandbox.stub(connect.WebSocketManager, "create").returns(this.wsm);
-      // connect.WebSocketManager.create = sandbox.stub().returns(this.wsm);
       this.client = { call: sandbox.spy() };
       connect.worker.clientEngine.client = this.client;
       connect.core.init = sandbox.stub();
@@ -73,7 +70,7 @@ describe('Worker', function () {
 
     it("creates a webSocketManager if it doesn't exist", function () {
       connect.worker.clientEngine.conduit.downstreamBus.trigger(connect.EventType.CONFIGURE, this.initData);
-      var newInitData = Object.assign({}, this.initData, { authToken: "other-fake-token" });
+      var newInitData = connect.merge({}, this.initData, { authToken: "other-fake-token" });
       connect.worker.clientEngine.conduit.downstreamBus.trigger(connect.EventType.CONFIGURE, newInitData);
       assert.isTrue(connect.WebSocketManager.create.calledOnce);
     });

@@ -169,6 +169,11 @@ and made available to your JS client code.
     ringtone audio that is played when a call is incoming.
   * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
     the ringtone with any browser-supported audio file accessible by the user.
+* `chat`: This object is optional and allows you to specify ringtone params for Chat.
+  * `disableRingtone`: This option allows you to completely disable the built-in
+    ringtone audio that is played when a chat is incoming.
+  * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
+    the ringtone with any browser-supported audio file accessible by the user.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
