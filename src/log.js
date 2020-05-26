@@ -378,10 +378,41 @@
     return lines.join("\n");
   };
   
-  Logger.prototype.download = function(logName) {
-    var logBlob = new global.Blob([JSON.stringify(this._rolledLogs.concat(this._logs), undefined, 4)], ['text/plain']);
+  /**
+   * Download/Archive logs to a file, 
+   * By default, it returns all logs.
+   * To filter logs by the minimum log level set by setLogLevel or the default set in _logLevel, 
+   * pass in filterByLogLevel to true in options
+   * 
+   * @param options download options [Object|String]. 
+   * - of type Object: 
+   *   { logName: 'my-log-name',
+   *     filterByLogLevel: false, //download all logs
+   *   }
+   * - of type String (for backward compatibility), the file's name
+   */
+  Logger.prototype.download = function(options) {
+    var logName = 'agent-log';
+    var filterByLogLevel = false;
+
+    if (typeof options === 'object') {
+      logName = options.logName || logName;
+      filterByLogLevel = options.filterByLogLevel || filterByLogLevel;
+    }
+    else if (typeof options === 'string') {
+      logName = options || logName; 
+    }
+
+    var self = this;
+    var logs = this._rolledLogs.concat(this._logs);
+    if (filterByLogLevel) {
+      logs = logs.filter(function(entry) {
+        return LogLevelOrder[entry.level] >= self._logLevel;
+      });
+    }
+
+    var logBlob = new global.Blob([JSON.stringify(logs, undefined, 4)], ['text/plain']);
     var downloadLink = document.createElement('a');
-    var logName = logName || 'agent-log';
     downloadLink.href = global.URL.createObjectURL(logBlob);
     downloadLink.download = logName + '.txt';
     document.body.appendChild(downloadLink);
