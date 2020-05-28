@@ -1021,12 +1021,6 @@
   connect.core.popupManager = new connect.PopupManager();
 
   /**-----------------------------------------------------------------------*/
-  connect.core.getPopupManager = function () {
-    return connect.core.popupManager;
-  };
-  connect.core.popupManager = new connect.PopupManager();
-
-  /**-----------------------------------------------------------------------*/
   connect.core.getUpstream = function () {
     if (!connect.core.upstream) {
       throw new connect.StateError('There is no upstream conduit!');
