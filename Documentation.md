@@ -61,7 +61,7 @@ This will make the `connect` variable available in the current context.
 ```ts
 import "amazon-connect-streams";
 
-connect.initCCP({ /* ... */});
+connect.initCCP({ /* ... */ });
 ```
 
 ## Downloading Streams from Github
@@ -739,9 +739,9 @@ participation in the contact.
 
 ### `contact.getAttributes()`
 ```js
-var attributeMap = contact.getAttributes();
+var attributeMap = contact.getAttributes(); // e.g. { "foo": { "name": "foo", "value": "bar" } }
 ```
-Get a map from attribute name to value for each attribute associated with the contact.
+Gets a map of the attributes associated with the contact. Each value in the map has the following shape: `{ name: string, value: string }`.
 
 ### `contact.isSoftphoneCall()`
 ```js

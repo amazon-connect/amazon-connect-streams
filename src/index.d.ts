@@ -1,7 +1,7 @@
-// Type definitions for non-npm package Amazon Connect Streams API 1.3
+// Type definitions for Amazon Connect Streams API 1.4
 // Project: https://github.com/aws/amazon-connect-streams
 // Definitions by: Andy Hopper <https://github.com/andyhopp>, Marco Gonzalez <https://github.com/marcogrcr>
-// TypeScript Version: 3.0.1
+// TypeScript Version: 3.0
 declare namespace connect {
   /**
    * A callback to receive `Agent` API object instances.
@@ -70,7 +70,7 @@ declare namespace connect {
    * @param scope The instance object to be set as the scope of the function.
    * @param method The method to be encapsulated.
    */
-  function hitch<T extends Function>(scope: object, method: T): T;
+  function hitch<T extends (...args: any[]) => any>(scope: object, method: T): T;
 
   interface Core {
     /**
@@ -109,14 +109,14 @@ declare namespace connect {
      *
      * @param callback A callback that will execute whenever authentication fails.
      */
-    onAuthFail(callback: SuccessFailCallback<[]>): void;
+    onAuthFail(callback: SuccessFailCallback): void;
 
     /**
      * Subscribes a callback that executes whenever authorization fails (i.e. access denied).
      *
      * @param callback A callback that will execute whenever access is denied.
      */
-    onAccessDenied(callback: SuccessFailCallback<[]>): void;
+    onAccessDenied(callback: SuccessFailCallback): void;
   }
 
   const core: Core;
@@ -711,7 +711,10 @@ declare namespace connect {
   }
 
   interface AttributeDictionary {
-    readonly [key: string]: string;
+    readonly [key: string]: {
+      name: string;
+      value: string;
+    };
   }
 
   /**
@@ -874,7 +877,7 @@ declare namespace connect {
      */
     getAgentConnection(): BaseConnection;
 
-    /** Get a map from attribute name to value for each attribute associated with the contact. */
+    /** Gets a map of the attributes associated with the contact. */
     getAttributes(): AttributeDictionary;
 
     /** Determine whether this contact is a softphone call.  */
@@ -981,7 +984,7 @@ declare namespace connect {
   class Endpoint {
     readonly endpointARN: string;
     readonly endpointId: string;
-    readonly type: connect.EndpointType;
+    readonly type: EndpointType;
     readonly name: string;
     readonly phoneNumber: string;
     readonly agentLogin: string;
@@ -1238,7 +1241,7 @@ declare namespace connect {
      *
      * @param obj The object to add.
      */
-    withObject(obj: Object): LogEntry;
+    withObject(obj: object): LogEntry;
   }
 
   /** Gets the global logger instance. */

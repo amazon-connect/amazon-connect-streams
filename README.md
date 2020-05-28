@@ -65,7 +65,7 @@ This will make the `connect` variable available in the current context.
 ```ts
 import "amazon-connect-streams";
 
-connect.initCCP({ /* ... */});
+connect.initCCP({ /* ... */ });
 ```
 
 ## Downloading Streams from Github
