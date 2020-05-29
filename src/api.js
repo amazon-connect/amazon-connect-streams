@@ -530,6 +530,10 @@
     return this._getData().type;
   };
 
+  Contact.prototype.getContactDuration = function() {
+    return this._getData().contactDuration;
+  }
+
   Contact.prototype.getState = function () {
     return this._getData().state;
   };
@@ -861,6 +865,14 @@
     if (this.getMediaInfo()) {
       connect.core.mediaFactory.get(this).catch(function () { });
     }
+  }
+
+  // Method for checking whether this connection is an agent-side connection 
+  // (type AGENT or MONITORING)
+  Connection.prototype._isAgentConnectionType = function () {
+    var connectionType = this.getType();
+    return connectionType === connect.ConnectionType.AGENT 
+      || connectionType === connect.ConnectionType.MONITORING;
   }
 
   /**
