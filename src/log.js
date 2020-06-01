@@ -146,7 +146,7 @@
    * out of the given exception for JSON serialization.
    */
   var LoggedException = function (e) {
-    this.type = Object.prototype.toString.call(e);
+    this.type = (e instanceof Error) ? e.name : e.code || Object.prototype.toString.call(e);
     this.message = e.message;
     this.stack = e.stack ? e.stack.split('\n') : [];
   };
