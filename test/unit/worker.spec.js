@@ -22,7 +22,7 @@ describe('Worker', function () {
       // sandbox.spy(connect.worker.clientEngine, "handleMasterRequest");
       sandbox.spy(connect.worker.clientEngine.conduit, "sendDownstream");
       this.wsm = {
-        init: sandbox.stub().resolves(),
+        init: sandbox.stub().resolves({ webSocketConnectionFailed: false }),
         onInitFailure: sandbox.stub(),
         onConnectionGain: sandbox.stub(),
         onConnectionLost: sandbox.stub(),
