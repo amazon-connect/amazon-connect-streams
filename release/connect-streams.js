@@ -21302,7 +21302,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    * out of the given exception for JSON serialization.
    */
   var LoggedException = function (e) {
-    this.type = Object.prototype.toString.call(e);
+    this.type = (e instanceof Error) ? e.name : e.code || Object.prototype.toString.call(e);
     this.message = e.message;
     this.stack = e.stack ? e.stack.split('\n') : [];
   };
@@ -26903,8 +26903,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       failure: function (err, data) {
         var response = connect.EventFactory.createResponse(connect.EventType.API_RESPONSE, request, data, JSON.stringify(err));
         portConduit.sendDownstream(response.event, response);
-        connect.getLog().error("'%s' API request failed: %s", request.method, err)
-          .withObject({ request: self.filterAuthToken(request), response: response });
+        connect.getLog().error("'%s' API request failed", request.method)
+          .withObject({ request: self.filterAuthToken(request), response: response }).withException(err);
       },
       authFailure: connect.hitch(self, self.handleAuthFail)
     });
@@ -27070,7 +27070,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         connect.getLog().info("SendLogs request succeeded.");
       },
       failure: function (err, data) {
-        connect.getLog().error("SendLogs request failed. %s", err);
+        connect.getLog().error("SendLogs request failed.").withObject(data).withException(err);
       },
       authFailure: connect.hitch(self, self.handleAuthFail)
     });
@@ -27104,13 +27104,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var self = this;
     connect.core.authorize(this.initData.authorizeEndpoint).then(function (response) {
       var expiration = new Date(response.expiration);
-      connect.getLog().info("Authorization succeded and the token expires at %s", expiration);
+      connect.getLog().info("Authorization succeeded and the token expires at %s", expiration);
       self.initData.authToken = response.accessToken;
       self.initData.authTokenExpiration = expiration;
       connect.core.initClient(self.initData);
       callbacks.success();
     }).catch(function (response) {
-      connect.getLog().error("Authorization failed %s ", response);
+      connect.getLog().error("Authorization failed with code %s", response.status);
       if (response.status === 401) {
         self.handleAuthFail();
       } else {
