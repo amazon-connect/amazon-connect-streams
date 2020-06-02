@@ -1018,7 +1018,8 @@ module.exports={
                     },
                     "attributes": {
                       "shape": "S2c"
-                    }
+                    },
+                    "contactDuration": {}
                   }
                 }
               },

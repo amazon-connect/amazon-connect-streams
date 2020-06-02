@@ -6,6 +6,7 @@ var istanbul = require('gulp-istanbul'),
     rename = require('gulp-rename'),
     watch = require('gulp-watch'),
     jshint = require('gulp-jshint'),
+    replace = require('gulp-replace'),
     pump = require('pump');
 
 var source = [ "src/aws-client.js",
@@ -50,6 +51,7 @@ gulp.task('script', function (cb) {
   pump([
     gulp.src(source),
     jshint(),
+    replace("STREAMS_VERSION", process.env.npm_package_version),
     concat('connect-streams.js'),
     gulp.dest('./release/'),
     rename('connect-streams-min.js'),
@@ -58,4 +60,4 @@ gulp.task('script', function (cb) {
   ], cb);
 });
 
-gulp.task('default',gulp.series('test','script'));
+gulp.task('default', gulp.series('test','script'));

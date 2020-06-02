@@ -648,6 +648,8 @@ Get the unique contactId of this contact.
 ### `contact.getOriginalContactId()` / `contact.getInitialContactId()`
 ```js
 var originalContactId = contact.getOriginalContactId();
+//OR
+var initialContactId = contact.getInitialContactId();
 ```
 Get the original (initial) contact id from which this contact was transferred, or none if this is not an internal Connect transfer.
 This is typically a contact owned by another agent, thus this agent will not be able to
