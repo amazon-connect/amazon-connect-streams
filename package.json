@@ -15,11 +15,11 @@
   "keywords": [
     "streams",
     "softphone",
-    "rintone",
+    "ringtone",
     "connect"
   ],
   "scripts": {
-    "test": "gulp test",
+    "test": "istanbul cover gulp test",
     "release": "gulp script",
     "watch": "gulp watch",
     "clean": "rm -rf build/ node_modules build package-lock.json",
