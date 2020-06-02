@@ -19,7 +19,7 @@
     "connect"
   ],
   "scripts": {
-    "test": "npm install && istanbul cover gulp test",
+    "test": "gulp test",
     "release": "gulp script",
     "watch": "gulp watch",
     "clean": "rm -rf build/ node_modules build package-lock.json",

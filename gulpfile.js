@@ -1,4 +1,5 @@
-var mocha = require('gulp-mocha'),
+var istanbul = require('gulp-istanbul'),
+    mocha = require('gulp-mocha'),
     concat = require('gulp-concat'),
     gulp = require('gulp'),
     uglify = require('gulp-uglify'),
@@ -24,12 +25,22 @@ var source = [ "src/aws-client.js",
     "src/mediaControllers/*",
    
 ];
- 
-gulp.task('test', function (cb) {
+
+gulp.task('pre-test', function () {
+    return gulp.src(['./src/*.js'])
+        // Covering files
+        .pipe(istanbul({includeUntested: false}))
+        // Force `require` to return covered files
+        .pipe(istanbul.hookRequire());
+});
+
+gulp.task('test', gulp.series('pre-test', function (cb) {
   return gulp.src(['test/unit/**/*.spec.js'])
     .pipe(mocha({exit: true, showStack:true}))
     .on('error', (err) => cb(err))
-});
+    // Creating the reports after tests ran
+    .pipe(istanbul.writeReports());
+}));
  
 gulp.task('watch', function() {
   gulp.watch('src/*.js', gulp.series('script'));
