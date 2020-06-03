@@ -23987,17 +23987,20 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   Contact.prototype.accept = function (callbacks) {
     var client = connect.core.getClient();
     var self = this;
+    var contactId = this.getContactId();
     client.call(connect.ClientMethods.ACCEPT_CONTACT, {
-      contactId: this.getContactId()
+      contactId: contactId
     }, {
         success: function (data) {
           var conduit = connect.core.getUpstream();
           conduit.sendUpstream(connect.EventType.BROADCAST, {
-            event: connect.ContactEvents.ACCEPTED
+            event: connect.ContactEvents.ACCEPTED,
+            data: new connect.Contact(contactId)
           });
           conduit.sendUpstream(connect.EventType.BROADCAST, {
             event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED,
-              self.getContactId())
+              self.getContactId()),
+            data: new connect.Contact(contactId)
           });
 
           if (callbacks && callbacks.success) {
