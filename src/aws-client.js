@@ -647,6 +647,21 @@ module.exports={
         "members": {}
       }
     },
+    "ClearContact": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "contactId"
+        ],
+        "members": {
+          "contactId": {}
+        }
+      },
+      "output": {
+        "type": "structure",
+        "members": {}
+      }
+    },
     "CompleteContact": {
       "input": {
         "type": "structure",
@@ -695,7 +710,7 @@ module.exports={
           },
           "contactId": {},
           "endpoint": {
-            "shape": "Sc"
+            "shape": "Se"
           }
         }
       },
@@ -716,7 +731,7 @@ module.exports={
             "shape": "S2"
           },
           "endpoint": {
-            "shape": "Sc"
+            "shape": "Se"
           },
           "queueARN": {}
         }
@@ -841,7 +856,7 @@ module.exports={
         ],
         "members": {
           "configuration": {
-            "shape": "S19"
+            "shape": "S1b"
           }
         }
       }
@@ -908,7 +923,7 @@ module.exports={
             ],
             "members": {
               "state": {
-                "shape": "S1s"
+                "shape": "S1u"
               },
               "agentAvailabilityState": {
                 "type": "structure",
@@ -927,7 +942,6 @@ module.exports={
                     "contactId",
                     "type",
                     "state",
-                    "queueTimestamp",
                     "connections",
                     "attributes"
                   ],
@@ -949,7 +963,7 @@ module.exports={
                       }
                     },
                     "queue": {
-                      "shape": "Si"
+                      "shape": "Sk"
                     },
                     "queueTimestamp": {
                       "type": "timestamp"
@@ -967,7 +981,7 @@ module.exports={
                         "members": {
                           "connectionId": {},
                           "endpoint": {
-                            "shape": "Sc"
+                            "shape": "Se"
                           },
                           "state": {
                             "type": "structure",
@@ -1026,9 +1040,35 @@ module.exports={
                       }
                     },
                     "attributes": {
-                      "shape": "S2d"
+                      "type": "map",
+                      "key": {},
+                      "value": {
+                        "type": "structure",
+                        "required": [
+                          "name"
+                        ],
+                        "members": {
+                          "name": {},
+                          "value": {}
+                        }
+                      }
                     },
                     "contactDuration": {},
+                    "name": {},
+                    "description": {},
+                    "references": {
+                      "type": "map",
+                      "key": {},
+                      "value": {
+                        "type": "structure",
+                        "required": [
+                          "value"
+                        ],
+                        "members": {
+                          "value": {}
+                        }
+                      }
+                    },
                     "contactMetadata": {
                       "type": "structure",
                       "required": [
@@ -1043,7 +1083,8 @@ module.exports={
                         },
                         "description": {}
                       }
-                    }
+                    },
+                    "initiationMethod": {}
                   }
                 }
               },
@@ -1081,7 +1122,7 @@ module.exports={
           "states": {
             "type": "list",
             "member": {
-              "shape": "S1s"
+              "shape": "S1u"
             }
           },
           "nextToken": {}
@@ -1145,7 +1186,7 @@ module.exports={
           "endpoints": {
             "type": "list",
             "member": {
-              "shape": "Sc"
+              "shape": "Se"
             }
           },
           "nextToken": {}
@@ -1203,7 +1244,7 @@ module.exports={
           "queues": {
             "type": "list",
             "member": {
-              "shape": "Si"
+              "shape": "Sk"
             }
           },
           "nextToken": {}
@@ -1265,7 +1306,7 @@ module.exports={
             "shape": "S2"
           },
           "state": {
-            "shape": "S1s"
+            "shape": "S1u"
           }
         }
       },
@@ -1379,7 +1420,7 @@ module.exports={
           "contactId": {},
           "ccpVersion": {},
           "softphoneStreamStatistics": {
-            "shape": "S3i"
+            "shape": "S3n"
           }
         }
       },
@@ -1412,7 +1453,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S3i"
+                "shape": "S3n"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -1513,30 +1554,7 @@ module.exports={
             "shape": "S2"
           },
           "configuration": {
-            "shape": "S19"
-          }
-        }
-      },
-      "output": {
-        "type": "structure",
-        "members": {}
-      }
-    },
-    "UpdateContactAttributes": {
-      "input": {
-        "type": "structure",
-        "required": [
-          "authentication",
-          "contactId",
-          "attributes"
-        ],
-        "members": {
-          "authentication": {
-            "shape": "S2"
-          },
-          "contactId": {},
-          "attributes": {
-            "shape": "S2d"
+            "shape": "S1b"
           }
         }
       },
@@ -1554,7 +1572,7 @@ module.exports={
         "authToken": {}
       }
     },
-    "Sc": {
+    "Se": {
       "type": "structure",
       "required": [
         "type"
@@ -1566,18 +1584,18 @@ module.exports={
         "phoneNumber": {},
         "agentLogin": {},
         "queue": {
-          "shape": "Si"
+          "shape": "Sk"
         }
       }
     },
-    "Si": {
+    "Sk": {
       "type": "structure",
       "members": {
         "queueARN": {},
         "name": {}
       }
     },
-    "S19": {
+    "S1b": {
       "type": "structure",
       "required": [
         "name",
@@ -1602,7 +1620,7 @@ module.exports={
             "name": {},
             "routingProfileARN": {},
             "defaultOutboundQueue": {
-              "shape": "Si"
+              "shape": "Sk"
             },
             "channelConcurrencyMap": {
               "type": "map",
@@ -1620,7 +1638,7 @@ module.exports={
         }
       }
     },
-    "S1s": {
+    "S1u": {
       "type": "structure",
       "required": [
         "type",
@@ -1635,21 +1653,7 @@ module.exports={
         }
       }
     },
-    "S2d": {
-      "type": "map",
-      "key": {},
-      "value": {
-        "type": "structure",
-        "required": [
-          "name"
-        ],
-        "members": {
-          "name": {},
-          "value": {}
-        }
-      }
-    },
-    "S3i": {
+    "S3n": {
       "type": "list",
       "member": {
         "type": "structure",

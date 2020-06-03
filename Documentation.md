@@ -816,15 +816,28 @@ be disconnected from the call. Otherwise, the agent and customer are disconnecte
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
-### `contact.complete()`
+### `contact.clear()`
+```js
+contact.clear({
+   success: function() { /* ... */ },
+   failure: function(err) { /* ... */ }
+});
+```
+This is a more generic form of `contact.complete()`. Use this for voice and chat contacts to clear the contact 
+when the contact is no longer actively being worked on (i.e. it's one of ERROR, ACW, MISSED, REJECTED). 
+It works for both monitoring and non-monitoring connections.
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
+
+### `contact.complete()` (TO BE DEPRECATED)
 ```js
 contact.complete({
    success: function() { /* ... */ },
    failure: function(err) { /* ... */ }
 });
 ```
-This is an API that completes this contact entirely. That means that this should only be
-used for non-monitoring agent connections.
+This API will soon be deprecated and should be replaced with `contact.clear()`. It completes the contact entirely.
+That means it should only be used for non-monitoring agent connections.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 

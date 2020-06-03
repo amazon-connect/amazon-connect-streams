@@ -274,6 +274,10 @@
     return this._getData().snapshot.state;
   };
 
+  Agent.prototype.getAvailabilityState = function () {
+    return this._getData().snapshot.agentAvailabilityState;
+  };
+
   Agent.prototype.getStatus = Agent.prototype.getState;
 
   Agent.prototype.getStateDuration = function () {
@@ -665,6 +669,13 @@
   Contact.prototype.complete = function (callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.COMPLETE_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
+  Contact.prototype.clear = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.CLEAR_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
   };
