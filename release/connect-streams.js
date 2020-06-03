@@ -934,15 +934,6 @@ module.exports={
                   }
                 }
               },
-              "agentAvailabilityState": {
-                "type": "structure",
-                "members": {
-                  "state": {},
-                  "timeStamp": {
-                    "type": "timestamp"
-                  }
-                }
-              },
               "contacts": {
                 "type": "list",
                 "member": {
@@ -1063,6 +1054,21 @@ module.exports={
                       }
                     },
                     "contactDuration": {},
+                    "name": {},
+                    "description": {},
+                    "references": {
+                      "type": "map",
+                      "key": {},
+                      "value": {
+                        "type": "structure",
+                        "required": [
+                          "value"
+                        ],
+                        "members": {
+                          "value": {}
+                        }
+                      }
+                    },
                     "contactMetadata": {
                       "type": "structure",
                       "required": [
@@ -1413,7 +1419,7 @@ module.exports={
           },
           "contactId": {},
           "softphoneStreamStatistics": {
-            "shape": "S3l"
+            "shape": "S3n"
           }
         }
       },
@@ -1445,7 +1451,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S3l"
+                "shape": "S3n"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -1645,7 +1651,7 @@ module.exports={
         }
       }
     },
-    "S3l": {
+    "S3n": {
       "type": "list",
       "member": {
         "type": "structure",
