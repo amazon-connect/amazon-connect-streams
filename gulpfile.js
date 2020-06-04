@@ -1,10 +1,9 @@
-var istanbul = require('gulp-istanbul'), 
+var istanbul = require('gulp-istanbul'),
     mocha = require('gulp-mocha'),
     concat = require('gulp-concat'),
     gulp = require('gulp'),
     uglify = require('gulp-uglify'),
     rename = require('gulp-rename'),
-    watch = require('gulp-watch'),
     jshint = require('gulp-jshint'),
     replace = require('gulp-replace'),
     pump = require('pump');
@@ -25,20 +24,20 @@ var source = [ "src/aws-client.js",
     "src/worker.js",
     "src/mediaControllers/*",
    
-]; 
- 
+];
+
 gulp.task('pre-test', function () {
-  return gulp.src(['./src/*.js'])
-    // Covering files
-    .pipe(istanbul({includeUntested: false}))
-    // Force `require` to return covered files
-    .pipe(istanbul.hookRequire());
+    return gulp.src(['./src/*.js'])
+        // Covering files
+        .pipe(istanbul({includeUntested: false}))
+        // Force `require` to return covered files
+        .pipe(istanbul.hookRequire());
 });
- 
-gulp.task('test', gulp.series('pre-test', function () {
+
+gulp.task('test', gulp.series('pre-test', function (cb) {
   return gulp.src(['test/unit/**/*.spec.js'])
     .pipe(mocha({exit: true, showStack:true}))
-    .on('error', console.error)
+    .on('error', (err) => cb(err))
     // Creating the reports after tests ran
     .pipe(istanbul.writeReports());
 }));
