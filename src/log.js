@@ -412,6 +412,7 @@
 
     var logBlob = new global.Blob([JSON.stringify(logs, undefined, 4)], ['text/plain']);
     var downloadLink = document.createElement('a');
+    var logName = logName || 'agent-log';
     downloadLink.href = global.URL.createObjectURL(logBlob);
     downloadLink.download = logName + '.txt';
     document.body.appendChild(downloadLink);
