@@ -108,6 +108,7 @@
 
   connect.CONTACT_ACTIVE_STATES = connect.makeEnum([
     'incoming',
+    'pending',
     'connecting',
     'connected'
   ]);
@@ -368,7 +369,7 @@
             callbacks.success(data);
           }
         },
-        failure: callbacks.failure
+        failure: callbacks && callbacks.failure
       });
   };
 
@@ -389,8 +390,8 @@
 
     client.call(connect.ClientMethods.CREATE_OUTBOUND_CONTACT, {
       endpoint: connect.assertNotNull(endpoint, 'endpoint'),
-      queueARN: params.queueARN || params.queueId || this.getRoutingProfile().defaultOutboundQueue.queueARN
-    }, {
+      queueARN: (params && (params.queueARN || params.queueId)) || this.getRoutingProfile().defaultOutboundQueue.queueARN
+    }, params && {
         success: params.success,
         failure: params.failure
       });
@@ -405,8 +406,11 @@
   Agent.prototype.getEndpoints = function (queueARNs, callbacks, pageInfoIn) {
     var self = this;
     var client = connect.core.getClient();
-    var pageInfo = pageInfoIn || { endpoints: [] };
+    connect.assertNotNull(callbacks, "callbacks");
+    connect.assertNotNull(callbacks.success, "callbacks.success");
+    var pageInfo = pageInfoIn || { };
 
+    pageInfo.endpoints = pageInfo.endpoints || [];
     pageInfo.maxResults = pageInfo.maxResults || connect.DEFAULT_BATCH_SIZE;
 
     // Backwards compatibility allowing a single queueARN to be specified
@@ -560,13 +564,17 @@
     return this._getData().contactDuration;
   }
 
-  Contact.prototype.getStatus = function () {
+  Contact.prototype.getState = function () {
     return this._getData().state;
   };
 
-  Contact.prototype.getStatusDuration = function () {
+  Contact.prototype.getStatus = Contact.prototype.getState;
+
+  Contact.prototype.getStateDuration = function () {
     return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
   };
+
+  Contact.prototype.getStatusDuration = Contact.prototype.getStateDuration;
 
   Contact.prototype.getQueue = function () {
     return this._getData().queue;
@@ -818,13 +826,17 @@
 
   Connection.prototype.getAddress = Connection.prototype.getEndpoint;
 
-  Connection.prototype.getStatus = function () {
+  Connection.prototype.getState = function () {
     return this._getData().state;
   };
 
-  Connection.prototype.getStatusDuration = function () {
+  Connection.prototype.getStatus = Connection.prototype.getState;
+
+  Connection.prototype.getStateDuration = function () {
     return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
   };
+
+  Connection.prototype.getStatusDuration = Connection.prototype.getStateDuration;
 
   Connection.prototype.getType = function () {
     return this._getData().type;
@@ -926,35 +938,6 @@
   VoiceConnection.prototype = Object.create(Connection.prototype);
   VoiceConnection.prototype.constructor = VoiceConnection;
 
-  VoiceConnection.prototype.sendDigits = function (digits, callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.SEND_DIGITS, {
-      contactId: this.getContactId(),
-      connectionId: this.getConnectionId(),
-      digits: digits
-    }, callbacks);
-  };
-
-  VoiceConnection.prototype.hold = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.HOLD_CONNECTION, {
-      contactId: this.getContactId(),
-      connectionId: this.getConnectionId()
-    }, callbacks);
-  };
-
-  VoiceConnection.prototype.resume = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.RESUME_CONNECTION, {
-      contactId: this.getContactId(),
-      connectionId: this.getConnectionId()
-    }, callbacks);
-  };
-
-  VoiceConnection.prototype.isOnHold = function () {
-    return this.getStatus().type === connect.ConnectionStateType.HOLD;
-  };
-
   /**
   * @deprecated
   * Please use getMediaInfo 
@@ -1020,12 +1003,11 @@
   * Provides the chat connectionToken through the create_transport API for a specific contact and participant Id. 
   * @returns a promise which, upon success, returns the response from the createTransport API.
   * Usage:
-  * connect.core.getConnectionToken()
+  * connection.getConnectionToken()
   *  .then(response => {})
   *  .catch(error => {})
   */
   ChatConnection.prototype.getConnectionToken = function () {
-
     client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     var transportDetails = {

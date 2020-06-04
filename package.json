@@ -9,9 +9,11 @@
     "lib": "./release"
   },
   "files": [
-    "/release"
+    "/release",
+    "/src/index.d.ts"
   ],
   "main": "release/connect-streams.js",
+  "types": "src/index.d.ts",
   "keywords": [
     "streams",
     "softphone",
@@ -20,7 +22,7 @@
   ],
   "scripts": {
     "test": "gulp test",
-    "release": "gulp script",
+    "release": "tsc && gulp script",
     "watch": "gulp watch",
     "clean": "rm -rf build/ node_modules build package-lock.json",
     "release-watch": "npm run release && npm run watch"
@@ -38,7 +40,7 @@
     "gulp-concat": "^2.6.1",
     "gulp-istanbul": "^1.1.3",
     "gulp-jshint": "^2.1.0",
-    "gulp-mocha": "^5.0.0",
+    "gulp-mocha": "^7.0.2",
     "gulp-rename": "^1.2.2",
     "gulp-replace": "^1.0.0",
     "gulp-rev": "^8.1.1",
@@ -46,7 +48,8 @@
     "gulp-watch": "^5.0.1",
     "jshint": "^2.9.7",
     "pump": "^3.0.0",
-    "sinon": "^9.0.0"
+    "sinon": "^9.0.0",
+    "typescript": "3.0.1"
   },
   "npm-pretty-much": {
     "runRelease": "always"
