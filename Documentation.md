@@ -241,6 +241,18 @@ connect.core.onAccessDenied(function() { /* ... */ });
 ```
 Subscribes a callback that executes whenever authorization fails (i.e. access denied).
 
+### `connect.core.getWebSocketManager()`
+```js
+// `connect.ChatSession` is defined by `amazon-connect-chatjs`
+connect.ChatSession.create({
+  type: connect.ChatSession.SessionTypes.AGENT,
+  websocketManager: connect.core.getWebSocketManager()
+  // ...
+});
+```
+Gets the `WebSocket` manager. This method is only used when integrating with `amazon-connect-chatjs`.
+See the [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs) documentation for more information.
+
 ## Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
 code to be called when new agent information is available.
@@ -1055,7 +1067,7 @@ Returns the `MediaType` enum value: `"chat"`.
 conn.getMediaController().then(function (chatController) { /* ... */ });
 ```
 Gets a `Promise` with the media controller associated with this connection.
-The promise resolves to a `ChatSession` object from `amazon-connect-chatjs` library.
+The promise resolves to an `AgentChatSession` object from `amazon-connect-chatjs` library.
 See the [amazon-connect-chatjs documentation](https://github.com/amazon-connect/amazon-connect-chatjs) for more information.
 
 ## Utility Functions
