@@ -1171,6 +1171,21 @@ call `.withObject(o)` to add an arbitrary object (`o`) to the logs.
 
 Finally, you can trigger the logs to be downloaded to the agent's machine in JSON form by calling `connect.getLog().download()`.
 
+### LogLevel
+
+For debugging, you can change the log level.
+
+Valid log levels are `TEST`, `TRACE`, `DEBUG`, `INFO`, `LOG`, `WARN`, `ERROR`, and `CRITICAL`.
+
+```js
+const rootLogger = connect.getLog();
+
+// Set log level.
+rootLogger.setLogLevel(connect.LogLevel.TRACE);
+// Set console output level.
+rootLogger.setEchoLevel(connect.LogLevel.TRACE);
+```
+
 ## CCP Error Logging
 The following errors are related to connectivity in the CCP. These errors are logged in the CCP logs when they occur.
 
