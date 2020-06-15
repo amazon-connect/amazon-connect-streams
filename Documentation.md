@@ -1,6 +1,100 @@
 # Amazon Connect Streams Documentation
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
+## Task Private Beta Update
+- A Task contact currently only contains a single connection per contact. Chat and Voice contacts have two or more connections per contact
+    - Please keep this in mind as you update your contact event handlers (e.g. contact.onIncoming, contact.onConnecting, etc)
+- To End Task Contact and move to After Contact Work (ACW), call ```connection.destroy()``` (Same behavior as chat)
+- To clear ACW for a Task Contact call ```contact.complete()``` (Same behavior as chat)
+- For now, all of the Task Contact data is contained within the new ```contactMetadata``` field, which can be retrieved via ```contact.getContactMetadata()``` This field contains:
+    - ```name```
+      - The name of the task
+    - ```description```
+      - The description of the task
+    - ```references```
+      - a map of key-value pairs of any references associated with the task. The value can be a combination of text and hyperlink(s).
+
+### Enabling Tasks for your connect instance
+- Please go to the Routing Profile in the Admin website to enable Tasks.
+- Before modifying your custom ccp, it could be helpful to test your standalone CCP (```.awsapps.com/connect/ccp-v2```) to observe the behavior of Task Contacts.
+
+### Sample Task Contact in the Agent Snapshot
+To explore below on your own, please inspect the ConnectSharedWorker (e.g. ```chrome://inspect```) and check the network tab for snapshot responses.
+
+
+```javascript
+{
+    "nextToken": "X/00000000/0000000000000000=_159224045405600",
+    "snapshot": {
+        "agentAvailabilityState": {
+            "state": "Available",
+            "timeStamp": 1592237329.964
+        },
+        "contacts": [
+            {
+                "attributes": {
+                    "userKey1": {
+                        "name": "userKey1",
+                        "value": "UserDetails"
+                    },
+                    "userKey2": {
+                        "name": "userKey2",
+                        "value": "UserDetails"
+                    }
+                },
+                "connections": [ // contains only 1 connect per Task Contact
+                    {
+                        "chatMediaInfo": null,
+                        "connectionId": "00000000-0000-0000-0000-000000000000",
+                        "endpoint": null,
+                        "initial": true,
+                        "monitoringInfo": null,
+                        "softphoneMediaInfo": null,
+                        "state": {
+                            "timestamp": 1592240453.803,
+                            "type": "connecting"
+                        },
+                        "type": "agent"
+                    }
+                ],
+                "contactDuration": "0",
+                "contactId": "00000000-0000-0000-0000-000000000000",
+                "contactMetadata": { // new field
+                    "description": "This is the review requested by the customer. please review via the links provided in the references.",
+                    "name": "Tom's invoice review",
+                    "references": {
+                        "doc-link1": "https://example-link.com",
+                        "doc-link2": "Click on https://example-link2.com to proceed"
+                    }
+                },
+                "description": null,
+                "initialContactId": null,
+                "initiationMethod": "api",
+                "name": null,
+                "queue": {
+                    "name": "",
+                    "queueARN": "arn:aws:connect:us-west-2:000000000000:instance/00000000-0000-0000-0000-000000000000/queue/00000000-0000-0000-0000-000000000000"
+                },
+                "queueTimestamp": null,
+                "references": null,
+                "state": {
+                    "timestamp": 1592240454.053,
+                    "type": "connecting"
+                },
+                "type": "task"
+            }
+        ],
+        "snapshotTimestamp": 1592240454.19,
+        "state": {
+            "agentStateARN": null,
+            "name": "Available",
+            "startTimestamp": 1592237330.19,
+            "type": "routable"
+        }
+    }
+}
+```
+
 ## Overview
 The Amazon Connect Streams API (Streams) gives you the power to integrate your
 existing web applications with Amazon Connect. Streams lets you
@@ -46,7 +140,7 @@ To whitelist your pages:
 
 ## Downloading Streams with npm
 
-`npm install amazon-connect-streams`
+Please note that downloading Streams with npm is not currently available for Task Private/Beta.
 
 ## Importing Streams with npm and ES6
 
