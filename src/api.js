@@ -720,6 +720,7 @@
 
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       softphoneStreamStatistics: softphoneStreamStatistics
     }, callbacks);
   };
@@ -728,6 +729,7 @@
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       report: report
     }, callbacks);
   };

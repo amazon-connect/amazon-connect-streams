@@ -8,6 +8,7 @@
   connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
+  global.ccpVersion = window.location ? window.location.href.indexOf("ccp-v2") > -1 ? "V2" : "V1" : "V1";
 
   var RTPJobIntervalMs = 1000;
   var statsReportingJobIntervalMs = 30000;
@@ -488,7 +489,7 @@
     if (streamStats.length > 0) {
       contact.sendSoftphoneMetrics(streamStats, {
         success: function () {
-          logger.info("sendSoftphoneMetrics success");
+          logger.info("sendSoftphoneMetrics success" + JSON.stringify(streamStats));
         },
         failure: function (data) {
           logger.error("sendSoftphoneMetrics failed.")
@@ -527,7 +528,7 @@
     };
     contact.sendSoftphoneReport(callReport, {
       success: function () {
-        logger.info("sendSoftphoneReport success");
+        logger.info("sendSoftphoneReport success" + JSON.stringify(callReport));
       },
       failure: function (data) {
         logger.error("sendSoftphoneReport failed.")

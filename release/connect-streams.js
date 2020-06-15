@@ -1377,6 +1377,7 @@ module.exports={
             "shape": "S2"
           },
           "contactId": {},
+          "ccpVersion": {},
           "softphoneStreamStatistics": {
             "shape": "S3i"
           }
@@ -1400,6 +1401,7 @@ module.exports={
             "shape": "S2"
           },
           "contactId": {},
+          "ccpVersion": {},
           "report": {
             "type": "structure",
             "members": {
@@ -24043,6 +24045,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       softphoneStreamStatistics: softphoneStreamStatistics
     }, callbacks);
   };
@@ -24051,6 +24054,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       report: report
     }, callbacks);
   };
@@ -25757,6 +25761,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
+  global.ccpVersion = window.location ? window.location.href.indexOf("ccp-v2") > -1 ? "V2" : "V1" : "V1";
 
   var RTPJobIntervalMs = 1000;
   var statsReportingJobIntervalMs = 30000;
@@ -26237,7 +26242,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     if (streamStats.length > 0) {
       contact.sendSoftphoneMetrics(streamStats, {
         success: function () {
-          logger.info("sendSoftphoneMetrics success");
+          logger.info("sendSoftphoneMetrics success" + JSON.stringify(streamStats));
         },
         failure: function (data) {
           logger.error("sendSoftphoneMetrics failed.")
@@ -26276,7 +26281,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     };
     contact.sendSoftphoneReport(callReport, {
       success: function () {
-        logger.info("sendSoftphoneReport success");
+        logger.info("sendSoftphoneReport success" + JSON.stringify(callReport));
       },
       failure: function (data) {
         logger.error("sendSoftphoneReport failed.")
