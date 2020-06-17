@@ -8,7 +8,7 @@
   connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
-  global.ccpVersion = window.location ? window.location.href.indexOf("ccp-v2") > -1 ? "V2" : "V1" : "V1";
+  global.ccpVersion = "V2";
 
   var RTPJobIntervalMs = 1000;
   var statsReportingJobIntervalMs = 30000;
