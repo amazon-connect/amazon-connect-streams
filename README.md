@@ -196,6 +196,8 @@ this:
   Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
   it must be imported after StreamsJS, or there will be AWS SDK issues
   (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
+* If you'd like access to the WebRTC session to further customize the softphone experience
+  you can use [connect-rtc-js](https://github.com/aws/connect-rtc-js). Please refer to the connect-rtc-js readme for detailed instructions on integrating connect-rtc-js with Streams.
 
 ## Where to go from here
 Check out the full documentation [here](Documentation.md) to read more about
