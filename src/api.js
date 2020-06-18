@@ -289,6 +289,10 @@
     return this._getData().snapshot.state;
   };
 
+  Agent.prototype.getAvailabilityState = function () {
+    return this._getData().snapshot.agentAvailabilityState;
+  };
+
   Agent.prototype.getStatus = Agent.prototype.getState;
 
   Agent.prototype.getStateDuration = function () {
@@ -706,6 +710,13 @@
     }, callbacks);
   };
 
+  Contact.prototype.clear = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.CLEAR_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
   Contact.prototype.notifyIssue = function (issueCode, description, callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.NOTIFY_CONTACT_ISSUE, {
@@ -757,6 +768,7 @@
 
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       softphoneStreamStatistics: softphoneStreamStatistics
     }, callbacks);
   };
@@ -765,6 +777,7 @@
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       report: report
     }, callbacks);
   };

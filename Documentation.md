@@ -263,6 +263,11 @@ and made available to your JS client code.
     ringtone audio that is played when a call is incoming.
   * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
     the ringtone with any browser-supported audio file accessible by the user.
+* `chat`: This object is optional and allows you to specify ringtone params for Chat.
+  * `disableRingtone`: This option allows you to completely disable the built-in
+    ringtone audio that is played when a chat is incoming.
+  * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
+    the ringtone with any browser-supported audio file accessible by the user.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
@@ -905,15 +910,28 @@ be disconnected from the call. Otherwise, the agent and customer are disconnecte
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
-### `contact.complete()`
+### `contact.clear()`
+```js
+contact.clear({
+   success: function() { /* ... */ },
+   failure: function(err) { /* ... */ }
+});
+```
+This is a more generic form of `contact.complete()`. Use this for voice and chat contacts to clear the contact 
+when the contact is no longer actively being worked on (i.e. it's one of ERROR, ACW, MISSED, REJECTED). 
+It works for both monitoring and non-monitoring connections.
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
+
+### `contact.complete()` (TO BE DEPRECATED)
 ```js
 contact.complete({
    success: function() { /* ... */ },
    failure: function(err) { /* ... */ }
 });
 ```
-This is an API that completes this contact entirely. That means that this should only be
-used for non-monitoring agent connections.
+This API will soon be deprecated and should be only be used for clearing Tasks. It completes the contact entirely.
+That means it should only be used for non-monitoring agent connections.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 

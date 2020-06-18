@@ -1418,6 +1418,7 @@ module.exports={
             "shape": "S2"
           },
           "contactId": {},
+          "ccpVersion": {},
           "softphoneStreamStatistics": {
             "shape": "S3n"
           }
@@ -1441,6 +1442,7 @@ module.exports={
             "shape": "S2"
           },
           "contactId": {},
+          "ccpVersion": {},
           "report": {
             "type": "structure",
             "members": {

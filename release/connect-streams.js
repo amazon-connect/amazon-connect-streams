@@ -1418,6 +1418,7 @@ module.exports={
             "shape": "S2"
           },
           "contactId": {},
+          "ccpVersion": {},
           "softphoneStreamStatistics": {
             "shape": "S3n"
           }
@@ -1441,6 +1442,7 @@ module.exports={
             "shape": "S2"
           },
           "contactId": {},
+          "ccpVersion": {},
           "report": {
             "type": "structure",
             "members": {
@@ -22862,6 +22864,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
          'updateAgentConfiguration',
          'acceptContact',
          'createOutboundContact',
+         'clearContact',
          'completeContact',
          'destroyContact',
          'notifyContactIssue',
@@ -23056,7 +23059,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    };
 
    AWSClient.prototype._requiresAuthenticationParam = function(method) {
-      return method !== connect.ClientMethods.COMPLETE_CONTACT;
+      return method !== connect.ClientMethods.COMPLETE_CONTACT && method !== connect.ClientMethods.CLEAR_CONTACT;
    };
 
    AWSClient.prototype._translateParams = function(method, params) {
@@ -23617,6 +23620,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return this._getData().snapshot.state;
   };
 
+  Agent.prototype.getAvailabilityState = function () {
+    return this._getData().snapshot.agentAvailabilityState;
+  };
+
   Agent.prototype.getStatus = Agent.prototype.getState;
 
   Agent.prototype.getStateDuration = function () {
@@ -24034,6 +24041,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }, callbacks);
   };
 
+  Contact.prototype.clear = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.CLEAR_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
   Contact.prototype.notifyIssue = function (issueCode, description, callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.NOTIFY_CONTACT_ISSUE, {
@@ -24085,6 +24099,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       softphoneStreamStatistics: softphoneStreamStatistics
     }, callbacks);
   };
@@ -24093,6 +24108,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       report: report
     }, callbacks);
   };
@@ -24753,6 +24769,16 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         }
       }
 
+      if (otherParams.chat) {
+        if (otherParams.chat.disableRingtone) {
+          params.ringtone.chat.disabled = true;
+        }
+
+        if (otherParams.chat.ringtoneUrl) {
+          params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
+        }
+      }
+
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -24764,9 +24790,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       }
     };
 
-    // Merge params from params.softphone into params.ringtone
-    // for embedded and non-embedded use cases so that defaults
-    // are picked up.
+    // Merge params from params.softphone and params.chat into params.ringtone
+    // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
 
     if (connect.isFramed()) {
@@ -24984,8 +25009,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       params = paramsIn;
     }
 
-    var softphoneParams = params.softphone || null;
-
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
 
@@ -25048,10 +25071,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
 
-      if (softphoneParams) {
+      if (params.softphone || params.chat) {
         // Send configuration up to the CCP.
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
-          softphone: softphoneParams
+          softphone: params.softphone,
+          chat: params.chat
         });
       }
 
@@ -25846,6 +25870,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
+  global.ccpVersion = "V2";
 
   var RTPJobIntervalMs = 1000;
   var statsReportingJobIntervalMs = 30000;
@@ -26029,7 +26054,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         }
 
         // Custom Event to indicate the session init operations
-        connect.core.upstream.sendUpstream(connect.EventType.BROADCAST, {
+        connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
           event: connect.ConnnectionEvents.SESSION_INIT,
           data: {
             connectionId: agentConnectionId
@@ -26269,11 +26294,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   };
 
   var publishError = function (errorType, message, endPointUrl) {
-    var bus = connect.core.getEventBus();
     logger.error("Softphone error occurred : ", errorType,
       message || "");
 
-    connect.core.upstream.sendUpstream(connect.EventType.BROADCAST, {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.AgentEvents.SOFTPHONE_ERROR,
       data: new connect.SoftphoneError(errorType, message, endPointUrl)
     });
@@ -26327,7 +26351,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     if (streamStats.length > 0) {
       contact.sendSoftphoneMetrics(streamStats, {
         success: function () {
-          logger.info("sendSoftphoneMetrics success");
+          logger.info("sendSoftphoneMetrics success" + JSON.stringify(streamStats));
         },
         failure: function (data) {
           logger.error("sendSoftphoneMetrics failed.")
@@ -26366,7 +26390,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     };
     contact.sendSoftphoneReport(callReport, {
       success: function () {
-        logger.info("sendSoftphoneReport success");
+        logger.info("sendSoftphoneReport success" + JSON.stringify(callReport));
       },
       failure: function (data) {
         logger.error("sendSoftphoneReport failed.")

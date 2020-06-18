@@ -142,6 +142,14 @@ declare namespace connect {
     readonly ringtoneUrl?: string;
   }
 
+  interface ChatOptions {
+    /** This option allows you to completely disable the built-in ringtone audio that is played when a chat is incoming. */
+    readonly disableRingtone?: boolean;
+
+    /** If the ringtone is not disabled, this allows for overriding the ringtone with any browser-supported audio file accessible by the user. */
+    readonly ringtoneUrl?: string;
+  }
+
   interface InitCCPOptions {
     /**
      * The URL of the CCP.
@@ -173,6 +181,9 @@ declare namespace connect {
 
     /** Allows you to specify some settings surrounding the softphone feature of Connect. */
     readonly softphone?: SoftPhoneOptions;
+
+    /** Allows you to specify ringtone settings for Chat. */
+    readonly chat?: ChatOptions;
   }
 
   /** This enumeration lists the different types of agent states. */
@@ -469,6 +480,9 @@ declare namespace connect {
      */
     onAfterCallWork(callback: AgentCallback): void;
 
+    /** Get the agent's current 'AgentAvailabilityState' object indicating their actual state type. */
+    getAvailabilityState(): AgentAvailabilityState;
+
     /** Get the agent's current `AgentState` object indicating their availability state type. */
     getState(): AgentState;
 
@@ -630,6 +644,16 @@ declare namespace connect {
 
     /** The name of the agent state to be displayed in the UI. */
     readonly name: string;
+  }
+
+  /**
+   * An object containing the current Agent state
+   */
+  interface AgentAvailabilityState {
+    /** The name of the agent's actual state. */
+    readonly state: string;
+    /** Date indicating when the agent went into the current state. */
+    readonly timeStamp: Date;
   }
 
   /** An object containing the current Agent state. */
@@ -908,6 +932,13 @@ declare namespace connect {
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
      */
     destroy(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Clear the contact.
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    clear(callbacks: SuccessFailOptions): void;
 
     /**
      * This is an API that completes this contact entirely.
