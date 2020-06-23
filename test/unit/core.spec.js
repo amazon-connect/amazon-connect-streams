@@ -1,9 +1,10 @@
 require("../unit/test-setup.js");
 
 describe('Core', function () {
+    var sandbox = sinon.createSandbox();
 
-    before(function () {
-        this.checkNotInitiazed = sinon.stub(connect.core, "checkNotInitialized").returns(true);
+    beforeEach(function () {
+        this.defaultRingtoneUrl = "https://d366s8lxuwna4d.cloudfront.net/ringtone-ba0c9bd8a1d12786318965fd908eb2998bdb8f4c.mp3";
         this.params = {
             agentLogin: "abc",
             authToken: "xyz",
@@ -13,28 +14,39 @@ describe('Core', function () {
             region: "us-west-2",
             sharedWorkerUrl: "/connect/static/connect-shared-worker.js",
             softphone: {
-                ringtoneUrl: "https://d366s8lxuwna4d.cloudfront.net/ringtone-ba0c9bd8a1d12786318965fd908eb2998bdb8f4c.mp3"
+                ringtoneUrl: this.defaultRingtoneUrl
+            },
+            chat: {
+                ringtoneUrl: this.defaultRingtoneUrl
             }
-        }
+        };
+        this.ringtoneEngineParams = {
+            ringtone: {
+                voice: { ringtoneUrl: this.defaultRingtoneUrl },
+                queue_callback: { ringtoneUrl: this.defaultRingtoneUrl },
+                chat: { ringtoneUrl: this.defaultRingtoneUrl }
+            }
+        };
     });
 
     describe('#connect.core.initSharedWorker()', function () {
 
         before(function () {
-            global.SharedWorker = sinon.stub().returns({
+            sandbox.stub(connect.core, "checkNotInitialized").returns(true);
+            global.SharedWorker = sandbox.stub().returns({
                 port: {
-                    start: sinon.spy()
+                    start: sandbox.spy()
                 },
             })
 
             global.connect.agent.initialized = true;
-            this.nm = sinon.stub(connect.core, 'getNotificationManager').returns({
-                requestPermission: sinon.spy()
+            sandbox.stub(connect.core, 'getNotificationManager').returns({
+                requestPermission: sandbox.spy()
             })
         });
 
         after(function () {
-            connect.core.getNotificationManager.restore();
+            sandbox.restore();
         });
 
         it("shared worker initialization", function () {
@@ -42,64 +54,23 @@ describe('Core', function () {
             expect(this.params.authToken).not.to.be.a("null");
             expect(this.params.region).not.to.be.a("null");
             connect.core.initSharedWorker(this.params);
-            expect(this.checkNotInitiazed.called);
+            expect(connect.core.checkNotInitialized.called);
             expect(SharedWorker.calledWith(this.params.sharedWorkerUrl, "ConnectSharedWorker"));
         })
     });
 
-    describe('#connect.core.initRingtoneEngines()', function () {
-        before(function () {
-            this.params.ringtone = {
-                voice: {
-                    ringtoneUrl: ""
-                },
-                queue_callback: {
-                    ringtoneUrl: ""
-                }
-            };
-
-            sinon.stub(connect, "ifMaster");
-            sinon.stub(connect, "VoiceRingtoneEngine");
-            sinon.stub(connect, "QueueCallbackRingtoneEngine");
-        });
-
-        after(function () {
-            connect.ifMaster.restore();
-            connect.VoiceRingtoneEngine.restore();
-            connect.QueueCallbackRingtoneEngine.restore();
-        });
-
-        it("Ringtone init with VoiceRingtoneEngine", function () {
-            this.params.ringtone.voice.disabled = false;
-            connect.core.initRingtoneEngines(this.params);
-            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-            connect.ifMaster.callArg(1);
-            assert(connect.VoiceRingtoneEngine.calledWithNew);
-        });
-
-        it("Ringtone init with QueueCallbackRingtoneEngine", function () {
-            this.params.ringtone.queue_callback.disabled = false;
-            this.params.ringtone.voice.disabled = true;
-            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-            connect.ifMaster.callArg(1);
-            assert(connect.QueueCallbackRingtoneEngine.calledWithNew);
-        });
-
-    });
-
     describe('#initSoftphoneManager()', function () {
         before(function () {
-            sinon.stub(connect, "SoftphoneManager").returns({})
-            sinon.stub(connect, "ifMaster");
-            sinon.stub(connect.Agent.prototype, "isSoftphoneEnabled").returns(true);
-            sinon.stub(connect, "becomeMaster").returns({});
-            sinon.stub(connect.core, "getUpstream").returns({
-                sendUpstream: sinon.stub()
+            sandbox.stub(connect.core, "checkNotInitialized").returns(false);
+            sandbox.stub(connect, "SoftphoneManager").returns({})
+            sandbox.stub(connect, "ifMaster");
+            sandbox.stub(connect.Agent.prototype, "isSoftphoneEnabled").returns(true);
+            sandbox.stub(connect, "becomeMaster").returns({});
+            sandbox.stub(connect.core, "getUpstream").returns({
+                sendUpstream: sandbox.stub()
             });
 
-            connect.core.getAgentDataProvider = sinon.stub().returns({
+            connect.core.getAgentDataProvider = sandbox.stub().returns({
                 getAgentData: () => {
                   return {
                     configuration: {
@@ -114,42 +85,134 @@ describe('Core', function () {
                 }
             });
         });
-        
+
         after(function () {
-            connect.SoftphoneManager.restore();
-            connect.ifMaster.restore();
-            connect.Agent.prototype.isSoftphoneEnabled.restore();
-            connect.becomeMaster.restore();
-            connect.core.getUpstream.restore();
-            connect.core.getAgentDataProvider.resetBehavior();
+            sandbox.restore();
         });
 
         it("Softphone manager should get initialized for master tab", function () {
-            connect.core.checkNotInitialized.restore();
-            sinon.stub(connect.core, "checkNotInitialized").returns(false);
             connect.core.initSoftphoneManager(this.params);
             connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
             connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
             connect.ifMaster.callArg(1);
-            assert(connect.SoftphoneManager.calledWithNew)
+            assert.isTrue(connect.SoftphoneManager.calledWithNew());
+        });
+    });
+
+    describe('#connect.core.initRingtoneEngines()', function () {
+        before(function () {
+            sandbox.stub(connect, "ifMaster");
+            sandbox.stub(connect, "VoiceRingtoneEngine");
+            sandbox.stub(connect, "QueueCallbackRingtoneEngine");
+            sandbox.stub(connect, "ChatRingtoneEngine");
+            connect.core.initRingtoneEngines(this.ringtoneEngineParams);
+        });
+
+        after(function () {
+            sandbox.restore();
+        });
+
+        it("Ringtone init with VoiceRingtoneEngine", function () {
+            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+            connect.ifMaster.callArg(1);
+            assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew(this.ringtoneEngineParams.voice));
+        });
+
+        it("Ringtone init with QueueCallbackRingtoneEngine", function () {
+            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+            connect.ifMaster.callArg(1);
+            assert.isTrue(connect.QueueCallbackRingtoneEngine.calledWithNew(this.ringtoneEngineParams.queue_callback));
+        });
+
+        it("Ringtone init with ChatRingtoneEngine", function () {
+            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+            connect.ifMaster.callArg(1);
+            assert.isTrue(connect.ChatRingtoneEngine.calledWithNew(this.ringtoneEngineParams.chat));
         });
     });
 
     describe('#connect.core.initCCP()', function () {
         before(function () {
-            this.params.ccpUrl = "url.com";
-            this.containerDiv = {
-                appendChild: sinon.spy()
-            };
+            this.containerDiv = { appendChild: sandbox.spy() };
+            this.params = connect.merge({}, this.params, {
+                ccpUrl: "url.com",
+                softphone: {
+                    ringtoneUrl: "customVoiceRingtone.amazon.com"
+                },
+                chat: {
+                    ringtoneUrl: "customChatRingtone.amazon.com"
+                }
+            });
+            sandbox.stub(connect.core, "checkNotInitialized").returns(false);
+            sandbox.stub(connect, "UpstreamConduitClient");
+            sandbox.stub(connect, "UpstreamConduitMasterClient");
+            sandbox.stub(connect, "isFramed").returns(true);
+            sandbox.stub(connect, "ifMaster");
+            sandbox.stub(connect, "VoiceRingtoneEngine");
+            sandbox.stub(connect, "QueueCallbackRingtoneEngine");
+            sandbox.stub(connect, "ChatRingtoneEngine");
+            connect.core.initCCP(this.containerDiv, this.params);
+            sandbox.spy(connect.core.getUpstream(), "sendUpstream");
+        });
+
+        after(function () {
+            sandbox.restore();
         });
 
         it("CCP initialization", function () {
             expect(this.params.ccpUrl).not.to.be.a("null");
             expect(this.containerDiv).not.to.be.a("null");
-            connect.core.initCCP(this.containerDiv, this.params);
-            assert(this.checkNotInitiazed.called);
-            assert(document.createElement.calledOnce);
-            assert(this.containerDiv.appendChild.calledOnce);
+            assert.isTrue(connect.core.checkNotInitialized.called);
+            assert.isTrue(document.createElement.calledOnce);
+            assert.isTrue(this.containerDiv.appendChild.calledOnce);
+        });
+
+        it("Replicates logs received upstream while ignoring duplicates", function () {
+            var logger = connect.getLog();
+            var loggerId = logger.getLoggerId();
+            var originalLoggerLength = logger._logs.length;
+            var newLogs = [
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some log", "some-logger-id"),
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some log with no logger id", null),
+                new connect.LogEntry("test", connect.LogLevel.INFO, "some log info", "some-logger-id"),
+                new connect.LogEntry("test", connect.LogLevel.ERROR, "some log error", "some-logger-id")
+            ];
+            var dupLogs = [
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some dup log", loggerId),
+                new connect.LogEntry("test", connect.LogLevel.INFO, "some dup log info", loggerId),
+                new connect.LogEntry("test", connect.LogLevel.ERROR, "some dup log error", loggerId)
+            ]
+            var allLogs = newLogs.concat(dupLogs);
+            for (var i = 0; i < allLogs.length; i++) {
+                connect.core.getUpstream().upstreamBus.trigger(connect.EventType.LOG, allLogs[i]);
+            }
+            assert.lengthOf(logger._logs, originalLoggerLength + newLogs.length);
+        });
+
+        it("sends initCCP ringtone params on ACK", function () {
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE);
+            assert.isTrue(connect.core.getUpstream().sendUpstream.calledWith(connect.EventType.CONFIGURE, {
+                softphone: this.params.softphone,
+                chat: this.params.chat
+            }));
+        });
+
+        it("sets up ringtone engines on CONFIGURE with initCCP params", function () {
+            connect.core.initRingtoneEngines(this.ringtoneEngineParams);
+            connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, {
+                softphone: this.params.softphone,
+                chat: this.params.chat
+            });
+            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+            connect.ifMaster.callArg(1);
+
+            assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew(this.params.softphone));
+            assert.isTrue(connect.QueueCallbackRingtoneEngine.calledWithNew(this.params.softphone));
+            assert.isTrue(connect.ChatRingtoneEngine.calledWithNew(this.params.chat));
         });
     });
 
@@ -164,13 +227,12 @@ describe('Core', function () {
         });
 
         afterEach(() => {
-            connect.isFramed.restore();
-            connect.fetch.restore();
+            sandbox.restore();
         });
 
         function setup() {
-            sinon.stub(connect, "isFramed").returns(isFramed);
-            sinon.stub(connect, "fetch").returns(Promise.resolve({whitelistedOrigins: whitelistedOrigins}));
+            sandbox.stub(connect, "isFramed").returns(isFramed);
+            sandbox.stub(connect, "fetch").returns(Promise.resolve({whitelistedOrigins: whitelistedOrigins}));
         }
 
         it('resolves if not iframed', async () => {
@@ -183,7 +245,7 @@ describe('Core', function () {
             isFramed = true;
             setup();
             await connect.core.verifyDomainAccess('token', 'endpoint').catch(() => {}).finally(() => {
-                assert(connect.fetch.calledWithMatch('endpoint', {
+                assert.isTrue(connect.fetch.calledWithMatch('endpoint', {
                     headers: {
                       'X-Amz-Bearer': 'token'
                     }
@@ -216,4 +278,3 @@ describe('Core', function () {
     });
 
 });
-

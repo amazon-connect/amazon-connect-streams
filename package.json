@@ -1,6 +1,6 @@
 {
   "name": "amazon-connect-streams",
-  "version": "1.4.8",
+  "version": "1.4.9",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
@@ -21,11 +21,11 @@
   "keywords": [
     "streams",
     "softphone",
-    "rintone",
+    "ringtone",
     "connect"
   ],
   "scripts": {
-    "test": "gulp test",
+    "gulp-test": "gulp test",
     "release": "tsc && gulp script",
     "watch": "gulp watch",
     "clean": "rm -rf build/ node_modules build package-lock.json",
@@ -52,7 +52,7 @@
     "gulp-watch": "^5.0.1",
     "jshint": "^2.9.7",
     "pump": "^3.0.0",
-    "sinon": "^4.5.0",
+    "sinon": "^9.0.0",
     "typescript": "3.0.1"
   },
   "npm-pretty-much": {

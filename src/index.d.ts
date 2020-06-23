@@ -142,6 +142,14 @@ declare namespace connect {
     readonly ringtoneUrl?: string;
   }
 
+  interface ChatOptions {
+    /** This option allows you to completely disable the built-in ringtone audio that is played when a chat is incoming. */
+    readonly disableRingtone?: boolean;
+
+    /** If the ringtone is not disabled, this allows for overriding the ringtone with any browser-supported audio file accessible by the user. */
+    readonly ringtoneUrl?: string;
+  }
+
   interface InitCCPOptions {
     /**
      * The URL of the CCP.
@@ -173,6 +181,9 @@ declare namespace connect {
 
     /** Allows you to specify some settings surrounding the softphone feature of Connect. */
     readonly softphone?: SoftPhoneOptions;
+
+    /** Allows you to specify ringtone settings for Chat. */
+    readonly chat?: ChatOptions;
   }
 
   /** This enumeration lists the different types of agent states. */

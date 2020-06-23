@@ -230,6 +230,16 @@
     bus.subscribe(connect.AgentEvents.SOFTPHONE_ERROR, f);
   };
 
+  Agent.prototype.onWebSocketConnectionLost = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST, f);
+  }
+
+  Agent.prototype.onWebSocketConnectionGained = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED, f);
+  }
+
   Agent.prototype.onAfterCallWork = function (f) {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.AgentEvents.ACW, f);
@@ -621,17 +631,20 @@
   Contact.prototype.accept = function (callbacks) {
     var client = connect.core.getClient();
     var self = this;
+    var contactId = this.getContactId();
     client.call(connect.ClientMethods.ACCEPT_CONTACT, {
-      contactId: this.getContactId()
+      contactId: contactId
     }, {
         success: function (data) {
           var conduit = connect.core.getUpstream();
           conduit.sendUpstream(connect.EventType.BROADCAST, {
-            event: connect.ContactEvents.ACCEPTED
+            event: connect.ContactEvents.ACCEPTED,
+            data: new connect.Contact(contactId)
           });
           conduit.sendUpstream(connect.EventType.BROADCAST, {
             event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED,
-              self.getContactId())
+              self.getContactId()),
+            data: new connect.Contact(contactId)
           });
 
           if (callbacks && callbacks.success) {
@@ -707,6 +720,7 @@
 
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       softphoneStreamStatistics: softphoneStreamStatistics
     }, callbacks);
   };
@@ -715,6 +729,7 @@
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       report: report
     }, callbacks);
   };
@@ -865,14 +880,6 @@
     if (this.getMediaInfo()) {
       connect.core.mediaFactory.get(this).catch(function () { });
     }
-  }
-
-  // Method for checking whether this connection is an agent-side connection 
-  // (type AGENT or MONITORING)
-  Connection.prototype._isAgentConnectionType = function () {
-    var connectionType = this.getType();
-    return connectionType === connect.ConnectionType.AGENT 
-      || connectionType === connect.ConnectionType.MONITORING;
   }
 
   /**
@@ -1088,6 +1095,15 @@
   connect.contact = function (f) {
     var bus = connect.core.getEventBus();
     return bus.subscribe(connect.ContactEvents.INIT, f);
+  };
+
+  connect.onWebsocketInitFailure = function (f) {
+    var bus = connect.core.getEventBus();
+    var sub = bus.subscribe(connect.WebSocketEvents.INIT_FAILURE, f);
+    if (connect.webSocketInitFailed) {
+      f();
+    }
+    return sub;
   };
 
   /**
