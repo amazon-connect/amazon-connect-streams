@@ -16,6 +16,10 @@ Click [here](Architecture.md) to view a quick architecture overview of how the
 Amazon Connect Streams API works.
 
 ## Getting Started
+
+### Upgrading to the Latest Version of the CCP (AKA /ccp-v2)?
+If you are migrating to the new CCP, we encourage you to upgrade to the latest version of this repository. You should also upgrade to [the latest version of RTC-JS](https://github.com/aws/connect-rtc-js) as well, if you are using it. For a complete migration guide to the new CCP, and to fully understand the differences when using Streams with the new CCP, please see this post: https://docs.aws.amazon.com/connect/latest/adminguide/upgrade-to-latest-ccp.html. Also see: https://docs.aws.amazon.com/connect/latest/adminguide/upgrade-ccp-streams-api.html.
+
 ### Whitelisting
 The first step to using the Streams API is to whitelist the pages you wish to embed.
 For our customer's security, we require that all domains which embed the CCP for
@@ -101,7 +105,7 @@ Find build artifacts in **release** directory - This will generate a file called
 
 To run unit tests:
 ```
-$ npm run test
+$ npm run gulp-test
 ```
 
 ## Using the AWS SDK and Streams
@@ -199,6 +203,8 @@ this:
   Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
   it must be imported after StreamsJS, or there will be AWS SDK issues
   (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
+* If you'd like access to the WebRTC session to further customize the softphone experience
+  you can use [connect-rtc-js](https://github.com/aws/connect-rtc-js). Please refer to the connect-rtc-js readme for detailed instructions on integrating connect-rtc-js with Streams.
 
 ## `connect.core`
 
@@ -233,6 +239,7 @@ connect.core.onViewContact(function(event) {
 ```
 Subscribes a callback that executes whenever the currently selected contact on the CCP changes.
 The callback is called when the contact changes in the UI (i.e. via `click` events) or via `connect.core.viewContact()`.
+<<<<<<< HEAD
 
 ### `connect.core.onAuthFail()`
 ```js
@@ -246,6 +253,21 @@ connect.core.onAccessDenied(function() { /* ... */ });
 ```
 Subscribes a callback that executes whenever authorization fails (i.e. access denied).
 
+=======
+
+### `connect.core.onAuthFail()`
+```js
+connect.core.onAuthFail(function() { /* ... */ });
+```
+Subscribes a callback that executes whenever authentication fails (e.g. SAML authentication).
+
+### `connect.core.onAccessDenied()`
+```js
+connect.core.onAccessDenied(function() { /* ... */ });
+```
+Subscribes a callback that executes whenever authorization fails (i.e. access denied).
+
+>>>>>>> StreamsGithub/master
 ## Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
 code to be called when new agent information is available.
@@ -365,6 +387,7 @@ Subscribe a method to be called when the agent is put into an error state specif
 ### `agent.onWebSocketConnectionGained()`
 ```
 agent.onWebSocketConnectionGained(function(agent) { ... });
+<<<<<<< HEAD
 ```
 Subscribe a method to be called when the agent gains a WebSocket connection.
 
@@ -372,6 +395,15 @@ Subscribe a method to be called when the agent gains a WebSocket connection.
 ```js
 agent.onAfterCallWork(function(agent) { /* ... */ });
 ```
+=======
+```
+Subscribe a method to be called when the agent gains a WebSocket connection.
+
+### `agent.onAfterCallWork()`
+```js
+agent.onAfterCallWork(function(agent) { /* ... */ });
+```
+>>>>>>> StreamsGithub/master
 Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state. This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
 
 ### `agent.getState()` / `agent.getStatus()`
@@ -816,6 +848,7 @@ be disconnected from the call. Otherwise, the agent and customer are disconnecte
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
+<<<<<<< HEAD
 ### `contact.clear()`
 ```js
 contact.clear({
@@ -830,14 +863,22 @@ It works for both monitoring and non-monitoring connections.
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
 ### `contact.complete()` (TO BE DEPRECATED)
+=======
+### `contact.complete()`
+>>>>>>> StreamsGithub/master
 ```js
 contact.complete({
    success: function() { /* ... */ },
    failure: function(err) { /* ... */ }
 });
 ```
+<<<<<<< HEAD
 This API will soon be deprecated and should be replaced with `contact.clear()`. It completes the contact entirely.
 That means it should only be used for non-monitoring agent connections.
+=======
+This is an API that completes this contact entirely. That means that this should only be
+used for non-monitoring agent connections.
+>>>>>>> StreamsGithub/master
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
