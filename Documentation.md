@@ -105,7 +105,7 @@ Find build artifacts in **release** directory - This will generate a file called
 
 To run unit tests:
 ```
-$ npm run test
+$ npm run gulp-test
 ```
 
 ## Using the AWS SDK and Streams
@@ -171,6 +171,11 @@ and made available to your JS client code.
     the softphone components will be allowed to be hosted in this window or tab.
   * `disableRingtone`: This option allows you to completely disable the built-in
     ringtone audio that is played when a call is incoming.
+  * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
+    the ringtone with any browser-supported audio file accessible by the user.
+* `chat`: This object is optional and allows you to specify ringtone params for Chat.
+  * `disableRingtone`: This option allows you to completely disable the built-in
+    ringtone audio that is played when a chat is incoming.
   * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
     the ringtone with any browser-supported audio file accessible by the user.
 
@@ -281,6 +286,15 @@ session. This callback is provided with a `Contact` API object for this
 contact. `Contact` API objects can also be listed from the `Agent` API by
 calling `agent.getContacts()`.
 
+### `connect.onWebSocketInitFailure()`
+```
+connect.onWebSocketInitFailure(function() { ... });
+```
+Subscribe a method to be called when the WebSocket connection fails to initialize.
+If the WebSocket has already failed at least once in initializing, the call is
+synchronous and the callback is invoked immediately.  Otherwise, the callback is
+invoked once the first attempt to initialize fails.
+
 ## Agent API
 The Agent API provides event subscription methods and action methods which can
 be called on behalf of the agent. There is only ever one agent per Streams
@@ -347,6 +361,18 @@ agent.onSoftphoneError(function(error) { /* ... */ });
 Subscribe a method to be called when the agent is put into an error state specific to softphone funcionality.
 
 The `error` argument is a `connect.SoftphoneError` instance with the following methods: `getErrorType()`, `getErrorMessage()`, `getEndPointUrl()`.
+
+### `agent.onWebSocketConnectionLost()`
+```
+agent.onWebSocketConnectionLost(function(agent) { ... });
+```
+Subscribe a method to be called when the agent is put into an error state specific to losing a WebSocket connection.
+
+### `agent.onWebSocketConnectionGained()`
+```
+agent.onWebSocketConnectionGained(function(agent) { ... });
+```
+Subscribe a method to be called when the agent gains a WebSocket connection.
 
 ### `agent.onAfterCallWork()`
 ```js

@@ -15,7 +15,7 @@
 
   connect.version = "STREAMS_VERSION";
 
-  connect.DEFAULT_BATCH_SIZE = 100;
+  connect.DEFAULT_BATCH_SIZE = 500;
 
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
@@ -187,6 +187,16 @@
         }
       }
 
+      if (otherParams.chat) {
+        if (otherParams.chat.disableRingtone) {
+          params.ringtone.chat.disabled = true;
+        }
+
+        if (otherParams.chat.ringtoneUrl) {
+          params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
+        }
+      }
+
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -198,9 +208,8 @@
       }
     };
 
-    // Merge params from params.softphone into params.ringtone
-    // for embedded and non-embedded use cases so that defaults
-    // are picked up.
+    // Merge params from params.softphone and params.chat into params.ringtone
+    // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
 
     if (connect.isFramed()) {
@@ -365,7 +374,9 @@
       });
       // Add all upstream log entries to our own logger.
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        }
       });
       // Reload the page if the shared worker detects an API auth failure.
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
@@ -415,8 +426,6 @@
     } else {
       params = paramsIn;
     }
-
-    var softphoneParams = params.softphone || null;
 
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
@@ -480,10 +489,11 @@
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
 
-      if (softphoneParams) {
+      if (params.softphone || params.chat) {
         // Send configuration up to the CCP.
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
-          softphone: softphoneParams
+          softphone: params.softphone,
+          chat: params.chat
         });
       }
 
@@ -498,7 +508,9 @@
 
     // Add any logs from the upstream to our own logger.
     conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-      connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+      }
     });
 
     // Pop a login page when we encounter an ACK timeout.
@@ -538,8 +550,8 @@
     });
 
     if (params.onViewContact) {
-  		connect.core.onViewContact(params.onViewContact);
-  	}
+      connect.core.onViewContact(params.onViewContact);
+    }
   };
 
   /**-----------------------------------------------------------------------*/

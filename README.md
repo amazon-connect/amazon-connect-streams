@@ -107,7 +107,7 @@ Find build artifacts in **release** directory - This will generate a file called
 
 To run unit tests specifically:
 ```
-$ npm run test
+$ npm run gulp-test
 ```
 
 ## Using the AWS SDK and Streams
