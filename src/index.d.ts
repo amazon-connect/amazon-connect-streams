@@ -117,6 +117,12 @@ declare namespace connect {
      * @param callback A callback that will execute whenever access is denied.
      */
     onAccessDenied(callback: SuccessFailCallback): void;
+
+    /**
+     * Gets the `WebSocket` manager.
+     * This method is only used when integrating with `amazon-connect-chatjs`.
+     */
+    getWebSocketManager(): any;
   }
 
   const core: Core;
