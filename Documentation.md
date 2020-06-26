@@ -239,7 +239,6 @@ connect.core.onViewContact(function(event) {
 ```
 Subscribes a callback that executes whenever the currently selected contact on the CCP changes.
 The callback is called when the contact changes in the UI (i.e. via `click` events) or via `connect.core.viewContact()`.
-<<<<<<< HEAD
 
 ### `connect.core.onAuthFail()`
 ```js
@@ -253,21 +252,6 @@ connect.core.onAccessDenied(function() { /* ... */ });
 ```
 Subscribes a callback that executes whenever authorization fails (i.e. access denied).
 
-=======
-
-### `connect.core.onAuthFail()`
-```js
-connect.core.onAuthFail(function() { /* ... */ });
-```
-Subscribes a callback that executes whenever authentication fails (e.g. SAML authentication).
-
-### `connect.core.onAccessDenied()`
-```js
-connect.core.onAccessDenied(function() { /* ... */ });
-```
-Subscribes a callback that executes whenever authorization fails (i.e. access denied).
-
->>>>>>> StreamsGithub/master
 ## Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
 code to be called when new agent information is available.
@@ -387,7 +371,6 @@ Subscribe a method to be called when the agent is put into an error state specif
 ### `agent.onWebSocketConnectionGained()`
 ```
 agent.onWebSocketConnectionGained(function(agent) { ... });
-<<<<<<< HEAD
 ```
 Subscribe a method to be called when the agent gains a WebSocket connection.
 
@@ -395,15 +378,6 @@ Subscribe a method to be called when the agent gains a WebSocket connection.
 ```js
 agent.onAfterCallWork(function(agent) { /* ... */ });
 ```
-=======
-```
-Subscribe a method to be called when the agent gains a WebSocket connection.
-
-### `agent.onAfterCallWork()`
-```js
-agent.onAfterCallWork(function(agent) { /* ... */ });
-```
->>>>>>> StreamsGithub/master
 Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state. This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
 
 ### `agent.getState()` / `agent.getStatus()`
@@ -848,7 +822,6 @@ be disconnected from the call. Otherwise, the agent and customer are disconnecte
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
-<<<<<<< HEAD
 ### `contact.clear()`
 ```js
 contact.clear({
@@ -863,22 +836,14 @@ It works for both monitoring and non-monitoring connections.
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
 ### `contact.complete()` (TO BE DEPRECATED)
-=======
-### `contact.complete()`
->>>>>>> StreamsGithub/master
 ```js
 contact.complete({
    success: function() { /* ... */ },
    failure: function(err) { /* ... */ }
 });
 ```
-<<<<<<< HEAD
 This API will soon be deprecated and should be replaced with `contact.clear()`. It completes the contact entirely.
 That means it should only be used for non-monitoring agent connections.
-=======
-This is an API that completes this contact entirely. That means that this should only be
-used for non-monitoring agent connections.
->>>>>>> StreamsGithub/master
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
