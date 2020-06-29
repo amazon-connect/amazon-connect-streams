@@ -458,7 +458,7 @@
       };
       conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
     }, 10000);
-    
+
     // Set the global upstream conduit for external use.
     connect.core.upstream = conduit;
 
