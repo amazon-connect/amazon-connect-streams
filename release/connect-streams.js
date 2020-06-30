@@ -22866,6 +22866,7 @@
          'clearContact',
          'completeContact',
          'destroyContact',
+         'rejectContact',
          'notifyContactIssue',
          'updateContactAttributes',
          'createAdditionalConnection',
@@ -23057,8 +23058,10 @@
       }
    };
 
-   AWSClient.prototype._requiresAuthenticationParam = function(method) {
-      return method !== connect.ClientMethods.COMPLETE_CONTACT && method !== connect.ClientMethods.CLEAR_CONTACT;
+   AWSClient.prototype._requiresAuthenticationParam = function (method) {
+      return method !== connect.ClientMethods.COMPLETE_CONTACT &&
+         method !== connect.ClientMethods.CLEAR_CONTACT &&
+         method !== connect.ClientMethods.REJECT_CONTACT;
    };
 
    AWSClient.prototype._translateParams = function(method, params) {
@@ -23997,6 +24000,13 @@
   Contact.prototype.destroy = function (callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.DESTROY_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
+  Contact.prototype.reject = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.REJECT_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
   };

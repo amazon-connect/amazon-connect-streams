@@ -934,12 +934,20 @@ declare namespace connect {
 
     /**
      * Close the contact and all of its associated connections.
+     * This method can also reject and clear contacts but those behaviors will be deprecated.
      * If the contact is a voice contact, and there is a third-party, the customer remains bridged with the third party and will not be disconnected from the call.
      * Otherwise, the agent and customer are disconnected.
      *
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
      */
     destroy(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Reject an incoming contact.
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    reject(callbacks?: SuccessFailOptions): void;
 
     /**
      * Clear the contact.

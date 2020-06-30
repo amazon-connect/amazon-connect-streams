@@ -671,6 +671,13 @@
     }, callbacks);
   };
 
+  Contact.prototype.reject = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.REJECT_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
   Contact.prototype.complete = function (callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.COMPLETE_CONTACT, {

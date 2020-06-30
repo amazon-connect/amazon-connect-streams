@@ -830,9 +830,21 @@ contact.destroy({
    failure: function(err) { /* ... */ }
 });
 ```
-Close the contact and all of its associated connections. If the contact is a voice contact, and
-there is a third-party, the customer remains bridged with the third party and will not
-be disconnected from the call. Otherwise, the agent and customer are disconnected.
+Close the contact and all of its associated connections. 
+This method can also reject and clear contacts but those behaviors will be deprecated.
+If the contact is a voice contact, and there is a third-party, the customer remains bridged with the third party and will not
+be disconnected from the call. Otherwise, the agent and customer are disconnected. 
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
+
+### `contact.reject()`
+```js
+contact.reject({
+   success: function() { /* ... */ },
+   failure: function(err) { /* ... */ }
+});
+```
+Reject an incoming contact.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
