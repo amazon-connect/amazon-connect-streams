@@ -26,6 +26,7 @@
          'clearContact',
          'completeContact',
          'destroyContact',
+         'rejectContact',
          'notifyContactIssue',
          'updateContactAttributes',
          'createAdditionalConnection',
@@ -217,8 +218,10 @@
       }
    };
 
-   AWSClient.prototype._requiresAuthenticationParam = function(method) {
-      return method !== connect.ClientMethods.COMPLETE_CONTACT && method !== connect.ClientMethods.CLEAR_CONTACT;
+   AWSClient.prototype._requiresAuthenticationParam = function (method) {
+      return method !== connect.ClientMethods.COMPLETE_CONTACT &&
+         method !== connect.ClientMethods.CLEAR_CONTACT &&
+         method !== connect.ClientMethods.REJECT_CONTACT;
    };
 
    AWSClient.prototype._translateParams = function(method, params) {
