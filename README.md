@@ -24,6 +24,10 @@ $ make
 ```
 
 ## Getting Started
+
+### Upgrading to the OmniChannel CCP (AKA CCPv2)?
+If you are migrating to the new CCP, we encourage you to upgrade to the latest version of this repository. You should also upgrade to [the latest version of RTC-JS](https://github.com/aws/connect-rtc-js) as well, if you are using it. For a complete migration guide to the new CCP, and to fully understand the differences when using Streams with the new CCP, please see this post: https://docs.aws.amazon.com/connect/latest/adminguide/upgrade-to-latest-ccp.html
+
 ### Whitelisting
 The first step to using Streams is to whitelist the pages you wish to embed.
 For our customer's security, we require that all domains which embed the CCP for
@@ -103,7 +107,7 @@ Find build artifacts in **release** directory - This will generate a file called
 
 To run unit tests specifically:
 ```
-$ npm run test
+$ npm run gulp-test
 ```
 
 ## Using the AWS SDK and Streams
@@ -196,6 +200,8 @@ this:
   Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
   it must be imported after StreamsJS, or there will be AWS SDK issues
   (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
+* If you'd like access to the WebRTC session to further customize the softphone experience
+  you can use [connect-rtc-js](https://github.com/aws/connect-rtc-js). Please refer to the connect-rtc-js readme for detailed instructions on integrating connect-rtc-js with Streams.
 
 ## Where to go from here
 Check out the full documentation [here](Documentation.md) to read more about
