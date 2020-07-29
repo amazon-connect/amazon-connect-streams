@@ -640,9 +640,17 @@
     });
   };
 
-  Contact.prototype.getContactMetadata = function () {
-    return this._getData().contactMetadata;
-  }
+  Contact.prototype.getName = function () {
+    return this._getData().name;
+  };
+
+  Contact.prototype.getDescription = function () {
+    return this._getData().description;
+  };
+
+  Contact.prototype.getReferences = function () {
+    return this._getData().references;
+  };
 
   Contact.prototype.getAttributes = function () {
     return this._getData().attributes;

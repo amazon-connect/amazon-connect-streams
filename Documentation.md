@@ -1,18 +1,28 @@
 # Amazon Connect Streams Documentation
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
-## Task Private Beta Update
+## Task Private Beta Updates
+- The `contact.getContactMetadata()` method has been deprecated
+- There are three new get methods which can be used to retrieve task data:
+    - `contact.getName()`
+      - Gets the name of the task
+    - `contact.getDescription()`
+      - Gets the description of the task
+    - `contact.getReferences()`
+      - Gets a map of reference objects associated with the task. Each reference has a `Type` and a `Value`.
+- The structure of references has changed. A single reference now looks like the following:
+
+```
+"Reference-Name": {
+    "type": "URL",
+    "value": "http://link.com"
+}
+```
+
 - A Task contact currently only contains a single connection per contact. Chat and Voice contacts have two or more connections per contact
     - Please keep this in mind as you update your contact event handlers (e.g. contact.onIncoming, contact.onConnecting, etc)
 - To End Task Contact and move to After Contact Work (ACW), call ```connection.destroy()``` (Same behavior as chat)
 - To clear ACW for a Task Contact call ```contact.complete()``` (Same behavior as chat)
-- For now, all of the Task Contact data is contained within the new ```contactMetadata``` field, which can be retrieved via ```contact.getContactMetadata()``` This field contains:
-    - ```name```
-      - The name of the task
-    - ```description```
-      - The description of the task
-    - ```references```
-      - a map of key-value pairs of any references associated with the task. The value can be a combination of text and hyperlink(s).
 
 ### Enabling Tasks for your connect instance
 - Please go to the Routing Profile in the Admin website to enable Tasks.
@@ -59,24 +69,25 @@ To explore below on your own, please inspect the ConnectSharedWorker (e.g. ```ch
                 ],
                 "contactDuration": "0",
                 "contactId": "00000000-0000-0000-0000-000000000000",
-                "contactMetadata": { // new field
-                    "description": "This is the review requested by the customer. please review via the links provided in the references.",
-                    "name": "Tom's invoice review",
-                    "references": {
-                        "doc-link1": "https://example-link.com",
-                        "doc-link2": "Click on https://example-link2.com to proceed"
-                    }
-                },
-                "description": null,
+                "description": "This is the review requested by the customer. Please review via the links provided in the references.",
                 "initialContactId": null,
                 "initiationMethod": "api",
-                "name": null,
+                "name": "Tom's invoice review",
                 "queue": {
                     "name": "",
                     "queueARN": "arn:aws:connect:us-west-2:000000000000:instance/00000000-0000-0000-0000-000000000000/queue/00000000-0000-0000-0000-000000000000"
                 },
                 "queueTimestamp": null,
-                "references": null,
+                "references": {
+                    "doc-link1": {
+                    	"type": "URL",
+                    	"value": "https://example-link.com"
+                    },
+                    "doc-link2": {
+                    	"type": "URL",
+                    	"value": "https://example-link.com"
+                    }
+                },
                 "state": {
                     "timestamp": 1592240454.053,
                     "type": "connecting"
@@ -1025,6 +1036,34 @@ var snapshot = contact.toSnapshot();
 The data behind the `Contact` API object is ephemeral and changes whenever new data is provided. This method
 provides an opportunity to create a snapshot version of the `Contact` API object and save it for future use,
 such as adding to a log file or posting elsewhere.
+
+### Task Contact APIs
+The following contact methods are only available for task contacts.
+
+### `contact.getName()`
+```js
+var taskName = contact.getName();
+```
+Gets the name of the contact.
+
+### `contact.getDescription()`
+```js
+var taskDescription = contact.getDescription();
+```
+Gets the description of the contact.
+
+### `contact.getReferences()`
+```js
+var taskReferences = contact.getReferences();
+```
+Gets references for the contact. A sample reference looks like the following:
+
+```js
+"Reference-Name": {
+    type: "URL",
+    value: "https://link.com"
+}
+```
 
 
 ## Connection API
