@@ -831,6 +831,14 @@ declare namespace connect {
     onConnected(callback: ContactCallback): void;
 
     /**
+     * Subscribe a method to be invoked when the contact error event is triggered. 
+     * This event is only triggered when an agent state of type error appears in the snapshot.
+     * 
+     * @param callback A callback to receive the `Contact` API object instance.
+     */
+    onError(callback: ContactCallback): void;
+
+    /**
      * Returns a formatted string with the contact event and ID.
      *
      * @param event The event to format.

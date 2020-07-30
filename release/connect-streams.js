@@ -23861,6 +23861,11 @@
     bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTED), f);
   };
 
+  Contact.prototype.onError = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.ERROR), f);
+  }
+
   Contact.prototype.getContactId = function () {
     return this.contactId;
   };
@@ -25528,7 +25533,10 @@
       connect.ContactEvents.ACW)
     .assoc(connect.values(connect.CONTACT_ACTIVE_STATES),
       connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
-      connect.ContactEvents.ENDED);
+      connect.ContactEvents.ENDED)
+    .assoc(connect.EventGraph.ANY,
+      connect.values(connect.AgentErrorStates),
+      connect.ContactEvents.ERROR);
 
   /**-----------------------------------------------------------------------*/
   connect.core.getClient = function () {

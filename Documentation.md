@@ -671,6 +671,13 @@ contact.onConnected(function(contact) { /* ... */ });
 ```
 Subscribe a method to be invoked when the contact is connected.
 
+### `contact.onError()`
+```js
+contact.onError(function(contact) { /* ... */ });
+```
+Subscribe a method to be invoked when `connect.ContactEvents.ERROR` happens. 
+This event happens when the agent state type is `error`. Why do we have a contact event representing an agent state type? Because the agent status when on voice calls reflects contact-specific errors. 
+
 ### `contact.getEventName()`
 ```js
 // e.g. contact::connected::01234567-89ab-cdef-0123-456789abcdef
