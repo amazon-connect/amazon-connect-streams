@@ -741,6 +741,33 @@
           "members": {}
         }
       },
+      "CreateTaskContact": {
+        "input": {
+          "type": "structure",
+          "required": [
+            "endpoint",
+            "name"
+          ],
+          "members": {
+            "endpoint": {
+              "shape": "Se"
+            },
+            "previousContactId": {},
+            "name": {},
+            "description": {},
+            "references": {
+              "shape": "Sr"
+            },
+            "idempotencyToken": {}
+          }
+        },
+        "output": {
+          "type": "structure",
+          "members": {
+            "contactId": {}
+          }
+        }
+      },
       "CreateTransport": {
         "input": {
           "type": "structure",
@@ -1593,6 +1620,21 @@
         "members": {
           "queueARN": {},
           "name": {}
+        }
+      },
+      "Sr": {
+        "type": "map",
+        "key": {},
+        "value": {
+          "type": "structure",
+          "required": [
+            "value",
+            "type"
+          ],
+          "members": {
+            "value": {},
+            "type": {}
+          }
         }
       },
       "S1b": {

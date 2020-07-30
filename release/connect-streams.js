@@ -741,6 +741,33 @@
           "members": {}
         }
       },
+      "CreateTaskContact": {
+        "input": {
+          "type": "structure",
+          "required": [
+            "endpoint",
+            "name"
+          ],
+          "members": {
+            "endpoint": {
+              "shape": "Se"
+            },
+            "previousContactId": {},
+            "name": {},
+            "description": {},
+            "references": {
+              "shape": "Sr"
+            },
+            "idempotencyToken": {}
+          }
+        },
+        "output": {
+          "type": "structure",
+          "members": {
+            "contactId": {}
+          }
+        }
+      },
       "CreateTransport": {
         "input": {
           "type": "structure",
@@ -1593,6 +1620,21 @@
         "members": {
           "queueARN": {},
           "name": {}
+        }
+      },
+      "Sr": {
+        "type": "map",
+        "key": {},
+        "value": {
+          "type": "structure",
+          "required": [
+            "value",
+            "type"
+          ],
+          "members": {
+            "value": {},
+            "type": {}
+          }
         }
       },
       "S1b": {
@@ -22889,6 +22931,7 @@
          'updateAgentConfiguration',
          'acceptContact',
          'createOutboundContact',
+         'createTaskContact',
          'clearContact',
          'completeContact',
          'destroyContact',
@@ -23087,7 +23130,8 @@
    AWSClient.prototype._requiresAuthenticationParam = function (method) {
       return method !== connect.ClientMethods.COMPLETE_CONTACT &&
          method !== connect.ClientMethods.CLEAR_CONTACT &&
-         method !== connect.ClientMethods.REJECT_CONTACT;
+         method !== connect.ClientMethods.REJECT_CONTACT &&
+         method !== connect.ClientMethods.CREATE_TASK_CONTACT;
    };
 
    AWSClient.prototype._translateParams = function(method, params) {
@@ -23762,6 +23806,14 @@
         success: params.success,
         failure: params.failure
       });
+  };
+
+  Agent.prototype.createTask = function(taskContact, callbacks) {
+    connect.assertNotNull(taskContact, 'Task contact object');
+    
+    var client = connect.core.getClient();
+
+    client.call(connect.ClientMethods.CREATE_TASK_CONTACT, taskContact,callbacks);
   };
 
   Agent.prototype.getAllQueueARNs = function () {
