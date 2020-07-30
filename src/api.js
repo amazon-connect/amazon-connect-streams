@@ -405,6 +405,14 @@
       });
   };
 
+  Agent.prototype.createTask = function(taskContact, callbacks) {
+    connect.assertNotNull(taskContact, 'Task contact object');
+    
+    var client = connect.core.getClient();
+
+    client.call(connect.ClientMethods.CREATE_TASK_CONTACT, taskContact,callbacks);
+  };
+
   Agent.prototype.getAllQueueARNs = function () {
     return this.getConfiguration().routingProfile.queues.map(function (queue) {
       return queue.queueARN;

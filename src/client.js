@@ -23,6 +23,7 @@
          'updateAgentConfiguration',
          'acceptContact',
          'createOutboundContact',
+         'createTaskContact',
          'clearContact',
          'completeContact',
          'destroyContact',
@@ -221,7 +222,8 @@
    AWSClient.prototype._requiresAuthenticationParam = function (method) {
       return method !== connect.ClientMethods.COMPLETE_CONTACT &&
          method !== connect.ClientMethods.CLEAR_CONTACT &&
-         method !== connect.ClientMethods.REJECT_CONTACT;
+         method !== connect.ClientMethods.REJECT_CONTACT &&
+         method !== connect.ClientMethods.CREATE_TASK_CONTACT;
    };
 
    AWSClient.prototype._translateParams = function(method, params) {

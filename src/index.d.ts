@@ -240,6 +240,10 @@ declare namespace connect {
     QUEUE = "queue",
   }
 
+  enum ReferenceType {
+    URL = "URL",
+  }
+
   /** Lists the different types of connections. */
   enum ConnectionType {
     /** The agent connection. */
@@ -574,6 +578,15 @@ declare namespace connect {
      */
     setState(state: AgentStateDefinition, callbacks?: SuccessFailOptions): void;
 
+    /**
+     * Create task contact.
+     * Can only be performed if the agent is not handling a live contact.
+     *
+     * @param taskContact The new task contact.
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    createTask(taskContact: TaskContactDefinition, callbacks?: SuccessFailOptions): void;
+
     /** Alias for `setState()`. */
     setStatus(
       state: AgentStateDefinition,
@@ -647,6 +660,30 @@ declare namespace connect {
 
     /** The name of the agent state to be displayed in the UI. */
     readonly name: string;
+  }
+
+  interface TaskContactDefinition {
+    /** The  endpoint to assign to */
+    readonly endpoint: Endpoint;
+
+    /** The linked contact id */
+    readonly previousContactId?: string;
+
+    /** The task name */
+    readonly name: string;
+
+    /** The task description */
+    readonly description: string;
+
+    /** The task references */
+    readonly references: ReferenceDictionary;
+
+    /** The flag that indicates whether assign to self */
+    readonly isAssignToSelf: boolean;
+
+    /** A random value */
+    readonly idempotencyToken: string;
+
   }
 
   /**
@@ -740,6 +777,13 @@ declare namespace connect {
   interface AttributeDictionary {
     readonly [key: string]: {
       name: string;
+      value: string;
+    };
+  }
+
+  interface ReferenceDictionary {
+    readonly [key: string]: {
+      type: ReferenceType;
       value: string;
     };
   }
