@@ -95,6 +95,13 @@ To explore below on your own, please inspect the ConnectSharedWorker (e.g. ```ch
 }
 ```
 
+# Important Announcements
+1. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
+    * `FailedConnectAgent` -- Previously, we required the agent to click the "Clear Contact" button to clear this state. When the agent clicked the "Clear Contact" button, the previous behavior took the agent back to the `Available` state without fail. Now the `FailedConnectAgent` state will be "auto-cleared", much like `FailedConnectCustomer` always has been. 
+    * `FailedConnectAgent` and `FailedConnectCustomer` -- We are now using the `contact.clear()` API to auto-clear these states. As a result, the agent will be returned to their previous visible agent state (e.g. `Available`). Previously, the agent had always been set to `Available` as a result of this "auto-clearing" behavior. Note that even custom CCPs will behave differently with this update for `FailedConnectAgent` and `FailedConnectCustomer`.
+    * `AfterCallWork` -- As part of the new `contact.clear()` behavior, clicking "Clear Contact" while in `AfterCallWork` will return the agent to their previous visible agent state (e.g. `Available`, etc.). Note that custom CCPs that implement their own After Call Work behavior will not be affected by this change.
+        * We are putting `contact.complete()` on a deprecation path. Therefore, you should start using `contact.clear()` in its place. If you want to emulate CCP's After Call Work behavior in your customer CCP, then make sure you use `contact.clear()` when clearing voice contacts. 
+        
 ## Overview
 The Amazon Connect Streams API (Streams) gives you the power to integrate your
 existing web applications with Amazon Connect. Streams lets you
@@ -757,6 +764,13 @@ Subscribe a method to be invoked whenever the contact enters the ACW state. This
 contact.onConnected(function(contact) { /* ... */ });
 ```
 Subscribe a method to be invoked when the contact is connected.
+
+### `contact.onError()`
+```js
+contact.onError(function(contact) { /* ... */ });
+```
+Subscribe a method to be invoked when `connect.ContactEvents.ERROR` happens. 
+This event happens when the agent state type is `error`. Why do we have a contact event representing an agent state type? Because the agent status when on voice calls reflects contact-specific errors. 
 
 ### `contact.getEventName()`
 ```js
