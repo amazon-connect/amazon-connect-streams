@@ -274,6 +274,10 @@
     return this._getData().snapshot.state;
   };
 
+  Agent.prototype.getAvailabilityState = function () {
+    return this._getData().snapshot.agentAvailabilityState;
+  };
+
   Agent.prototype.getStatus = Agent.prototype.getState;
 
   Agent.prototype.getStateDuration = function () {
@@ -669,6 +673,13 @@
     }, callbacks);
   };
 
+  Contact.prototype.clear = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.CLEAR_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
   Contact.prototype.notifyIssue = function (issueCode, description, callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.NOTIFY_CONTACT_ISSUE, {
@@ -880,6 +891,25 @@
     if (this.getMediaInfo()) {
       connect.core.mediaFactory.get(this).catch(function () { });
     }
+  }
+
+  // Method for checking whether this connection is an agent-side connection 
+  // (type AGENT or MONITORING)
+  Connection.prototype._isAgentConnectionType = function () {
+    var connectionType = this.getType();
+    return connectionType === connect.ConnectionType.AGENT 
+      || connectionType === connect.ConnectionType.MONITORING;
+  }
+
+  /**
+   * Utility method for checking whether this connection is an agent-side connection 
+   * (type AGENT or MONITORING)
+   * @return {boolean} True if this connection is an agent-side connection. False otherwise.
+   */
+  Connection.prototype._isAgentConnectionType = function () {
+    var connectionType = this.getType();
+    return connectionType === connect.ConnectionType.AGENT 
+      || connectionType === connect.ConnectionType.MONITORING;
   }
 
   /**
