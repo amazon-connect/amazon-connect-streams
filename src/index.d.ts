@@ -316,6 +316,9 @@ declare namespace connect {
     /** Indicates the contact timed out before the agent could accept it. */
     MISSED = "missed",
 
+    /** Indicates the contact is rejected */
+    REJECTED = "rejected",
+
     /** Indicates the contact is in an error state. */
     ERROR = "error",
 
