@@ -486,6 +486,9 @@ declare namespace connect {
      */
     onAfterCallWork(callback: AgentCallback): void;
 
+    /** Get the agent's current 'AgentAvailabilityState' object indicating their actual state type. */
+    getAvailabilityState(): AgentAvailabilityState;
+
     /** Get the agent's current `AgentState` object indicating their availability state type. */
     getState(): AgentState;
 
@@ -647,6 +650,16 @@ declare namespace connect {
 
     /** The name of the agent state to be displayed in the UI. */
     readonly name: string;
+  }
+
+  /**
+   * An object containing the current Agent state
+   */
+  interface AgentAvailabilityState {
+    /** The name of the agent's actual state. */
+    readonly state: string;
+    /** Date indicating when the agent went into the current state. */
+    readonly timeStamp: Date;
   }
 
   /** An object containing the current Agent state. */
@@ -817,6 +830,14 @@ declare namespace connect {
     onACW(callback: ContactCallback): void;
 
     /**
+     * Subscribe a method to be invoked whenever the contact is missed.
+     * This is an event which is fired when a contact is put in state "missed" by the backend, which happens when the agent does not answer for a certain amount of time, when the agent rejects the call, or when the other participant hangs up before the agent can accept.
+     *
+     * @param callback A callback to receive the `Contact` API object instance.
+     */
+    onMissed(callback: ContactCallback): void;
+
+    /**
      * Subscribe a method to be invoked when the contact is connected.
      *
      * @param callback A callback to receive the `Contact` API object instance.
@@ -925,6 +946,13 @@ declare namespace connect {
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
      */
     destroy(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Clear the contact.
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    clear(callbacks: SuccessFailOptions): void;
 
     /**
      * This is an API that completes this contact entirely.

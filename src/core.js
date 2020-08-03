@@ -1005,7 +1005,10 @@
       connect.ContactEvents.ACW)
     .assoc(connect.values(connect.CONTACT_ACTIVE_STATES),
       connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
-      connect.ContactEvents.ENDED);
+      connect.ContactEvents.ENDED)
+    .assoc(connect.EventGraph.ANY,
+      connect.values(connect.AgentErrorStates),
+      connect.ContactEvents.ERROR);
 
   /**-----------------------------------------------------------------------*/
   connect.core.getClient = function () {

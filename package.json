@@ -1,6 +1,6 @@
 {
   "name": "amazon-connect-streams",
-  "version": "1.4.9",
+  "version": "1.5.0",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
@@ -54,8 +54,5 @@
     "pump": "^3.0.0",
     "sinon": "^9.0.0",
     "typescript": "3.0.1"
-  },
-  "npm-pretty-much": {
-    "runRelease": "always"
   }
 }
