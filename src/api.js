@@ -108,6 +108,7 @@
 
   connect.CONTACT_ACTIVE_STATES = connect.makeEnum([
     'incoming',
+    'pending',
     'connecting',
     'connected'
   ]);
@@ -229,6 +230,16 @@
     bus.subscribe(connect.AgentEvents.SOFTPHONE_ERROR, f);
   };
 
+  Agent.prototype.onWebSocketConnectionLost = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST, f);
+  }
+
+  Agent.prototype.onWebSocketConnectionGained = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED, f);
+  }
+
   Agent.prototype.onAfterCallWork = function (f) {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.AgentEvents.ACW, f);
@@ -261,6 +272,10 @@
 
   Agent.prototype.getState = function () {
     return this._getData().snapshot.state;
+  };
+
+  Agent.prototype.getAvailabilityState = function () {
+    return this._getData().snapshot.agentAvailabilityState;
   };
 
   Agent.prototype.getStatus = Agent.prototype.getState;
@@ -340,7 +355,7 @@
             callbacks.success(data);
           }
         },
-        failure: callbacks.failure
+        failure: callbacks && callbacks.failure
       });
   };
 
@@ -361,8 +376,8 @@
 
     client.call(connect.ClientMethods.CREATE_OUTBOUND_CONTACT, {
       endpoint: connect.assertNotNull(endpoint, 'endpoint'),
-      queueARN: params.queueARN || params.queueId || this.getRoutingProfile().defaultOutboundQueue.queueARN
-    }, {
+      queueARN: (params && (params.queueARN || params.queueId)) || this.getRoutingProfile().defaultOutboundQueue.queueARN
+    }, params && {
         success: params.success,
         failure: params.failure
       });
@@ -377,8 +392,11 @@
   Agent.prototype.getEndpoints = function (queueARNs, callbacks, pageInfoIn) {
     var self = this;
     var client = connect.core.getClient();
-    var pageInfo = pageInfoIn || { endpoints: [] };
+    connect.assertNotNull(callbacks, "callbacks");
+    connect.assertNotNull(callbacks.success, "callbacks.success");
+    var pageInfo = pageInfoIn || { };
 
+    pageInfo.endpoints = pageInfo.endpoints || [];
     pageInfo.maxResults = pageInfo.maxResults || connect.DEFAULT_BATCH_SIZE;
 
     // Backwards compatibility allowing a single queueARN to be specified
@@ -520,18 +538,27 @@
   Contact.prototype.getOriginalContactId = function () {
     return this._getData().initialContactId;
   };
+  Contact.prototype.getInitialContactId = Contact.prototype.getOriginalContactId;
 
   Contact.prototype.getType = function () {
     return this._getData().type;
   };
 
-  Contact.prototype.getStatus = function () {
+  Contact.prototype.getContactDuration = function() {
+    return this._getData().contactDuration;
+  }
+
+  Contact.prototype.getState = function () {
     return this._getData().state;
   };
 
-  Contact.prototype.getStatusDuration = function () {
+  Contact.prototype.getStatus = Contact.prototype.getState;
+
+  Contact.prototype.getStateDuration = function () {
     return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
   };
+
+  Contact.prototype.getStatusDuration = Contact.prototype.getStateDuration;
 
   Contact.prototype.getQueue = function () {
     return this._getData().queue;
@@ -608,17 +635,20 @@
   Contact.prototype.accept = function (callbacks) {
     var client = connect.core.getClient();
     var self = this;
+    var contactId = this.getContactId();
     client.call(connect.ClientMethods.ACCEPT_CONTACT, {
-      contactId: this.getContactId()
+      contactId: contactId
     }, {
         success: function (data) {
           var conduit = connect.core.getUpstream();
           conduit.sendUpstream(connect.EventType.BROADCAST, {
-            event: connect.ContactEvents.ACCEPTED
+            event: connect.ContactEvents.ACCEPTED,
+            data: new connect.Contact(contactId)
           });
           conduit.sendUpstream(connect.EventType.BROADCAST, {
             event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED,
-              self.getContactId())
+              self.getContactId()),
+            data: new connect.Contact(contactId)
           });
 
           if (callbacks && callbacks.success) {
@@ -632,6 +662,20 @@
   Contact.prototype.destroy = function (callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.DESTROY_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
+  Contact.prototype.complete = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.COMPLETE_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
+
+  Contact.prototype.clear = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.CLEAR_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
   };
@@ -687,6 +731,7 @@
 
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       softphoneStreamStatistics: softphoneStreamStatistics
     }, callbacks);
   };
@@ -695,6 +740,7 @@
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT, {
       contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
       report: report
     }, callbacks);
   };
@@ -756,13 +802,17 @@
 
   Connection.prototype.getAddress = Connection.prototype.getEndpoint;
 
-  Connection.prototype.getStatus = function () {
+  Connection.prototype.getState = function () {
     return this._getData().state;
   };
 
-  Connection.prototype.getStatusDuration = function () {
+  Connection.prototype.getStatus = Connection.prototype.getState;
+
+  Connection.prototype.getStateDuration = function () {
     return connect.now() - this._getData().state.timestamp.getTime() + connect.core.getSkew();
   };
+
+  Connection.prototype.getStatusDuration = Connection.prototype.getStateDuration;
 
   Connection.prototype.getType = function () {
     return this._getData().type;
@@ -800,10 +850,8 @@
     return this._getData().monitoringInfo;
   };
 
-
   Connection.prototype.destroy = function (callbacks) {
-    var client = connect.core.getClient(), self = this;
-
+    var client = connect.core.getClient();
     client.call(connect.ClientMethods.DESTROY_CONNECTION, {
       contactId: this.getContactId(),
       connectionId: this.getConnectionId()
@@ -845,6 +893,36 @@
     }
   }
 
+  // Method for checking whether this connection is an agent-side connection 
+  // (type AGENT or MONITORING)
+  Connection.prototype._isAgentConnectionType = function () {
+    var connectionType = this.getType();
+    return connectionType === connect.ConnectionType.AGENT 
+      || connectionType === connect.ConnectionType.MONITORING;
+  }
+
+  /**
+   * Utility method for checking whether this connection is an agent-side connection 
+   * (type AGENT or MONITORING)
+   * @return {boolean} True if this connection is an agent-side connection. False otherwise.
+   */
+  Connection.prototype._isAgentConnectionType = function () {
+    var connectionType = this.getType();
+    return connectionType === connect.ConnectionType.AGENT 
+      || connectionType === connect.ConnectionType.MONITORING;
+  }
+
+  /**
+   * Utility method for checking whether this connection is an agent-side connection 
+   * (type AGENT or MONITORING)
+   * @return {boolean} True if this connection is an agent-side connection. False otherwise.
+   */
+  Connection.prototype._isAgentConnectionType = function () {
+    var connectionType = this.getType();
+    return connectionType === connect.ConnectionType.AGENT 
+      || connectionType === connect.ConnectionType.MONITORING;
+  }
+
   /**
    * @class VoiceConnection
    * @param {number} contactId 
@@ -857,35 +935,6 @@
 
   VoiceConnection.prototype = Object.create(Connection.prototype);
   VoiceConnection.prototype.constructor = VoiceConnection;
-
-  VoiceConnection.prototype.sendDigits = function (digits, callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.SEND_DIGITS, {
-      contactId: this.getContactId(),
-      connectionId: this.getConnectionId(),
-      digits: digits
-    }, callbacks);
-  };
-
-  VoiceConnection.prototype.hold = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.HOLD_CONNECTION, {
-      contactId: this.getContactId(),
-      connectionId: this.getConnectionId()
-    }, callbacks);
-  };
-
-  VoiceConnection.prototype.resume = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.RESUME_CONNECTION, {
-      contactId: this.getContactId(),
-      connectionId: this.getConnectionId()
-    }, callbacks);
-  };
-
-  VoiceConnection.prototype.isOnHold = function () {
-    return this.getStatus().type === connect.ConnectionStateType.HOLD;
-  };
 
   /**
   * @deprecated
@@ -952,17 +1001,17 @@
   * Provides the chat connectionToken through the create_transport API for a specific contact and participant Id. 
   * @returns a promise which, upon success, returns the response from the createTransport API.
   * Usage:
-  * connect.core.getConnectionToken()
+  * connection.getConnectionToken()
   *  .then(response => {})
   *  .catch(error => {})
   */
   ChatConnection.prototype.getConnectionToken = function () {
-
     client = connect.core.getClient();
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     var transportDetails = {
       transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
       participantId: this.connectionId,
-      contactId: this.contactId
+      contactId: contactData.initialContactId || this.contactId
     };
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
@@ -991,7 +1040,8 @@
   };
 
   ChatConnection.prototype._initMediaController = function () {
-    if (connect.core.mediaFactory) {
+    // Note that a chat media controller only needs to be produced for agent type connections.
+    if (this._isAgentConnectionType()) {
       connect.core.mediaFactory.get(this).catch(function () { });
     }
   }
@@ -1075,6 +1125,15 @@
   connect.contact = function (f) {
     var bus = connect.core.getEventBus();
     return bus.subscribe(connect.ContactEvents.INIT, f);
+  };
+
+  connect.onWebsocketInitFailure = function (f) {
+    var bus = connect.core.getEventBus();
+    var sub = bus.subscribe(connect.WebSocketEvents.INIT_FAILURE, f);
+    if (connect.webSocketInitFailed) {
+      f();
+    }
+    return sub;
   };
 
   /**

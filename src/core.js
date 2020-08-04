@@ -13,7 +13,9 @@
 
   connect.core.initialized = false;
 
-  connect.DEFAULT_BATCH_SIZE = 100;
+  connect.version = "STREAMS_VERSION";
+
+  connect.DEFAULT_BATCH_SIZE = 500;
 
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
@@ -107,6 +109,7 @@
     if (bus) bus.unsubscribeAll();
     connect.core.bus = new connect.EventBus();
     connect.core.agentDataProvider = null;
+    connect.core.softphoneManager = null;
     connect.core.upstream = null;
     connect.core.keepaliveManager = null;
     connect.agent.initialized = false;
@@ -184,6 +187,16 @@
         }
       }
 
+      if (otherParams.chat) {
+        if (otherParams.chat.disableRingtone) {
+          params.ringtone.chat.disabled = true;
+        }
+
+        if (otherParams.chat.ringtoneUrl) {
+          params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
+        }
+      }
+
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -195,9 +208,8 @@
       }
     };
 
-    // Merge params from params.softphone into params.ringtone
-    // for embedded and non-embedded use cases so that defaults
-    // are picked up.
+    // Merge params from params.softphone and params.chat into params.ringtone
+    // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
 
     if (connect.isFramed()) {
@@ -362,7 +374,9 @@
       });
       // Add all upstream log entries to our own logger.
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        }
       });
       // Reload the page if the shared worker detects an API auth failure.
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
@@ -413,8 +427,6 @@
       params = paramsIn;
     }
 
-    var softphoneParams = params.softphone || null;
-
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
 
@@ -434,6 +446,18 @@
 
     // Build the upstream conduit communicating with the CCP iframe.
     var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
+
+    // Let CCP know if iframe is visible
+    iframe.onload = setTimeout(function() {
+      var style = window.getComputedStyle(iframe, null);
+      var data = {
+        display: style.display,
+        offsetWidth: iframe.offsetWidth,
+        offsetHeight: iframe.offsetHeight,
+        clientRectsLength: iframe.getClientRects().length
+      };
+      conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
+    }, 10000);
 
     // Set the global upstream conduit for external use.
     connect.core.upstream = conduit;
@@ -465,10 +489,11 @@
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
 
-      if (softphoneParams) {
+      if (params.softphone || params.chat) {
         // Send configuration up to the CCP.
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
-          softphone: softphoneParams
+          softphone: params.softphone,
+          chat: params.chat
         });
       }
 
@@ -483,7 +508,9 @@
 
     // Add any logs from the upstream to our own logger.
     conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-      connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+      }
     });
 
     // Pop a login page when we encounter an ACK timeout.
@@ -493,6 +520,10 @@
         try {
           var loginUrl = createLoginUrl(params);
           connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
+          // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
+          if (params.loginUrl) {
+             connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+          }
           connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
 
         } catch (e) {
@@ -517,6 +548,10 @@
         });
       }
     });
+
+    if (params.onViewContact) {
+      connect.core.onViewContact(params.onViewContact);
+    }
   };
 
   /**-----------------------------------------------------------------------*/
@@ -959,6 +994,9 @@
     .assoc(connect.EventGraph.ANY,
       connect.ContactStateType.CONNECTED,
       connect.ContactEvents.CONNECTED)
+    .assoc(connect.ContactStateType.CONNECTING,
+      connect.ContactStateType.ERROR,
+      connect.ContactEvents.MISSED)
     .assoc(connect.ContactStateType.INCOMING,
       connect.ContactStateType.ERROR,
       connect.ContactEvents.MISSED)
@@ -967,7 +1005,10 @@
       connect.ContactEvents.ACW)
     .assoc(connect.values(connect.CONTACT_ACTIVE_STATES),
       connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
-      connect.ContactEvents.ENDED);
+      connect.ContactEvents.ENDED)
+    .assoc(connect.EventGraph.ANY,
+      connect.values(connect.AgentErrorStates),
+      connect.ContactEvents.ERROR);
 
   /**-----------------------------------------------------------------------*/
   connect.core.getClient = function () {
@@ -1001,12 +1042,6 @@
     return connect.core.notificationManager;
   };
   connect.core.notificationManager = null;
-
-  /**-----------------------------------------------------------------------*/
-  connect.core.getPopupManager = function () {
-    return connect.core.popupManager;
-  };
-  connect.core.popupManager = new connect.PopupManager();
 
   /**-----------------------------------------------------------------------*/
   connect.core.getPopupManager = function () {

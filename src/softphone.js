@@ -8,6 +8,7 @@
   connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
+  global.ccpVersion = "V2";
 
   var RTPJobIntervalMs = 1000;
   var statsReportingJobIntervalMs = 30000;
@@ -47,7 +48,7 @@
         },
         failure: function (reason) {
           if (reason.message && reason.message.includes("SoftphoneConnectionLimitBreachedException")) {
-            publishError("multiple_softphone_active_sessions", "Number of active sessions are more then allowed limit.");
+            publishError("multiple_softphone_active_sessions", "Number of active sessions are more then allowed limit.", "");
           }
           reject(Error("requestIceAccess failed"));
         },
@@ -191,7 +192,7 @@
         }
 
         // Custom Event to indicate the session init operations
-        connect.core.upstream.sendUpstream(connect.EventType.BROADCAST, {
+        connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
           event: connect.ConnnectionEvents.SESSION_INIT,
           data: {
             connectionId: agentConnectionId
@@ -431,11 +432,10 @@
   };
 
   var publishError = function (errorType, message, endPointUrl) {
-    var bus = connect.core.getEventBus();
     logger.error("Softphone error occurred : ", errorType,
       message || "");
 
-    connect.core.upstream.sendUpstream(connect.EventType.BROADCAST, {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.AgentEvents.SOFTPHONE_ERROR,
       data: new connect.SoftphoneError(errorType, message, endPointUrl)
     });
@@ -489,7 +489,7 @@
     if (streamStats.length > 0) {
       contact.sendSoftphoneMetrics(streamStats, {
         success: function () {
-          logger.info("sendSoftphoneMetrics success");
+          logger.info("sendSoftphoneMetrics success" + JSON.stringify(streamStats));
         },
         failure: function (data) {
           logger.error("sendSoftphoneMetrics failed.")
@@ -528,7 +528,7 @@
     };
     contact.sendSoftphoneReport(callReport, {
       success: function () {
-        logger.info("sendSoftphoneReport success");
+        logger.info("sendSoftphoneReport success" + JSON.stringify(callReport));
       },
       failure: function (data) {
         logger.error("sendSoftphoneReport failed.")

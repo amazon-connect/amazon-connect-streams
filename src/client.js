@@ -23,6 +23,8 @@
          'updateAgentConfiguration',
          'acceptContact',
          'createOutboundContact',
+         'clearContact',
+         'completeContact',
          'destroyContact',
          'notifyContactIssue',
          'updateContactAttributes',
@@ -170,10 +172,6 @@
       var self = this;
       var log = connect.getLog();
 
-      params.authentication = {
-         authToken: this.authToken
-      };
-
       if (! connect.contains(this.client, method)) {
          var message = connect.sprintf('No such method exists on AWS client: %s', method);
          callbacks.failure(new connect.ValueError(message), {message: message});
@@ -219,6 +217,10 @@
       }
    };
 
+   AWSClient.prototype._requiresAuthenticationParam = function(method) {
+      return method !== connect.ClientMethods.COMPLETE_CONTACT && method !== connect.ClientMethods.CLEAR_CONTACT;
+   };
+
    AWSClient.prototype._translateParams = function(method, params) {
       switch (method) {
          case connect.ClientMethods.UPDATE_AGENT_CONFIGURATION:
@@ -236,6 +238,12 @@
 
          default:
             break;
+      }
+
+      if (this._requiresAuthenticationParam(method)) {
+         params.authentication = {
+            authToken: this.authToken
+         };
       }
 
       return params;

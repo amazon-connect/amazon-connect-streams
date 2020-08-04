@@ -103,13 +103,15 @@
   /**
    * A log entry.
    *
+   * @param component The logging component.
    * @param level The log level of this log entry.
    * @param text The text contained in the log entry.
+   * @param loggerId The root logger id.
    *
    * Log entries are aware of their timestamp, order,
    * and can contain objects and exception stack traces.
    */
-  var LogEntry = function (component, level, text) {
+  var LogEntry = function (component, level, text, loggerId) {
     this.component = component;
     this.level = level;
     this.text = text;
@@ -117,10 +119,11 @@
     this.exception = null;
     this.objects = [];
     this.line = 0;
+    this.loggerId = loggerId;
   };
 
   LogEntry.fromObject = function (obj) {
-    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text);
+    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text, obj.loggerId);
 
     // Required to check for Date objects sent across frame boundaries
     if (Object.prototype.toString.call(obj.time) === '[object Date]') {
@@ -142,7 +145,7 @@
    * out of the given exception for JSON serialization.
    */
   var LoggedException = function (e) {
-    this.type = Object.prototype.toString.call(e);
+    this.type = (e instanceof Error) ? e.name : e.code || Object.prototype.toString.call(e);
     this.message = e.message;
     this.stack = e.stack ? e.stack.split('\n') : [];
   };
@@ -216,6 +219,7 @@
     this._lineCount = 0;
     this._logRollInterval = 0;
     this._logRollTimer = null;
+    this._loggerId = new Date().getTime() + "-" + Math.random().toString(36).slice(2);
     this.setLogRollInterval(DEFAULT_LOG_ROLL_INTERVAL);
   };
 
@@ -275,7 +279,7 @@
    * @returns The new log entry.
    */
   Logger.prototype.write = function (component, level, text) {
-    var logEntry = new LogEntry(component, level, text);
+    var logEntry = new LogEntry(component, level, text, this.getLoggerId());
     this.addLogEntry(logEntry);
     return logEntry;
   };
@@ -372,12 +376,45 @@
 
     return lines.join("\n");
   };
+  
+  /**
+   * Download/Archive logs to a file, 
+   * By default, it returns all logs.
+   * To filter logs by the minimum log level set by setLogLevel or the default set in _logLevel, 
+   * pass in filterByLogLevel to true in options
+   * 
+   * @param options download options [Object|String]. 
+   * - of type Object: 
+   *   { logName: 'my-log-name',
+   *     filterByLogLevel: false, //download all logs
+   *   }
+   * - of type String (for backward compatibility), the file's name
+   */
+  Logger.prototype.download = function(options) {
+    var logName = 'agent-log';
+    var filterByLogLevel = false;
 
-  Logger.prototype.download = function () {
-    var logBlob = new global.Blob([JSON.stringify(this._rolledLogs.concat(this._logs), undefined, 4)], ['text/plain']);
+    if (typeof options === 'object') {
+      logName = options.logName || logName;
+      filterByLogLevel = options.filterByLogLevel || filterByLogLevel;
+    }
+    else if (typeof options === 'string') {
+      logName = options || logName; 
+    }
+
+    var self = this;
+    var logs = this._rolledLogs.concat(this._logs);
+    if (filterByLogLevel) {
+      logs = logs.filter(function(entry) {
+        return LogLevelOrder[entry.level] >= self._logLevel;
+      });
+    }
+
+    var logBlob = new global.Blob([JSON.stringify(logs, undefined, 4)], ['text/plain']);
     var downloadLink = document.createElement('a');
+    var logName = logName || 'agent-log';
     downloadLink.href = global.URL.createObjectURL(logBlob);
-    downloadLink.download = 'agent-log.txt';
+    downloadLink.download = logName + '.txt';
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
@@ -401,6 +438,10 @@
     });
   };
 
+  Logger.prototype.getLoggerId = function () {
+    return this._loggerId;
+  };
+
   var DownstreamConduitLogger = function (conduit) {
     Logger.call(this);
     this.conduit = conduit;
@@ -416,6 +457,13 @@
   DownstreamConduitLogger.LOG_PUSH_INTERVAL = 1000;
   DownstreamConduitLogger.prototype = Object.create(Logger.prototype);
   DownstreamConduitLogger.prototype.constructor = DownstreamConduitLogger;
+
+  DownstreamConduitLogger.prototype.pushLogsDownstream = function (logs) {
+    var self = this;
+    logs.forEach(function (log) {
+      self.conduit.sendDownstream(connect.EventType.LOG, log);
+    });
+  };
 
   DownstreamConduitLogger.prototype._pushLogsDownstream = function () {
     var self = this;

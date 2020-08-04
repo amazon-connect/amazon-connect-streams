@@ -124,6 +124,9 @@
     connect.rootLogger = new connect.DownstreamConduitLogger(this.conduit);
 
     this.conduit.onDownstream(connect.EventType.SEND_LOGS, function (logsToUpload) {
+      // Add softphone logs downstream
+      connect.getLog().pushLogsDownstream(logsToUpload);
+
       self.logsBuffer = self.logsBuffer.concat(logsToUpload);
       //only call API to send logs if buffer reached cap
       if (self.logsBuffer.length > LOG_BUFFER_CAP_SIZE) {
@@ -134,28 +137,6 @@
       if (data.authToken && data.authToken !== self.initData.authToken) {
         self.initData = data;
         connect.core.init(data);
-
-        // Start polling for agent data.
-        if (!self.agentPolling) {
-          connect.getLog().info("Kicking off agent polling");
-          self.agentPolling = true;
-          self.pollForAgent();
-        } else {
-          connect.getLog().info("Not kicking off new agent polling, since there's already polling going on");
-        }
-        if (!self.configPolling) {
-          connect.getLog().info("Kicking off config polling");
-          self.configPolling = true;
-          self.pollForAgentConfiguration({ repeatForever: true });
-        } else {
-          connect.getLog().info("Not kicking off new config polling, since there's already polling going on");
-        }
-        if (!global.checkAuthTokenInterval) {
-          connect.getLog().info("Kicking off auth token polling");
-          global.checkAuthTokenInterval = global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
-        } else {
-          connect.getLog().info("Not kicking off auth token polling, since there's already polling going on");
-        }
 
         // init only once.
         if (!webSocketManager) {
@@ -173,10 +154,12 @@
           });
 
           webSocketManager.onConnectionGain(function () {
+            self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED);
             self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_GAIN);
           });
 
           webSocketManager.onConnectionLost(function () {
+            self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST);
             self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_LOST);
           });
 
@@ -200,7 +183,24 @@
             webSocketManager.subscribeTopics(topics);
           });
 
-          webSocketManager.init(connect.hitch(self, self.getWebSocketUrl));
+          webSocketManager.init(connect.hitch(self, self.getWebSocketUrl)).then(function(response) {
+            if (response && !response.webSocketConnectionFailed) {
+              // Start polling for agent data.
+              connect.getLog().info("Kicking off agent polling");
+              self.pollForAgent();
+
+              connect.getLog().info("Kicking off config polling");
+              self.pollForAgentConfiguration({ repeatForever: true });
+
+              connect.getLog().info("Kicking off auth token polling");
+              global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
+            } else {
+              if (!connect.webSocketInitFailed) {
+                self.conduit.sendDownstream(connect.WebSocketEvents.INIT_FAILURE);
+                connect.webSocketInitFailed = true;
+              }
+            }
+          });
         } else {
           connect.getLog().info("Not Creating a Websocket instance, since there's already one exist");
         }
@@ -254,7 +254,6 @@
 
   ClientEngine.prototype.pollForAgent = function () {
     var self = this;
-    var client = connect.core.getClient();
     var onAuthFail = connect.hitch(self, self.handleAuthFail);
 
     this.client.call(connect.ClientMethods.GET_AGENT_SNAPSHOT, {
@@ -289,7 +288,6 @@
           }
         },
         authFailure: function () {
-          self.agentPolling = false;
           onAuthFail();
         },
         accessDenied: connect.hitch(self, self.handleAccessDenied)
@@ -330,7 +328,6 @@
         }
       },
       authFailure: function () {
-        self.configPolling = false;
         onAuthFail();
       },
       accessDenied: connect.hitch(self, self.handleAccessDenied)
@@ -487,8 +484,8 @@
       failure: function (err, data) {
         var response = connect.EventFactory.createResponse(connect.EventType.API_RESPONSE, request, data, JSON.stringify(err));
         portConduit.sendDownstream(response.event, response);
-        connect.getLog().error("'%s' API request failed: %s", request.method, err)
-          .withObject({ request: self.filterAuthToken(request), response: response });
+        connect.getLog().error("'%s' API request failed", request.method)
+          .withObject({ request: self.filterAuthToken(request), response: response }).withException(err);
       },
       authFailure: connect.hitch(self, self.handleAuthFail)
     });
@@ -654,7 +651,7 @@
         connect.getLog().info("SendLogs request succeeded.");
       },
       failure: function (err, data) {
-        connect.getLog().error("SendLogs request failed. %s", err);
+        connect.getLog().error("SendLogs request failed.").withObject(data).withException(err);
       },
       authFailure: connect.hitch(self, self.handleAuthFail)
     });
@@ -688,13 +685,13 @@
     var self = this;
     connect.core.authorize(this.initData.authorizeEndpoint).then(function (response) {
       var expiration = new Date(response.expiration);
-      connect.getLog().info("Authorization succeded and the token expires at %s", expiration);
+      connect.getLog().info("Authorization succeeded and the token expires at %s", expiration);
       self.initData.authToken = response.accessToken;
       self.initData.authTokenExpiration = expiration;
       connect.core.initClient(self.initData);
       callbacks.success();
     }).catch(function (response) {
-      connect.getLog().error("Authorization failed %s ", response);
+      connect.getLog().error("Authorization failed with code %s", response.status);
       if (response.status === 401) {
         self.handleAuthFail();
       } else {
