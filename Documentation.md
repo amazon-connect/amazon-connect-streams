@@ -145,6 +145,8 @@ everything set up correctly and that you are able to listen for events.
             forceWindow:          true,   // optional, default FALSE
             height:               600,    // optional
             width:                400,    // optional
+            top:                  0,      // optional, centered by default
+            left:                 0       // optional, centered by default
           },
           region: "eu-central-1",         // REQUIRED for `CHAT`, optional otherwise
           softphone: {                    // optional
@@ -180,6 +182,12 @@ and made available to your JS client code.
       like the default.
    * `width`: Optional, only valid when `forceWindow` is set to `true`. This 
       allows you to define the width of the login pop-up window if you do not 
+      like the default.
+   * `top`: Optional, only valid when `forceWindow` is set to `true`. This 
+      allows you to define the top of the login pop-up window if you do not 
+      like the default.
+   * `left`: Optional, only valid when `forceWindow` is set to `true`. This 
+      allows you to define the left of the login pop-up window if you do not 
       like the default.
 * `loginUrl`: Optional.  Allows custom URL to be used to initiate the ccp, as in
   the case of SAML authentication.
