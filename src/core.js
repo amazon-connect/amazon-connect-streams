@@ -598,7 +598,9 @@
       topic: new Map(),
       allMessage: new Set(),
       connectionGain: new Set(),
-      connectionLost: new Set()
+      connectionLost: new Set(),
+      connectionOpen: new Set(),
+      connectionClose: new Set()
     };
 
     var invokeCallbacks = function (callbacks, response) {
@@ -611,12 +613,20 @@
       invokeCallbacks(callbacks.initFailure);
     });
 
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_OPEN, function (response) {
+      invokeCallbacks(callbacks.connectionOpen, response);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_CLOSE, function (response) {
+      invokeCallbacks(callbacks.connectionClose, response);
+    });
+
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_GAIN, function () {
       invokeCallbacks(callbacks.connectionGain);
     });
 
-    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_LOST, function () {
-      invokeCallbacks(callbacks.connectionLost);
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_LOST, function (response) {
+      invokeCallbacks(callbacks.connectionLost, response);
     });
 
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.SUBSCRIPTION_UPDATE, function (response) {
@@ -643,6 +653,22 @@
       callbacks.initFailure.add(cb);
       return function () {
         return callbacks.initFailure.delete(cb);
+      };
+    };
+
+    this.onConnectionOpen = function(cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.connectionOpen.add(cb);
+      return function () {
+        return callbacks.connectionOpen.delete(cb);
+      };
+    };
+
+    this.onConnectionClose = function(cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.connectionClose.add(cb);
+      return function () {
+        return callbacks.connectionClose.delete(cb);
       };
     };
 

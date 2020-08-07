@@ -153,14 +153,22 @@
             self.conduit.sendDownstream(connect.WebSocketEvents.INIT_FAILURE);
           });
 
+          webSocketManager.onConnectionOpen(function (response) {
+            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_OPEN, response);
+          });
+
+          webSocketManager.onConnectionClose(function (response) {
+            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_CLOSE, response);
+          });
+
           webSocketManager.onConnectionGain(function () {
             self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED);
             self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_GAIN);
           });
 
-          webSocketManager.onConnectionLost(function () {
-            self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST);
-            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_LOST);
+          webSocketManager.onConnectionLost(function (response) {
+            self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST, response);
+            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_LOST, response);
           });
 
           webSocketManager.onSubscriptionUpdate(function (response) {
