@@ -23,6 +23,8 @@ describe('Worker', function () {
       this.wsm = {
         init: sandbox.stub().resolves({ webSocketConnectionFailed: false }),
         onInitFailure: sandbox.stub(),
+        onConnectionOpen: sandbox.stub(),
+        onConnectionClose: sandbox.stub(),
         onConnectionGain: sandbox.stub(),
         onConnectionLost: sandbox.stub(),
         onSubscriptionUpdate: sandbox.stub(),
