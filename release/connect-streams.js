@@ -23978,6 +23978,10 @@
     return this._getData().name;
   };
 
+  Contact.prototype.getContactMetadata = function () {
+    return this._getData().contactMetadata;
+  }
+
   Contact.prototype.getDescription = function () {
     return this._getData().description;
   };
