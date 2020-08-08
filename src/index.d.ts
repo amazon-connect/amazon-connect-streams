@@ -173,6 +173,14 @@ declare namespace connect {
     * The width of the login prompt window.
     */
     width?: number,
+    /* 
+    * The top of the login prompt window.
+    */
+    top?: number,
+    /* 
+    * The left of the login prompt window.
+    */
+    left?: number
   }
 
   interface InitCCPOptions {

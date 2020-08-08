@@ -416,8 +416,8 @@
         // and a unform margin based on the css of the ccp login page
         var height = options.height ? options.height : 578;
         var width = options.width ? options.width : 433;
-        var y = window.top.outerHeight / 2 + window.top.screenY - (height / 2);
-        var x = window.top.outerWidth / 2 + window.top.screenX - (width / 2);
+        var y = isNaN(options.top) ? window.top.outerHeight / 2 + window.top.screenY - (height / 2) : options.top;
+        var x = isNaN(options.left) ? window.top.outerWidth / 2 + window.top.screenX - (width / 2) : options.left;
         win = window.open('', name, "width="+width+", height="+height+", top="+y+", left="+x);
         if (win.location !== url) {
           win = window.open(url, name, "width="+width+", height="+height+", top="+y+", left="+x);
