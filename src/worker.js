@@ -210,7 +210,7 @@
             }
           });
         } else {
-          connect.getLog().info("Not Creating a Websocket instance, since there's already one exist");
+          connect.getLog().info("Not Initializing a new WebsocketManager instance, since one already exists");
         }
       }
     });
