@@ -269,6 +269,10 @@
     connect.core.getUpstream().onUpstream(connect.AgentEvents.MUTE_TOGGLE, f);
   };
 
+  Agent.prototype.onLocalMediaStreamCreated = function (f) {
+    connect.core.getUpstream().onUpstream(connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED, f);
+  };
+
   Agent.prototype.mute = function () {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
       {

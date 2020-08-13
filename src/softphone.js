@@ -233,6 +233,12 @@
           localMediaStream[agentConnectionId] = {
             stream: stream
           };
+          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED,
+            data: {
+              connectionId: agentConnectionId
+            }
+          });
         };
 
         session.remoteAudioElement = document.getElementById('remote-audio');

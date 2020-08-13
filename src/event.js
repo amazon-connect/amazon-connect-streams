@@ -66,7 +66,8 @@
     'websocket_connection_gained',
     'state_change',
     'acw',
-    'mute_toggle'
+    'mute_toggle',
+    'local_media_stream_created'
   ]);
 
   /**---------------------------------------------------------------
