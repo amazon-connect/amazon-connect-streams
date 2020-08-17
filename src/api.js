@@ -668,13 +668,6 @@
       });
   };
 
-  Contact.prototype.destroy = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.DESTROY_CONTACT, {
-      contactId: this.getContactId()
-    }, callbacks);
-  };
-
   Contact.prototype.reject = function (callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.REJECT_CONTACT, {

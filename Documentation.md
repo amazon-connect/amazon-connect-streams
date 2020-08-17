@@ -824,18 +824,7 @@ Accept an incoming contact.
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
 ### `contact.destroy()`
-```js
-contact.destroy({
-   success: function() { /* ... */ },
-   failure: function(err) { /* ... */ }
-});
-```
-Close the contact and all of its associated connections. 
-This method can also reject and clear contacts but those behaviors will be deprecated.
-If the contact is a voice contact, and there is a third-party, the customer remains bridged with the third party and will not
-be disconnected from the call. Otherwise, the agent and customer are disconnected. 
-
-Optional success and failure callbacks can be provided to determine if the operation was successful.
+This method is now deprecated. It has not functioned for the past ~3 years.
 
 ### `contact.reject()`
 ```js
@@ -1025,7 +1014,9 @@ conn.destroy({
    failure: function(err) { /* ... */ }
 });
 ```
-Ends the connection.
+Ends the connection. This can be used to reject contacts, end live contacts, and clear chat ACW.
+At this point, it should only be used to end live contacts. We are deprecating the reject and clear ACW use cases. 
+To reject contacts, please use the `contact.reject()` API. To clear ACW for voice and chat contacts, use the `contact.clear()` API.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 

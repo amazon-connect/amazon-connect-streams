@@ -25,7 +25,6 @@
          'createOutboundContact',
          'clearContact',
          'completeContact',
-         'destroyContact',
          'rejectContact',
          'notifyContactIssue',
          'updateContactAttributes',
