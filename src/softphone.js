@@ -134,7 +134,7 @@
           // Error! our state doesn't match, tear it all down.
           for (var connectionId in rtcSessions) {
             if (rtcSessions.hasOwnProperty(connectionId)) {
-              // Log an error for the session we are about to kill.
+              // Log an error for the session we are about to end.
               publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
               destroySession(connectionId);
             }
