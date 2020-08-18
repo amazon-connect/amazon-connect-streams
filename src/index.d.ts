@@ -933,13 +933,6 @@ declare namespace connect {
     accept(callbacks?: SuccessFailOptions): void;
 
     /**
-     * Reject an incoming contact.
-     *
-     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
-     */
-    reject(callbacks?: SuccessFailOptions): void;
-
-    /**
      * Clear the contact.
      *
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
