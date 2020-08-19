@@ -35,18 +35,18 @@ $ make
 ### Upgrading to the OmniChannel CCP (AKA CCPv2)?
 If you are migrating to the new CCP, we encourage you to upgrade to the latest version of this repository. You should also upgrade to [the latest version of RTC-JS](https://github.com/aws/connect-rtc-js) as well, if you are using it. For a complete migration guide to the new CCP, and to fully understand the differences when using Streams with the new CCP, please see this post: https://docs.aws.amazon.com/connect/latest/adminguide/upgrade-to-latest-ccp.html
 
-### Whitelisting
-The first step to using Streams is to whitelist the pages you wish to embed.
+### Allowlisting
+The first step to using Streams is to allowlist the pages you wish to embed.
 For our customer's security, we require that all domains which embed the CCP for
-a particular instance are explicitly whitelisted. Each domain entry identifies
+a particular instance are explicitly allowlisted. Each domain entry identifies
 the protocol scheme, host, and port. Any pages hosted behind the same protocol
 scheme, host, and port will be allowed to embed the CCP components which are
 required to use the Streams library.
 
-To whitelist your pages:
+To allowlist your pages:
 
 1. Login to your AWS Account, then navigate to the Amazon Connect console.
-2. Click the instance name of the instance for which you would like to whitelist
+2. Click the instance name of the instance for which you would like to allowlist
    pages to load the settings page for your instance.
 3. Click the "Application integration" link on the left.
 4. Click "+ Add Origin", then enter a domain URL, e.g.
@@ -54,9 +54,9 @@ To whitelist your pages:
    website is hosted on a non-standard port.
 
 #### A few things to note:
-* Whitelisted domains must be HTTPS.
+* Allowlisted domains must be HTTPS.
 * All of the pages that attempt to initialize the Streams library must be hosted
-  on domains that are whitelisted as per the above steps.
+  on domains that are allowlisted as per the above steps.
 * All open tabs that contain an initialized Streams library or any other CCP
   tabs opened will be synchronized. This means that state changes made in one
   open window will be communicated to all open windows.

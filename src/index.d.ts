@@ -97,7 +97,7 @@ declare namespace connect {
     viewContact(contactId: string): void;
 
     /**
-     * Subscribes a callback that executes whenever the currently selected contact on the CCP changes.
+     * Subscribes a callback that starts whenever the currently selected contact on the CCP changes.
      * The callback is called when the contact changes in the UI (i.e. via `click` events) or via `connect.core.viewContact()`.
      *
      * @param callback A callback that will receive a `ViewContactEvent` object.
@@ -105,16 +105,16 @@ declare namespace connect {
     onViewContact(callback: ViewContactCallback): void;
 
     /**
-     * Subscribes a callback that executes whenever authentication fails (e.g. SAML authentication).
+     * Subscribes a callback that starts whenever authentication fails (e.g. SAML authentication).
      *
-     * @param callback A callback that will execute whenever authentication fails.
+     * @param callback A callback that will start whenever authentication fails.
      */
     onAuthFail(callback: SuccessFailCallback): void;
 
     /**
-     * Subscribes a callback that executes whenever authorization fails (i.e. access denied).
+     * Subscribes a callback that starts whenever authorization fails (i.e. access denied).
      *
-     * @param callback A callback that will execute whenever access is denied.
+     * @param callback A callback that will start whenever access is denied.
      */
     onAccessDenied(callback: SuccessFailCallback): void;
 
@@ -403,10 +403,10 @@ declare namespace connect {
   type SuccessFailCallback<T extends any[] = []> = (...args: T) => void;
 
   interface SuccessFailOptions {
-    /** A callback that executes when the operation completes successfully. */
+    /** A callback that starts when the operation completes successfully. */
     readonly success?: SuccessFailCallback;
 
-    /** A callback that executes when the operation has an error. */
+    /** A callback that starts when the operation has an error. */
     readonly failure?: SuccessFailCallback<[string]>;
   }
 
@@ -783,7 +783,7 @@ declare namespace connect {
     /**
      * Subscribe a method to be invoked when the contact is connecting.
      * This works with chat and softphone contacts.
-     * This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is executed after the callback is accepted).
+     * This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is started after the callback is accepted).
      * Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
      *
      * @param callback A callback to receive the `Contact` API object instance.

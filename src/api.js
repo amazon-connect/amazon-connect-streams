@@ -1137,9 +1137,9 @@
   };
 
   /**
-   * Execute the given function asynchronously only if the shared worker
+   * Starts the given function asynchronously only if the shared worker
    * says we are the master for the given topic.  If there is no master for
-   * the given topic, we become the master and execute the function.
+   * the given topic, we become the master and start the function.
    *
    * @param topic The master topic we are concerned about.
    * @param f_true The callback to be invoked if we are the master.
