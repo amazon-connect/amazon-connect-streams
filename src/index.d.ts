@@ -161,10 +161,6 @@ declare namespace connect {
     * Whether to auto close the login prompt.
     */
     autoClose?: boolean,
-    /*
-    * Whether to force to login prompt into a new window.
-    */
-    forceWindow?: boolean,
     /* 
     * The height of the login prompt window.
     */
@@ -200,7 +196,21 @@ declare namespace connect {
      * Set to `false` to disable the login popup which is shown when the user's authentication expires.
      * @default true
      */
-    loginPopup?: boolean | LoginOptions;
+    readonly loginPopup?: boolean;
+
+    /**
+     * Options to open login popup in a new window instead of a new tab. If loginPopup is set to
+     * `false`, these options will be ignored.
+     */
+    readonly loginOptions?: LoginOptions;
+
+    /**
+     * Set to `true` in conjunction with the `loginPopup` parameter to automatically close the login
+     * Popup window once the authentication step has completed. If the login page opened in a new
+     * tab, this parameter will also auto-close that tab.
+     * @default false
+     */
+    readonly loginPopupAutoClose?: boolean;
 
     /** Allows custom URL to be used to initiate the ccp, as in the case of SAML authentication. */
     readonly loginUrl?: string;
