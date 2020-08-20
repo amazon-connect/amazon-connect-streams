@@ -1278,3 +1278,4 @@
   connect.SoftphoneError = SoftphoneError;
 
 })();
+
