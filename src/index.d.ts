@@ -202,6 +202,11 @@ declare namespace connect {
      */
     loginPopup?: boolean | LoginOptions;
 
+   /**
+    * Whether to auto-close the CCP popup window. Also can be set in LoginPopup options.
+    */
+   loginPopupAutoClose?: boolean;
+
     /** Allows custom URL to be used to initiate the ccp, as in the case of SAML authentication. */
     readonly loginUrl?: string;
 

@@ -406,6 +406,9 @@
    */
   connect.PopupManager = function () { };
 
+  connect.PopupManager.prototype.DEFAULT_WINDOW_HEIGHT = 578;
+  connect.PopupManager.prototype.DEFAULT_WINDOW_WIDTH = 433;
+
   connect.PopupManager.prototype.open = function (url, name, options) {
     var then = this._getLastOpenedTimestamp(name);
     var now = new Date().getTime();
@@ -414,8 +417,8 @@
       if (options && options.forceWindow === true) {
         // default values below are chosen to provide a minimum height without scrolling
         // and a unform margin based on the css of the ccp login page
-        var height = options.height ? options.height : 578;
-        var width = options.width ? options.width : 433;
+        var height = options.height ? options.height : this.DEFAULT_WINDOW_HEIGHT;
+        var width = options.width ? options.width : this.DEFAULT_WINDOW_WIDTH;
         var y = isNaN(options.top) ? window.top.outerHeight / 2 + window.top.screenY - (height / 2) : options.top;
         var x = isNaN(options.left) ? window.top.outerWidth / 2 + window.top.screenX - (width / 2) : options.left;
         win = window.open('', name, "width="+width+", height="+height+", top="+y+", left="+x);

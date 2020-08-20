@@ -541,7 +541,8 @@
           global.clearInterval(connect.core.iframeRefreshInterval);
           connect.core.iframeRefreshInterval = null;
           connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-          if (params.loginPopup && params.loginPopup.autoClose && connect.core.loginWindow) {
+          if ((params.loginPopupAutoClose || (params.loginPopup && params.loginPopup.autoClose)) && 
+              connect.core.loginWindow) {
             connect.core.loginWindow.close();
             connect.core.loginWindow = null;
           }

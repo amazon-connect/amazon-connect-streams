@@ -140,9 +140,9 @@ everything set up correctly and that you are able to listen for events.
         // initialize the ccp
         connect.core.initCCP(containerDiv, {
           ccpUrl: instanceURL,            // REQUIRED
-          loginPopup:             {       // optional, default TRUE
-            autoClose:            ture,   // optional, default FALSE
-            forceWindow:          true,   // optional, default FALSE
+          loginPopup:             {       // optional, defaults to `true`
+            autoClose:            true,   // optional, defaults to `false`
+            forceWindow:          true,   // optional, defaults to `false`
             height:               600,    // optional
             width:                400,    // optional
             top:                  0,      // optional, centered by default
@@ -168,8 +168,8 @@ and made available to your JS client code.
   in order to use the CCP in a standalone page, it is different for each
   instance.
 * `region`: Amazon connect instance region. ex: `us-west-2`. only required for chat channel.
-* `loginPopup`: Optional.  Set to `false` to disable the login popup which is 
-   shown when the user's authentication expires. Provide an object with the 
+* `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login popup   
+   which is shown when the user's authentication expires. Provide an object with the 
    following options to provide settings for this window:
    * `autoClose`: Optional, defaults to `false`. Set to `true` to automatically
       close the login popup after the user logs in.
