@@ -1218,7 +1218,13 @@
         self.bus.trigger(event, new connect.Agent());
       });
     }
- 
+
+    var oldNextState = oldAgentData && oldAgentData.snapshot.nextState ? oldAgentData.snapshot.nextState.name : null;
+    var newNextState = this.agentData.snapshot.nextState ? this.agentData.snapshot.nextState.name : null;
+    if (oldNextState !== newNextState && newNextState) {
+      self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
+    }
+
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
  

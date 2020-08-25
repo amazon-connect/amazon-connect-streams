@@ -388,6 +388,10 @@
     return this._getData().snapshot.state;
   };
 
+  Agent.prototype.getNextState = function () {
+    return this._getData().snapshot.nextState;
+  };
+
   Agent.prototype.getAvailabilityState = function () {
     return this._getData().snapshot.agentAvailabilityState;
   };
@@ -482,11 +486,17 @@
     }
   };
 
-  Agent.prototype.setState = function (state, callbacks) {
+  Agent.prototype.setState = function (state, callbacks, options) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.PUT_AGENT_STATE, {
-      state: connect.assertNotNull(state, 'state')
+      state: connect.assertNotNull(state, 'state'),
+      enqueueNextState: options && !!options.enqueueNextState
     }, callbacks);
+  };
+
+  Agent.prototype.onEnqueuedNextState = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
   };
 
   Agent.prototype.setStatus = Agent.prototype.setState;
