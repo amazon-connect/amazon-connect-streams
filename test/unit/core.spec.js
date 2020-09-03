@@ -56,6 +56,7 @@ describe('Core', function () {
             connect.core.initSharedWorker(this.params);
             expect(connect.core.checkNotInitialized.called);
             expect(SharedWorker.calledWith(this.params.sharedWorkerUrl, "ConnectSharedWorker"));
+            expect(connect.core.region).not.to.be.a("null");
         })
     });
 
@@ -139,6 +140,7 @@ describe('Core', function () {
             this.containerDiv = { appendChild: sandbox.spy() };
             this.params = connect.merge({}, this.params, {
                 ccpUrl: "url.com",
+                loginUrl: "loginUrl.com",
                 softphone: {
                     ringtoneUrl: "customVoiceRingtone.amazon.com"
                 },

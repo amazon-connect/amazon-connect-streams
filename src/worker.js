@@ -118,6 +118,8 @@
     this.portConduitMap = {};
     this.masterCoord = new MasterTopicCoordinator();
     this.logsBuffer = [];
+    this.suppress = false;
+    this.forceOffline = false;
 
     var webSocketManager = null;
 
@@ -133,11 +135,27 @@
         self.handleSendLogsRequest(self.logsBuffer);
       }
     });
+
+    this.conduit.onDownstream(connect.DisasterRecoveryEvents.SUPPRESS, function (data){
+      connect.getLog().debug("[Disaster Recovery] Setting Suppress to %s", data.suppress);
+      self.suppress = data.suppress || false;
+      //signal other windows that a failover happened
+      if (self.masterCoord.getMaster(connect.MasterTopics.SOFTPHONE)) {
+        self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
+          isPrimary: !self.suppress
+        });      
+      }
+    });
+
+    this.conduit.onDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, function (data) {
+      connect.getLog().debug("[Disaster Recovery] Setting FORCE_OFFLINE to %s", data.offline);
+      self.forceOffline = data.offline || false;
+    });
+
     this.conduit.onDownstream(connect.EventType.CONFIGURE, function (data) {
       if (data.authToken && data.authToken !== self.initData.authToken) {
         self.initData = data;
         connect.core.init(data);
-
         // init only once.
         if (!webSocketManager) {
 
@@ -595,12 +613,20 @@
       });
       this.agent.configuration.routingProfile.routingProfileId =
         this.agent.configuration.routingProfile.routingProfileARN;
-
+      
+      if (this.suppress) {
+        this.agent.snapshot.contacts = this.agent.snapshot.contacts.filter(function(contact){
+          return (contact.state.type == connect.ConnectionStateType.HOLD || contact.state.type == connect.ConnectionStateType.CONNECTED);
+        });
+        if (this.forceOffline) {
+          this.conduit.sendDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE);
+        }
+      } 
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
   };
 
-  /**
+/**
  * Provides a websocket url through the create_transport API.
  * @returns a promise which, upon success, returns the response from the createTransport API.
  */

@@ -1190,3 +1190,4 @@
   connect.SoftphoneError = SoftphoneError;
 
 })();
+

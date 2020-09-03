@@ -7,8 +7,14 @@ var istanbul = require('gulp-istanbul'),
     jshint = require('gulp-jshint'),
     replace = require('gulp-replace'),
     pump = require('pump');
+    fs = require('fs');
+    path = require('path');
 
-var source = [ "src/aws-client.js",
+var DESTINATION_FOLDER = './release/';
+
+var sourceCode = {
+  streamJs: {
+    sources: ["src/aws-client.js",
     "src/sprintf.js",
     "src/log.js", 
     "src/util.js",
@@ -22,9 +28,19 @@ var source = [ "src/aws-client.js",
     "src/ringtone.js",
     "src/softphone.js",
     "src/worker.js",
-    "src/mediaControllers/*",
-   
-];
+    "src/mediaControllers/*"
+    ],
+    destFilename: 'connect-streams.js',
+    destMinifiedFilename: 'connect-streams-min.js',
+  },
+  disasterRecovery: {
+    sources: [ "src/sprintf.js",
+    "src/util.js",
+    "src/drCoordinator/*"],
+    destFilename: 'connect-streams-dr.js',
+    destMinifiedFilename: 'connect-streams-dr-min.js',
+  }
+}
 
 gulp.task('pre-test', function () {
     return gulp.src(['./src/*.js'])
@@ -47,16 +63,33 @@ gulp.task('watch', function() {
 });
 
 gulp.task('script', function (cb) {
+  var streamJs = sourceCode.streamJs;
   pump([
-    gulp.src(source),
+    gulp.src(streamJs.sources),
     jshint(),
     replace("STREAMS_VERSION", process.env.npm_package_version),
-    concat('connect-streams.js'),
-    gulp.dest('./release/'),
-    rename('connect-streams-min.js'),
+    concat(streamJs.destFilename),
+    gulp.dest(DESTINATION_FOLDER),
+    rename(streamJs.destMinifiedFilename),
     uglify(),
-    gulp.dest('./release/')
+    gulp.dest(DESTINATION_FOLDER)
   ], cb);
 });
 
-gulp.task('default', gulp.series('script', 'test'));
+
+gulp.task('script-with-dr', function(cb) {
+  var dr = sourceCode.disasterRecovery;
+  var streamJs = sourceCode.streamJs;
+  pump([
+    gulp.src(dr.sources),
+    jshint(),
+    replace("INSERT_LATEST_STREAMJS_BASE64_CODE", fs.readFileSync(path.join(DESTINATION_FOLDER, streamJs.destFilename), "base64")),
+    concat(dr.destFilename),
+    gulp.dest(DESTINATION_FOLDER),
+    rename(dr.destMinifiedFilename),
+    uglify(),
+    gulp.dest(DESTINATION_FOLDER)
+  ], cb)
+});
+
+gulp.task('default', gulp.series('script', 'script-with-dr', 'test'));
