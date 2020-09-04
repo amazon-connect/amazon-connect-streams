@@ -142,7 +142,14 @@ everything setup correctly and that you will be able to listen for events.
         // initialize the ccp
         connect.core.initCCP(containerDiv, {
           ccpUrl: instanceURL,            // REQUIRED
-          loginPopup: true,               // optional, defaults to `true`
+          loginPopup:             {       // optional, defaults to `true`
+            autoClose:            true,   // optional, defaults to `false`
+            forceWindow:          true,   // optional, defaults to `false`
+            height:               600,    // optional
+            width:                400,    // optional
+            top:                  0,      // optional, centered by default
+            left:                 0       // optional, centered by default
+          },
           region: "eu-central-1",         // REQUIRED for `CHAT`, optional otherwise
           softphone: {                    // optional
             allowFramedSoftphone: true,   // optional
@@ -163,11 +170,26 @@ and made available to your JS client code.
   in order to use the CCP in a standalone page, it is different for each
   instance.
 * `region`: Amazon connect instance region. ex: `us-west-2`. only required for chat channel.
-* `loginPopup`: Optional, defaults to `true`. Set to `false` to disable the login
-  popup which is shown when the user's authentication expires.
-* `loginPopupAutoClose`: Optional, defaults to `false`. Set to `true` in conjunction with the `loginPopup` parameter
-  to automatically close the login Popup window once the authentication step has completed.
-  If the login page opened in a new tab, this parameter will also auto-close that tab.
+* `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login popup   
+   which is shown when the user's authentication expires. Provide an object with the 
+   following options to provide settings for this window:
+   * `autoClose`: Optional, defaults to `false`. Set to `true` to automatically
+      close the login popup after the user logs in.
+   * `forceWindow`: Optional, defaults to `false`. Set to `true` to force the 
+      login popup to open in a centered pop-up window. When `false`, the popup 
+      will behave according to the user's browser settings, which often defaults 
+      to opening in a new tab.
+   * `height`: Optional, only valid when `forceWindow` is set to `true`. This 
+      allows you to define the height of the login pop-up window if you do not 
+      like the default.
+   * `width`: Optional, only valid when `forceWindow` is set to `true`. This 
+      allows you to define the width of the login pop-up window if you do not 
+      like the default.
+   * `top`: Optional, only valid when `forceWindow` is set to `true`. This 
+      allows you to define the top of the login pop-up window if you do not 
+      like the default.
+   * `left`: Optional, only valid when `forceWindow` is set to `true`. This 
+      allows you to define the left of the login pop-up window if you do not 
 * `loginUrl`: Optional. Allows custom URL to be used to initiate the ccp, as in
   the case of SAML authentication.
 * `softphone`: This object is optional and allows you to specify some settings

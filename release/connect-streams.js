@@ -22061,19 +22061,35 @@
    */
   connect.PopupManager = function () { };
 
-  connect.PopupManager.prototype.open = function(url, name) {
+  connect.PopupManager.prototype.DEFAULT_WINDOW_HEIGHT = 578;
+  connect.PopupManager.prototype.DEFAULT_WINDOW_WIDTH = 433;
+
+  connect.PopupManager.prototype.open = function (url, name, options) {
     var then = this._getLastOpenedTimestamp(name);
     var now = new Date().getTime();
-    var win = null;      
+    var win = null;
     if (now - then > ONE_DAY_MILLIS) {
-       win = window.open('', name);
-       if (win.location !== url) {
+      if (options && options.forceWindow === true) {
+        // default values below are chosen to provide a minimum height without scrolling
+        // and a unform margin based on the css of the ccp login page
+        var height = options.height ? options.height : this.DEFAULT_WINDOW_HEIGHT;
+        var width = options.width ? options.width : this.DEFAULT_WINDOW_WIDTH;
+        var y = isNaN(options.top) ? window.top.outerHeight / 2 + window.top.screenY - (height / 2) : options.top;
+        var x = isNaN(options.left) ? window.top.outerWidth / 2 + window.top.screenX - (width / 2) : options.left;
+        win = window.open('', name, "width="+width+", height="+height+", top="+y+", left="+x);
+        if (win.location !== url) {
+          win = window.open(url, name, "width="+width+", height="+height+", top="+y+", left="+x);
+        }
+      } else {
+        win = window.open('', name);
+        if (win.location !== url) {
           win = window.open(url, name);
-       }
-       this._setLastOpenedTimestamp(name, now);
+        }
+      }
+      this._setLastOpenedTimestamp(name, now);
     }
     return win;
- };
+  };
 
   connect.PopupManager.prototype.clear = function (name) {
     var key = this._getLocalStorageKey(name);
@@ -25059,8 +25075,8 @@
           if (params.loginUrl) {
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
           }
-          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
-
+          var options = params.loginPopup && params.loginPopup.forceWindow ? params.loginPopup : {}
+          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, options);
         } catch (e) {
           connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
         }
@@ -25076,7 +25092,8 @@
           global.clearInterval(connect.core.iframeRefreshInterval);
           connect.core.iframeRefreshInterval = null;
           connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-          if (params.loginPopupAutoClose && connect.core.loginWindow) {
+          if ((params.loginPopupAutoClose || (params.loginPopup && params.loginPopup.autoClose)) && 
+              connect.core.loginWindow) {
             connect.core.loginWindow.close();
             connect.core.loginWindow = null;
           }
