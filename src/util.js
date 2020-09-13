@@ -11,6 +11,8 @@
 
   var userAgent = navigator.userAgent;
   var ONE_DAY_MILLIS = 24 * 60 * 60 * 1000;
+  var DEFAULT_POPUP_HEIGHT = 578;
+  var DEFAULT_POPUP_WIDTH = 433;
 
   /**
    * Unpollute sprintf functions from the global namespace.
@@ -406,24 +408,21 @@
    */
   connect.PopupManager = function () { };
 
-  connect.PopupManager.prototype.DEFAULT_WINDOW_HEIGHT = 578;
-  connect.PopupManager.prototype.DEFAULT_WINDOW_WIDTH = 433;
-
   connect.PopupManager.prototype.open = function (url, name, options) {
     var then = this._getLastOpenedTimestamp(name);
     var now = new Date().getTime();
     var win = null;
     if (now - then > ONE_DAY_MILLIS) {
-      if (options && options.forceWindow === true) {
-        // default values below are chosen to provide a minimum height without scrolling
-        // and a unform margin based on the css of the ccp login page
-        var height = options.height ? options.height : this.DEFAULT_WINDOW_HEIGHT;
-        var width = options.width ? options.width : this.DEFAULT_WINDOW_WIDTH;
-        var y = isNaN(options.top) ? window.top.outerHeight / 2 + window.top.screenY - (height / 2) : options.top;
-        var x = isNaN(options.left) ? window.top.outerWidth / 2 + window.top.screenX - (width / 2) : options.left;
-        win = window.open('', name, "width="+width+", height="+height+", top="+y+", left="+x);
+      if (options) {
+        // default values are chosen to provide a minimum height without scrolling
+        // and a uniform margin based on the css of the ccp login page
+        var height = options.height ? options.height : DEFAULT_POPUP_HEIGHT;
+        var width = options.width ? options.width : DEFAULT_POPUP_WIDTH;
+        var top = isNaN(options.top) ? 0 : options.top;
+        var left = isNaN(options.left) ? 0 : options.left;
+        win = window.open('', name, "width="+width+", height="+height+", top="+top+", left="+left);
         if (win.location !== url) {
-          win = window.open(url, name, "width="+width+", height="+height+", top="+y+", left="+x);
+          win = window.open(url, name, "width="+width+", height="+height+", top="+top+", left="+left);
         }
       } else {
         win = window.open('', name);
