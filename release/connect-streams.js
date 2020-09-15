@@ -22071,10 +22071,10 @@
       if (options) {
         // default values are chosen to provide a minimum height without scrolling
         // and a uniform margin based on the css of the ccp login page
-        var height = options.height ? options.height : DEFAULT_POPUP_HEIGHT;
-        var width = options.width ? options.width : DEFAULT_POPUP_WIDTH;
-        var top = isNaN(options.top) ? 0 : options.top;
-        var left = isNaN(options.left) ? 0 : options.left;
+        var height = options.height || DEFAULT_POPUP_HEIGHT;
+        var width = options.width || DEFAULT_POPUP_WIDTH;
+        var top = options.top || 0;
+        var left = options.left || 0;
         win = window.open('', name, "width="+width+", height="+height+", top="+top+", left="+left);
         if (win.location !== url) {
           win = window.open(url, name, "width="+width+", height="+height+", top="+top+", left="+left);
@@ -25074,8 +25074,7 @@
           if (params.loginUrl) {
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
           }
-          var options = params.loginOptions ? params.loginOptions : false;
-          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, options);
+          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
         } catch (e) {
           connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
         }

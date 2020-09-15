@@ -416,10 +416,10 @@
       if (options) {
         // default values are chosen to provide a minimum height without scrolling
         // and a uniform margin based on the css of the ccp login page
-        var height = options.height ? options.height : DEFAULT_POPUP_HEIGHT;
-        var width = options.width ? options.width : DEFAULT_POPUP_WIDTH;
-        var top = isNaN(options.top) ? 0 : options.top;
-        var left = isNaN(options.left) ? 0 : options.left;
+        var height = options.height || DEFAULT_POPUP_HEIGHT;
+        var width = options.width || DEFAULT_POPUP_WIDTH;
+        var top = options.top || 0;
+        var left = options.left || 0;
         win = window.open('', name, "width="+width+", height="+height+", top="+top+", left="+left);
         if (win.location !== url) {
           win = window.open(url, name, "width="+width+", height="+height+", top="+top+", left="+left);
