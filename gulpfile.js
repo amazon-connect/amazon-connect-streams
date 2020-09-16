@@ -50,13 +50,27 @@ gulp.task('pre-test', function () {
         .pipe(istanbul.hookRequire());
 });
 
-gulp.task('test', gulp.series('pre-test', function (cb) {
-  return gulp.src(['test/unit/**/*.spec.js'])
+gulp.task('test-streamjs', function(cb) {
+  return gulp.src(['test/unit/**/*.spec.js', '!test/unit/drCoordinator/*.spec.js'])
     .pipe(mocha({exit: true, showStack:true}))
     .on('error', (err) => cb(err))
     // Creating the reports after tests ran
-    .pipe(istanbul.writeReports());
-}));
+    .pipe(istanbul.writeReports());  
+});
+
+gulp.task('test-dr-streamjs', function(cb) {
+  return gulp.src(['test/unit/drCoordinator/*.spec.js'])
+    .pipe(mocha({exit: true, showStack:true}))
+    .on('error', (err) => cb(err))
+    // Creating the reports after tests ran
+    .pipe(istanbul.writeReports());  
+});
+
+//todo find a way to do a merge reports
+gulp.task('test', gulp.series('pre-test', 
+  'test-streamjs', 
+  'test-dr-streamjs')
+);
  
 gulp.task('watch', function() {
   gulp.watch('src/*.js', gulp.series('script'));

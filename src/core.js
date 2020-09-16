@@ -18,6 +18,7 @@
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
   var CCP_LOAD_TIMEOUT = 3000; // 3 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
+  var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
  
   var LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
   var CLIENT_ID_MAP = {
@@ -549,7 +550,7 @@
  
     // Create the CCP iframe and append it to the container div.
     var iframe = document.createElement('iframe');
-    iframe.src = (params.disasterRecoveryOn) ? params.loginUrl : params.ccpUrl;
+    iframe.src = params.ccpUrl;
     iframe.allow = "microphone; autoplay";
     iframe.style = "width: 100%; height: 100%";
     containerDiv.appendChild(iframe);
@@ -660,9 +661,10 @@
       }
  
       if (connect.core.iframeRefreshInterval == null) {
+        var ccp_iframe_refresh_interval = (params.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL : CCP_IFRAME_REFRESH_INTERVAL;
         connect.core.iframeRefreshInterval = window.setInterval(function () {
           iframe.src = (params.disasterRecoveryOn) ? params.loginUrl : params.ccpUrl;
-        }, CCP_IFRAME_REFRESH_INTERVAL);
+        }, ccp_iframe_refresh_interval);
  
         conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
           this.unsubscribe();
