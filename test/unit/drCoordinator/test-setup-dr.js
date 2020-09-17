@@ -18,7 +18,8 @@ global.document = {
 global.window = {
   addEventListener: sinon.spy(),
   document: global.document,
-  atob: sinon.stub().returns({})
+  atob: sinon.stub().returns({}),
+  getComputedStyle: sinon.stub().returns({})
 };
 require("../../../release/connect-streams-dr.js");
 global.connect.RTCSession = function () {};
