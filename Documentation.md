@@ -305,7 +305,7 @@ longer exist. Users can also manually unsubscribe from events by calling
 connect.agent(function(agent) { /* ... */ });
 ```
 Subscribe a method to be called when the agent is initialized. If the agent has
-already been initalized, the call is synchronous and the callback is invoked
+already been initialized, the call is synchronous and the callback is invoked
 immediately. Otherwise, the callback is invoked once the first agent data is
 received from upstream. This callback is provided with an `Agent` API object,
 which can also be created at any time after initialization is complete via `new
@@ -629,7 +629,7 @@ agent.onMuteToggle(function(obj) {
 });
 ```
 Subscribe a method to be called when the agent updates the mute status, meaning
-that agents mute/unmute APIs are called and the local media stream is succesfully updated with the new status.
+that agents mute/unmute APIs are called and the local media stream is successfully updated with the new status.
 
 ## Contact API
 The Contact API provides event subscription methods and action methods which can be called on behalf of a specific
@@ -782,7 +782,7 @@ Get the initial connection of the contact.
 ```js
 var initialConn = contact.getActiveInitialConnection();
 ```
-Get the inital connection of the contact, or null if the initial connection is
+Get the initial connection of the contact, or null if the initial connection is
 no longer active.
 
 ### `contact.getThirdPartyConnections()`

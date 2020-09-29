@@ -33,7 +33,7 @@ declare namespace connect {
 
   /**
    * Subscribe a method to be called when the agent is initialized.
-   * If the agent has already been initalized, the call is synchronous and the callback is invoked immediately.
+   * If the agent has already been initialized, the call is synchronous and the callback is invoked immediately.
    * Otherwise, the callback is invoked once the first agent data is received from upstream.
    * This callback is provided with an `Agent` API object, which can also be created at any time after initialization is complete via `new connect.Agent()`.
    *
@@ -648,7 +648,7 @@ declare namespace connect {
     unmute(): void;
 
     /**
-     * Subscribe a method to be called when the agent updates the mute status, meaning that agents mute/unmute APIs are called and the local media stream is succesfully updated with the new status.
+     * Subscribe a method to be called when the agent updates the mute status, meaning that agents mute/unmute APIs are called and the local media stream is successfully updated with the new status.
      *
      * @param callback A callback to receive updates on agent mute state
      */
@@ -927,7 +927,7 @@ declare namespace connect {
     /** Get the initial connection of the contact. */
     getInitialConnection(): BaseConnection;
 
-    /** Get the inital connection of the contact, or null if the initial connection is no longer active. */
+    /** Get the initial connection of the contact, or null if the initial connection is no longer active. */
     getActiveInitialConnection(): BaseConnection | null;
 
     /** Get a list of all of the third-party connections, i.e. the list of all connections except for the initial connection, or an empty list if there are no third-party connections. */
