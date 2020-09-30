@@ -45,6 +45,24 @@
    ]);
 
    /**---------------------------------------------------------------
+    * enum HudsonClientMethods
+    */
+   connect.HudsonClientLCMSMethods = connect.makeGenericNamespacedEnum("HudsonService.lcms",[
+      'GetSpeakerId'
+   ],".");
+
+   connect.HudsonClientSigmaMethods = connect.makeGenericNamespacedEnum("HudsonService.sigma",[
+      'EnrollSpeakerInSigma',
+      'EvaluateSpeakerWithSigma',
+      'GetSigmaSpeakerStatus',
+      'OptOutSigmaSpeaker'
+   ],".");
+
+   connect.HudsonClientNasaMethods = connect.makeGenericNamespacedEnum("HudsonService.nasa",[
+      'StartSigmaSession'
+   ],".");
+
+   /**---------------------------------------------------------------
     * enum MasterMethods
     */
    connect.MasterMethods = connect.makeEnum([
@@ -151,7 +169,35 @@
    };
    UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
+   
+   /**---------------------------------------------------------------
+   * class HudsonClient extends ClientBase
+   */
+   var HudsonClient = function(authToken, endpoint) {
+      connect.assertNotNull(authToken, 'authToken');
+      connect.assertNotNull(endpoint, 'endpoint');
+      ClientBase.call(this);
+      this.endpointUrl = endpoint;
+      this.authToken = authToken;
+   };
 
+   HudsonClient.prototype = Object.create(ClientBase.prototype);
+   HudsonClient.prototype.constructor = HudsonClient;
+
+   HudsonClient.prototype._callImpl = function(method, params) {
+      var self = this;
+      var options = {
+         method: 'post',
+         body: JSON.stringify(params || {}),
+         headers: {
+               'Accept': 'application/json',
+               'Content-Type': 'application/json',
+               'X-Amz-target': method
+         },
+         credentials: 'include'
+      };
+      return connect.fetch(self.endpointUrl, options);
+   };
    /**---------------------------------------------------------------
     * class AWSClient extends ClientBase
     */
@@ -321,5 +367,6 @@
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
+   connect.HudsonClient = HudsonClient;
 
 })();

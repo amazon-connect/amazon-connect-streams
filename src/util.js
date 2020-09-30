@@ -205,6 +205,14 @@
     return enumObj;
   };
 
+  connect.makeGenericNamespacedEnum = function (prefix, values, delimiter) {
+    var enumObj = connect.makeEnum(values);
+    connect.keys(enumObj).forEach(function (key) {
+      enumObj[key] = connect.sprintf("%s"+delimiter+"%s", prefix, enumObj[key]);
+    });
+    return enumObj;
+  };
+
   /**
   * Methods to determine browser type and versions, used for softphone initialization.
   */

@@ -723,6 +723,7 @@
       self.initData.authToken = response.accessToken;
       self.initData.authTokenExpiration = expiration;
       connect.core.initClient(self.initData);
+      connect.core.initHudsonClient(self.initData);
       callbacks.success();
     }).catch(function (response) {
       connect.getLog().error("Authorization failed with code %s", response.status);
