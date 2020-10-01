@@ -33,6 +33,8 @@
     'broadcast',
     'api_metric',
     'client_metric',
+    'softphone_stats',
+    'softphone_report',
     'mute',
     "iframe_style"
   ]);

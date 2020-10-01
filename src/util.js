@@ -401,6 +401,16 @@
     bus.trigger(connect.EventType.CLIENT_METRIC, metricData);
   };
 
+  connect.publishSoftphoneStats = function(stats) {
+    var bus = connect.core.getEventBus();
+    bus.trigger(connect.EventType.SOFTPHONE_STATS, stats);
+  };
+
+  connect.publishSoftphoneReport = function(report) {
+    var bus = connect.core.getEventBus();
+    bus.trigger(connect.EventType.SOFTPHONE_REPORT, report);
+  };
+
   /**
    * A wrapper around Window.open() for managing single instance popups.
    */
