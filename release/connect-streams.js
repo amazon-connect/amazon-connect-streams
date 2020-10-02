@@ -746,10 +746,7 @@
           "type": "structure",
           "required": [
             "endpoint",
-            "name",
-            "description",
-            "references",
-            "idempotencyToken"
+            "name"
           ],
           "members": {
             "endpoint": {
@@ -760,9 +757,6 @@
             "description": {},
             "references": {
               "shape": "Sr"
-            },
-            "isAssignToSelf": {
-              "type": "boolean"
             },
             "idempotencyToken": {}
           }
@@ -23804,10 +23798,15 @@
 
   Agent.prototype.createTask = function(taskContact, callbacks) {
     connect.assertNotNull(taskContact, 'Task contact object');
-    
+    connect.assertNotNull(taskContact.name, 'Task name');
+    connect.assertNotNull(taskContact.endpoint, 'Task endpoint');
+
+    taskContact.idempotencyToken = AWS.util.uuid.v4();
+    delete taskContact.endpoint.endpointId;
+
     var client = connect.core.getClient();
 
-    client.call(connect.ClientMethods.CREATE_TASK_CONTACT, taskContact,callbacks);
+    client.call(connect.ClientMethods.CREATE_TASK_CONTACT, taskContact, callbacks);
   };
 
   Agent.prototype.getAllQueueARNs = function () {
@@ -24522,11 +24521,16 @@
   }
 
   TaskConnection.prototype.getMediaInfo = function () {
-    return null;
+      var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+      var mediaObject = {
+        contactId: this.contactId,
+        initialContactId: contactData.initialContactId || this.contactId,
+      };
+      return mediaObject;
   };
 
   TaskConnection.prototype.getMediaController = function () {
-    return null;
+    return connect.core.mediaFactory.get(this);
   };
 
   /*----------------------------------------------------------------
@@ -24698,7 +24702,7 @@
   connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
- 
+
   connect.core = {};
   connect.core.initialized = false;
   connect.version = "1.4.0";
@@ -24723,7 +24727,7 @@
   var WHITELISTED_ORIGINS_MAX_RETRY = 5;
  
   /**
-   * @deprecated
+ * @deprecated
    * We will no longer need this function soon.
    */
   var createLoginUrl = function (params) {
@@ -27631,6 +27635,7 @@
       });
 
       controller.onConnectionEstablished(function (data) {
+        console.log('Chat session connection establishedddddd');
         logger.info(logComponent, "Chat Session connection established").withObject(data);
         publishTelemetryEvent("Chat Session connection established", data);
       });
@@ -27714,6 +27719,7 @@
     };
 
     var destroy = function (connectionId) {
+      debugger;
       if (mediaControllers[connectionId]) {
         logger.info(logComponent, "Destroying mediaController for %s", connectionId);
         delete mediaControllers[connectionId];
@@ -27755,4 +27761,84 @@
       }
     }
   }
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
+
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+
+  connect.TaskMediaController = function (mediaInfo, metadata) {
+    var logger = connect.getLog();
+    var logComponent = connect.LogComponent.TASK;
+
+    var createMediaInstance = function () {
+      publishTelemetryEvent("Task media controller init", mediaInfo.contactId);
+      logger.info(logComponent, "Task media controller init").withObject(mediaInfo);
+
+      console.log('before controller init');
+      var controller = connect.TaskSession.create({
+        contactId: mediaInfo.contactId,
+        initialContactId: mediaInfo.initialContactId,
+        websocketManager: connect.core.getWebSocketManager(),
+      });
+
+      trackTaskConnectionStatus(controller)
+
+      console.log('before controller connect');
+      return controller
+        .connect()
+        .then(function () {
+          logger.info(logComponent, "Task Session Successfully established for contactId %s", mediaInfo.contactId);
+          publishTelemetryEvent("Chat Session Successfully established", mediaInfo.contactId);
+          return controller;
+        })
+        .catch(function (error) {
+          logger.error(logComponent, "Task Session establishement failed for contact %s", mediaInfo.contactId).withException(error);
+          publishTelemetryEvent("Chat Session establishement failed", mediaInfo.contactId, error);
+          throw error;
+        });
+    };
+
+    var publishTelemetryEvent = function (eventName, data) {
+      connect.publishMetric({
+        name: eventName,
+        contactId: mediaInfo.contactId,
+        data: data || mediaInfo
+      });
+    };
+
+    var trackTaskConnectionStatus = function (controller) {
+      controller.onConnectionBroken(function (data) {
+        logger.error(logComponent, "Task Session connection broken").withException(data);
+        publishTelemetryEvent("Task Session connection broken", data);
+      });
+
+      controller.onConnectionEstablished(function (data) {
+        logger.info(logComponent, "Task Session connection established").withObject(data);
+        publishTelemetryEvent("Task Session connection established", data);
+      });
+    }
+
+    return {
+      get: function () {
+        return createMediaInstance();
+      },
+    };
+  };
 })();

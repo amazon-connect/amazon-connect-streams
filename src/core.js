@@ -8,7 +8,7 @@
   connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
- 
+
   connect.core = {};
   connect.core.initialized = false;
   connect.version = "STREAMS_VERSION";
@@ -33,7 +33,7 @@
   var WHITELISTED_ORIGINS_MAX_RETRY = 5;
  
   /**
-   * @deprecated
+ * @deprecated
    * We will no longer need this function soon.
    */
   var createLoginUrl = function (params) {
