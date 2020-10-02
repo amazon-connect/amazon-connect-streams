@@ -1142,11 +1142,16 @@
   }
 
   TaskConnection.prototype.getMediaInfo = function () {
-    return null;
+      var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+      var mediaObject = {
+        contactId: this.contactId,
+        initialContactId: contactData.initialContactId || this.contactId,
+      };
+      return mediaObject;
   };
 
   TaskConnection.prototype.getMediaController = function () {
-    return null;
+    return connect.core.mediaFactory.get(this);
   };
 
   /*----------------------------------------------------------------

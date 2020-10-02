@@ -68,6 +68,7 @@
     };
 
     var destroy = function (connectionId) {
+      debugger;
       if (mediaControllers[connectionId]) {
         logger.info(logComponent, "Destroying mediaController for %s", connectionId);
         delete mediaControllers[connectionId];
