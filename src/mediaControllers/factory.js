@@ -21,6 +21,7 @@
   connect.MediaFactory = function (params) {
     /** controller holder */
     var mediaControllers = {};
+    var toBeDestroyed = new Set();
 
     var logger = connect.getLog();
     var logComponent = connect.LogComponent.CHAT;
@@ -44,6 +45,8 @@
             return mediaControllers[connectionId] = new connect.ChatMediaController(connectionObj.getMediaInfo(), metadata).get();
           case connect.MediaType.SOFTPHONE:
             return mediaControllers[connectionId] = new connect.SoftphoneMediaController(connectionObj.getMediaInfo()).get();
+          case connect.MediaType.TASK:
+            return mediaControllers[connectionId] = new connect.TaskMediaController(connectionObj.getMediaInfo()).get();
           default:
             logger.error(logComponent, "Unrecognized media type %s ", connectionObj.getMediaType());
             return Promise.reject();
@@ -68,10 +71,23 @@
     };
 
     var destroy = function (connectionId) {
-      debugger;
-      if (mediaControllers[connectionId]) {
-        logger.info(logComponent, "Destroying mediaController for %s", connectionId);
-        delete mediaControllers[connectionId];
+      if (mediaControllers[connectionId] && !toBeDestroyed.has(connectionId)) {
+        logger.info(
+          logComponent,
+          "Destroying mediaController for %s",
+          connectionId
+        );
+        toBeDestroyed.add(connectionId);
+        mediaControllers[connectionId]
+          .then(function() {
+            if (typeof controller.cleanUp === "function") controller.cleanUp();
+            delete mediaControllers[connectionId];
+            toBeDestroyed.delete(connectionId);
+          })
+          .catch(function() {
+            delete mediaControllers[connectionId];
+            toBeDestroyed.delete(connectionId);
+          });
       }
     };
 

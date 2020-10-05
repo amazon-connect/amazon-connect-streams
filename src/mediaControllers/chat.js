@@ -70,7 +70,6 @@
       });
 
       controller.onConnectionEstablished(function (data) {
-        console.log('Chat session connection establishedddddd');
         logger.info(logComponent, "Chat Session connection established").withObject(data);
         publishTelemetryEvent("Chat Session connection established", data);
       });
