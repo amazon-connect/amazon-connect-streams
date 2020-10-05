@@ -27672,6 +27672,7 @@
   connect.MediaFactory = function (params) {
     /** controller holder */
     var mediaControllers = {};
+    var toBeDestroyed = new Set();
 
     var logger = connect.getLog();
     var logComponent = connect.LogComponent.CHAT;
@@ -27695,6 +27696,8 @@
             return mediaControllers[connectionId] = new connect.ChatMediaController(connectionObj.getMediaInfo(), metadata).get();
           case connect.MediaType.SOFTPHONE:
             return mediaControllers[connectionId] = new connect.SoftphoneMediaController(connectionObj.getMediaInfo()).get();
+          case connect.MediaType.TASK:
+            return mediaControllers[connectionId] = new connect.TaskMediaController(connectionObj.getMediaInfo()).get();
           default:
             logger.error(logComponent, "Unrecognized media type %s ", connectionObj.getMediaType());
             return Promise.reject();
@@ -27719,10 +27722,24 @@
     };
 
     var destroy = function (connectionId) {
-      debugger;
-      if (mediaControllers[connectionId]) {
-        logger.info(logComponent, "Destroying mediaController for %s", connectionId);
-        delete mediaControllers[connectionId];
+      if (mediaControllers[connectionId] && !toBeDestroyed.has(connectionId)) {
+        logger.info(
+          logComponent,
+          "Destroying mediaController for %s",
+          connectionId
+        );
+        toBeDestroyed.add(connectionId);
+        mediaControllers[connectionId]
+          .then(function() {
+            if (typeof controller.cleanUp === "function") controller.cleanUp();
+            delete mediaControllers[connectionId];
+            console.log("Destroyed media controller");
+            toBeDestroyed.delete(connectionId);
+          })
+          .catch(function() {
+            delete mediaControllers[connectionId];
+            toBeDestroyed.delete(connectionId);
+          });
       }
     };
 
@@ -27783,34 +27800,51 @@
   connect = global.connect || {};
   global.connect = connect;
 
-  connect.TaskMediaController = function (mediaInfo, metadata) {
+  connect.TaskMediaController = function (mediaInfo) {
     var logger = connect.getLog();
     var logComponent = connect.LogComponent.TASK;
 
     var createMediaInstance = function () {
       publishTelemetryEvent("Task media controller init", mediaInfo.contactId);
-      logger.info(logComponent, "Task media controller init").withObject(mediaInfo);
+      logger
+        .info(logComponent, "Task media controller init")
+        .withObject(mediaInfo);
 
-      console.log('before controller init');
       var controller = connect.TaskSession.create({
         contactId: mediaInfo.contactId,
         initialContactId: mediaInfo.initialContactId,
         websocketManager: connect.core.getWebSocketManager(),
       });
 
-      trackTaskConnectionStatus(controller)
+      trackTaskConnectionStatus(controller);
 
-      console.log('before controller connect');
       return controller
         .connect()
         .then(function () {
-          logger.info(logComponent, "Task Session Successfully established for contactId %s", mediaInfo.contactId);
-          publishTelemetryEvent("Chat Session Successfully established", mediaInfo.contactId);
+          logger.info(
+            logComponent,
+            "Task Session Successfully established for contactId %s",
+            mediaInfo.contactId
+          );
+          publishTelemetryEvent(
+            "Task Session Successfully established",
+            mediaInfo.contactId
+          );
           return controller;
         })
         .catch(function (error) {
-          logger.error(logComponent, "Task Session establishement failed for contact %s", mediaInfo.contactId).withException(error);
-          publishTelemetryEvent("Chat Session establishement failed", mediaInfo.contactId, error);
+          logger
+            .error(
+              logComponent,
+              "Task Session establishement failed for contact %s",
+              mediaInfo.contactId
+            )
+            .withException(error);
+          publishTelemetryEvent(
+            "Chat Session establishement failed",
+            mediaInfo.contactId,
+            error
+          );
           throw error;
         });
     };
@@ -27819,21 +27853,25 @@
       connect.publishMetric({
         name: eventName,
         contactId: mediaInfo.contactId,
-        data: data || mediaInfo
+        data: data || mediaInfo,
       });
     };
 
     var trackTaskConnectionStatus = function (controller) {
       controller.onConnectionBroken(function (data) {
-        logger.error(logComponent, "Task Session connection broken").withException(data);
+        logger
+          .error(logComponent, "Task Session connection broken")
+          .withException(data);
         publishTelemetryEvent("Task Session connection broken", data);
       });
 
       controller.onConnectionEstablished(function (data) {
-        logger.info(logComponent, "Task Session connection established").withObject(data);
+        logger
+          .info(logComponent, "Task Session connection established")
+          .withObject(data);
         publishTelemetryEvent("Task Session connection established", data);
       });
-    }
+    };
 
     return {
       get: function () {
