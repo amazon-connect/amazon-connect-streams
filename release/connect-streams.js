@@ -21861,6 +21861,14 @@
     return enumObj;
   };
 
+  connect.makeGenericNamespacedEnum = function (prefix, values, delimiter) {
+    var enumObj = connect.makeEnum(values);
+    connect.keys(enumObj).forEach(function (key) {
+      enumObj[key] = connect.sprintf("%s"+delimiter+"%s", prefix, enumObj[key]);
+    });
+    return enumObj;
+  };
+
   /**
   * Methods to determine browser type and versions, used for softphone initialization.
   */
@@ -22899,6 +22907,24 @@
    ]);
 
    /**---------------------------------------------------------------
+    * enum HudsonClientMethods
+    */
+   connect.HudsonClientLCMSMethods = connect.makeGenericNamespacedEnum("HudsonService.lcms",[
+      'GetSpeakerId'
+   ],".");
+
+   connect.HudsonClientSigmaMethods = connect.makeGenericNamespacedEnum("HudsonService.sigma",[
+      'EnrollSpeakerInSigma',
+      'EvaluateSpeakerWithSigma',
+      'GetSigmaSpeakerStatus',
+      'OptOutSigmaSpeaker'
+   ],".");
+
+   connect.HudsonClientNasaMethods = connect.makeGenericNamespacedEnum("HudsonService.nasa",[
+      'StartSigmaSession'
+   ],".");
+
+   /**---------------------------------------------------------------
     * enum MasterMethods
     */
    connect.MasterMethods = connect.makeEnum([
@@ -23005,7 +23031,35 @@
    };
    UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
+   
+   /**---------------------------------------------------------------
+   * class HudsonClient extends ClientBase
+   */
+   var HudsonClient = function(authToken, endpoint) {
+      connect.assertNotNull(authToken, 'authToken');
+      connect.assertNotNull(endpoint, 'endpoint');
+      ClientBase.call(this);
+      this.endpointUrl = endpoint;
+      this.authToken = authToken;
+   };
 
+   HudsonClient.prototype = Object.create(ClientBase.prototype);
+   HudsonClient.prototype.constructor = HudsonClient;
+
+   HudsonClient.prototype._callImpl = function(method, params) {
+      var self = this;
+      var options = {
+         method: 'post',
+         body: JSON.stringify(params || {}),
+         headers: {
+               'Accept': 'application/json',
+               'Content-Type': 'application/json',
+               'X-Amz-target': method
+         },
+         credentials: 'include'
+      };
+      return connect.fetch(self.endpointUrl, options);
+   };
    /**---------------------------------------------------------------
     * class AWSClient extends ClientBase
     */
@@ -23175,6 +23229,7 @@
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
+   connect.HudsonClient = HudsonClient;
 
 })();
 
@@ -24324,6 +24379,38 @@
       || connectionType === connect.ConnectionType.MONITORING;
   }
 
+  /*----------------------------------------------------------------
+  * Voice authenticator Sigma
+  */
+ 
+  var Sigma = function (contactId) {
+    this.contactId = contactId;
+  };
+
+  Sigma.prototype.getSpeakerId = function () {
+    var self = this;
+    var client = connect.core.getHudsonClient();
+    return new Promise(function (resolve, reject) {
+      client.call(connect.HudsonClientLCMSMethods.GET_SPEAKER_ID, {
+      "contactId": self.contactId
+      }, {
+        success: function (data) {
+          connect.getLog().info("getCustomer succeeded");
+          //TODO add more logic here for filtering out data once Sigma API finalized
+          resolve(data);
+        },
+        failure: function (err, data) {
+          connect.getLog().error("getSpeakerId failed")
+            .withObject({
+              err: err,
+              data: data
+            });
+          reject(Error("getSpeakerId failed"));
+        }
+      });
+    });
+  };
+
   /**
    * @class VoiceConnection
    * @param {number} contactId 
@@ -24331,6 +24418,7 @@
    * @description - Provides voice media specific operations
    */
   var VoiceConnection = function (contactId, connectionId) {
+    this._speakerAuthenticator = new Sigma(contactId);
     Connection.call(this, contactId, connectionId);
   };
 
@@ -24357,6 +24445,9 @@
     return connect.core.mediaFactory.get(this);
   }
 
+  VoiceConnection.prototype.getSpeakerId = function() {
+    return this._speakerAuthenticator.getSpeakerId();
+  }
 
   /**
    * @class ChatConnection
@@ -24819,6 +24910,7 @@
     connect.core.eventBus = new connect.EventBus();
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.initClient(params);
+    connect.core.initHudsonClient(params);
     connect.core.initialized = true;
   };
  
@@ -24829,12 +24921,27 @@
    */
   connect.core.initClient = function (params) {
     connect.assertNotNull(params, 'params');
- 
+    
     var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
     var region = connect.assertNotNull(params.region, 'params.region');
     var endpoint = params.endpoint || null;
  
     connect.core.client = new connect.AWSClient(authToken, region, endpoint);
+  };
+
+  /**-------------------------------------------------------------------------
+   * Initialized hudson client
+   * Should be used by Shared Worker to update hudson client with new credentials
+   * after refreshed authentication.
+   */
+  connect.core.initHudsonClient = function (params) {
+    connect.assertNotNull(params, 'params');
+ 
+    var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
+
+    var endpoint = connect.assertNotNull(params.hudsonEndpoint, 'params.hudsonEndpoint');
+ 
+    connect.core.hudsonClient = new connect.HudsonClient(authToken, endpoint);
   };
  
   /**-------------------------------------------------------------------------
@@ -24842,6 +24949,7 @@
    */
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
+    connect.core.hudsonClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -25068,6 +25176,7 @@
     var region = connect.assertNotNull(params.region, 'params.region');
     var endpoint = params.endpoint || null;
     var authorizeEndpoint = params.authorizeEndpoint || "/connect/auth/authorize";
+    var hudsonEndpoint = params.hudsonEndpoint || null;
  
     try {
       // Initialize the event bus and agent data providers.
@@ -25108,7 +25217,8 @@
         endpoint: endpoint,
         refreshToken: refreshToken,
         region: region,
-        authorizeEndpoint: authorizeEndpoint
+        authorizeEndpoint: authorizeEndpoint,
+        hudsonEndpoint: hudsonEndpoint
       });
  
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
@@ -25804,6 +25914,15 @@
     return connect.core.client;
   };
   connect.core.client = null;
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getHudsonClient = function () {
+    if (!connect.core.hudsonClient) {
+      throw new connect.StateError('The connect Hudson Client has not been initialized!');
+    }
+    return connect.core.hudsonClient;
+  };
+  connect.core.hudsonClient = null;
  
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {
@@ -27459,6 +27578,7 @@
       self.initData.authToken = response.accessToken;
       self.initData.authTokenExpiration = expiration;
       connect.core.initClient(self.initData);
+      connect.core.initHudsonClient(self.initData);
       callbacks.success();
     }).catch(function (response) {
       connect.getLog().error("Authorization failed with code %s", response.status);

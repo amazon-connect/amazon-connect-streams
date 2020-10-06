@@ -66,7 +66,48 @@ describe('Connections API', function () {
       const monitorInfo = chatConnection.getMonitorInfo();
       assert.deepEqual(monitorInfo, chatMonitorInfo);
     });
-
+  });
+ 
+  describe('#Voice Connection API', function () {
+ 
+     const connectionId = "connectionId";
+     const contactId = "contactId";
+     const initMediaController = sinon.spy();
+ 
+     before(function () {
+       connect.core.getHudsonClient = sinon.stub();
+       connect.core.getAgentDataProvider = sinon.stub().returns({
+         getContactData: () => { return {} },
+         _initMediaController: initMediaController,
+         getConnectionData: () => {
+           return {
+             state: {},
+             getMediaController: () => { }
+           }
+         },
+       })
+     });
+  
+     after(function () {
+       initMediaController.resetHistory();
+       connect.core.getAgentDataProvider.resetBehavior();
+     });
+ 
+     it('Should create new Voice connection Object given the Voice Contact and Connection Id with Speaker Authenticator ', function () {
+       const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+       assert.equal(voiceConnection.connectionId, connectionId);
+       assert.equal(voiceConnection.contactId, contactId);
+       assert.equal(voiceConnection.getMediaType(), connect.MediaType.SOFTPHONE);
+       assert.equal(typeof(voiceConnection.getSpeakerId), 'function')
+     });
+ 
+     describe('getSpeakerId', function() {
+       it('Should return SpeakerId promise.', function () {
+         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+         var speakerId = voiceConnection.getSpeakerId();
+         assert.equal(Promise.resolve(speakerId), speakerId);
+       });
+     });
   });
 });
 

@@ -1172,6 +1172,9 @@ declare namespace connect {
 
     /** Gets a `Promise` with the media controller associated with this connection. */
     getMediaController(): Promise<any>;
+   
+    /** Returns the `SpeakerId` associated to this Voice Connection */
+    getSpeakerId(): Promise<string>;
   }
 
   /**

@@ -977,6 +977,38 @@
       || connectionType === connect.ConnectionType.MONITORING;
   }
 
+  /*----------------------------------------------------------------
+  * Voice authenticator Sigma
+  */
+ 
+  var Sigma = function (contactId) {
+    this.contactId = contactId;
+  };
+
+  Sigma.prototype.getSpeakerId = function () {
+    var self = this;
+    var client = connect.core.getHudsonClient();
+    return new Promise(function (resolve, reject) {
+      client.call(connect.HudsonClientLCMSMethods.GET_SPEAKER_ID, {
+      "contactId": self.contactId
+      }, {
+        success: function (data) {
+          connect.getLog().info("getCustomer succeeded");
+          //TODO add more logic here for filtering out data once Sigma API finalized
+          resolve(data);
+        },
+        failure: function (err, data) {
+          connect.getLog().error("getSpeakerId failed")
+            .withObject({
+              err: err,
+              data: data
+            });
+          reject(Error("getSpeakerId failed"));
+        }
+      });
+    });
+  };
+
   /**
    * @class VoiceConnection
    * @param {number} contactId 
@@ -984,6 +1016,7 @@
    * @description - Provides voice media specific operations
    */
   var VoiceConnection = function (contactId, connectionId) {
+    this._speakerAuthenticator = new Sigma(contactId);
     Connection.call(this, contactId, connectionId);
   };
 
@@ -1010,6 +1043,9 @@
     return connect.core.mediaFactory.get(this);
   }
 
+  VoiceConnection.prototype.getSpeakerId = function() {
+    return this._speakerAuthenticator.getSpeakerId();
+  }
 
   /**
    * @class ChatConnection
