@@ -75,7 +75,7 @@ describe('Connections API', function () {
      const initMediaController = sinon.spy();
  
      before(function () {
-       connect.core.getHudsonClient = sinon.stub();
+       connect.core.getClient = sinon.stub();
        connect.core.getAgentDataProvider = sinon.stub().returns({
          getContactData: () => { return {} },
          _initMediaController: initMediaController,

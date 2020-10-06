@@ -47,20 +47,14 @@
    /**---------------------------------------------------------------
     * enum HudsonClientMethods
     */
-   connect.HudsonClientLCMSMethods = connect.makeGenericNamespacedEnum("HudsonService.lcms",[
-      'GetSpeakerId'
-   ],".");
-
-   connect.HudsonClientSigmaMethods = connect.makeGenericNamespacedEnum("HudsonService.sigma",[
-      'EnrollSpeakerInSigma',
-      'EvaluateSpeakerWithSigma',
-      'GetSigmaSpeakerStatus',
-      'OptOutSigmaSpeaker'
-   ],".");
-
-   connect.HudsonClientNasaMethods = connect.makeGenericNamespacedEnum("HudsonService.nasa",[
-      'StartSigmaSession'
-   ],".");
+   connect.HudsonClientMethods = {
+      GET_SPEAKER_ID: "HudsonService.lcms.GetSpeakerId",
+      ENROLL_SPEAKER_IN_SIGMA: "HudsonService.sigma.EnrollSpeakerInSigma",
+      EVALUATE_SPEAKER_WITH_SIGMA: "HudsonService.sigma.EvaluateSpeakerWithSigma",
+      GET_SIGMA_SPEAKER_STATUS: "HudsonService.sigma.GetSigmaSpeakerStatus",
+      OPT_OUT_SIGMA_SPEAKER: "HudsonService.sigma.OptOutSigmaSpeaker",
+      START_SIGMA_SESSION: "HudsonService.nasa.StartSigmaSession"
+   };
 
    /**---------------------------------------------------------------
     * enum MasterMethods
@@ -184,7 +178,7 @@
    HudsonClient.prototype = Object.create(ClientBase.prototype);
    HudsonClient.prototype.constructor = HudsonClient;
 
-   HudsonClient.prototype._callImpl = function(method, params) {
+   HudsonClient.prototype._callImpl = function(method, params, callbacks) {
       var self = this;
       var options = {
          method: 'post',
@@ -196,7 +190,11 @@
          },
          credentials: 'include'
       };
-      return connect.fetch(self.endpointUrl, options);
+      connect.fetch(self.endpointUrl, options).then(function(res){
+         callbacks.success(res);
+      }).catch(function(err){
+         callbacks.failure(err);
+      })
    };
    /**---------------------------------------------------------------
     * class AWSClient extends ClientBase

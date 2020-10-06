@@ -997,9 +997,9 @@
 
   Sigma.prototype.getSpeakerId = function () {
     var self = this;
-    var client = connect.core.getHudsonClient();
+    var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientLCMSMethods.GET_SPEAKER_ID, {
+      client.call(connect.HudsonClientMethods.GET_SPEAKER_ID, {
       "contactId": self.contactId
       }, {
         success: function (data) {
