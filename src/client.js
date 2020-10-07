@@ -186,7 +186,7 @@
       } else {
          params = this._translateParams(method, params);
 
-         log.trace("AWSClient: --> Calling operation '%s'", method);
+         log.trace("AWSClient: --> Calling operation '%s'", method).sendInternalLogToServer();
 
          this.client[method](params)
             .on('build', function(request) {
@@ -210,15 +210,15 @@
                         callbacks.failure(error, data);
                      }
 
-                     log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err));
+                     log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err)).sendInternalLogToServer();
 
                   } else {
-                     log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data);
+                     log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data).sendInternalLogToServer();
                      callbacks.success(data);
                   }
                } catch (e) {
                   connect.getLog().error("Failed to handle AWS API request for method %s", method)
-                        .withException(e);
+                        .withException(e).sendInternalLogToServer();
                }
             });
       }

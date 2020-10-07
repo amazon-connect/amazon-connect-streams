@@ -30,7 +30,7 @@
 
     } else {
       this._audio = null;
-      connect.getLog().error("Unable to provide a ringtone.");
+      connect.getLog().error("Unable to provide a ringtone.").sendInternalLogToServer();
     }
 
     self._driveRingtone();

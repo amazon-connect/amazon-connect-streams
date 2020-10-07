@@ -411,6 +411,11 @@
     bus.trigger(connect.EventType.SOFTPHONE_REPORT, report);
   };
 
+  connect.publishClientSideLogs = function(logs) {
+    var bus = connect.core.getEventBus();
+    bus.trigger(connect.EventType.CLIENT_SIDE_LOGS, logs);
+  };
+
   /**
    * A wrapper around Window.open() for managing single instance popups.
    */
@@ -476,11 +481,11 @@
   connect.NotificationManager.prototype.requestPermission = function () {
     var self = this;
     if (!("Notification" in global)) {
-      connect.getLog().warn("This browser doesn't support notifications.");
+      connect.getLog().warn("This browser doesn't support notifications.").sendInternalLogToServer();
       this.permission = NotificationPermission.DENIED;
 
     } else if (global.Notification.permission === NotificationPermission.DENIED) {
-      connect.getLog().warn("The user has requested to not receive notifications.");
+      connect.getLog().warn("The user has requested to not receive notifications.").sendInternalLogToServer();
       this.permission = NotificationPermission.DENIED;
 
     } else if (this.permission !== NotificationPermission.GRANTED) {
@@ -501,15 +506,18 @@
       return this._showImpl({ title: title, options: options });
 
     } else if (this.permission === NotificationPermission.DENIED) {
-      connect.getLog().warn("Unable to show notification.").withObject({
-        title: title,
-        options: options
-      });
+      connect.getLog().warn("Unable to show notification.")
+        .sendInternalLogToServer()
+        .withObject({
+          title: title,
+          options: options
+        });
 
     } else {
       var params = { title: title, options: options };
       connect.getLog().warn("Deferring notification until user decides to allow or deny.")
-        .withObject(params);
+        .withObject(params)
+        .sendInternalLogToServer();
       this.queue.push(params);
     }
   };

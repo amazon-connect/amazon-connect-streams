@@ -34,12 +34,14 @@
       var mediaInfo = connectionObj.getMediaInfo();
       /** if we do not have the media info then just reject the request */
       if (!mediaInfo) {
-        logger.error(logComponent, "Media info does not exists for a media type %s").withObject(connectionObj);
+        logger.error(logComponent, "Media info does not exists for a media type %s")
+          .withObject(connectionObj).sendInternalLogToServer();
         return Promise.reject("Media info does not exists for this connection");
       }
 
       if (!mediaControllers[connectionId]) {
-        logger.info(logComponent, "media controller of type %s init", connectionObj.getMediaType()).withObject(connectionObj);
+        logger.info(logComponent, "media controller of type %s init", connectionObj.getMediaType())
+          .withObject(connectionObj).sendInternalLogToServer();
         switch (connectionObj.getMediaType()) {
           case connect.MediaType.CHAT:
             return mediaControllers[connectionId] = new connect.ChatMediaController(connectionObj.getMediaInfo(), metadata).get();
@@ -48,7 +50,8 @@
           case connect.MediaType.TASK:
             return mediaControllers[connectionId] = new connect.TaskMediaController(connectionObj.getMediaInfo()).get();
           default:
-            logger.error(logComponent, "Unrecognized media type %s ", connectionObj.getMediaType());
+            logger.error(logComponent, "Unrecognized media type %s ", connectionObj.getMediaType())
+              .sendInternalLogToServer();
             return Promise.reject();
         }
       } else {

@@ -1070,7 +1070,10 @@
         try {
           mediaObject.participantToken = JSON.parse(data.connectionData).ConnectionAuthenticationToken;
         } catch (e) {
-          connect.getLog().error(connect.LogComponent.CHAT, "Connection data is invalid").withObject(data).withException(e);
+          connect.getLog().error(connect.LogComponent.CHAT, "Connection data is invalid")
+            .withObject(data)
+            .withException(e)
+            .sendInternalLogToServer();
           mediaObject.participantToken = null;
         }
       }
@@ -1100,11 +1103,11 @@
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
         success: function (data) {
-          connect.getLog().info("getConnectionToken succeeded");
+          connect.getLog().info("getConnectionToken succeeded").sendInternalLogToServer();
           resolve(data);
         },
         failure: function (err, data) {
-          connect.getLog().error("getConnectionToken failed")
+          connect.getLog().error("getConnectionToken failed").sendInternalLogToServer()
             .withObject({
               err: err,
               data: data
@@ -1264,7 +1267,7 @@
 
     if (!connect.core.masterClient) {
       // We can't be the master because there is no master client!
-      connect.getLog().warn("We can't be the master for topic '%s' because there is no master client!", topic);
+      connect.getLog().warn("We can't be the master for topic '%s' because there is no master client!", topic).sendInternalLogToServer();
       if (f_else) {
         f_else();
       }

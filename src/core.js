@@ -94,7 +94,7 @@
   connect.core.checkNotInitialized = function () {
     if (connect.core.initialized) {
       var log = connect.getLog();
-      log.warn("Connect core already initialized, only needs to be initialized once.");
+      log.warn("Connect core already initialized, only needs to be initialized once.").sendInternalLogToServer();
     }
   };
  
@@ -116,7 +116,7 @@
   var suppressContacts = function (isSuppressed) {
     connect.getLog().info("[Disaster Recovery] Signal sharedworker to set contacts suppressor to %s for instance %s.", 
       isSuppressed, connect.core.region
-    );
+    ).sendInternalLogToServer();
     connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.SUPPRESS, {
       suppress: isSuppressed
     });
@@ -125,7 +125,7 @@
   var setForceOfflineUpstream = function(offline) {
     connect.getLog().info("[DISASTER RECOVERY] Signal sharedworker to set forceOffline to %s for instance %s.", 
       offline, connect.core.region
-    );
+    ).sendInternalLogToServer();
     connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, {
       offline: offline
     });
@@ -137,7 +137,7 @@
   // This function should only be ran from native CCP for disconnecting chats.
   var forceOffline = function() {
     var log = connect.getLog();
-    log.info("[Disaster Recovery] Attempting to force instance %s offline", connect.core.region);
+    log.info("[Disaster Recovery] Attempting to force instance %s offline", connect.core.region).sendInternalLogToServer();
     connect.agent(function(agent) {
       var contactClosed = 0;
       var contacts = agent.getContacts();
@@ -152,12 +152,12 @@
                   // It's ok if we're not able to put the agent offline. 
                   // since we're suppressing the agents contacts already. 
                   makeAgentOffline(agent);
-                  log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region);
+                  log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
                 }
               },
               failure: function(err) {
-                log.warn("[Disaster Recovery] An error occured while attempting to force this instance to offline in region %s", connect.core.region);
-                log.warn(err);
+                log.warn("[Disaster Recovery] An error occured while attempting to force this instance to offline in region %s", connect.core.region).sendInternalLogToServer();
+                log.warn(err).sendInternalLogToServer();
                 // signal the sharedworker to call forceOffline again when network connection 
                 // has been re-established (this happens in case of network or backend failures)
                 setForceOfflineUpstream(true);
@@ -167,7 +167,7 @@
       } else {
         setForceOfflineUpstream(false);
         makeAgentOffline(agent);
-        log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region);  
+        log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
       }
     });
   }
@@ -191,19 +191,19 @@
 
     connect.ifMaster(connect.MasterTopics.SOFTPHONE, 
       function() {
-        log.info("[Disaster Recovery] Initializing region %s as part of a Disaster Recovery fleet", connect.core.region);
+        log.info("[Disaster Recovery] Initializing region %s as part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
       }, 
       function() {
-        log.info("[Disaster Recovery] %s already part of a Disaster Recovery fleet", connect.core.region);
+        log.info("[Disaster Recovery] %s already part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
       });
 
     if (!params.isPrimary) {
       connect.core.suppressContacts(true);
       connect.core.forceOffline();
-      log.info("[Disaster Recovery] %s instance is set to stand-by", connect.core.region);
+      log.info("[Disaster Recovery] %s instance is set to stand-by", connect.core.region).sendInternalLogToServer();
     } else {
       connect.core.suppressContacts(false);
-      log.info("[Disaster Recovery] %s instance is set to primary", connect.core.region);
+      log.info("[Disaster Recovery] %s instance is set to primary", connect.core.region).sendInternalLogToServer();
     }
   }
  
@@ -282,25 +282,25 @@
             if (!ringtoneSettings.voice.disabled && !connect.core.ringtoneEngines.voice) {
               connect.core.ringtoneEngines.voice =
                 new connect.VoiceRingtoneEngine(ringtoneSettings.voice);
-              connect.getLog().info("VoiceRingtoneEngine initialized.");
+              connect.getLog().info("VoiceRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
               connect.core.ringtoneEngines.chat =
                 new connect.ChatRingtoneEngine(ringtoneSettings.chat);
-              connect.getLog().info("ChatRingtoneEngine initialized.");
+              connect.getLog().info("ChatRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
               connect.core.ringtoneEngines.task =
                 new connect.TaskRingtoneEngine(ringtoneSettings.task);
-                connect.getLog().info("TaskRingtoneEngine initialized.");
+                connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
-              connect.getLog().info("QueueCallbackRingtoneEngine initialized.");
+              connect.getLog().info("QueueCallbackRingtoneEngine initialized.").sendInternalLogToServer();
             }
           });
         });
@@ -526,6 +526,7 @@
       };
  
       connect.getLog().scheduleUpstreamLogPush(conduit);
+      connect.getLog().scheduleDownstreamClientSideLogsPush();
       // Bridge all upstream messages into the event bus.
       conduit.onAllUpstream(connect.core.getEventBus().bridge());
       // Bridge all downstream messages into the event bus.
@@ -546,7 +547,7 @@
       });
  
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-        connect.getLog().info("Acknowledged by the ConnectSharedWorker!");
+        connect.getLog().info("Acknowledged by the ConnectSharedWorker!").sendInternalLogToServer();
         connect.core.initialized = true;
         this.unsubscribe();
       });
@@ -554,6 +555,11 @@
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
         if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        }
+      });
+      conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
+        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+          connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
         }
       });
       // Reload the page if the shared worker detects an API auth failure.
@@ -586,7 +592,7 @@
  
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
-        .withException(e);
+        .withException(e).sendInternalLogToServer();
     }
   };
  
@@ -666,7 +672,7 @@
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.
     conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-      connect.getLog().info("Acknowledged by the CCP!");
+      connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
@@ -705,6 +711,11 @@
         connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
       }
     });
+    conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
+      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+        connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
+      }
+    });
  
     // Pop a login page when we encounter an ACK timeout.
     connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
@@ -712,7 +723,7 @@
       if (params.loginPopup !== false) {
         try {
           var loginUrl = getLoginUrl(params);
-          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
+          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogEntryToServer();
           // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
           if (params.loginUrl) {
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
@@ -720,7 +731,7 @@
           connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
  
         } catch (e) {
-          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
+          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
         }
       }
  

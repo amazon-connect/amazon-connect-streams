@@ -182,7 +182,8 @@
     */
     var deactivate = function (region) {
       var connect = globalConnect.core.regions[region];
-      connect.getLog().info("[Disaster Recovery] Deactivating %s region.", connect.core.region);
+      connect.getLog().info("[Disaster Recovery] Deactivating %s region.", connect.core.region)
+        .sendInternalLogToServer();
       // call this to suppress contacts 
       connect.core.suppressContacts(true);
       connect.core.forceOffline();
@@ -193,7 +194,8 @@
     */
     var activate = function (region) {
       var connect = globalConnect.core.regions[region];
-      connect.getLog().info("[Disaster Recovery] Activating %s region.", connect.core.region);
+      connect.getLog().info("[Disaster Recovery] Activating %s region.", connect.core.region)
+        .sendInternalLogToServer();
       connect.core.suppressContacts(false);
     };
  

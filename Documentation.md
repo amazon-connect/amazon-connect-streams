@@ -1373,6 +1373,8 @@ Each of these functions returns a `LogEntry` object, onto which additional infor
 `.withException(e)` and pass an exception (`e`) to add stack trace and additional info to the logs, and you can
 call `.withObject(o)` to add an arbitrary object (`o`) to the logs.
 
+A new method `sendInternalLogToServer()` that can be chained to the other methods of the logger has been implemented and is intended for internal use only. It is NOT recommended for use by customers.
+
 Finally, you can trigger the logs to be downloaded to the agent's machine in JSON form by calling `connect.getLog().download()`.
 
 ## CCP Error Logging
