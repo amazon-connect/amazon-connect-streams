@@ -72,6 +72,8 @@ describe('Connections API', function () {
  
      const connectionId = "connectionId";
      const contactId = "contactId";
+     const instanceId = "instanceId";
+     const AWSAccountId = "AWSAccountId";
      const initMediaController = sinon.spy();
  
      before(function () {
@@ -85,7 +87,9 @@ describe('Connections API', function () {
              getMediaController: () => { }
            }
          },
-       })
+         getInstanceId: () => {return instanceId},
+         getAWSAccountId: () => {return AWSAccountId},
+       });
      });
   
      after(function () {
@@ -98,16 +102,25 @@ describe('Connections API', function () {
        assert.equal(voiceConnection.connectionId, connectionId);
        assert.equal(voiceConnection.contactId, contactId);
        assert.equal(voiceConnection.getMediaType(), connect.MediaType.SOFTPHONE);
-       assert.equal(typeof(voiceConnection.getSpeakerId), 'function')
+       assert.equal(typeof(voiceConnection.getSigmaSpeakerId), 'function');
+       assert.equal(typeof(voiceConnection.getSigmaSpeakerStatus), 'function')
      });
  
-     describe('getSpeakerId', function() {
+     describe('getSigmaSpeakerId', function() {
        it('Should return SpeakerId promise.', function () {
          const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-         var speakerId = voiceConnection.getSpeakerId();
+         var speakerId = voiceConnection.getSigmaSpeakerId();
          assert.equal(Promise.resolve(speakerId), speakerId);
        });
      });
+
+     describe('getSigmaSpeakerStatus', function() {
+      it('Should return getSigmaSpeakerStatus promise.', function () {
+        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+        var getSigmaSpeakerStatus = voiceConnection.getSigmaSpeakerStatus();
+        assert.equal(Promise.resolve(getSigmaSpeakerStatus), getSigmaSpeakerStatus);
+      });
+    });
   });
 });
 

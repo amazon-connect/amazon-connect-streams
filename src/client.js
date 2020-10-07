@@ -48,12 +48,12 @@
     * enum HudsonClientMethods
     */
    connect.HudsonClientMethods = {
-      GET_SPEAKER_ID: "HudsonService.lcms.GetSpeakerId",
-      ENROLL_SPEAKER_IN_SIGMA: "HudsonService.sigma.EnrollSpeakerInSigma",
-      EVALUATE_SPEAKER_WITH_SIGMA: "HudsonService.sigma.EvaluateSpeakerWithSigma",
-      GET_SIGMA_SPEAKER_STATUS: "HudsonService.sigma.GetSigmaSpeakerStatus",
-      OPT_OUT_SIGMA_SPEAKER: "HudsonService.sigma.OptOutSigmaSpeaker",
-      START_SIGMA_SESSION: "HudsonService.nasa.StartSigmaSession"
+      GET_SPEAKER_ID: "HudsonService.Lcms.getContact",
+      ENROLL_SPEAKER_IN_SIGMA: "HudsonService.Sigma.enrollSpeakerInSigma",
+      EVALUATE_SPEAKER_WITH_SIGMA: "HudsonService.Sigma.evaluateSpeakerWithSigma",
+      GET_SPEAKER_STATUS: "HudsonService.Sigma.getSigmaSpeakerStatus",
+      OPT_OUT_SIGMA_SPEAKER: "HudsonService.Sigma.optOutSigmaSpeaker",
+      START_SIGMA_SESSION: "HudsonService.Nasa.startSigmaSession"
    };
 
    /**---------------------------------------------------------------
@@ -187,8 +187,7 @@
                'Accept': 'application/json',
                'Content-Type': 'application/json',
                'X-Amz-target': method
-         },
-         credentials: 'include'
+         }
       };
       connect.fetch(self.endpointUrl, options).then(function(res){
          callbacks.success(res);
