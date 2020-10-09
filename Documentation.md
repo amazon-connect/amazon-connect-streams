@@ -72,7 +72,7 @@ This will make the `connect` variable available in the current context.
 ```ts
 import "amazon-connect-streams";
 
-connect.initCCP({ /* ... */ });
+connect.core.initCCP({ /* ... */ });
 ```
 
 ## Downloading Streams from Github
@@ -132,15 +132,16 @@ everything set up correctly and that you are able to listen for events.
   </head>
   <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
   <body onload="init()">
-    <div id=containerDiv style="width: 400px;height: 800px;"></div>
+    <div id="containerDiv" style="width: 400px;height: 800px;"></div>
     <script type="text/javascript">
       var instanceURL = "https://my-instance-domain.awsapps.com/connect/ccp-v2/";
-      // initialise the streams api
+      // initialize the streams api
       function init() {
         // initialize the ccp
         connect.core.initCCP(containerDiv, {
           ccpUrl: instanceURL,            // REQUIRED
           loginPopup: true,               // optional, defaults to `true`
+          loginPopupAutoClose: true,      // optional, defaults to `true`
           loginOptions: {                 // optional, if provided opens login in new window
             autoClose: true,              // optional, defaults to `false`
             height: 600,                  // optional, defaults to 578
@@ -208,7 +209,7 @@ and made available to your JS client code.
 `containerDiv` into which you place the iframe, or applying a CSS rule like
 this:
 ```css
-.containerDiv iframe {
+#containerDiv iframe {
   display: none;
 }
 ```
@@ -1223,7 +1224,7 @@ This is a list of some of the special event types which are published into the l
 
 * `EventType.ACKNOWLEDGE`: Event received when the backend API shared worker acknowledges the current tab.
 * `EventType.ACK_TIMEOUT`: Event which is published if the backend API shared worker fails to respond to an `EventType.SYNCHRONIZE` event in a timely manner, meaning that the tab or window has been disconnected from the shared worker.
-* `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid. This usually requires the user to log in again for the CCP to continue to function. See `connect.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
+* `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid. This usually requires the user to log in again for the CCP to continue to function. See `connect.core.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
 * `EventType.LOG`: An event published whenever the CCP or the API shared worker creates a log entry.
 * `EventType.TERMINATED`: Event published when the agent logged out from ccp.
 

@@ -134,15 +134,16 @@ everything setup correctly and that you will be able to listen for events.
   </head>
   <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
   <body onload="init()">
-    <div id=containerDiv style="width: 400px;height: 800px;"></div>
+    <div id="containerDiv" style="width: 400px;height: 800px;"></div>
     <script type="text/javascript">
       var instanceURL = "https://my-instance-domain.awsapps.com/connect/ccp-v2/";
-      // initialise the streams api
+      // initialize the streams api
       function init() {
         // initialize the ccp
         connect.core.initCCP(containerDiv, {
           ccpUrl: instanceURL,            // REQUIRED
           loginPopup: true,               // optional, defaults to `true`
+          loginPopupAutoClose: true,      // optional, defaults to `true`
           loginOptions: {                 // optional, if provided opens login in new window
             autoClose: true,              // optional, defaults to `false`
             height: 600,                  // optional, defaults to 578
@@ -205,7 +206,7 @@ and made available to your JS client code.
 `containerDiv` into which you place the iframe, or applying a CSS rule like
 this:
 ```css
-.containerDiv iframe {
+#containerDiv iframe {
   display: none;
 }
 ```
