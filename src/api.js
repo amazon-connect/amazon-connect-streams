@@ -1052,6 +1052,38 @@
     });
   };
 
+  Sigma.prototype.optOutSpeaker = function () {
+    var self = this;
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      self.getSpeakerId().then(function(res){
+        client.call(connect.HudsonClientMethods.OPT_OUT_SIGMA_SPEAKER, {
+          "SpeakerId": res.speakerId,
+          "DomainId" : "ConnectDefaultDomainId", 
+          "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+          "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId() 
+          }, {
+            success: function (data) {
+              connect.getLog().info("optOutSpeaker succeeded");
+              //TODO add more logic here for filtering out data once Sigma API finalized
+              resolve(data);
+            },
+            failure: function (err, data) {
+              connect.getLog().error("optOutSpeaker failed")
+                .withObject({
+                  err: err,
+                  data: data
+                });
+              reject(Error("optOutSpeaker failed"));
+            }
+          });
+
+      }).catch(function(err,data){
+        reject(Error("getSpeakerId failed"));
+      });
+    });
+  };
+
   /**
    * @class VoiceConnection
    * @param {number} contactId 
@@ -1092,6 +1124,10 @@
 
   VoiceConnection.prototype.getSigmaSpeakerStatus = function() {
     return this._speakerAuthenticator.getSpeakerStatus();
+  }
+
+  VoiceConnection.prototype.optOutSigmaSpeaker = function() {
+    return this._speakerAuthenticator.optOutSpeaker();
   }
 
   /**

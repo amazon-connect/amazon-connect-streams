@@ -120,7 +120,15 @@ describe('Connections API', function () {
         var getSigmaSpeakerStatus = voiceConnection.getSigmaSpeakerStatus();
         assert.equal(Promise.resolve(getSigmaSpeakerStatus), getSigmaSpeakerStatus);
       });
-    });
+     });
+
+     describe('optOutSigmaSpeaker', function() {
+      it('Should return optOutSigmaSpeaker promise.', function () {
+        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+        var optOutSigmaSpeaker = voiceConnection.optOutSigmaSpeaker();
+        assert.equal(Promise.resolve(optOutSigmaSpeaker), optOutSigmaSpeaker);
+      });
+     });
   });
 });
 

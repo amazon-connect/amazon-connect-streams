@@ -1196,6 +1196,9 @@ declare namespace connect {
     /** Returns the `sigma speaker status` associated to this Voice Connection */
     getSigmaSpeakerStatus(): Promise<any>;
 
+    /** Opt out speaker associated to this Voice Connection from sigma*/
+    optOutSigmaSpeaker(): Promise<any>;
+
   }
 
   /**
