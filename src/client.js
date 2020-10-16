@@ -49,11 +49,14 @@
     */
    connect.HudsonClientMethods = {
       GET_SPEAKER_ID: "HudsonService.Lcms.getContact",
-      ENROLL_SPEAKER_IN_SIGMA: "HudsonService.Sigma.enrollSpeakerInSigma",
-      EVALUATE_SPEAKER_WITH_SIGMA: "HudsonService.Sigma.evaluateSpeakerWithSigma",
-      GET_SPEAKER_STATUS: "HudsonService.Sigma.getSigmaSpeakerStatus",
-      OPT_OUT_SIGMA_SPEAKER: "HudsonService.Sigma.optOutSigmaSpeaker",
-      START_SIGMA_SESSION: "HudsonService.Nasa.startSigmaSession"
+      ENROLL_SPEAKER_IN_SIGMA: "HudsonService.Sigma.enrollBySession",
+      EVALUATE_SPEAKER_WITH_SIGMA: "HudsonService.Sigma.evaluateSession",
+      GET_SPEAKER_STATUS: "HudsonService.Sigma.describeSpeaker",
+      OPT_OUT_SIGMA_SPEAKER: "HudsonService.Sigma.optOutSpeaker",
+      DESCRIBE_SIGMA_SESSION: "HudsonService.Sigma.describeSession",
+      UPDATE_SIGMA_SESSION: "HudsonService.Sigma.updateSession",
+      START_SIGMA_SESSION: "HudsonService.Nasa.startSigmaSession",
+
    };
 
    /**---------------------------------------------------------------

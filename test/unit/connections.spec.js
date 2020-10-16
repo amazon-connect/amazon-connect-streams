@@ -129,6 +129,14 @@ describe('Connections API', function () {
         assert.equal(Promise.resolve(optOutSigmaSpeaker), optOutSigmaSpeaker);
       });
      });
+
+     describe('evaluateSpeakerWithSigma', function() {
+      it('Should return evaluateSpeakerWithSigma promise.', function () {
+        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+        var evaluateSpeakerWithSigma = voiceConnection.evaluateSpeakerWithSigma();
+        assert.equal(Promise.resolve(evaluateSpeakerWithSigma), evaluateSpeakerWithSigma);
+      });
+     });
   });
 });
 

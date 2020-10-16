@@ -194,6 +194,25 @@
     "UnauthorizedException"
   ]);
   /*----------------------------------------------------------------
+   * enum for sigma streaming status
+   */
+  connect.SigmaStreamingStatus = connect.makeEnum([
+    "ONGOING",
+    "ENDED"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for sigma streaming status
+   */
+  connect.SigmaAuthenticationDecision = connect.makeEnum([
+    "ACCEPT",
+    "REJECT",
+    "NOT_ENOUGH_SPEECH",
+    "SPEAKER_NOT_ENROLLED",
+    "SPEAKER_OPTED_OUT",
+    "SPEAKER_ID_NOT_PROVIDED"
+  ]);
+  /*----------------------------------------------------------------
    * class Agent
    */
   var Agent = function () {
@@ -1084,6 +1103,81 @@
     });
   };
 
+  Sigma.prototype.startSession = function () {
+    var self = this;
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      client.call(connect.HudsonClientMethods.START_SIGMA_SESSION, {
+      "ContactId": self.contactId,
+      "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+      }, {
+        success: function (data) {
+          connect.getLog().info("startSigmaSession succeeded");
+          //TODO add more logic here for filtering out data once Sigma API finalized
+          resolve(data);
+        },
+        failure: function (err, data) {
+          connect.getLog().error("startSigmaSession failed")
+            .withObject({
+              err: err,
+              data: data
+            });
+          reject(Error("startSigmaSession failed"));
+        }
+      });
+    });
+  };
+
+  Sigma.prototype.evaluateSpeaker = function (startNew) {
+    var self = this;
+    var client = connect.core.getClient();
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    var maxPollTimes = 10; // It is polling for maximum 10 seconds right now. It can be adjusted once sigma api is finalized.
+    var milliInterval = 1000;
+    return new Promise(function (resolve, reject) {
+      function evaluate() {
+        client.call(connect.HudsonClientMethods.EVALUATE_SPEAKER_WITH_SIGMA, {
+          "SessionName": contactData.initialContactId || this.contactId,
+        }, {
+          success: function (res) {
+            if(maxPollTimes-- !== 0) {
+              if(res.StreamingStatus !== connect.SigmaStreamingStatus.ONGOING && res.AuthenticationResult.Decision !== connect.SigmaAuthenticationDecision.NOT_ENOUGH_SPEECH) {
+                resolve(res);
+              } else {
+                setTimeout(function(){
+                  evaluate();
+                },milliInterval);
+              }
+            } else {
+              reject(Error("evaluateSpeaker timeout"));
+            }
+          },
+          failure: function (err, data) {
+            connect.getLog().error("evaluateSpeaker failed")
+              .withObject({
+                err: err,
+                data: data
+              });
+            reject(Error("evaluateSpeaker failed"));
+          }
+        })
+      }
+      if(!startNew){
+        evaluate();
+      } else {
+        self.startSession().then(function(res){
+          if(res.ContactId) {
+            evaluate();
+          } else {
+            reject(Error("No contact id is returned from start session api."))
+          }
+        }).catch(function(err, data){
+          reject(err)
+        })
+      }
+    });
+  };
+
   /**
    * @class VoiceConnection
    * @param {number} contactId 
@@ -1128,6 +1222,10 @@
 
   VoiceConnection.prototype.optOutSigmaSpeaker = function() {
     return this._speakerAuthenticator.optOutSpeaker();
+  }
+
+  VoiceConnection.prototype.evaluateSpeakerWithSigma = function(startNew) {
+    return this._speakerAuthenticator.evaluateSpeaker(startNew);
   }
 
   /**
