@@ -137,6 +137,14 @@ describe('Connections API', function () {
         assert.equal(Promise.resolve(evaluateSpeakerWithSigma), evaluateSpeakerWithSigma);
       });
      });
+
+     describe('enrollSpeakerInSigma', function() {
+      it('Should return enrollSpeakerInSigma promise.', function () {
+        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+        var enrollSpeakerInSigma = voiceConnection.enrollSpeakerInSigma();
+        assert.equal(Promise.resolve(enrollSpeakerInSigma), enrollSpeakerInSigma);
+      });
+     });
   });
 });
 

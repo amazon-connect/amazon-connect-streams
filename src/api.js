@@ -212,6 +212,17 @@
     "SPEAKER_OPTED_OUT",
     "SPEAKER_ID_NOT_PROVIDED"
   ]);
+
+  /*----------------------------------------------------------------
+   * enum for sigma EnrollmentRequestStatus status
+   */
+  connect.SigmaEnrollmentRequestStatus = connect.makeEnum([
+    "NOT_ENOUGH_SPEECH",
+    "IN_PROGRESS",
+    "COMPLETED",
+    "FAILED"
+  ]);
+
   /*----------------------------------------------------------------
    * class Agent
    */
@@ -1036,8 +1047,6 @@
       "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
       }, {
         success: function (data) {
-          connect.getLog().info("getSpeakerId succeeded");
-          //TODO add more logic here for filtering out data once Sigma API finalized
           resolve(data);
         },
         failure: function (err, data) {
@@ -1046,7 +1055,7 @@
               err: err,
               data: data
             });
-          reject(Error("getSpeakerId failed"));
+          reject(err);
         }
       });
     });
@@ -1056,16 +1065,14 @@
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      self.getSpeakerId().then(function(res){
+      self.getSpeakerId().then(function(data){
         client.call(connect.HudsonClientMethods.GET_SPEAKER_STATUS, {
-          "SpeakerId": res.speakerId,
+          "SpeakerId": data.speakerId,
           "DomainId" : "ConnectDefaultDomainId",
           "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
           "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
           }, {
             success: function (data) {
-              connect.getLog().info("getSpeakerStatus succeeded");
-              //TODO add more logic here for filtering out data once Sigma API finalized
               resolve(data);
             },
             failure: function (err, data) {
@@ -1078,7 +1085,7 @@
             }
           });
       }).catch(function(err,data){
-        reject(Error("getSpeakerId failed"));
+        reject(err);
       });
     });
   };
@@ -1087,9 +1094,9 @@
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      self.getSpeakerId().then(function(res){
+      self.getSpeakerId().then(function(data){
         client.call(connect.HudsonClientMethods.OPT_OUT_SIGMA_SPEAKER, {
-          "SpeakerId": res.speakerId,
+          "SpeakerId": data.speakerId,
           "DomainId" : "ConnectDefaultDomainId", 
           "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
           "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId() 
@@ -1110,7 +1117,7 @@
           });
 
       }).catch(function(err,data){
-        reject(Error("getSpeakerId failed"));
+        reject(err);
       });
     });
   };
@@ -1124,9 +1131,11 @@
       "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
       }, {
         success: function (data) {
-          connect.getLog().info("startSigmaSession succeeded");
-          //TODO add more logic here for filtering out data once Sigma API finalized
-          resolve(data);
+          if(data.ContactId) {
+            resolve(data);
+          } else {
+            reject(Error("No contact id is returned from start session api."))
+          }
         },
         failure: function (err, data) {
           connect.getLog().error("startSigmaSession failed")
@@ -1134,7 +1143,7 @@
               err: err,
               data: data
             });
-          reject(Error("startSigmaSession failed"));
+          reject(err);
         }
       });
     });
@@ -1150,11 +1159,13 @@
       function evaluate() {
         client.call(connect.HudsonClientMethods.EVALUATE_SPEAKER_WITH_SIGMA, {
           "SessionName": contactData.initialContactId || this.contactId,
+          "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+          "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
         }, {
-          success: function (res) {
-            if(maxPollTimes-- !== 0) {
-              if(res.StreamingStatus !== connect.SigmaStreamingStatus.ONGOING && res.AuthenticationResult.Decision !== connect.SigmaAuthenticationDecision.NOT_ENOUGH_SPEECH) {
-                resolve(res);
+          success: function (data) {
+            if(maxPollTimes-- !== 1) {
+              if(data.StreamingStatus !== connect.SigmaStreamingStatus.ONGOING && data.AuthenticationResult.Decision !== connect.SigmaAuthenticationDecision.NOT_ENOUGH_SPEECH) {
+                resolve(data);
               } else {
                 setTimeout(function(){
                   evaluate();
@@ -1170,23 +1181,106 @@
                 err: err,
                 data: data
               });
-            reject(Error("evaluateSpeaker failed"));
+            reject(err);
           }
         })
       }
       if(!startNew){
         evaluate();
       } else {
-        self.startSession().then(function(res){
-          if(res.ContactId) {
-            evaluate();
-          } else {
-            reject(Error("No contact id is returned from start session api."))
-          }
+        self.startSession().then(function(data){
+          evaluate();
         }).catch(function(err, data){
           reject(err)
         })
       }
+    });
+  };
+
+  Sigma.prototype.describeSession = function () {
+    var self = this;
+    var client = connect.core.getClient();
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    var maxPollingTimes = 60; // It is polling for maximum 5 mins right now. It can be adjusted once sigma api is finalized.
+    var milliInterval = 5000;
+    return new Promise(function (resolve, reject) {
+      function describe() {
+        client.call(connect.HudsonClientMethods.DESCRIBE_SIGMA_SESSION, {
+          "SessionName": contactData.initialContactId || this.contactId,
+          "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+          "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
+        }, {
+          success: function (data) {
+            if(maxPollingTimes-- !== 1) {
+              if(data.Session.EnrollmentRequestDetails.Status === connect.SigmaEnrollmentRequestStatus.COMPLETED) {
+                resolve(data);
+              } else if(data.Session.EnrollmentRequestDetails.Status === connect.SigmaEnrollmentRequestStatus.IN_PROGRESS) {
+                setTimeout(function(){
+                  describe();
+                },milliInterval);
+              } else if(data.Session.EnrollmentRequestDetails.Status === connect.SigmaEnrollmentRequestStatus.NOT_ENOUGH_SPEECH) {
+                if(data.Session.StreamingStatus === connect.SigmaStreamingStatus.ENDED) {
+                  self.startSession().then(function(data){
+                    describe();
+                  }).catch(function(err, data){
+                    reject(err);
+                  })
+                } else {
+                  setTimeout(function(){
+                    describe();
+                  },milliInterval);
+                }
+              } else {
+                reject(Error(data.Session.EnrollmentRequestDetails.Status));
+              }
+            } else {
+              reject(Error("describeSession timeout"));
+            }
+          },
+          failure: function (err, data) {
+            connect.getLog().error("describeSession failed")
+              .withObject({
+                err: err,
+                data: data
+              });
+            reject(err);
+          }
+        })
+      }
+      describe();
+    });
+  };
+
+  Sigma.prototype.enrollSpeaker = function () {
+    var self = this;
+    var client = connect.core.getClient();
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    return new Promise(function (resolve, reject) {
+      client.call(connect.HudsonClientMethods.ENROLL_SPEAKER_IN_SIGMA, {
+      "SessionName": contactData.initialContactId || this.contactId,
+      "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+      "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
+      }, {
+        success: function (data) {
+          if(data.Status === connect.SigmaEnrollmentRequestStatus.COMPLETED) {
+            resolve(data);
+          } else {
+            self.describeSession().then(function(data){
+              resolve(data);
+            }).catch(function(err,data){
+              reject(err);
+            })
+          }
+        },
+        failure: function (err, data) {
+          connect.getLog().error("enrollSpeaker failed")
+            .withObject({
+              err: err,
+              data: data
+            });
+          reject(err);
+        }
+      });
     });
   };
 
@@ -1238,6 +1332,10 @@
 
   VoiceConnection.prototype.evaluateSpeakerWithSigma = function(startNew) {
     return this._speakerAuthenticator.evaluateSpeaker(startNew);
+  }
+
+  VoiceConnection.prototype.enrollSpeakerInSigma = function() {
+    return this._speakerAuthenticator.enrollSpeaker();
   }
 
   /**
