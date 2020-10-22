@@ -828,6 +828,12 @@
       ccpVersion: global.ccpVersion,
       softphoneStreamStatistics: softphoneStreamStatistics
     }, callbacks);
+
+    connect.publishSoftphoneStats({
+      contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
+      stats: softphoneStreamStatistics
+    });
   };
 
   Contact.prototype.sendSoftphoneReport = function (report, callbacks) {
@@ -837,6 +843,12 @@
       ccpVersion: global.ccpVersion,
       report: report
     }, callbacks);
+
+    connect.publishSoftphoneReport({
+      contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
+      report: report
+    });
   };
 
   Contact.prototype.conferenceConnections = function (callbacks) {

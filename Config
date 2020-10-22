@@ -11,7 +11,7 @@ package.AmazonConnectStreams = {
   third-party-configuration = {
     # This is important, please do not remove it.
     thirdPartyName       = "AmazonConnectStreams";
-    thirdPartyVersion    = "1.4";
+    thirdPartyVersion    = "1.6";
     licenseType          = (Apache-2.0);
     licenseFile          = (third-party-src/LICENSE.txt);
     repository           = "raw";
