@@ -145,6 +145,14 @@ describe('Connections API', function () {
         assert.equal(Promise.resolve(enrollSpeakerInSigma), enrollSpeakerInSigma);
       });
      });
+
+     describe('updateSigmaSpeakerId', function() {
+      it('Should return updateSigmaSpeakerId promise.', function () {
+        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+        var updateSigmaSpeakerId = voiceConnection.updateSigmaSpeakerId();
+        assert.equal(Promise.resolve(updateSigmaSpeakerId), updateSigmaSpeakerId);
+      });
+     });
   });
 });
 

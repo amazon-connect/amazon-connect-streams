@@ -1199,6 +1199,15 @@ declare namespace connect {
     /** Opt out speaker associated to this Voice Connection from sigma*/
     optOutSigmaSpeaker(): Promise<any>;
 
+    /** Returns sigma speaker authentication status */
+    evaluateSpeakerWithSigma(): Promise<any>;
+
+    /** Enroll speaker into sigma */
+    enrollSpeakerInSigma(): Promise<any>;
+
+    /** Update speaker id */
+    updateSigmaSpeakerId(): Promise<any>;
+
   }
 
   /**

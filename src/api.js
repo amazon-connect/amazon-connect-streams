@@ -1284,6 +1284,30 @@
     });
   };
 
+  Sigma.prototype.updateSpeakerId = function (speakerId) {
+    var self = this;
+    var client = connect.core.getClient();
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    return new Promise(function (resolve, reject) {
+      client.call(connect.HudsonClientMethods.UPDATE_SIGMA_SESSION, {
+      "SessionNameOrId": contactData.initialContactId || this.contactId,
+      "SpeakerId": speakerId
+      }, {
+        success: function (data) {
+          resolve(data);
+        },
+        failure: function (err, data) {
+          connect.getLog().error("updateSpeakerId failed")
+            .withObject({
+              err: err,
+              data: data
+            });
+          reject(err);
+        }
+      });
+    });
+  };
+
   /**
    * @class VoiceConnection
    * @param {number} contactId 
@@ -1336,6 +1360,10 @@
 
   VoiceConnection.prototype.enrollSpeakerInSigma = function() {
     return this._speakerAuthenticator.enrollSpeaker();
+  }
+
+  VoiceConnection.prototype.updateSigmaSpeakerId = function(speakerId) {
+    return this._speakerAuthenticator.updateSpeakerId(speakerId);
   }
 
   /**
