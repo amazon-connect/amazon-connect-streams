@@ -214,13 +214,12 @@
    * after refreshed authentication.
    */
   connect.core.initHudsonClient = function (params) {
-    connect.assertNotNull(params, 'params');
- 
+    connect.assertNotNull(params, 'params');    
     var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
-
+    var authCookieName = connect.assertNotNull(params.authCookieName, 'params.authCookieName');
     var endpoint = connect.assertNotNull(params.hudsonEndpoint, 'params.hudsonEndpoint');
- 
-    connect.core.hudsonClient = new connect.HudsonClient(authToken, endpoint);
+    
+    connect.core.hudsonClient = new connect.HudsonClient(authCookieName, authToken, endpoint);
   };
  
   /**-------------------------------------------------------------------------
@@ -456,6 +455,7 @@
     var endpoint = params.endpoint || null;
     var authorizeEndpoint = params.authorizeEndpoint || "/connect/auth/authorize";
     var hudsonEndpoint = params.hudsonEndpoint || null;
+    var authCookieName = params.authCookieName || null;
  
     try {
       // Initialize the event bus and agent data providers.
@@ -497,7 +497,8 @@
         refreshToken: refreshToken,
         region: region,
         authorizeEndpoint: authorizeEndpoint,
-        hudsonEndpoint: hudsonEndpoint
+        hudsonEndpoint: hudsonEndpoint,
+        authCookieName: authCookieName
       });
  
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {

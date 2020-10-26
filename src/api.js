@@ -179,6 +179,21 @@
   ]);
 
   /*----------------------------------------------------------------
+   * enum for SigmaErrorTypes
+   */
+  connect.SigmaErrorTypes = connect.makeEnum([
+    'no_speaker_id_found',
+    'get_speaker_id_failed',
+    'get_speaker_status_failed',
+    'opt_out_speaker_failed',
+    'start_session_failed',
+    'evaluate_speaker_failed',
+    'describe_session_failed',
+    'enroll_speaker_failed',
+    'update_speaker_id_failed',
+  ]);
+
+  /*----------------------------------------------------------------
    * enum for CTI exceptions
    */
   connect.CTIExceptions = connect.makeEnum([
@@ -1042,20 +1057,34 @@
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       client.call(connect.HudsonClientMethods.GET_SPEAKER_ID, {
-      "ContactId": self.contactId,
-      "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
-      "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
+      "contactId": self.contactId,
+      "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
+      "awsAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
       }, {
         success: function (data) {
-          resolve(data);
+          if(data.contactData.customerId) {
+            var obj = {
+              speakerId: data.contactData.customerId
+            }
+            resolve(obj);
+          } else {
+            var error = {};
+            error.type = connect.SigmaErrorTypes.NO_SPEAKER_ID_FOUND;
+            error.stack = Error("No speakerId assotiated with this call.")
+            reject(error);
+          }
+          
         },
-        failure: function (err, data) {
-          connect.getLog().error("getSpeakerId failed")
+        failure: function (err) {
+          connect.getLog().error("Get SpeakerId failed")
             .withObject({
-              err: err,
-              data: data
+              err: err
             });
-          reject(err);
+          var error = {};
+          error.type = connect.SigmaErrorTypes.GET_SPEAKER_ID_FAILED;
+          error.stack = Error("Get SpeakerId failed");
+          error.err = err;
+          reject(error);
         }
       });
     });
@@ -1067,24 +1096,25 @@
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
         client.call(connect.HudsonClientMethods.GET_SPEAKER_STATUS, {
-          "SpeakerId": data.speakerId,
-          "DomainId" : "ConnectDefaultDomainId",
-          "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
-          "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
+          "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
+          "DomainId" : "ConnectDefaultDomainId"
           }, {
             success: function (data) {
               resolve(data);
             },
-            failure: function (err, data) {
+            failure: function (err) {
               connect.getLog().error("getSpeakerStatus failed")
                 .withObject({
-                  err: err,
-                  data: data
+                  err: err
                 });
-              reject(Error("getSpeakerStatus failed"));
+              var error = {};
+              error.type = connect.SigmaErrorTypes.GET_SPEAKER_STATUS_FAILED;
+              error.stack = Error("Get SpeakerStatus failed");
+              error.err = err;
+              reject(error);
             }
           });
-      }).catch(function(err,data){
+      }).catch(function(err){
         reject(err);
       });
     });
@@ -1096,27 +1126,28 @@
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
         client.call(connect.HudsonClientMethods.OPT_OUT_SIGMA_SPEAKER, {
-          "SpeakerId": data.speakerId,
-          "DomainId" : "ConnectDefaultDomainId", 
-          "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
-          "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId() 
+          "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
+          "DomainId" : "ConnectDefaultDomainId"
           }, {
             success: function (data) {
               connect.getLog().info("optOutSpeaker succeeded");
               //TODO add more logic here for filtering out data once Sigma API finalized
               resolve(data);
             },
-            failure: function (err, data) {
+            failure: function (err) {
               connect.getLog().error("optOutSpeaker failed")
                 .withObject({
                   err: err,
-                  data: data
                 });
-              reject(Error("optOutSpeaker failed"));
+              var error = {};
+              error.type = connect.SigmaErrorTypes.OPT_OUT_SPEAKER_FAILED;
+              error.stack = Error("optOutSpeaker failed");
+              error.err = err;
+              reject(error);
             }
           });
 
-      }).catch(function(err,data){
+      }).catch(function(err){
         reject(err);
       });
     });
@@ -1127,23 +1158,28 @@
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       client.call(connect.HudsonClientMethods.START_SIGMA_SESSION, {
-      "ContactId": self.contactId,
-      "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+      "contactId": self.contactId,
+      "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
+      "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
+      "clientToken": AWS.util.uuid.v4()
       }, {
         success: function (data) {
-          if(data.ContactId) {
+          if(data.sessionId) {
             resolve(data);
           } else {
             reject(Error("No contact id is returned from start session api."))
           }
         },
-        failure: function (err, data) {
+        failure: function (err) {
           connect.getLog().error("startSigmaSession failed")
             .withObject({
-              err: err,
-              data: data
+              err: err
             });
-          reject(err);
+          var error = {};
+          error.type = connect.SigmaErrorTypes.START_SESSION_FAILED;
+          error.stack = Error("startSigmaSession failed");
+          error.err = err;
+          reject(error);
         }
       });
     });
@@ -1158,9 +1194,7 @@
     return new Promise(function (resolve, reject) {
       function evaluate() {
         client.call(connect.HudsonClientMethods.EVALUATE_SPEAKER_WITH_SIGMA, {
-          "SessionName": contactData.initialContactId || this.contactId,
-          "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
-          "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
+          "SessionNameOrId": contactData.initialContactId || this.contactId
         }, {
           success: function (data) {
             if(maxPollTimes-- !== 1) {
@@ -1175,13 +1209,16 @@
               reject(Error("evaluateSpeaker timeout"));
             }
           },
-          failure: function (err, data) {
+          failure: function (err) {
             connect.getLog().error("evaluateSpeaker failed")
               .withObject({
-                err: err,
-                data: data
+                err: err
               });
-            reject(err);
+            var error = {};
+            error.type = connect.SigmaErrorTypes.EVALUATE_SPEAKER_FAILED;
+            error.stack = Error("evaluateSpeaker failed");
+            error.err = err;
+            reject(error);
           }
         })
       }
@@ -1190,7 +1227,7 @@
       } else {
         self.startSession().then(function(data){
           evaluate();
-        }).catch(function(err, data){
+        }).catch(function(err){
           reject(err)
         })
       }
@@ -1206,9 +1243,7 @@
     return new Promise(function (resolve, reject) {
       function describe() {
         client.call(connect.HudsonClientMethods.DESCRIBE_SIGMA_SESSION, {
-          "SessionName": contactData.initialContactId || this.contactId,
-          "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
-          "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
+          "SessionNameOrId": contactData.initialContactId || this.contactId
         }, {
           success: function (data) {
             if(maxPollingTimes-- !== 1) {
@@ -1237,13 +1272,16 @@
               reject(Error("describeSession timeout"));
             }
           },
-          failure: function (err, data) {
+          failure: function (err) {
             connect.getLog().error("describeSession failed")
               .withObject({
-                err: err,
-                data: data
+                err: err
               });
-            reject(err);
+            var error = {};
+            error.type = connect.SigmaErrorTypes.DESCRIBE_SESSION_FAILED;
+            error.stack = Error("describeSession failed");
+            error.err = err;
+            reject(error);
           }
         })
       }
@@ -1257,9 +1295,7 @@
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       client.call(connect.HudsonClientMethods.ENROLL_SPEAKER_IN_SIGMA, {
-      "SessionName": contactData.initialContactId || this.contactId,
-      "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
-      "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
+      "SessionNameOrId": contactData.initialContactId || this.contactId
       }, {
         success: function (data) {
           if(data.Status === connect.SigmaEnrollmentRequestStatus.COMPLETED) {
@@ -1267,18 +1303,21 @@
           } else {
             self.describeSession().then(function(data){
               resolve(data);
-            }).catch(function(err,data){
+            }).catch(function(err){
               reject(err);
             })
           }
         },
-        failure: function (err, data) {
+        failure: function (err) {
           connect.getLog().error("enrollSpeaker failed")
             .withObject({
-              err: err,
-              data: data
+              err: err
             });
-          reject(err);
+          var error = {};
+          error.type = connect.SigmaErrorTypes.ENROLL_SPEAKER_FAILED;
+          error.stack = Error("enrollSpeaker failed");
+          error.err = err;
+          reject(error);
         }
       });
     });
@@ -1291,18 +1330,21 @@
     return new Promise(function (resolve, reject) {
       client.call(connect.HudsonClientMethods.UPDATE_SIGMA_SESSION, {
       "SessionNameOrId": contactData.initialContactId || this.contactId,
-      "SpeakerId": speakerId
+      "SpeakerId": connect.assertNotNull(speakerId, 'speakerId')
       }, {
         success: function (data) {
           resolve(data);
         },
-        failure: function (err, data) {
+        failure: function (err) {
           connect.getLog().error("updateSpeakerId failed")
             .withObject({
-              err: err,
-              data: data
+              err: err
             });
-          reject(err);
+          var error = {};
+          error.type = connect.SigmaErrorTypes.UPDATE_SPEAKER_ID_FAILED;
+          error.stack = Error("updateSpeakerId failed");
+          error.err = err;
+          reject(error);
         }
       });
     });

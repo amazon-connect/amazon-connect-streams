@@ -48,15 +48,14 @@
     * enum HudsonClientMethods
     */
    connect.HudsonClientMethods = {
-      GET_SPEAKER_ID: "HudsonService.Lcms.getContact",
-      ENROLL_SPEAKER_IN_SIGMA: "HudsonService.Sigma.enrollBySession",
-      EVALUATE_SPEAKER_WITH_SIGMA: "HudsonService.Sigma.evaluateSession",
-      GET_SPEAKER_STATUS: "HudsonService.Sigma.describeSpeaker",
-      OPT_OUT_SIGMA_SPEAKER: "HudsonService.Sigma.optOutSpeaker",
-      DESCRIBE_SIGMA_SESSION: "HudsonService.Sigma.describeSession",
-      UPDATE_SIGMA_SESSION: "HudsonService.Sigma.updateSession",
-      START_SIGMA_SESSION: "HudsonService.Nasa.startSigmaSession",
-
+      GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
+      ENROLL_SPEAKER_IN_SIGMA: "AgentAppService.VoiceId.enrollBySession",
+      EVALUATE_SPEAKER_WITH_SIGMA: "AgentAppService.VoiceId.evaluateSession",
+      GET_SPEAKER_STATUS: "AgentAppService.VoiceId.describeSpeaker",
+      OPT_OUT_SIGMA_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
+      DESCRIBE_SIGMA_SESSION: "AgentAppService.VoiceId.describeSession",
+      UPDATE_SIGMA_SESSION: "AgentAppService.VoiceId.updateSession",
+      START_SIGMA_SESSION: "AgentAppService.Nasa.startSigmaSession",
    };
 
    /**---------------------------------------------------------------
@@ -170,12 +169,14 @@
    /**---------------------------------------------------------------
    * class HudsonClient extends ClientBase
    */
-   var HudsonClient = function(authToken, endpoint) {
+   var HudsonClient = function(authCookieName, authToken, endpoint) {
+      connect.assertNotNull(authCookieName, 'authCookieName');
       connect.assertNotNull(authToken, 'authToken');
       connect.assertNotNull(endpoint, 'endpoint');
       ClientBase.call(this);
       this.endpointUrl = endpoint;
       this.authToken = authToken;
+      this.authCookieName = authCookieName
    };
 
    HudsonClient.prototype = Object.create(ClientBase.prototype);
@@ -183,13 +184,16 @@
 
    HudsonClient.prototype._callImpl = function(method, params, callbacks) {
       var self = this;
+      var bear = {};
+      bear[self.authCookieName] = self.authToken;
       var options = {
          method: 'post',
          body: JSON.stringify(params || {}),
          headers: {
                'Accept': 'application/json',
                'Content-Type': 'application/json',
-               'X-Amz-target': method
+               'X-Amz-target': method,
+               'X-Amz-Bearer': JSON.stringify(bear)
          }
       };
       connect.fetch(self.endpointUrl, options).then(function(res){
