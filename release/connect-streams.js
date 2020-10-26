@@ -22288,8 +22288,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     'state_change',
     'acw',
     'mute_toggle',
-    'local_media_stream_created',
-    'enqueued_next_state'
+    'local_media_stream_created'
   ]);
 
   /**---------------------------------------------------------------
@@ -23649,10 +23648,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return this._getData().snapshot.state;
   };
 
-  Agent.prototype.getNextState = function () {
-    return this._getData().snapshot.nextState;
-  };
-
   Agent.prototype.getAvailabilityState = function () {
     return this._getData().snapshot.agentAvailabilityState;
   };
@@ -23741,17 +23736,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       });
   };
 
-  Agent.prototype.setState = function (state, callbacks, options) {
+  Agent.prototype.setState = function (state, callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.PUT_AGENT_STATE, {
-      state: connect.assertNotNull(state, 'state'),
-      enqueueNextState: options && !!options.enqueueNextState
+      state: connect.assertNotNull(state, 'state')
     }, callbacks);
-  };
-
-  Agent.prototype.onEnqueuedNextState = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
   };
 
   Agent.prototype.setStatus = Agent.prototype.setState;
@@ -24674,7 +24663,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.6.0";
+  connect.version = "1.4.0";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -25632,13 +25621,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         self.bus.trigger(event, new connect.Agent());
       });
     }
-
-    var oldNextState = oldAgentData && oldAgentData.snapshot.nextState ? oldAgentData.snapshot.nextState.name : null;
-    var newNextState = this.agentData.snapshot.nextState ? this.agentData.snapshot.nextState.name : null;
-    if (oldNextState !== newNextState && newNextState) {
-      self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
-    }
-
+ 
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
  
@@ -25887,7 +25870,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.core.AgentDataProvider = AgentDataProvider;
  
 })();
-
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *

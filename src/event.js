@@ -69,8 +69,7 @@
     'state_change',
     'acw',
     'mute_toggle',
-    'local_media_stream_created',
-    'enqueued_next_state'
+    'local_media_stream_created'
   ]);
 
   /**---------------------------------------------------------------

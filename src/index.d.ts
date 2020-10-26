@@ -412,11 +412,6 @@ declare namespace connect {
     readonly queueARN?: string;
   }
 
-  interface AgentSetStateOptions {
-    /**  Enables enqueuing agent state while agent is handling a live contact. */
-    readonly enqueueNextState?: boolean;
-  }
-
   /**
    * The Agent API provides event subscription methods and action methods which can be called on behalf of the agent.
    * There is only ever one agent per Streams instantiation and all contacts and actions are assumed to be taken on behalf of this one agent.
@@ -572,17 +567,12 @@ declare namespace connect {
 
     /**
      * Set the agent's current availability state.
-     * Will enqueue state if the agent is handling a live contact and enqueueNextState is true.
+     * Can only be performed if the agent is not handling a live contact.
      *
      * @param state The new agent state.
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
-     * @param options
      */
-    setState(
-      state: AgentStateDefinition,
-      callbacks?: SuccessFailOptions,
-      options?: AgentSetStateOptions
-    ): void;
+    setState(state: AgentStateDefinition, callbacks?: SuccessFailOptions): void;
 
     /** Alias for `setState()`. */
     setStatus(
@@ -630,13 +620,6 @@ declare namespace connect {
      * @param callback A callback to receive updates on agent mute state
      */
     onMuteToggle(callback: AgentMutedStatusCallback): void;
-
-    /**
-     * Subscribe a method to be called when the agent has a nextState.
-     *
-     * @param callback A callback that is invoked with the Agent object.
-     */
-    onEnqueuedNextState(callback: Agent): void;
   }
 
   interface AgentMutedStatus {
