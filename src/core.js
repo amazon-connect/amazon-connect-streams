@@ -8,7 +8,7 @@
   connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
- 
+
   connect.core = {};
   connect.core.initialized = false;
   connect.version = "STREAMS_VERSION";

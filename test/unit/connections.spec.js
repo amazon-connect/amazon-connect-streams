@@ -68,5 +68,69 @@ describe('Connections API', function () {
     });
 
   });
+
+  describe('#Task Connection API', function () {
+
+    const connectionId = "connectionId";
+    const contactId = "contactId";
+    const initialContactId = "initialContactId";
+    const initMediaController = sinon.spy();
+
+    var taskMediaInfo = {
+      contactId,
+      initialContactId
+    };
+   
+    const mediaFactoryGet = () => Promise.resolve();
+
+    connect.core.mediaFactory = {};
+
+    before(function () {
+
+      connect.core.getAgentDataProvider = sinon.stub().returns({
+        getContactData: () => { return {
+          initialContactId: taskMediaInfo.initialContactId
+        } },
+        _initMediaController: initMediaController,
+        getConnectionData: () => {
+          return {
+            state: {},
+            taskMediaInfo,
+            getMediaController: () => { }
+          }
+        },
+      });
+
+      connect.core.mediaFactory.get = sinon.stub(mediaFactoryGet);
+      connect.TaskConnection.prototype._initMediaController = initMediaController;
+    });
+
+    afterEach(function () {
+      initMediaController.resetHistory();
+    });
+
+    after(function() {
+      connect.core.getAgentDataProvider.resetBehavior();
+    });
+
+    it('Should create new Task connection Object given the task Contact and Connection Id ', function () {
+      const taskConnection = new connect.TaskConnection(contactId, connectionId);
+      assert.equal(taskConnection.connectionId, connectionId);
+      assert.equal(taskConnection.contactId, contactId);
+      assert.equal(taskConnection.getMediaType(), connect.MediaType.TASK);
+    });
+
+    it('Should call InitMediaController method on new TaskConnection creation', function () {
+      const taskConnection = new connect.TaskConnection(contactId, connectionId);
+      expect(initMediaController.calledOnce).to.be.true;
+    });
+
+    it('Should return valid taskMedia Info on getMediaInfo method ', function () {
+      const taskConnection = new connect.TaskConnection(contactId, connectionId);
+      const mediaInfo = taskConnection.getMediaInfo();
+      assert.equal(mediaInfo.contactId, taskMediaInfo.contactId);
+    });
+
+  });
 });
 
