@@ -951,6 +951,14 @@ module.exports={
                   "members": {
                     "contactId": {},
                     "initialContactId": {},
+                    "contactFeatures": {
+                      "type": "structure",
+                      "members": {
+                        "attachmentsEnabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
                     "type": {},
                     "state": {
                       "type": "structure",

@@ -674,6 +674,10 @@
     return this._getData().attributes;
   };
 
+  Contact.prototype.getContactFeatures = function () {
+    return this._getData().contactFeatures;
+  };
+
   Contact.prototype.isSoftphoneCall = function () {
     return connect.find(this.getConnections(), function (conn) {
       return conn.getSoftphoneMediaInfo() != null;
