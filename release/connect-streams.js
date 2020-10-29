@@ -23013,7 +23013,12 @@
       AWS.config.credentials = new AWS.Credentials({});
       AWS.config.region = region;
       this.authToken = authToken;
-      var endpointUrl = endpointIn || connect.getBaseUrl() + '/connect/api';
+      var baseUrl = connect.getBaseUrl();
+      var endpointUrl = endpointIn || ( 
+         baseUrl.includes(".awsapps.com")
+            ? baseUrl + '/connect/api'
+            : baseUrl + '/api'
+      );
       var endpoint = new AWS.Endpoint(endpointUrl);
       this.client = new AWS.Connect({endpoint: endpoint});
    };
@@ -24559,22 +24564,26 @@
   var CCP_LOAD_TIMEOUT = 3000; // 3 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
  
-  var LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
+  var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
   var CLIENT_ID_MAP = {
     "us-east-1": "06919f4fd8ed324e"
   };
  
-  var AUTHORIZE_ENDPOINT = "/connect/auth/authorize";
+  var AUTHORIZE_ENDPOINT = "/auth/authorize";
+  var LEGACY_AUTHORIZE_ENDPOINT = "/connect/auth/authorize";
   var AUTHORIZE_RETRY_INTERVAL = 2000;
   var AUTHORIZE_MAX_RETRY = 5;
  
-  var WHITELISTED_ORIGINS_ENDPOINT = "/connect/whitelisted-origins";
+  var LEGACY_WHITELISTED_ORIGINS_ENDPOINT = "/connect/whitelisted-origins";
+  var WHITELISTED_ORIGINS_ENDPOINT = "/whitelisted-origins";
   var WHITELISTED_ORIGINS_RETRY_INTERVAL = 2000;
   var WHITELISTED_ORIGINS_MAX_RETRY = 5;
  
   /**
    * @deprecated
-   * We will no longer need this function soon.
+   * This function was only meant for internal use. 
+   * The name is misleading for what it should do.
+   * Internally we have replaced its usage with `getLoginUrl`.
    */
   var createLoginUrl = function (params) {
     var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
@@ -24583,7 +24592,29 @@
     if (params.loginUrl) {
       return params.loginUrl
     } else if (params.alias) {
-      return LOGIN_URL_PATTERN
+      log.warn("The `alias` param is deprecated and should not be expected to function properly. Please use `ccpUrl` or `loginUrl`. See https://github.com/amazon-connect/amazon-connect-streams/blob/master/README.md#connectcoreinitccp for valid parameters.");
+      return LEGACY_LOGIN_URL_PATTERN
+        .replace("{alias}", params.alias)
+        .replace("{client_id}", CLIENT_ID_MAP["us-east-1"])
+        .replace("{redirect}", global.encodeURIComponent(
+          redirect));
+    } else {
+      return params.ccpUrl;
+    }
+  };
+
+  /**
+   * Replaces `createLoginUrl`, as that function's name was misleading.
+   * The `params.alias` parameter is deprecated. Please refrain from using it.
+   */
+  var getLoginUrl = function (params) {
+    var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
+    connect.assertNotNull(redirect);
+    if (params.loginUrl) {
+      return params.loginUrl
+    } else if (params.alias) {
+      log.warn("The `alias` param is deprecated and should not be expected to function properly. Please use `ccpUrl` or `loginUrl`. See https://github.com/amazon-connect/amazon-connect-streams/blob/master/README.md#connectcoreinitccp for valid parameters.");
+      return LEGACY_LOGIN_URL_PATTERN
         .replace("{alias}", params.alias)
         .replace("{client_id}", CLIENT_ID_MAP["us-east-1"])
         .replace("{redirect}", global.encodeURIComponent(
@@ -24925,14 +24956,27 @@
     });
   };
  
+  //Internal use only.
   connect.core.authorize = function (endpoint) {
     var options = {
       credentials: 'include'
     };
-    return connect.fetch(endpoint || AUTHORIZE_ENDPOINT, options, AUTHORIZE_RETRY_INTERVAL, AUTHORIZE_MAX_RETRY);
+
+    var authorizeEndpoint = endpoint;
+    if (!authorizeEndpoint) {
+      authorizeEndpoint = connect.core.isLegacyDomain()
+        ? LEGACY_AUTHORIZE_ENDPOINT
+        : AUTHORIZE_ENDPOINT;
+    }
+    return connect.fetch(authorizeEndpoint, options, AUTHORIZE_RETRY_INTERVAL, AUTHORIZE_MAX_RETRY);
   };
  
+  /**
+   * @deprecated
+   * This used to be used internally, but is no longer needed.
+   */
   connect.core.verifyDomainAccess = function (authToken, endpoint) {
+    connect.getLog().warn("This API will be deprecated in the next major version release");
     if (!connect.isFramed()) {
       return Promise.resolve();
     }
@@ -24941,7 +24985,17 @@
         'X-Amz-Bearer': authToken
       }
     };
-    return connect.fetch(endpoint || WHITELISTED_ORIGINS_ENDPOINT, options, WHITELISTED_ORIGINS_RETRY_INTERVAL, WHITELISTED_ORIGINS_MAX_RETRY).then(function (response) {
+    var whitelistedOriginsEndpoint = null;
+    if (endpoint){
+      whitelistedOriginsEndpoint = endpoint;
+    }
+    else {
+      whitelistedOriginsEndpoint = connect.core.isLegacyDomain() 
+        ? LEGACY_WHITELISTED_ORIGINS_ENDPOINT
+        : WHITELISTED_ORIGINS_ENDPOINT;
+    }
+    
+    return connect.fetch(whitelistedOriginsEndpoint, options, WHITELISTED_ORIGINS_RETRY_INTERVAL, WHITELISTED_ORIGINS_MAX_RETRY).then(function (response) {
       var topDomain = sanitizeDomain(window.document.referrer);
       var isAllowed = response.whitelistedOrigins.some(function (origin) {
         return topDomain === sanitizeDomain(origin);
@@ -24949,10 +25003,20 @@
       return isAllowed ? Promise.resolve() : Promise.reject();
     });
   };
+
+  /**-------------------------------------------------------------------------
+   * Returns true if this window's href is on the legacy connect domain. 
+   * Only useful for internal use. 
+   */
+  connect.core.isLegacyDomain = function(url) {
+    url = url || window.location.href;
+    return url.includes('.awsapps.com');
+  }
+
  
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
-   * Used primarily by the CCP.
+   * Used only by the CCP
    */
   connect.core.initSharedWorker = function (params) {
     connect.core.checkNotInitialized();
@@ -24967,13 +25031,19 @@
     var authTokenExpiration = connect.assertNotNull(params.authTokenExpiration, 'params.authTokenExpiration');
     var region = connect.assertNotNull(params.region, 'params.region');
     var endpoint = params.endpoint || null;
-    var authorizeEndpoint = params.authorizeEndpoint || "/connect/auth/authorize";
+    var authorizeEndpoint = params.authorizeEndpoint;
+    if (!authorizeEndpoint) {
+      authorizeEndpoint = connect.core.isLegacyDomain()
+        ? LEGACY_AUTHORIZE_ENDPOINT
+        : AUTHORIZE_ENDPOINT;
+    }
  
     try {
       // Initialize the event bus and agent data providers.
       connect.core.eventBus = new connect.EventBus({ logEvents: true });
       connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
       connect.core.mediaFactory = new connect.MediaFactory(params);
+      
       // Create the shared worker and upstream conduit.
       var worker = new SharedWorker(sharedWorkerUrl, "ConnectSharedWorker");
       var conduit = new connect.Conduit("ConnectSharedWorkerConduit",
@@ -24982,7 +25052,6 @@
  
       // Set the global upstream conduit for external use.
       connect.core.upstream = conduit;
- 
       connect.core.webSocketProvider = new WebSocketProvider();
  
       // Close our port to the shared worker before the window closes.
@@ -25177,7 +25246,7 @@
       // loginPopup is true by default, only false if explicitly set to false.
       if (params.loginPopup !== false) {
         try {
-          var loginUrl = createLoginUrl(params);
+          var loginUrl = getLoginUrl(params);
           connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
           // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
           if (params.loginUrl) {
