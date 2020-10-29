@@ -34,21 +34,24 @@ describe('Core', function () {
 
     describe('#connect.core.initSharedWorker()', function () {
 
-        before(function () {
+        beforeEach(function () {
             sandbox.stub(connect.core, "checkNotInitialized").returns(true);
             global.SharedWorker = sandbox.stub().returns({
                 port: {
-                    start: sandbox.spy()
+                    start: sandbox.spy(),
+                    addEventListener: sandbox.spy()
                 },
             })
 
             global.connect.agent.initialized = true;
             sandbox.stub(connect.core, 'getNotificationManager').returns({
                 requestPermission: sandbox.spy()
-            })
+            });
+
+            sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
         });
 
-        after(function () {
+        afterEach(function () {
             sandbox.restore();
         });
 
@@ -60,7 +63,23 @@ describe('Core', function () {
             expect(connect.core.checkNotInitialized.called);
             expect(SharedWorker.calledWith(this.params.sharedWorkerUrl, "ConnectSharedWorker"));
             expect(connect.core.region).not.to.be.a("null");
-        })
+        });
+        it("uses the legacy endpoint for a legacy url", function () {
+            const href = "https://abc.awsapps.com/connect/ccp-v2";
+            window.location.href = href;
+            connect.core.initSharedWorker(this.params);
+            assert.isTrue(connect.Conduit.prototype.sendUpstream.called);
+            assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/connect/auth/authorize");
+        });
+        it("uses new endpoint for new url", function () {
+            const href = "https://abc.my.connect.aws/ccp-v2";
+            this.params.baseUrl = "https://abc.my.connect.aws";
+            window.location.href = href;
+            connect.core.initSharedWorker(this.params);
+            assert.isTrue(connect.Conduit.prototype.sendUpstream.called);
+            assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/auth/authorize");
+            this.params.baseUrl = "https://abc.my.connect.aws";
+        });
     });
 
     describe('#initSoftphoneManager()', function () {
@@ -105,7 +124,7 @@ describe('Core', function () {
 
     describe('#connect.core.initRingtoneEngines()', function () {
         describe('with default settings', function () {
-            before(function () {
+            beforeEach(function () {
                 sandbox.stub(connect, "ifMaster");
                 sandbox.stub(connect, "VoiceRingtoneEngine");
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
@@ -114,7 +133,7 @@ describe('Core', function () {
                 connect.core.initRingtoneEngines({ ringtone: this.defaultRingtone });
             });
 
-            after(function () {
+            afterEach(function () {
                 sandbox.restore();
             });
 

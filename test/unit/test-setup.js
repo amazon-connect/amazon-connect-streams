@@ -11,13 +11,18 @@ global.navigator = {
 
 global.document = {
     getElementById: sinon.stub().returns({}),
-    createElement: sinon.stub().returns({})
+    createElement: sinon.stub().returns({}),
 }
 
 global.window = {
     addEventListener: sinon.spy(),
-    document: global.document
+    document: global.document,
+    location: {
+        href: "example"
+    }
 };
+
+global.parent = global.window;
 
 require("../../release/connect-streams.js");
 
