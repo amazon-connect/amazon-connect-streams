@@ -191,7 +191,8 @@
     "PaginationException",
     "RefreshTokenExpiredException",
     "SendDataFailedException",
-    "UnauthorizedException"
+    "UnauthorizedException",
+    "QuotaExceededException"
   ]);
   /*----------------------------------------------------------------
    * class Agent
