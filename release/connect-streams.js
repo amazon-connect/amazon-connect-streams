@@ -22323,8 +22323,7 @@
     'state_change',
     'acw',
     'mute_toggle',
-    'local_media_stream_created',
-    'enqueued_next_state'
+    'local_media_stream_created'
   ]);
 
   /**---------------------------------------------------------------
@@ -23584,7 +23583,8 @@
     "PaginationException",
     "RefreshTokenExpiredException",
     "SendDataFailedException",
-    "UnauthorizedException"
+    "UnauthorizedException",
+    "QuotaExceededException"
   ]);
   /*----------------------------------------------------------------
    * class Agent
@@ -23686,10 +23686,6 @@
     return this._getData().snapshot.state;
   };
 
-  Agent.prototype.getNextState = function () {
-    return this._getData().snapshot.nextState;
-  };
-
   Agent.prototype.getAvailabilityState = function () {
     return this._getData().snapshot.agentAvailabilityState;
   };
@@ -23778,17 +23774,11 @@
       });
   };
 
-  Agent.prototype.setState = function (state, callbacks, options) {
+  Agent.prototype.setState = function (state, callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.PUT_AGENT_STATE, {
-      state: connect.assertNotNull(state, 'state'),
-      enqueueNextState: options && !!options.enqueueNextState
+      state: connect.assertNotNull(state, 'state')
     }, callbacks);
-  };
-
-  Agent.prototype.onEnqueuedNextState = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
   };
 
   Agent.prototype.setStatus = Agent.prototype.setState;
@@ -25691,13 +25681,7 @@
         self.bus.trigger(event, new connect.Agent());
       });
     }
-
-    var oldNextState = oldAgentData && oldAgentData.snapshot.nextState ? oldAgentData.snapshot.nextState.name : null;
-    var newNextState = this.agentData.snapshot.nextState ? this.agentData.snapshot.nextState.name : null;
-    if (oldNextState !== newNextState && newNextState) {
-      self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
-    }
-
+ 
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
  
@@ -25946,7 +25930,6 @@
   connect.core.AgentDataProvider = AgentDataProvider;
  
 })();
-
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -26261,6 +26244,7 @@
     handleSoftPhoneMuteToggle();
 
     this.ringtoneEngine = null;
+    var cleanMultipleSessions = 'true' === softphoneParams.cleanMultipleSessions;
     var rtcSessions = {};
     // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
     var callsDetected = {};
@@ -26291,19 +26275,28 @@
       }
     };
 
-    // When multiple RTC sessions detected, ignore the new call and hang up the previous sessions.
+    // When feature access control flag is on, ignore the new call and hang up the previous sessions.
+    // Otherwise just log the contact and agent in the client side metrics.
     // TODO: Update when connect-rtc exposes an API to detect session status.
     var sanityCheckActiveSessions = function (rtcSessions) {
       if (Object.keys(rtcSessions).length > 0) {
-        // Error! our state doesn't match, tear it all down.
-        for (var connectionId in rtcSessions) {
-          if (rtcSessions.hasOwnProperty(connectionId)) {
-            // Log an error for the session we are about to kill.
-            publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
-            destroySession(connectionId);
+        if (cleanMultipleSessions) {
+          // Error! our state doesn't match, tear it all down.
+          for (var connectionId in rtcSessions) {
+            if (rtcSessions.hasOwnProperty(connectionId)) {
+              // Log an error for the session we are about to kill.
+              publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
+              destroySession(connectionId);
+            }
+          }
+          throw new Error("duplicate session detected, refusing to setup new connection");
+        } else {
+          for (var _connectionId in rtcSessions) {
+            if (rtcSessions.hasOwnProperty(_connectionId)) {
+              publishMultipleSessionsEvent(MULTIPLE_SESSIONS_EVENT, rtcSessions[_connectionId].callId, _connectionId);
+            }
           }
         }
-        throw new Error("duplicate session detected, refusing to setup new connection");
       }
     };
 

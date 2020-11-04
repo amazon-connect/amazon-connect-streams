@@ -1,5 +1,3 @@
-const { assert } = require("chai");
-
 require("../unit/test-setup.js");
 
 describe('Core', function () {
@@ -335,75 +333,6 @@ describe('Core', function () {
                     expect(testDomains[urls[i]]).to.be.false;
                 });
             }
-        });
-    });
-
-    describe('AgentDataProvider', function () {
-        function createState(type, name) {
-            return { type: type, name: name }
-        }
-        function createAgentSnapshotState(type, name) {
-            return {
-                snapshot: { state: createState(type, name) }
-            }; 
-        }
-
-        before(function () {
-            connect.core.eventBus = new connect.EventBus({ logEvents: true });
-            sandbox.spy(connect.core.eventBus, "trigger");
-            connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());
-            sandbox.spy(connect.core.AgentDataProvider.prototype, "_fireAgentUpdateEvents");
-            connect.agent.initialized = false;
-        });
-
-        after(function () {
-            sandbox.restore();
-        });
-
-        beforeEach(function () {
-            connect.core.getEventBus().trigger.resetHistory();
-        });
-
-        it('updates agent data after receiving an UPDATE event', function () {
-            assert.isFalse(connect.agent.initialized);
-            connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, createAgentSnapshotState(connect.AgentStateType.ROUTABLE, "Available"));
-            assert.isTrue(connect.agent.initialized);
-            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.INIT));
-            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.REFRESH));
-            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.ROUTABLE));
-        });
-
-        it('triggers event when going from ROUTABLE to NOT_ROUTABLE', function () {
-            connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, createAgentSnapshotState(connect.AgentStateType.NOT_ROUTABLE, "Unavailable"));
-            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.NOT_ROUTABLE));
-            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.STATE_CHANGE, {
-                agent: new connect.Agent(),
-                oldState: "Available",
-                newState: "Unavailable"
-            }));
-        });
-
-        it('triggers only state_change event when going to same routing state', function () {
-            connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, createAgentSnapshotState(connect.AgentStateType.NOT_ROUTABLE, "Lunch"));
-            assert.isFalse(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.NOT_ROUTABLE));
-            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.STATE_CHANGE, {
-                agent: new connect.Agent(),
-                oldState: "Unavailable",
-                newState: "Lunch"
-            }));
-        });
-
-        it('triggers enqueued_next_state when nextState is populated', function () {
-            var agentSnapshotWithNextState = createAgentSnapshotState(connect.AgentStateType.ROUTABLE, "Available");
-            agentSnapshotWithNextState.snapshot.nextState = createState(connect.AgentStateType.NOT_ROUTABLE, "Lunch");
-            var enqueuedNextState = false;
-            new connect.Agent().onEnqueuedNextState(function (agent) {
-                assert.isTrue(agent instanceof connect.Agent);
-                enqueuedNextState = true;
-            });
-            connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, agentSnapshotWithNextState);
-            assert.isTrue(enqueuedNextState);
-            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.ENQUEUED_NEXT_STATE));
         });
     });
 
