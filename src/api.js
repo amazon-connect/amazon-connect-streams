@@ -1068,9 +1068,7 @@
             }
             resolve(obj);
           } else {
-            var error = {};
-            error.type = connect.SigmaErrorTypes.NO_SPEAKER_ID_FOUND;
-            error.stack = Error("No speakerId assotiated with this call.")
+            var error = connect.SigmaError(connect.SigmaErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call", err);
             reject(error);
           }
           
@@ -1080,10 +1078,7 @@
             .withObject({
               err: err
             });
-          var error = {};
-          error.type = connect.SigmaErrorTypes.GET_SPEAKER_ID_FAILED;
-          error.stack = Error("Get SpeakerId failed");
-          error.err = err;
+          var error = connect.SigmaError(connect.SigmaErrorTypes.GET_SPEAKER_ID_FAILED, "Get SpeakerId failed", err);
           reject(error);
         }
       });
@@ -1107,10 +1102,7 @@
                 .withObject({
                   err: err
                 });
-              var error = {};
-              error.type = connect.SigmaErrorTypes.GET_SPEAKER_STATUS_FAILED;
-              error.stack = Error("Get SpeakerStatus failed");
-              error.err = err;
+              var error = connect.SigmaError(connect.SigmaErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
               reject(error);
             }
           });
@@ -1139,10 +1131,7 @@
                 .withObject({
                   err: err,
                 });
-              var error = {};
-              error.type = connect.SigmaErrorTypes.OPT_OUT_SPEAKER_FAILED;
-              error.stack = Error("optOutSpeaker failed");
-              error.err = err;
+              var error = connect.SigmaError(connect.SigmaErrorTypes.OPT_OUT_SPEAKER_FAILED, "optOutSpeaker failed.", err);
               reject(error);
             }
           });
@@ -1175,10 +1164,7 @@
             .withObject({
               err: err
             });
-          var error = {};
-          error.type = connect.SigmaErrorTypes.START_SESSION_FAILED;
-          error.stack = Error("startSigmaSession failed");
-          error.err = err;
+          var error = connect.SigmaError(connect.SigmaErrorTypes.START_SESSION_FAILED, "startSigmaSession failed", err);
           reject(error);
         }
       });
@@ -1198,7 +1184,10 @@
         }, {
           success: function (data) {
             if(maxPollTimes-- !== 1) {
-              if(data.AuthenticationResult.Decision !== connect.SigmaAuthenticationDecision.NOT_ENOUGH_SPEECH) {
+              if(data.StreamingStatus === connect.SigmaStreamingStatus.ENDED && data.AuthenticationResult.Decision === connect.SigmaAuthenticationDecision.NOT_ENOUGH_SPEECH){
+                var error = connect.SigmaError(connect.SigmaErrorTypes.EVALUATE_SPEAKER_FAILED, "There is not enough speach, please start a new session and authenticate again!", err);
+                reject(error);
+              } if(data.AuthenticationResult.Decision !== connect.SigmaAuthenticationDecision.NOT_ENOUGH_SPEECH) {
                 resolve(data);
               } else {
                 setTimeout(function(){
@@ -1214,10 +1203,7 @@
               .withObject({
                 err: err
               });
-            var error = {};
-            error.type = connect.SigmaErrorTypes.EVALUATE_SPEAKER_FAILED;
-            error.stack = Error("evaluateSpeaker failed");
-            error.err = err;
+            var error = connect.SigmaError(connect.SigmaErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
             reject(error);
           }
         })
@@ -1277,10 +1263,7 @@
               .withObject({
                 err: err
               });
-            var error = {};
-            error.type = connect.SigmaErrorTypes.DESCRIBE_SESSION_FAILED;
-            error.stack = Error("describeSession failed");
-            error.err = err;
+            var error = connect.SigmaError(connect.SigmaErrorTypes.DESCRIBE_SESSION_FAILED, "describeSession failed", err);
             reject(error);
           }
         })
@@ -1313,10 +1296,7 @@
             .withObject({
               err: err
             });
-          var error = {};
-          error.type = connect.SigmaErrorTypes.ENROLL_SPEAKER_FAILED;
-          error.stack = Error("enrollSpeaker failed");
-          error.err = err;
+          var error = connect.SigmaError(connect.SigmaErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
           reject(error);
         }
       });
@@ -1340,10 +1320,7 @@
             .withObject({
               err: err
             });
-          var error = {};
-          error.type = connect.SigmaErrorTypes.UPDATE_SPEAKER_ID_FAILED;
-          error.stack = Error("updateSpeakerId failed");
-          error.err = err;
+          var error = connect.SigmaError(connect.SigmaErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerId failed", err);
           reject(error);
         }
       });
