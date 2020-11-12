@@ -1189,7 +1189,7 @@
     var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-    var maxPollTimes = 10; // It is polling for maximum 10 seconds right now. It can be adjusted once sigma api is finalized.
+    var maxPollTimes = 120; // Polling for maximum 2 mins.
     var milliInterval = 1000;
     return new Promise(function (resolve, reject) {
       function evaluate() {
@@ -1198,7 +1198,7 @@
         }, {
           success: function (data) {
             if(maxPollTimes-- !== 1) {
-              if(data.StreamingStatus !== connect.SigmaStreamingStatus.ONGOING && data.AuthenticationResult.Decision !== connect.SigmaAuthenticationDecision.NOT_ENOUGH_SPEECH) {
+              if(data.AuthenticationResult.Decision !== connect.SigmaAuthenticationDecision.NOT_ENOUGH_SPEECH) {
                 resolve(data);
               } else {
                 setTimeout(function(){
@@ -1238,7 +1238,7 @@
     var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-    var maxPollingTimes = 60; // It is polling for maximum 5 mins right now. It can be adjusted once sigma api is finalized.
+    var maxPollingTimes = 120; // It is polling for maximum 10 mins.
     var milliInterval = 5000;
     return new Promise(function (resolve, reject) {
       function describe() {
