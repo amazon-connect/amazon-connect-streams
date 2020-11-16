@@ -26597,10 +26597,12 @@
     if (softphoneMediaInfo.autoAccept === true) {
       logger.info("Auto-accept is enabled, sending out Accepted event to stop ringtone..").sendInternalLogToServer();
       conduit.sendUpstream(connect.EventType.BROADCAST, {
-        event: connect.ContactEvents.ACCEPTED
+        event: connect.ContactEvents.ACCEPTED,
+        data: new connect.Contact(contact.contactId)
       });
       conduit.sendUpstream(connect.EventType.BROADCAST, {
-        event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contact.contactId)
+        event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contact.contactId),
+        data: new connect.Contact(contact.contactId)
       });
     } else {
       logger.info("Auto-accept is disabled, ringtone will be stopped by user action.").sendInternalLogToServer();
