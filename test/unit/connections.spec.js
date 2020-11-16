@@ -102,55 +102,55 @@ describe('Connections API', function () {
        assert.equal(voiceConnection.connectionId, connectionId);
        assert.equal(voiceConnection.contactId, contactId);
        assert.equal(voiceConnection.getMediaType(), connect.MediaType.SOFTPHONE);
-       assert.equal(typeof(voiceConnection.getSigmaSpeakerId), 'function');
-       assert.equal(typeof(voiceConnection.getSigmaSpeakerStatus), 'function')
+       assert.equal(typeof(voiceConnection.getVoiceIdSpeakerId), 'function');
+       assert.equal(typeof(voiceConnection.getVoiceIdSpeakerStatus), 'function')
      });
  
-     describe('getSigmaSpeakerId', function() {
+     describe('getVoiceIdSpeakerId', function() {
        it('Should return SpeakerId promise.', function () {
          const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-         var speakerId = voiceConnection.getSigmaSpeakerId();
+         var speakerId = voiceConnection.getVoiceIdSpeakerId();
          assert.equal(Promise.resolve(speakerId), speakerId);
        });
      });
 
-     describe('getSigmaSpeakerStatus', function() {
-      it('Should return getSigmaSpeakerStatus promise.', function () {
+     describe('getVoiceIdSpeakerStatus', function() {
+      it('Should return getVoiceIdSpeakerStatus promise.', function () {
         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-        var getSigmaSpeakerStatus = voiceConnection.getSigmaSpeakerStatus();
-        assert.equal(Promise.resolve(getSigmaSpeakerStatus), getSigmaSpeakerStatus);
+        var getVoiceIdSpeakerStatus = voiceConnection.getVoiceIdSpeakerStatus();
+        assert.equal(Promise.resolve(getVoiceIdSpeakerStatus), getVoiceIdSpeakerStatus);
       });
      });
 
-     describe('optOutSigmaSpeaker', function() {
-      it('Should return optOutSigmaSpeaker promise.', function () {
+     describe('optOutVoiceIdSpeaker', function() {
+      it('Should return optOutVoiceIdSpeaker promise.', function () {
         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-        var optOutSigmaSpeaker = voiceConnection.optOutSigmaSpeaker();
-        assert.equal(Promise.resolve(optOutSigmaSpeaker), optOutSigmaSpeaker);
+        var optOutVoiceIdSpeaker = voiceConnection.optOutVoiceIdSpeaker();
+        assert.equal(Promise.resolve(optOutVoiceIdSpeaker), optOutVoiceIdSpeaker);
       });
      });
 
-     describe('evaluateSpeakerWithSigma', function() {
-      it('Should return evaluateSpeakerWithSigma promise.', function () {
+     describe('evaluateSpeakerWithVoiceId', function() {
+      it('Should return evaluateSpeakerWithVoiceId promise.', function () {
         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-        var evaluateSpeakerWithSigma = voiceConnection.evaluateSpeakerWithSigma();
-        assert.equal(Promise.resolve(evaluateSpeakerWithSigma), evaluateSpeakerWithSigma);
+        var evaluateSpeakerWithVoiceId = voiceConnection.evaluateSpeakerWithVoiceId();
+        assert.equal(Promise.resolve(evaluateSpeakerWithVoiceId), evaluateSpeakerWithVoiceId);
       });
      });
 
-     describe('enrollSpeakerInSigma', function() {
-      it('Should return enrollSpeakerInSigma promise.', function () {
+     describe('enrollSpeakerInVoiceId', function() {
+      it('Should return enrollSpeakerInVoiceId promise.', function () {
         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-        var enrollSpeakerInSigma = voiceConnection.enrollSpeakerInSigma();
-        assert.equal(Promise.resolve(enrollSpeakerInSigma), enrollSpeakerInSigma);
+        var enrollSpeakerInVoiceId = voiceConnection.enrollSpeakerInVoiceId();
+        assert.equal(Promise.resolve(enrollSpeakerInVoiceId), enrollSpeakerInVoiceId);
       });
      });
 
-     describe('updateSigmaSpeakerId', function() {
-      it('Should return updateSigmaSpeakerId promise.', function () {
+     describe('updateVoiceIdSpeakerId', function() {
+      it('Should return updateVoiceIdSpeakerId promise.', function () {
         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-        var updateSigmaSpeakerId = voiceConnection.updateSigmaSpeakerId();
-        assert.equal(Promise.resolve(updateSigmaSpeakerId), updateSigmaSpeakerId);
+        var updateVoiceIdSpeakerId = voiceConnection.updateVoiceIdSpeakerId();
+        assert.equal(Promise.resolve(updateVoiceIdSpeakerId), updateVoiceIdSpeakerId);
       });
      });
   });

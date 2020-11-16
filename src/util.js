@@ -571,7 +571,7 @@
   connect.StateError.prototype = Object.create(connect.BaseError.prototype);
   connect.StateError.prototype.constructor = connect.StateError;
 
-  connect.SigmaError = function(type, message, err){
+  connect.VoiceIdError = function(type, message, err){
     var error = {};
     error.type = type;
     error.message = message;

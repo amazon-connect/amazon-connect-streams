@@ -49,13 +49,13 @@
     */
    connect.HudsonClientMethods = {
       GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
-      ENROLL_SPEAKER_IN_SIGMA: "AgentAppService.VoiceId.enrollBySession",
-      EVALUATE_SPEAKER_WITH_SIGMA: "AgentAppService.VoiceId.evaluateSession",
+      ENROLL_SPEAKER_IN_VOICEID: "AgentAppService.VoiceId.enrollBySession",
+      EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
       GET_SPEAKER_STATUS: "AgentAppService.VoiceId.describeSpeaker",
-      OPT_OUT_SIGMA_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
-      DESCRIBE_SIGMA_SESSION: "AgentAppService.VoiceId.describeSession",
-      UPDATE_SIGMA_SESSION: "AgentAppService.VoiceId.updateSession",
-      START_SIGMA_SESSION: "AgentAppService.Nasa.startSigmaSession",
+      OPT_OUT_VOICEID_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
+      DESCRIBE_VOICEID_SESSION: "AgentAppService.VoiceId.describeSession",
+      UPDATE_VOICEID_SESSION: "AgentAppService.VoiceId.updateSession",
+      START_VOICEID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
    };
 
    /**---------------------------------------------------------------

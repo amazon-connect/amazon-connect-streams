@@ -1191,22 +1191,22 @@ declare namespace connect {
     getMediaController(): Promise<any>;
    
     /** Returns the `SpeakerId` associated to this Voice Connection */
-    getSigmaSpeakerId(): Promise<any>;
+    getVoiceIdSpeakerId(): Promise<any>;
 
-    /** Returns the `sigma speaker status` associated to this Voice Connection */
-    getSigmaSpeakerStatus(): Promise<any>;
+    /** Returns the `VoiceId speaker status` associated to this Voice Connection */
+    getVoiceIdSpeakerStatus(): Promise<any>;
 
-    /** Opt out speaker associated to this Voice Connection from sigma*/
-    optOutSigmaSpeaker(): Promise<any>;
+    /** Opt out speaker associated to this Voice Connection from VoiceId*/
+    optOutVoiceIdSpeaker(): Promise<any>;
 
-    /** Returns sigma speaker authentication status */
-    evaluateSpeakerWithSigma(): Promise<any>;
+    /** Returns VoiceId speaker authentication status */
+    evaluateSpeakerWithVoiceId(): Promise<any>;
 
-    /** Enroll speaker into sigma */
-    enrollSpeakerInSigma(): Promise<any>;
+    /** Enroll speaker into VoiceId */
+    enrollSpeakerInVoiceId(): Promise<any>;
 
     /** Update speaker id */
-    updateSigmaSpeakerId(): Promise<any>;
+    updateVoiceIdSpeakerId(): Promise<any>;
 
   }
 

@@ -179,9 +179,9 @@
   ]);
 
   /*----------------------------------------------------------------
-   * enum for SigmaErrorTypes
+   * enum for VoiceIdErrorTypes
    */
-  connect.SigmaErrorTypes = connect.makeEnum([
+  connect.VoiceIdErrorTypes = connect.makeEnum([
     'no_speaker_id_found',
     'get_speaker_id_failed',
     'get_speaker_status_failed',
@@ -209,17 +209,17 @@
     "UnauthorizedException"
   ]);
   /*----------------------------------------------------------------
-   * enum for sigma streaming status
+   * enum for VoiceId streaming status
    */
-  connect.SigmaStreamingStatus = connect.makeEnum([
+  connect.VoiceIdStreamingStatus = connect.makeEnum([
     "ONGOING",
     "ENDED"
   ]);
 
   /*----------------------------------------------------------------
-   * enum for sigma streaming status
+   * enum for VoiceId streaming status
    */
-  connect.SigmaAuthenticationDecision = connect.makeEnum([
+  connect.VoiceIdAuthenticationDecision = connect.makeEnum([
     "ACCEPT",
     "REJECT",
     "NOT_ENOUGH_SPEECH",
@@ -229,9 +229,9 @@
   ]);
 
   /*----------------------------------------------------------------
-   * enum for sigma EnrollmentRequestStatus status
+   * enum for VoiceId EnrollmentRequestStatus status
    */
-  connect.SigmaEnrollmentRequestStatus = connect.makeEnum([
+  connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
     "NOT_ENOUGH_SPEECH",
     "IN_PROGRESS",
     "COMPLETED",
@@ -1045,14 +1045,14 @@
   }
 
   /*----------------------------------------------------------------
-  * Voice authenticator Sigma
+  * Voice authenticator VoiceId
   */
  
-  var Sigma = function (contactId) {
+  var VoiceId = function (contactId) {
     this.contactId = contactId;
   };
 
-  Sigma.prototype.getSpeakerId = function () {
+  VoiceId.prototype.getSpeakerId = function () {
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
@@ -1068,7 +1068,7 @@
             }
             resolve(obj);
           } else {
-            var error = connect.SigmaError(connect.SigmaErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call", err);
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call", err);
             reject(error);
           }
           
@@ -1078,14 +1078,14 @@
             .withObject({
               err: err
             });
-          var error = connect.SigmaError(connect.SigmaErrorTypes.GET_SPEAKER_ID_FAILED, "Get SpeakerId failed", err);
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_ID_FAILED, "Get SpeakerId failed", err);
           reject(error);
         }
       });
     });
   };
 
-  Sigma.prototype.getSpeakerStatus = function () {
+  VoiceId.prototype.getSpeakerStatus = function () {
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
@@ -1102,7 +1102,7 @@
                 .withObject({
                   err: err
                 });
-              var error = connect.SigmaError(connect.SigmaErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
               reject(error);
             }
           });
@@ -1112,18 +1112,18 @@
     });
   };
 
-  Sigma.prototype.optOutSpeaker = function () {
+  VoiceId.prototype.optOutSpeaker = function () {
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
-        client.call(connect.HudsonClientMethods.OPT_OUT_SIGMA_SPEAKER, {
+        client.call(connect.HudsonClientMethods.OPT_OUT_VoiceId_SPEAKER, {
           "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
           "DomainId" : "ConnectDefaultDomainId"
           }, {
             success: function (data) {
               connect.getLog().info("optOutSpeaker succeeded");
-              //TODO add more logic here for filtering out data once Sigma API finalized
+              //TODO add more logic here for filtering out data once VoiceId API finalized
               resolve(data);
             },
             failure: function (err) {
@@ -1131,7 +1131,7 @@
                 .withObject({
                   err: err,
                 });
-              var error = connect.SigmaError(connect.SigmaErrorTypes.OPT_OUT_SPEAKER_FAILED, "optOutSpeaker failed.", err);
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.OPT_OUT_SPEAKER_FAILED, "optOutSpeaker failed.", err);
               reject(error);
             }
           });
@@ -1142,11 +1142,11 @@
     });
   };
 
-  Sigma.prototype.startSession = function () {
+  VoiceId.prototype.startSession = function () {
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.START_SIGMA_SESSION, {
+      client.call(connect.HudsonClientMethods.START_VoiceId_SESSION, {
       "contactId": self.contactId,
       "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
       "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
@@ -1160,18 +1160,18 @@
           }
         },
         failure: function (err) {
-          connect.getLog().error("startSigmaSession failed")
+          connect.getLog().error("startVoiceIdSession failed")
             .withObject({
               err: err
             });
-          var error = connect.SigmaError(connect.SigmaErrorTypes.START_SESSION_FAILED, "startSigmaSession failed", err);
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "startVoiceIdSession failed", err);
           reject(error);
         }
       });
     });
   };
 
-  Sigma.prototype.evaluateSpeaker = function (startNew) {
+  VoiceId.prototype.evaluateSpeaker = function (startNew) {
     var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
@@ -1179,15 +1179,15 @@
     var milliInterval = 1000;
     return new Promise(function (resolve, reject) {
       function evaluate() {
-        client.call(connect.HudsonClientMethods.EVALUATE_SPEAKER_WITH_SIGMA, {
+        client.call(connect.HudsonClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
           "SessionNameOrId": contactData.initialContactId || this.contactId
         }, {
           success: function (data) {
             if(maxPollTimes-- !== 1) {
-              if(data.StreamingStatus === connect.SigmaStreamingStatus.ENDED && data.AuthenticationResult.Decision === connect.SigmaAuthenticationDecision.NOT_ENOUGH_SPEECH){
-                var error = connect.SigmaError(connect.SigmaErrorTypes.EVALUATE_SPEAKER_FAILED, "There is not enough speach, please start a new session and authenticate again!", err);
+              if(data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED && data.AuthenticationResult.Decision === connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH){
+                var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "There is not enough speach, please start a new session and authenticate again!", err);
                 reject(error);
-              } if(data.AuthenticationResult.Decision !== connect.SigmaAuthenticationDecision.NOT_ENOUGH_SPEECH) {
+              } if(data.AuthenticationResult.Decision !== connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH) {
                 resolve(data);
               } else {
                 setTimeout(function(){
@@ -1203,7 +1203,7 @@
               .withObject({
                 err: err
               });
-            var error = connect.SigmaError(connect.SigmaErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
             reject(error);
           }
         })
@@ -1220,7 +1220,7 @@
     });
   };
 
-  Sigma.prototype.describeSession = function () {
+  VoiceId.prototype.describeSession = function () {
     var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
@@ -1228,19 +1228,19 @@
     var milliInterval = 5000;
     return new Promise(function (resolve, reject) {
       function describe() {
-        client.call(connect.HudsonClientMethods.DESCRIBE_SIGMA_SESSION, {
+        client.call(connect.HudsonClientMethods.DESCRIBE_VoiceId_SESSION, {
           "SessionNameOrId": contactData.initialContactId || this.contactId
         }, {
           success: function (data) {
             if(maxPollingTimes-- !== 1) {
-              if(data.Session.EnrollmentRequestDetails.Status === connect.SigmaEnrollmentRequestStatus.COMPLETED) {
+              if(data.Session.EnrollmentRequestDetails.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
                 resolve(data);
-              } else if(data.Session.EnrollmentRequestDetails.Status === connect.SigmaEnrollmentRequestStatus.IN_PROGRESS) {
+              } else if(data.Session.EnrollmentRequestDetails.Status === connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS) {
                 setTimeout(function(){
                   describe();
                 },milliInterval);
-              } else if(data.Session.EnrollmentRequestDetails.Status === connect.SigmaEnrollmentRequestStatus.NOT_ENOUGH_SPEECH) {
-                if(data.Session.StreamingStatus === connect.SigmaStreamingStatus.ENDED) {
+              } else if(data.Session.EnrollmentRequestDetails.Status === connect.VoiceIdEnrollmentRequestStatus.NOT_ENOUGH_SPEECH) {
+                if(data.Session.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED) {
                   self.startSession().then(function(data){
                     describe();
                   }).catch(function(err, data){
@@ -1263,7 +1263,7 @@
               .withObject({
                 err: err
               });
-            var error = connect.SigmaError(connect.SigmaErrorTypes.DESCRIBE_SESSION_FAILED, "describeSession failed", err);
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.DESCRIBE_SESSION_FAILED, "describeSession failed", err);
             reject(error);
           }
         })
@@ -1272,16 +1272,16 @@
     });
   };
 
-  Sigma.prototype.enrollSpeaker = function () {
+  VoiceId.prototype.enrollSpeaker = function () {
     var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.ENROLL_SPEAKER_IN_SIGMA, {
+      client.call(connect.HudsonClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
       "SessionNameOrId": contactData.initialContactId || this.contactId
       }, {
         success: function (data) {
-          if(data.Status === connect.SigmaEnrollmentRequestStatus.COMPLETED) {
+          if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
             resolve(data);
           } else {
             self.describeSession().then(function(data){
@@ -1296,19 +1296,19 @@
             .withObject({
               err: err
             });
-          var error = connect.SigmaError(connect.SigmaErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
           reject(error);
         }
       });
     });
   };
 
-  Sigma.prototype.updateSpeakerId = function (speakerId) {
+  VoiceId.prototype.updateSpeakerId = function (speakerId) {
     var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.UPDATE_SIGMA_SESSION, {
+      client.call(connect.HudsonClientMethods.UPDATE_VOICEID_SESSION, {
       "SessionNameOrId": contactData.initialContactId || this.contactId,
       "SpeakerId": connect.assertNotNull(speakerId, 'speakerId')
       }, {
@@ -1320,7 +1320,7 @@
             .withObject({
               err: err
             });
-          var error = connect.SigmaError(connect.SigmaErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerId failed", err);
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerId failed", err);
           reject(error);
         }
       });
@@ -1334,7 +1334,7 @@
    * @description - Provides voice media specific operations
    */
   var VoiceConnection = function (contactId, connectionId) {
-    this._speakerAuthenticator = new Sigma(contactId);
+    this._speakerAuthenticator = new VoiceId(contactId);
     Connection.call(this, contactId, connectionId);
   };
 
@@ -1361,27 +1361,27 @@
     return connect.core.mediaFactory.get(this);
   }
 
-  VoiceConnection.prototype.getSigmaSpeakerId = function() {
+  VoiceConnection.prototype.getVoiceIdSpeakerId = function() {
     return this._speakerAuthenticator.getSpeakerId();
   }
 
-  VoiceConnection.prototype.getSigmaSpeakerStatus = function() {
+  VoiceConnection.prototype.getVoiceIdSpeakerStatus = function() {
     return this._speakerAuthenticator.getSpeakerStatus();
   }
 
-  VoiceConnection.prototype.optOutSigmaSpeaker = function() {
+  VoiceConnection.prototype.optOutVoiceIdSpeaker = function() {
     return this._speakerAuthenticator.optOutSpeaker();
   }
 
-  VoiceConnection.prototype.evaluateSpeakerWithSigma = function(startNew) {
+  VoiceConnection.prototype.evaluateSpeakerWithVoiceId = function(startNew) {
     return this._speakerAuthenticator.evaluateSpeaker(startNew);
   }
 
-  VoiceConnection.prototype.enrollSpeakerInSigma = function() {
+  VoiceConnection.prototype.enrollSpeakerInVoiceId = function() {
     return this._speakerAuthenticator.enrollSpeaker();
   }
 
-  VoiceConnection.prototype.updateSigmaSpeakerId = function(speakerId) {
+  VoiceConnection.prototype.updateVoiceIdSpeakerId = function(speakerId) {
     return this._speakerAuthenticator.updateSpeakerId(speakerId);
   }
 
