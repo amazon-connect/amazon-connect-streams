@@ -26644,7 +26644,7 @@
             localMediaStream[connectionId].muted = status;
 
             if (status) {
-              logger.info("Agent has muted the contact, connectionId -  " + connectionId.sendInternalLogToServer());
+              logger.info("Agent has muted the contact, connectionId -  " + connectionId).sendInternalLogToServer();
             } else {
               logger.info("Agent has unmuted the contact, connectionId - " + connectionId).sendInternalLogToServer();
             }
