@@ -1110,7 +1110,7 @@
         self.bus.trigger(connect.core.getContactEventName(event, contactId), new connect.Contact(contactId));
       });
     }
- 
+
     self.bus.trigger(connect.ContactEvents.REFRESH, new connect.Contact(contactId));
     self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), new connect.Contact(contactId));
   };
@@ -1267,7 +1267,10 @@
       connect.ContactEvents.ENDED)
     .assoc(connect.EventGraph.ANY,
       connect.values(connect.AgentErrorStates),
-      connect.ContactEvents.ERROR);
+      connect.ContactEvents.ERROR)
+    .assoc(connect.ContactStateType.CONNECTING,
+      connect.ContactStateType.MISSED,
+      connect.ContactEvents.MISSED);
 
   /**-----------------------------------------------------------------------*/
   connect.core.getClient = function () {
