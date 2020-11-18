@@ -1225,6 +1225,25 @@ declare namespace connect {
 
     /** Gets a `Promise` with the media controller associated with this connection. */
     getMediaController(): Promise<any>;
+   
+    /** Returns the `SpeakerId` associated to this Voice Connection */
+    getVoiceIdSpeakerId(): Promise<any>;
+
+    /** Returns the `VoiceId speaker status` associated to this Voice Connection */
+    getVoiceIdSpeakerStatus(): Promise<any>;
+
+    /** Opt out speaker associated to this Voice Connection from VoiceId*/
+    optOutVoiceIdSpeaker(): Promise<any>;
+
+    /** Returns VoiceId speaker authentication status */
+    evaluateSpeakerWithVoiceId(): Promise<any>;
+
+    /** Enroll speaker into VoiceId */
+    enrollSpeakerInVoiceId(): Promise<any>;
+
+    /** Update speaker id */
+    updateVoiceIdSpeakerId(): Promise<any>;
+
   }
 
   /**

@@ -215,6 +215,7 @@
     connect.core.eventBus = new connect.EventBus();
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.initClient(params);
+    connect.core.initHudsonClient(params);
     connect.core.initialized = true;
   };
  
@@ -225,12 +226,26 @@
    */
   connect.core.initClient = function (params) {
     connect.assertNotNull(params, 'params');
- 
+    
     var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
     var region = connect.assertNotNull(params.region, 'params.region');
     var endpoint = params.endpoint || null;
  
     connect.core.client = new connect.AWSClient(authToken, region, endpoint);
+  };
+
+  /**-------------------------------------------------------------------------
+   * Initialized hudson client
+   * Should be used by Shared Worker to update hudson client with new credentials
+   * after refreshed authentication.
+   */
+  connect.core.initHudsonClient = function (params) {
+    connect.assertNotNull(params, 'params');    
+    var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
+    var authCookieName = connect.assertNotNull(params.authCookieName, 'params.authCookieName');
+    var endpoint = connect.assertNotNull(params.hudsonEndpoint, 'params.hudsonEndpoint');
+    
+    connect.core.hudsonClient = new connect.HudsonClient(authCookieName, authToken, endpoint);
   };
  
   /**-------------------------------------------------------------------------
@@ -238,6 +253,7 @@
    */
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
+    connect.core.hudsonClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -502,6 +518,8 @@
         ? LEGACY_AUTHORIZE_ENDPOINT
         : AUTHORIZE_ENDPOINT;
     }
+    var hudsonEndpoint = params.hudsonEndpoint || null;
+    var authCookieName = params.authCookieName || null;
  
     try {
       // Initialize the event bus and agent data providers.
@@ -543,7 +561,9 @@
         endpoint: endpoint,
         refreshToken: refreshToken,
         region: region,
-        authorizeEndpoint: authorizeEndpoint
+        authorizeEndpoint: authorizeEndpoint,
+        hudsonEndpoint: hudsonEndpoint,
+        authCookieName: authCookieName
       });
  
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
@@ -992,6 +1012,14 @@
  
     return connectionData;
   };
+
+  AgentDataProvider.prototype.getInstanceId = function(){
+    return this.getAgentData().configuration.routingProfile.routingProfileId.match(/instance\/([0-9a-fA-F|-]+)\//)[1];
+  }
+
+  AgentDataProvider.prototype.getAWSAccountId = function(){
+    return this.getAgentData().configuration.routingProfile.routingProfileId.match(/:([0-9]+):instance/)[1];
+  }
  
   AgentDataProvider.prototype._diffContacts = function (oldAgentData) {
     var diff = {
@@ -1249,6 +1277,15 @@
     return connect.core.client;
   };
   connect.core.client = null;
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getHudsonClient = function () {
+    if (!connect.core.hudsonClient) {
+      throw new connect.StateError('The connect Hudson Client has not been initialized!');
+    }
+    return connect.core.hudsonClient;
+  };
+  connect.core.hudsonClient = null;
  
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {

@@ -62,23 +62,37 @@
   WorkerClient.prototype._callImpl = function (method, params, callbacks) {
     var self = this;
     var request_start = new Date().getTime();
-    connect.core.getClient()._callImpl(method, params, {
-      success: function (data) {
-        self._recordAPILatency(method, request_start);
-        callbacks.success(data);
-      },
-      failure: function (error, data) {
-        self._recordAPILatency(method, request_start, error);
-        callbacks.failure(error, data);
-      },
-      authFailure: function () {
-        self._recordAPILatency(method, request_start);
-        callbacks.authFailure();
-      },
-      accessDenied: function () {
-        callbacks.accessDenied && callbacks.accessDenied();
-      }
-    });
+    if(connect.containsValue(connect.HudsonClientMethods, method)) {
+      connect.core.getHudsonClient()._callImpl(method, params, {
+        success: function (data) {
+          self._recordAPILatency(method, request_start);
+          callbacks.success(data);
+        },
+        failure: function (error, data) {
+          self._recordAPILatency(method, request_start, error);
+          callbacks.failure(error, data);
+        }
+      })
+    } else {
+      connect.core.getClient()._callImpl(method, params, {
+        success: function (data) {
+          self._recordAPILatency(method, request_start);
+          callbacks.success(data);
+        },
+        failure: function (error, data) {
+          self._recordAPILatency(method, request_start, error);
+          callbacks.failure(error, data);
+        },
+        authFailure: function () {
+          self._recordAPILatency(method, request_start);
+          callbacks.authFailure();
+        },
+        accessDenied: function () {
+          callbacks.accessDenied && callbacks.accessDenied();
+        }
+      });
+    }
+    
   };
 
   WorkerClient.prototype._recordAPILatency = function (method, request_start, err) {
@@ -752,6 +766,7 @@
       self.initData.authToken = response.accessToken;
       self.initData.authTokenExpiration = expiration;
       connect.core.initClient(self.initData);
+      connect.core.initHudsonClient(self.initData);
       callbacks.success();
     }).catch(function (response) {
       connect.getLog().error("Authorization failed with code %s", response.status)

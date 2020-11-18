@@ -205,6 +205,14 @@
     return enumObj;
   };
 
+  connect.makeGenericNamespacedEnum = function (prefix, values, delimiter) {
+    var enumObj = connect.makeEnum(values);
+    connect.keys(enumObj).forEach(function (key) {
+      enumObj[key] = connect.sprintf("%s"+delimiter+"%s", prefix, enumObj[key]);
+    });
+    return enumObj;
+  };
+
   /**
   * Methods to determine browser type and versions, used for softphone initialization.
   */
@@ -570,5 +578,14 @@
   };
   connect.StateError.prototype = Object.create(connect.BaseError.prototype);
   connect.StateError.prototype.constructor = connect.StateError;
+
+  connect.VoiceIdError = function(type, message, err){
+    var error = {};
+    error.type = type;
+    error.message = message;
+    error.stack = Error(message);
+    error.err = err;
+    return error;
+  }
 
 })();

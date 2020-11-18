@@ -46,6 +46,20 @@
    ]);
 
    /**---------------------------------------------------------------
+    * enum HudsonClientMethods
+    */
+   connect.HudsonClientMethods = {
+      GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
+      ENROLL_SPEAKER_IN_VOICEID: "AgentAppService.VoiceId.enrollBySession",
+      EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
+      GET_SPEAKER_STATUS: "AgentAppService.VoiceId.describeSpeaker",
+      OPT_OUT_VOICEID_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
+      DESCRIBE_VOICEID_SESSION: "AgentAppService.VoiceId.describeSession",
+      UPDATE_VOICEID_SESSION: "AgentAppService.VoiceId.updateSession",
+      START_VOICEID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
+   };
+
+   /**---------------------------------------------------------------
     * enum MasterMethods
     */
    connect.MasterMethods = connect.makeEnum([
@@ -152,7 +166,43 @@
    };
    UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
+   
+   /**---------------------------------------------------------------
+   * class HudsonClient extends ClientBase
+   */
+   var HudsonClient = function(authCookieName, authToken, endpoint) {
+      connect.assertNotNull(authCookieName, 'authCookieName');
+      connect.assertNotNull(authToken, 'authToken');
+      connect.assertNotNull(endpoint, 'endpoint');
+      ClientBase.call(this);
+      this.endpointUrl = endpoint;
+      this.authToken = authToken;
+      this.authCookieName = authCookieName
+   };
 
+   HudsonClient.prototype = Object.create(ClientBase.prototype);
+   HudsonClient.prototype.constructor = HudsonClient;
+
+   HudsonClient.prototype._callImpl = function(method, params, callbacks) {
+      var self = this;
+      var bear = {};
+      bear[self.authCookieName] = self.authToken;
+      var options = {
+         method: 'post',
+         body: JSON.stringify(params || {}),
+         headers: {
+               'Accept': 'application/json',
+               'Content-Type': 'application/json',
+               'X-Amz-target': method,
+               'X-Amz-Bearer': JSON.stringify(bear)
+         }
+      };
+      connect.fetch(self.endpointUrl, options).then(function(res){
+         callbacks.success(res);
+      }).catch(function(err){
+         callbacks.failure(err);
+      })
+   };
    /**---------------------------------------------------------------
     * class AWSClient extends ClientBase
     */
@@ -328,5 +378,6 @@
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
+   connect.HudsonClient = HudsonClient;
 
 })();
