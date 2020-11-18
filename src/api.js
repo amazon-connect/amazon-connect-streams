@@ -191,6 +191,8 @@
     'describe_session_failed',
     'enroll_speaker_failed',
     'update_speaker_id_failed',
+    'not_supported_on_conference_calls',
+    'timeout'
   ]);
 
   /*----------------------------------------------------------------
@@ -217,7 +219,7 @@
   ]);
 
   /*----------------------------------------------------------------
-   * enum for VoiceId streaming status
+   * enum for VoiceId authentication decision
    */
   connect.VoiceIdAuthenticationDecision = connect.makeEnum([
     "ACCEPT",
@@ -226,6 +228,18 @@
     "SPEAKER_NOT_ENROLLED",
     "SPEAKER_OPTED_OUT",
     "SPEAKER_ID_NOT_PROVIDED"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for contact flow authentication decision 
+   */
+  connect.ContactFlowAuthenticationDecision = connect.makeEnum([
+    "Authenticated",
+    "NotAuthenticated",
+    "Inconclusive",
+    "NotEnrolled",
+    "OptedOut",
+    "Error"
   ]);
 
   /*----------------------------------------------------------------
@@ -1054,39 +1068,41 @@
 
   VoiceId.prototype.getSpeakerId = function () {
     var self = this;
+    self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       client.call(connect.HudsonClientMethods.GET_SPEAKER_ID, {
-      "contactId": self.contactId,
-      "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
-      "awsAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
-      }, {
-        success: function (data) {
-          if(data.contactData.customerId) {
-            var obj = {
-              speakerId: data.contactData.customerId
+        "contactId": self.contactId,
+        "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
+        "awsAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
+        }, {
+          success: function (data) {
+            if(data.contactData.customerId) {
+              var obj = {
+                speakerId: data.contactData.customerId
+              }
+              resolve(obj);
+            } else {
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call", err);
+              reject(error);
             }
-            resolve(obj);
-          } else {
-            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call", err);
+            
+          },
+          failure: function (err) {
+            connect.getLog().error("Get SpeakerId failed")
+              .withObject({
+                err: err
+              });
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_ID_FAILED, "Get SpeakerId failed", err);
             reject(error);
           }
-          
-        },
-        failure: function (err) {
-          connect.getLog().error("Get SpeakerId failed")
-            .withObject({
-              err: err
-            });
-          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_ID_FAILED, "Get SpeakerId failed", err);
-          reject(error);
-        }
-      });
+        });
     });
   };
 
   VoiceId.prototype.getSpeakerStatus = function () {
     var self = this;
+    self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
@@ -1114,6 +1130,7 @@
 
   VoiceId.prototype.optOutSpeaker = function () {
     var self = this;
+    self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
@@ -1135,7 +1152,6 @@
               reject(error);
             }
           });
-
       }).catch(function(err){
         reject(err);
       });
@@ -1144,35 +1160,37 @@
 
   VoiceId.prototype.startSession = function () {
     var self = this;
+    self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.START_VoiceId_SESSION, {
-      "contactId": self.contactId,
-      "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
-      "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
-      "clientToken": AWS.util.uuid.v4()
-      }, {
-        success: function (data) {
-          if(data.sessionId) {
-            resolve(data);
-          } else {
-            reject(Error("No contact id is returned from start session api."))
+      client.call(connect.HudsonClientMethods.START_VOICEID_SESSION, {
+        "contactId": self.contactId,
+        "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
+        "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
+        "clientToken": AWS.util.uuid.v4()
+        }, {
+          success: function (data) {
+            if(data.sessionId) {
+              resolve(data);
+            } else {
+              reject(Error("No contact id is returned from start session api."))
+            }
+          },
+          failure: function (err) {
+            connect.getLog().error("startVoiceIdSession failed")
+              .withObject({
+                err: err
+              });
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "startVoiceIdSession failed", err);
+            reject(error);
           }
-        },
-        failure: function (err) {
-          connect.getLog().error("startVoiceIdSession failed")
-            .withObject({
-              err: err
-            });
-          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "startVoiceIdSession failed", err);
-          reject(error);
-        }
-      });
+        });
     });
   };
 
   VoiceId.prototype.evaluateSpeaker = function (startNew) {
     var self = this;
+    self.checkConferenceCall();
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     var maxPollTimes = 120; // Polling for maximum 2 mins.
@@ -1185,9 +1203,25 @@
           success: function (data) {
             if(maxPollTimes-- !== 1) {
               if(data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED && data.AuthenticationResult.Decision === connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH){
-                var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "There is not enough speach, please start a new session and authenticate again!", err);
-                reject(error);
-              } if(data.AuthenticationResult.Decision !== connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH) {
+                data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
+                resolve(data);
+              }else if(data.AuthenticationResult.Decision !== connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH) {
+                switch (data.AuthenticationResult.Decision) {
+                  case connect.VoiceIdAuthenticationDecision.ACCEPT:
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.AUTHENTICATED;
+                    break;
+                  case connect.VoiceIdAuthenticationDecision.REJECT:
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_AUTHENTICATED;
+                    break;
+                  case connect.VoiceIdAuthenticationDecision.SPEAKER_OPTED_OUT:
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.OPT_OUT;
+                    break;
+                  case connect.VoiceIdAuthenticationDecision.SPEAKER_NOT_ENROLLED:
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENROLLED;
+                    break;
+                  default:
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.ERROR;
+                }
                 resolve(data);
               } else {
                 setTimeout(function(){
@@ -1195,7 +1229,9 @@
                 },milliInterval);
               }
             } else {
-              reject(Error("evaluateSpeaker timeout"));
+              connect.getLog().error("evaluateSpeaker timeout");
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "evaluateSpeaker timeout");
+              reject(error);
             }
           },
           failure: function (err) {
@@ -1222,13 +1258,14 @@
 
   VoiceId.prototype.describeSession = function () {
     var self = this;
+    self.checkConferenceCall();
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     var maxPollingTimes = 120; // It is polling for maximum 10 mins.
     var milliInterval = 5000;
     return new Promise(function (resolve, reject) {
       function describe() {
-        client.call(connect.HudsonClientMethods.DESCRIBE_VoiceId_SESSION, {
+        client.call(connect.HudsonClientMethods.DESCRIBE_VOICEID_SESSION, {
           "SessionNameOrId": contactData.initialContactId || this.contactId
         }, {
           success: function (data) {
@@ -1255,7 +1292,9 @@
                 reject(Error(data.Session.EnrollmentRequestDetails.Status));
               }
             } else {
-              reject(Error("describeSession timeout"));
+              connect.getLog().error("describeSession timeout");
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "describeSession timeout");
+              reject(error);
             }
           },
           failure: function (err) {
@@ -1274,59 +1313,69 @@
 
   VoiceId.prototype.enrollSpeaker = function () {
     var self = this;
+    self.checkConferenceCall();
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       client.call(connect.HudsonClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
-      "SessionNameOrId": contactData.initialContactId || this.contactId
-      }, {
-        success: function (data) {
-          if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
-            resolve(data);
-          } else {
-            self.describeSession().then(function(data){
+        "SessionNameOrId": contactData.initialContactId || this.contactId
+        }, {
+          success: function (data) {
+            if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
               resolve(data);
-            }).catch(function(err){
-              reject(err);
-            })
+            } else {
+              self.describeSession().then(function(data){
+                resolve(data);
+              }).catch(function(err){
+                reject(err);
+              })
+            }
+          },
+          failure: function (err) {
+            connect.getLog().error("enrollSpeaker failed")
+              .withObject({
+                err: err
+              });
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
+            reject(error);
           }
-        },
-        failure: function (err) {
-          connect.getLog().error("enrollSpeaker failed")
-            .withObject({
-              err: err
-            });
-          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
-          reject(error);
-        }
-      });
+        });
     });
   };
 
   VoiceId.prototype.updateSpeakerId = function (speakerId) {
     var self = this;
+    self.checkConferenceCall();
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       client.call(connect.HudsonClientMethods.UPDATE_VOICEID_SESSION, {
-      "SessionNameOrId": contactData.initialContactId || this.contactId,
-      "SpeakerId": connect.assertNotNull(speakerId, 'speakerId')
-      }, {
-        success: function (data) {
-          resolve(data);
-        },
-        failure: function (err) {
-          connect.getLog().error("updateSpeakerId failed")
-            .withObject({
-              err: err
-            });
-          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerId failed", err);
-          reject(error);
-        }
-      });
+        "SessionNameOrId": contactData.initialContactId || this.contactId,
+        "SpeakerId": connect.assertNotNull(speakerId, 'speakerId')
+        }, {
+          success: function (data) {
+            resolve(data);
+          },
+          failure: function (err) {
+            connect.getLog().error("updateSpeakerId failed")
+              .withObject({
+                err: err
+              });
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerId failed", err);
+            reject(error);
+          }
+        });
     });
   };
 
+  VoiceId.prototype.checkConferenceCall = function(){
+    var self = this;
+    var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.length > 2;
+    if(isConferenceCall){
+      throw new connect.NotImplementedError("VoiceId is not supported for conference calls");
+    }
+  }
+  
   /**
    * @class VoiceConnection
    * @param {number} contactId 
@@ -1370,6 +1419,7 @@
   }
 
   VoiceConnection.prototype.optOutVoiceIdSpeaker = function() {
+    
     return this._speakerAuthenticator.optOutSpeaker();
   }
 
