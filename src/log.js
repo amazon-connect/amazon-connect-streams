@@ -237,8 +237,8 @@
       }
       this._logRollInterval = interval;
       this._logRollTimer = global.setInterval(function () {
-        this._rolledLogs = this._logs;
-        this._logs = [];
+        self._rolledLogs = self._logs;
+        self._logs = [];
         self.info("Log roll interval occurred.");
       }, this._logRollInterval);
     } else {
