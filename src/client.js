@@ -175,7 +175,7 @@
       connect.assertNotNull(authToken, 'authToken');
       connect.assertNotNull(endpoint, 'endpoint');
       ClientBase.call(this);
-      this.endpointUrl = endpoint;
+      this.endpointUrl = connect.getUrlWithProtocol(endpoint);
       this.authToken = authToken;
       this.authCookieName = authCookieName
    };
