@@ -22293,7 +22293,8 @@
     'websocket_connection_gained',
     'state_change',
     'acw',
-    'mute_toggle'
+    'mute_toggle',
+    'local_media_stream_created'
   ]);
 
   /**---------------------------------------------------------------
@@ -22301,6 +22302,9 @@
   */
   var WebSocketEvents = connect.makeNamespacedEnum('webSocket', [
     'init_failure',
+    'connection_open',
+    'connection_close',
+    'connection_error',
     'connection_gain',
     'connection_lost',
     'subscription_update',
@@ -22880,7 +22884,6 @@
          'createOutboundContact',
          'clearContact',
          'completeContact',
-         'destroyContact',
          'notifyContactIssue',
          'updateContactAttributes',
          'createAdditionalConnection',
@@ -23016,7 +23019,12 @@
       AWS.config.credentials = new AWS.Credentials({});
       AWS.config.region = region;
       this.authToken = authToken;
-      var endpointUrl = endpointIn || connect.getBaseUrl() + '/connect/api';
+      var baseUrl = connect.getBaseUrl();
+      var endpointUrl = endpointIn || ( 
+         baseUrl.includes(".awsapps.com")
+            ? baseUrl + '/connect/api'
+            : baseUrl + '/api'
+      );
       var endpoint = new AWS.Endpoint(endpointUrl);
       this.client = new AWS.Connect({endpoint: endpoint});
    };
@@ -23072,8 +23080,10 @@
       }
    };
 
-   AWSClient.prototype._requiresAuthenticationParam = function(method) {
-      return method !== connect.ClientMethods.COMPLETE_CONTACT && method !== connect.ClientMethods.CLEAR_CONTACT;
+   AWSClient.prototype._requiresAuthenticationParam = function (method) {
+      return method !== connect.ClientMethods.COMPLETE_CONTACT &&
+         method !== connect.ClientMethods.CLEAR_CONTACT &&
+         method !== connect.ClientMethods.REJECT_CONTACT;
    };
 
    AWSClient.prototype._translateParams = function(method, params) {
@@ -23599,6 +23609,10 @@
     connect.core.getUpstream().onUpstream(connect.AgentEvents.MUTE_TOGGLE, f);
   };
 
+  Agent.prototype.onLocalMediaStreamCreated = function (f) {
+    connect.core.getUpstream().onUpstream(connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED, f);
+  };
+
   Agent.prototype.mute = function () {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
       {
@@ -23876,6 +23890,11 @@
     bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTED), f);
   };
 
+  Contact.prototype.onError = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.ERROR), f);
+  }
+
   Contact.prototype.getContactId = function () {
     return this.contactId;
   };
@@ -24004,16 +24023,16 @@
       });
   };
 
-  Contact.prototype.destroy = function (callbacks) {
+  Contact.prototype.complete = function (callbacks) {
     var client = connect.core.getClient();
-    client.call(connect.ClientMethods.DESTROY_CONTACT, {
+    client.call(connect.ClientMethods.COMPLETE_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
   };
 
-  Contact.prototype.complete = function (callbacks) {
+  Contact.prototype.clear = function (callbacks) {
     var client = connect.core.getClient();
-    client.call(connect.ClientMethods.COMPLETE_CONTACT, {
+    client.call(connect.ClientMethods.CLEAR_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
   };
@@ -24240,17 +24259,6 @@
 
   // Method for checking whether this connection is an agent-side connection 
   // (type AGENT or MONITORING)
-  Connection.prototype._isAgentConnectionType = function () {
-    var connectionType = this.getType();
-    return connectionType === connect.ConnectionType.AGENT 
-      || connectionType === connect.ConnectionType.MONITORING;
-  }
-
-  /**
-   * Utility method for checking whether this connection is an agent-side connection 
-   * (type AGENT or MONITORING)
-   * @return {boolean} True if this connection is an agent-side connection. False otherwise.
-   */
   Connection.prototype._isAgentConnectionType = function () {
     var connectionType = this.getType();
     return connectionType === connect.ConnectionType.AGENT 
@@ -24545,9 +24553,8 @@
 
 })();
 
-!function(e){var n={};function t(r){if(n[r])return n[r].exports;var o=n[r]={i:r,l:!1,exports:{}};return e[r].call(o.exports,o,o.exports,t),o.l=!0,o.exports}t.m=e,t.c=n,t.d=function(e,n,r){t.o(e,n)||Object.defineProperty(e,n,{enumerable:!0,get:r})},t.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},t.t=function(e,n){if(1&n&&(e=t(e)),8&n)return e;if(4&n&&"object"==typeof e&&e&&e.__esModule)return e;var r=Object.create(null);if(t.r(r),Object.defineProperty(r,"default",{enumerable:!0,value:e}),2&n&&"string"!=typeof e)for(var o in e)t.d(r,o,function(n){return e[n]}.bind(null,o));return r},t.n=function(e){var n=e&&e.__esModule?function(){return e.default}:function(){return e};return t.d(n,"a",n),n},t.o=function(e,n){return Object.prototype.hasOwnProperty.call(e,n)},t.p="",t(t.s=2)}([function(e,n,t){"use strict";var r=t(1);function o(e){return(o="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var i={assertTrue:function(e,n){if(!e)throw new Error(n)},assertNotNull:function(e,n){return i.assertTrue(null!==e&&void 0!==o(e),Object(r.sprintf)("%s must be provided",n||"A value")),e},isNonEmptyString:function(e){return"string"==typeof e&&e.length>0},assertIsList:function(e,n){if(!Array.isArray(e))throw new Error(n+" is not an array")},isFunction:function(e){return!!(e&&e.constructor&&e.call&&e.apply)},isObject:function(e){return!("object"!==o(e)||null===e)},isString:function(e){return"string"==typeof e},isNumber:function(e){return"number"==typeof e}},c=new RegExp("^(wss://)\\w*");i.validWSUrl=function(e){return c.test(e)},i.getSubscriptionResponse=function(e,n,t){return{topic:e,content:{status:n?"success":"failure",topics:t}}},i.assertIsObject=function(e,n){if(!i.isObject(e))throw new Error(n+" is not an object!")},i.addJitter=function(e){var n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:1;n=Math.min(n,1);var t=Math.random()>.5?1:-1;return Math.floor(e+t*e*Math.random()*n)},i.isNetworkOnline=function(){return navigator.onLine};var s=i,a="NULL",u="CLIENT_LOGGER",l="DEBUG",f="aws/subscribe",p="aws/unsubscribe",d="aws/heartbeat",b="connected",g="disconnected";function y(e){return(y="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function S(e,n){return!n||"object"!==y(n)&&"function"!=typeof n?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):n}function k(e){return(k=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}function v(e,n){return(v=Object.setPrototypeOf||function(e,n){return e.__proto__=n,e})(e,n)}function h(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}function m(e,n){for(var t=0;t<n.length;t++){var r=n[t];r.enumerable=r.enumerable||!1,r.configurable=!0,"value"in r&&(r.writable=!0),Object.defineProperty(e,r.key,r)}}function w(e,n,t){return n&&m(e.prototype,n),t&&m(e,t),e}var C=function(){function e(){h(this,e)}return w(e,[{key:"debug",value:function(e){}},{key:"info",value:function(e){}},{key:"warn",value:function(e){}},{key:"error",value:function(e){}}]),e}(),I={DEBUG:10,INFO:20,WARN:30,ERROR:40},T=function(){function e(){h(this,e),this.updateLoggerConfig(),this.consoleLoggerWrapper=_()}return w(e,[{key:"writeToClientLogger",value:function(e,n){if(this.hasClientLogger())switch(e){case I.DEBUG:return this._clientLogger.debug(n);case I.INFO:return this._clientLogger.info(n);case I.WARN:return this._clientLogger.warn(n);case I.ERROR:return this._clientLogger.error(n)}}},{key:"isLevelEnabled",value:function(e){return e>=this._level}},{key:"hasClientLogger",value:function(){return null!==this._clientLogger}},{key:"getLogger",value:function(e){var n=e.prefix||"";return this._logsDestination===l?this.consoleLoggerWrapper:new N(n)}},{key:"updateLoggerConfig",value:function(e){var n=e||{};this._level=n.level||I.DEBUG,this._clientLogger=n.logger||null,this._logsDestination=a,n.debug&&(this._logsDestination=l),n.logger&&(this._logsDestination=u)}}]),e}(),O=function(){function e(){h(this,e)}return w(e,[{key:"debug",value:function(){}},{key:"info",value:function(){}},{key:"warn",value:function(){}},{key:"error",value:function(){}}]),e}(),N=function(e){function n(e){var t;return h(this,n),(t=S(this,k(n).call(this))).prefix=e||"",t}return function(e,n){if("function"!=typeof n&&null!==n)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(n&&n.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),n&&v(e,n)}(n,O),w(n,[{key:"debug",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(I.DEBUG,n)}},{key:"info",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(I.INFO,n)}},{key:"warn",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(I.WARN,n)}},{key:"error",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(I.ERROR,n)}},{key:"_shouldLog",value:function(e){return W.hasClientLogger()&&W.isLevelEnabled(e)}},{key:"_writeToClientLogger",value:function(e,n){W.writeToClientLogger(e,n)}},{key:"_log",value:function(e,n){if(this._shouldLog(e)){var t=this._convertToSingleStatement(n);this._writeToClientLogger(e,t)}}},{key:"_convertToSingleStatement",value:function(e){var n="";this.prefix&&(n+=this.prefix+" ");for(var t=0;t<e.length;t++){var r=e[t];n+=this._convertToString(r)+" "}return n}},{key:"_convertToString",value:function(e){try{if(!e)return"";if(s.isString(e))return e;if(s.isObject(e)&&s.isFunction(e.toString)){var n=e.toString();if("[object Object]"!==n)return n}return JSON.stringify(e)}catch(n){return console.error("Error while converting argument to string",e,n),""}}}]),n}(),_=function(){var e=new O;return e.debug=console.debug,e.info=console.info,e.warn=console.warn,e.error=console.error,e},W=new T;t.d(n,"a",function(){return L});var E=function(){var e=W.getLogger({}),n=s.isNetworkOnline(),t={primary:null,secondary:null},r={reconnectWebSocket:!0,websocketInitFailed:!1,exponentialBackOffTime:1e3,exponentialTimeoutHandle:null,lifeTimeTimeoutHandle:null,webSocketInitCheckerTimeoutId:null,connState:null},o={pendingResponse:!1,intervalHandle:null},i={initFailure:new Set,getWebSocketTransport:null,subscriptionUpdate:new Set,subscriptionFailure:new Set,topic:new Map,allMessage:new Set,connectionGain:new Set,connectionLost:new Set},c={connConfig:null,promiseHandle:null,promiseCompleted:!0},a={subscribed:new Set,pending:new Set,subscriptionHistory:new Set},u={responseCheckIntervalId:null,requestCompleted:!0,reSubscribeIntervalId:null,consecutiveFailedSubscribeAttempts:0,consecutiveNoResponseRequest:0},l=new Set([f,p,d]),y=setInterval(function(){if(n!==s.isNetworkOnline()){if(!(n=s.isNetworkOnline()))return void e.info("Network offline");var t=C();n&&(!t||h(t,WebSocket.CLOSING)||h(t,WebSocket.CLOSED))&&(e.info("Network online, connecting to WebSocket server"),A())}},250),S=function(n,t){n.forEach(function(n){try{n(t)}catch(n){e.error("Error executing callback",n)}})},k=function(e){if(null===e)return"NULL";switch(e.readyState){case WebSocket.CONNECTING:return"CONNECTING";case WebSocket.OPEN:return"OPEN";case WebSocket.CLOSING:return"CLOSING";case WebSocket.CLOSED:return"CLOSED";default:return"UNDEFINED"}},v=function(){var n=arguments.length>0&&void 0!==arguments[0]?arguments[0]:"";e.debug("["+n+"] Primary WebSocket: "+k(t.primary)+" | Secondary WebSocket: "+k(t.secondary))},h=function(e,n){return e&&e.readyState===n},m=function(e){return h(e,WebSocket.OPEN)},w=function(e){return null===e||void 0===e.readyState||h(e,WebSocket.CLOSED)},C=function(){return null!==t.secondary?t.secondary:t.primary},I=function(){return m(C())},T=function(){if(o.pendingResponse)return e.warn("Heartbeat response not received"),clearInterval(o.intervalHandle),o.pendingResponse=!1,void A();I()?(e.debug("Sending heartbeat"),C().send(H(d)),o.pendingResponse=!0):(e.warn("Failed to send heartbeat since WebSocket is not open"),v("sendHeartBeat"),A())},O=function(){r.exponentialBackOffTime=1e3,o.pendingResponse=!1,r.reconnectWebSocket=!0,clearTimeout(r.lifeTimeTimeoutHandle),clearInterval(o.intervalHandle),clearTimeout(r.exponentialTimeoutHandle),clearTimeout(r.webSocketInitCheckerTimeoutId)},N=function(){u.consecutiveFailedSubscribeAttempts=0,u.consecutiveNoResponseRequest=0,clearInterval(u.responseCheckIntervalId),clearInterval(u.reSubscribeIntervalId)},_=function(){try{e.info("WebSocket connection established!"),v("webSocketOnOpen"),r.connState=b,null===t.secondary&&S(i.connectionGain),O(),0===a.subscribed.size&&m(t.secondary)&&j(t.primary,"[Primary WebSocket] Closing WebSocket"),(a.subscribed.size>0||a.pending.size>0)&&(m(t.secondary)&&e.info("Subscribing secondary websocket to topics of primary websocket"),a.subscribed.forEach(function(e){a.subscriptionHistory.add(e),a.pending.add(e)}),a.subscribed.clear(),x()),T(),o.intervalHandle=setInterval(T,1e4),r.lifeTimeTimeoutHandle=setTimeout(function(){e.debug("Starting scheduled WebSocket manager reconnect"),A()},1e3*c.connConfig.webSocketTransport.transportLifeTimeInSeconds)}catch(n){e.error("Error after establishing WebSocket connection",n)}},E=function(n){e.info("Socket connection is closed",n),v("webSocketOnClose before-cleanup"),w(t.primary)&&(t.primary=null),w(t.secondary)&&(t.secondary=null),r.reconnectWebSocket&&(m(t.primary)||m(t.secondary)?w(t.primary)&&m(t.secondary)&&(e.info("[Primary] WebSocket Cleanly Closed"),t.primary=t.secondary,t.secondary=null):(e.warn("Neither primary websocket and nor secondary websocket have open connections, attempting to re-establish connection"),r.connState!==g?S(i.connectionLost):e.info("Ignoring connectionLost callback invocation"),r.connState=g,A()),v("webSocketOnClose after-cleanup"))},L=function(n){v("webSocketOnError"),e.error("WebSocketManager Error, error_event: ",n),A()},F=function(n){var r=JSON.parse(n.data);switch(r.topic){case f:if(e.debug("Subscription Message received from webSocket server",n.data),u.requestCompleted=!0,u.consecutiveNoResponseRequest=0,"success"===r.content.status)u.consecutiveFailedSubscribeAttempts=0,r.content.topics.forEach(function(e){a.subscriptionHistory.delete(e),a.pending.delete(e),a.subscribed.add(e)}),0===a.subscriptionHistory.size?m(t.secondary)&&(e.info("Successfully subscribed secondary websocket to all topics of primary websocket"),j(t.primary,"[Primary WebSocket] Closing WebSocket")):x(),S(i.subscriptionUpdate,r);else{if(clearInterval(u.reSubscribeIntervalId),++u.consecutiveFailedSubscribeAttempts,5===u.consecutiveFailedSubscribeAttempts)return S(i.subscriptionFailure,r),void(u.consecutiveFailedSubscribeAttempts=0);u.reSubscribeIntervalId=setInterval(function(){x()},500)}break;case d:e.debug("Heartbeat response received"),o.pendingResponse=!1;break;default:if(r.topic){if(e.debug("Message received for topic "+r.topic),m(t.primary)&&m(t.secondary)&&0===a.subscriptionHistory.size&&this===t.primary)return void e.warn("Ignoring Message for Topic "+r.topic+", to avoid duplicates");if(0===i.allMessage.size&&0===i.topic.size)return void e.warn("No registered callback listener for Topic",r.topic);S(i.allMessage,r),i.topic.has(r.topic)&&S(i.topic.get(r.topic),r)}else r.message?e.warn("WebSocketManager Message Error",r):e.warn("Invalid incoming message",r)}},x=function n(){if(u.consecutiveNoResponseRequest>3)return e.warn("Ignoring subscribePendingTopics since we have exhausted max subscription retries with no response"),void S(i.subscriptionFailure,s.getSubscriptionResponse(f,!1,Array.from(a.pending)));I()?(clearInterval(u.responseCheckIntervalId),C().send(H(f,{topics:Array.from(a.pending)})),u.requestCompleted=!1,u.responseCheckIntervalId=setInterval(function(){u.requestCompleted||(++u.consecutiveNoResponseRequest,n())},1e3)):e.warn("Ignoring subscribePendingTopics call since Default WebSocket is not open")},j=function(n,t){h(n,WebSocket.CONNECTING)||h(n,WebSocket.OPEN)?n.close(1e3,t):e.warn("Ignoring WebSocket Close request, WebSocket State: "+k(n))},R=function(e){j(t.primary,"[Primary] WebSocket "+e),j(t.secondary,"[Secondary] WebSocket "+e)},M=function(){var n=s.addJitter(r.exponentialBackOffTime,.3);Date.now()+n<=c.connConfig.urlConnValidTime?(e.debug("Scheduling WebSocket reinitialization, after delay "+n+" ms"),r.exponentialTimeoutHandle=setTimeout(function(){return D()},n),r.exponentialBackOffTime*=2):(e.warn("WebSocket URL is cannot be used to establish connection"),A())},P=function(){O(),N(),e.error("WebSocket Initialization failed"),r.websocketInitFailed=!0,R("Terminating WebSocket Manager"),clearInterval(y),S(i.initFailure)},H=function(e,n){return JSON.stringify({topic:e,content:n})},G=function(n){return!!(s.isObject(n)&&s.isObject(n.webSocketTransport)&&s.isNonEmptyString(n.webSocketTransport.url)&&s.validWSUrl(n.webSocketTransport.url)&&1e3*n.webSocketTransport.transportLifeTimeInSeconds>=36e5)||(e.error("Invalid WebSocket Connection Configuration",n),!1)},A=function n(){if(s.isNetworkOnline())if(r.websocketInitFailed)e.debug("WebSocket Init had failed, ignoring this getWebSocketConnConfig request");else{if(c.promiseCompleted)return O(),e.info("Fetching new WebSocket connection configuration"),c.promiseCompleted=!1,c.promiseHandle=i.getWebSocketTransport(),c.promiseHandle.then(function(n){return c.promiseCompleted=!0,e.debug("Successfully fetched webSocket connection configuration",n),G(n)?(c.connConfig=n,c.connConfig.urlConnValidTime=Date.now()+85e3,D()):(P(),{webSocketConnectionFailed:!0})},function(t){return c.promiseCompleted=!0,e.error("Failed to fetch webSocket connection configuration",t),setTimeout(function(){return n()},s.addJitter(5e3,.3)),{webSocketConnectionFailed:!0}});e.debug("There is an ongoing getWebSocketConnConfig request, this request will be ignored")}else e.info("Network offline, ignoring this getWebSocketConnConfig request")},D=function(){if(r.websocketInitFailed)return e.info("web-socket initializing had failed, aborting re-init"),{webSocketConnectionFailed:!0};if(!s.isNetworkOnline())return e.warn("System is offline aborting web-socket init"),{webSocketConnectionFailed:!0};e.info("Initializing Websocket Manager"),v("initWebSocket");try{if(G(c.connConfig)){var n=null;return m(t.primary)?(e.debug("Primary Socket connection is already open"),h(t.secondary,WebSocket.CONNECTING)||(e.debug("Establishing a secondary web-socket connection"),t.secondary=U()),n=t.secondary):(h(t.primary,WebSocket.CONNECTING)||(e.debug("Establishing a primary web-socket connection"),t.primary=U()),n=t.primary),r.webSocketInitCheckerTimeoutId=setTimeout(function(){m(n)||M()},1e3),{webSocketConnectionFailed:!1}}}catch(n){return e.error("Error Initializing web-socket-manager",n),P(),{webSocketConnectionFailed:!0}}},U=function(){var e=new WebSocket(c.connConfig.webSocketTransport.url);return e.addEventListener("open",_),e.addEventListener("message",F),e.addEventListener("error",L),e.addEventListener("close",E),e};this.init=function(n){if(s.assertTrue(s.isFunction(n),"transportHandle must be a function"),null===i.getWebSocketTransport)return i.getWebSocketTransport=n,A();e.warn("Web Socket Manager was already initialized")},this.onInitFailure=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),i.initFailure.add(e),r.websocketInitFailed&&e(),function(){return i.initFailure.delete(e)}},this.onConnectionGain=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),i.connectionGain.add(e),I()&&e(),function(){return i.connectionGain.delete(e)}},this.onConnectionLost=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),i.connectionLost.add(e),r.connState===g&&e(),function(){return i.connectionLost.delete(e)}},this.onSubscriptionUpdate=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),i.subscriptionUpdate.add(e),function(){return i.subscriptionUpdate.delete(e)}},this.onSubscriptionFailure=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),i.subscriptionFailure.add(e),function(){return i.subscriptionFailure.delete(e)}},this.onMessage=function(e,n){return s.assertNotNull(e,"topicName"),s.assertTrue(s.isFunction(n),"cb must be a function"),i.topic.has(e)?i.topic.get(e).add(n):i.topic.set(e,new Set([n])),function(){return i.topic.get(e).delete(n)}},this.onAllMessage=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),i.allMessage.add(e),function(){return i.allMessage.delete(e)}},this.subscribeTopics=function(e){s.assertNotNull(e,"topics"),s.assertIsList(e),e.forEach(function(e){a.subscribed.has(e)||a.pending.add(e)}),u.consecutiveNoResponseRequest=0,x()},this.sendMessage=function(n){if(s.assertIsObject(n,"payload"),void 0===n.topic||l.has(n.topic))e.warn("Cannot send message, Invalid topic",n);else{try{n=JSON.stringify(n)}catch(t){return void e.warn("Error stringify message",n)}I()?C().send(n):e.warn("Cannot send message, web socket connection is not open")}},this.closeWebSocket=function(){O(),N(),r.reconnectWebSocket=!1,clearInterval(y),R("User request to close WebSocket")}},L={create:function(){return new E},setGlobalConfig:function(e){var n=e.loggerConfig;W.updateLoggerConfig(n)},LogLevel:I,Logger:C}},function(e,n,t){var r;!function(){"use strict";var o={not_string:/[^s]/,not_bool:/[^t]/,not_type:/[^T]/,not_primitive:/[^v]/,number:/[diefg]/,numeric_arg:/[bcdiefguxX]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijostTuvxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[+-]/};function i(e){return function(e,n){var t,r,c,s,a,u,l,f,p,d=1,b=e.length,g="";for(r=0;r<b;r++)if("string"==typeof e[r])g+=e[r];else if("object"==typeof e[r]){if((s=e[r]).keys)for(t=n[d],c=0;c<s.keys.length;c++){if(null==t)throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"',s.keys[c],s.keys[c-1]));t=t[s.keys[c]]}else t=s.param_no?n[s.param_no]:n[d++];if(o.not_type.test(s.type)&&o.not_primitive.test(s.type)&&t instanceof Function&&(t=t()),o.numeric_arg.test(s.type)&&"number"!=typeof t&&isNaN(t))throw new TypeError(i("[sprintf] expecting number but found %T",t));switch(o.number.test(s.type)&&(f=t>=0),s.type){case"b":t=parseInt(t,10).toString(2);break;case"c":t=String.fromCharCode(parseInt(t,10));break;case"d":case"i":t=parseInt(t,10);break;case"j":t=JSON.stringify(t,null,s.width?parseInt(s.width):0);break;case"e":t=s.precision?parseFloat(t).toExponential(s.precision):parseFloat(t).toExponential();break;case"f":t=s.precision?parseFloat(t).toFixed(s.precision):parseFloat(t);break;case"g":t=s.precision?String(Number(t.toPrecision(s.precision))):parseFloat(t);break;case"o":t=(parseInt(t,10)>>>0).toString(8);break;case"s":t=String(t),t=s.precision?t.substring(0,s.precision):t;break;case"t":t=String(!!t),t=s.precision?t.substring(0,s.precision):t;break;case"T":t=Object.prototype.toString.call(t).slice(8,-1).toLowerCase(),t=s.precision?t.substring(0,s.precision):t;break;case"u":t=parseInt(t,10)>>>0;break;case"v":t=t.valueOf(),t=s.precision?t.substring(0,s.precision):t;break;case"x":t=(parseInt(t,10)>>>0).toString(16);break;case"X":t=(parseInt(t,10)>>>0).toString(16).toUpperCase()}o.json.test(s.type)?g+=t:(!o.number.test(s.type)||f&&!s.sign?p="":(p=f?"+":"-",t=t.toString().replace(o.sign,"")),u=s.pad_char?"0"===s.pad_char?"0":s.pad_char.charAt(1):" ",l=s.width-(p+t).length,a=s.width&&l>0?u.repeat(l):"",g+=s.align?p+t+a:"0"===u?p+a+t:a+p+t)}return g}(function(e){if(s[e])return s[e];var n,t=e,r=[],i=0;for(;t;){if(null!==(n=o.text.exec(t)))r.push(n[0]);else if(null!==(n=o.modulo.exec(t)))r.push("%");else{if(null===(n=o.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(n[2]){i|=1;var c=[],a=n[2],u=[];if(null===(u=o.key.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(c.push(u[1]);""!==(a=a.substring(u[0].length));)if(null!==(u=o.key_access.exec(a)))c.push(u[1]);else{if(null===(u=o.index_access.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");c.push(u[1])}n[2]=c}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");r.push({placeholder:n[0],param_no:n[1],keys:n[2],sign:n[3],pad_char:n[4],align:n[5],width:n[6],precision:n[7],type:n[8]})}t=t.substring(n[0].length)}return s[e]=r}(e),arguments)}function c(e,n){return i.apply(null,[e].concat(n||[]))}var s=Object.create(null);n.sprintf=i,n.vsprintf=c,"undefined"!=typeof window&&(window.sprintf=i,window.vsprintf=c,void 0===(r=function(){return{sprintf:i,vsprintf:c}}.call(n,t,n,e))||(e.exports=r))}()},function(e,n,t){"use strict";t.r(n),function(e){t.d(n,"WebSocketManager",function(){return o});var r=t(0);e.connect=e.connect||{},connect.WebSocketManager=r.a;var o=r.a}.call(this,t(3))},function(e,n){var t;t=function(){return this}();try{t=t||new Function("return this")()}catch(e){"object"==typeof window&&(t=window)}e.exports=t}]);
-//# sourceMappingURL=amazon-connect-websocket-manager.js.map
 
+!function(e){var n={};function t(o){if(n[o])return n[o].exports;var r=n[o]={i:o,l:!1,exports:{}};return e[o].call(r.exports,r,r.exports,t),r.l=!0,r.exports}t.m=e,t.c=n,t.d=function(e,n,o){t.o(e,n)||Object.defineProperty(e,n,{enumerable:!0,get:o})},t.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},t.t=function(e,n){if(1&n&&(e=t(e)),8&n)return e;if(4&n&&"object"==typeof e&&e&&e.__esModule)return e;var o=Object.create(null);if(t.r(o),Object.defineProperty(o,"default",{enumerable:!0,value:e}),2&n&&"string"!=typeof e)for(var r in e)t.d(o,r,function(n){return e[n]}.bind(null,r));return o},t.n=function(e){var n=e&&e.__esModule?function(){return e.default}:function(){return e};return t.d(n,"a",n),n},t.o=function(e,n){return Object.prototype.hasOwnProperty.call(e,n)},t.p="",t(t.s=2)}([function(e,n,t){"use strict";var o=t(1);function r(e){return(r="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var i={assertTrue:function(e,n){if(!e)throw new Error(n)},assertNotNull:function(e,n){return i.assertTrue(null!==e&&void 0!==r(e),Object(o.sprintf)("%s must be provided",n||"A value")),e},isNonEmptyString:function(e){return"string"==typeof e&&e.length>0},assertIsList:function(e,n){if(!Array.isArray(e))throw new Error(n+" is not an array")},isFunction:function(e){return!!(e&&e.constructor&&e.call&&e.apply)},isObject:function(e){return!("object"!==r(e)||null===e)},isString:function(e){return"string"==typeof e},isNumber:function(e){return"number"==typeof e}},c=new RegExp("^(wss://)\\w*");i.validWSUrl=function(e){return c.test(e)},i.getSubscriptionResponse=function(e,n,t){return{topic:e,content:{status:n?"success":"failure",topics:t}}},i.assertIsObject=function(e,n){if(!i.isObject(e))throw new Error(n+" is not an object!")},i.addJitter=function(e){var n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:1;n=Math.min(n,1);var t=Math.random()>.5?1:-1;return Math.floor(e+t*e*Math.random()*n)},i.isNetworkOnline=function(){return navigator.onLine};var s=i,a="NULL",u="CLIENT_LOGGER",l="DEBUG",f="aws/subscribe",p="aws/unsubscribe",d="aws/heartbeat",b="connected",g="disconnected";function m(e){return(m="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function y(e,n){return!n||"object"!==m(n)&&"function"!=typeof n?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):n}function S(e){return(S=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}function k(e,n){return(k=Object.setPrototypeOf||function(e,n){return e.__proto__=n,e})(e,n)}function w(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}function v(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}function h(e,n,t){return n&&v(e.prototype,n),t&&v(e,t),e}var C=function(){function e(){w(this,e)}return h(e,[{key:"debug",value:function(e){}},{key:"info",value:function(e){}},{key:"warn",value:function(e){}},{key:"error",value:function(e){}}]),e}(),T={DEBUG:10,INFO:20,WARN:30,ERROR:40},O=function(){function e(){w(this,e),this.updateLoggerConfig(),this.consoleLoggerWrapper=N()}return h(e,[{key:"writeToClientLogger",value:function(e,n){if(this.hasClientLogger())switch(e){case T.DEBUG:return this._clientLogger.debug(n);case T.INFO:return this._clientLogger.info(n);case T.WARN:return this._clientLogger.warn(n);case T.ERROR:return this._clientLogger.error(n)}}},{key:"isLevelEnabled",value:function(e){return e>=this._level}},{key:"hasClientLogger",value:function(){return null!==this._clientLogger}},{key:"getLogger",value:function(e){var n=e.prefix||"";return this._logsDestination===l?this.consoleLoggerWrapper:new W(n)}},{key:"updateLoggerConfig",value:function(e){var n=e||{};this._level=n.level||T.DEBUG,this._clientLogger=n.logger||null,this._logsDestination=a,n.debug&&(this._logsDestination=l),n.logger&&(this._logsDestination=u)}}]),e}(),I=function(){function e(){w(this,e)}return h(e,[{key:"debug",value:function(){}},{key:"info",value:function(){}},{key:"warn",value:function(){}},{key:"error",value:function(){}}]),e}(),W=function(e){function n(e){var t;return w(this,n),(t=y(this,S(n).call(this))).prefix=e||"",t}return function(e,n){if("function"!=typeof n&&null!==n)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(n&&n.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),n&&k(e,n)}(n,I),h(n,[{key:"debug",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(T.DEBUG,n)}},{key:"info",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(T.INFO,n)}},{key:"warn",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(T.WARN,n)}},{key:"error",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(T.ERROR,n)}},{key:"_shouldLog",value:function(e){return _.hasClientLogger()&&_.isLevelEnabled(e)}},{key:"_writeToClientLogger",value:function(e,n){_.writeToClientLogger(e,n)}},{key:"_log",value:function(e,n){if(this._shouldLog(e)){var t=this._convertToSingleStatement(n);this._writeToClientLogger(e,t)}}},{key:"_convertToSingleStatement",value:function(e){var n="";this.prefix&&(n+=this.prefix+" ");for(var t=0;t<e.length;t++){var o=e[t];n+=this._convertToString(o)+" "}return n}},{key:"_convertToString",value:function(e){try{if(!e)return"";if(s.isString(e))return e;if(s.isObject(e)&&s.isFunction(e.toString)){var n=e.toString();if("[object Object]"!==n)return n}return JSON.stringify(e)}catch(n){return console.error("Error while converting argument to string",e,n),""}}}]),n}(),N=function(){var e=new I;return e.debug=console.debug,e.info=console.info,e.warn=console.warn,e.error=console.error,e},_=new O;t.d(n,"a",function(){return L});var E=function(){var e=_.getLogger({}),n=s.isNetworkOnline(),t={primary:null,secondary:null},o={reconnectWebSocket:!0,websocketInitFailed:!1,exponentialBackOffTime:1e3,exponentialTimeoutHandle:null,lifeTimeTimeoutHandle:null,webSocketInitCheckerTimeoutId:null,connState:null},r={connectWebSocketRetryCount:0,connectionAttemptStartTime:null,noOpenConnectionsTimestamp:null},i={pendingResponse:!1,intervalHandle:null},c={initFailure:new Set,getWebSocketTransport:null,subscriptionUpdate:new Set,subscriptionFailure:new Set,topic:new Map,allMessage:new Set,connectionGain:new Set,connectionLost:new Set,connectionOpen:new Set,connectionClose:new Set},a={connConfig:null,promiseHandle:null,promiseCompleted:!0},u={subscribed:new Set,pending:new Set,subscriptionHistory:new Set},l={responseCheckIntervalId:null,requestCompleted:!0,reSubscribeIntervalId:null,consecutiveFailedSubscribeAttempts:0,consecutiveNoResponseRequest:0},m=new Set([f,p,d]),y=setInterval(function(){if(n!==s.isNetworkOnline()){if(!(n=s.isNetworkOnline()))return void e.info("Network offline");var t=T();n&&(!t||v(t,WebSocket.CLOSING)||v(t,WebSocket.CLOSED))&&(e.info("Network online, connecting to WebSocket server"),G())}},250),S=function(n,t){n.forEach(function(n){try{n(t)}catch(n){e.error("Error executing callback",n)}})},k=function(e){if(null===e)return"NULL";switch(e.readyState){case WebSocket.CONNECTING:return"CONNECTING";case WebSocket.OPEN:return"OPEN";case WebSocket.CLOSING:return"CLOSING";case WebSocket.CLOSED:return"CLOSED";default:return"UNDEFINED"}},w=function(){var n=arguments.length>0&&void 0!==arguments[0]?arguments[0]:"";e.debug("["+n+"] Primary WebSocket: "+k(t.primary)+" | Secondary WebSocket: "+k(t.secondary))},v=function(e,n){return e&&e.readyState===n},h=function(e){return v(e,WebSocket.OPEN)},C=function(e){return null===e||void 0===e.readyState||v(e,WebSocket.CLOSED)},T=function(){return null!==t.secondary?t.secondary:t.primary},O=function(){return h(T())},I=function(){if(i.pendingResponse)return e.warn("Heartbeat response not received"),clearInterval(i.intervalHandle),i.pendingResponse=!1,void G();O()?(e.debug("Sending heartbeat"),T().send(P(d)),i.pendingResponse=!0):(e.warn("Failed to send heartbeat since WebSocket is not open"),w("sendHeartBeat"),G())},W=function(){o.exponentialBackOffTime=1e3,i.pendingResponse=!1,o.reconnectWebSocket=!0,clearTimeout(o.lifeTimeTimeoutHandle),clearInterval(i.intervalHandle),clearTimeout(o.exponentialTimeoutHandle),clearTimeout(o.webSocketInitCheckerTimeoutId)},N=function(){l.consecutiveFailedSubscribeAttempts=0,l.consecutiveNoResponseRequest=0,clearInterval(l.responseCheckIntervalId),clearInterval(l.reSubscribeIntervalId)},E=function(){r.connectWebSocketRetryCount=0,r.connectionAttemptStartTime=null,r.noOpenConnectionsTimestamp=null},L=function(){try{e.info("WebSocket connection established!"),w("webSocketOnOpen"),o.connState=b,null===t.secondary&&S(c.connectionGain);var n=Date.now();S(c.connectionOpen,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,noOpenConnectionsTimestamp:r.noOpenConnectionsTimestamp,connectionEstablishedTime:n,timeToConnect:n-r.connectionAttemptStartTime,timeWithoutConnection:r.noOpenConnectionsTimestamp?n-r.noOpenConnectionsTimestamp:null}),E(),W(),T().openTimestamp=Date.now(),0===u.subscribed.size&&h(t.secondary)&&j(t.primary,"[Primary WebSocket] Closing WebSocket"),(u.subscribed.size>0||u.pending.size>0)&&(h(t.secondary)&&e.info("Subscribing secondary websocket to topics of primary websocket"),u.subscribed.forEach(function(e){u.subscriptionHistory.add(e),u.pending.add(e)}),u.subscribed.clear(),R()),I(),i.intervalHandle=setInterval(I,1e4),o.lifeTimeTimeoutHandle=setTimeout(function(){e.debug("Starting scheduled WebSocket manager reconnect"),G()},1e3*a.connConfig.webSocketTransport.transportLifeTimeInSeconds)}catch(n){e.error("Error after establishing WebSocket connection",n)}},F=function(n){w("webSocketOnError"),e.error("WebSocketManager Error, error_event: ",n),G()},x=function(n){var o=JSON.parse(n.data);switch(o.topic){case f:if(e.debug("Subscription Message received from webSocket server",n.data),l.requestCompleted=!0,l.consecutiveNoResponseRequest=0,"success"===o.content.status)l.consecutiveFailedSubscribeAttempts=0,o.content.topics.forEach(function(e){u.subscriptionHistory.delete(e),u.pending.delete(e),u.subscribed.add(e)}),0===u.subscriptionHistory.size?h(t.secondary)&&(e.info("Successfully subscribed secondary websocket to all topics of primary websocket"),j(t.primary,"[Primary WebSocket] Closing WebSocket")):R(),S(c.subscriptionUpdate,o);else{if(clearInterval(l.reSubscribeIntervalId),++l.consecutiveFailedSubscribeAttempts,5===l.consecutiveFailedSubscribeAttempts)return S(c.subscriptionFailure,o),void(l.consecutiveFailedSubscribeAttempts=0);l.reSubscribeIntervalId=setInterval(function(){R()},500)}break;case d:e.debug("Heartbeat response received"),i.pendingResponse=!1;break;default:if(o.topic){if(e.debug("Message received for topic "+o.topic),h(t.primary)&&h(t.secondary)&&0===u.subscriptionHistory.size&&this===t.primary)return void e.warn("Ignoring Message for Topic "+o.topic+", to avoid duplicates");if(0===c.allMessage.size&&0===c.topic.size)return void e.warn("No registered callback listener for Topic",o.topic);S(c.allMessage,o),c.topic.has(o.topic)&&S(c.topic.get(o.topic),o)}else o.message?e.warn("WebSocketManager Message Error",o):e.warn("Invalid incoming message",o)}},R=function n(){if(l.consecutiveNoResponseRequest>3)return e.warn("Ignoring subscribePendingTopics since we have exhausted max subscription retries with no response"),void S(c.subscriptionFailure,s.getSubscriptionResponse(f,!1,Array.from(u.pending)));O()?(clearInterval(l.responseCheckIntervalId),T().send(P(f,{topics:Array.from(u.pending)})),l.requestCompleted=!1,l.responseCheckIntervalId=setInterval(function(){l.requestCompleted||(++l.consecutiveNoResponseRequest,n())},1e3)):e.warn("Ignoring subscribePendingTopics call since Default WebSocket is not open")},j=function(n,t){v(n,WebSocket.CONNECTING)||v(n,WebSocket.OPEN)?n.close(1e3,t):e.warn("Ignoring WebSocket Close request, WebSocket State: "+k(n))},A=function(e){j(t.primary,"[Primary] WebSocket "+e),j(t.secondary,"[Secondary] WebSocket "+e)},M=function(){r.connectWebSocketRetryCount++;var n=s.addJitter(o.exponentialBackOffTime,.3);Date.now()+n<=a.connConfig.urlConnValidTime?(e.debug("Scheduling WebSocket reinitialization, after delay "+n+" ms"),o.exponentialTimeoutHandle=setTimeout(function(){return z()},n),o.exponentialBackOffTime*=2):(e.warn("WebSocket URL is cannot be used to establish connection"),G())},D=function(n){W(),N(),e.error("WebSocket Initialization failed"),o.websocketInitFailed=!0,A("Terminating WebSocket Manager"),clearInterval(y),S(c.initFailure,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,reason:n}),E()},P=function(e,n){return JSON.stringify({topic:e,content:n})},H=function(n){return!!(s.isObject(n)&&s.isObject(n.webSocketTransport)&&s.isNonEmptyString(n.webSocketTransport.url)&&s.validWSUrl(n.webSocketTransport.url)&&1e3*n.webSocketTransport.transportLifeTimeInSeconds>=36e5)||(e.error("Invalid WebSocket Connection Configuration",n),!1)},G=function n(){if(s.isNetworkOnline())if(o.websocketInitFailed)e.debug("WebSocket Init had failed, ignoring this getWebSocketConnConfig request");else{if(a.promiseCompleted)return W(),e.info("Fetching new WebSocket connection configuration"),r.connectionAttemptStartTime=r.connectionAttemptStartTime||Date.now(),a.promiseCompleted=!1,a.promiseHandle=c.getWebSocketTransport(),a.promiseHandle.then(function(n){return a.promiseCompleted=!0,e.debug("Successfully fetched webSocket connection configuration",n),H(n)?(a.connConfig=n,a.connConfig.urlConnValidTime=Date.now()+85e3,z()):(D("Invalid WebSocket connection configuration: "+n),{webSocketConnectionFailed:!0})},function(t){return a.promiseCompleted=!0,e.error("Failed to fetch webSocket connection configuration",t),setTimeout(function(){return n()},s.addJitter(5e3,.3)),{webSocketConnectionFailed:!0}});e.debug("There is an ongoing getWebSocketConnConfig request, this request will be ignored")}else e.info("Network offline, ignoring this getWebSocketConnConfig request")},z=function(){if(o.websocketInitFailed)return e.info("web-socket initializing had failed, aborting re-init"),{webSocketConnectionFailed:!0};if(!s.isNetworkOnline())return e.warn("System is offline aborting web-socket init"),{webSocketConnectionFailed:!0};e.info("Initializing Websocket Manager"),w("initWebSocket");try{if(H(a.connConfig)){var n=null;return h(t.primary)?(e.debug("Primary Socket connection is already open"),v(t.secondary,WebSocket.CONNECTING)||(e.debug("Establishing a secondary web-socket connection"),t.secondary=U()),n=t.secondary):(v(t.primary,WebSocket.CONNECTING)||(e.debug("Establishing a primary web-socket connection"),t.primary=U()),n=t.primary),o.webSocketInitCheckerTimeoutId=setTimeout(function(){h(n)||M()},1e3),{webSocketConnectionFailed:!1}}}catch(n){return e.error("Error Initializing web-socket-manager",n),D("Failed to initialize new WebSocket: "+n.message),{webSocketConnectionFailed:!0}}},U=function(){var n=new WebSocket(a.connConfig.webSocketTransport.url);return n.addEventListener("open",L),n.addEventListener("message",x),n.addEventListener("error",F),n.addEventListener("close",function(i){return function(n,i){e.info("Socket connection is closed",n),w("webSocketOnClose before-cleanup"),S(c.connectionClose,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),C(t.primary)&&(t.primary=null),C(t.secondary)&&(t.secondary=null),o.reconnectWebSocket&&(h(t.primary)||h(t.secondary)?C(t.primary)&&h(t.secondary)&&(e.info("[Primary] WebSocket Cleanly Closed"),t.primary=t.secondary,t.secondary=null):(e.warn("Neither primary websocket and nor secondary websocket have open connections, attempting to re-establish connection"),o.connState!==g?(S(c.connectionLost,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),r.noOpenConnectionsTimestamp=Date.now()):e.info("Ignoring connectionLost callback invocation"),o.connState=g,G()),w("webSocketOnClose after-cleanup"))}(i,n)}),n};this.init=function(n){if(s.assertTrue(s.isFunction(n),"transportHandle must be a function"),null===c.getWebSocketTransport)return c.getWebSocketTransport=n,G();e.warn("Web Socket Manager was already initialized")},this.onInitFailure=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.initFailure.add(e),o.websocketInitFailed&&e(),function(){return c.initFailure.delete(e)}},this.onConnectionOpen=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionOpen.add(e),function(){return c.connectionOpen.delete(e)}},this.onConnectionClose=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionClose.add(e),function(){return c.connectionClose.delete(e)}},this.onConnectionGain=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionGain.add(e),O()&&e(),function(){return c.connectionGain.delete(e)}},this.onConnectionLost=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionLost.add(e),o.connState===g&&e(),function(){return c.connectionLost.delete(e)}},this.onSubscriptionUpdate=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.subscriptionUpdate.add(e),function(){return c.subscriptionUpdate.delete(e)}},this.onSubscriptionFailure=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.subscriptionFailure.add(e),function(){return c.subscriptionFailure.delete(e)}},this.onMessage=function(e,n){return s.assertNotNull(e,"topicName"),s.assertTrue(s.isFunction(n),"cb must be a function"),c.topic.has(e)?c.topic.get(e).add(n):c.topic.set(e,new Set([n])),function(){return c.topic.get(e).delete(n)}},this.onAllMessage=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.allMessage.add(e),function(){return c.allMessage.delete(e)}},this.subscribeTopics=function(e){s.assertNotNull(e,"topics"),s.assertIsList(e),e.forEach(function(e){u.subscribed.has(e)||u.pending.add(e)}),l.consecutiveNoResponseRequest=0,R()},this.sendMessage=function(n){if(s.assertIsObject(n,"payload"),void 0===n.topic||m.has(n.topic))e.warn("Cannot send message, Invalid topic",n);else{try{n=JSON.stringify(n)}catch(t){return void e.warn("Error stringify message",n)}O()?T().send(n):e.warn("Cannot send message, web socket connection is not open")}},this.closeWebSocket=function(){W(),N(),o.reconnectWebSocket=!1,clearInterval(y),A("User request to close WebSocket")},this.terminateWebSocketManager=D},L={create:function(){return new E},setGlobalConfig:function(e){var n=e.loggerConfig;_.updateLoggerConfig(n)},LogLevel:T,Logger:C}},function(e,n,t){var o;!function(){"use strict";var r={not_string:/[^s]/,not_bool:/[^t]/,not_type:/[^T]/,not_primitive:/[^v]/,number:/[diefg]/,numeric_arg:/[bcdiefguxX]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijostTuvxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[+-]/};function i(e){return function(e,n){var t,o,c,s,a,u,l,f,p,d=1,b=e.length,g="";for(o=0;o<b;o++)if("string"==typeof e[o])g+=e[o];else if("object"==typeof e[o]){if((s=e[o]).keys)for(t=n[d],c=0;c<s.keys.length;c++){if(null==t)throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"',s.keys[c],s.keys[c-1]));t=t[s.keys[c]]}else t=s.param_no?n[s.param_no]:n[d++];if(r.not_type.test(s.type)&&r.not_primitive.test(s.type)&&t instanceof Function&&(t=t()),r.numeric_arg.test(s.type)&&"number"!=typeof t&&isNaN(t))throw new TypeError(i("[sprintf] expecting number but found %T",t));switch(r.number.test(s.type)&&(f=t>=0),s.type){case"b":t=parseInt(t,10).toString(2);break;case"c":t=String.fromCharCode(parseInt(t,10));break;case"d":case"i":t=parseInt(t,10);break;case"j":t=JSON.stringify(t,null,s.width?parseInt(s.width):0);break;case"e":t=s.precision?parseFloat(t).toExponential(s.precision):parseFloat(t).toExponential();break;case"f":t=s.precision?parseFloat(t).toFixed(s.precision):parseFloat(t);break;case"g":t=s.precision?String(Number(t.toPrecision(s.precision))):parseFloat(t);break;case"o":t=(parseInt(t,10)>>>0).toString(8);break;case"s":t=String(t),t=s.precision?t.substring(0,s.precision):t;break;case"t":t=String(!!t),t=s.precision?t.substring(0,s.precision):t;break;case"T":t=Object.prototype.toString.call(t).slice(8,-1).toLowerCase(),t=s.precision?t.substring(0,s.precision):t;break;case"u":t=parseInt(t,10)>>>0;break;case"v":t=t.valueOf(),t=s.precision?t.substring(0,s.precision):t;break;case"x":t=(parseInt(t,10)>>>0).toString(16);break;case"X":t=(parseInt(t,10)>>>0).toString(16).toUpperCase()}r.json.test(s.type)?g+=t:(!r.number.test(s.type)||f&&!s.sign?p="":(p=f?"+":"-",t=t.toString().replace(r.sign,"")),u=s.pad_char?"0"===s.pad_char?"0":s.pad_char.charAt(1):" ",l=s.width-(p+t).length,a=s.width&&l>0?u.repeat(l):"",g+=s.align?p+t+a:"0"===u?p+a+t:a+p+t)}return g}(function(e){if(s[e])return s[e];var n,t=e,o=[],i=0;for(;t;){if(null!==(n=r.text.exec(t)))o.push(n[0]);else if(null!==(n=r.modulo.exec(t)))o.push("%");else{if(null===(n=r.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(n[2]){i|=1;var c=[],a=n[2],u=[];if(null===(u=r.key.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(c.push(u[1]);""!==(a=a.substring(u[0].length));)if(null!==(u=r.key_access.exec(a)))c.push(u[1]);else{if(null===(u=r.index_access.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");c.push(u[1])}n[2]=c}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");o.push({placeholder:n[0],param_no:n[1],keys:n[2],sign:n[3],pad_char:n[4],align:n[5],width:n[6],precision:n[7],type:n[8]})}t=t.substring(n[0].length)}return s[e]=o}(e),arguments)}function c(e,n){return i.apply(null,[e].concat(n||[]))}var s=Object.create(null);n.sprintf=i,n.vsprintf=c,"undefined"!=typeof window&&(window.sprintf=i,window.vsprintf=c,void 0===(o=function(){return{sprintf:i,vsprintf:c}}.call(n,t,n,e))||(e.exports=o))}()},function(e,n,t){"use strict";t.r(n),function(e){t.d(n,"WebSocketManager",function(){return r});var o=t(0);e.connect=e.connect||{},connect.WebSocketManager=o.a;var r=o.a}.call(this,t(3))},function(e,n){var t;t=function(){return this}();try{t=t||new Function("return this")()}catch(e){"object"==typeof window&&(t=window)}e.exports=t}]);
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -24558,45 +24565,47 @@
   connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
-
+ 
   connect.core = {};
-
   connect.core.initialized = false;
-
-  connect.version = "1.5.0";
-
+  connect.version = "1.5.2";
   connect.DEFAULT_BATCH_SIZE = 500;
-
+ 
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
   var CCP_LOAD_TIMEOUT = 3000; // 3 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
-
-  var LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
+ 
+  var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
   var CLIENT_ID_MAP = {
     "us-east-1": "06919f4fd8ed324e"
   };
-
-  var AUTHORIZE_ENDPOINT = "/connect/auth/authorize";
+ 
+  var AUTHORIZE_ENDPOINT = "/auth/authorize";
+  var LEGACY_AUTHORIZE_ENDPOINT = "/connect/auth/authorize";
   var AUTHORIZE_RETRY_INTERVAL = 2000;
   var AUTHORIZE_MAX_RETRY = 5;
-
-  var WHITELISTED_ORIGINS_ENDPOINT = "/connect/whitelisted-origins";
+ 
+  var LEGACY_WHITELISTED_ORIGINS_ENDPOINT = "/connect/whitelisted-origins";
+  var WHITELISTED_ORIGINS_ENDPOINT = "/whitelisted-origins";
   var WHITELISTED_ORIGINS_RETRY_INTERVAL = 2000;
   var WHITELISTED_ORIGINS_MAX_RETRY = 5;
-
+ 
   /**
    * @deprecated
-   * We will no longer need this function soon.
+   * This function was only meant for internal use. 
+   * The name is misleading for what it should do.
+   * Internally we have replaced its usage with `getLoginUrl`.
    */
   var createLoginUrl = function (params) {
     var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
     connect.assertNotNull(redirect);
-
+ 
     if (params.loginUrl) {
       return params.loginUrl
     } else if (params.alias) {
-      return LOGIN_URL_PATTERN
+      log.warn("The `alias` param is deprecated and should not be expected to function properly. Please use `ccpUrl` or `loginUrl`. See https://github.com/amazon-connect/amazon-connect-streams/blob/master/README.md#connectcoreinitccp for valid parameters.");
+      return LEGACY_LOGIN_URL_PATTERN
         .replace("{alias}", params.alias)
         .replace("{client_id}", CLIENT_ID_MAP["us-east-1"])
         .replace("{redirect}", global.encodeURIComponent(
@@ -24606,6 +24615,27 @@
     }
   };
 
+  /**
+   * Replaces `createLoginUrl`, as that function's name was misleading.
+   * The `params.alias` parameter is deprecated. Please refrain from using it.
+   */
+  var getLoginUrl = function (params) {
+    var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
+    connect.assertNotNull(redirect);
+    if (params.loginUrl) {
+      return params.loginUrl
+    } else if (params.alias) {
+      log.warn("The `alias` param is deprecated and should not be expected to function properly. Please use `ccpUrl` or `loginUrl`. See https://github.com/amazon-connect/amazon-connect-streams/blob/master/README.md#connectcoreinitccp for valid parameters.");
+      return LEGACY_LOGIN_URL_PATTERN
+        .replace("{alias}", params.alias)
+        .replace("{client_id}", CLIENT_ID_MAP["us-east-1"])
+        .replace("{redirect}", global.encodeURIComponent(
+          redirect));
+    } else {
+      return params.ccpUrl;
+    }
+  };
+ 
   /**-------------------------------------------------------------------------
   * Returns scheme://host:port for a given url
   */
@@ -24613,7 +24643,7 @@
     var domain = url.match(/^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/ig);
     return domain.length ? domain[0] : "";
   }
-
+ 
   /**-------------------------------------------------------------------------
     * Print a warning message if the Connect core is not initialized.
     */
@@ -24623,6 +24653,7 @@
       log.warn("Connect core already initialized, only needs to be initialized once.");
     }
   };
+ 
   /**-------------------------------------------------------------------------
    * Basic Connect client initialization.
    * Should be used only by the API Shared Worker.
@@ -24633,7 +24664,7 @@
     connect.core.initClient(params);
     connect.core.initialized = true;
   };
-
+ 
   /**-------------------------------------------------------------------------
    * Initialized AWS client
    * Should be used by Shared Worker to update AWS client with new credentials
@@ -24641,14 +24672,14 @@
    */
   connect.core.initClient = function (params) {
     connect.assertNotNull(params, 'params');
-
+ 
     var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
     var region = connect.assertNotNull(params.region, 'params.region');
     var endpoint = params.endpoint || null;
-
+ 
     connect.core.client = new connect.AWSClient(authToken, region, endpoint);
   };
-
+ 
   /**-------------------------------------------------------------------------
    * Uninitialize Connect.
    */
@@ -24665,33 +24696,33 @@
     connect.agent.initialized = false;
     connect.core.initialized = false;
   };
-
+ 
   /**-------------------------------------------------------------------------
    * Setup the SoftphoneManager to be initialized when the agent
    * is determined to have softphone enabled.
    */
   connect.core.softphoneUserMediaStream = null;
-
+ 
   connect.core.getSoftphoneUserMediaStream = function () {
     return connect.core.softphoneUserMediaStream;
   };
-
+ 
   connect.core.setSoftphoneUserMediaStream = function (stream) {
     connect.core.softphoneUserMediaStream = stream;
   };
-
+ 
   connect.core.initRingtoneEngines = function (params) {
     connect.assertNotNull(params, "params");
-
+ 
     var setupRingtoneEngines = function (ringtoneSettings) {
       connect.assertNotNull(ringtoneSettings, "ringtoneSettings");
       connect.assertNotNull(ringtoneSettings.voice, "ringtoneSettings.voice");
       connect.assertTrue(ringtoneSettings.voice.ringtoneUrl || ringtoneSettings.voice.disabled, "ringtoneSettings.voice.ringtoneUrl must be provided or ringtoneSettings.voice.disabled must be true");
       connect.assertNotNull(ringtoneSettings.queue_callback, "ringtoneSettings.queue_callback");
       connect.assertTrue(ringtoneSettings.queue_callback.ringtoneUrl || ringtoneSettings.queue_callback.disabled, "ringtoneSettings.voice.ringtoneUrl must be provided or ringtoneSettings.queue_callback.disabled must be true");
-
+ 
       connect.core.ringtoneEngines = {};
-
+ 
       connect.agent(function (agent) {
         agent.onRefresh(function () {
           connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
@@ -24700,13 +24731,12 @@
                 new connect.VoiceRingtoneEngine(ringtoneSettings.voice);
               connect.getLog().info("VoiceRingtoneEngine initialized.");
             }
-
+ 
             if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
               connect.core.ringtoneEngines.chat =
                 new connect.ChatRingtoneEngine(ringtoneSettings.chat);
               connect.getLog().info("ChatRingtoneEngine initialized.");
             }
-
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
@@ -24716,7 +24746,7 @@
         });
       });
     };
-
+ 
     var mergeParams = function (params, otherParams) {
       // For backwards compatibility: support pulling disabled flag and ringtoneUrl
       // from softphone config if it exists from downstream into the ringtone config.
@@ -24724,29 +24754,25 @@
       params.ringtone.voice = params.ringtone.voice || {};
       params.ringtone.queue_callback = params.ringtone.queue_callback || {};
       params.ringtone.chat = params.ringtone.chat || { disabled: true };
-
       if (otherParams.softphone) {
         if (otherParams.softphone.disableRingtone) {
           params.ringtone.voice.disabled = true;
           params.ringtone.queue_callback.disabled = true;
         }
-
+ 
         if (otherParams.softphone.ringtoneUrl) {
           params.ringtone.voice.ringtoneUrl = otherParams.softphone.ringtoneUrl;
           params.ringtone.queue_callback.ringtoneUrl = otherParams.softphone.ringtoneUrl;
         }
       }
-
       if (otherParams.chat) {
         if (otherParams.chat.disableRingtone) {
           params.ringtone.chat.disabled = true;
         }
-
         if (otherParams.chat.ringtoneUrl) {
           params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
         }
       }
-
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -24757,11 +24783,10 @@
           otherParams.ringtone.chat || {});
       }
     };
-
     // Merge params from params.softphone and params.chat into params.ringtone
     // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
-
+ 
     if (connect.isFramed()) {
       // If the CCP is in a frame, wait for configuration from downstream.
       var bus = connect.core.getEventBus();
@@ -24772,25 +24797,25 @@
         mergeParams(params, data);
         setupRingtoneEngines(params.ringtone);
       });
-
+ 
     } else {
       setupRingtoneEngines(params.ringtone);
     }
   };
-
+ 
   connect.core.initSoftphoneManager = function (paramsIn) {
     var params = paramsIn || {};
-
+ 
     var competeForMasterOnAgentUpdate = function (softphoneParamsIn) {
       var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
-
+ 
       connect.agent(function (agent) {
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
         }
         agent.onRefresh(function () {
           var sub = this;
-
+ 
           connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
             if (!connect.core.softphoneManager && agent.isSoftphoneEnabled()) {
               // Become master to send logs, since we need logs from softphone tab.
@@ -24802,7 +24827,7 @@
         });
       });
     };
-
+ 
     /**
      * If the window is framed, we need to wait for a CONFIGURE message from
      * downstream before we try to initialize, unless params.allowFramedSoftphone is true.
@@ -24818,8 +24843,7 @@
     } else {
       competeForMasterOnAgentUpdate(params);
     }
-
-
+ 
     connect.agent(function (agent) {
       // Sync mute across all tabs 
       if (agent.isSoftphoneEnabled() && agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
@@ -24830,15 +24854,28 @@
       }
     });
   };
-
+ 
+  //Internal use only.
   connect.core.authorize = function (endpoint) {
     var options = {
       credentials: 'include'
     };
-    return connect.fetch(endpoint || AUTHORIZE_ENDPOINT, options, AUTHORIZE_RETRY_INTERVAL, AUTHORIZE_MAX_RETRY);
-  };
 
+    var authorizeEndpoint = endpoint;
+    if (!authorizeEndpoint) {
+      authorizeEndpoint = connect.core.isLegacyDomain()
+        ? LEGACY_AUTHORIZE_ENDPOINT
+        : AUTHORIZE_ENDPOINT;
+    }
+    return connect.fetch(authorizeEndpoint, options, AUTHORIZE_RETRY_INTERVAL, AUTHORIZE_MAX_RETRY);
+  };
+ 
+  /**
+   * @deprecated
+   * This used to be used internally, but is no longer needed.
+   */
   connect.core.verifyDomainAccess = function (authToken, endpoint) {
+    connect.getLog().warn("This API will be deprecated in the next major version release");
     if (!connect.isFramed()) {
       return Promise.resolve();
     }
@@ -24847,7 +24884,17 @@
         'X-Amz-Bearer': authToken
       }
     };
-    return connect.fetch(endpoint || WHITELISTED_ORIGINS_ENDPOINT, options, WHITELISTED_ORIGINS_RETRY_INTERVAL, WHITELISTED_ORIGINS_MAX_RETRY).then(function (response) {
+    var whitelistedOriginsEndpoint = null;
+    if (endpoint){
+      whitelistedOriginsEndpoint = endpoint;
+    }
+    else {
+      whitelistedOriginsEndpoint = connect.core.isLegacyDomain() 
+        ? LEGACY_WHITELISTED_ORIGINS_ENDPOINT
+        : WHITELISTED_ORIGINS_ENDPOINT;
+    }
+    
+    return connect.fetch(whitelistedOriginsEndpoint, options, WHITELISTED_ORIGINS_RETRY_INTERVAL, WHITELISTED_ORIGINS_MAX_RETRY).then(function (response) {
       var topDomain = sanitizeDomain(window.document.referrer);
       var isAllowed = response.whitelistedOrigins.some(function (origin) {
         return topDomain === sanitizeDomain(origin);
@@ -24857,8 +24904,18 @@
   };
 
   /**-------------------------------------------------------------------------
+   * Returns true if this window's href is on the legacy connect domain. 
+   * Only useful for internal use. 
+   */
+  connect.core.isLegacyDomain = function(url) {
+    url = url || window.location.href;
+    return url.includes('.awsapps.com');
+  }
+
+ 
+  /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
-   * Used primarily by the CCP.
+   * Used only by the CCP
    */
   connect.core.initSharedWorker = function (params) {
     connect.core.checkNotInitialized();
@@ -24866,37 +24923,42 @@
       return;
     }
     connect.assertNotNull(params, 'params');
-
+ 
     var sharedWorkerUrl = connect.assertNotNull(params.sharedWorkerUrl, 'params.sharedWorkerUrl');
     var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
     var refreshToken = connect.assertNotNull(params.refreshToken, 'params.refreshToken');
     var authTokenExpiration = connect.assertNotNull(params.authTokenExpiration, 'params.authTokenExpiration');
     var region = connect.assertNotNull(params.region, 'params.region');
     var endpoint = params.endpoint || null;
-    var authorizeEndpoint = params.authorizeEndpoint || "/connect/auth/authorize";
-
+    var authorizeEndpoint = params.authorizeEndpoint;
+    if (!authorizeEndpoint) {
+      authorizeEndpoint = connect.core.isLegacyDomain()
+        ? LEGACY_AUTHORIZE_ENDPOINT
+        : AUTHORIZE_ENDPOINT;
+    }
+ 
     try {
       // Initialize the event bus and agent data providers.
       connect.core.eventBus = new connect.EventBus({ logEvents: true });
       connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
       connect.core.mediaFactory = new connect.MediaFactory(params);
+      
       // Create the shared worker and upstream conduit.
       var worker = new SharedWorker(sharedWorkerUrl, "ConnectSharedWorker");
       var conduit = new connect.Conduit("ConnectSharedWorkerConduit",
         new connect.PortStream(worker.port),
         new connect.WindowIOStream(window, parent));
-
+ 
       // Set the global upstream conduit for external use.
       connect.core.upstream = conduit;
-
       connect.core.webSocketProvider = new WebSocketProvider();
-
+ 
       // Close our port to the shared worker before the window closes.
       global.onunload = function () {
         conduit.sendUpstream(connect.EventType.CLOSE);
         worker.port.close();
       };
-
+ 
       connect.getLog().scheduleUpstreamLogPush(conduit);
       // Bridge all upstream messages into the event bus.
       conduit.onAllUpstream(connect.core.getEventBus().bridge());
@@ -24907,7 +24969,7 @@
       // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
       conduit.onAllDownstream(conduit.passUpstream());
       // Send configuration up to the shared worker.
-
+ 
       conduit.sendUpstream(connect.EventType.CONFIGURE, {
         authToken: authToken,
         authTokenExpiration: authTokenExpiration,
@@ -24916,7 +24978,7 @@
         region: region,
         authorizeEndpoint: authorizeEndpoint
       });
-
+ 
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
         connect.getLog().info("Acknowledged by the ConnectSharedWorker!");
         connect.core.initialized = true;
@@ -24932,32 +24994,32 @@
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
         location.reload();
       });
-
+ 
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
-
+ 
       // Pass the TERMINATE request upstream to the shared worker.
       connect.core.getEventBus().subscribe(connect.EventType.TERMINATE,
         conduit.passUpstream());
-
+ 
       // Refresh the page when we receive the TERMINATED response from the
       // shared worker.
       connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
         window.location.reload(true);
       });
-
+ 
       worker.port.start();
-
+ 
       // Attempt to get permission to show notifications.
       var nm = connect.core.getNotificationManager();
       nm.requestPermission();
-
+ 
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
         .withException(e);
     }
   };
-
+ 
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
    * Initializes Connect by loading the CCP in an iframe and connecting to it.
@@ -24967,7 +25029,7 @@
     if (connect.core.initialized) {
       return;
     }
-
+ 
     // For backwards compatibility, when instead of taking a params object
     // as input we only accepted ccpUrl.
     var params = {};
@@ -24976,27 +25038,25 @@
     } else {
       params = paramsIn;
     }
-
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
-
+ 
     // Create the CCP iframe and append it to the container div.
     var iframe = document.createElement('iframe');
     iframe.src = params.ccpUrl;
     iframe.allow = "microphone; autoplay";
     iframe.style = "width: 100%; height: 100%";
     containerDiv.appendChild(iframe);
-
+ 
     // Initialize the event bus and agent data providers.
     // NOTE: Setting logEvents here to FALSE in order to avoid duplicating
     // events which are logged in CCP.
     connect.core.eventBus = new connect.EventBus({ logEvents: false });
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.mediaFactory = new connect.MediaFactory(params);
-
+ 
     // Build the upstream conduit communicating with the CCP iframe.
     var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
-
     // Let CCP know if iframe is visible
     iframe.onload = setTimeout(function() {
       var style = window.getComputedStyle(iframe, null);
@@ -25008,15 +25068,14 @@
       };
       conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
     }, 10000);
-
     // Set the global upstream conduit for external use.
     connect.core.upstream = conduit;
-
+ 
     // Init webSocketProvider
     connect.core.webSocketProvider = new WebSocketProvider();
-
+ 
     conduit.onAllUpstream(connect.core.getEventBus().bridge());
-
+ 
     // Initialize the keepalive manager.
     connect.core.keepaliveManager = new KeepaliveManager(conduit,
       connect.core.getEventBus(),
@@ -25024,13 +25083,13 @@
       params.ccpAckTimeout || CCP_ACK_TIMEOUT)
       ;
     connect.core.iframeRefreshInterval = null;
-
+ 
     // Allow 10 sec (default) before receiving the first ACK from the CCP.
     connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
       connect.core.ccpLoadTimeoutInstance = null;
       connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
     }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
-
+ 
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.
     conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
@@ -25038,37 +25097,37 @@
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
-
       if (params.softphone || params.chat) {
         // Send configuration up to the CCP.
+        //set it to false if secondary
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
           softphone: params.softphone,
           chat: params.chat
         });
       }
-
+ 
       if (connect.core.ccpLoadTimeoutInstance) {
         global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
         connect.core.ccpLoadTimeoutInstance = null;
       }
-
+ 
       connect.core.keepaliveManager.start();
       this.unsubscribe();
     });
-
+ 
     // Add any logs from the upstream to our own logger.
     conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
       if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
         connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
       }
     });
-
+ 
     // Pop a login page when we encounter an ACK timeout.
     connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
       // loginPopup is true by default, only false if explicitly set to false.
       if (params.loginPopup !== false) {
         try {
-          var loginUrl = createLoginUrl(params);
+          var loginUrl = getLoginUrl(params);
           connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
           // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
           if (params.loginUrl) {
@@ -25079,12 +25138,12 @@
           connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
         }
       }
-
+ 
       if (connect.core.iframeRefreshInterval == null) {
         connect.core.iframeRefreshInterval = window.setInterval(function () {
           iframe.src = params.ccpUrl;
         }, CCP_IFRAME_REFRESH_INTERVAL);
-
+ 
         conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
           this.unsubscribe();
           global.clearInterval(connect.core.iframeRefreshInterval);
@@ -25098,12 +25157,11 @@
         });
       }
     });
-
     if (params.onViewContact) {
       connect.core.onViewContact(params.onViewContact);
     }
   };
-
+ 
   /**-----------------------------------------------------------------------*/
   var KeepaliveManager = function (conduit, eventBus, synTimeout, ackTimeout) {
     this.conduit = conduit;
@@ -25114,10 +25172,10 @@
     this.synTimer = null;
     this.ackSub = null;
   };
-
+ 
   KeepaliveManager.prototype.start = function () {
     var self = this;
-
+ 
     this.conduit.sendUpstream(connect.EventType.SYNCHRONIZE);
     this.ackSub = this.conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
       this.unsubscribe();
@@ -25130,17 +25188,17 @@
       self.deferStart();
     }, this.ackTimeout);
   };
-
+ 
   KeepaliveManager.prototype.deferStart = function () {
     if (this.synTimer == null) {
       this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
     }
   };
-
+ 
   /**-----------------------------------------------------------------------*/
-
+ 
   var WebSocketProvider = function () {
-
+ 
     var callbacks = {
       initFailure: new Set(),
       subscriptionUpdate: new Set(),
@@ -25148,51 +25206,77 @@
       topic: new Map(),
       allMessage: new Set(),
       connectionGain: new Set(),
-      connectionLost: new Set()
+      connectionLost: new Set(),
+      connectionOpen: new Set(),
+      connectionClose: new Set()
     };
-
+ 
     var invokeCallbacks = function (callbacks, response) {
       callbacks.forEach(function (callback) {
         callback(response);
       });
     };
-
+ 
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.INIT_FAILURE, function () {
       invokeCallbacks(callbacks.initFailure);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_OPEN, function (response) {
+      invokeCallbacks(callbacks.connectionOpen, response);
+    });
+
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_CLOSE, function (response) {
+      invokeCallbacks(callbacks.connectionClose, response);
     });
 
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_GAIN, function () {
       invokeCallbacks(callbacks.connectionGain);
     });
 
-    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_LOST, function () {
-      invokeCallbacks(callbacks.connectionLost);
+    connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_LOST, function (response) {
+      invokeCallbacks(callbacks.connectionLost, response);
     });
-
+ 
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.SUBSCRIPTION_UPDATE, function (response) {
       invokeCallbacks(callbacks.subscriptionUpdate, response);
     });
-
+ 
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.SUBSCRIPTION_FAILURE, function (response) {
       invokeCallbacks(callbacks.subscriptionFailure, response);
     });
-
+ 
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.ALL_MESSAGE, function (response) {
       invokeCallbacks(callbacks.allMessage, response);
       if (callbacks.topic.has(response.topic)) {
         invokeCallbacks(callbacks.topic.get(response.topic), response);
       }
     });
-
+ 
     this.sendMessage = function (webSocketPayload) {
       connect.core.getUpstream().sendUpstream(connect.WebSocketEvents.SEND, webSocketPayload);
     };
-
+ 
     this.onInitFailure = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.initFailure.add(cb);
       return function () {
         return callbacks.initFailure.delete(cb);
+      };
+    };
+
+    this.onConnectionOpen = function(cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.connectionOpen.add(cb);
+      return function () {
+        return callbacks.connectionOpen.delete(cb);
+      };
+    };
+
+    this.onConnectionClose = function(cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.connectionClose.add(cb);
+      return function () {
+        return callbacks.connectionClose.delete(cb);
       };
     };
 
@@ -25203,7 +25287,7 @@
         return callbacks.connectionGain.delete(cb);
       };
     };
-
+ 
     this.onConnectionLost = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.connectionLost.add(cb);
@@ -25211,7 +25295,7 @@
         return callbacks.connectionLost.delete(cb);
       };
     };
-
+ 
     this.onSubscriptionUpdate = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.subscriptionUpdate.add(cb);
@@ -25219,7 +25303,7 @@
         return callbacks.subscriptionUpdate.delete(cb);
       };
     };
-
+ 
     this.onSubscriptionFailure = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.subscriptionFailure.add(cb);
@@ -25227,13 +25311,13 @@
         return callbacks.subscriptionFailure.delete(cb);
       };
     };
-
+ 
     this.subscribeTopics = function (topics) {
       connect.assertNotNull(topics, 'topics');
       connect.assertTrue(connect.isArray(topics), 'topics must be a array');
       connect.core.getUpstream().sendUpstream(connect.WebSocketEvents.SUBSCRIBE, topics);
     };
-
+ 
     this.onMessage = function (topicName, cb) {
       connect.assertNotNull(topicName, 'topicName');
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
@@ -25246,7 +25330,7 @@
         return callbacks.topic.get(topicName).delete(cb);
       };
     };
-
+ 
     this.onAllMessage = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.allMessage.add(cb);
@@ -25254,64 +25338,64 @@
         return callbacks.allMessage.delete(cb);
       };
     };
-
+ 
   };
-
+ 
   /**-----------------------------------------------------------------------*/
   var AgentDataProvider = function (bus) {
     var agentData = null;
     this.bus = bus;
     this.bus.subscribe(connect.AgentEvents.UPDATE, connect.hitch(this, this.updateAgentData));
   };
-
+ 
   AgentDataProvider.prototype.updateAgentData = function (agentData) {
     var oldAgentData = this.agentData;
     this.agentData = agentData;
-
+ 
     if (oldAgentData == null) {
       connect.agent.initialized = true;
       this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
     }
-
+ 
     this.bus.trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-
+ 
     this._fireAgentUpdateEvents(oldAgentData);
   };
-
+ 
   AgentDataProvider.prototype.getAgentData = function () {
     if (this.agentData == null) {
       throw new connect.StateError('No agent data is available yet!');
     }
-
+ 
     return this.agentData;
   };
-
+ 
   AgentDataProvider.prototype.getContactData = function (contactId) {
     var agentData = this.getAgentData();
     var contactData = connect.find(agentData.snapshot.contacts, function (ctdata) {
       return ctdata.contactId === contactId;
     });
-
+ 
     if (contactData == null) {
       throw new connect.StateError('Contact %s no longer exists.', contactId);
     }
-
+ 
     return contactData;
   };
-
+ 
   AgentDataProvider.prototype.getConnectionData = function (contactId, connectionId) {
     var contactData = this.getContactData(contactId);
     var connectionData = connect.find(contactData.connections, function (cdata) {
       return cdata.connectionId === connectionId;
     });
-
+ 
     if (connectionData == null) {
       throw new connect.StateError('Connection %s for contact %s no longer exists.', connectionId, contactId);
     }
-
+ 
     return connectionData;
   };
-
+ 
   AgentDataProvider.prototype._diffContacts = function (oldAgentData) {
     var diff = {
       added: {},
@@ -25320,7 +25404,7 @@
       oldMap: connect.index(oldAgentData == null ? [] : oldAgentData.snapshot.contacts, function (contact) { return contact.contactId; }),
       newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; })
     };
-
+ 
     connect.keys(diff.oldMap).forEach(function (contactId) {
       if (connect.contains(diff.newMap, contactId)) {
         diff.common[contactId] = diff.newMap[contactId];
@@ -25328,16 +25412,16 @@
         diff.removed[contactId] = diff.oldMap[contactId];
       }
     });
-
+ 
     connect.keys(diff.newMap).forEach(function (contactId) {
       if (!connect.contains(diff.oldMap, contactId)) {
         diff.added[contactId] = diff.newMap[contactId];
       }
     });
-
+ 
     return diff;
   };
-
+ 
   AgentDataProvider.prototype._fireAgentUpdateEvents = function (oldAgentData) {
     var self = this;
     var diff = null;
@@ -25345,28 +25429,28 @@
     var newAgentState = this.agentData.snapshot.state.name;
     var oldRoutingState = oldAgentData == null ? connect.AgentStateType.INIT : oldAgentData.snapshot.state.type;
     var newRoutingState = this.agentData.snapshot.state.type;
-
+ 
     if (oldRoutingState !== newRoutingState) {
       connect.core.getAgentRoutingEventGraph().getAssociations(this, oldRoutingState, newRoutingState).forEach(function (event) {
         self.bus.trigger(event, new connect.Agent());
       });
     }
-
+ 
     if (oldAgentState !== newAgentState) {
       this.bus.trigger(connect.AgentEvents.STATE_CHANGE, {
         agent: new connect.Agent(),
         oldState: oldAgentState,
         newState: newAgentState
-
+ 
       });
       connect.core.getAgentStateEventGraph().getAssociations(this, oldAgentState, newAgentState).forEach(function (event) {
         self.bus.trigger(event, new connect.Agent());
       });
     }
-
+ 
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
-
+ 
     } else {
       diff = {
         added: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
@@ -25376,23 +25460,23 @@
         newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; })
       };
     }
-
+ 
     connect.values(diff.added).forEach(function (contactData) {
       self.bus.trigger(connect.ContactEvents.INIT, new connect.Contact(contactData.contactId));
       self._fireContactUpdateEvents(contactData.contactId, connect.ContactStateType.INIT, contactData.state.type);
     });
-
+ 
     connect.values(diff.removed).forEach(function (contactData) {
       self.bus.trigger(connect.ContactEvents.DESTROYED, new connect.ContactSnapshot(contactData));
       self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.DESTROYED, contactData.contactId), new connect.ContactSnapshot(contactData));
       self._unsubAllContactEventsForContact(contactData.contactId);
     });
-
+ 
     connect.keys(diff.common).forEach(function (contactId) {
       self._fireContactUpdateEvents(contactId, diff.oldMap[contactId].state.type, diff.newMap[contactId].state.type);
     });
   };
-
+ 
   AgentDataProvider.prototype._fireContactUpdateEvents = function (contactId, oldContactState, newContactState) {
     var self = this;
     if (oldContactState !== newContactState) {
@@ -25401,11 +25485,11 @@
         self.bus.trigger(connect.core.getContactEventName(event, contactId), new connect.Contact(contactId));
       });
     }
-
+ 
     self.bus.trigger(connect.ContactEvents.REFRESH, new connect.Contact(contactId));
     self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), new connect.Contact(contactId));
   };
-
+ 
   AgentDataProvider.prototype._unsubAllContactEventsForContact = function (contactId) {
     var self = this;
     connect.values(connect.ContactEvents).forEach(function (eventName) {
@@ -25413,13 +25497,13 @@
         .map(function (sub) { sub.unsubscribe(); });
     });
   };
-
+ 
   /** ----- minimal view layer event handling **/
-
+ 
   connect.core.onViewContact = function (f) {
     connect.core.getUpstream().onUpstream(connect.ContactEvents.VIEW, f);
   };
-
+ 
   /**
    * Used of agent interface control. 
    * connect.core.viewContact("contactId") ->  this is curently programmed to get the contact into view.
@@ -25432,9 +25516,9 @@
       }
     });
   };
-
+ 
   /** ------------------------------------------------- */
-
+ 
   /**
   * This will be helpful for the custom and embedded CCPs 
   * to handle the access denied use case. 
@@ -25442,16 +25526,16 @@
   connect.core.onAccessDenied = function (f) {
     connect.core.getUpstream().onUpstream(connect.EventType.ACCESS_DENIED, f);
   };
-
+ 
   /**
   * This will be helpful for SAML use cases to handle the custom logins. 
   */
   connect.core.onAuthFail = function (f) {
     connect.core.getUpstream().onUpstream(connect.EventType.AUTH_FAIL, f);
   };
-
+ 
   /** ------------------------------------------------- */
-
+ 
   /**
    * Used for handling the rtc session stats.
    * Usage
@@ -25463,11 +25547,11 @@
    *      }
    * });
    */
-
+ 
   connect.core.onSoftphoneSessionInit = function (f) {
     connect.core.getUpstream().onUpstream(connect.ConnnectionEvents.SESSION_INIT, f);
   };
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getContactEventName = function (eventName, contactId) {
     connect.assertNotNull(eventName, 'eventName');
@@ -25477,32 +25561,32 @@
     }
     return connect.sprintf('%s::%s', eventName, contactId);
   };
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getEventBus = function () {
     return connect.core.eventBus;
   };
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getWebSocketManager = function () {
     return connect.core.webSocketProvider;
   };
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getAgentDataProvider = function () {
     return connect.core.agentDataProvider;
   };
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getLocalTimestamp = function () {
     return connect.core.getAgentDataProvider().getAgentData().snapshot.localTimestamp;
   };
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getSkew = function () {
     return connect.core.getAgentDataProvider().getAgentData().snapshot.skew;
   };
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getAgentRoutingEventGraph = function () {
     return connect.core.agentRoutingEventGraph;
@@ -25514,7 +25598,7 @@
       connect.AgentEvents.NOT_ROUTABLE)
     .assoc(connect.EventGraph.ANY, connect.AgentStateType.OFFLINE,
       connect.AgentEvents.OFFLINE);
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getAgentStateEventGraph = function () {
     return connect.core.agentStateEventGraph;
@@ -25525,12 +25609,12 @@
       connect.AgentEvents.ERROR)
     .assoc(connect.EventGraph.ANY, connect.AgentAvailStates.AFTER_CALL_WORK,
       connect.AgentEvents.ACW);
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getContactEventGraph = function () {
     return connect.core.contactEventGraph;
   };
-
+ 
   connect.core.contactEventGraph = new connect.EventGraph()
     .assoc(connect.EventGraph.ANY,
       connect.ContactStateType.INCOMING,
@@ -25568,7 +25652,7 @@
     return connect.core.client;
   };
   connect.core.client = null;
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {
     if (!connect.core.masterClient) {
@@ -25577,13 +25661,13 @@
     return connect.core.masterClient;
   };
   connect.core.masterClient = null;
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getSoftphoneManager = function () {
     return connect.core.softphoneManager;
   };
   connect.core.softphoneManager = null;
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getNotificationManager = function () {
     if (!connect.core.notificationManager) {
@@ -25592,13 +25676,13 @@
     return connect.core.notificationManager;
   };
   connect.core.notificationManager = null;
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getPopupManager = function () {
     return connect.core.popupManager;
   };
   connect.core.popupManager = new connect.PopupManager();
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.getUpstream = function () {
     if (!connect.core.upstream) {
@@ -25607,12 +25691,11 @@
     return connect.core.upstream;
   };
   connect.core.upstream = null;
-
+ 
   /**-----------------------------------------------------------------------*/
   connect.core.AgentDataProvider = AgentDataProvider;
-
+ 
 })();
-
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -25657,7 +25740,10 @@
 
   RingtoneEngineBase.prototype._startRingtone = function (contact) {
     if (this._audio) {
-      this._audio.play();
+      this._audio.play()
+        .catch(function(e) {
+          this._publishTelemetryEvent("Ringtone Playback Failure", contact);
+        });
       this._publishTelemetryEvent("Ringtone Start", contact);
     }
   };
@@ -26043,6 +26129,12 @@
           localMediaStream[agentConnectionId] = {
             stream: stream
           };
+          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED,
+            data: {
+              connectionId: agentConnectionId
+            }
+          });
         };
 
         session.remoteAudioElement = document.getElementById('remote-audio');
@@ -26605,11 +26697,11 @@
         self.handleSendLogsRequest(self.logsBuffer);
       }
     });
+
     this.conduit.onDownstream(connect.EventType.CONFIGURE, function (data) {
       if (data.authToken && data.authToken !== self.initData.authToken) {
         self.initData = data;
         connect.core.init(data);
-
         // init only once.
         if (!webSocketManager) {
 
@@ -26625,14 +26717,22 @@
             self.conduit.sendDownstream(connect.WebSocketEvents.INIT_FAILURE);
           });
 
+          webSocketManager.onConnectionOpen(function (response) {
+            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_OPEN, response);
+          });
+
+          webSocketManager.onConnectionClose(function (response) {
+            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_CLOSE, response);
+          });
+
           webSocketManager.onConnectionGain(function () {
             self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED);
             self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_GAIN);
           });
 
-          webSocketManager.onConnectionLost(function () {
-            self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST);
-            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_LOST);
+          webSocketManager.onConnectionLost(function (response) {
+            self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST, response);
+            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_LOST, response);
           });
 
           webSocketManager.onSubscriptionUpdate(function (response) {
@@ -27059,12 +27159,12 @@
       });
       this.agent.configuration.routingProfile.routingProfileId =
         this.agent.configuration.routingProfile.routingProfileARN;
-
+      
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
   };
 
-  /**
+/**
  * Provides a websocket url through the create_transport API.
  * @returns a promise which, upon success, returns the response from the createTransport API.
  */
@@ -27370,6 +27470,7 @@
     };
   }
 })();
+
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *

@@ -254,6 +254,10 @@
     connect.core.getUpstream().onUpstream(connect.AgentEvents.MUTE_TOGGLE, f);
   };
 
+  Agent.prototype.onLocalMediaStreamCreated = function (f) {
+    connect.core.getUpstream().onUpstream(connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED, f);
+  };
+
   Agent.prototype.mute = function () {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
       {
@@ -531,6 +535,11 @@
     bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTED), f);
   };
 
+  Contact.prototype.onError = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(this.getEventName(connect.ContactEvents.ERROR), f);
+  }
+
   Contact.prototype.getContactId = function () {
     return this.contactId;
   };
@@ -657,13 +666,6 @@
         },
         failure: callbacks ? callbacks.failure : null
       });
-  };
-
-  Contact.prototype.destroy = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.DESTROY_CONTACT, {
-      contactId: this.getContactId()
-    }, callbacks);
   };
 
   Contact.prototype.complete = function (callbacks) {
@@ -895,17 +897,6 @@
 
   // Method for checking whether this connection is an agent-side connection 
   // (type AGENT or MONITORING)
-  Connection.prototype._isAgentConnectionType = function () {
-    var connectionType = this.getType();
-    return connectionType === connect.ConnectionType.AGENT 
-      || connectionType === connect.ConnectionType.MONITORING;
-  }
-
-  /**
-   * Utility method for checking whether this connection is an agent-side connection 
-   * (type AGENT or MONITORING)
-   * @return {boolean} True if this connection is an agent-side connection. False otherwise.
-   */
   Connection.prototype._isAgentConnectionType = function () {
     var connectionType = this.getType();
     return connectionType === connect.ConnectionType.AGENT 
@@ -1199,3 +1190,4 @@
   connect.SoftphoneError = SoftphoneError;
 
 })();
+
