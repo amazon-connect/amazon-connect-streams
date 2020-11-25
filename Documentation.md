@@ -136,7 +136,7 @@ everything set up correctly and that you are able to listen for events.
     <script type="text/javascript">
       var containerDiv = document.getElementById("container-div");
       var instanceURL = "https://my-instance-domain.awsapps.com/connect/ccp-v2/";
-      // initialise the streams api
+      // initialize the streams api
       function init() {
         // initialize the ccp
         connect.core.initCCP(containerDiv, {
