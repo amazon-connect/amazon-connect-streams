@@ -860,19 +860,19 @@ declare namespace connect {
     onACW(callback: ContactCallback): void;
 
     /**
-     * Subscribe a method to be invoked whenever the contact is missed.
-     * This is an event which is fired when a contact is put in state "missed" by the backend, which happens when the agent does not answer for a certain amount of time, when the agent rejects the call, or when the other participant hangs up before the agent can accept.
-     *
-     * @param callback A callback to receive the `Contact` API object instance.
-     */
-    onMissed(callback: ContactCallback): void;
-
-    /**
      * Subscribe a method to be invoked when the contact is connected.
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
     onConnected(callback: ContactCallback): void;
+
+    /**
+     * Subscribe a method to be invoked when the contact error event is triggered. 
+     * This event is only triggered when an agent state of type error appears in the snapshot.
+     * 
+     * @param callback A callback to receive the `Contact` API object instance.
+     */
+    onError(callback: ContactCallback): void;
 
     /**
      * Returns a formatted string with the contact event and ID.

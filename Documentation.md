@@ -125,15 +125,16 @@ everything set up correctly and that you are able to listen for events.
 ### `connect.core.initCCP()`
 ```html
 <!DOCTYPE html>
-<meta charset="UTF-8">
 <html>
   <head>
+    <meta charset="UTF-8">
     <script type="text/javascript" src="amazon-connect-1.4.js"></script>
   </head>
   <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
   <body onload="init()">
-    <div id="containerDiv" style="width: 400px;height: 800px;"></div>
+    <div id="container-div" style="width: 400px;height: 800px;"></div>
     <script type="text/javascript">
+      var containerDiv = document.getElementById("container-div");
       var instanceURL = "https://my-instance-domain.awsapps.com/connect/ccp-v2/";
       // initialize the streams api
       function init() {
@@ -206,20 +207,19 @@ and made available to your JS client code.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
-`containerDiv` into which you place the iframe, or applying a CSS rule like
+`container-div` into which you place the iframe, or applying a CSS rule like
 this:
 ```css
-#containerDiv iframe {
+#container-div iframe {
   display: none;
 }
 ```
-* The pre-built CCP UI is portrait oriented and capable of contracting
-  horizontally to fit smaller widths. It can expand from a width of 200px to
-  a maximum of 320px based on the size of its container div. If the CCP is
-  placed into a container where it would be sized under 221px in width, the CCP
-  switches to a different layout style with smaller buttons and fonts.
-* In its normal larger style, the CCP is 465px tall. In its smaller form, the
-  CCP is reduced to 400px tall.
+* The CCP UI is rendered in an iframe under the container element provided.
+  The iframe fills its container element with `width: 100%; height: 100%`.
+  To customize the size of the CCP, set the width and height for the container element.
+* The CCP is designed to be responsive (used in various sizes).
+  The smallest size we design for is 320px x 460px.
+  For a good user experience, we recommend that you do not go smaller than this size.
 * CSS styles you add to your site will NOT be applied to the CCP because it is
   rendered in an iframe.
 * If you are trying to use chat specific functionalities, please also include
@@ -661,7 +661,7 @@ Subscribe a method to be invoked when the contact is pending. This event is expe
 ```js
 contact.onConnecting(function(contact) { /* ... */ });
 ```
-Subscribe a method to be invoked when the contact is connecting. This works with chat and softphone contacts. This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is started after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
+Subscribe a method to be invoked when the contact is connecting. This works with chat and softphone contacts. This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is executed after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
 
 ### `contact.onAccepted()`
 ```js
@@ -700,6 +700,13 @@ Subscribe a method to be invoked whenever the contact enters the ACW state. This
 contact.onConnected(function(contact) { /* ... */ });
 ```
 Subscribe a method to be invoked when the contact is connected.
+
+### `contact.onError()`
+```js
+contact.onError(function(contact) { /* ... */ });
+```
+Subscribe a method to be invoked when `connect.ContactEvents.ERROR` happens. 
+This event happens when the agent state type is `error`. Why do we have a contact event representing an agent state type? Because the agent status when on voice calls reflects contact-specific errors. 
 
 ### `contact.getEventName()`
 ```js
@@ -847,17 +854,8 @@ Accept an incoming contact.
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
 ### `contact.destroy()`
-```js
-contact.destroy({
-   success: function() { /* ... */ },
-   failure: function(err) { /* ... */ }
-});
-```
-Close the contact and all of its associated connections. If the contact is a voice contact, and
-there is a third-party, the customer remains bridged with the third party and will not
-be disconnected from the call. Otherwise, the agent and customer are disconnected.
+This method is now deprecated.
 
-Optional success and failure callbacks can be provided to determine if the operation was successful.
 
 ### `contact.clear()`
 ```js
@@ -1036,7 +1034,9 @@ conn.destroy({
    failure: function(err) { /* ... */ }
 });
 ```
-Ends the connection.
+Ends the connection. This can be used to reject contacts, end live contacts, and clear chat ACW.
+At this point, it should be used to reject contacts and end live contacts only. We are deprecating the behavior of clearing ACW with this API.
+To clear ACW for voice and chat contacts, use the `contact.clear()` API.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
@@ -1137,7 +1137,7 @@ Returns the `MediaType` enum value: `"chat"`.
 conn.getMediaController().then(function (chatController) { /* ... */ });
 ```
 Gets a `Promise` with the media controller associated with this connection.
-The promise resolves to an `AgentChatSession` object from `amazon-connect-chatjs` library.
+The promise resolves to a `ChatSession` object from `amazon-connect-chatjs` library.
 See the [amazon-connect-chatjs documentation](https://github.com/amazon-connect/amazon-connect-chatjs) for more information.
 
 ## Utility Functions

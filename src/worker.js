@@ -133,11 +133,11 @@
         self.handleSendLogsRequest(self.logsBuffer);
       }
     });
+
     this.conduit.onDownstream(connect.EventType.CONFIGURE, function (data) {
       if (data.authToken && data.authToken !== self.initData.authToken) {
         self.initData = data;
         connect.core.init(data);
-
         // init only once.
         if (!webSocketManager) {
 
@@ -153,14 +153,22 @@
             self.conduit.sendDownstream(connect.WebSocketEvents.INIT_FAILURE);
           });
 
+          webSocketManager.onConnectionOpen(function (response) {
+            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_OPEN, response);
+          });
+
+          webSocketManager.onConnectionClose(function (response) {
+            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_CLOSE, response);
+          });
+
           webSocketManager.onConnectionGain(function () {
             self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED);
             self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_GAIN);
           });
 
-          webSocketManager.onConnectionLost(function () {
-            self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST);
-            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_LOST);
+          webSocketManager.onConnectionLost(function (response) {
+            self.conduit.sendDownstream(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST, response);
+            self.conduit.sendDownstream(connect.WebSocketEvents.CONNECTION_LOST, response);
           });
 
           webSocketManager.onSubscriptionUpdate(function (response) {
@@ -587,12 +595,12 @@
       });
       this.agent.configuration.routingProfile.routingProfileId =
         this.agent.configuration.routingProfile.routingProfileARN;
-
+      
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
   };
 
-  /**
+/**
  * Provides a websocket url through the create_transport API.
  * @returns a promise which, upon success, returns the response from the createTransport API.
  */

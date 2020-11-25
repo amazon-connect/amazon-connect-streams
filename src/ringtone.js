@@ -42,7 +42,10 @@
 
   RingtoneEngineBase.prototype._startRingtone = function (contact) {
     if (this._audio) {
-      this._audio.play();
+      this._audio.play()
+        .catch(function(e) {
+          this._publishTelemetryEvent("Ringtone Playback Failure", contact);
+        });
       this._publishTelemetryEvent("Ringtone Start", contact);
     }
   };

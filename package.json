@@ -1,6 +1,6 @@
 {
   "name": "amazon-connect-streams",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
@@ -26,7 +26,7 @@
   ],
   "scripts": {
     "gulp-test": "gulp test",
-    "release": "tsc && gulp script",
+    "release": "tsc && gulp",
     "watch": "gulp watch",
     "clean": "rm -rf build/ node_modules build package-lock.json",
     "release-watch": "npm run release && npm run watch"

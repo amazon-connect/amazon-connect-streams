@@ -127,15 +127,16 @@ everything setup correctly and that you will be able to listen for events.
 ### `connect.core.initCCP()`
 ```html
 <!DOCTYPE html>
-<meta charset="UTF-8">
 <html>
   <head>
+    <meta charset="UTF-8">
     <script type="text/javascript" src="amazon-connect-1.4.js"></script>
   </head>
   <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
   <body onload="init()">
-    <div id="containerDiv" style="width: 400px;height: 800px;"></div>
+    <div id="container-div" style="width: 400px;height: 800px;"></div>
     <script type="text/javascript">
+      var containerDiv = document.getElementById("container-div");
       var instanceURL = "https://my-instance-domain.awsapps.com/connect/ccp-v2/";
       // initialize the streams api
       function init() {
@@ -206,17 +207,16 @@ and made available to your JS client code.
 `containerDiv` into which you place the iframe, or applying a CSS rule like
 this:
 ```css
-#containerDiv iframe {
+#container-div iframe {
   display: none;
 }
 ```
-* The pre-built CCP UI is portrait oriented and capable of contracting
-  horizontally to fit smaller widths. It can expand from a width of 200px to
-  a maximum of 320px based on the size of its container div. If the CCP is
-  placed into a container where it would be sized under 221px in width, the CCP
-  switches to a different layout style with smaller buttons and fonts.
-* In its normal larger style, the CCP is 465px tall. In its smaller form, the
-  CCP is reduced to 400px tall.
+* The CCP UI is rendered in an iframe under the container element provided.
+  The iframe fills its container element with `width: 100%; height: 100%`.
+  To customize the size of the CCP, set the width and height for the container element.
+* The CCP is designed to be responsive (used in various sizes).
+  The smallest size we design for is 320px x 460px.
+  For a good user experience, we recommend that you do not go smaller than this size.
 * CSS styles you add to your site will NOT be applied to the CCP because it is
   rendered in an iframe.
 * If you are trying to use chat specific functionalities, please also include

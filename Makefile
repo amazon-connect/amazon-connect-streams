@@ -22,8 +22,6 @@ SOURCE_FILES = src/aws-client.js \
 					src/worker.js \
 					src/mediaControllers/* 
 
-all: $(OUTPUT_JS)
-
 $(OUTPUT_JS): $(SOURCE_FILES)
 	cat $^ >$@
 

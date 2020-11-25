@@ -25,7 +25,6 @@
          'createOutboundContact',
          'clearContact',
          'completeContact',
-         'destroyContact',
          'notifyContactIssue',
          'updateContactAttributes',
          'createAdditionalConnection',
@@ -161,7 +160,12 @@
       AWS.config.credentials = new AWS.Credentials({});
       AWS.config.region = region;
       this.authToken = authToken;
-      var endpointUrl = endpointIn || connect.getBaseUrl() + '/connect/api';
+      var baseUrl = connect.getBaseUrl();
+      var endpointUrl = endpointIn || ( 
+         baseUrl.includes(".awsapps.com")
+            ? baseUrl + '/connect/api'
+            : baseUrl + '/api'
+      );
       var endpoint = new AWS.Endpoint(endpointUrl);
       this.client = new AWS.Connect({endpoint: endpoint});
    };
@@ -217,8 +221,10 @@
       }
    };
 
-   AWSClient.prototype._requiresAuthenticationParam = function(method) {
-      return method !== connect.ClientMethods.COMPLETE_CONTACT && method !== connect.ClientMethods.CLEAR_CONTACT;
+   AWSClient.prototype._requiresAuthenticationParam = function (method) {
+      return method !== connect.ClientMethods.COMPLETE_CONTACT &&
+         method !== connect.ClientMethods.CLEAR_CONTACT &&
+         method !== connect.ClientMethods.REJECT_CONTACT;
    };
 
    AWSClient.prototype._translateParams = function(method, params) {

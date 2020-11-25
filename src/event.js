@@ -66,7 +66,8 @@
     'websocket_connection_gained',
     'state_change',
     'acw',
-    'mute_toggle'
+    'mute_toggle',
+    'local_media_stream_created'
   ]);
 
   /**---------------------------------------------------------------
@@ -74,6 +75,9 @@
   */
   var WebSocketEvents = connect.makeNamespacedEnum('webSocket', [
     'init_failure',
+    'connection_open',
+    'connection_close',
+    'connection_error',
     'connection_gain',
     'connection_lost',
     'subscription_update',
