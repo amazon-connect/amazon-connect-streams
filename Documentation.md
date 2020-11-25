@@ -207,7 +207,7 @@ and made available to your JS client code.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
-`containerDiv` into which you place the iframe, or applying a CSS rule like
+`container-div` into which you place the iframe, or applying a CSS rule like
 this:
 ```css
 #container-div iframe {
