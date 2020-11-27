@@ -8,8 +8,8 @@ embed the Contact Control Panel (CCP) UI components into your page, and/or
 handle agent and contact state events directly giving you the power to control
 agent and contact state through an object oriented event driven interface. You
 can use the built in interface or build your own from scratch: Streams gives you
-the choice. This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs)
-in order to utilize Amazon Connect's Chat functionality.
+the choice. This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs) or [amazon-connect-taskjs](https://github.com/amazon-connect/amazon-connect-taskjs)
+in order to utilize Amazon Connect's Chat or Task functionality.
 
 # Learn More
 To learn more about Amazon Connect and its capabilities, please check out
@@ -207,6 +207,7 @@ this:
   Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
   it must be imported after StreamsJS, or there will be AWS SDK issues
   (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
+* If you are using task functionalities you must include [TaskJS](https://github.com/amazon-connect/amazon-connect-taskjs). TaskJS should be imported after Streams.
 * If you'd like access to the WebRTC session to further customize the softphone experience
   you can use [connect-rtc-js](https://github.com/aws/connect-rtc-js). Please refer to the connect-rtc-js readme for detailed instructions on integrating connect-rtc-js with Streams.
 

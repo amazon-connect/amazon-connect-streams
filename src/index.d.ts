@@ -350,6 +350,9 @@ declare namespace connect {
 
     /** Chat contact. */
     CHAT = "chat",
+
+    /** Task contact. */
+    TASK = "task",
   }
 
   /** This enumeration lists the different types of contact channels. */
@@ -359,11 +362,15 @@ declare namespace connect {
 
     /** A chat contact. */
     CHAT = "CHAT",
+
+    /** A task contact. */
+    TASK = "TASK",
   }
 
   enum MediaType {
     SOFTPHONE = "softphone",
     CHAT = "chat",
+    TASK = "task",
   }
 
   enum SoftphoneCallType {
@@ -687,9 +694,6 @@ declare namespace connect {
     /** The task references */
     readonly references: ReferenceDictionary;
 
-    /** The flag that indicates whether assign to self */
-    readonly isAssignToSelf: boolean;
-
     /** A random value */
     readonly idempotencyToken: string;
 
@@ -925,6 +929,15 @@ declare namespace connect {
 
     /** Alias for `getStatus()` */
     getStatus(): ContactState;
+
+    /** Get name for the contact. */
+    getName(): string;
+
+    /** Get description for the contact. */
+    getDescription(): string;
+    
+    /** Get references for the contact. */
+    getReferences(): ReferenceDictionary;
 
     /**
      * Get the duration of the contact state in milliseconds relative to local time.
@@ -1269,6 +1282,26 @@ declare namespace connect {
     getMediaController(): Promise<any>;
   }
 
+  /**
+   * The TaskConnection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular task connection within a contact.
+   * Like contacts, connections come and go.
+   * It is good practice not to persist these object or keep them as internal state.
+   * If you need to, store the `contactId` and `connectionId` of the connection and make sure that the contact and connection still exist by fetching them in order from the `Agent` API object before calling methods on them.
+   */
+  class TaskConnection extends BaseConnection {
+    /** Get the media info object associated with this connection. */
+    getMediaInfo(): TaskMediaInfo;
+
+    /** Returns the `MediaType` enum value: `"task"`.  */
+    getMediaType(): MediaType.TASK;
+
+    /**
+     * Gets a `Promise` with the media controller associated with this connection.
+     * The promise resolves to a `ChatSession` object from `amazon-connect-taskjs` library.
+     */
+    getMediaController(): Promise<any>;
+  }
+
   interface ConnectionState {
     /** A `Date` object that indicates when the the connection was put in that state. */
     readonly timestamp: Date;
@@ -1303,6 +1336,11 @@ declare namespace connect {
     };
     readonly participantId: string;
     readonly participantToken: string;
+  }
+
+  interface TaskMediaInfo {
+    readonly contactId: string;
+    readonly initialContactId: string;
   }
 
   interface MonitorInfo {

@@ -1,110 +1,6 @@
 # Amazon Connect Streams Documentation
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
-## Task Private Beta Updates
-- The `contact.getContactMetadata()` method has been deprecated
-- There are three new get methods which can be used to retrieve task data:
-    - `contact.getName()`
-      - Gets the name of the task
-    - `contact.getDescription()`
-      - Gets the description of the task
-    - `contact.getReferences()`
-      - Gets a map of reference objects associated with the task. Each reference has a `Type` and a `Value`.
-- The structure of references has changed. A single reference now looks like the following:
-
-```
-"Reference-Name": {
-    "type": "URL",
-    "value": "http://link.com"
-}
-```
-
-- A Task contact currently only contains a single connection per contact. Chat and Voice contacts have two or more connections per contact
-    - Please keep this in mind as you update your contact event handlers (e.g. contact.onIncoming, contact.onConnecting, etc)
-- To End Task Contact and move to After Contact Work (ACW), call ```connection.destroy()``` (Same behavior as chat)
-- To clear ACW for a Task Contact call ```contact.complete()``` (Same behavior as chat)
-
-### Enabling Tasks for your connect instance
-- Please go to the Routing Profile in the Admin website to enable Tasks.
-- Before modifying your custom ccp, it could be helpful to test your standalone CCP (```.awsapps.com/connect/ccp-v2```) to observe the behavior of Task Contacts.
-
-### Sample Task Contact in the Agent Snapshot
-To explore below on your own, please inspect the ConnectSharedWorker (e.g. ```chrome://inspect```) and check the network tab for snapshot responses.
-
-
-```javascript
-{
-    "nextToken": "X/00000000/0000000000000000=_159224045405600",
-    "snapshot": {
-        "agentAvailabilityState": {
-            "state": "Available",
-            "timeStamp": 1592237329.964
-        },
-        "contacts": [
-            {
-                "attributes": {
-                    "userKey1": {
-                        "name": "userKey1",
-                        "value": "UserDetails"
-                    },
-                    "userKey2": {
-                        "name": "userKey2",
-                        "value": "UserDetails"
-                    }
-                },
-                "connections": [ // contains only 1 connect per Task Contact
-                    {
-                        "chatMediaInfo": null,
-                        "connectionId": "00000000-0000-0000-0000-000000000000",
-                        "endpoint": null,
-                        "initial": true,
-                        "monitoringInfo": null,
-                        "softphoneMediaInfo": null,
-                        "state": {
-                            "timestamp": 1592240453.803,
-                            "type": "connecting"
-                        },
-                        "type": "agent"
-                    }
-                ],
-                "contactDuration": "0",
-                "contactId": "00000000-0000-0000-0000-000000000000",
-                "description": "This is the review requested by the customer. Please review via the links provided in the references.",
-                "initialContactId": null,
-                "initiationMethod": "api",
-                "name": "Tom's invoice review",
-                "queue": {
-                    "name": "",
-                    "queueARN": "arn:aws:connect:us-west-2:000000000000:instance/00000000-0000-0000-0000-000000000000/queue/00000000-0000-0000-0000-000000000000"
-                },
-                "queueTimestamp": null,
-                "references": {
-                    "doc-link1": {
-                    	"type": "URL",
-                    	"value": "https://example-link.com"
-                    },
-                    "doc-link2": {
-                    	"type": "URL",
-                    	"value": "https://example-link.com"
-                    }
-                },
-                "state": {
-                    "timestamp": 1592240454.053,
-                    "type": "connecting"
-                },
-                "type": "task"
-            }
-        ],
-        "snapshotTimestamp": 1592240454.19,
-        "state": {
-            "agentStateARN": null,
-            "name": "Available",
-            "startTimestamp": 1592237330.19,
-            "type": "routable"
-        }
-    }
-}
-```
 
 # Important Announcements
 1. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
@@ -120,8 +16,8 @@ embed the Contact Control Panel (CCP) UI components into your page, and/or
 handle agent and contact state events directly giving you the power to control
 agent and contact state through an object oriented event driven interface. You
 can use the built in interface or build your own from scratch: Streams gives you
-the choice. This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs)
-in order to utilize Amazon Connect's Chat functionality.
+the choice. This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs) or [amazon-connect-taskjs](https://github.com/amazon-connect/amazon-connect-taskjs)
+in order to utilize Amazon Connect's Chat or Task functionality.
 
 ## Architecture
 Click [here](Architecture.md) to view a quick architecture overview of how the
@@ -162,7 +58,7 @@ To whitelist your pages:
 
 ## Downloading Streams with npm
 
-Please note that downloading Streams with npm is not currently available for Task Private/Beta.
+`npm install amazon-connect-streams`
 
 ## Importing Streams with npm and ES6
 
@@ -315,6 +211,7 @@ this:
   Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
   it must be imported after StreamsJS, or there will be AWS SDK issues
   (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
+* If you are using task functionalities you must include [TaskJS](https://github.com/amazon-connect/amazon-connect-taskjs). TaskJS should be imported after Streams.
 * If you'd like access to the WebRTC session to further customize the softphone experience
   you can use [connect-rtc-js](https://github.com/aws/connect-rtc-js). Please refer to the connect-rtc-js readme for detailed instructions on integrating connect-rtc-js with Streams.
 
@@ -736,7 +633,7 @@ Subscribe a method to be invoked when the contact is pending. This event is expe
 ```js
 contact.onConnecting(function(contact) { /* ... */ });
 ```
-Subscribe a method to be invoked when the contact is connecting. This works with chat and softphone contacts. This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is executed after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
+Subscribe a method to be invoked when the contact is connecting. This event happens when a contact comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is executed after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
 
 ### `contact.onAccepted()`
 ```js
@@ -960,7 +857,7 @@ contact.clear({
    failure: function(err) { /* ... */ }
 });
 ```
-This is a more generic form of `contact.complete()`. Use this for voice and chat contacts to clear the contact 
+This is a more generic form of `contact.complete()`. Use this for voice, chat, and task contacts to clear the contact
 when the contact is no longer actively being worked on (i.e. it's one of ERROR, ACW, MISSED, REJECTED). 
 It works for both monitoring and non-monitoring connections.
 
@@ -973,7 +870,7 @@ contact.complete({
    failure: function(err) { /* ... */ }
 });
 ```
-This API will soon be deprecated and should be only be used for clearing Tasks. It completes the contact entirely.
+This API will soon be deprecated and should be replaced with `contact.clear()`. It completes the contact entirely.
 That means it should only be used for non-monitoring agent connections.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
@@ -1038,7 +935,7 @@ provides an opportunity to create a snapshot version of the `Contact` API object
 such as adding to a log file or posting elsewhere.
 
 ### Task Contact APIs
-The following contact methods are only available for task contacts.
+The following contact methods are currently only available for task contacts.
 
 ### `contact.getName()`
 ```js
@@ -1262,6 +1159,33 @@ Gets a `Promise` with the media controller associated with this connection.
 The promise resolves to a `ChatSession` object from `amazon-connect-chatjs` library.
 See the [amazon-connect-chatjs documentation](https://github.com/amazon-connect/amazon-connect-chatjs) for more information.
 
+## TaskConnection API
+The TaskConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
+of a particular task connection within a contact. Like contacts, connections come and go. It is good practice not
+to persist these objects or keep them as internal state. If you need to, store the `contactId` and `connectionId`
+of the connection and make sure that the contact and connection still exist by fetching them in order from
+the `Agent` API object before calling methods on them.
+
+### `taskConnection.getMediaInfo()`
+```js
+var mediaInfo = conn.getMediaInfo();
+```
+Get the media info object associated with this connection.
+
+### `taskConnection.getMediaType()`
+```js
+if (conn.getMediaType() === "task") { /* ... */ }
+```
+Returns the `MediaType` enum value: `"task"`.
+
+### `taskConnection.getMediaController()`
+```js
+conn.getMediaController().then(function (taskController) { /* ... */ });
+```
+Gets a `Promise` with the media controller associated with this connection.
+The promise resolves to a `TaskSession` object from the `amazon-connect-taskjs` library.
+See the [amazon-connect-taskjs documentation](https://github.com/amazon-connect/amazon-connect-taskjs) for more information.
+
 ## Utility Functions
 ### `Endpoint.byPhoneNumber()` (static function)
 ```js
@@ -1296,6 +1220,7 @@ This enumeration lists the different types of contact channels.
 
 * `ChannelType.VOICE`: A voice contact.
 * `ChannelType.CHAT`: A chat contact.
+* `ChannelType.TASK`: A task contact.
 
 ### `EndpointType`
 This enumeration lists the different types of endpoints.
@@ -1339,6 +1264,7 @@ This enumeration lists all of the contact types supported by Connect Streams.
 * `ContactType.VOICE`: Normal incoming and outgoing voice calls.
 * `ContactType.QUEUE_CALLBACK`: Special outbound voice calls which are routed to agents before being placed. For more information about how to setup and use queued callbacks, see the Amazon Connect user documentation.
 * `ContactType.CHAT`: Chat contact.
+* `ContactType.TASK`: Task contact.
 
 ### `EventType`
 This is a list of some of the special event types which are published into the low-level
