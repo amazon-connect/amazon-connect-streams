@@ -46,9 +46,9 @@
    ]);
 
    /**---------------------------------------------------------------
-    * enum HudsonClientMethods
+    * enum AgentAppClientMethods
     */
-   connect.HudsonClientMethods = {
+   connect.AgentAppClientMethods = {
       GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
       ENROLL_SPEAKER_IN_VOICEID: "AgentAppService.VoiceId.enrollBySession",
       EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
@@ -168,9 +168,9 @@
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
    
    /**---------------------------------------------------------------
-   * class HudsonClient extends ClientBase
+   * class AgentAppClient extends ClientBase
    */
-   var HudsonClient = function(authCookieName, authToken, endpoint) {
+   var AgentAppClient = function(authCookieName, authToken, endpoint) {
       connect.assertNotNull(authCookieName, 'authCookieName');
       connect.assertNotNull(authToken, 'authToken');
       connect.assertNotNull(endpoint, 'endpoint');
@@ -180,10 +180,10 @@
       this.authCookieName = authCookieName
    };
 
-   HudsonClient.prototype = Object.create(ClientBase.prototype);
-   HudsonClient.prototype.constructor = HudsonClient;
+   AgentAppClient.prototype = Object.create(ClientBase.prototype);
+   AgentAppClient.prototype.constructor = AgentAppClient;
 
-   HudsonClient.prototype._callImpl = function(method, params, callbacks) {
+   AgentAppClient.prototype._callImpl = function(method, params, callbacks) {
       var self = this;
       var bear = {};
       bear[self.authCookieName] = self.authToken;
@@ -378,6 +378,6 @@
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
-   connect.HudsonClient = HudsonClient;
+   connect.AgentAppClient = AgentAppClient;
 
 })();

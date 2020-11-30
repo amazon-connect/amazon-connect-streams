@@ -1066,7 +1066,7 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.GET_SPEAKER_ID, {
+      client.call(connect.AgentAppClientMethods.GET_SPEAKER_ID, {
         "contactId": self.contactId,
         "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "awsAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
@@ -1101,7 +1101,7 @@
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
-        client.call(connect.HudsonClientMethods.GET_SPEAKER_STATUS, {
+        client.call(connect.AgentAppClientMethods.GET_SPEAKER_STATUS, {
           "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
           "DomainId" : "ConnectDefaultDomainId"
           }, {
@@ -1129,7 +1129,7 @@
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
-        client.call(connect.HudsonClientMethods.OPT_OUT_VOICEID_SPEAKER, {
+        client.call(connect.AgentAppClientMethods.OPT_OUT_VOICEID_SPEAKER, {
           "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
           "DomainId" : "ConnectDefaultDomainId"
           }, {
@@ -1158,7 +1158,7 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.START_VOICEID_SESSION, {
+      client.call(connect.AgentAppClientMethods.START_VOICEID_SESSION, {
         "contactId": self.contactId,
         "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
@@ -1192,7 +1192,7 @@
     var milliInterval = 1000;
     return new Promise(function (resolve, reject) {
       function evaluate() {
-        client.call(connect.HudsonClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
+        client.call(connect.AgentAppClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
           "SessionNameOrId": contactData.initialContactId || this.contactId
         }, {
           success: function (data) {
@@ -1260,7 +1260,7 @@
     var milliInterval = 5000;
     return new Promise(function (resolve, reject) {
       function describe() {
-        client.call(connect.HudsonClientMethods.DESCRIBE_VOICEID_SESSION, {
+        client.call(connect.AgentAppClientMethods.DESCRIBE_VOICEID_SESSION, {
           "SessionNameOrId": contactData.initialContactId || this.contactId
         }, {
           success: function (data) {
@@ -1312,7 +1312,7 @@
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
+      client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
         "SessionNameOrId": contactData.initialContactId || this.contactId
         }, {
           success: function (data) {
@@ -1344,7 +1344,7 @@
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.UPDATE_VOICEID_SESSION, {
+      client.call(connect.AgentAppClientMethods.UPDATE_VOICEID_SESSION, {
         "SessionNameOrId": contactData.initialContactId || this.contactId,
         "SpeakerId": connect.assertNotNull(speakerId, 'speakerId')
         }, {

@@ -62,8 +62,8 @@
   WorkerClient.prototype._callImpl = function (method, params, callbacks) {
     var self = this;
     var request_start = new Date().getTime();
-    if(connect.containsValue(connect.HudsonClientMethods, method)) {
-      connect.core.getHudsonClient()._callImpl(method, params, {
+    if(connect.containsValue(connect.AgentAppClientMethods, method)) {
+      connect.core.getAgentAppClient()._callImpl(method, params, {
         success: function (data) {
           self._recordAPILatency(method, request_start);
           callbacks.success(data);
@@ -766,7 +766,7 @@
       self.initData.authToken = response.accessToken;
       self.initData.authTokenExpiration = expiration;
       connect.core.initClient(self.initData);
-      connect.core.initHudsonClient(self.initData);
+      connect.core.initAgentAppClient(self.initData);
       callbacks.success();
     }).catch(function (response) {
       connect.getLog().error("Authorization failed with code %s", response.status)

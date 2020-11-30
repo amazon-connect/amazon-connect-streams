@@ -215,7 +215,7 @@
     connect.core.eventBus = new connect.EventBus();
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.initClient(params);
-    connect.core.initHudsonClient(params);
+    connect.core.initAgentAppClient(params);
     connect.core.initialized = true;
   };
  
@@ -235,17 +235,17 @@
   };
 
   /**-------------------------------------------------------------------------
-   * Initialized hudson client
-   * Should be used by Shared Worker to update hudson client with new credentials
+   * Initialized AgentApp client
+   * Should be used by Shared Worker to update AgentApp client with new credentials
    * after refreshed authentication.
    */
-  connect.core.initHudsonClient = function (params) {
+  connect.core.initAgentAppClient = function (params) {
     connect.assertNotNull(params, 'params');    
     var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
     var authCookieName = connect.assertNotNull(params.authCookieName, 'params.authCookieName');
-    var endpoint = connect.assertNotNull(params.hudsonEndpoint, 'params.hudsonEndpoint');
+    var endpoint = connect.assertNotNull(params.agentAppEndpoint, 'params.agentAppEndpoint');
     
-    connect.core.hudsonClient = new connect.HudsonClient(authCookieName, authToken, endpoint);
+    connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
   };
  
   /**-------------------------------------------------------------------------
@@ -253,7 +253,7 @@
    */
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
-    connect.core.hudsonClient = new connect.NullClient();
+    connect.core.agentAppClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -518,7 +518,7 @@
         ? LEGACY_AUTHORIZE_ENDPOINT
         : AUTHORIZE_ENDPOINT;
     }
-    var hudsonEndpoint = params.hudsonEndpoint || null;
+    var agentAppEndpoint = params.agentAppEndpoint || null;
     var authCookieName = params.authCookieName || null;
  
     try {
@@ -562,7 +562,7 @@
         refreshToken: refreshToken,
         region: region,
         authorizeEndpoint: authorizeEndpoint,
-        hudsonEndpoint: hudsonEndpoint,
+        agentAppEndpoint: agentAppEndpoint,
         authCookieName: authCookieName
       });
  
@@ -1282,13 +1282,13 @@
   connect.core.client = null;
 
   /**-----------------------------------------------------------------------*/
-  connect.core.getHudsonClient = function () {
-    if (!connect.core.hudsonClient) {
-      throw new connect.StateError('The connect Hudson Client has not been initialized!');
+  connect.core.getAgentAppClient = function () {
+    if (!connect.core.agentAppClient) {
+      throw new connect.StateError('The connect AgentApp Client has not been initialized!');
     }
-    return connect.core.hudsonClient;
+    return connect.core.agentAppClient;
   };
-  connect.core.hudsonClient = null;
+  connect.core.agentAppClient = null;
  
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {
