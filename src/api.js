@@ -1129,7 +1129,7 @@
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
-        client.call(connect.HudsonClientMethods.OPT_OUT_VoiceId_SPEAKER, {
+        client.call(connect.HudsonClientMethods.OPT_OUT_VOICEID_SPEAKER, {
           "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
           "DomainId" : "ConnectDefaultDomainId"
           }, {
