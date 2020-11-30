@@ -1365,7 +1365,9 @@
 
   VoiceId.prototype.checkConferenceCall = function(){
     var self = this;
-    var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.length > 2;
+    var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.filter(function (conn) {
+      return connect.contains(connect.CONNECTION_ACTIVE_STATES, conn.state.type);
+    }).length > 2;
     if(isConferenceCall){
       throw new connect.NotImplementedError("VoiceId is not supported for conference calls");
     }
