@@ -20,7 +20,9 @@ SOURCE_FILES = src/aws-client.js \
 					src/ringtone.js \
 					src/softphone.js \
 					src/worker.js \
-					src/mediaControllers/* 
+					src/mediaControllers/* \
+					src/agent-app/agent-app.js \
+					src/agent-app/app-registry.js
 
 $(OUTPUT_JS): $(SOURCE_FILES)
 	cat $^ >$@

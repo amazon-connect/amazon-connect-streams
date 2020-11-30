@@ -23,8 +23,11 @@
          'updateAgentConfiguration',
          'acceptContact',
          'createOutboundContact',
+         'createTaskContact',
          'clearContact',
          'completeContact',
+         'destroyContact',
+         'rejectContact',
          'notifyContactIssue',
          'updateContactAttributes',
          'createAdditionalConnection',
@@ -41,6 +44,20 @@
          'getNewAuthToken',
          'createTransport'
    ]);
+
+   /**---------------------------------------------------------------
+    * enum AgentAppClientMethods
+    */
+   connect.AgentAppClientMethods = {
+      GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
+      ENROLL_SPEAKER_IN_VOICEID: "AgentAppService.VoiceId.enrollBySession",
+      EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
+      GET_SPEAKER_STATUS: "AgentAppService.VoiceId.describeSpeaker",
+      OPT_OUT_VOICEID_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
+      DESCRIBE_VOICEID_SESSION: "AgentAppService.VoiceId.describeSession",
+      UPDATE_VOICEID_SESSION: "AgentAppService.VoiceId.updateSession",
+      START_VOICEID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
+   };
 
    /**---------------------------------------------------------------
     * enum MasterMethods
@@ -149,7 +166,43 @@
    };
    UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
+   
+   /**---------------------------------------------------------------
+   * class AgentAppClient extends ClientBase
+   */
+   var AgentAppClient = function(authCookieName, authToken, endpoint) {
+      connect.assertNotNull(authCookieName, 'authCookieName');
+      connect.assertNotNull(authToken, 'authToken');
+      connect.assertNotNull(endpoint, 'endpoint');
+      ClientBase.call(this);
+      this.endpointUrl = connect.getUrlWithProtocol(endpoint);
+      this.authToken = authToken;
+      this.authCookieName = authCookieName
+   };
 
+   AgentAppClient.prototype = Object.create(ClientBase.prototype);
+   AgentAppClient.prototype.constructor = AgentAppClient;
+
+   AgentAppClient.prototype._callImpl = function(method, params, callbacks) {
+      var self = this;
+      var bear = {};
+      bear[self.authCookieName] = self.authToken;
+      var options = {
+         method: 'post',
+         body: JSON.stringify(params || {}),
+         headers: {
+               'Accept': 'application/json',
+               'Content-Type': 'application/json',
+               'X-Amz-target': method,
+               'X-Amz-Bearer': JSON.stringify(bear)
+         }
+      };
+      connect.fetch(self.endpointUrl, options).then(function(res){
+         callbacks.success(res);
+      }).catch(function(err){
+         callbacks.failure(err);
+      })
+   };
    /**---------------------------------------------------------------
     * class AWSClient extends ClientBase
     */
@@ -183,7 +236,7 @@
       } else {
          params = this._translateParams(method, params);
 
-         log.trace("AWSClient: --> Calling operation '%s'", method);
+         log.trace("AWSClient: --> Calling operation '%s'", method).sendInternalLogToServer();
 
          this.client[method](params)
             .on('build', function(request) {
@@ -207,15 +260,15 @@
                         callbacks.failure(error, data);
                      }
 
-                     log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err));
+                     log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err)).sendInternalLogToServer();
 
                   } else {
-                     log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data);
+                     log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data).sendInternalLogToServer();
                      callbacks.success(data);
                   }
                } catch (e) {
                   connect.getLog().error("Failed to handle AWS API request for method %s", method)
-                        .withException(e);
+                        .withException(e).sendInternalLogToServer();
                }
             });
       }
@@ -224,7 +277,8 @@
    AWSClient.prototype._requiresAuthenticationParam = function (method) {
       return method !== connect.ClientMethods.COMPLETE_CONTACT &&
          method !== connect.ClientMethods.CLEAR_CONTACT &&
-         method !== connect.ClientMethods.REJECT_CONTACT;
+         method !== connect.ClientMethods.REJECT_CONTACT &&
+         method !== connect.ClientMethods.CREATE_TASK_CONTACT;
    };
 
    AWSClient.prototype._translateParams = function(method, params) {
@@ -324,5 +378,6 @@
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
+   connect.AgentAppClient = AgentAppClient;
 
 })();

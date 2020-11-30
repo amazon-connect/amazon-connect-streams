@@ -93,7 +93,7 @@
   connect.core.checkNotInitialized = function () {
     if (connect.core.initialized) {
       var log = connect.getLog();
-      log.warn("Connect core already initialized, only needs to be initialized once.");
+      log.warn("Connect core already initialized, only needs to be initialized once.").sendInternalLogToServer();
     }
   };
  
@@ -105,6 +105,7 @@
     connect.core.eventBus = new connect.EventBus();
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.initClient(params);
+    connect.core.initAgentAppClient(params);
     connect.core.initialized = true;
   };
  
@@ -124,10 +125,25 @@
   };
  
   /**-------------------------------------------------------------------------
+   * Initialized AgentApp client
+   * Should be used by Shared Worker to update AgentApp client with new credentials
+   * after refreshed authentication.
+   */
+  connect.core.initAgentAppClient = function (params) {
+    connect.assertNotNull(params, 'params');    
+    var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
+    var authCookieName = connect.assertNotNull(params.authCookieName, 'params.authCookieName');
+    var endpoint = connect.assertNotNull(params.agentAppEndpoint, 'params.agentAppEndpoint');
+    
+    connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
+  };
+ 
+  /**-------------------------------------------------------------------------
    * Uninitialize Connect.
    */
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
+    connect.core.agentAppClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -172,18 +188,24 @@
             if (!ringtoneSettings.voice.disabled && !connect.core.ringtoneEngines.voice) {
               connect.core.ringtoneEngines.voice =
                 new connect.VoiceRingtoneEngine(ringtoneSettings.voice);
-              connect.getLog().info("VoiceRingtoneEngine initialized.");
+              connect.getLog().info("VoiceRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
               connect.core.ringtoneEngines.chat =
                 new connect.ChatRingtoneEngine(ringtoneSettings.chat);
-              connect.getLog().info("ChatRingtoneEngine initialized.");
+              connect.getLog().info("ChatRingtoneEngine initialized.").sendInternalLogToServer();
+            }
+
+            if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
+              connect.core.ringtoneEngines.task =
+                new connect.TaskRingtoneEngine(ringtoneSettings.task);
+                connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
-              connect.getLog().info("QueueCallbackRingtoneEngine initialized.");
+              connect.getLog().info("QueueCallbackRingtoneEngine initialized.").sendInternalLogToServer();
             }
           });
         });
@@ -197,6 +219,8 @@
       params.ringtone.voice = params.ringtone.voice || {};
       params.ringtone.queue_callback = params.ringtone.queue_callback || {};
       params.ringtone.chat = params.ringtone.chat || { disabled: true };
+      params.ringtone.task = params.ringtone.task || { disabled: true };
+
       if (otherParams.softphone) {
         if (otherParams.softphone.disableRingtone) {
           params.ringtone.voice.disabled = true;
@@ -379,6 +403,8 @@
         ? LEGACY_AUTHORIZE_ENDPOINT
         : AUTHORIZE_ENDPOINT;
     }
+    var agentAppEndpoint = params.agentAppEndpoint || null;
+    var authCookieName = params.authCookieName || null;
  
     try {
       // Initialize the event bus and agent data providers.
@@ -403,6 +429,7 @@
       };
  
       connect.getLog().scheduleUpstreamLogPush(conduit);
+      connect.getLog().scheduleDownstreamClientSideLogsPush();
       // Bridge all upstream messages into the event bus.
       conduit.onAllUpstream(connect.core.getEventBus().bridge());
       // Bridge all downstream messages into the event bus.
@@ -419,11 +446,13 @@
         endpoint: endpoint,
         refreshToken: refreshToken,
         region: region,
-        authorizeEndpoint: authorizeEndpoint
+        authorizeEndpoint: authorizeEndpoint,
+        agentAppEndpoint: agentAppEndpoint,
+        authCookieName: authCookieName
       });
  
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-        connect.getLog().info("Acknowledged by the ConnectSharedWorker!");
+        connect.getLog().info("Acknowledged by the ConnectSharedWorker!").sendInternalLogToServer();
         connect.core.initialized = true;
         this.unsubscribe();
       });
@@ -431,6 +460,11 @@
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
         if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        }
+      });
+      conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
+        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+          connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
         }
       });
       // Reload the page if the shared worker detects an API auth failure.
@@ -459,7 +493,7 @@
  
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
-        .withException(e);
+        .withException(e).sendInternalLogToServer();
     }
   };
  
@@ -536,7 +570,7 @@
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.
     conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-      connect.getLog().info("Acknowledged by the CCP!");
+      connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
@@ -564,6 +598,11 @@
         connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
       }
     });
+    conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
+      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+        connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
+      }
+    });
  
     // Pop a login page when we encounter an ACK timeout.
     connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
@@ -571,14 +610,14 @@
       if (params.loginPopup !== false) {
         try {
           var loginUrl = getLoginUrl(params);
-          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
+          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogEntryToServer();
           // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
           if (params.loginUrl) {
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
           }
           connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
         } catch (e) {
-          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
+          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
         }
       }
  
@@ -838,6 +877,14 @@
  
     return connectionData;
   };
+
+  AgentDataProvider.prototype.getInstanceId = function(){
+    return this.getAgentData().configuration.routingProfile.routingProfileId.match(/instance\/([0-9a-fA-F|-]+)\//)[1];
+  }
+
+  AgentDataProvider.prototype.getAWSAccountId = function(){
+    return this.getAgentData().configuration.routingProfile.routingProfileId.match(/:([0-9]+):instance/)[1];
+  }
  
   AgentDataProvider.prototype._diffContacts = function (oldAgentData) {
     var diff = {
@@ -1085,7 +1132,10 @@
       connect.ContactEvents.ENDED)
     .assoc(connect.EventGraph.ANY,
       connect.values(connect.AgentErrorStates),
-      connect.ContactEvents.ERROR);
+      connect.ContactEvents.ERROR)
+    .assoc(connect.ContactStateType.CONNECTING,
+      connect.ContactStateType.MISSED,
+      connect.ContactEvents.MISSED);
 
   /**-----------------------------------------------------------------------*/
   connect.core.getClient = function () {
@@ -1095,6 +1145,15 @@
     return connect.core.client;
   };
   connect.core.client = null;
+ 
+  /**-----------------------------------------------------------------------*/
+  connect.core.getAgentAppClient = function () {
+    if (!connect.core.agentAppClient) {
+      throw new connect.StateError('The connect AgentApp Client has not been initialized!');
+    }
+    return connect.core.agentAppClient;
+  };
+  connect.core.agentAppClient = null;
  
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {

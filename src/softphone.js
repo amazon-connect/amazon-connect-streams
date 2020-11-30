@@ -120,7 +120,7 @@
           delete callsDetected[agentConnectionId];
           session.hangup();
         }).catch(function (err) {
-          lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message);
+          lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message).sendInternalLogToServer();
         });
       }
     };
@@ -160,7 +160,7 @@
 
         // Set to true, this will block subsequent invokes from entering.
         callsDetected[agentConnectionId] = true;
-        logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId);
+        logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
         // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
         sanityCheckActiveSessions(rtcSessions);
@@ -252,7 +252,7 @@
 
     var onInitContact = function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
-      logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId);
+      logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
       if (!callsDetected[agentConnectionId]) {
         contact.onRefresh(function () {
@@ -266,7 +266,8 @@
     // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed. 
     new connect.Agent().getContacts().forEach(function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
-      logger.info("Contact exist in the snapshot. Reinitiate the Contact and RTC session creation for contactId" + contact.getContactId(), "agent connectionId " + agentConnectionId);
+      logger.info("Contact exist in the snapshot. Reinitiate the Contact and RTC session creation for contactId" + contact.getContactId(), "agent connectionId " + agentConnectionId)
+        .sendInternalLogToServer();
       onInitContact(contact);
       onRefreshContact(contact, agentConnectionId);
     });
@@ -276,24 +277,26 @@
     var conduit = connect.core.getUpstream();
     var agentConnection = contact.getAgentConnection();
     if (!agentConnection) {
-      logger.info("Not able to retrieve the auto-accept setting from null AgentConnection, ignoring event publish..");
+      logger.info("Not able to retrieve the auto-accept setting from null AgentConnection, ignoring event publish..").sendInternalLogToServer();
       return;
     }
     var softphoneMediaInfo = agentConnection.getSoftphoneMediaInfo();
     if (!softphoneMediaInfo) {
-      logger.info("Not able to retrieve the auto-accept setting from null SoftphoneMediaInfo, ignoring event publish..");
+      logger.info("Not able to retrieve the auto-accept setting from null SoftphoneMediaInfo, ignoring event publish..").sendInternalLogToServer();
       return;
     }
     if (softphoneMediaInfo.autoAccept === true) {
-      logger.info("Auto-accept is enabled, sending out Accepted event to stop ringtone..");
+      logger.info("Auto-accept is enabled, sending out Accepted event to stop ringtone..").sendInternalLogToServer();
       conduit.sendUpstream(connect.EventType.BROADCAST, {
-        event: connect.ContactEvents.ACCEPTED
+        event: connect.ContactEvents.ACCEPTED,
+        data: new connect.Contact(contact.contactId)
       });
       conduit.sendUpstream(connect.EventType.BROADCAST, {
-        event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contact.contactId)
+        event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contact.contactId),
+        data: new connect.Contact(contact.contactId)
       });
     } else {
-      logger.info("Auto-accept is disabled, ringtone will be stopped by user action.");
+      logger.info("Auto-accept is disabled, ringtone will be stopped by user action.").sendInternalLogToServer();
     }
   };
 
@@ -334,9 +337,9 @@
             localMediaStream[connectionId].muted = status;
 
             if (status) {
-              logger.info("Agent has muted the contact, connectionId -  " + connectionId);
+              logger.info("Agent has muted the contact, connectionId -  " + connectionId).sendInternalLogToServer();
             } else {
-              logger.info("Agent has unmuted the contact, connectionId - " + connectionId);
+              logger.info("Agent has unmuted the contact, connectionId - " + connectionId).sendInternalLogToServer();
             }
 
           } else {
@@ -379,7 +382,7 @@
         rtcSession._signalingUri);
     } else if (reason === connect.RTCErrors.CALL_NOT_FOUND) {
       // No need to publish any softphone error for this case. CCP UX will handle this case.
-      logger.error("Softphone call failed due to CallNotFoundException.");
+      logger.error("Softphone call failed due to CallNotFoundException.").sendInternalLogToServer();
     } else {
       publishError(SoftphoneErrorTypes.WEBRTC_ERROR,
         "webrtc system error. ",
@@ -439,7 +442,7 @@
 
   var publishError = function (errorType, message, endPointUrl) {
     logger.error("Softphone error occurred : ", errorType,
-      message || "");
+      message || "").sendInternalLogToServer();
 
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.AgentEvents.SOFTPHONE_ERROR,
@@ -469,7 +472,8 @@
       name: "AgentConnectionId",
       value: agentConnectionId
     }]);
-    logger.info("Publish multiple session error metrics", eventName, "contactId " + contactId, "agent connectionId " + agentConnectionId);
+    logger.info("Publish multiple session error metrics", eventName, "contactId " + contactId, "agent connectionId " + agentConnectionId)
+      .sendInternalLogToServer();
   };
 
   var isBrowserSoftPhoneSupported = function () {
@@ -495,11 +499,13 @@
     if (streamStats.length > 0) {
       contact.sendSoftphoneMetrics(streamStats, {
         success: function () {
-          logger.info("sendSoftphoneMetrics success" + JSON.stringify(streamStats));
+          logger.info("sendSoftphoneMetrics success" + JSON.stringify(streamStats))
+            .sendInternalLogToServer();
         },
         failure: function (data) {
           logger.error("sendSoftphoneMetrics failed.")
-            .withObject(data);
+            .withObject(data)
+            .sendInternalLogToServer();
         }
       });
     }
@@ -534,11 +540,13 @@
     };
     contact.sendSoftphoneReport(callReport, {
       success: function () {
-        logger.info("sendSoftphoneReport success" + JSON.stringify(callReport));
+        logger.info("sendSoftphoneReport success" + JSON.stringify(callReport))
+          .sendInternalLogToServer();
       },
       failure: function (data) {
         logger.error("sendSoftphoneReport failed.")
-          .withObject(data);
+          .withObject(data)
+          .sendInternalLogToServer();
       }
     });
   };
@@ -550,14 +558,14 @@
         aggregatedUserAudioStats = stats;
         timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT));
       }, function (error) {
-        logger.debug("Failed to get user audio stats.", error);
+        logger.debug("Failed to get user audio stats.", error).sendInternalLogToServer();
       });
       rtcSession.getRemoteAudioStats().then(function (stats) {
         var previousRemoteStats = aggregatedRemoteAudioStats;
         aggregatedRemoteAudioStats = stats;
         timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT));
       }, function (error) {
-        logger.debug("Failed to get remote audio stats.", error);
+        logger.debug("Failed to get remote audio stats.", error).sendInternalLogToServer();
       });
     }, 1000);
   };
@@ -642,25 +650,25 @@
         args.forEach(function () {
           format = format + " %s";
         });
-        method.apply(self._originalLogger, [connect.LogComponent.SOFTPHONE, format].concat(args));
+        return method.apply(self._originalLogger, [connect.LogComponent.SOFTPHONE, format].concat(args));
       };
     };
   };
 
   SoftphoneLogger.prototype.debug = function () {
-    this._tee(1, this._originalLogger.debug)(arguments);
+    return this._tee(1, this._originalLogger.debug)(arguments);
   };
   SoftphoneLogger.prototype.info = function () {
-    this._tee(2, this._originalLogger.info)(arguments);
+    return this._tee(2, this._originalLogger.info)(arguments);
   };
   SoftphoneLogger.prototype.log = function () {
-    this._tee(3, this._originalLogger.log)(arguments);
+    return this._tee(3, this._originalLogger.log)(arguments);
   };
   SoftphoneLogger.prototype.warn = function () {
-    this._tee(4, this._originalLogger.warn)(arguments);
+    return this._tee(4, this._originalLogger.warn)(arguments);
   };
   SoftphoneLogger.prototype.error = function () {
-    this._tee(5, this._originalLogger.error)(arguments);
+    return this._tee(5, this._originalLogger.error)(arguments);
   };
 
   connect.SoftphoneManager = SoftphoneManager;

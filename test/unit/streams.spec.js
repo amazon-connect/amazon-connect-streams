@@ -1,6 +1,7 @@
 require("../unit/test-setup.js");
 
 describe('Streams', function () {
+    jsdom({ url: "http://localhost" });
 
     describe('WindowStream', function () {
         it('Validate send and onMessage methods are implemented', function () {

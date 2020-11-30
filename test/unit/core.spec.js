@@ -20,16 +20,20 @@ describe('Core', function () {
                 ringtoneUrl: this.defaultRingtoneUrl
             }
         };
-        this.ringtoneEngineParams = {
-            ringtone: {
-                voice: { ringtoneUrl: this.defaultRingtoneUrl },
-                queue_callback: { ringtoneUrl: this.defaultRingtoneUrl },
-                chat: { ringtoneUrl: this.defaultRingtoneUrl }
-            }
+        this.defaultRingtone = {
+            voice: { ringtoneUrl: this.defaultRingtoneUrl },
+            queue_callback: { ringtoneUrl: this.defaultRingtoneUrl }
+        };
+        this.extraRingtone = {
+            voice: { ringtoneUrl: this.defaultRingtoneUrl },
+            queue_callback: { ringtoneUrl: this.defaultRingtoneUrl },
+            chat: { ringtoneUrl: this.defaultRingtoneUrl },
+            task: { ringtoneUrl: this.defaultRingtoneUrl }
         };
     });
 
     describe('#connect.core.initSharedWorker()', function () {
+        jsdom({ url: "http://localhost" });
 
         beforeEach(function () {
             sandbox.stub(connect.core, "checkNotInitialized").returns(true);
@@ -59,18 +63,67 @@ describe('Core', function () {
             connect.core.initSharedWorker(this.params);
             expect(connect.core.checkNotInitialized.called);
             expect(SharedWorker.calledWith(this.params.sharedWorkerUrl, "ConnectSharedWorker"));
+            expect(connect.core.region).not.to.be.a("null");
         });
+    });
+
+    describe('legacy endpoint', function () {
+        jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
+
+        beforeEach(function () {
+            sandbox.stub(connect.core, "checkNotInitialized").returns(true);
+            global.SharedWorker = sandbox.stub().returns({
+                port: {
+                    start: sandbox.spy(),
+                    addEventListener: sandbox.spy()
+                },
+            })
+
+            global.connect.agent.initialized = true;
+            sandbox.stub(connect.core, 'getNotificationManager').returns({
+                requestPermission: sandbox.spy()
+            });
+
+            sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
+        });
+
+        afterEach(function () {
+            sandbox.restore();
+        });
+
         it("uses the legacy endpoint for a legacy url", function () {
-            const href = "https://abc.awsapps.com/connect/ccp-v2";
-            window.location.href = href;
             connect.core.initSharedWorker(this.params);
             assert.isTrue(connect.Conduit.prototype.sendUpstream.called);
             assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/connect/auth/authorize");
         });
+    });
+
+    describe('legacy endpoint', function () {
+        jsdom({ url: "https://abc.my.connect.aws/ccp-v2" });
+
+        beforeEach(function () {
+            sandbox.stub(connect.core, "checkNotInitialized").returns(true);
+            global.SharedWorker = sandbox.stub().returns({
+                port: {
+                    start: sandbox.spy(),
+                    addEventListener: sandbox.spy()
+                },
+            })
+
+            global.connect.agent.initialized = true;
+            sandbox.stub(connect.core, 'getNotificationManager').returns({
+                requestPermission: sandbox.spy()
+            });
+
+            sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
+        });
+
+        afterEach(function () {
+            sandbox.restore();
+        });
+
         it("uses new endpoint for new url", function () {
-            const href = "https://abc.my.connect.aws/ccp-v2";
             this.params.baseUrl = "https://abc.my.connect.aws";
-            window.location.href = href;
             connect.core.initSharedWorker(this.params);
             assert.isTrue(connect.Conduit.prototype.sendUpstream.called);
             assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/auth/authorize");
@@ -79,6 +132,8 @@ describe('Core', function () {
     });
 
     describe('#initSoftphoneManager()', function () {
+        jsdom({ url: "http://localhost" });
+
         before(function () {
             sandbox.stub(connect.core, "checkNotInitialized").returns(false);
             sandbox.stub(connect, "SoftphoneManager").returns({})
@@ -91,16 +146,16 @@ describe('Core', function () {
 
             connect.core.getAgentDataProvider = sandbox.stub().returns({
                 getAgentData: () => {
-                  return {
-                    configuration: {
-                      routingProfile: {
-                        channelConcurrencyMap: {
-                          CHAT: 0,
-                          VOICE: 1
+                    return {
+                        configuration: {
+                            routingProfile: {
+                                channelConcurrencyMap: {
+                                    CHAT: 0,
+                                    VOICE: 1
+                                }
+                            }
                         }
-                      }
-                    }
-                  };
+                    };
                 }
             });
         });
@@ -119,45 +174,104 @@ describe('Core', function () {
     });
 
     describe('#connect.core.initRingtoneEngines()', function () {
-        before(function () {
-            sandbox.stub(connect, "ifMaster");
-            sandbox.stub(connect, "VoiceRingtoneEngine");
-            sandbox.stub(connect, "QueueCallbackRingtoneEngine");
-            sandbox.stub(connect, "ChatRingtoneEngine");
-            connect.core.initRingtoneEngines(this.ringtoneEngineParams);
+        jsdom({ url: "http://localhost" });
+
+        describe('with default settings', function () {
+            beforeEach(function () {
+                sandbox.stub(connect, "ifMaster");
+                sandbox.stub(connect, "VoiceRingtoneEngine");
+                sandbox.stub(connect, "QueueCallbackRingtoneEngine");
+                sandbox.stub(connect, "ChatRingtoneEngine");
+                sandbox.stub(connect, "TaskRingtoneEngine");
+                connect.core.initRingtoneEngines({ ringtone: this.defaultRingtone });
+            });
+
+            afterEach(function () {
+                sandbox.restore();
+            });
+
+            it("Ringtone init with VoiceRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew(this.defaultRingtone.voice));
+            });
+
+            it("Ringtone init with QueueCallbackRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.QueueCallbackRingtoneEngine.calledWithNew(this.defaultRingtone.queue_callback));
+            });
+
+            it("Ringtone no init with ChatRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isFalse(connect.ChatRingtoneEngine.calledWithNew());
+            });
+
+            it("Ringtone no init with TaskRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isFalse(connect.TaskRingtoneEngine.calledWithNew());
+            });
         });
 
-        after(function () {
-            sandbox.restore();
-        });
+        describe('with optional chat and task ringtone params', function () {
+            before(function () {
+                sandbox.stub(connect, "ifMaster");
+                sandbox.stub(connect, "VoiceRingtoneEngine");
+                sandbox.stub(connect, "QueueCallbackRingtoneEngine");
+                sandbox.stub(connect, "ChatRingtoneEngine");
+                sandbox.stub(connect, "TaskRingtoneEngine");
+                connect.core.initRingtoneEngines({ ringtone: this.extraRingtone });
+            });
 
-        it("Ringtone init with VoiceRingtoneEngine", function () {
-            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-            connect.ifMaster.callArg(1);
-            assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew(this.ringtoneEngineParams.voice));
-        });
+            after(function () {
+                sandbox.restore();
+            });
 
-        it("Ringtone init with QueueCallbackRingtoneEngine", function () {
-            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-            connect.ifMaster.callArg(1);
-            assert.isTrue(connect.QueueCallbackRingtoneEngine.calledWithNew(this.ringtoneEngineParams.queue_callback));
-        });
+            it("Ringtone init with VoiceRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew(this.extraRingtone.voice));
+            });
 
-        it("Ringtone init with ChatRingtoneEngine", function () {
-            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-            connect.ifMaster.callArg(1);
-            assert.isTrue(connect.ChatRingtoneEngine.calledWithNew(this.ringtoneEngineParams.chat));
+            it("Ringtone init with QueueCallbackRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.QueueCallbackRingtoneEngine.calledWithNew(this.extraRingtone.queue_callback));
+            });
+
+            it("Ringtone init with ChatRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.ChatRingtoneEngine.calledWithNew(this.extraRingtone.chat));
+            });
+
+
+            it("Ringtone init with TaskRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.TaskRingtoneEngine.calledWithNew(this.extraRingtone.task));
+            });
         });
     });
 
     describe('#connect.core.initCCP()', function () {
+        jsdom({ url: "http://localhost" });
+
         before(function () {
             this.containerDiv = { appendChild: sandbox.spy() };
             this.params = connect.merge({}, this.params, {
                 ccpUrl: "url.com",
+                loginUrl: "loginUrl.com",
                 softphone: {
                     ringtoneUrl: "customVoiceRingtone.amazon.com"
                 },
@@ -173,6 +287,7 @@ describe('Core', function () {
             sandbox.stub(connect, "VoiceRingtoneEngine");
             sandbox.stub(connect, "QueueCallbackRingtoneEngine");
             sandbox.stub(connect, "ChatRingtoneEngine");
+            sandbox.spy(document, "createElement");
             connect.core.initCCP(this.containerDiv, this.params);
             sandbox.spy(connect.core.getUpstream(), "sendUpstream");
         });
@@ -220,7 +335,7 @@ describe('Core', function () {
         });
 
         it("sets up ringtone engines on CONFIGURE with initCCP params", function () {
-            connect.core.initRingtoneEngines(this.ringtoneEngineParams);
+            connect.core.initRingtoneEngines({ ringtone: this.extraRingtone });
             connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, {
                 softphone: this.params.softphone,
                 chat: this.params.chat
@@ -251,7 +366,7 @@ describe('Core', function () {
 
         function setup() {
             sandbox.stub(connect, "isFramed").returns(isFramed);
-            sandbox.stub(connect, "fetch").returns(Promise.resolve({whitelistedOrigins: whitelistedOrigins}));
+            sandbox.stub(connect, "fetch").returns(Promise.resolve({ whitelistedOrigins: whitelistedOrigins }));
         }
 
         it('resolves if not iframed', async () => {
@@ -263,37 +378,41 @@ describe('Core', function () {
         it('calls /whitelisted-origins if iframed', async () => {
             isFramed = true;
             setup();
-            await connect.core.verifyDomainAccess('token', 'endpoint').catch(() => {}).finally(() => {
+            await connect.core.verifyDomainAccess('token', 'endpoint').catch(() => { }).finally(() => {
                 assert.isTrue(connect.fetch.calledWithMatch('endpoint', {
                     headers: {
-                      'X-Amz-Bearer': 'token'
+                        'X-Amz-Bearer': 'token'
                     }
                 }));
             });
         });
 
-        it('matches url correctly', async () => {
-            isFramed = true;
-            whitelistedOrigins = ['https://www.abc.com'];
-            setup();
-            const testDomains = {
-                'https://www.abc.com': true,
-                'http://www.abc.com': false,
-                'http://www.xyz.com': false,
-                'https://www.abc.de': false,
-                'https://xyz.abc.com': false,
-                'https://www.abc.com/sub?x=1#123': true
-            };
-            const urls = Object.keys(testDomains);
-            for (let i = 0; i < urls.length; i++) {
-                global.window.document.referrer = urls[i];
-                await connect.core.verifyDomainAccess('token', 'endpoint').then(() => {
-                    expect(testDomains[urls[i]]).to.be.true;
-                }).catch(() => {
-                    expect(testDomains[urls[i]]).to.be.false;
-                });
-            }
-        });
-    });
+        var testDomains = {
+            'https://www.abc.com': true,
+            'http://www.abc.com': false,
+            'http://www.xyz.com': false,
+            'https://www.abc.de': false,
+            'https://xyz.abc.com': false,
+            'https://www.abc.com/sub?x=1#123': true
+        };
+        var referrers = Object.keys(testDomains);
+        for (var i = 0; i < referrers.length; i++) {
+            describe('matches url ' + referrers[i], function () {
+                var referrer = referrers[i];
+                jsdom({ url: "http://localhost", referrer: referrer });
 
+                it('matches correctly', async function () {
+                    isFramed = true;
+                    whitelistedOrigins = ['https://www.abc.com'];
+                    setup();
+                    await connect.core.verifyDomainAccess('token', 'endpoint').then(function () {
+                        expect(testDomains[referrer]).to.be.true;
+                    }).catch(function (error) {
+                        expect(error).to.equal(undefined);
+                        expect(testDomains[referrer]).to.be.false;
+                    });
+                });
+            });
+        }
+    });
 });
