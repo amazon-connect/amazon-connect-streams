@@ -207,6 +207,14 @@
     return enumObj;
   };
 
+  connect.makeGenericNamespacedEnum = function (prefix, values, delimiter) {
+    var enumObj = connect.makeEnum(values);
+    connect.keys(enumObj).forEach(function (key) {
+      enumObj[key] = connect.sprintf("%s"+delimiter+"%s", prefix, enumObj[key]);
+    });
+    return enumObj;
+  };
+
   /**
   * Methods to determine browser type and versions, used for softphone initialization.
   */
@@ -330,6 +338,14 @@
     return connect.sprintf("%s//%s:%s", location.protocol, location.hostname, location.port);
   };
 
+  connect.getUrlWithProtocol = function(url) {
+    var protocol = global.location.protocol;
+    if (url.substr(0, protocol.length) !== protocol) {
+      return connect.sprintf("%s//%s", protocol, url);
+    }
+    return url;
+  }
+
   /**
    * Determine if the current window is in an iframe.
    * Courtesy: http://stackoverflow.com/questions/326069/
@@ -401,6 +417,21 @@
   connect.publishMetric = function (metricData) {
     var bus = connect.core.getEventBus();
     bus.trigger(connect.EventType.CLIENT_METRIC, metricData);
+  };
+
+  connect.publishSoftphoneStats = function(stats) {
+    var bus = connect.core.getEventBus();
+    bus.trigger(connect.EventType.SOFTPHONE_STATS, stats);
+  };
+
+  connect.publishSoftphoneReport = function(report) {
+    var bus = connect.core.getEventBus();
+    bus.trigger(connect.EventType.SOFTPHONE_REPORT, report);
+  };
+
+  connect.publishClientSideLogs = function(logs) {
+    var bus = connect.core.getEventBus();
+    bus.trigger(connect.EventType.CLIENT_SIDE_LOGS, logs);
   };
 
   /**
@@ -481,11 +512,11 @@
   connect.NotificationManager.prototype.requestPermission = function () {
     var self = this;
     if (!("Notification" in global)) {
-      connect.getLog().warn("This browser doesn't support notifications.");
+      connect.getLog().warn("This browser doesn't support notifications.").sendInternalLogToServer();
       this.permission = NotificationPermission.DENIED;
 
     } else if (global.Notification.permission === NotificationPermission.DENIED) {
-      connect.getLog().warn("The user has requested to not receive notifications.");
+      connect.getLog().warn("The user has requested to not receive notifications.").sendInternalLogToServer();
       this.permission = NotificationPermission.DENIED;
 
     } else if (this.permission !== NotificationPermission.GRANTED) {
@@ -506,15 +537,18 @@
       return this._showImpl({ title: title, options: options });
 
     } else if (this.permission === NotificationPermission.DENIED) {
-      connect.getLog().warn("Unable to show notification.").withObject({
-        title: title,
-        options: options
-      });
+      connect.getLog().warn("Unable to show notification.")
+        .sendInternalLogToServer()
+        .withObject({
+          title: title,
+          options: options
+        });
 
     } else {
       var params = { title: title, options: options };
       connect.getLog().warn("Deferring notification until user decides to allow or deny.")
-        .withObject(params);
+        .withObject(params)
+        .sendInternalLogToServer();
       this.queue.push(params);
     }
   };
@@ -567,5 +601,14 @@
   };
   connect.StateError.prototype = Object.create(connect.BaseError.prototype);
   connect.StateError.prototype.constructor = connect.StateError;
+
+  connect.VoiceIdError = function(type, message, err){
+    var error = {};
+    error.type = type;
+    error.message = message;
+    error.stack = Error(message);
+    error.err = err;
+    return error;
+  }
 
 })();

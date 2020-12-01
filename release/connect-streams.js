@@ -741,6 +741,33 @@
           "members": {}
         }
       },
+      "CreateTaskContact": {
+        "input": {
+          "type": "structure",
+          "required": [
+            "endpoint",
+            "name"
+          ],
+          "members": {
+            "endpoint": {
+              "shape": "Se"
+            },
+            "previousContactId": {},
+            "name": {},
+            "description": {},
+            "references": {
+              "shape": "Sr"
+            },
+            "idempotencyToken": {}
+          }
+        },
+        "output": {
+          "type": "structure",
+          "members": {
+            "contactId": {}
+          }
+        }
+      },
       "CreateTransport": {
         "input": {
           "type": "structure",
@@ -856,7 +883,7 @@
           ],
           "members": {
             "configuration": {
-              "shape": "S1b"
+              "shape": "S1h"
             }
           }
         }
@@ -923,7 +950,10 @@
               ],
               "members": {
                 "state": {
-                  "shape": "S1u"
+                  "shape": "S1z"
+                },
+                "nextState": {
+                  "shape": "S1z"
                 },
                 "agentAvailabilityState": {
                   "type": "structure",
@@ -948,6 +978,14 @@
                     "members": {
                       "contactId": {},
                       "initialContactId": {},
+                      "contactFeatures": {
+                        "type": "structure",
+                        "members": {
+                          "attachmentsEnabled": {
+                            "type": "boolean"
+                          }
+                        }
+                      },
                       "type": {},
                       "state": {
                         "type": "structure",
@@ -1057,32 +1095,7 @@
                       "name": {},
                       "description": {},
                       "references": {
-                        "type": "map",
-                        "key": {},
-                        "value": {
-                          "type": "structure",
-                          "required": [
-                            "value"
-                          ],
-                          "members": {
-                            "value": {}
-                          }
-                        }
-                      },
-                      "contactMetadata": {
-                        "type": "structure",
-                        "required": [
-                          "name"
-                        ],
-                        "members": {
-                          "name": {},
-                          "references": {
-                            "type": "map",
-                            "key": {},
-                            "value": {}
-                          },
-                          "description": {}
-                        }
+                        "shape": "Sr"
                       },
                       "initiationMethod": {}
                     }
@@ -1122,7 +1135,7 @@
             "states": {
               "type": "list",
               "member": {
-                "shape": "S1u"
+                "shape": "S1z"
               }
             },
             "nextToken": {}
@@ -1306,7 +1319,10 @@
               "shape": "S2"
             },
             "state": {
-              "shape": "S1u"
+              "shape": "S1z"
+            },
+            "enqueueNextState": {
+              "type": "boolean"
             }
           }
         },
@@ -1554,7 +1570,7 @@
               "shape": "S2"
             },
             "configuration": {
-              "shape": "S1b"
+              "shape": "S1h"
             }
           }
         },
@@ -1595,7 +1611,22 @@
           "name": {}
         }
       },
-      "S1b": {
+      "Sr": {
+        "type": "map",
+        "key": {},
+        "value": {
+          "type": "structure",
+          "required": [
+            "value",
+            "type"
+          ],
+          "members": {
+            "value": {},
+            "type": {}
+          }
+        }
+      },
+      "S1h": {
         "type": "structure",
         "required": [
           "name",
@@ -1638,7 +1669,7 @@
           }
         }
       },
-      "S1u": {
+      "S1z": {
         "type": "structure",
         "required": [
           "type",
@@ -2266,7 +2297,7 @@
     },
     "iotanalytics": {
       "name": "IoTAnalytics",
-      "cors": true  
+      "cors": true	
     },
     "iot1clickdevicesservice": {
       "prefix": "iot1click-devices",
@@ -5199,7 +5230,7 @@
    *   @return [Array<AWS.Credentials, Function>]
    *     a list of credentials objects or functions that return credentials
    *     objects. If the provider is a function, the function will be
-   *     executed lazily when the provider needs to be checked for valid
+   *     started lazily when the provider needs to be checked for valid
    *     credentials. By default, this object will be set to the
    *     {defaultProviders}.
    *   @see defaultProviders
@@ -21172,8 +21203,11 @@
   global.connect = connect;
   global.lily = connect;
 
-  // How frequently logs should be collected and reported to shared worker.
-  var LOG_REPORT_INTERVAL_MILLIS = 5000;
+  // How frequently softphone logs should be collected and reported to shared worker.
+  var SOFTPHONE_LOG_REPORT_INTERVAL_MILLIS = 5000;
+
+  // How frequently logs should be collected and sent downstream
+  var LOGS_REPORT_INTERVAL_MILLIS = 5000;
 
   // The default log roll interval (30min)
   var DEFAULT_LOG_ROLL_INTERVAL = 1800000;
@@ -21198,7 +21232,8 @@
   var LogComponent = {
     CCP: "ccp",
     SOFTPHONE: "softphone",
-    CHAT: "chat"
+    CHAT: "chat",
+    TASK: "task"
   };
 
   /**
@@ -21237,7 +21272,7 @@
   */
 
   var isValidLogComponent = function (component) {
-    return [LogComponent.SOFTPHONE, LogComponent.CCP, LogComponent.CHAT].indexOf(component) !== -1;
+    return Object.values(LogComponent).indexOf(component) !== -1;
   };
 
   /**
@@ -21248,6 +21283,7 @@
     var firstArg = args.shift();
     var format;
     var component;
+
     if (isValidLogComponent(firstArg)) {
       component = firstArg;
       format = args.shift();
@@ -21256,6 +21292,7 @@
       format = firstArg;
       component = LogComponent.CCP;
     }
+
     return {
       format: format,
       component: component,
@@ -21371,12 +21408,22 @@
   };
 
   /**
+   * Indicate that this log entry should be sent to the server
+   * NOTE: This should be used for internal logs only
+   */
+  LogEntry.prototype.sendInternalLogToServer = function () {
+    connect.getLog()._serverBoundInternalLogs.push(this);
+    return this;
+  };
+
+  /**
    * The logger instance.
    */
   var Logger = function () {
     this._logs = [];
     this._rolledLogs = [];
     this._logsToPush = [];
+    this._serverBoundInternalLogs = [];
     this._echoLevel = LogLevelOrder.INFO;
     this._logLevel = LogLevelOrder.INFO;
     this._lineCount = 0;
@@ -21449,11 +21496,26 @@
 
   Logger.prototype.addLogEntry = function (logEntry) {
     this._logs.push(logEntry);
+
     //For now only send softphone logs only.
     //TODO add CCP logs once we are sure that no sensitive data is being logged.
     if (LogComponent.SOFTPHONE === logEntry.component) {
       this._logsToPush.push(logEntry);
     }
+
+    if (logEntry.level in LogLevelOrder &&
+      LogLevelOrder[logEntry.level] >= this._logLevel) {
+
+      if (LogLevelOrder[logEntry.level] >= this._echoLevel) {
+        CONSOLE_LOGGER_MAP[logEntry.getLevel()](logEntry.toString());
+      }
+
+      logEntry.line = this._lineCount++;
+    }
+  };
+
+  Logger.prototype.sendInternalLogEntryToServer = function (logEntry) {
+    this._serverBoundInternalLogs.push(logEntry);
 
     if (logEntry.level in LogLevelOrder &&
       LogLevelOrder[logEntry.level] >= this._logLevel) {
@@ -21587,7 +21649,7 @@
     if (!connect.upstreamLogPushScheduled) {
       connect.upstreamLogPushScheduled = true;
       /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to LARS*/
-      global.setInterval(connect.hitch(this, this.reportMasterLogsUpStream, conduit), LOG_REPORT_INTERVAL_MILLIS);
+      global.setInterval(connect.hitch(this, this.reportMasterLogsUpStream, conduit), SOFTPHONE_LOG_REPORT_INTERVAL_MILLIS);
     }
   };
 
@@ -21605,9 +21667,33 @@
     return this._loggerId;
   };
 
+  Logger.prototype.scheduleDownstreamClientSideLogsPush = function () {
+    global.setInterval(connect.hitch(this, this.pushClientSideLogsDownstream), LOGS_REPORT_INTERVAL_MILLIS);
+  }
+
+  Logger.prototype.pushClientSideLogsDownstream = function () {
+    var logs = [];
+
+    // We do not send a request if we have less than 50 records so that we minimize the number of
+    // requests per second. 
+    // 500 is the max we accept on the server. 
+    // We chose 500 because this is the limit imposed by Firehose for a put batch request
+    if (this._serverBoundInternalLogs.length < 50) {
+      return;
+    } else if (this._serverBoundInternalLogs.length > 500) {
+      logs = this._serverBoundInternalLogs.splice(0, 500);
+    } else {
+      logs = this._serverBoundInternalLogs;
+      this._serverBoundInternalLogs = [];
+    }
+
+    connect.publishClientSideLogs(logs);
+  }
+
   var DownstreamConduitLogger = function (conduit) {
     Logger.call(this);
     this.conduit = conduit;
+    
     global.setInterval(connect.hitch(this, this._pushLogsDownstream),
       DownstreamConduitLogger.LOG_PUSH_INTERVAL);
 
@@ -21630,10 +21716,17 @@
 
   DownstreamConduitLogger.prototype._pushLogsDownstream = function () {
     var self = this;
+    
     this._logs.forEach(function (log) {
       self.conduit.sendDownstream(connect.EventType.LOG, log);
     });
     this._logs = [];
+
+    for (var i = 0; i < this._serverBoundInternalLogs.length; i++) {
+      this.conduit.sendDownstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, this._serverBoundInternalLogs[i]);
+    }
+
+    this._serverBoundInternalLogs = [];
   };
 
   /** Create the singleton logger instance. */
@@ -21862,6 +21955,14 @@
     return enumObj;
   };
 
+  connect.makeGenericNamespacedEnum = function (prefix, values, delimiter) {
+    var enumObj = connect.makeEnum(values);
+    connect.keys(enumObj).forEach(function (key) {
+      enumObj[key] = connect.sprintf("%s"+delimiter+"%s", prefix, enumObj[key]);
+    });
+    return enumObj;
+  };
+
   /**
   * Methods to determine browser type and versions, used for softphone initialization.
   */
@@ -21985,6 +22086,14 @@
     return connect.sprintf("%s//%s:%s", location.protocol, location.hostname, location.port);
   };
 
+  connect.getUrlWithProtocol = function(url) {
+    var protocol = global.location.protocol;
+    if (url.substr(0, protocol.length) !== protocol) {
+      return connect.sprintf("%s//%s", protocol, url);
+    }
+    return url;
+  }
+
   /**
    * Determine if the current window is in an iframe.
    * Courtesy: http://stackoverflow.com/questions/326069/
@@ -22056,6 +22165,21 @@
   connect.publishMetric = function (metricData) {
     var bus = connect.core.getEventBus();
     bus.trigger(connect.EventType.CLIENT_METRIC, metricData);
+  };
+
+  connect.publishSoftphoneStats = function(stats) {
+    var bus = connect.core.getEventBus();
+    bus.trigger(connect.EventType.SOFTPHONE_STATS, stats);
+  };
+
+  connect.publishSoftphoneReport = function(report) {
+    var bus = connect.core.getEventBus();
+    bus.trigger(connect.EventType.SOFTPHONE_REPORT, report);
+  };
+
+  connect.publishClientSideLogs = function(logs) {
+    var bus = connect.core.getEventBus();
+    bus.trigger(connect.EventType.CLIENT_SIDE_LOGS, logs);
   };
 
   /**
@@ -22136,11 +22260,11 @@
   connect.NotificationManager.prototype.requestPermission = function () {
     var self = this;
     if (!("Notification" in global)) {
-      connect.getLog().warn("This browser doesn't support notifications.");
+      connect.getLog().warn("This browser doesn't support notifications.").sendInternalLogToServer();
       this.permission = NotificationPermission.DENIED;
 
     } else if (global.Notification.permission === NotificationPermission.DENIED) {
-      connect.getLog().warn("The user has requested to not receive notifications.");
+      connect.getLog().warn("The user has requested to not receive notifications.").sendInternalLogToServer();
       this.permission = NotificationPermission.DENIED;
 
     } else if (this.permission !== NotificationPermission.GRANTED) {
@@ -22161,15 +22285,18 @@
       return this._showImpl({ title: title, options: options });
 
     } else if (this.permission === NotificationPermission.DENIED) {
-      connect.getLog().warn("Unable to show notification.").withObject({
-        title: title,
-        options: options
-      });
+      connect.getLog().warn("Unable to show notification.")
+        .sendInternalLogToServer()
+        .withObject({
+          title: title,
+          options: options
+        });
 
     } else {
       var params = { title: title, options: options };
       connect.getLog().warn("Deferring notification until user decides to allow or deny.")
-        .withObject(params);
+        .withObject(params)
+        .sendInternalLogToServer();
       this.queue.push(params);
     }
   };
@@ -22223,6 +22350,15 @@
   connect.StateError.prototype = Object.create(connect.BaseError.prototype);
   connect.StateError.prototype.constructor = connect.StateError;
 
+  connect.VoiceIdError = function(type, message, err){
+    var error = {};
+    error.type = type;
+    error.message = message;
+    error.stack = Error(message);
+    error.err = err;
+    return error;
+  }
+
 })();
 
 /*
@@ -22260,6 +22396,10 @@
     'broadcast',
     'api_metric',
     'client_metric',
+    'softphone_stats',
+    'softphone_report',
+    'client_side_logs',
+    'server_bound_internal_log',
     'mute',
     "iframe_style"
   ]);
@@ -22487,14 +22627,19 @@
     var allEventSubs = this.subMap.getSubscriptions(ALL_EVENTS);
     var eventSubs = this.subMap.getSubscriptions(eventName);
 
-    if (this.logEvents && (eventName !== connect.EventType.LOG && eventName !== connect.EventType.MASTER_RESPONSE && eventName !== connect.EventType.API_METRIC)) {
-      connect.getLog().trace("Publishing event: %s", eventName);
+    if (this.logEvents &&
+        eventName !== connect.EventType.LOG &&
+        eventName !== connect.EventType.MASTER_RESPONSE &&
+        eventName !== connect.EventType.API_METRIC &&
+        eventName !== connect.EventType.SERVER_BOUND_INTERNAL_LOG
+    ) {
+      connect.getLog().trace("Publishing event: %s", eventName).sendInternalLogToServer();
     }
     allEventSubs.concat(eventSubs).forEach(function (sub) {
       try {
         sub.f(data || null, eventName, self);
       } catch (e) {
-        connect.getLog().error("'%s' event handler failed.", eventName).withException(e);
+        connect.getLog().error("'%s' event handler failed.", eventName).withException(e).sendInternalLogToServer();
       }
     });
   };
@@ -22882,8 +23027,11 @@
          'updateAgentConfiguration',
          'acceptContact',
          'createOutboundContact',
+         'createTaskContact',
          'clearContact',
          'completeContact',
+         'destroyContact',
+         'rejectContact',
          'notifyContactIssue',
          'updateContactAttributes',
          'createAdditionalConnection',
@@ -22900,6 +23048,20 @@
          'getNewAuthToken',
          'createTransport'
    ]);
+
+   /**---------------------------------------------------------------
+    * enum AgentAppClientMethods
+    */
+   connect.AgentAppClientMethods = {
+      GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
+      ENROLL_SPEAKER_IN_VOICEID: "AgentAppService.VoiceId.enrollBySession",
+      EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
+      GET_SPEAKER_STATUS: "AgentAppService.VoiceId.describeSpeaker",
+      OPT_OUT_VOICEID_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
+      DESCRIBE_VOICEID_SESSION: "AgentAppService.VoiceId.describeSession",
+      UPDATE_VOICEID_SESSION: "AgentAppService.VoiceId.updateSession",
+      START_VOICEID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
+   };
 
    /**---------------------------------------------------------------
     * enum MasterMethods
@@ -23008,7 +23170,43 @@
    };
    UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
+   
+   /**---------------------------------------------------------------
+   * class AgentAppClient extends ClientBase
+   */
+   var AgentAppClient = function(authCookieName, authToken, endpoint) {
+      connect.assertNotNull(authCookieName, 'authCookieName');
+      connect.assertNotNull(authToken, 'authToken');
+      connect.assertNotNull(endpoint, 'endpoint');
+      ClientBase.call(this);
+      this.endpointUrl = connect.getUrlWithProtocol(endpoint);
+      this.authToken = authToken;
+      this.authCookieName = authCookieName
+   };
 
+   AgentAppClient.prototype = Object.create(ClientBase.prototype);
+   AgentAppClient.prototype.constructor = AgentAppClient;
+
+   AgentAppClient.prototype._callImpl = function(method, params, callbacks) {
+      var self = this;
+      var bear = {};
+      bear[self.authCookieName] = self.authToken;
+      var options = {
+         method: 'post',
+         body: JSON.stringify(params || {}),
+         headers: {
+               'Accept': 'application/json',
+               'Content-Type': 'application/json',
+               'X-Amz-target': method,
+               'X-Amz-Bearer': JSON.stringify(bear)
+         }
+      };
+      connect.fetch(self.endpointUrl, options).then(function(res){
+         callbacks.success(res);
+      }).catch(function(err){
+         callbacks.failure(err);
+      })
+   };
    /**---------------------------------------------------------------
     * class AWSClient extends ClientBase
     */
@@ -23042,7 +23240,7 @@
       } else {
          params = this._translateParams(method, params);
 
-         log.trace("AWSClient: --> Calling operation '%s'", method);
+         log.trace("AWSClient: --> Calling operation '%s'", method).sendInternalLogToServer();
 
          this.client[method](params)
             .on('build', function(request) {
@@ -23066,15 +23264,15 @@
                         callbacks.failure(error, data);
                      }
 
-                     log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err));
+                     log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err)).sendInternalLogToServer();
 
                   } else {
-                     log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data);
+                     log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data).sendInternalLogToServer();
                      callbacks.success(data);
                   }
                } catch (e) {
                   connect.getLog().error("Failed to handle AWS API request for method %s", method)
-                        .withException(e);
+                        .withException(e).sendInternalLogToServer();
                }
             });
       }
@@ -23083,7 +23281,8 @@
    AWSClient.prototype._requiresAuthenticationParam = function (method) {
       return method !== connect.ClientMethods.COMPLETE_CONTACT &&
          method !== connect.ClientMethods.CLEAR_CONTACT &&
-         method !== connect.ClientMethods.REJECT_CONTACT;
+         method !== connect.ClientMethods.REJECT_CONTACT &&
+         method !== connect.ClientMethods.CREATE_TASK_CONTACT;
    };
 
    AWSClient.prototype._translateParams = function(method, params) {
@@ -23183,6 +23382,7 @@
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
+   connect.AgentAppClient = AgentAppClient;
 
 })();
 
@@ -23474,7 +23674,20 @@
   connect.ContactType = connect.makeEnum([
     'voice',
     'queue_callback',
-    'chat'
+    'chat',
+    'task'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum ContactInitiationMethod
+   */
+  connect.ContactInitiationMethod = connect.makeEnum([
+    'inbound',
+    'outbound',
+    'transfer',
+    'queue_transfer',
+    'callback',
+    'api',
   ]);
 
   /*----------------------------------------------------------------
@@ -23482,7 +23695,8 @@
   */
   connect.ChannelType = connect.makeEnum([
     'VOICE',
-    'CHAT'
+    'CHAT',
+    'TASK'
   ]);
 
   /*----------------------------------------------------------------
@@ -23490,7 +23704,8 @@
   */
   connect.MediaType = connect.makeEnum([
     'softphone',
-    'chat'
+    'chat',
+    'task'
   ]);
 
   /*----------------------------------------------------------------
@@ -23519,6 +23734,23 @@
   ]);
 
   /*----------------------------------------------------------------
+   * enum for VoiceIdErrorTypes
+   */
+  connect.VoiceIdErrorTypes = connect.makeEnum([
+    'no_speaker_id_found',
+    'get_speaker_id_failed',
+    'get_speaker_status_failed',
+    'opt_out_speaker_failed',
+    'start_session_failed',
+    'evaluate_speaker_failed',
+    'describe_session_failed',
+    'enroll_speaker_failed',
+    'update_speaker_id_failed',
+    'not_supported_on_conference_calls',
+    'timeout'
+  ]);
+
+  /*----------------------------------------------------------------
    * enum for CTI exceptions
    */
   connect.CTIExceptions = connect.makeEnum([
@@ -23531,8 +23763,51 @@
     "PaginationException",
     "RefreshTokenExpiredException",
     "SendDataFailedException",
-    "UnauthorizedException"
+    "UnauthorizedException",
+    "QuotaExceededException"
   ]);
+  /*----------------------------------------------------------------
+   * enum for VoiceId streaming status
+   */
+  connect.VoiceIdStreamingStatus = connect.makeEnum([
+    "ONGOING",
+    "ENDED"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId authentication decision
+   */
+  connect.VoiceIdAuthenticationDecision = connect.makeEnum([
+    "ACCEPT",
+    "REJECT",
+    "NOT_ENOUGH_SPEECH",
+    "SPEAKER_NOT_ENROLLED",
+    "SPEAKER_OPTED_OUT",
+    "SPEAKER_ID_NOT_PROVIDED"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for contact flow authentication decision 
+   */
+  connect.ContactFlowAuthenticationDecision = connect.makeEnum([
+    "Authenticated",
+    "NotAuthenticated",
+    "Inconclusive",
+    "NotEnrolled",
+    "OptedOut",
+    "Error"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId EnrollmentRequestStatus status
+   */
+  connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
+    "NOT_ENOUGH_SPEECH",
+    "IN_PROGRESS",
+    "COMPLETED",
+    "FAILED"
+  ]);
+
   /*----------------------------------------------------------------
    * class Agent
    */
@@ -23674,7 +23949,10 @@
     var channelConcurrencyMap = this.getRoutingProfile().channelConcurrencyMap;
     if (!channelConcurrencyMap) {
       channelConcurrencyMap = Object.keys(connect.ChannelType).reduce(function (acc, key) {
-        acc[connect.ChannelType[key]] = 1;
+        // Exclude TASK from default concurrency.
+        if (key !== 'TASK') {
+          acc[connect.ChannelType[key]] = 1;
+        }
         return acc;
       }, {});
     }
@@ -23830,6 +24108,8 @@
   Contact.prototype._createConnectionAPI = function (connectionData) {
     if (this.getType() === connect.ContactType.CHAT) {
       return new connect.ChatConnection(this.contactId, connectionData.connectionId);
+    } else if (this.getType() === connect.ContactType.TASK) {
+      return new connect.TaskConnection(this.contactId, connectionData.connectionId);
     } else {
       return new connect.VoiceConnection(this.contactId, connectionData.connectionId);
     }
@@ -23937,6 +24217,8 @@
     return this._getData().connections.map(function (connData) {
       if (self.getType() === connect.ContactType.CHAT) {
         return new connect.ChatConnection(self.contactId, connData.connectionId);
+      } else if (self.getType() === connect.ContactType.TASK) {
+        return new connect.TaskConnection(self.contactId, connData.connectionId);
       } else {
         return new connect.VoiceConnection(self.contactId, connData.connectionId);
       }
@@ -23977,8 +24259,28 @@
     });
   };
 
+  Contact.prototype.getName = function () {
+    return this._getData().name;
+  };
+
+  Contact.prototype.getContactMetadata = function () {
+    return this._getData().contactMetadata;
+  }
+
+  Contact.prototype.getDescription = function () {
+    return this._getData().description;
+  };
+
+  Contact.prototype.getReferences = function () {
+    return this._getData().references;
+  };
+
   Contact.prototype.getAttributes = function () {
     return this._getData().attributes;
+  };
+
+  Contact.prototype.getContactFeatures = function () {
+    return this._getData().contactFeatures;
   };
 
   Contact.prototype.isSoftphoneCall = function () {
@@ -23987,8 +24289,19 @@
     }) != null;
   };
 
+  Contact.prototype._isInbound = function () {
+    var initiationMethod = this._getData().initiationMethod;
+    return (initiationMethod === connect.ContactInitiationMethod.OUTBOUND) ? false : true;
+  }
+
   Contact.prototype.isInbound = function () {
     var conn = this.getInitialConnection();
+
+    // We will gradually change checking inbound by relying on contact initiationMethod
+    if (conn.getMediaType() === connect.MediaType.TASK) {
+      return this._isInbound();
+    }
+
     return conn ? conn.getType() === connect.ConnectionType.INBOUND : false;
   };
 
@@ -24023,16 +24336,20 @@
       });
   };
 
-  Contact.prototype.complete = function (callbacks) {
+  Contact.prototype.destroy = function () {
+    connect.getLog().warn("contact.destroy() has been deprecated.");
+  };
+
+  Contact.prototype.reject = function (callbacks) {
     var client = connect.core.getClient();
-    client.call(connect.ClientMethods.COMPLETE_CONTACT, {
+    client.call(connect.ClientMethods.REJECT_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
   };
 
-  Contact.prototype.clear = function (callbacks) {
+  Contact.prototype.complete = function (callbacks) {
     var client = connect.core.getClient();
-    client.call(connect.ClientMethods.CLEAR_CONTACT, {
+    client.call(connect.ClientMethods.COMPLETE_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
   };
@@ -24098,6 +24415,12 @@
       ccpVersion: global.ccpVersion,
       softphoneStreamStatistics: softphoneStreamStatistics
     }, callbacks);
+
+    connect.publishSoftphoneStats({
+      contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
+      stats: softphoneStreamStatistics
+    });
   };
 
   Contact.prototype.sendSoftphoneReport = function (report, callbacks) {
@@ -24107,6 +24430,12 @@
       ccpVersion: global.ccpVersion,
       report: report
     }, callbacks);
+
+    connect.publishSoftphoneReport({
+      contactId: this.getContactId(),
+      ccpVersion: global.ccpVersion,
+      report: report
+    });
   };
 
   Contact.prototype.conferenceConnections = function (callbacks) {
@@ -24276,6 +24605,324 @@
       || connectionType === connect.ConnectionType.MONITORING;
   }
 
+  /*----------------------------------------------------------------
+  * Voice authenticator VoiceId
+  */
+ 
+  var VoiceId = function (contactId) {
+    this.contactId = contactId;
+  };
+
+  VoiceId.prototype.getSpeakerId = function () {
+    var self = this;
+    self.checkConferenceCall();
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      client.call(connect.AgentAppClientMethods.GET_SPEAKER_ID, {
+        "contactId": self.contactId,
+        "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
+        "awsAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
+        }, {
+          success: function (data) {
+            if(data.contactData.customerId) {
+              var obj = {
+                speakerId: data.contactData.customerId
+              }
+              resolve(obj);
+            } else {
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call", err);
+              reject(error);
+            }
+            
+          },
+          failure: function (err) {
+            connect.getLog().error("Get SpeakerId failed")
+              .withObject({
+                err: err
+              });
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_ID_FAILED, "Get SpeakerId failed", err);
+            reject(error);
+          }
+        });
+    });
+  };
+
+  VoiceId.prototype.getSpeakerStatus = function () {
+    var self = this;
+    self.checkConferenceCall();
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      self.getSpeakerId().then(function(data){
+        client.call(connect.AgentAppClientMethods.GET_SPEAKER_STATUS, {
+          "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
+          "DomainId" : "ConnectDefaultDomainId"
+          }, {
+            success: function (data) {
+              resolve(data);
+            },
+            failure: function (err) {
+              connect.getLog().error("getSpeakerStatus failed")
+                .withObject({
+                  err: err
+                });
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
+              reject(error);
+            }
+          });
+      }).catch(function(err){
+        reject(err);
+      });
+    });
+  };
+
+  VoiceId.prototype.optOutSpeaker = function () {
+    var self = this;
+    self.checkConferenceCall();
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      self.getSpeakerId().then(function(data){
+        client.call(connect.AgentAppClientMethods.OPT_OUT_VOICEID_SPEAKER, {
+          "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
+          "DomainId" : "ConnectDefaultDomainId"
+          }, {
+            success: function (data) {
+              connect.getLog().info("optOutSpeaker succeeded");
+              //TODO add more logic here for filtering out data once VoiceId API finalized
+              resolve(data);
+            },
+            failure: function (err) {
+              connect.getLog().error("optOutSpeaker failed")
+                .withObject({
+                  err: err,
+                });
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.OPT_OUT_SPEAKER_FAILED, "optOutSpeaker failed.", err);
+              reject(error);
+            }
+          });
+      }).catch(function(err){
+        reject(err);
+      });
+    });
+  };
+
+  VoiceId.prototype.startSession = function () {
+    var self = this;
+    self.checkConferenceCall();
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      client.call(connect.AgentAppClientMethods.START_VOICEID_SESSION, {
+        "contactId": self.contactId,
+        "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
+        "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
+        "clientToken": AWS.util.uuid.v4()
+        }, {
+          success: function (data) {
+            if(data.sessionId) {
+              resolve(data);
+            } else {
+              reject(Error("No contact id is returned from start session api."))
+            }
+          },
+          failure: function (err) {
+            connect.getLog().error("startVoiceIdSession failed")
+              .withObject({
+                err: err
+              });
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "startVoiceIdSession failed", err);
+            reject(error);
+          }
+        });
+    });
+  };
+
+  VoiceId.prototype.evaluateSpeaker = function (startNew) {
+    var self = this;
+    self.checkConferenceCall();
+    var client = connect.core.getClient();
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    var maxPollTimes = 120; // Polling for maximum 2 mins.
+    var milliInterval = 1000;
+    return new Promise(function (resolve, reject) {
+      function evaluate() {
+        client.call(connect.AgentAppClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
+          "SessionNameOrId": contactData.initialContactId || this.contactId
+        }, {
+          success: function (data) {
+            if(maxPollTimes-- !== 1) {
+              if(data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED && data.AuthenticationResult.Decision === connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH){
+                data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
+                resolve(data);
+              }else if(data.AuthenticationResult.Decision !== connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH) {
+                switch (data.AuthenticationResult.Decision) {
+                  case connect.VoiceIdAuthenticationDecision.ACCEPT:
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.AUTHENTICATED;
+                    break;
+                  case connect.VoiceIdAuthenticationDecision.REJECT:
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_AUTHENTICATED;
+                    break;
+                  case connect.VoiceIdAuthenticationDecision.SPEAKER_OPTED_OUT:
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.OPT_OUT;
+                    break;
+                  case connect.VoiceIdAuthenticationDecision.SPEAKER_NOT_ENROLLED:
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENROLLED;
+                    break;
+                  default:
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.ERROR;
+                }
+                resolve(data);
+              } else {
+                setTimeout(function(){
+                  evaluate();
+                },milliInterval);
+              }
+            } else {
+              connect.getLog().error("evaluateSpeaker timeout");
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "evaluateSpeaker timeout");
+              reject(error);
+            }
+          },
+          failure: function (err) {
+            connect.getLog().error("evaluateSpeaker failed")
+              .withObject({
+                err: err
+              });
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
+            reject(error);
+          }
+        })
+      }
+      if(!startNew){
+        evaluate();
+      } else {
+        self.startSession().then(function(data){
+          evaluate();
+        }).catch(function(err){
+          reject(err)
+        })
+      }
+    });
+  };
+
+  VoiceId.prototype.describeSession = function () {
+    var self = this;
+    self.checkConferenceCall();
+    var client = connect.core.getClient();
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    var maxPollingTimes = 120; // It is polling for maximum 10 mins.
+    var milliInterval = 5000;
+    return new Promise(function (resolve, reject) {
+      function describe() {
+        client.call(connect.AgentAppClientMethods.DESCRIBE_VOICEID_SESSION, {
+          "SessionNameOrId": contactData.initialContactId || this.contactId
+        }, {
+          success: function (data) {
+            if(maxPollingTimes-- !== 1) {
+              if(data.Session.EnrollmentRequestDetails.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+                resolve(data);
+              } else if(data.Session.EnrollmentRequestDetails.Status === connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS) {
+                setTimeout(function(){
+                  describe();
+                },milliInterval);
+              } else if(data.Session.EnrollmentRequestDetails.Status === connect.VoiceIdEnrollmentRequestStatus.NOT_ENOUGH_SPEECH) {
+                if(data.Session.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED) {
+                  self.startSession().then(function(data){
+                    describe();
+                  }).catch(function(err, data){
+                    reject(err);
+                  })
+                } else {
+                  setTimeout(function(){
+                    describe();
+                  },milliInterval);
+                }
+              } else {
+                reject(Error(data.Session.EnrollmentRequestDetails.Status));
+              }
+            } else {
+              connect.getLog().error("describeSession timeout");
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "describeSession timeout");
+              reject(error);
+            }
+          },
+          failure: function (err) {
+            connect.getLog().error("describeSession failed")
+              .withObject({
+                err: err
+              });
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.DESCRIBE_SESSION_FAILED, "describeSession failed", err);
+            reject(error);
+          }
+        })
+      }
+      describe();
+    });
+  };
+
+  VoiceId.prototype.enrollSpeaker = function () {
+    var self = this;
+    self.checkConferenceCall();
+    var client = connect.core.getClient();
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    return new Promise(function (resolve, reject) {
+      client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
+        "SessionNameOrId": contactData.initialContactId || this.contactId
+        }, {
+          success: function (data) {
+            if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+              resolve(data);
+            } else {
+              self.describeSession().then(function(data){
+                resolve(data);
+              }).catch(function(err){
+                reject(err);
+              })
+            }
+          },
+          failure: function (err) {
+            connect.getLog().error("enrollSpeaker failed")
+              .withObject({
+                err: err
+              });
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
+            reject(error);
+          }
+        });
+    });
+  };
+
+  VoiceId.prototype.updateSpeakerId = function (speakerId) {
+    var self = this;
+    self.checkConferenceCall();
+    var client = connect.core.getClient();
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    return new Promise(function (resolve, reject) {
+      client.call(connect.AgentAppClientMethods.UPDATE_VOICEID_SESSION, {
+        "SessionNameOrId": contactData.initialContactId || this.contactId,
+        "SpeakerId": connect.assertNotNull(speakerId, 'speakerId')
+        }, {
+          success: function (data) {
+            resolve(data);
+          },
+          failure: function (err) {
+            connect.getLog().error("updateSpeakerId failed")
+              .withObject({
+                err: err
+              });
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerId failed", err);
+            reject(error);
+          }
+        });
+    });
+  };
+
+  VoiceId.prototype.checkConferenceCall = function(){
+    var self = this;
+    var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.length > 2;
+    if(isConferenceCall){
+      throw new connect.NotImplementedError("VoiceId is not supported for conference calls");
+    }
+  }
+  
   /**
    * @class VoiceConnection
    * @param {number} contactId 
@@ -24283,6 +24930,7 @@
    * @description - Provides voice media specific operations
    */
   var VoiceConnection = function (contactId, connectionId) {
+    this._speakerAuthenticator = new VoiceId(contactId);
     Connection.call(this, contactId, connectionId);
   };
 
@@ -24309,6 +24957,30 @@
     return connect.core.mediaFactory.get(this);
   }
 
+  VoiceConnection.prototype.getVoiceIdSpeakerId = function() {
+    return this._speakerAuthenticator.getSpeakerId();
+  }
+
+  VoiceConnection.prototype.getVoiceIdSpeakerStatus = function() {
+    return this._speakerAuthenticator.getSpeakerStatus();
+  }
+
+  VoiceConnection.prototype.optOutVoiceIdSpeaker = function() {
+    
+    return this._speakerAuthenticator.optOutSpeaker();
+  }
+
+  VoiceConnection.prototype.evaluateSpeakerWithVoiceId = function(startNew) {
+    return this._speakerAuthenticator.evaluateSpeaker(startNew);
+  }
+
+  VoiceConnection.prototype.enrollSpeakerInVoiceId = function() {
+    return this._speakerAuthenticator.enrollSpeaker();
+  }
+
+  VoiceConnection.prototype.updateVoiceIdSpeakerId = function(speakerId) {
+    return this._speakerAuthenticator.updateSpeakerId(speakerId);
+  }
 
   /**
    * @class ChatConnection
@@ -24339,7 +25011,10 @@
         try {
           mediaObject.participantToken = JSON.parse(data.connectionData).ConnectionAuthenticationToken;
         } catch (e) {
-          connect.getLog().error(connect.LogComponent.CHAT, "Connection data is invalid").withObject(data).withException(e);
+          connect.getLog().error(connect.LogComponent.CHAT, "Connection data is invalid")
+            .withObject(data)
+            .withException(e)
+            .sendInternalLogToServer();
           mediaObject.participantToken = null;
         }
       }
@@ -24369,11 +25044,11 @@
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
         success: function (data) {
-          connect.getLog().info("getConnectionToken succeeded");
+          connect.getLog().info("getConnectionToken succeeded").sendInternalLogToServer();
           resolve(data);
         },
         failure: function (err, data) {
-          connect.getLog().error("getConnectionToken failed")
+          connect.getLog().error("getConnectionToken failed").sendInternalLogToServer()
             .withObject({
               err: err,
               data: data
@@ -24398,6 +25073,35 @@
       connect.core.mediaFactory.get(this).catch(function () { });
     }
   }
+
+  /**
+   * @class TaskConnection
+   * @param {*} contactId 
+   * @param {*} connectionId 
+   * @description adds the task media specific functionality
+   */
+  var TaskConnection = function (contactId, connectionId) {
+    Connection.call(this, contactId, connectionId);
+  };
+  TaskConnection.prototype = Object.create(Connection.prototype);
+  TaskConnection.prototype.constructor = TaskConnection;
+
+  TaskConnection.prototype.getMediaType = function () {
+    return connect.MediaType.TASK;
+  }
+
+  TaskConnection.prototype.getMediaInfo = function () {
+      var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+      var mediaObject = {
+        contactId: this.contactId,
+        initialContactId: contactData.initialContactId || this.contactId,
+      };
+      return mediaObject;
+  };
+
+  TaskConnection.prototype.getMediaController = function () {
+    return connect.core.mediaFactory.get(this);
+  };
 
   /*----------------------------------------------------------------
    * class ConnectionSnapshot
@@ -24504,7 +25208,7 @@
 
     if (!connect.core.masterClient) {
       // We can't be the master because there is no master client!
-      connect.getLog().warn("We can't be the master for topic '%s' because there is no master client!", topic);
+      connect.getLog().warn("We can't be the master for topic '%s' because there is no master client!", topic).sendInternalLogToServer();
       if (f_else) {
         f_else();
       }
@@ -24546,6 +25250,7 @@
   connect.BaseConnection = Connection;
   connect.VoiceConnection = VoiceConnection;
   connect.ChatConnection = ChatConnection;
+  connect.TaskConnection = TaskConnection;
   connect.ConnectionSnapshot = ConnectionSnapshot;
   connect.Endpoint = Endpoint;
   connect.Address = Endpoint;
@@ -24554,7 +25259,9 @@
 })();
 
 
-!function(e){var n={};function t(o){if(n[o])return n[o].exports;var r=n[o]={i:o,l:!1,exports:{}};return e[o].call(r.exports,r,r.exports,t),r.l=!0,r.exports}t.m=e,t.c=n,t.d=function(e,n,o){t.o(e,n)||Object.defineProperty(e,n,{enumerable:!0,get:o})},t.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},t.t=function(e,n){if(1&n&&(e=t(e)),8&n)return e;if(4&n&&"object"==typeof e&&e&&e.__esModule)return e;var o=Object.create(null);if(t.r(o),Object.defineProperty(o,"default",{enumerable:!0,value:e}),2&n&&"string"!=typeof e)for(var r in e)t.d(o,r,function(n){return e[n]}.bind(null,r));return o},t.n=function(e){var n=e&&e.__esModule?function(){return e.default}:function(){return e};return t.d(n,"a",n),n},t.o=function(e,n){return Object.prototype.hasOwnProperty.call(e,n)},t.p="",t(t.s=2)}([function(e,n,t){"use strict";var o=t(1);function r(e){return(r="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var i={assertTrue:function(e,n){if(!e)throw new Error(n)},assertNotNull:function(e,n){return i.assertTrue(null!==e&&void 0!==r(e),Object(o.sprintf)("%s must be provided",n||"A value")),e},isNonEmptyString:function(e){return"string"==typeof e&&e.length>0},assertIsList:function(e,n){if(!Array.isArray(e))throw new Error(n+" is not an array")},isFunction:function(e){return!!(e&&e.constructor&&e.call&&e.apply)},isObject:function(e){return!("object"!==r(e)||null===e)},isString:function(e){return"string"==typeof e},isNumber:function(e){return"number"==typeof e}},c=new RegExp("^(wss://)\\w*");i.validWSUrl=function(e){return c.test(e)},i.getSubscriptionResponse=function(e,n,t){return{topic:e,content:{status:n?"success":"failure",topics:t}}},i.assertIsObject=function(e,n){if(!i.isObject(e))throw new Error(n+" is not an object!")},i.addJitter=function(e){var n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:1;n=Math.min(n,1);var t=Math.random()>.5?1:-1;return Math.floor(e+t*e*Math.random()*n)},i.isNetworkOnline=function(){return navigator.onLine};var s=i,a="NULL",u="CLIENT_LOGGER",l="DEBUG",f="aws/subscribe",p="aws/unsubscribe",d="aws/heartbeat",b="connected",g="disconnected";function m(e){return(m="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function y(e,n){return!n||"object"!==m(n)&&"function"!=typeof n?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):n}function S(e){return(S=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}function k(e,n){return(k=Object.setPrototypeOf||function(e,n){return e.__proto__=n,e})(e,n)}function w(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}function v(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}function h(e,n,t){return n&&v(e.prototype,n),t&&v(e,t),e}var C=function(){function e(){w(this,e)}return h(e,[{key:"debug",value:function(e){}},{key:"info",value:function(e){}},{key:"warn",value:function(e){}},{key:"error",value:function(e){}}]),e}(),T={DEBUG:10,INFO:20,WARN:30,ERROR:40},O=function(){function e(){w(this,e),this.updateLoggerConfig(),this.consoleLoggerWrapper=N()}return h(e,[{key:"writeToClientLogger",value:function(e,n){if(this.hasClientLogger())switch(e){case T.DEBUG:return this._clientLogger.debug(n);case T.INFO:return this._clientLogger.info(n);case T.WARN:return this._clientLogger.warn(n);case T.ERROR:return this._clientLogger.error(n)}}},{key:"isLevelEnabled",value:function(e){return e>=this._level}},{key:"hasClientLogger",value:function(){return null!==this._clientLogger}},{key:"getLogger",value:function(e){var n=e.prefix||"";return this._logsDestination===l?this.consoleLoggerWrapper:new W(n)}},{key:"updateLoggerConfig",value:function(e){var n=e||{};this._level=n.level||T.DEBUG,this._clientLogger=n.logger||null,this._logsDestination=a,n.debug&&(this._logsDestination=l),n.logger&&(this._logsDestination=u)}}]),e}(),I=function(){function e(){w(this,e)}return h(e,[{key:"debug",value:function(){}},{key:"info",value:function(){}},{key:"warn",value:function(){}},{key:"error",value:function(){}}]),e}(),W=function(e){function n(e){var t;return w(this,n),(t=y(this,S(n).call(this))).prefix=e||"",t}return function(e,n){if("function"!=typeof n&&null!==n)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(n&&n.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),n&&k(e,n)}(n,I),h(n,[{key:"debug",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(T.DEBUG,n)}},{key:"info",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(T.INFO,n)}},{key:"warn",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(T.WARN,n)}},{key:"error",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];this._log(T.ERROR,n)}},{key:"_shouldLog",value:function(e){return _.hasClientLogger()&&_.isLevelEnabled(e)}},{key:"_writeToClientLogger",value:function(e,n){_.writeToClientLogger(e,n)}},{key:"_log",value:function(e,n){if(this._shouldLog(e)){var t=this._convertToSingleStatement(n);this._writeToClientLogger(e,t)}}},{key:"_convertToSingleStatement",value:function(e){var n="";this.prefix&&(n+=this.prefix+" ");for(var t=0;t<e.length;t++){var o=e[t];n+=this._convertToString(o)+" "}return n}},{key:"_convertToString",value:function(e){try{if(!e)return"";if(s.isString(e))return e;if(s.isObject(e)&&s.isFunction(e.toString)){var n=e.toString();if("[object Object]"!==n)return n}return JSON.stringify(e)}catch(n){return console.error("Error while converting argument to string",e,n),""}}}]),n}(),N=function(){var e=new I;return e.debug=console.debug,e.info=console.info,e.warn=console.warn,e.error=console.error,e},_=new O;t.d(n,"a",function(){return L});var E=function(){var e=_.getLogger({}),n=s.isNetworkOnline(),t={primary:null,secondary:null},o={reconnectWebSocket:!0,websocketInitFailed:!1,exponentialBackOffTime:1e3,exponentialTimeoutHandle:null,lifeTimeTimeoutHandle:null,webSocketInitCheckerTimeoutId:null,connState:null},r={connectWebSocketRetryCount:0,connectionAttemptStartTime:null,noOpenConnectionsTimestamp:null},i={pendingResponse:!1,intervalHandle:null},c={initFailure:new Set,getWebSocketTransport:null,subscriptionUpdate:new Set,subscriptionFailure:new Set,topic:new Map,allMessage:new Set,connectionGain:new Set,connectionLost:new Set,connectionOpen:new Set,connectionClose:new Set},a={connConfig:null,promiseHandle:null,promiseCompleted:!0},u={subscribed:new Set,pending:new Set,subscriptionHistory:new Set},l={responseCheckIntervalId:null,requestCompleted:!0,reSubscribeIntervalId:null,consecutiveFailedSubscribeAttempts:0,consecutiveNoResponseRequest:0},m=new Set([f,p,d]),y=setInterval(function(){if(n!==s.isNetworkOnline()){if(!(n=s.isNetworkOnline()))return void e.info("Network offline");var t=T();n&&(!t||v(t,WebSocket.CLOSING)||v(t,WebSocket.CLOSED))&&(e.info("Network online, connecting to WebSocket server"),G())}},250),S=function(n,t){n.forEach(function(n){try{n(t)}catch(n){e.error("Error executing callback",n)}})},k=function(e){if(null===e)return"NULL";switch(e.readyState){case WebSocket.CONNECTING:return"CONNECTING";case WebSocket.OPEN:return"OPEN";case WebSocket.CLOSING:return"CLOSING";case WebSocket.CLOSED:return"CLOSED";default:return"UNDEFINED"}},w=function(){var n=arguments.length>0&&void 0!==arguments[0]?arguments[0]:"";e.debug("["+n+"] Primary WebSocket: "+k(t.primary)+" | Secondary WebSocket: "+k(t.secondary))},v=function(e,n){return e&&e.readyState===n},h=function(e){return v(e,WebSocket.OPEN)},C=function(e){return null===e||void 0===e.readyState||v(e,WebSocket.CLOSED)},T=function(){return null!==t.secondary?t.secondary:t.primary},O=function(){return h(T())},I=function(){if(i.pendingResponse)return e.warn("Heartbeat response not received"),clearInterval(i.intervalHandle),i.pendingResponse=!1,void G();O()?(e.debug("Sending heartbeat"),T().send(P(d)),i.pendingResponse=!0):(e.warn("Failed to send heartbeat since WebSocket is not open"),w("sendHeartBeat"),G())},W=function(){o.exponentialBackOffTime=1e3,i.pendingResponse=!1,o.reconnectWebSocket=!0,clearTimeout(o.lifeTimeTimeoutHandle),clearInterval(i.intervalHandle),clearTimeout(o.exponentialTimeoutHandle),clearTimeout(o.webSocketInitCheckerTimeoutId)},N=function(){l.consecutiveFailedSubscribeAttempts=0,l.consecutiveNoResponseRequest=0,clearInterval(l.responseCheckIntervalId),clearInterval(l.reSubscribeIntervalId)},E=function(){r.connectWebSocketRetryCount=0,r.connectionAttemptStartTime=null,r.noOpenConnectionsTimestamp=null},L=function(){try{e.info("WebSocket connection established!"),w("webSocketOnOpen"),o.connState=b,null===t.secondary&&S(c.connectionGain);var n=Date.now();S(c.connectionOpen,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,noOpenConnectionsTimestamp:r.noOpenConnectionsTimestamp,connectionEstablishedTime:n,timeToConnect:n-r.connectionAttemptStartTime,timeWithoutConnection:r.noOpenConnectionsTimestamp?n-r.noOpenConnectionsTimestamp:null}),E(),W(),T().openTimestamp=Date.now(),0===u.subscribed.size&&h(t.secondary)&&j(t.primary,"[Primary WebSocket] Closing WebSocket"),(u.subscribed.size>0||u.pending.size>0)&&(h(t.secondary)&&e.info("Subscribing secondary websocket to topics of primary websocket"),u.subscribed.forEach(function(e){u.subscriptionHistory.add(e),u.pending.add(e)}),u.subscribed.clear(),R()),I(),i.intervalHandle=setInterval(I,1e4),o.lifeTimeTimeoutHandle=setTimeout(function(){e.debug("Starting scheduled WebSocket manager reconnect"),G()},1e3*a.connConfig.webSocketTransport.transportLifeTimeInSeconds)}catch(n){e.error("Error after establishing WebSocket connection",n)}},F=function(n){w("webSocketOnError"),e.error("WebSocketManager Error, error_event: ",n),G()},x=function(n){var o=JSON.parse(n.data);switch(o.topic){case f:if(e.debug("Subscription Message received from webSocket server",n.data),l.requestCompleted=!0,l.consecutiveNoResponseRequest=0,"success"===o.content.status)l.consecutiveFailedSubscribeAttempts=0,o.content.topics.forEach(function(e){u.subscriptionHistory.delete(e),u.pending.delete(e),u.subscribed.add(e)}),0===u.subscriptionHistory.size?h(t.secondary)&&(e.info("Successfully subscribed secondary websocket to all topics of primary websocket"),j(t.primary,"[Primary WebSocket] Closing WebSocket")):R(),S(c.subscriptionUpdate,o);else{if(clearInterval(l.reSubscribeIntervalId),++l.consecutiveFailedSubscribeAttempts,5===l.consecutiveFailedSubscribeAttempts)return S(c.subscriptionFailure,o),void(l.consecutiveFailedSubscribeAttempts=0);l.reSubscribeIntervalId=setInterval(function(){R()},500)}break;case d:e.debug("Heartbeat response received"),i.pendingResponse=!1;break;default:if(o.topic){if(e.debug("Message received for topic "+o.topic),h(t.primary)&&h(t.secondary)&&0===u.subscriptionHistory.size&&this===t.primary)return void e.warn("Ignoring Message for Topic "+o.topic+", to avoid duplicates");if(0===c.allMessage.size&&0===c.topic.size)return void e.warn("No registered callback listener for Topic",o.topic);S(c.allMessage,o),c.topic.has(o.topic)&&S(c.topic.get(o.topic),o)}else o.message?e.warn("WebSocketManager Message Error",o):e.warn("Invalid incoming message",o)}},R=function n(){if(l.consecutiveNoResponseRequest>3)return e.warn("Ignoring subscribePendingTopics since we have exhausted max subscription retries with no response"),void S(c.subscriptionFailure,s.getSubscriptionResponse(f,!1,Array.from(u.pending)));O()?(clearInterval(l.responseCheckIntervalId),T().send(P(f,{topics:Array.from(u.pending)})),l.requestCompleted=!1,l.responseCheckIntervalId=setInterval(function(){l.requestCompleted||(++l.consecutiveNoResponseRequest,n())},1e3)):e.warn("Ignoring subscribePendingTopics call since Default WebSocket is not open")},j=function(n,t){v(n,WebSocket.CONNECTING)||v(n,WebSocket.OPEN)?n.close(1e3,t):e.warn("Ignoring WebSocket Close request, WebSocket State: "+k(n))},A=function(e){j(t.primary,"[Primary] WebSocket "+e),j(t.secondary,"[Secondary] WebSocket "+e)},M=function(){r.connectWebSocketRetryCount++;var n=s.addJitter(o.exponentialBackOffTime,.3);Date.now()+n<=a.connConfig.urlConnValidTime?(e.debug("Scheduling WebSocket reinitialization, after delay "+n+" ms"),o.exponentialTimeoutHandle=setTimeout(function(){return z()},n),o.exponentialBackOffTime*=2):(e.warn("WebSocket URL is cannot be used to establish connection"),G())},D=function(n){W(),N(),e.error("WebSocket Initialization failed"),o.websocketInitFailed=!0,A("Terminating WebSocket Manager"),clearInterval(y),S(c.initFailure,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,reason:n}),E()},P=function(e,n){return JSON.stringify({topic:e,content:n})},H=function(n){return!!(s.isObject(n)&&s.isObject(n.webSocketTransport)&&s.isNonEmptyString(n.webSocketTransport.url)&&s.validWSUrl(n.webSocketTransport.url)&&1e3*n.webSocketTransport.transportLifeTimeInSeconds>=36e5)||(e.error("Invalid WebSocket Connection Configuration",n),!1)},G=function n(){if(s.isNetworkOnline())if(o.websocketInitFailed)e.debug("WebSocket Init had failed, ignoring this getWebSocketConnConfig request");else{if(a.promiseCompleted)return W(),e.info("Fetching new WebSocket connection configuration"),r.connectionAttemptStartTime=r.connectionAttemptStartTime||Date.now(),a.promiseCompleted=!1,a.promiseHandle=c.getWebSocketTransport(),a.promiseHandle.then(function(n){return a.promiseCompleted=!0,e.debug("Successfully fetched webSocket connection configuration",n),H(n)?(a.connConfig=n,a.connConfig.urlConnValidTime=Date.now()+85e3,z()):(D("Invalid WebSocket connection configuration: "+n),{webSocketConnectionFailed:!0})},function(t){return a.promiseCompleted=!0,e.error("Failed to fetch webSocket connection configuration",t),setTimeout(function(){return n()},s.addJitter(5e3,.3)),{webSocketConnectionFailed:!0}});e.debug("There is an ongoing getWebSocketConnConfig request, this request will be ignored")}else e.info("Network offline, ignoring this getWebSocketConnConfig request")},z=function(){if(o.websocketInitFailed)return e.info("web-socket initializing had failed, aborting re-init"),{webSocketConnectionFailed:!0};if(!s.isNetworkOnline())return e.warn("System is offline aborting web-socket init"),{webSocketConnectionFailed:!0};e.info("Initializing Websocket Manager"),w("initWebSocket");try{if(H(a.connConfig)){var n=null;return h(t.primary)?(e.debug("Primary Socket connection is already open"),v(t.secondary,WebSocket.CONNECTING)||(e.debug("Establishing a secondary web-socket connection"),t.secondary=U()),n=t.secondary):(v(t.primary,WebSocket.CONNECTING)||(e.debug("Establishing a primary web-socket connection"),t.primary=U()),n=t.primary),o.webSocketInitCheckerTimeoutId=setTimeout(function(){h(n)||M()},1e3),{webSocketConnectionFailed:!1}}}catch(n){return e.error("Error Initializing web-socket-manager",n),D("Failed to initialize new WebSocket: "+n.message),{webSocketConnectionFailed:!0}}},U=function(){var n=new WebSocket(a.connConfig.webSocketTransport.url);return n.addEventListener("open",L),n.addEventListener("message",x),n.addEventListener("error",F),n.addEventListener("close",function(i){return function(n,i){e.info("Socket connection is closed",n),w("webSocketOnClose before-cleanup"),S(c.connectionClose,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),C(t.primary)&&(t.primary=null),C(t.secondary)&&(t.secondary=null),o.reconnectWebSocket&&(h(t.primary)||h(t.secondary)?C(t.primary)&&h(t.secondary)&&(e.info("[Primary] WebSocket Cleanly Closed"),t.primary=t.secondary,t.secondary=null):(e.warn("Neither primary websocket and nor secondary websocket have open connections, attempting to re-establish connection"),o.connState!==g?(S(c.connectionLost,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),r.noOpenConnectionsTimestamp=Date.now()):e.info("Ignoring connectionLost callback invocation"),o.connState=g,G()),w("webSocketOnClose after-cleanup"))}(i,n)}),n};this.init=function(n){if(s.assertTrue(s.isFunction(n),"transportHandle must be a function"),null===c.getWebSocketTransport)return c.getWebSocketTransport=n,G();e.warn("Web Socket Manager was already initialized")},this.onInitFailure=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.initFailure.add(e),o.websocketInitFailed&&e(),function(){return c.initFailure.delete(e)}},this.onConnectionOpen=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionOpen.add(e),function(){return c.connectionOpen.delete(e)}},this.onConnectionClose=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionClose.add(e),function(){return c.connectionClose.delete(e)}},this.onConnectionGain=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionGain.add(e),O()&&e(),function(){return c.connectionGain.delete(e)}},this.onConnectionLost=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionLost.add(e),o.connState===g&&e(),function(){return c.connectionLost.delete(e)}},this.onSubscriptionUpdate=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.subscriptionUpdate.add(e),function(){return c.subscriptionUpdate.delete(e)}},this.onSubscriptionFailure=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.subscriptionFailure.add(e),function(){return c.subscriptionFailure.delete(e)}},this.onMessage=function(e,n){return s.assertNotNull(e,"topicName"),s.assertTrue(s.isFunction(n),"cb must be a function"),c.topic.has(e)?c.topic.get(e).add(n):c.topic.set(e,new Set([n])),function(){return c.topic.get(e).delete(n)}},this.onAllMessage=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.allMessage.add(e),function(){return c.allMessage.delete(e)}},this.subscribeTopics=function(e){s.assertNotNull(e,"topics"),s.assertIsList(e),e.forEach(function(e){u.subscribed.has(e)||u.pending.add(e)}),l.consecutiveNoResponseRequest=0,R()},this.sendMessage=function(n){if(s.assertIsObject(n,"payload"),void 0===n.topic||m.has(n.topic))e.warn("Cannot send message, Invalid topic",n);else{try{n=JSON.stringify(n)}catch(t){return void e.warn("Error stringify message",n)}O()?T().send(n):e.warn("Cannot send message, web socket connection is not open")}},this.closeWebSocket=function(){W(),N(),o.reconnectWebSocket=!1,clearInterval(y),A("User request to close WebSocket")},this.terminateWebSocketManager=D},L={create:function(){return new E},setGlobalConfig:function(e){var n=e.loggerConfig;_.updateLoggerConfig(n)},LogLevel:T,Logger:C}},function(e,n,t){var o;!function(){"use strict";var r={not_string:/[^s]/,not_bool:/[^t]/,not_type:/[^T]/,not_primitive:/[^v]/,number:/[diefg]/,numeric_arg:/[bcdiefguxX]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijostTuvxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[+-]/};function i(e){return function(e,n){var t,o,c,s,a,u,l,f,p,d=1,b=e.length,g="";for(o=0;o<b;o++)if("string"==typeof e[o])g+=e[o];else if("object"==typeof e[o]){if((s=e[o]).keys)for(t=n[d],c=0;c<s.keys.length;c++){if(null==t)throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"',s.keys[c],s.keys[c-1]));t=t[s.keys[c]]}else t=s.param_no?n[s.param_no]:n[d++];if(r.not_type.test(s.type)&&r.not_primitive.test(s.type)&&t instanceof Function&&(t=t()),r.numeric_arg.test(s.type)&&"number"!=typeof t&&isNaN(t))throw new TypeError(i("[sprintf] expecting number but found %T",t));switch(r.number.test(s.type)&&(f=t>=0),s.type){case"b":t=parseInt(t,10).toString(2);break;case"c":t=String.fromCharCode(parseInt(t,10));break;case"d":case"i":t=parseInt(t,10);break;case"j":t=JSON.stringify(t,null,s.width?parseInt(s.width):0);break;case"e":t=s.precision?parseFloat(t).toExponential(s.precision):parseFloat(t).toExponential();break;case"f":t=s.precision?parseFloat(t).toFixed(s.precision):parseFloat(t);break;case"g":t=s.precision?String(Number(t.toPrecision(s.precision))):parseFloat(t);break;case"o":t=(parseInt(t,10)>>>0).toString(8);break;case"s":t=String(t),t=s.precision?t.substring(0,s.precision):t;break;case"t":t=String(!!t),t=s.precision?t.substring(0,s.precision):t;break;case"T":t=Object.prototype.toString.call(t).slice(8,-1).toLowerCase(),t=s.precision?t.substring(0,s.precision):t;break;case"u":t=parseInt(t,10)>>>0;break;case"v":t=t.valueOf(),t=s.precision?t.substring(0,s.precision):t;break;case"x":t=(parseInt(t,10)>>>0).toString(16);break;case"X":t=(parseInt(t,10)>>>0).toString(16).toUpperCase()}r.json.test(s.type)?g+=t:(!r.number.test(s.type)||f&&!s.sign?p="":(p=f?"+":"-",t=t.toString().replace(r.sign,"")),u=s.pad_char?"0"===s.pad_char?"0":s.pad_char.charAt(1):" ",l=s.width-(p+t).length,a=s.width&&l>0?u.repeat(l):"",g+=s.align?p+t+a:"0"===u?p+a+t:a+p+t)}return g}(function(e){if(s[e])return s[e];var n,t=e,o=[],i=0;for(;t;){if(null!==(n=r.text.exec(t)))o.push(n[0]);else if(null!==(n=r.modulo.exec(t)))o.push("%");else{if(null===(n=r.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(n[2]){i|=1;var c=[],a=n[2],u=[];if(null===(u=r.key.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(c.push(u[1]);""!==(a=a.substring(u[0].length));)if(null!==(u=r.key_access.exec(a)))c.push(u[1]);else{if(null===(u=r.index_access.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");c.push(u[1])}n[2]=c}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");o.push({placeholder:n[0],param_no:n[1],keys:n[2],sign:n[3],pad_char:n[4],align:n[5],width:n[6],precision:n[7],type:n[8]})}t=t.substring(n[0].length)}return s[e]=o}(e),arguments)}function c(e,n){return i.apply(null,[e].concat(n||[]))}var s=Object.create(null);n.sprintf=i,n.vsprintf=c,"undefined"!=typeof window&&(window.sprintf=i,window.vsprintf=c,void 0===(o=function(){return{sprintf:i,vsprintf:c}}.call(n,t,n,e))||(e.exports=o))}()},function(e,n,t){"use strict";t.r(n),function(e){t.d(n,"WebSocketManager",function(){return r});var o=t(0);e.connect=e.connect||{},connect.WebSocketManager=o.a;var r=o.a}.call(this,t(3))},function(e,n){var t;t=function(){return this}();try{t=t||new Function("return this")()}catch(e){"object"==typeof window&&(t=window)}e.exports=t}]);
+!function(e){var n={};function t(o){if(n[o])return n[o].exports;var r=n[o]={i:o,l:!1,exports:{}};return e[o].call(r.exports,r,r.exports,t),r.l=!0,r.exports}t.m=e,t.c=n,t.d=function(e,n,o){t.o(e,n)||Object.defineProperty(e,n,{enumerable:!0,get:o})},t.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},t.t=function(e,n){if(1&n&&(e=t(e)),8&n)return e;if(4&n&&"object"==typeof e&&e&&e.__esModule)return e;var o=Object.create(null);if(t.r(o),Object.defineProperty(o,"default",{enumerable:!0,value:e}),2&n&&"string"!=typeof e)for(var r in e)t.d(o,r,function(n){return e[n]}.bind(null,r));return o},t.n=function(e){var n=e&&e.__esModule?function(){return e.default}:function(){return e};return t.d(n,"a",n),n},t.o=function(e,n){return Object.prototype.hasOwnProperty.call(e,n)},t.p="",t(t.s=2)}([function(e,n,t){"use strict";var o=t(1);function r(e){return(r="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var i={assertTrue:function(e,n){if(!e)throw new Error(n)},assertNotNull:function(e,n){return i.assertTrue(null!==e&&void 0!==r(e),Object(o.sprintf)("%s must be provided",n||"A value")),e},isNonEmptyString:function(e){return"string"==typeof e&&e.length>0},assertIsList:function(e,n){if(!Array.isArray(e))throw new Error(n+" is not an array")},isFunction:function(e){return!!(e&&e.constructor&&e.call&&e.apply)},isObject:function(e){return!("object"!==r(e)||null===e)},isString:function(e){return"string"==typeof e},isNumber:function(e){return"number"==typeof e}},c=new RegExp("^(wss://)\\w*");i.validWSUrl=function(e){return c.test(e)},i.getSubscriptionResponse=function(e,n,t){return{topic:e,content:{status:n?"success":"failure",topics:t}}},i.assertIsObject=function(e,n){if(!i.isObject(e))throw new Error(n+" is not an object!")},i.addJitter=function(e){var n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:1;n=Math.min(n,1);var t=Math.random()>.5?1:-1;return Math.floor(e+t*e*Math.random()*n)},i.isNetworkOnline=function(){return navigator.onLine};var s=i,a="NULL",u="CLIENT_LOGGER",l="DEBUG",f="aws/subscribe",p="aws/unsubscribe",d="aws/heartbeat",b="connected",g="disconnected";function m(e){return(m="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function y(e,n){return!n||"object"!==m(n)&&"function"!=typeof n?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):n}function S(e){return(S=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}function k(e,n){return(k=Object.setPrototypeOf||function(e,n){return e.__proto__=n,e})(e,n)}function v(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}function h(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}function w(e,n,t){return n&&h(e.prototype,n),t&&h(e,t),e}var C=function(){function e(){v(this,e)}return w(e,[{key:"debug",value:function(e){}},{key:"info",value:function(e){}},{key:"warn",value:function(e){}},{key:"error",value:function(e){}}]),e}(),T={DEBUG:10,INFO:20,WARN:30,ERROR:40},O=function(){function e(){v(this,e),this.updateLoggerConfig(),this.consoleLoggerWrapper=N()}return w(e,[{key:"writeToClientLogger",value:function(e,n){if(this.hasClientLogger())switch(e){case T.DEBUG:return this._clientLogger.debug(n);case T.INFO:return this._clientLogger.info(n);case T.WARN:return this._clientLogger.warn(n);case T.ERROR:return this._clientLogger.error(n)}}},{key:"isLevelEnabled",value:function(e){return e>=this._level}},{key:"hasClientLogger",value:function(){return null!==this._clientLogger}},{key:"getLogger",value:function(e){var n=e.prefix||"";return this._logsDestination===l?this.consoleLoggerWrapper:new W(n)}},{key:"updateLoggerConfig",value:function(e){var n=e||{};this._level=n.level||T.DEBUG,this._clientLogger=n.logger||null,this._logsDestination=a,n.debug&&(this._logsDestination=l),n.logger&&(this._logsDestination=u)}}]),e}(),I=function(){function e(){v(this,e)}return w(e,[{key:"debug",value:function(){}},{key:"info",value:function(){}},{key:"warn",value:function(){}},{key:"error",value:function(){}}]),e}(),W=function(e){function n(e){var t;return v(this,n),(t=y(this,S(n).call(this))).prefix=e||"",t}return function(e,n){if("function"!=typeof n&&null!==n)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(n&&n.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),n&&k(e,n)}(n,I),w(n,[{key:"debug",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(T.DEBUG,n)}},{key:"info",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(T.INFO,n)}},{key:"warn",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(T.WARN,n)}},{key:"error",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(T.ERROR,n)}},{key:"_shouldLog",value:function(e){return _.hasClientLogger()&&_.isLevelEnabled(e)}},{key:"_writeToClientLogger",value:function(e,n){return _.writeToClientLogger(e,n)}},{key:"_log",value:function(e,n){if(this._shouldLog(e)){var t=this._convertToSingleStatement(n);return this._writeToClientLogger(e,t)}}},{key:"_convertToSingleStatement",value:function(e){var n="";this.prefix&&(n+=this.prefix+" ");for(var t=0;t<e.length;t++){var o=e[t];n+=this._convertToString(o)+" "}return n}},{key:"_convertToString",value:function(e){try{if(!e)return"";if(s.isString(e))return e;if(s.isObject(e)&&s.isFunction(e.toString)){var n=e.toString();if("[object Object]"!==n)return n}return JSON.stringify(e)}catch(n){return console.error("Error while converting argument to string",e,n),""}}}]),n}(),N=function(){var e=new I;return e.debug=console.debug,e.info=console.info,e.warn=console.warn,e.error=console.error,e},_=new O;t.d(n,"a",function(){return L});var E=function(){var e=_.getLogger({}),n=s.isNetworkOnline(),t={primary:null,secondary:null},o={reconnectWebSocket:!0,websocketInitFailed:!1,exponentialBackOffTime:1e3,exponentialTimeoutHandle:null,lifeTimeTimeoutHandle:null,webSocketInitCheckerTimeoutId:null,connState:null},r={connectWebSocketRetryCount:0,connectionAttemptStartTime:null,noOpenConnectionsTimestamp:null},i={pendingResponse:!1,intervalHandle:null},c={initFailure:new Set,getWebSocketTransport:null,subscriptionUpdate:new Set,subscriptionFailure:new Set,topic:new Map,allMessage:new Set,connectionGain:new Set,connectionLost:new Set,connectionOpen:new Set,connectionClose:new Set},a={connConfig:null,promiseHandle:null,promiseCompleted:!0},u={subscribed:new Set,pending:new Set,subscriptionHistory:new Set},l={responseCheckIntervalId:null,requestCompleted:!0,reSubscribeIntervalId:null,consecutiveFailedSubscribeAttempts:0,consecutiveNoResponseRequest:0},m=new Set([f,p,d]),y=setInterval(function(){if(n!==s.isNetworkOnline()){if(!(n=s.isNetworkOnline()))return void q(e.info("Network offline"));var t=T();n&&(!t||h(t,WebSocket.CLOSING)||h(t,WebSocket.CLOSED))&&(q(e.info("Network online, connecting to WebSocket server")),G())}},250),S=function(n,t){n.forEach(function(n){try{n(t)}catch(n){q(e.error("Error executing callback",n))}})},k=function(e){if(null===e)return"NULL";switch(e.readyState){case WebSocket.CONNECTING:return"CONNECTING";case WebSocket.OPEN:return"OPEN";case WebSocket.CLOSING:return"CLOSING";case WebSocket.CLOSED:return"CLOSED";default:return"UNDEFINED"}},v=function(){var n=arguments.length>0&&void 0!==arguments[0]?arguments[0]:"";q(e.debug("["+n+"] Primary WebSocket: "+k(t.primary)+" | Secondary WebSocket: "+k(t.secondary)))},h=function(e,n){return e&&e.readyState===n},w=function(e){return h(e,WebSocket.OPEN)},C=function(e){return null===e||void 0===e.readyState||h(e,WebSocket.CLOSED)},T=function(){return null!==t.secondary?t.secondary:t.primary},O=function(){return w(T())},I=function(){if(i.pendingResponse)return q(e.warn("Heartbeat response not received")),clearInterval(i.intervalHandle),i.pendingResponse=!1,void G();O()?(q(e.debug("Sending heartbeat")),T().send(P(d)),i.pendingResponse=!0):(q(e.warn("Failed to send heartbeat since WebSocket is not open")),v("sendHeartBeat"),G())},W=function(){o.exponentialBackOffTime=1e3,i.pendingResponse=!1,o.reconnectWebSocket=!0,clearTimeout(o.lifeTimeTimeoutHandle),clearInterval(i.intervalHandle),clearTimeout(o.exponentialTimeoutHandle),clearTimeout(o.webSocketInitCheckerTimeoutId)},N=function(){l.consecutiveFailedSubscribeAttempts=0,l.consecutiveNoResponseRequest=0,clearInterval(l.responseCheckIntervalId),clearInterval(l.reSubscribeIntervalId)},E=function(){r.connectWebSocketRetryCount=0,r.connectionAttemptStartTime=null,r.noOpenConnectionsTimestamp=null},L=function(){try{q(e.info("WebSocket connection established!")),v("webSocketOnOpen"),null!==o.connState&&o.connState!==g||S(c.connectionGain),o.connState=b;var n=Date.now();S(c.connectionOpen,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,noOpenConnectionsTimestamp:r.noOpenConnectionsTimestamp,connectionEstablishedTime:n,timeToConnect:n-r.connectionAttemptStartTime,timeWithoutConnection:r.noOpenConnectionsTimestamp?n-r.noOpenConnectionsTimestamp:null}),E(),W(),T().openTimestamp=Date.now(),0===u.subscribed.size&&w(t.secondary)&&j(t.primary,"[Primary WebSocket] Closing WebSocket"),(u.subscribed.size>0||u.pending.size>0)&&(w(t.secondary)&&q(e.info("Subscribing secondary websocket to topics of primary websocket")),u.subscribed.forEach(function(e){u.subscriptionHistory.add(e),u.pending.add(e)}),u.subscribed.clear(),R()),I(),i.intervalHandle=setInterval(I,1e4);var l=Math.min(s.addJitter(3e6,.1),1e3*a.connConfig.webSocketTransport.transportLifeTimeInSeconds);q(e.debug("Scheduling WebSocket manager reconnection, after delay "+l+" ms")),o.lifeTimeTimeoutHandle=setTimeout(function(){q(e.debug("Starting scheduled WebSocket manager reconnection")),G()},l)}catch(n){q(e.error("Error after establishing WebSocket connection",n))}},F=function(n){v("webSocketOnError"),q(e.error("WebSocketManager Error, error_event: ",JSON.stringify(n))),G()},x=function(n){var o=JSON.parse(n.data);switch(o.topic){case f:if(q(e.debug("Subscription Message received from webSocket server",n.data)),l.requestCompleted=!0,l.consecutiveNoResponseRequest=0,"success"===o.content.status)l.consecutiveFailedSubscribeAttempts=0,o.content.topics.forEach(function(e){u.subscriptionHistory.delete(e),u.pending.delete(e),u.subscribed.add(e)}),0===u.subscriptionHistory.size?w(t.secondary)&&(q(e.info("Successfully subscribed secondary websocket to all topics of primary websocket")),j(t.primary,"[Primary WebSocket] Closing WebSocket")):R(),S(c.subscriptionUpdate,o);else{if(clearInterval(l.reSubscribeIntervalId),++l.consecutiveFailedSubscribeAttempts,5===l.consecutiveFailedSubscribeAttempts)return S(c.subscriptionFailure,o),void(l.consecutiveFailedSubscribeAttempts=0);l.reSubscribeIntervalId=setInterval(function(){R()},500)}break;case d:q(e.debug("Heartbeat response received")),i.pendingResponse=!1;break;default:if(o.topic){if(q(e.debug("Message received for topic "+o.topic)),w(t.primary)&&w(t.secondary)&&0===u.subscriptionHistory.size&&this===t.primary)return void q(e.warn("Ignoring Message for Topic "+o.topic+", to avoid duplicates"));if(0===c.allMessage.size&&0===c.topic.size)return void q(e.warn("No registered callback listener for Topic",o.topic));S(c.allMessage,o),c.topic.has(o.topic)&&S(c.topic.get(o.topic),o)}else o.message?q(e.warn("WebSocketManager Message Error",o)):q(e.warn("Invalid incoming message",o))}},R=function n(){if(l.consecutiveNoResponseRequest>3)return q(e.warn("Ignoring subscribePendingTopics since we have exhausted max subscription retries with no response")),void S(c.subscriptionFailure,s.getSubscriptionResponse(f,!1,Array.from(u.pending)));O()?(clearInterval(l.responseCheckIntervalId),T().send(P(f,{topics:Array.from(u.pending)})),l.requestCompleted=!1,l.responseCheckIntervalId=setInterval(function(){l.requestCompleted||(++l.consecutiveNoResponseRequest,n())},1e3)):q(e.warn("Ignoring subscribePendingTopics call since Default WebSocket is not open"))},j=function(n,t){h(n,WebSocket.CONNECTING)||h(n,WebSocket.OPEN)?n.close(1e3,t):q(e.warn("Ignoring WebSocket Close request, WebSocket State: "+k(n)))},M=function(e){j(t.primary,"[Primary] WebSocket "+e),j(t.secondary,"[Secondary] WebSocket "+e)},A=function(){r.connectWebSocketRetryCount++;var n=s.addJitter(o.exponentialBackOffTime,.3);Date.now()+n<=a.connConfig.urlConnValidTime?(q(e.debug("Scheduling WebSocket reinitialization, after delay "+n+" ms")),o.exponentialTimeoutHandle=setTimeout(function(){return z()},n),o.exponentialBackOffTime*=2):(q(e.warn("WebSocket URL cannot be used to establish connection")),G())},D=function(n){W(),N(),q(e.error("WebSocket Initialization failed")),o.websocketInitFailed=!0,M("Terminating WebSocket Manager"),clearInterval(y),S(c.initFailure,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,reason:n}),E()},P=function(e,n){return JSON.stringify({topic:e,content:n})},H=function(n){return!!(s.isObject(n)&&s.isObject(n.webSocketTransport)&&s.isNonEmptyString(n.webSocketTransport.url)&&s.validWSUrl(n.webSocketTransport.url)&&1e3*n.webSocketTransport.transportLifeTimeInSeconds>=3e5)||(q(e.error("Invalid WebSocket Connection Configuration",n)),!1)},G=function(){if(s.isNetworkOnline())if(o.websocketInitFailed)q(e.debug("WebSocket Init had failed, ignoring this getWebSocketConnConfig request"));else{if(a.promiseCompleted)return W(),q(e.info("Fetching new WebSocket connection configuration")),r.connectionAttemptStartTime=r.connectionAttemptStartTime||Date.now(),a.promiseCompleted=!1,a.promiseHandle=c.getWebSocketTransport(),a.promiseHandle.then(function(n){return a.promiseCompleted=!0,q(e.debug("Successfully fetched webSocket connection configuration",n)),H(n)?(a.connConfig=n,a.connConfig.urlConnValidTime=Date.now()+85e3,z()):(D("Invalid WebSocket connection configuration: "+n),{webSocketConnectionFailed:!0})},function(n){return a.promiseCompleted=!0,q(e.error("Failed to fetch webSocket connection configuration",n)),{webSocketConnectionFailed:!0}});q(e.debug("There is an ongoing getWebSocketConnConfig request, this request will be ignored"))}else q(e.info("Network offline, ignoring this getWebSocketConnConfig request"))},z=function(){if(o.websocketInitFailed)return q(e.info("web-socket initializing had failed, aborting re-init")),{webSocketConnectionFailed:!0};if(!s.isNetworkOnline())return q(e.warn("System is offline aborting web-socket init")),{webSocketConnectionFailed:!0};q(e.info("Initializing Websocket Manager")),v("initWebSocket");try{if(H(a.connConfig)){var n=null;return w(t.primary)?(q(e.debug("Primary Socket connection is already open")),h(t.secondary,WebSocket.CONNECTING)||(q(e.debug("Establishing a secondary web-socket connection")),t.secondary=U()),n=t.secondary):(h(t.primary,WebSocket.CONNECTING)||(q(e.debug("Establishing a primary web-socket connection")),t.primary=U()),n=t.primary),o.webSocketInitCheckerTimeoutId=setTimeout(function(){w(n)||A()},1e3),{webSocketConnectionFailed:!1}}}catch(n){return q(e.error("Error Initializing web-socket-manager",n)),D("Failed to initialize new WebSocket: "+n.message),{webSocketConnectionFailed:!0}}},U=function(){var n=new WebSocket(a.connConfig.webSocketTransport.url);return n.addEventListener("open",L),n.addEventListener("message",x),n.addEventListener("error",F),n.addEventListener("close",function(i){return function(n,i){q(e.info("Socket connection is closed",n)),v("webSocketOnClose before-cleanup"),S(c.connectionClose,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),C(t.primary)&&(t.primary=null),C(t.secondary)&&(t.secondary=null),o.reconnectWebSocket&&(w(t.primary)||w(t.secondary)?C(t.primary)&&w(t.secondary)&&(q(e.info("[Primary] WebSocket Cleanly Closed")),t.primary=t.secondary,t.secondary=null):(q(e.warn("Neither primary websocket and nor secondary websocket have open connections, attempting to re-establish connection")),o.connState===g?q(e.info("Ignoring connectionLost callback invocation")):(S(c.connectionLost,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),r.noOpenConnectionsTimestamp=Date.now()),o.connState=g,G()),v("webSocketOnClose after-cleanup"))}(i,n)}),n},q=function(e){return e&&"function"==typeof e.sendInternalLogToServer&&e.sendInternalLogToServer(),e};this.init=function(n){if(s.assertTrue(s.isFunction(n),"transportHandle must be a function"),null===c.getWebSocketTransport)return c.getWebSocketTransport=n,G();q(e.warn("Web Socket Manager was already initialized"))},this.onInitFailure=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.initFailure.add(e),o.websocketInitFailed&&e(),function(){return c.initFailure.delete(e)}},this.onConnectionOpen=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionOpen.add(e),function(){return c.connectionOpen.delete(e)}},this.onConnectionClose=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionClose.add(e),function(){return c.connectionClose.delete(e)}},this.onConnectionGain=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionGain.add(e),O()&&e(),function(){return c.connectionGain.delete(e)}},this.onConnectionLost=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.connectionLost.add(e),o.connState===g&&e(),function(){return c.connectionLost.delete(e)}},this.onSubscriptionUpdate=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.subscriptionUpdate.add(e),function(){return c.subscriptionUpdate.delete(e)}},this.onSubscriptionFailure=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.subscriptionFailure.add(e),function(){return c.subscriptionFailure.delete(e)}},this.onMessage=function(e,n){return s.assertNotNull(e,"topicName"),s.assertTrue(s.isFunction(n),"cb must be a function"),c.topic.has(e)?c.topic.get(e).add(n):c.topic.set(e,new Set([n])),function(){return c.topic.get(e).delete(n)}},this.onAllMessage=function(e){return s.assertTrue(s.isFunction(e),"cb must be a function"),c.allMessage.add(e),function(){return c.allMessage.delete(e)}},this.subscribeTopics=function(e){s.assertNotNull(e,"topics"),s.assertIsList(e),e.forEach(function(e){u.subscribed.has(e)||u.pending.add(e)}),l.consecutiveNoResponseRequest=0,R()},this.sendMessage=function(n){if(s.assertIsObject(n,"payload"),void 0===n.topic||m.has(n.topic))q(e.warn("Cannot send message, Invalid topic",n));else{try{n=JSON.stringify(n)}catch(t){return void q(e.warn("Error stringify message",n))}O()?T().send(n):q(e.warn("Cannot send message, web socket connection is not open"))}},this.closeWebSocket=function(){W(),N(),o.reconnectWebSocket=!1,clearInterval(y),M("User request to close WebSocket")},this.terminateWebSocketManager=D},L={create:function(){return new E},setGlobalConfig:function(e){var n=e.loggerConfig;_.updateLoggerConfig(n)},LogLevel:T,Logger:C}},function(e,n,t){var o;!function(){"use strict";var r={not_string:/[^s]/,not_bool:/[^t]/,not_type:/[^T]/,not_primitive:/[^v]/,number:/[diefg]/,numeric_arg:/[bcdiefguxX]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijostTuvxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[+-]/};function i(e){return function(e,n){var t,o,c,s,a,u,l,f,p,d=1,b=e.length,g="";for(o=0;o<b;o++)if("string"==typeof e[o])g+=e[o];else if("object"==typeof e[o]){if((s=e[o]).keys)for(t=n[d],c=0;c<s.keys.length;c++){if(null==t)throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"',s.keys[c],s.keys[c-1]));t=t[s.keys[c]]}else t=s.param_no?n[s.param_no]:n[d++];if(r.not_type.test(s.type)&&r.not_primitive.test(s.type)&&t instanceof Function&&(t=t()),r.numeric_arg.test(s.type)&&"number"!=typeof t&&isNaN(t))throw new TypeError(i("[sprintf] expecting number but found %T",t));switch(r.number.test(s.type)&&(f=t>=0),s.type){case"b":t=parseInt(t,10).toString(2);break;case"c":t=String.fromCharCode(parseInt(t,10));break;case"d":case"i":t=parseInt(t,10);break;case"j":t=JSON.stringify(t,null,s.width?parseInt(s.width):0);break;case"e":t=s.precision?parseFloat(t).toExponential(s.precision):parseFloat(t).toExponential();break;case"f":t=s.precision?parseFloat(t).toFixed(s.precision):parseFloat(t);break;case"g":t=s.precision?String(Number(t.toPrecision(s.precision))):parseFloat(t);break;case"o":t=(parseInt(t,10)>>>0).toString(8);break;case"s":t=String(t),t=s.precision?t.substring(0,s.precision):t;break;case"t":t=String(!!t),t=s.precision?t.substring(0,s.precision):t;break;case"T":t=Object.prototype.toString.call(t).slice(8,-1).toLowerCase(),t=s.precision?t.substring(0,s.precision):t;break;case"u":t=parseInt(t,10)>>>0;break;case"v":t=t.valueOf(),t=s.precision?t.substring(0,s.precision):t;break;case"x":t=(parseInt(t,10)>>>0).toString(16);break;case"X":t=(parseInt(t,10)>>>0).toString(16).toUpperCase()}r.json.test(s.type)?g+=t:(!r.number.test(s.type)||f&&!s.sign?p="":(p=f?"+":"-",t=t.toString().replace(r.sign,"")),u=s.pad_char?"0"===s.pad_char?"0":s.pad_char.charAt(1):" ",l=s.width-(p+t).length,a=s.width&&l>0?u.repeat(l):"",g+=s.align?p+t+a:"0"===u?p+a+t:a+p+t)}return g}(function(e){if(s[e])return s[e];var n,t=e,o=[],i=0;for(;t;){if(null!==(n=r.text.exec(t)))o.push(n[0]);else if(null!==(n=r.modulo.exec(t)))o.push("%");else{if(null===(n=r.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(n[2]){i|=1;var c=[],a=n[2],u=[];if(null===(u=r.key.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(c.push(u[1]);""!==(a=a.substring(u[0].length));)if(null!==(u=r.key_access.exec(a)))c.push(u[1]);else{if(null===(u=r.index_access.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");c.push(u[1])}n[2]=c}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");o.push({placeholder:n[0],param_no:n[1],keys:n[2],sign:n[3],pad_char:n[4],align:n[5],width:n[6],precision:n[7],type:n[8]})}t=t.substring(n[0].length)}return s[e]=o}(e),arguments)}function c(e,n){return i.apply(null,[e].concat(n||[]))}var s=Object.create(null);n.sprintf=i,n.vsprintf=c,"undefined"!=typeof window&&(window.sprintf=i,window.vsprintf=c,void 0===(o=function(){return{sprintf:i,vsprintf:c}}.call(n,t,n,e))||(e.exports=o))}()},function(e,n,t){"use strict";t.r(n),function(e){t.d(n,"WebSocketManager",function(){return r});var o=t(0);e.connect=e.connect||{},connect.WebSocketManager=o.a;var r=o.a}.call(this,t(3))},function(e,n){var t;t=function(){return this}();try{t=t||new Function("return this")()}catch(e){"object"==typeof window&&(t=window)}e.exports=t}]);
+//# sourceMappingURL=amazon-connect-websocket-manager.js.map
+
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -24568,7 +25275,7 @@
  
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.5.2";
+  connect.version = "1.6.0";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -24650,7 +25357,7 @@
   connect.core.checkNotInitialized = function () {
     if (connect.core.initialized) {
       var log = connect.getLog();
-      log.warn("Connect core already initialized, only needs to be initialized once.");
+      log.warn("Connect core already initialized, only needs to be initialized once.").sendInternalLogToServer();
     }
   };
  
@@ -24662,6 +25369,7 @@
     connect.core.eventBus = new connect.EventBus();
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.initClient(params);
+    connect.core.initAgentAppClient(params);
     connect.core.initialized = true;
   };
  
@@ -24681,10 +25389,25 @@
   };
  
   /**-------------------------------------------------------------------------
+   * Initialized AgentApp client
+   * Should be used by Shared Worker to update AgentApp client with new credentials
+   * after refreshed authentication.
+   */
+  connect.core.initAgentAppClient = function (params) {
+    connect.assertNotNull(params, 'params');    
+    var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
+    var authCookieName = connect.assertNotNull(params.authCookieName, 'params.authCookieName');
+    var endpoint = connect.assertNotNull(params.agentAppEndpoint, 'params.agentAppEndpoint');
+    
+    connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
+  };
+ 
+  /**-------------------------------------------------------------------------
    * Uninitialize Connect.
    */
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
+    connect.core.agentAppClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -24729,18 +25452,24 @@
             if (!ringtoneSettings.voice.disabled && !connect.core.ringtoneEngines.voice) {
               connect.core.ringtoneEngines.voice =
                 new connect.VoiceRingtoneEngine(ringtoneSettings.voice);
-              connect.getLog().info("VoiceRingtoneEngine initialized.");
+              connect.getLog().info("VoiceRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
               connect.core.ringtoneEngines.chat =
                 new connect.ChatRingtoneEngine(ringtoneSettings.chat);
-              connect.getLog().info("ChatRingtoneEngine initialized.");
+              connect.getLog().info("ChatRingtoneEngine initialized.").sendInternalLogToServer();
+            }
+
+            if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
+              connect.core.ringtoneEngines.task =
+                new connect.TaskRingtoneEngine(ringtoneSettings.task);
+                connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
-              connect.getLog().info("QueueCallbackRingtoneEngine initialized.");
+              connect.getLog().info("QueueCallbackRingtoneEngine initialized.").sendInternalLogToServer();
             }
           });
         });
@@ -24754,6 +25483,8 @@
       params.ringtone.voice = params.ringtone.voice || {};
       params.ringtone.queue_callback = params.ringtone.queue_callback || {};
       params.ringtone.chat = params.ringtone.chat || { disabled: true };
+      params.ringtone.task = params.ringtone.task || { disabled: true };
+
       if (otherParams.softphone) {
         if (otherParams.softphone.disableRingtone) {
           params.ringtone.voice.disabled = true;
@@ -24936,6 +25667,8 @@
         ? LEGACY_AUTHORIZE_ENDPOINT
         : AUTHORIZE_ENDPOINT;
     }
+    var agentAppEndpoint = params.agentAppEndpoint || null;
+    var authCookieName = params.authCookieName || null;
  
     try {
       // Initialize the event bus and agent data providers.
@@ -24960,6 +25693,7 @@
       };
  
       connect.getLog().scheduleUpstreamLogPush(conduit);
+      connect.getLog().scheduleDownstreamClientSideLogsPush();
       // Bridge all upstream messages into the event bus.
       conduit.onAllUpstream(connect.core.getEventBus().bridge());
       // Bridge all downstream messages into the event bus.
@@ -24976,11 +25710,13 @@
         endpoint: endpoint,
         refreshToken: refreshToken,
         region: region,
-        authorizeEndpoint: authorizeEndpoint
+        authorizeEndpoint: authorizeEndpoint,
+        agentAppEndpoint: agentAppEndpoint,
+        authCookieName: authCookieName
       });
  
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-        connect.getLog().info("Acknowledged by the ConnectSharedWorker!");
+        connect.getLog().info("Acknowledged by the ConnectSharedWorker!").sendInternalLogToServer();
         connect.core.initialized = true;
         this.unsubscribe();
       });
@@ -24988,6 +25724,11 @@
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
         if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        }
+      });
+      conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
+        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+          connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
         }
       });
       // Reload the page if the shared worker detects an API auth failure.
@@ -25016,7 +25757,7 @@
  
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
-        .withException(e);
+        .withException(e).sendInternalLogToServer();
     }
   };
  
@@ -25093,7 +25834,7 @@
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.
     conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-      connect.getLog().info("Acknowledged by the CCP!");
+      connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
@@ -25121,6 +25862,11 @@
         connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
       }
     });
+    conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
+      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+        connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
+      }
+    });
  
     // Pop a login page when we encounter an ACK timeout.
     connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
@@ -25128,14 +25874,14 @@
       if (params.loginPopup !== false) {
         try {
           var loginUrl = getLoginUrl(params);
-          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
+          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogEntryToServer();
           // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
           if (params.loginUrl) {
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
           }
           connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
         } catch (e) {
-          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
+          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
         }
       }
  
@@ -25395,6 +26141,14 @@
  
     return connectionData;
   };
+
+  AgentDataProvider.prototype.getInstanceId = function(){
+    return this.getAgentData().configuration.routingProfile.routingProfileId.match(/instance\/([0-9a-fA-F|-]+)\//)[1];
+  }
+
+  AgentDataProvider.prototype.getAWSAccountId = function(){
+    return this.getAgentData().configuration.routingProfile.routingProfileId.match(/:([0-9]+):instance/)[1];
+  }
  
   AgentDataProvider.prototype._diffContacts = function (oldAgentData) {
     var diff = {
@@ -25642,7 +26396,10 @@
       connect.ContactEvents.ENDED)
     .assoc(connect.EventGraph.ANY,
       connect.values(connect.AgentErrorStates),
-      connect.ContactEvents.ERROR);
+      connect.ContactEvents.ERROR)
+    .assoc(connect.ContactStateType.CONNECTING,
+      connect.ContactStateType.MISSED,
+      connect.ContactEvents.MISSED);
 
   /**-----------------------------------------------------------------------*/
   connect.core.getClient = function () {
@@ -25652,6 +26409,15 @@
     return connect.core.client;
   };
   connect.core.client = null;
+ 
+  /**-----------------------------------------------------------------------*/
+  connect.core.getAgentAppClient = function () {
+    if (!connect.core.agentAppClient) {
+      throw new connect.StateError('The connect AgentApp Client has not been initialized!');
+    }
+    return connect.core.agentAppClient;
+  };
+  connect.core.agentAppClient = null;
  
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {
@@ -25696,6 +26462,7 @@
   connect.core.AgentDataProvider = AgentDataProvider;
  
 })();
+
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -25728,7 +26495,7 @@
 
     } else {
       this._audio = null;
-      connect.getLog().error("Unable to provide a ringtone.");
+      connect.getLog().error("Unable to provide a ringtone.").sendInternalLogToServer();
     }
 
     self._driveRingtone();
@@ -25869,6 +26636,28 @@
     });
   };
 
+  var TaskRingtoneEngine = function (ringtoneConfig) {
+    RingtoneEngineBase.call(this, ringtoneConfig);
+  };
+  TaskRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
+  TaskRingtoneEngine.prototype.constructor = TaskRingtoneEngine;
+
+  TaskRingtoneEngine.prototype._driveRingtone = function () {
+    var self = this;
+
+    var onContactConnect = function (contact) {
+      if (contact.getType() === lily.ContactType.TASK && contact.isInbound()) {
+        self._ringtoneSetup(contact);
+        self._publishTelemetryEvent("Task Ringtone Connecting", contact);
+      }
+    };
+
+    connect.contact(function (contact) {
+      contact.onConnecting(onContactConnect);
+    });
+  };
+
+
   var QueueCallbackRingtoneEngine = function (ringtoneConfig) {
     RingtoneEngineBase.call(this, ringtoneConfig);
   };
@@ -25891,6 +26680,7 @@
   /* export connect.RingtoneEngine */
   connect.VoiceRingtoneEngine = VoiceRingtoneEngine;
   connect.ChatRingtoneEngine = ChatRingtoneEngine;
+  connect.TaskRingtoneEngine = TaskRingtoneEngine;
   connect.QueueCallbackRingtoneEngine = QueueCallbackRingtoneEngine;
 })();
 
@@ -26016,7 +26806,7 @@
           delete callsDetected[agentConnectionId];
           session.hangup();
         }).catch(function (err) {
-          lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message);
+          lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message).sendInternalLogToServer();
         });
       }
     };
@@ -26056,7 +26846,7 @@
 
         // Set to true, this will block subsequent invokes from entering.
         callsDetected[agentConnectionId] = true;
-        logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId);
+        logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
         // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
         sanityCheckActiveSessions(rtcSessions);
@@ -26148,7 +26938,7 @@
 
     var onInitContact = function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
-      logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId);
+      logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
       if (!callsDetected[agentConnectionId]) {
         contact.onRefresh(function () {
@@ -26162,7 +26952,8 @@
     // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed. 
     new connect.Agent().getContacts().forEach(function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
-      logger.info("Contact exist in the snapshot. Reinitiate the Contact and RTC session creation for contactId" + contact.getContactId(), "agent connectionId " + agentConnectionId);
+      logger.info("Contact exist in the snapshot. Reinitiate the Contact and RTC session creation for contactId" + contact.getContactId(), "agent connectionId " + agentConnectionId)
+        .sendInternalLogToServer();
       onInitContact(contact);
       onRefreshContact(contact, agentConnectionId);
     });
@@ -26172,24 +26963,26 @@
     var conduit = connect.core.getUpstream();
     var agentConnection = contact.getAgentConnection();
     if (!agentConnection) {
-      logger.info("Not able to retrieve the auto-accept setting from null AgentConnection, ignoring event publish..");
+      logger.info("Not able to retrieve the auto-accept setting from null AgentConnection, ignoring event publish..").sendInternalLogToServer();
       return;
     }
     var softphoneMediaInfo = agentConnection.getSoftphoneMediaInfo();
     if (!softphoneMediaInfo) {
-      logger.info("Not able to retrieve the auto-accept setting from null SoftphoneMediaInfo, ignoring event publish..");
+      logger.info("Not able to retrieve the auto-accept setting from null SoftphoneMediaInfo, ignoring event publish..").sendInternalLogToServer();
       return;
     }
     if (softphoneMediaInfo.autoAccept === true) {
-      logger.info("Auto-accept is enabled, sending out Accepted event to stop ringtone..");
+      logger.info("Auto-accept is enabled, sending out Accepted event to stop ringtone..").sendInternalLogToServer();
       conduit.sendUpstream(connect.EventType.BROADCAST, {
-        event: connect.ContactEvents.ACCEPTED
+        event: connect.ContactEvents.ACCEPTED,
+        data: new connect.Contact(contact.contactId)
       });
       conduit.sendUpstream(connect.EventType.BROADCAST, {
-        event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contact.contactId)
+        event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contact.contactId),
+        data: new connect.Contact(contact.contactId)
       });
     } else {
-      logger.info("Auto-accept is disabled, ringtone will be stopped by user action.");
+      logger.info("Auto-accept is disabled, ringtone will be stopped by user action.").sendInternalLogToServer();
     }
   };
 
@@ -26230,9 +27023,9 @@
             localMediaStream[connectionId].muted = status;
 
             if (status) {
-              logger.info("Agent has muted the contact, connectionId -  " + connectionId);
+              logger.info("Agent has muted the contact, connectionId -  " + connectionId).sendInternalLogToServer();
             } else {
-              logger.info("Agent has unmuted the contact, connectionId - " + connectionId);
+              logger.info("Agent has unmuted the contact, connectionId - " + connectionId).sendInternalLogToServer();
             }
 
           } else {
@@ -26275,7 +27068,7 @@
         rtcSession._signalingUri);
     } else if (reason === connect.RTCErrors.CALL_NOT_FOUND) {
       // No need to publish any softphone error for this case. CCP UX will handle this case.
-      logger.error("Softphone call failed due to CallNotFoundException.");
+      logger.error("Softphone call failed due to CallNotFoundException.").sendInternalLogToServer();
     } else {
       publishError(SoftphoneErrorTypes.WEBRTC_ERROR,
         "webrtc system error. ",
@@ -26335,7 +27128,7 @@
 
   var publishError = function (errorType, message, endPointUrl) {
     logger.error("Softphone error occurred : ", errorType,
-      message || "");
+      message || "").sendInternalLogToServer();
 
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.AgentEvents.SOFTPHONE_ERROR,
@@ -26365,7 +27158,8 @@
       name: "AgentConnectionId",
       value: agentConnectionId
     }]);
-    logger.info("Publish multiple session error metrics", eventName, "contactId " + contactId, "agent connectionId " + agentConnectionId);
+    logger.info("Publish multiple session error metrics", eventName, "contactId " + contactId, "agent connectionId " + agentConnectionId)
+      .sendInternalLogToServer();
   };
 
   var isBrowserSoftPhoneSupported = function () {
@@ -26391,11 +27185,13 @@
     if (streamStats.length > 0) {
       contact.sendSoftphoneMetrics(streamStats, {
         success: function () {
-          logger.info("sendSoftphoneMetrics success" + JSON.stringify(streamStats));
+          logger.info("sendSoftphoneMetrics success" + JSON.stringify(streamStats))
+            .sendInternalLogToServer();
         },
         failure: function (data) {
           logger.error("sendSoftphoneMetrics failed.")
-            .withObject(data);
+            .withObject(data)
+            .sendInternalLogToServer();
         }
       });
     }
@@ -26430,11 +27226,13 @@
     };
     contact.sendSoftphoneReport(callReport, {
       success: function () {
-        logger.info("sendSoftphoneReport success" + JSON.stringify(callReport));
+        logger.info("sendSoftphoneReport success" + JSON.stringify(callReport))
+          .sendInternalLogToServer();
       },
       failure: function (data) {
         logger.error("sendSoftphoneReport failed.")
-          .withObject(data);
+          .withObject(data)
+          .sendInternalLogToServer();
       }
     });
   };
@@ -26446,14 +27244,14 @@
         aggregatedUserAudioStats = stats;
         timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT));
       }, function (error) {
-        logger.debug("Failed to get user audio stats.", error);
+        logger.debug("Failed to get user audio stats.", error).sendInternalLogToServer();
       });
       rtcSession.getRemoteAudioStats().then(function (stats) {
         var previousRemoteStats = aggregatedRemoteAudioStats;
         aggregatedRemoteAudioStats = stats;
         timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT));
       }, function (error) {
-        logger.debug("Failed to get remote audio stats.", error);
+        logger.debug("Failed to get remote audio stats.", error).sendInternalLogToServer();
       });
     }, 1000);
   };
@@ -26538,25 +27336,25 @@
         args.forEach(function () {
           format = format + " %s";
         });
-        method.apply(self._originalLogger, [connect.LogComponent.SOFTPHONE, format].concat(args));
+        return method.apply(self._originalLogger, [connect.LogComponent.SOFTPHONE, format].concat(args));
       };
     };
   };
 
   SoftphoneLogger.prototype.debug = function () {
-    this._tee(1, this._originalLogger.debug)(arguments);
+    return this._tee(1, this._originalLogger.debug)(arguments);
   };
   SoftphoneLogger.prototype.info = function () {
-    this._tee(2, this._originalLogger.info)(arguments);
+    return this._tee(2, this._originalLogger.info)(arguments);
   };
   SoftphoneLogger.prototype.log = function () {
-    this._tee(3, this._originalLogger.log)(arguments);
+    return this._tee(3, this._originalLogger.log)(arguments);
   };
   SoftphoneLogger.prototype.warn = function () {
-    this._tee(4, this._originalLogger.warn)(arguments);
+    return this._tee(4, this._originalLogger.warn)(arguments);
   };
   SoftphoneLogger.prototype.error = function () {
-    this._tee(5, this._originalLogger.error)(arguments);
+    return this._tee(5, this._originalLogger.error)(arguments);
   };
 
   connect.SoftphoneManager = SoftphoneManager;
@@ -26626,23 +27424,37 @@
   WorkerClient.prototype._callImpl = function (method, params, callbacks) {
     var self = this;
     var request_start = new Date().getTime();
-    connect.core.getClient()._callImpl(method, params, {
-      success: function (data) {
-        self._recordAPILatency(method, request_start);
-        callbacks.success(data);
-      },
-      failure: function (error, data) {
-        self._recordAPILatency(method, request_start, error);
-        callbacks.failure(error, data);
-      },
-      authFailure: function () {
-        self._recordAPILatency(method, request_start);
-        callbacks.authFailure();
-      },
-      accessDenied: function () {
-        callbacks.accessDenied && callbacks.accessDenied();
-      }
-    });
+    if(connect.containsValue(connect.AgentAppClientMethods, method)) {
+      connect.core.getAgentAppClient()._callImpl(method, params, {
+        success: function (data) {
+          self._recordAPILatency(method, request_start);
+          callbacks.success(data);
+        },
+        failure: function (error, data) {
+          self._recordAPILatency(method, request_start, error);
+          callbacks.failure(error, data);
+        }
+      })
+    } else {
+      connect.core.getClient()._callImpl(method, params, {
+        success: function (data) {
+          self._recordAPILatency(method, request_start);
+          callbacks.success(data);
+        },
+        failure: function (error, data) {
+          self._recordAPILatency(method, request_start, error);
+          callbacks.failure(error, data);
+        },
+        authFailure: function () {
+          self._recordAPILatency(method, request_start);
+          callbacks.authFailure();
+        },
+        accessDenied: function () {
+          callbacks.accessDenied && callbacks.accessDenied();
+        }
+      });
+    }
+    
   };
 
   WorkerClient.prototype._recordAPILatency = function (method, request_start, err) {
@@ -26705,7 +27517,8 @@
         // init only once.
         if (!webSocketManager) {
 
-          connect.getLog().info("Creating a new Websocket connection for CCP");
+          connect.getLog().info("Creating a new Websocket connection for CCP")
+            .sendInternalLogToServer();
 
           connect.WebSocketManager.setGlobalConfig({
             loggerConfig: { logger: connect.getLog() }
@@ -26758,13 +27571,16 @@
           webSocketManager.init(connect.hitch(self, self.getWebSocketUrl)).then(function(response) {
             if (response && !response.webSocketConnectionFailed) {
               // Start polling for agent data.
-              connect.getLog().info("Kicking off agent polling");
+              connect.getLog().info("Kicking off agent polling")
+                .sendInternalLogToServer();
               self.pollForAgent();
 
-              connect.getLog().info("Kicking off config polling");
+              connect.getLog().info("Kicking off config polling")
+                .sendInternalLogToServer();
               self.pollForAgentConfiguration({ repeatForever: true });
 
-              connect.getLog().info("Kicking off auth token polling");
+              connect.getLog().info("Kicking off auth token polling")
+                .sendInternalLogToServer();
               global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
             } else {
               if (!connect.webSocketInitFailed) {
@@ -26774,7 +27590,8 @@
             }
           });
         } else {
-          connect.getLog().info("Not Creating a Websocket instance, since there's already one exist");
+          connect.getLog().info("Not Initializing a new WebsocketManager instance, since one already exists")
+            .sendInternalLogToServer();
         }
       }
     });
@@ -26839,10 +27656,15 @@
             self.agent.snapshot.localTimestamp = connect.now();
             self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
             self.nextToken = data.nextToken;
-            connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.").withObject(data);
+            connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.")
+              .withObject(data)
+              .sendInternalLogToServer();
             self.updateAgent();
           } catch (e) {
-            connect.getLog().error("Long poll failed to update agent.").withObject(data).withException(e);
+            connect.getLog().error("Long poll failed to update agent.")
+              .withObject(data)
+              .withException(e)
+              .sendInternalLogToServer();
           } finally {
             global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
           }
@@ -26850,6 +27672,7 @@
         failure: function (err, data) {
           try {
             connect.getLog().error("Failed to get agent data.")
+              .sendInternalLogToServer()
               .withObject({
                 err: err,
                 data: data
@@ -26888,6 +27711,7 @@
       failure: function (err, data) {
         try {
           connect.getLog().error("Failed to fetch agent configuration data.")
+            .sendInternalLogToServer()
             .withObject({
               err: err,
               data: data
@@ -26931,6 +27755,7 @@
         },
         failure: function (err, data) {
           connect.getLog().error("Failed to fetch agent states list.")
+            .sendInternalLogToServer()
             .withObject({
               err: err,
               data: data
@@ -26966,6 +27791,7 @@
         },
         failure: function (err, data) {
           connect.getLog().error("Failed to fetch agent permissions list.")
+            .sendInternalLogToServer()
             .withObject({
               err: err,
               data: data
@@ -27000,6 +27826,7 @@
         },
         failure: function (err, data) {
           connect.getLog().error("Failed to fetch dialable country codes list.")
+            .sendInternalLogToServer()
             .withObject({
               err: err,
               data: data
@@ -27035,6 +27862,7 @@
         },
         failure: function (err, data) {
           connect.getLog().error("Failed to fetch routing profile queues list.")
+            .sendInternalLogToServer()
             .withObject({
               err: err,
               data: data
@@ -27057,7 +27885,9 @@
         var response = connect.EventFactory.createResponse(connect.EventType.API_RESPONSE, request, data, JSON.stringify(err));
         portConduit.sendDownstream(response.event, response);
         connect.getLog().error("'%s' API request failed", request.method)
-          .withObject({ request: self.filterAuthToken(request), response: response }).withException(err);
+          .withObject({ request: self.filterAuthToken(request), response: response })
+          .withException(err)
+          .sendInternalLogToServer();
       },
       authFailure: connect.hitch(self, self.handleAuthFail)
     });
@@ -27113,19 +27943,23 @@
       this.updateAgent();
 
     } else {
-      connect.getLog().trace("Waiting to update agent configuration until all config data has been fetched.");
+      connect.getLog().trace("Waiting to update agent configuration until all config data has been fetched.")
+        .sendInternalLogToServer();
     }
   };
 
   ClientEngine.prototype.updateAgent = function () {
     if (!this.agent) {
-      connect.getLog().trace("Waiting to update agent until the agent has been fully constructed.");
+      connect.getLog().trace("Waiting to update agent until the agent has been fully constructed.")
+        .sendInternalLogToServer();
 
     } else if (!this.agent.snapshot) {
-      connect.getLog().trace("Waiting to update agent until the agent snapshot is available.");
+      connect.getLog().trace("Waiting to update agent until the agent snapshot is available.")
+        .sendInternalLogToServer();
 
     } else if (!this.agent.configuration) {
-      connect.getLog().trace("Waiting to update agent until the agent configuration is available.");
+      connect.getLog().trace("Waiting to update agent until the agent configuration is available.")
+        .sendInternalLogToServer();
 
     } else {
       // Alias some of the properties for backwards compatibility.
@@ -27176,11 +28010,12 @@
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, { transportType: connect.TRANSPORT_TYPES.WEB_SOCKET }, {
         success: function (data) {
-          connect.getLog().info("getWebSocketUrl succeeded");
+          connect.getLog().info("getWebSocketUrl succeeded").sendInternalLogToServer();
           resolve(data);
         },
         failure: function (err, data) {
           connect.getLog().error("getWebSocketUrl failed")
+            .sendInternalLogToServer()
             .withObject({
               err: err,
               data: data
@@ -27188,12 +28023,12 @@
           reject(Error("getWebSocketUrl failed"));
         },
         authFailure: function () {
-          connect.getLog().error("getWebSocketUrl Auth Failure");
+          connect.getLog().error("getWebSocketUrl Auth Failure").sendInternalLogToServer();
           reject(Error("Authentication failed while getting getWebSocketUrl"));
           onAuthFail();
         },
         accessDenied: function () {
-          connect.getLog().error("getWebSocketUrl Access Denied Failure");
+          connect.getLog().error("getWebSocketUrl Access Denied Failure").sendInternalLogToServer();
           reject(Error("Access Denied Failure while getting getWebSocketUrl"));
           onAccessDenied();
         }
@@ -27220,10 +28055,12 @@
     });
     this.client.call(connect.ClientMethods.SEND_CLIENT_LOGS, { logEvents: logEvents }, {
       success: function (data) {
-        connect.getLog().info("SendLogs request succeeded.");
+        connect.getLog().info("SendLogs request succeeded.").sendInternalLogToServer();
       },
       failure: function (err, data) {
-        connect.getLog().error("SendLogs request failed.").withObject(data).withException(err);
+        connect.getLog().error("SendLogs request failed.")
+          .withObject(data).withException(err)
+          .sendInternalLogToServer();
       },
       authFailure: connect.hitch(self, self.handleAuthFail)
     });
@@ -27247,7 +28084,8 @@
 
     // refresh token 30 minutes before expiration
     if (expirationDate.getTime() < (currentTimeStamp + thirtyMins)) {
-      connect.getLog().info("Auth token expires at " + expirationDate + " Start refreshing token with retry.");
+      connect.getLog().info("Auth token expires at " + expirationDate + " Start refreshing token with retry.")
+        .sendInternalLogToServer();
       connect.backoff(connect.hitch(self, self.authorize), REFRESH_AUTH_TOKEN_INTERVAL_MS, REFRESH_AUTH_TOKEN_MAX_TRY);
     }
   };
@@ -27257,13 +28095,16 @@
     var self = this;
     connect.core.authorize(this.initData.authorizeEndpoint).then(function (response) {
       var expiration = new Date(response.expiration);
-      connect.getLog().info("Authorization succeeded and the token expires at %s", expiration);
+      connect.getLog().info("Authorization succeeded and the token expires at %s", expiration)
+        .sendInternalLogToServer();
       self.initData.authToken = response.accessToken;
       self.initData.authTokenExpiration = expiration;
       connect.core.initClient(self.initData);
+      connect.core.initAgentAppClient(self.initData);
       callbacks.success();
     }).catch(function (response) {
-      connect.getLog().error("Authorization failed with code %s", response.status);
+      connect.getLog().error("Authorization failed with code %s", response.status)
+        .sendInternalLogToServer();
       if (response.status === 401) {
         self.handleAuthFail();
       } else {
@@ -27329,7 +28170,8 @@
 
     var createMediaInstance = function () {
       publishTelemetryEvent("Chat media controller init", mediaInfo.contactId);
-      logger.info(logComponent, "Chat media controller init").withObject(mediaInfo);
+      logger.info(logComponent, "Chat media controller init")
+        .withObject(mediaInfo).sendInternalLogToServer();
 
       connect.ChatSession.setGlobalConfig({
         loggerConfig: {
@@ -27349,12 +28191,14 @@
       return controller
         .connect()
         .then(function (data) {
-          logger.info(logComponent, "Chat Session Successfully established for contactId %s", mediaInfo.contactId);
+          logger.info(logComponent, "Chat Session Successfully established for contactId %s", mediaInfo.contactId)
+            .sendInternalLogToServer();
           publishTelemetryEvent("Chat Session Successfully established", mediaInfo.contactId);
           return controller;
         })
         .catch(function (error) {
-          logger.error(logComponent, "Chat Session establishement failed for contact %s", mediaInfo.contactId).withException(error);
+          logger.error(logComponent, "Chat Session establishement failed for contact %s", mediaInfo.contactId)
+            .withException(error).sendInternalLogToServer();
           publishTelemetryEvent("Chat Session establishement failed", mediaInfo.contactId, error);
           throw error;
         });
@@ -27370,12 +28214,14 @@
 
     var trackChatConnectionStatus = function (controller) {
       controller.onConnectionBroken(function (data) {
-        logger.error(logComponent, "Chat Session connection broken").withException(data);
+        logger.error(logComponent, "Chat Session connection broken")
+          .withException(data).sendInternalLogToServer();
         publishTelemetryEvent("Chat Session connection broken", data);
       });
 
       controller.onConnectionEstablished(function (data) {
-        logger.info(logComponent, "Chat Session connection established").withObject(data);
+        logger.info(logComponent, "Chat Session connection established")
+          .withObject(data).sendInternalLogToServer();
         publishTelemetryEvent("Chat Session connection established", data);
       });
     }
@@ -27411,11 +28257,12 @@
   connect.MediaFactory = function (params) {
     /** controller holder */
     var mediaControllers = {};
+    var toBeDestroyed = new Set();
 
     var logger = connect.getLog();
     var logComponent = connect.LogComponent.CHAT;
 
-    var metadata = params || {};
+    var metadata = connect.merge({}, params) || {};
     metadata.region =  metadata.region || "us-west-2"; // Default it to us-west-2
 
     var getMediaController = function (connectionObj) {
@@ -27423,19 +28270,24 @@
       var mediaInfo = connectionObj.getMediaInfo();
       /** if we do not have the media info then just reject the request */
       if (!mediaInfo) {
-        logger.error(logComponent, "Media info does not exists for a media type %s").withObject(connectionObj);
+        logger.error(logComponent, "Media info does not exists for a media type %s")
+          .withObject(connectionObj).sendInternalLogToServer();
         return Promise.reject("Media info does not exists for this connection");
       }
 
       if (!mediaControllers[connectionId]) {
-        logger.info(logComponent, "media controller of type %s init", connectionObj.getMediaType()).withObject(connectionObj);
+        logger.info(logComponent, "media controller of type %s init", connectionObj.getMediaType())
+          .withObject(connectionObj).sendInternalLogToServer();
         switch (connectionObj.getMediaType()) {
           case connect.MediaType.CHAT:
             return mediaControllers[connectionId] = new connect.ChatMediaController(connectionObj.getMediaInfo(), metadata).get();
           case connect.MediaType.SOFTPHONE:
             return mediaControllers[connectionId] = new connect.SoftphoneMediaController(connectionObj.getMediaInfo()).get();
+          case connect.MediaType.TASK:
+            return mediaControllers[connectionId] = new connect.TaskMediaController(connectionObj.getMediaInfo()).get();
           default:
-            logger.error(logComponent, "Unrecognized media type %s ", connectionObj.getMediaType());
+            logger.error(logComponent, "Unrecognized media type %s ", connectionObj.getMediaType())
+              .sendInternalLogToServer();
             return Promise.reject();
         }
       } else {
@@ -27458,9 +28310,23 @@
     };
 
     var destroy = function (connectionId) {
-      if (mediaControllers[connectionId]) {
-        logger.info(logComponent, "Destroying mediaController for %s", connectionId);
-        delete mediaControllers[connectionId];
+      if (mediaControllers[connectionId] && !toBeDestroyed.has(connectionId)) {
+        logger.info(
+          logComponent,
+          "Destroying mediaController for %s",
+          connectionId
+        );
+        toBeDestroyed.add(connectionId);
+        mediaControllers[connectionId]
+          .then(function() {
+            if (typeof controller.cleanUp === "function") controller.cleanUp();
+            delete mediaControllers[connectionId];
+            toBeDestroyed.delete(connectionId);
+          })
+          .catch(function() {
+            delete mediaControllers[connectionId];
+            toBeDestroyed.delete(connectionId);
+          });
       }
     };
 
@@ -27499,4 +28365,269 @@
       }
     }
   }
+})();
+
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Amazon Software License (the "License"). You may not use
+ * this file except in compliance with the License. A copy of the License is
+ * located at
+ *
+ *    http://aws.amazon.com/asl/
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express
+ * or implied. See the License for the specific language governing permissions
+ * and limitations under the License.
+ */
+
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+
+  connect.TaskMediaController = function (mediaInfo) {
+    var logger = connect.getLog();
+    var logComponent = connect.LogComponent.TASK;
+
+    var createMediaInstance = function () {
+      publishTelemetryEvent("Task media controller init", mediaInfo.contactId);
+      logger
+        .info(logComponent, "Task media controller init")
+        .withObject(mediaInfo);
+
+      var controller = connect.TaskSession.create({
+        contactId: mediaInfo.contactId,
+        initialContactId: mediaInfo.initialContactId,
+        websocketManager: connect.core.getWebSocketManager(),
+      });
+
+      trackTaskConnectionStatus(controller);
+
+      return controller
+        .connect()
+        .then(function () {
+          logger.info(
+            logComponent,
+            "Task Session Successfully established for contactId %s",
+            mediaInfo.contactId
+          );
+          publishTelemetryEvent(
+            "Task Session Successfully established",
+            mediaInfo.contactId
+          );
+          return controller;
+        })
+        .catch(function (error) {
+          logger
+            .error(
+              logComponent,
+              "Task Session establishement failed for contact %s",
+              mediaInfo.contactId
+            )
+            .withException(error);
+          publishTelemetryEvent(
+            "Chat Session establishement failed",
+            mediaInfo.contactId,
+            error
+          );
+          throw error;
+        });
+    };
+
+    var publishTelemetryEvent = function (eventName, data) {
+      connect.publishMetric({
+        name: eventName,
+        contactId: mediaInfo.contactId,
+        data: data || mediaInfo,
+      });
+    };
+
+    var trackTaskConnectionStatus = function (controller) {
+      controller.onConnectionBroken(function (data) {
+        logger
+          .error(logComponent, "Task Session connection broken")
+          .withException(data);
+        publishTelemetryEvent("Task Session connection broken", data);
+      });
+
+      controller.onConnectionEstablished(function (data) {
+        logger
+          .info(logComponent, "Task Session connection established")
+          .withObject(data);
+        publishTelemetryEvent("Task Session connection established", data);
+      });
+    };
+
+    return {
+      get: function () {
+        return createMediaInstance();
+      },
+    };
+  };
+})();
+
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+  global.lily = connect;
+
+  connect.agentApp = {};
+
+  var IFRAME_REFRESH_INTERVAL = 5000;
+  var APP = {
+    CCP: 'ccp',
+  };
+
+  connect.agentApp.initCCP = connect.core.initCCP;
+  connect.agentApp.isInitialized = function (instanceAlias) {};
+
+  connect.agentApp.initAppCommunication = function (iframeId, endpoint) {
+    var iframe = document.getElementById(iframeId);
+    var iframeConduit = new connect.IFrameConduit(endpoint, window, iframe);
+    var BROADCAST_TYPE = [connect.AgentEvents.UPDATE, connect.ContactEvents.VIEW, connect.EventType.ACKNOWLEDGE, connect.EventType.TERMINATED];
+    iframe.addEventListener('load', function (e) {
+      BROADCAST_TYPE.forEach(function (type) {
+        connect.core.getUpstream().onUpstream(type, function (data) {
+          iframeConduit.sendUpstream(type, data);
+        });
+      });
+    });
+
+    var iframeRefreshInterval = window.setInterval(function () {
+      iframe.src += '';
+    }, IFRAME_REFRESH_INTERVAL);
+
+    connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+      global.clearInterval(iframeRefreshInterval);
+    });
+  };
+
+  var getConnectUrl = function (ccpUrl) {
+    var pos = ccpUrl.indexOf('ccp-v2');
+    return ccpUrl.slice(0, pos - 1);
+  };
+
+  var signOutThroughCCP = function (ccpUrl) {
+    var logoutUrl = getConnectUrl(ccpUrl) + '/logout';
+    return connect.fetch(logoutUrl, {
+      credentials: 'include',
+    }).then(function () {
+      var eventBus = connect.core.getEventBus();
+      eventBus.trigger(connect.EventType.TERMINATE);
+      return true;
+    }).catch(function (e) {
+      connect
+        .getLog()
+        .error('An error occured on logout.' + e)
+        .withException(e);
+      window.location.href = logoutUrl;
+      return false;
+    });
+  };
+
+  var signInThroughinitCCP = function (ccpUrl, container, config) {
+    var defaultParams = {
+      ccpUrl: ccpUrl,
+      ccpLoadTimeout: 10000,
+      loginPopup: true,
+      loginUrl: getConnectUrl(ccpUrl) + '/login',
+      softphone: {
+        allowFramedSoftphone: true,
+        disableRingtone: false,
+      }
+    };
+    var ccpParams = connect.merge(defaultParams, config.ccpParams);
+    connect.core.initCCP(container, ccpParams);
+  };
+
+  connect.agentApp.initApp = function (name, containerId, appUrl, config) {
+    config = config ? config : {};
+    var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
+    var registerConfig = { endpoint: endpoint, style: config.style };
+    connect.agentApp.AppRegistry.register(name, registerConfig, document.getElementById(containerId));
+    connect.agentApp.AppRegistry.start(name, function (moduleData) {
+      var endpoint = moduleData.endpoint;
+      var containerDOM = moduleData.containerDOM;
+      return {
+        init: function () {
+          if (name === APP.CCP) return signInThroughinitCCP(endpoint, containerDOM, config);
+          return connect.agentApp.initAppCommunication(name, endpoint);
+        },
+        destroy: function () {
+          if (name === APP.CCP) return signOutThroughCCP(endpoint);
+          return null;
+        }
+      };
+    });
+  };
+
+  connect.agentApp.stopApp = function (name) {
+    return connect.agentApp.AppRegistry.stop(name);
+  };
+})();
+
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+
+  var APP = {
+    CCP: 'ccp',
+  };
+
+  function AppRegistry() {
+    var moduleData = {};
+    var makeAppIframe = function (appName, endpoint, style) {
+      var iframe = document.createElement('iframe');
+      iframe.src = endpoint;
+      iframe.style = style || 'width: 100%; height:100%;';
+      iframe.id = appName;
+      iframe['aria-label'] = appName;
+      return iframe;
+    };
+
+    return {
+      register: function (appName, config, containerDOM) {
+        moduleData[appName] = {
+          containerDOM: containerDOM,
+          endpoint: config.endpoint,
+          style: config.style,
+          instance: undefined,
+        };
+      },
+      start: function (appName, creator) {
+        if (!moduleData[appName]) return;
+        var containerDOM = moduleData[appName].containerDOM;
+        var endpoint = moduleData[appName].endpoint;
+        var style = moduleData[appName].style;
+        if (appName !== APP.CCP) {
+          var app = makeAppIframe(appName, endpoint, style);
+          containerDOM.appendChild(app);
+        }
+
+        moduleData[appName].instance = creator(moduleData[appName]);
+        return moduleData[appName].instance.init();
+      },
+      stop: function (appName) {
+        if (!moduleData[appName]) return;
+
+        var data = moduleData[appName];
+        var app = data.containerDOM.querySelector('iframe');
+        data.containerDOM.removeChild(app);
+
+        var result;
+        if (data.instance) {
+          result = data.instance.destroy();
+          delete data.instance;
+        }
+
+        return result;
+      }
+    };
+  }
+
+  global.connect.agentApp.AppRegistry = AppRegistry();
 })();

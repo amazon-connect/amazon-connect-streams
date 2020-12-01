@@ -23,7 +23,9 @@ var source = [ "src/aws-client.js",
     "src/softphone.js",
     "src/worker.js",
     "src/mediaControllers/*",
-   
+    "src/agent-app/agent-app.js",
+    "src/agent-app/app-registry.js"
+
 ];
 
 gulp.task('pre-test', function () {

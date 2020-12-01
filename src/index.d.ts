@@ -127,6 +127,58 @@ declare namespace connect {
 
   const core: Core;
 
+  interface AgentApp {
+    /** Alias for connect.core.initCCP */
+    initCCP(container: HTMLElement, options: InitCCPOptions): void;
+    /** Waits for CCP to load to begin iframe communication. */
+    initAppCommunication(iframeId: string, endpoint: string): void;
+    /** Registers the app to the registry and initializes it. */
+    initApp(appName: string, containerId: string, appUrl: string, config?: AppOptions): void;
+    /** Destoys the app by calling the destroy method defined in the app registry. */
+    stopApp(): void;
+    /** Memoizes app data along with start and stop functions. */
+    AppRegistry: AppRegistry;
+  }
+
+  const agentApp: AgentApp;
+
+  interface AppOptions {
+    /** Optional CCP configuration that overrides and gets merged with defaults. */
+    ccpParams?: OptionalInitCCPOptions;
+    /** Optional inline styling for the app iframe. */
+    style?: string;
+  }
+
+  interface AppRegistry {
+    /** Saves app data to memory. */
+    register(appName: string, config: AppRegistryOptions, containerDOM: HTMLElement): void;
+    /** Initializes the app by calling the init method defined in the creator. */
+    start(appName: string, creator: AppCreator): void;
+    /** Destoys the app by calling the destroy method defined in the creator. */
+    stop(): void;
+  }
+
+  type AppCreator = (moduleData: AppData) => AppMethods;
+
+  type AppData = {
+    containerDOM: HTMLElement;
+    endpoint: string;
+    style?: string;
+    instance?: AppMethods;
+  }
+
+  interface AppMethods {
+    init(): void;
+    destroy(): void;
+  }
+
+  interface AppRegistryOptions {
+    /** This is the page you would normally navigate to in order to use the app in a standalone page. */
+    endpoint: string;
+    /** An optional string to supply inline styling for the iframe. */
+    style?: string;
+  }
+
   interface ViewContactEvent {
     /** The ID of the viewed contact. */
     contactId: string;
@@ -222,6 +274,44 @@ declare namespace connect {
     readonly chat?: ChatOptions;
   }
 
+
+  interface OptionalInitCCPOptions {
+    /**
+     * Amazon connect instance region. Only required for chat channel.
+     * @example "us-west-2"
+     */
+    readonly region?: string;
+
+    /**
+     * Set to `false` to disable the login popup which is shown when the user's authentication expires.
+     * @default true
+     */
+    readonly loginPopup?: boolean;
+
+    /**
+     * Options to open login popup in a new window instead of a new tab. If loginPopup is set to
+     * `false`, these options will be ignored.
+     */
+    readonly loginOptions?: LoginOptions;
+
+    /**
+     * Set to `true` in conjunction with the `loginPopup` parameter to automatically close the login
+     * Popup window once the authentication step has completed. If the login page opened in a new
+     * tab, this parameter will also auto-close that tab.
+     * @default false
+     */
+    readonly loginPopupAutoClose?: boolean;
+
+    /** Allows custom URL to be used to initiate the ccp, as in the case of SAML authentication. */
+    readonly loginUrl?: string;
+
+    /** Allows you to specify some settings surrounding the softphone feature of Connect. */
+    readonly softphone?: SoftPhoneOptions;
+
+    /** Allows you to specify ringtone settings for Chat. */
+    readonly chat?: ChatOptions;
+  }
+
   /** This enumeration lists the different types of agent states. */
   enum AgentStateType {
     /** The agent state hasn't been initialized yet. */
@@ -274,6 +364,10 @@ declare namespace connect {
 
     /** An endpoint pointing to a queue call flow in the same instance. */
     QUEUE = "queue",
+  }
+
+  enum ReferenceType {
+    URL = "URL",
   }
 
   /** Lists the different types of connections. */
@@ -352,6 +446,9 @@ declare namespace connect {
     /** Indicates the contact timed out before the agent could accept it. */
     MISSED = "missed",
 
+    /** Indicates the contact is rejected */
+    REJECTED = "rejected",
+
     /** Indicates the contact is in an error state. */
     ERROR = "error",
 
@@ -379,6 +476,9 @@ declare namespace connect {
 
     /** Chat contact. */
     CHAT = "chat",
+
+    /** Task contact. */
+    TASK = "task",
   }
 
   /** This enumeration lists the different types of contact channels. */
@@ -388,11 +488,15 @@ declare namespace connect {
 
     /** A chat contact. */
     CHAT = "CHAT",
+
+    /** A task contact. */
+    TASK = "TASK",
   }
 
   enum MediaType {
     SOFTPHONE = "softphone",
     CHAT = "chat",
+    TASK = "task",
   }
 
   enum SoftphoneCallType {
@@ -607,6 +711,15 @@ declare namespace connect {
      */
     setState(state: AgentStateDefinition, callbacks?: SuccessFailOptions): void;
 
+    /**
+     * Create task contact.
+     * Can only be performed if the agent is not handling a live contact.
+     *
+     * @param taskContact The new task contact.
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    createTask(taskContact: TaskContactDefinition, callbacks?: SuccessFailOptions): void;
+
     /** Alias for `setState()`. */
     setStatus(
       state: AgentStateDefinition,
@@ -680,6 +793,27 @@ declare namespace connect {
 
     /** The name of the agent state to be displayed in the UI. */
     readonly name: string;
+  }
+
+  interface TaskContactDefinition {
+    /** The  endpoint to assign to */
+    readonly endpoint: Endpoint;
+
+    /** The linked contact id */
+    readonly previousContactId?: string;
+
+    /** The task name */
+    readonly name: string;
+
+    /** The task description */
+    readonly description: string;
+
+    /** The task references */
+    readonly references: ReferenceDictionary;
+
+    /** A random value */
+    readonly idempotencyToken: string;
+
   }
 
   /**
@@ -773,6 +907,13 @@ declare namespace connect {
   interface AttributeDictionary {
     readonly [key: string]: {
       name: string;
+      value: string;
+    };
+  }
+
+  interface ReferenceDictionary {
+    readonly [key: string]: {
+      type: ReferenceType;
       value: string;
     };
   }
@@ -906,6 +1047,15 @@ declare namespace connect {
     /** Alias for `getStatus()` */
     getStatus(): ContactState;
 
+    /** Get name for the contact. */
+    getName(): string;
+
+    /** Get description for the contact. */
+    getDescription(): string;
+    
+    /** Get references for the contact. */
+    getReferences(): ReferenceDictionary;
+
     /**
      * Get the duration of the contact state in milliseconds relative to local time.
      * This takes into account time skew between the JS client and the Amazon Connect backend servers.
@@ -970,12 +1120,20 @@ declare namespace connect {
 
     /**
      * Close the contact and all of its associated connections.
+     * This method can also reject and clear contacts but those behaviors will be deprecated.
      * If the contact is a voice contact, and there is a third-party, the customer remains bridged with the third party and will not be disconnected from the call.
      * Otherwise, the agent and customer are disconnected.
      *
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
      */
     destroy(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Reject an incoming contact.
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    reject(callbacks?: SuccessFailOptions): void;
 
     /**
      * Clear the contact.
@@ -1090,7 +1248,7 @@ declare namespace connect {
   /**
    * The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular connection within a contact.
    * Like contacts, connections come and go.
-   * It is good practice not to persist these object or keep them as internal state.
+   * It is good practice not to persist these objects or keep them as internal state.
    * If you need to, store the contactId and connectionId of the connection and make sure that the contact and connection still exist by fetching them in order from the Agent API object before calling methods on them.
    */
   class BaseConnection {
@@ -1185,7 +1343,7 @@ declare namespace connect {
   /**
    * The VoiceConnection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular voice connection within a contact.
    * Like contacts, connections come and go.
-   * It is good practice not to persist these object or keep them as internal state.
+   * It is good practice not to persist these objects or keep them as internal state.
    * If you need to, store the `contactId` and `connectionId` of the connection and make sure that the contact and connection still exist by fetching them in order from the `Agent` API object before calling methods on them.
    */
   class VoiceConnection extends BaseConnection {
@@ -1197,12 +1355,31 @@ declare namespace connect {
 
     /** Gets a `Promise` with the media controller associated with this connection. */
     getMediaController(): Promise<any>;
+   
+    /** Returns the `SpeakerId` associated to this Voice Connection */
+    getVoiceIdSpeakerId(): Promise<any>;
+
+    /** Returns the `VoiceId speaker status` associated to this Voice Connection */
+    getVoiceIdSpeakerStatus(): Promise<any>;
+
+    /** Opt out speaker associated to this Voice Connection from VoiceId*/
+    optOutVoiceIdSpeaker(): Promise<any>;
+
+    /** Returns VoiceId speaker authentication status */
+    evaluateSpeakerWithVoiceId(): Promise<any>;
+
+    /** Enroll speaker into VoiceId */
+    enrollSpeakerInVoiceId(): Promise<any>;
+
+    /** Update speaker id */
+    updateVoiceIdSpeakerId(): Promise<any>;
+
   }
 
   /**
    * The ChatConnection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular chat connection within a contact.
    * Like contacts, connections come and go.
-   * It is good practice not to persist these object or keep them as internal state.
+   * It is good practice not to persist these objects or keep them as internal state.
    * If you need to, store the `contactId` and `connectionId` of the connection and make sure that the contact and connection still exist by fetching them in order from the `Agent` API object before calling methods on them.
    */
   class ChatConnection extends BaseConnection {
@@ -1218,6 +1395,26 @@ declare namespace connect {
     /**
      * Gets a `Promise` with the media controller associated with this connection.
      * The promise resolves to a `ChatSession` object from `amazon-connect-chatjs` library.
+     */
+    getMediaController(): Promise<any>;
+  }
+
+  /**
+   * The TaskConnection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular task connection within a contact.
+   * Like contacts, connections come and go.
+   * It is good practice not to persist these objects or keep them as internal state.
+   * If you need to, store the `contactId` and `connectionId` of the connection and make sure that the contact and connection still exist by fetching them in order from the `Agent` API object before calling methods on them.
+   */
+  class TaskConnection extends BaseConnection {
+    /** Get the media info object associated with this connection. */
+    getMediaInfo(): TaskMediaInfo;
+
+    /** Returns the `MediaType` enum value: `"task"`.  */
+    getMediaType(): MediaType.TASK;
+
+    /**
+     * Gets a `Promise` with the media controller associated with this connection.
+     * The promise resolves to a `ChatSession` object from `amazon-connect-taskjs` library.
      */
     getMediaController(): Promise<any>;
   }
@@ -1256,6 +1453,11 @@ declare namespace connect {
     };
     readonly participantId: string;
     readonly participantToken: string;
+  }
+
+  interface TaskMediaInfo {
+    readonly contactId: string;
+    readonly initialContactId: string;
   }
 
   interface MonitorInfo {

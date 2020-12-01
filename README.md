@@ -2,14 +2,9 @@
 
 [![Build Status](https://travis-ci.org/amazon-connect/amazon-connect-streams.svg?branch=master)](https://travis-ci.org/amazon-connect/amazon-connect-streams)
 
-The Amazon Connect Streams API (Streams) gives you the power to integrate your
-existing web applications with Amazon Connect. Streams lets you
-embed the Contact Control Panel (CCP) UI components into your page, and/or
-handle agent and contact state events directly giving you the power to control
-agent and contact state through an object oriented event driven interface. You
-can use the built in interface or build your own from scratch: Streams gives you
-the choice. This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs)
-in order to utilize Amazon Connect's Chat functionality.
+The Amazon Connect Streams API (Streams) gives you the power to integrate your existing web applications with Amazon Connect.  Streams lets you embed the Contact Control Panel (CCP) and Customer Profiles app UI into your page.  It also enables you to handle agent and contact state events directly through an object oriented event driven interface.  You can use the built in interface or build your own from scratch: Streams gives you the choice.
+
+This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs) or [amazon-connect-taskjs](https://github.com/amazon-connect/amazon-connect-taskjs) in order to utilize Amazon Connect's Chat or Task functionality.
 
 # Learn More
 To learn more about Amazon Connect and its capabilities, please check out
@@ -24,7 +19,14 @@ $ make
 ```
 
 # Important Announcements
-1. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
+1. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Wisdom (preview). See the [updated documentation](Documentation.md#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
+    * ### About Amazon Connect Customer Profiles
+        + Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place. 
+    * ### About Amazon Connect Wisdom (this feature is in preview release for Amazon Connect and is subject to change)
+        + With Amazon Connect Wisdom, agents can search and find content across multiple repositories, such as frequently asked questions (FAQs), wikis, articles, and step-by-step instructions for handling different customer issues. They can type questions or phrases in a search box (such as, "how long after purchase can handbags be exchanged?") without having to guess which keywords will work.
+    * ### About Amazon Connect Voice ID (The feature is in preview release for Amazon Connect and is subject to change)
+        + Amazon Connect Voice ID provides real-time caller authentication which makes voice interactions in contact centers more secure and efficient. Voice ID uses machine learning to verify the identity of genuine customers by analyzing a caller’s unique voice characteristics. This allows contact centers to use an additional security layer that doesn’t rely on the caller answering multiple security questions, and makes it easy to enroll and verify customers without changing the natural flow of their conversation.
+2. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
     * `FailedConnectAgent` -- Previously, we required the agent to click the "Clear Contact" button to clear this state. When the agent clicked the "Clear Contact" button, the previous behavior took the agent back to the `Available` state without fail. Now the `FailedConnectAgent` state will be "auto-cleared", much like `FailedConnectCustomer` always has been. 
     * `FailedConnectAgent` and `FailedConnectCustomer` -- We are now using the `contact.clear()` API to auto-clear these states. As a result, the agent will be returned to their previous visible agent state (e.g. `Available`). Previously, the agent had always been set to `Available` as a result of this "auto-clearing" behavior. Note that even custom CCPs will behave differently with this update for `FailedConnectAgent` and `FailedConnectCustomer`.
     * `AfterCallWork` -- As part of the new `contact.clear()` behavior, clicking "Clear Contact" while in `AfterCallWork` will return the agent to their previous visible agent state (e.g. `Available`, etc.). Note that custom CCPs that implement their own After Call Work behavior will not be affected by this change.
@@ -76,7 +78,7 @@ This will make the `connect` variable available in the current context.
 ```ts
 import "amazon-connect-streams";
 
-connect.initCCP({ /* ... */ });
+connect.core.initCCP({ /* ... */ });
 ```
 
 ## Downloading Streams from Github
@@ -225,6 +227,7 @@ this:
   Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
   it must be imported after StreamsJS, or there will be AWS SDK issues
   (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
+* If you are using task functionalities you must include [TaskJS](https://github.com/amazon-connect/amazon-connect-taskjs). TaskJS should be imported after Streams.
 * If you'd like access to the WebRTC session to further customize the softphone experience
   you can use [connect-rtc-js](https://github.com/aws/connect-rtc-js). Please refer to the connect-rtc-js readme for detailed instructions on integrating connect-rtc-js with Streams.
 

@@ -33,6 +33,10 @@
     'broadcast',
     'api_metric',
     'client_metric',
+    'softphone_stats',
+    'softphone_report',
+    'client_side_logs',
+    'server_bound_internal_log',
     'mute',
     "iframe_style"
   ]);
@@ -260,14 +264,19 @@
     var allEventSubs = this.subMap.getSubscriptions(ALL_EVENTS);
     var eventSubs = this.subMap.getSubscriptions(eventName);
 
-    if (this.logEvents && (eventName !== connect.EventType.LOG && eventName !== connect.EventType.MASTER_RESPONSE && eventName !== connect.EventType.API_METRIC)) {
-      connect.getLog().trace("Publishing event: %s", eventName);
+    if (this.logEvents &&
+        eventName !== connect.EventType.LOG &&
+        eventName !== connect.EventType.MASTER_RESPONSE &&
+        eventName !== connect.EventType.API_METRIC &&
+        eventName !== connect.EventType.SERVER_BOUND_INTERNAL_LOG
+    ) {
+      connect.getLog().trace("Publishing event: %s", eventName).sendInternalLogToServer();
     }
     allEventSubs.concat(eventSubs).forEach(function (sub) {
       try {
         sub.f(data || null, eventName, self);
       } catch (e) {
-        connect.getLog().error("'%s' event handler failed.", eventName).withException(e);
+        connect.getLog().error("'%s' event handler failed.", eventName).withException(e).sendInternalLogToServer();
       }
     });
   };

@@ -2,21 +2,23 @@
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
 # Important Announcements
-1. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
+1. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Wisdom (preview). See the [updated documentation](#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
+    * ### About Amazon Connect Customer Profiles
+        + Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place. 
+    * ### About Amazon Connect Wisdom (this feature is in preview release for Amazon Connect and is subject to change)
+        + With Amazon Connect Wisdom, agents can search and find content across multiple repositories, such as frequently asked questions (FAQs), wikis, articles, and step-by-step instructions for handling different customer issues. They can type questions or phrases in a search box (such as, "how long after purchase can handbags be exchanged?") without having to guess which keywords will work.
+    * ### About Amazon Connect Voice ID (this feature is in preview release for Amazon Connect and is subject to change)
+        + Amazon Connect Voice ID provides real-time caller authentication which makes voice interactions in contact centers more secure and efficient. Voice ID uses machine learning to verify the identity of genuine customers by analyzing a caller’s unique voice characteristics. This allows contact centers to use an additional security layer that doesn’t rely on the caller answering multiple security questions, and makes it easy to enroll and verify customers without changing the natural flow of their conversation.
+2. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
     * `FailedConnectAgent` -- Previously, we required the agent to click the "Clear Contact" button to clear this state. When the agent clicked the "Clear Contact" button, the previous behavior took the agent back to the `Available` state without fail. Now the `FailedConnectAgent` state will be "auto-cleared", much like `FailedConnectCustomer` always has been. 
     * `FailedConnectAgent` and `FailedConnectCustomer` -- We are now using the `contact.clear()` API to auto-clear these states. As a result, the agent will be returned to their previous visible agent state (e.g. `Available`). Previously, the agent had always been set to `Available` as a result of this "auto-clearing" behavior. Note that even custom CCPs will behave differently with this update for `FailedConnectAgent` and `FailedConnectCustomer`.
     * `AfterCallWork` -- As part of the new `contact.clear()` behavior, clicking "Clear Contact" while in `AfterCallWork` will return the agent to their previous visible agent state (e.g. `Available`, etc.). Note that custom CCPs that implement their own After Call Work behavior will not be affected by this change.
         * We are putting `contact.complete()` on a deprecation path. Therefore, you should start using `contact.clear()` in its place. If you want to emulate CCP's After Call Work behavior in your customer CCP, then make sure you use `contact.clear()` when clearing voice contacts. 
-        
+
 ## Overview
-The Amazon Connect Streams API (Streams) gives you the power to integrate your
-existing web applications with Amazon Connect. Streams lets you
-embed the Contact Control Panel (CCP) UI components into your page, and/or
-handle agent and contact state events directly giving you the power to control
-agent and contact state through an object oriented event driven interface. You
-can use the built in interface or build your own from scratch: Streams gives you
-the choice. This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs)
-in order to utilize Amazon Connect's Chat functionality.
+The Amazon Connect Streams API (Streams) gives you the power to integrate your existing web applications with Amazon Connect.  Streams lets you embed the Contact Control Panel (CCP) and Customer Profiles app UI into your page.  It also enables you to handle agent and contact state events directly through an object oriented event driven interface.  You can use the built in interface or build your own from scratch: Streams gives you the choice.
+
+This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs) or [amazon-connect-taskjs](https://github.com/amazon-connect/amazon-connect-taskjs) in order to utilize Amazon Connect's Chat or Task functionality.
 
 ## Architecture
 Click [here](Architecture.md) to view a quick architecture overview of how the
@@ -228,6 +230,7 @@ this:
   Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
   it must be imported after StreamsJS, or there will be AWS SDK issues
   (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
+* If you are using task functionalities you must include [TaskJS](https://github.com/amazon-connect/amazon-connect-taskjs). TaskJS should be imported after Streams.
 * If you'd like access to the WebRTC session to further customize the softphone experience
   you can use [connect-rtc-js](https://github.com/aws/connect-rtc-js). Please refer to the connect-rtc-js readme for detailed instructions on integrating connect-rtc-js with Streams.
 
@@ -661,7 +664,7 @@ Subscribe a method to be invoked when the contact is pending. This event is expe
 ```js
 contact.onConnecting(function(contact) { /* ... */ });
 ```
-Subscribe a method to be invoked when the contact is connecting. This works with chat and softphone contacts. This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is executed after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
+Subscribe a method to be invoked when the contact is connecting. This works with chat and softphone contacts. This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is started after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
 
 ### `contact.onAccepted()`
 ```js
@@ -856,6 +859,15 @@ Optional success and failure callbacks can be provided to determine if the opera
 ### `contact.destroy()`
 This method is now deprecated.
 
+### `contact.reject()`
+```js
+contact.reject({
+   success: function() { /* ... */ },
+   failure: function(err) { /* ... */ }
+});
+```
+Reject an incoming contact.
+
 
 ### `contact.clear()`
 ```js
@@ -864,7 +876,7 @@ contact.clear({
    failure: function(err) { /* ... */ }
 });
 ```
-This is a more generic form of `contact.complete()`. Use this for voice and chat contacts to clear the contact 
+This is a more generic form of `contact.complete()`. Use this for voice, chat, and task contacts to clear the contact
 when the contact is no longer actively being worked on (i.e. it's one of ERROR, ACW, MISSED, REJECTED). 
 It works for both monitoring and non-monitoring connections.
 
@@ -941,11 +953,39 @@ The data behind the `Contact` API object is ephemeral and changes whenever new d
 provides an opportunity to create a snapshot version of the `Contact` API object and save it for future use,
 such as adding to a log file or posting elsewhere.
 
+### Task Contact APIs
+The following contact methods are currently only available for task contacts.
+
+### `contact.getName()`
+```js
+var taskName = contact.getName();
+```
+Gets the name of the contact.
+
+### `contact.getDescription()`
+```js
+var taskDescription = contact.getDescription();
+```
+Gets the description of the contact.
+
+### `contact.getReferences()`
+```js
+var taskReferences = contact.getReferences();
+```
+Gets references for the contact. A sample reference looks like the following:
+
+```js
+"Reference-Name": {
+    type: "URL",
+    value: "https://link.com"
+}
+```
+
 
 ## Connection API
 The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state
 of a particular connection within a contact. Like contacts, connections come and go. It is good practice not
-to persist these object or keep them as internal state. If you need to, store the `contactId` and `connectionId`
+to persist these objects or keep them as internal state. If you need to, store the `contactId` and `connectionId`
 of the connection and make sure that the contact and connection still exist by fetching them in order from
 the `Agent` API object before calling methods on them.
 
@@ -1080,7 +1120,7 @@ Optional success and failure callbacks can be provided to determine if the opera
 ## VoiceConnection API
 The VoiceConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
 of a particular voice connection within a contact. Like contacts, connections come and go. It is good practice not
-to persist these object or keep them as internal state. If you need to, store the `contactId` and `connectionId`
+to persist these objects or keep them as internal state. If you need to, store the `contactId` and `connectionId`
 of the connection and make sure that the contact and connection still exist by fetching them in order from
 the `Agent` API object before calling methods on them.
 
@@ -1108,7 +1148,7 @@ The promise resolves to the return value of `voiceConnection.getMediaInfo()` but
 ## ChatConnection API
 The ChatConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
 of a particular chat connection within a contact. Like contacts, connections come and go. It is good practice not
-to persist these object or keep them as internal state. If you need to, store the `contactId` and `connectionId`
+to persist these objects or keep them as internal state. If you need to, store the `contactId` and `connectionId`
 of the connection and make sure that the contact and connection still exist by fetching them in order from
 the `Agent` API object before calling methods on them.
 
@@ -1139,6 +1179,33 @@ conn.getMediaController().then(function (chatController) { /* ... */ });
 Gets a `Promise` with the media controller associated with this connection.
 The promise resolves to a `ChatSession` object from `amazon-connect-chatjs` library.
 See the [amazon-connect-chatjs documentation](https://github.com/amazon-connect/amazon-connect-chatjs) for more information.
+
+## TaskConnection API
+The TaskConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
+of a particular task connection within a contact. Like contacts, connections come and go. It is good practice not
+to persist these objects or keep them as internal state. If you need to, store the `contactId` and `connectionId`
+of the connection and make sure that the contact and connection still exist by fetching them in order from
+the `Agent` API object before calling methods on them.
+
+### `taskConnection.getMediaInfo()`
+```js
+var mediaInfo = conn.getMediaInfo();
+```
+Get the media info object associated with this connection.
+
+### `taskConnection.getMediaType()`
+```js
+if (conn.getMediaType() === "task") { /* ... */ }
+```
+Returns the `MediaType` enum value: `"task"`.
+
+### `taskConnection.getMediaController()`
+```js
+conn.getMediaController().then(function (taskController) { /* ... */ });
+```
+Gets a `Promise` with the media controller associated with this connection.
+The promise resolves to a `TaskSession` object from the `amazon-connect-taskjs` library.
+See the [amazon-connect-taskjs documentation](https://github.com/amazon-connect/amazon-connect-taskjs) for more information.
 
 ## Utility Functions
 ### `Endpoint.byPhoneNumber()` (static function)
@@ -1174,6 +1241,7 @@ This enumeration lists the different types of contact channels.
 
 * `ChannelType.VOICE`: A voice contact.
 * `ChannelType.CHAT`: A chat contact.
+* `ChannelType.TASK`: A task contact.
 
 ### `EndpointType`
 This enumeration lists the different types of endpoints.
@@ -1217,6 +1285,7 @@ This enumeration lists all of the contact types supported by Connect Streams.
 * `ContactType.VOICE`: Normal incoming and outgoing voice calls.
 * `ContactType.QUEUE_CALLBACK`: Special outbound voice calls which are routed to agents before being placed. For more information about how to setup and use queued callbacks, see the Amazon Connect user documentation.
 * `ContactType.CHAT`: Chat contact.
+* `ContactType.TASK`: Task contact.
 
 ### `EventType`
 This is a list of some of the special event types which are published into the low-level
@@ -1250,6 +1319,8 @@ forms.
 Each of these functions returns a `LogEntry` object, onto which additional information can be added. You can call
 `.withException(e)` and pass an exception (`e`) to add stack trace and additional info to the logs, and you can
 call `.withObject(o)` to add an arbitrary object (`o`) to the logs.
+
+A new method `sendInternalLogToServer()` that can be chained to the other methods of the logger has been implemented and is intended for internal use only. It is NOT recommended for use by customers.
 
 Finally, you can trigger the logs to be downloaded to the agent's machine in JSON form by calling `connect.getLog().download()`.
 
@@ -1333,3 +1404,76 @@ An internal communication error occurred.
 
 ### `ERROR Default`
 All errors not otherwise defined.
+
+## Initialization for CCP, Customer Profiles, and Wisdom
+
+*Note that if you are only using CCP, please follow [these directions](#initialization)*
+
+Initializing the Streams API is the first step to verify that you have everything set up correctly and that you are able to listen for events.
+
+### `connect.agentApp.initApp(name, containerId, appUrl, config)`
+
+```js
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<html>
+  <head>
+    <script type="text/javascript" src="amazon-connect-1.7.js"></script>
+  </head>
+  <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
+  <body onload="init()">
+    <main>
+      <div id="ccp-container"></div>
+      <div id="customerprofiles-container"></div>
+      <div id="wisdom-container"></div>
+    </main>
+    <script type="text/javascript">
+      function init() {
+        const connectUrl = "https://my-instance-domain.awsapps.com/connect";
+        connect.agentApp.initApp(
+            "ccp", 
+            "ccp-container", 
+            connectUrl + "/ccp-v2/",
+            { style: "width:400px; height:600px;" }
+        );
+        connect.agentApp.initApp(
+            "customerprofiles", 
+            "customerprofiles-container", 
+            connectUrl + "/customerprofiles/",
+            { style: "width:400px; height:600px;" }
+        );
+        connect.agentApp.initApp(
+            "wisdom", 
+            "wisdom-container", 
+            connectUrl + "/wisdom/",
+            { style: "width:400px; height:600px;" }
+        );
+      }
+    </script>
+  </body>
+</html>
+```
+
+Integrates with Amazon Connect by loading the pre-built app located at `appUrl` into an iframe and appending it into the DOM element with id of `containerId`. Underneath the hood, `initApp` creates a `WindowIOStream` for the iframes to communicate with the main CCP iframe, which is in charge of authenticating the agent's session, managing the agent state, and contact state.
+* `name`: A string which should be one of `ccp`, `customerprofiles`, or `wisdom`.
+* `containerId`: The string id of the DOM element that will contain the app iframe.
+* `appUrl`: The string URL of the app. This is the page you would normally navigate to in order to use the app in a standalone page, it is different for each instance.
+* `config`: This object is optional and allows you to specify some settings surrounding the CCP.
+    * `ccpParams`: Optional params that mirror the configuration options for `initCCP`.
+    * `style`: An optional string to supply inline styling for the iframe.
+
+## Voice ID APIs
+Use the following methods to integrate Voice ID into your existing agent web applications.
+
+### `voiceConnection.enrollSpeakerInVoiceId()`
+Enroll a customer to Voice ID using a click of a button.
+### `voiceConnection.evaluateSpeakerWithVoiceId()`
+Check the customer's Voice ID verification status.
+### `voiceConnection.optOutVoiceIdSpeaker()`
+ Opt out a customer from Voice ID.
+### `voiceConnection.getVoiceIdSpeakerStatus()`
+Describe the enrollment status of a customer.
+### `voiceConnection.getVoiceIdSpeakerId()`
+Get the speaker ID.
+### `voiceConnection.updateVoiceIdSpeakerId()`
+Update the speaker ID.

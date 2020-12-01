@@ -741,6 +741,33 @@
           "members": {}
         }
       },
+      "CreateTaskContact": {
+        "input": {
+          "type": "structure",
+          "required": [
+            "endpoint",
+            "name"
+          ],
+          "members": {
+            "endpoint": {
+              "shape": "Se"
+            },
+            "previousContactId": {},
+            "name": {},
+            "description": {},
+            "references": {
+              "shape": "Sr"
+            },
+            "idempotencyToken": {}
+          }
+        },
+        "output": {
+          "type": "structure",
+          "members": {
+            "contactId": {}
+          }
+        }
+      },
       "CreateTransport": {
         "input": {
           "type": "structure",
@@ -856,7 +883,7 @@
           ],
           "members": {
             "configuration": {
-              "shape": "S1b"
+              "shape": "S1h"
             }
           }
         }
@@ -923,7 +950,10 @@
               ],
               "members": {
                 "state": {
-                  "shape": "S1u"
+                  "shape": "S1z"
+                },
+                "nextState": {
+                  "shape": "S1z"
                 },
                 "agentAvailabilityState": {
                   "type": "structure",
@@ -948,6 +978,14 @@
                     "members": {
                       "contactId": {},
                       "initialContactId": {},
+                      "contactFeatures": {
+                        "type": "structure",
+                        "members": {
+                          "attachmentsEnabled": {
+                            "type": "boolean"
+                          }
+                        }
+                      },
                       "type": {},
                       "state": {
                         "type": "structure",
@@ -1057,32 +1095,7 @@
                       "name": {},
                       "description": {},
                       "references": {
-                        "type": "map",
-                        "key": {},
-                        "value": {
-                          "type": "structure",
-                          "required": [
-                            "value"
-                          ],
-                          "members": {
-                            "value": {}
-                          }
-                        }
-                      },
-                      "contactMetadata": {
-                        "type": "structure",
-                        "required": [
-                          "name"
-                        ],
-                        "members": {
-                          "name": {},
-                          "references": {
-                            "type": "map",
-                            "key": {},
-                            "value": {}
-                          },
-                          "description": {}
-                        }
+                        "shape": "Sr"
                       },
                       "initiationMethod": {}
                     }
@@ -1122,7 +1135,7 @@
             "states": {
               "type": "list",
               "member": {
-                "shape": "S1u"
+                "shape": "S1z"
               }
             },
             "nextToken": {}
@@ -1306,7 +1319,10 @@
               "shape": "S2"
             },
             "state": {
-              "shape": "S1u"
+              "shape": "S1z"
+            },
+            "enqueueNextState": {
+              "type": "boolean"
             }
           }
         },
@@ -1554,7 +1570,7 @@
               "shape": "S2"
             },
             "configuration": {
-              "shape": "S1b"
+              "shape": "S1h"
             }
           }
         },
@@ -1595,7 +1611,22 @@
           "name": {}
         }
       },
-      "S1b": {
+      "Sr": {
+        "type": "map",
+        "key": {},
+        "value": {
+          "type": "structure",
+          "required": [
+            "value",
+            "type"
+          ],
+          "members": {
+            "value": {},
+            "type": {}
+          }
+        }
+      },
+      "S1h": {
         "type": "structure",
         "required": [
           "name",
@@ -1638,7 +1669,7 @@
           }
         }
       },
-      "S1u": {
+      "S1z": {
         "type": "structure",
         "required": [
           "type",
@@ -2266,7 +2297,7 @@
     },
     "iotanalytics": {
       "name": "IoTAnalytics",
-      "cors": true  
+      "cors": true	
     },
     "iot1clickdevicesservice": {
       "prefix": "iot1click-devices",
@@ -5199,7 +5230,7 @@
    *   @return [Array<AWS.Credentials, Function>]
    *     a list of credentials objects or functions that return credentials
    *     objects. If the provider is a function, the function will be
-   *     executed lazily when the provider needs to be checked for valid
+   *     started lazily when the provider needs to be checked for valid
    *     credentials. By default, this object will be set to the
    *     {defaultProviders}.
    *   @see defaultProviders
