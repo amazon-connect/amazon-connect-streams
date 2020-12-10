@@ -274,7 +274,8 @@ describe('Core', function () {
             connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE);
             assert.isTrue(connect.core.getUpstream().sendUpstream.calledWith(connect.EventType.CONFIGURE, {
                 softphone: this.params.softphone,
-                chat: this.params.chat
+                chat: this.params.chat,
+                pageOptions: this.params.pageOptions
             }));
         });
 
@@ -282,7 +283,8 @@ describe('Core', function () {
             connect.core.initRingtoneEngines({ ringtone: this.extraRingtone });
             connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, {
                 softphone: this.params.softphone,
-                chat: this.params.chat
+                chat: this.params.chat,
+                pageOptions: this.params.pageOptions
             });
             connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
             connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());

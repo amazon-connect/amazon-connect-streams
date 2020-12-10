@@ -22466,6 +22466,19 @@
     'session_init'
   ]);
 
+  /**---------------------------------------------------------------
+   * enum Configuration Events
+   */
+  var ConfigurationEvents = connect.makeNamespacedEnum('configuration', [
+    'configure',
+    'set_speaker_device',
+    'set_microphone_device',
+    'set_ringer_device',
+    'speaker_device_changed',
+    'microphone_device_changed',
+    'ringer_device_changed'
+  ]);
+
   var DisasterRecoveryEvents = connect.makeNamespacedEnum('disasterRecovery', [
     'suppress',
     'force_offline', // letting the sharedworker know to force offline 
@@ -22663,6 +22676,7 @@
   connect.EventFactory = EventFactory;
   connect.EventType = EventType;
   connect.AgentEvents = AgentEvents;
+  connect.ConfigurationEvents = ConfigurationEvents;
   connect.ConnnectionEvents = ConnnectionEvents;
   connect.ContactEvents = ContactEvents;
   connect.WebSocketEvents = WebSocketEvents;
@@ -23044,9 +23058,9 @@
    ]);
 
    /**---------------------------------------------------------------
-    * enum HudsonClientMethods
+    * enum AgentAppClientMethods
     */
-   connect.HudsonClientMethods = {
+   connect.AgentAppClientMethods = {
       GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
       ENROLL_SPEAKER_IN_VOICEID: "AgentAppService.VoiceId.enrollBySession",
       EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
@@ -23166,9 +23180,9 @@
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
    
    /**---------------------------------------------------------------
-   * class HudsonClient extends ClientBase
+   * class AgentAppClient extends ClientBase
    */
-   var HudsonClient = function(authCookieName, authToken, endpoint) {
+   var AgentAppClient = function(authCookieName, authToken, endpoint) {
       connect.assertNotNull(authCookieName, 'authCookieName');
       connect.assertNotNull(authToken, 'authToken');
       connect.assertNotNull(endpoint, 'endpoint');
@@ -23178,10 +23192,10 @@
       this.authCookieName = authCookieName
    };
 
-   HudsonClient.prototype = Object.create(ClientBase.prototype);
-   HudsonClient.prototype.constructor = HudsonClient;
+   AgentAppClient.prototype = Object.create(ClientBase.prototype);
+   AgentAppClient.prototype.constructor = AgentAppClient;
 
-   HudsonClient.prototype._callImpl = function(method, params, callbacks) {
+   AgentAppClient.prototype._callImpl = function(method, params, callbacks) {
       var self = this;
       var bear = {};
       bear[self.authCookieName] = self.authToken;
@@ -23376,7 +23390,7 @@
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
-   connect.HudsonClient = HudsonClient;
+   connect.AgentAppClient = AgentAppClient;
 
 })();
 
@@ -23882,6 +23896,18 @@
     connect.core.getUpstream().onUpstream(connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED, f);
   };
 
+  Agent.prototype.onSpeakerDeviceChanged = function(f){
+    connect.core.getUpstream().onUpstream(connect.AgentEvents.SPEAKER_DEVICE_CHANGED, f);
+  }
+
+  Agent.prototype.onMicrophoneDeviceChanged = function(f){
+    connect.core.getUpstream().onUpstream(connect.AgentEvents.MICROPHONE_DEVICE_CHANGED, f);
+  }
+
+  Agent.prototype.onRingerDeviceChanged = function(f){
+    connect.core.getUpstream().onUpstream(connect.AgentEvents.RINGER_DEVICE_CHANGED, f);
+  }
+
   Agent.prototype.mute = function () {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
       {
@@ -23896,6 +23922,27 @@
         event: connect.EventType.MUTE,
         data: { mute: false }
       });
+  };
+
+  Agent.prototype.setSpeakerDevice = function (deviceId) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.AgentEvents.SET_SPEAKER_DEVICE,
+      data: { deviceId: deviceId }
+    });
+  };
+
+  Agent.prototype.setMicrophoneDevice = function (deviceId) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.AgentEvents.SET_MICROPHONE_DEVICE,
+      data: { deviceId: deviceId }
+    });
+  };
+
+  Agent.prototype.setRingerDevice = function (deviceId) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.AgentEvents.SET_RINGER_DEVICE,
+      data: { deviceId: deviceId }
+    });
   };
 
   Agent.prototype.getState = function () {
@@ -24615,7 +24662,7 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.GET_SPEAKER_ID, {
+      client.call(connect.AgentAppClientMethods.GET_SPEAKER_ID, {
         "contactId": self.contactId,
         "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "awsAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
@@ -24650,7 +24697,7 @@
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
-        client.call(connect.HudsonClientMethods.GET_SPEAKER_STATUS, {
+        client.call(connect.AgentAppClientMethods.GET_SPEAKER_STATUS, {
           "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
           "DomainId" : "ConnectDefaultDomainId"
           }, {
@@ -24678,7 +24725,7 @@
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
-        client.call(connect.HudsonClientMethods.OPT_OUT_VoiceId_SPEAKER, {
+        client.call(connect.AgentAppClientMethods.OPT_OUT_VOICEID_SPEAKER, {
           "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
           "DomainId" : "ConnectDefaultDomainId"
           }, {
@@ -24707,7 +24754,7 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.START_VOICEID_SESSION, {
+      client.call(connect.AgentAppClientMethods.START_VOICEID_SESSION, {
         "contactId": self.contactId,
         "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
@@ -24741,7 +24788,7 @@
     var milliInterval = 1000;
     return new Promise(function (resolve, reject) {
       function evaluate() {
-        client.call(connect.HudsonClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
+        client.call(connect.AgentAppClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
           "SessionNameOrId": contactData.initialContactId || this.contactId
         }, {
           success: function (data) {
@@ -24809,7 +24856,7 @@
     var milliInterval = 5000;
     return new Promise(function (resolve, reject) {
       function describe() {
-        client.call(connect.HudsonClientMethods.DESCRIBE_VOICEID_SESSION, {
+        client.call(connect.AgentAppClientMethods.DESCRIBE_VOICEID_SESSION, {
           "SessionNameOrId": contactData.initialContactId || this.contactId
         }, {
           success: function (data) {
@@ -24861,7 +24908,7 @@
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
+      client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
         "SessionNameOrId": contactData.initialContactId || this.contactId
         }, {
           success: function (data) {
@@ -24893,7 +24940,7 @@
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
-      client.call(connect.HudsonClientMethods.UPDATE_VOICEID_SESSION, {
+      client.call(connect.AgentAppClientMethods.UPDATE_VOICEID_SESSION, {
         "SessionNameOrId": contactData.initialContactId || this.contactId,
         "SpeakerId": connect.assertNotNull(speakerId, 'speakerId')
         }, {
@@ -24914,7 +24961,9 @@
 
   VoiceId.prototype.checkConferenceCall = function(){
     var self = this;
-    var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.length > 2;
+    var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.filter(function (conn) {
+      return connect.contains(connect.CONNECTION_ACTIVE_STATES, conn.state.type);
+    }).length > 2;
     if(isConferenceCall){
       throw new connect.NotImplementedError("VoiceId is not supported for conference calls");
     }
@@ -25476,7 +25525,7 @@
     connect.core.eventBus = new connect.EventBus();
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.initClient(params);
-    connect.core.initHudsonClient(params);
+    connect.core.initAgentAppClient(params);
     connect.core.initialized = true;
   };
  
@@ -25496,17 +25545,17 @@
   };
 
   /**-------------------------------------------------------------------------
-   * Initialized hudson client
-   * Should be used by Shared Worker to update hudson client with new credentials
+   * Initialized AgentApp client
+   * Should be used by Shared Worker to update AgentApp client with new credentials
    * after refreshed authentication.
    */
-  connect.core.initHudsonClient = function (params) {
+  connect.core.initAgentAppClient = function (params) {
     connect.assertNotNull(params, 'params');    
     var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
     var authCookieName = connect.assertNotNull(params.authCookieName, 'params.authCookieName');
-    var endpoint = connect.assertNotNull(params.hudsonEndpoint, 'params.hudsonEndpoint');
+    var endpoint = connect.assertNotNull(params.agentAppEndpoint, 'params.agentAppEndpoint');
     
-    connect.core.hudsonClient = new connect.HudsonClient(authCookieName, authToken, endpoint);
+    connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
   };
  
   /**-------------------------------------------------------------------------
@@ -25514,7 +25563,7 @@
    */
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
-    connect.core.hudsonClient = new connect.NullClient();
+    connect.core.agentAppClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -25582,6 +25631,8 @@
           });
         });
       });
+
+      handleRingerDeviceChange();
     };
  
     var mergeParams = function (params, otherParams) {
@@ -25645,7 +25696,27 @@
       setupRingtoneEngines(params.ringtone);
     }
   };
- 
+
+  var handleRingerDeviceChange = function() {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.ConfigurationEvents.SET_RINGER_DEVICE, setRingerDevice);
+  }
+
+  var setRingerDevice = function (data){
+    if(connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId){
+      return;
+    }
+    var deviceId = data.deviceId;
+    for (var ringtoneType in connect.core.ringtoneEngines) {
+      connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId);
+    }
+
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ConfigurationEvents.RINGER_DEVICE_CHANGED,
+      data: { deviceId: deviceId }
+    });
+  }
+
   connect.core.initSoftphoneManager = function (paramsIn) {
     var params = paramsIn || {};
  
@@ -25697,7 +25768,24 @@
       }
     });
   };
- 
+
+  connect.core.initPageOptions = function (params) {
+    connect.assertNotNull(params, "params");
+
+    if (connect.isFramed()) {
+      // If the CCP is in a frame, wait for configuration from downstream.
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.EventType.CONFIGURE, function (data) {
+        connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+          {
+            event: connect.ConfigurationEvents.CONFIGURE,
+            data: data
+          });
+      });
+
+    }
+  };
+
   //Internal use only.
   connect.core.authorize = function (endpoint) {
     var options = {
@@ -25779,7 +25867,7 @@
         ? LEGACY_AUTHORIZE_ENDPOINT
         : AUTHORIZE_ENDPOINT;
     }
-    var hudsonEndpoint = params.hudsonEndpoint || null;
+    var agentAppEndpoint = params.agentAppEndpoint || null;
     var authCookieName = params.authCookieName || null;
  
     try {
@@ -25823,7 +25911,7 @@
         refreshToken: refreshToken,
         region: region,
         authorizeEndpoint: authorizeEndpoint,
-        hudsonEndpoint: hudsonEndpoint,
+        agentAppEndpoint: agentAppEndpoint,
         authCookieName: authCookieName
       });
  
@@ -25905,7 +25993,7 @@
     iframe.allow = "microphone; autoplay";
     iframe.style = "width: 100%; height: 100%";
     containerDiv.appendChild(iframe);
- 
+
     // Initialize the event bus and agent data providers.
     // NOTE: Setting logEvents here to FALSE in order to avoid duplicating
     // events which are logged in CCP.
@@ -25958,12 +26046,13 @@
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
  
-      if (params.softphone || params.chat) {
+      if (params.softphone || params.chat || params.pageOptions) {
         // Send configuration up to the CCP.
         //set it to false if secondary
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
           softphone: params.softphone,
-          chat: params.chat
+          chat: params.chat,
+          pageOptions: params.pageOptions
         });
       }
  
@@ -26439,6 +26528,11 @@
   };
  
   /**-----------------------------------------------------------------------*/
+  connect.core.onConfigure = function(f) {
+    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CONFIGURE, f);
+  }
+
+  /**-----------------------------------------------------------------------*/
   connect.core.getContactEventName = function (eventName, contactId) {
     connect.assertNotNull(eventName, 'eventName');
     connect.assertNotNull(contactId, 'contactId');
@@ -26543,13 +26637,13 @@
   connect.core.client = null;
 
   /**-----------------------------------------------------------------------*/
-  connect.core.getHudsonClient = function () {
-    if (!connect.core.hudsonClient) {
-      throw new connect.StateError('The connect Hudson Client has not been initialized!');
+  connect.core.getAgentAppClient = function () {
+    if (!connect.core.agentAppClient) {
+      throw new connect.StateError('The connect AgentApp Client has not been initialized!');
     }
-    return connect.core.hudsonClient;
+    return connect.core.agentAppClient;
   };
-  connect.core.hudsonClient = null;
+  connect.core.agentAppClient = null;
  
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {
@@ -26906,6 +27000,8 @@
       }
     });
     handleSoftPhoneMuteToggle();
+    handleSpeakerDeviceChange();
+    handleMicrophoneDeviceChange();
 
     this.ringtoneEngine = null;
     var cleanMultipleSessions = 'true' === softphoneParams.cleanMultipleSessions;
@@ -26917,6 +27013,16 @@
     this.getSession = function (connectionId) {
       return rtcSessions[connectionId];
     }
+
+    this.replaceLocalMediaTrack = function(connectionId, track) {
+      var stream = localMediaStream[connectionId].stream;
+      if(stream){
+        var oldTrack = stream.getAudioTracks()[0];
+        oldTrack.enabled = false;
+        stream.removeTrack(oldTrack);
+        stream.addTrack(track);
+      }
+    };
 
     var isContactTerminated = function (contact) {
       return contact.getStatus().type === connect.ContactStatusType.ENDED ||
@@ -27120,6 +27226,16 @@
     bus.subscribe(connect.EventType.MUTE, muteToggle);
   };
 
+  var handleSpeakerDeviceChange = function() {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.ConfigurationEvents.SET_SPEAKER_DEVICE, setSpeakerDevice);
+  }
+
+  var handleMicrophoneDeviceChange = function () {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, setMicrophoneDevice);
+  }
+
   // Make sure once we disconnected we get the mute state back to normal
   var deleteLocalMediaStream = function (connectionId) {
     delete localMediaStream[connectionId];
@@ -27168,6 +27284,59 @@
       data: { muted: status }
     });
   };
+
+  var setSpeakerDevice = function (data) {
+    if (connect.keys(localMediaStream).length === 0 || !data || !data.deviceId) {
+      return;
+    }
+    var deviceId = data.deviceId;
+    var remoteAudioElement = document.getElementById('remote-audio');
+    try {
+      logger.info("Trying to set speaker to device " + deviceId);
+      if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
+        remoteAudioElement.setSinkId(deviceId);
+      }
+    } catch (e) {
+      logger.error("Failed to set speaker to device " + deviceId);
+    }
+
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
+      data: { deviceId: deviceId }
+    });
+  }
+
+  var setMicrophoneDevice = function (data) {
+    if (connect.keys(localMediaStream).length === 0  || !data || !data.deviceId) {
+      return;
+    }
+    var deviceId = data.deviceId;
+    var softphoneManager = connect.core.getSoftphoneManager();
+    try {
+      navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } })
+        .then(function (newMicrophoneStream) {
+          var newMicrophoneTrack = newMicrophoneStream.getAudioTracks()[0];
+          for (var connectionId in localMediaStream) {
+            if (localMediaStream.hasOwnProperty(connectionId)) {
+              var localMedia = localMediaStream[connectionId].stream;
+              var session = softphoneManager.getSession(connectionId);
+              //Replace the audio track in the RtcPeerConnection
+              session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
+                //Replace the audio track in the local media stream (for mute / unmute)
+                softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
+              });
+            }
+          }
+        });
+    } catch(e) {
+      logger.error("Failed to set microphone device " + deviceId);
+    }
+
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED,
+      data: { deviceId: deviceId }
+    });
+  }
 
   var publishSoftphoneFailureLogs = function (rtcSession, reason) {
     if (reason === connect.RTCErrors.ICE_COLLECTION_TIMEOUT) {
@@ -27552,8 +27721,8 @@
   WorkerClient.prototype._callImpl = function (method, params, callbacks) {
     var self = this;
     var request_start = new Date().getTime();
-    if(connect.containsValue(connect.HudsonClientMethods, method)) {
-      connect.core.getHudsonClient()._callImpl(method, params, {
+    if(connect.containsValue(connect.AgentAppClientMethods, method)) {
+      connect.core.getAgentAppClient()._callImpl(method, params, {
         success: function (data) {
           self._recordAPILatency(method, request_start);
           callbacks.success(data);
@@ -28256,7 +28425,7 @@
       self.initData.authToken = response.accessToken;
       self.initData.authTokenExpiration = expiration;
       connect.core.initClient(self.initData);
-      connect.core.initHudsonClient(self.initData);
+      connect.core.initAgentAppClient(self.initData);
       callbacks.success();
     }).catch(function (response) {
       connect.getLog().error("Authorization failed with code %s", response.status)
