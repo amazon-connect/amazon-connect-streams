@@ -22641,6 +22641,11 @@
     ) {
       connect.getLog().trace("Publishing event: %s", eventName).sendInternalLogToServer();
     }
+
+    if (eventName.startsWith(connect.ContactEvents.ACCEPTED) && data.contactId && !(data instanceof connect.Contact)) {
+      data = new connect.Contact(data.contactId);
+    }
+
     allEventSubs.concat(eventSubs).forEach(function (sub) {
       try {
         sub.f(data || null, eventName, self);
@@ -26093,7 +26098,7 @@
       if (params.loginPopup !== false) {
         try {
           var loginUrl = getLoginUrl(params);
-          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogEntryToServer();
+          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
           // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
           if (params.loginUrl) {
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
