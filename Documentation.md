@@ -147,7 +147,11 @@ everything set up correctly and that you are able to listen for events.
             allowFramedSoftphone: true,   // optional
             disableRingtone: false,       // optional
             ringtoneUrl: "./ringtone.mp3" // optional
-           }
+           },
+           pageOptions: { //optional
+            enableAudioDeviceSettings: false //optional, defaults to 'false'
+            enablePhoneTypeSettings: true //optional, defaults to 'true' 
+           }       
          });
       }
     </script>
@@ -186,6 +190,13 @@ and made available to your JS client code.
     ringtone audio that is played when a chat is incoming.
   * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
     the ringtone with any browser-supported audio file accessible by the user.
+* `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
+  * `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local machine.
+    If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab. 
+    will not be displayed.
+  * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab 
+    will display a section for configuring the agent's phone type and deskphone number.  
+    If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
@@ -595,6 +606,25 @@ agent.unmute();
 ```
 Sets the agent localmedia to unmute mode.
 
+
+### `agent.setSpeakerDevice()`
+```js
+agent.setSpeakerDevice(deviceId);
+```
+Sets the speaker device (output device for call audio)
+
+### `agent.setMicrophoneDevice()`
+```js
+agent.setMicrophoneDevice(deviceId);
+```
+Sets the microphone device (input device for call audio)
+
+### `agent.setRingerDevice()`
+```js
+agent.setRingerDevice(deviceId);
+```
+Sets the ringer device (output device for ringtone)
+
 ### `agent.onMuteToggle()`
 ```js
 agent.onMuteToggle(function(obj) {
@@ -603,6 +633,24 @@ agent.onMuteToggle(function(obj) {
 ```
 Subscribe a method to be called when the agent updates the mute status, meaning
 that agents mute/unmute APIs are called and the local media stream is succesfully updated with the new status.
+
+### `agent.onSpeakerDeviceChanged()`
+```js
+agent.onSpeakerDeviceChanged(function(obj) { /* ... */ });
+```
+Subscribe a method to be called when the agent changes the speaker device (output device for call audio).
+
+### `agent.onMicrophoneDeviceChanged()`
+```js
+agent.onMicrophoneDeviceChanged(function(obj) { /* ... */ });
+```
+Subscribe a method to be called when the agent changes the microphone device (input device for call audio).
+
+### `agent.onRingerDeviceChanged()`
+```js
+agent.onRingerDeviceChanged(function(obj) { /* ... */ });
+```
+Subscribe a method to be called when the agent changes the ringer device (output device for ringtone).
 
 ## Contact API
 The Contact API provides event subscription methods and action methods which can be called on behalf of a specific

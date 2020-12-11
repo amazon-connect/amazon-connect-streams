@@ -118,6 +118,19 @@
     'session_init'
   ]);
 
+  /**---------------------------------------------------------------
+   * enum Configuration Events
+   */
+  var ConfigurationEvents = connect.makeNamespacedEnum('configuration', [
+    'configure',
+    'set_speaker_device',
+    'set_microphone_device',
+    'set_ringer_device',
+    'speaker_device_changed',
+    'microphone_device_changed',
+    'ringer_device_changed'
+  ]);
+
   var DisasterRecoveryEvents = connect.makeNamespacedEnum('disasterRecovery', [
     'suppress',
     'force_offline', // letting the sharedworker know to force offline 
@@ -315,6 +328,7 @@
   connect.EventFactory = EventFactory;
   connect.EventType = EventType;
   connect.AgentEvents = AgentEvents;
+  connect.ConfigurationEvents = ConfigurationEvents;
   connect.ConnnectionEvents = ConnnectionEvents;
   connect.ContactEvents = ContactEvents;
   connect.WebSocketEvents = WebSocketEvents;

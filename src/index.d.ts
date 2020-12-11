@@ -25,6 +25,13 @@ declare namespace connect {
   type AgentStateChangeCallback = (agentStateChange: AgentStateChange) => void;
 
   /**
+   * A callback to receive 'UserMediaDeviceChange' API object instances
+   *
+   * @param userMediaDeviceChange The 'UserMediaDeviceChange' API object instance
+   */
+  type UserMediaDeviceChangeCallback = (userMediaDeviceChange: UserMediaDeviceChange) => void;
+
+  /**
    * A callback to receive `SoftphoneError` errors.
    *
    * @param error A `SoftphoneError` error.
@@ -150,6 +157,20 @@ declare namespace connect {
     readonly ringtoneUrl?: string;
   }
 
+  interface PageOptions {
+    /**
+     * If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local machine.
+     * If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab.
+     */
+    readonly enableAudioDeviceSettings?: boolean;
+
+    /**
+     * If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type and deskphone number.
+     * If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
+     */
+    readonly enablePhoneTypeSettings?: boolean;
+  }
+
   interface InitCCPOptions {
     /**
      * The URL of the CCP.
@@ -184,6 +205,9 @@ declare namespace connect {
 
     /** Allows you to specify ringtone settings for Chat. */
     readonly chat?: ChatOptions;
+
+    /** Allows you to configure which configuration sections are displayed in the settings tab. */
+    readonly pageOptions?: PageOptions;
   }
 
   /** This enumeration lists the different types of agent states. */
@@ -644,11 +668,61 @@ declare namespace connect {
     unmute(): void;
 
     /**
+     * Sets the speaker device (output device for call audio)
+     *
+     * @param deviceId The id of the media device.
+     */
+    setSpeakerDevice(deviceId: string): void;
+
+    /**
+     * Sets the microphone device (input device for call audio)
+     *
+     * @param deviceId The id of the media device.
+     */
+    setMicrophoneDevice(deviceId: string): void;
+
+    /**
+     * Sets the ringer device (output device for ringtone)
+     *
+     * @param deviceId The id of the media device.
+     */
+    setRingerDevice(deviceId: string): void;
+
+    /**
      * Subscribe a method to be called when the agent updates the mute status, meaning that agents mute/unmute APIs are called and the local media stream is succesfully updated with the new status.
      *
      * @param callback A callback to receive updates on agent mute state
      */
     onMuteToggle(callback: AgentMutedStatusCallback): void;
+
+    /**
+     * Creates an outbound contact to the given endpoint.
+     *
+     * @param endpoint An `Endpoint` API object to connect to.
+     * @param connectOptions The connection options.
+     */
+    connect(endpoint: Endpoint, connectOptions?: ConnectOptions): void;
+
+    /**
+     * Subscribe a method to be called when the agent changes the speaker device (output device for call audio).
+     *
+     * @param callback A callback to receive updates on the speaker device
+     */
+    onSpeakerDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+
+    /**
+     * Subscribe a method to be called when the agent changes the microphone device (input device for call audio).
+     *
+     * @param callback A callback to receive updates on the microphone device
+     */
+    onMicrophoneDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+
+    /**
+     * Subscribe a method to be called when the agent changes the ringer device (output device for ringtone).
+     *
+     * @param callback A callback to receive updates on the ringer device
+     */
+    onRingerDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
   }
 
   interface AgentMutedStatus {
@@ -676,6 +750,11 @@ declare namespace connect {
 
     /** The name of the agent state to be displayed in the UI. */
     readonly name: string;
+  }
+
+  interface UserMediaDeviceChange {
+    /** A value indicating the id of the media device. */
+    readonly deviceId: string;
   }
 
   interface TaskContactDefinition {

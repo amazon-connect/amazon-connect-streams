@@ -321,6 +321,8 @@
           });
         });
       });
+
+      handleRingerDeviceChange();
     };
  
     var mergeParams = function (params, otherParams) {
@@ -384,7 +386,27 @@
       setupRingtoneEngines(params.ringtone);
     }
   };
- 
+
+  var handleRingerDeviceChange = function() {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.ConfigurationEvents.SET_RINGER_DEVICE, setRingerDevice);
+  }
+
+  var setRingerDevice = function (data){
+    if(connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId){
+      return;
+    }
+    var deviceId = data.deviceId;
+    for (var ringtoneType in connect.core.ringtoneEngines) {
+      connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId);
+    }
+
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ConfigurationEvents.RINGER_DEVICE_CHANGED,
+      data: { deviceId: deviceId }
+    });
+  }
+
   connect.core.initSoftphoneManager = function (paramsIn) {
     var params = paramsIn || {};
  
@@ -436,7 +458,24 @@
       }
     });
   };
- 
+
+  connect.core.initPageOptions = function (params) {
+    connect.assertNotNull(params, "params");
+
+    if (connect.isFramed()) {
+      // If the CCP is in a frame, wait for configuration from downstream.
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.EventType.CONFIGURE, function (data) {
+        connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+          {
+            event: connect.ConfigurationEvents.CONFIGURE,
+            data: data
+          });
+      });
+
+    }
+  };
+
   //Internal use only.
   connect.core.authorize = function (endpoint) {
     var options = {
@@ -644,7 +683,7 @@
     iframe.allow = "microphone; autoplay";
     iframe.style = "width: 100%; height: 100%";
     containerDiv.appendChild(iframe);
- 
+
     // Initialize the event bus and agent data providers.
     // NOTE: Setting logEvents here to FALSE in order to avoid duplicating
     // events which are logged in CCP.
@@ -697,12 +736,13 @@
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
  
-      if (params.softphone || params.chat) {
+      if (params.softphone || params.chat || params.pageOptions) {
         // Send configuration up to the CCP.
         //set it to false if secondary
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
           softphone: params.softphone,
-          chat: params.chat
+          chat: params.chat,
+          pageOptions: params.pageOptions
         });
       }
  
@@ -1177,6 +1217,11 @@
     connect.core.getUpstream().onUpstream(connect.ConnnectionEvents.SESSION_INIT, f);
   };
  
+  /**-----------------------------------------------------------------------*/
+  connect.core.onConfigure = function(f) {
+    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CONFIGURE, f);
+  }
+
   /**-----------------------------------------------------------------------*/
   connect.core.getContactEventName = function (eventName, contactId) {
     connect.assertNotNull(eventName, 'eventName');
