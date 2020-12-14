@@ -7,25 +7,27 @@ var istanbul = require('gulp-istanbul'),
     jshint = require('gulp-jshint'),
     replace = require('gulp-replace'),
     pump = require('pump');
+    fs = require('fs');
+    path = require('path');
 
-var source = [ "src/aws-client.js",
-    "src/sprintf.js",
-    "src/log.js", 
-    "src/util.js",
-    "src/event.js",
-    "src/streams.js",
-    "src/client.js",
-    "src/transitions.js",
-    "src/api.js",
-    "src/lib/amazon-connect-websocket-manager.js",
-    "src/core.js",
-    "src/ringtone.js",
-    "src/softphone.js",
-    "src/worker.js",
-    "src/mediaControllers/*",
-    "src/agent-app/agent-app.js",
-    "src/agent-app/app-registry.js"
-
+var source = [
+  "src/aws-client.js",
+  "src/sprintf.js",
+  "src/log.js", 
+  "src/util.js",
+  "src/event.js",
+  "src/streams.js",
+  "src/client.js",
+  "src/transitions.js",
+  "src/api.js",
+  "src/lib/amazon-connect-websocket-manager.js",
+  "src/core.js",
+  "src/ringtone.js",
+  "src/softphone.js",
+  "src/worker.js",
+  "src/mediaControllers/*",
+  "src/agent-app/agent-app.js",
+  "src/agent-app/app-registry.js"
 ];
 
 gulp.task('pre-test', function () {

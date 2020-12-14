@@ -889,10 +889,6 @@ contact.complete({
    failure: function(err) { /* ... */ }
 });
 ```
-This API will soon be deprecated and should be replaced with `contact.clear()`. It completes the contact entirely.
-That means it should only be used for non-monitoring agent connections.
-
-Optional success and failure callbacks can be provided to determine if the operation was successful.
 
 ### `contact.notifyIssue()`
 ```js

@@ -139,6 +139,20 @@
   };
  
   /**-------------------------------------------------------------------------
+   * Initialized AgentApp client
+   * Should be used by Shared Worker to update AgentApp client with new credentials
+   * after refreshed authentication.
+   */
+  connect.core.initAgentAppClient = function (params) {
+    connect.assertNotNull(params, 'params');    
+    var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
+    var authCookieName = connect.assertNotNull(params.authCookieName, 'params.authCookieName');
+    var endpoint = connect.assertNotNull(params.agentAppEndpoint, 'params.agentAppEndpoint');
+    
+    connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
+  };
+ 
+  /**-------------------------------------------------------------------------
    * Uninitialize Connect.
    */
   connect.core.terminate = function () {
@@ -196,7 +210,6 @@
                 new connect.ChatRingtoneEngine(ringtoneSettings.chat);
               connect.getLog().info("ChatRingtoneEngine initialized.").sendInternalLogToServer();
             }
-
             if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
               connect.core.ringtoneEngines.task =
                 new connect.TaskRingtoneEngine(ringtoneSettings.task);
@@ -220,7 +233,6 @@
       params.ringtone.queue_callback = params.ringtone.queue_callback || {};
       params.ringtone.chat = params.ringtone.chat || { disabled: true };
       params.ringtone.task = params.ringtone.task || { disabled: true };
-
       if (otherParams.softphone) {
         if (otherParams.softphone.disableRingtone) {
           params.ringtone.voice.disabled = true;
@@ -610,7 +622,7 @@
       if (params.loginPopup !== false) {
         try {
           var loginUrl = getLoginUrl(params);
-          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogEntryToServer();
+          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
           // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
           if (params.loginUrl) {
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
@@ -622,6 +634,7 @@
       }
  
       if (connect.core.iframeRefreshInterval == null) {
+        var ccp_iframe_refresh_interval = (params.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL : CCP_IFRAME_REFRESH_INTERVAL;
         connect.core.iframeRefreshInterval = window.setInterval(function () {
           iframe.src = params.ccpUrl;
         }, CCP_IFRAME_REFRESH_INTERVAL);
@@ -1145,6 +1158,15 @@
     return connect.core.client;
   };
   connect.core.client = null;
+ 
+  /**-----------------------------------------------------------------------*/
+  connect.core.getAgentAppClient = function () {
+    if (!connect.core.agentAppClient) {
+      throw new connect.StateError('The connect AgentApp Client has not been initialized!');
+    }
+    return connect.core.agentAppClient;
+  };
+  connect.core.agentAppClient = null;
  
   /**-----------------------------------------------------------------------*/
   connect.core.getAgentAppClient = function () {
