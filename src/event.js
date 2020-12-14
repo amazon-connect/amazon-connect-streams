@@ -118,14 +118,6 @@
     'session_init'
   ]);
 
-  var DisasterRecoveryEvents = connect.makeNamespacedEnum('disasterRecovery', [
-    'suppress',
-    'force_offline', // letting the sharedworker know to force offline 
-    'set_offline', // iframe letting the native ccp to set offline
-    'init_disaster_recovery',
-    'failover' // used to propagate failover state to other windows
-  ]);
-
   /**---------------------------------------------------------------
    * class EventFactory
    */
@@ -319,5 +311,4 @@
   connect.ContactEvents = ContactEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
-  connect.DisasterRecoveryEvents = DisasterRecoveryEvents;
 })();

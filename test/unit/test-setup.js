@@ -13,8 +13,6 @@ global.jsdom = jsdom;
 
 global.parent = global.window;
 
-global.parent = global.window;
-
 require("../../release/connect-streams.js");
 
 global.connect.RTCSession = function () {};
