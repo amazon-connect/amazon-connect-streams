@@ -96,7 +96,6 @@
     handleMicrophoneDeviceChange();
 
     this.ringtoneEngine = null;
-    var cleanMultipleSessions = 'true' === softphoneParams.cleanMultipleSessions;
     var rtcSessions = {};
     // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
     var callsDetected = {};
@@ -137,28 +136,19 @@
       }
     };
 
-    // When feature access control flag is on, ignore the new call and hang up the previous sessions.
-    // Otherwise just log the contact and agent in the client side metrics.
+    // When multiple RTC sessions detected, ignore the new call and hang up the previous sessions.
     // TODO: Update when connect-rtc exposes an API to detect session status.
     var sanityCheckActiveSessions = function (rtcSessions) {
       if (Object.keys(rtcSessions).length > 0) {
-        if (cleanMultipleSessions) {
-          // Error! our state doesn't match, tear it all down.
-          for (var connectionId in rtcSessions) {
-            if (rtcSessions.hasOwnProperty(connectionId)) {
-              // Log an error for the session we are about to kill.
-              publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
-              destroySession(connectionId);
-            }
-          }
-          throw new Error("duplicate session detected, refusing to setup new connection");
-        } else {
-          for (var _connectionId in rtcSessions) {
-            if (rtcSessions.hasOwnProperty(_connectionId)) {
-              publishMultipleSessionsEvent(MULTIPLE_SESSIONS_EVENT, rtcSessions[_connectionId].callId, _connectionId);
-            }
+        // Error! our state doesn't match, tear it all down.
+        for (var connectionId in rtcSessions) {
+          if (rtcSessions.hasOwnProperty(connectionId)) {
+            // Log an error for the session we are about to kill.
+            publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
+            destroySession(connectionId);
           }
         }
+        throw new Error("duplicate session detected, refusing to setup new connection");
       }
     };
 
