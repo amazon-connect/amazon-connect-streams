@@ -98,7 +98,7 @@ describe('Core', function () {
         });
     });
 
-    describe('legacy endpoint', function () {
+    describe('new endpoint', function () {
         jsdom({ url: "https://abc.my.connect.aws/ccp-v2" });
 
         beforeEach(function () {

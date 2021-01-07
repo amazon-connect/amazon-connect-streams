@@ -9,6 +9,7 @@ global.sinon = sinon;
 global.navigator = {
     userAgent: 'browser'
 };
+
 global.jsdom = jsdom;
 
 global.parent = global.window;

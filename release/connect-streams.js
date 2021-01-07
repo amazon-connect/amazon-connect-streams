@@ -21624,7 +21624,7 @@
       filterByLogLevel = options.filterByLogLevel || filterByLogLevel;
     }
     else if (typeof options === 'string') {
-      logName = options || logName; 
+      logName = options || logName;
     }
 
     var self = this;
@@ -22634,6 +22634,10 @@
         eventName !== connect.EventType.SERVER_BOUND_INTERNAL_LOG
     ) {
       connect.getLog().trace("Publishing event: %s", eventName).sendInternalLogToServer();
+    }
+
+    if (eventName.startsWith(connect.ContactEvents.ACCEPTED) && data.contactId && !(data instanceof connect.Contact)) {
+      data = new connect.Contact(data.contactId);
     }
     allEventSubs.concat(eventSubs).forEach(function (sub) {
       try {
@@ -23688,6 +23692,7 @@
     'queue_transfer',
     'callback',
     'api',
+    'disconnect'
   ]);
 
   /*----------------------------------------------------------------
@@ -24917,7 +24922,9 @@
 
   VoiceId.prototype.checkConferenceCall = function(){
     var self = this;
-    var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.length > 2;
+    var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.filter(function (conn) {
+      return connect.contains(connect.CONNECTION_ACTIVE_STATES, conn.state.type);
+    }).length > 2;
     if(isConferenceCall){
       throw new connect.NotImplementedError("VoiceId is not supported for conference calls");
     }
@@ -25275,7 +25282,7 @@
  
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.6.0";
+  connect.version = "1.6.2";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -25466,6 +25473,7 @@
                 new connect.TaskRingtoneEngine(ringtoneSettings.task);
                 connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
+
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
@@ -25496,14 +25504,17 @@
           params.ringtone.queue_callback.ringtoneUrl = otherParams.softphone.ringtoneUrl;
         }
       }
+
       if (otherParams.chat) {
         if (otherParams.chat.disableRingtone) {
           params.ringtone.chat.disabled = true;
         }
+
         if (otherParams.chat.ringtoneUrl) {
           params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
         }
       }
+
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -25514,6 +25525,7 @@
           otherParams.ringtone.chat || {});
       }
     };
+
     // Merge params from params.softphone and params.chat into params.ringtone
     // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
@@ -25779,6 +25791,7 @@
     } else {
       params = paramsIn;
     }
+
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
  
@@ -25798,6 +25811,7 @@
  
     // Build the upstream conduit communicating with the CCP iframe.
     var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
+
     // Let CCP know if iframe is visible
     iframe.onload = setTimeout(function() {
       var style = window.getComputedStyle(iframe, null);
@@ -25809,6 +25823,7 @@
       };
       conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
     }, 10000);
+
     // Set the global upstream conduit for external use.
     connect.core.upstream = conduit;
  
@@ -25903,6 +25918,7 @@
         });
       }
     });
+
     if (params.onViewContact) {
       connect.core.onViewContact(params.onViewContact);
     }
@@ -26780,7 +26796,6 @@
     handleSoftPhoneMuteToggle();
 
     this.ringtoneEngine = null;
-    var cleanMultipleSessions = 'true' === softphoneParams.cleanMultipleSessions;
     var rtcSessions = {};
     // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
     var callsDetected = {};
@@ -26811,28 +26826,19 @@
       }
     };
 
-    // When feature access control flag is on, ignore the new call and hang up the previous sessions.
-    // Otherwise just log the contact and agent in the client side metrics.
+    // When multiple RTC sessions detected, ignore the new call and hang up the previous sessions.
     // TODO: Update when connect-rtc exposes an API to detect session status.
     var sanityCheckActiveSessions = function (rtcSessions) {
       if (Object.keys(rtcSessions).length > 0) {
-        if (cleanMultipleSessions) {
-          // Error! our state doesn't match, tear it all down.
-          for (var connectionId in rtcSessions) {
-            if (rtcSessions.hasOwnProperty(connectionId)) {
-              // Log an error for the session we are about to end.
-              publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
-              destroySession(connectionId);
-            }
-          }
-          throw new Error("duplicate session detected, refusing to setup new connection");
-        } else {
-          for (var _connectionId in rtcSessions) {
-            if (rtcSessions.hasOwnProperty(_connectionId)) {
-              publishMultipleSessionsEvent(MULTIPLE_SESSIONS_EVENT, rtcSessions[_connectionId].callId, _connectionId);
-            }
+        // Error! our state doesn't match, tear it all down.
+        for (var connectionId in rtcSessions) {
+          if (rtcSessions.hasOwnProperty(connectionId)) {
+            // Log an error for the session we are about to end.
+            publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
+            destroySession(connectionId);
           }
         }
+        throw new Error("duplicate session detected, refusing to setup new connection");
       }
     };
 

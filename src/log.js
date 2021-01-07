@@ -430,7 +430,7 @@
       filterByLogLevel = options.filterByLogLevel || filterByLogLevel;
     }
     else if (typeof options === 'string') {
-      logName = options || logName; 
+      logName = options || logName;
     }
 
     var self = this;
