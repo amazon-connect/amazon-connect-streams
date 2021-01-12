@@ -202,6 +202,7 @@
                 new connect.TaskRingtoneEngine(ringtoneSettings.task);
                 connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
+
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
@@ -232,14 +233,17 @@
           params.ringtone.queue_callback.ringtoneUrl = otherParams.softphone.ringtoneUrl;
         }
       }
+
       if (otherParams.chat) {
         if (otherParams.chat.disableRingtone) {
           params.ringtone.chat.disabled = true;
         }
+
         if (otherParams.chat.ringtoneUrl) {
           params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
         }
       }
+
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -250,6 +254,7 @@
           otherParams.ringtone.chat || {});
       }
     };
+
     // Merge params from params.softphone and params.chat into params.ringtone
     // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
@@ -515,6 +520,7 @@
     } else {
       params = paramsIn;
     }
+
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
  
@@ -534,6 +540,7 @@
  
     // Build the upstream conduit communicating with the CCP iframe.
     var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
+
     // Let CCP know if iframe is visible
     iframe.onload = setTimeout(function() {
       var style = window.getComputedStyle(iframe, null);
@@ -545,6 +552,7 @@
       };
       conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
     }, 10000);
+
     // Set the global upstream conduit for external use.
     connect.core.upstream = conduit;
  
@@ -639,6 +647,7 @@
         });
       }
     });
+
     if (params.onViewContact) {
       connect.core.onViewContact(params.onViewContact);
     }
