@@ -272,6 +272,18 @@ connect.core.onAccessDenied(function() { /* ... */ });
 ```
 Subscribes a callback that executes whenever authorization fails (i.e. access denied).
 
+### `connect.core.onSoftphoneSessionInit()`
+```js
+connect.core.onSoftphoneSessionInit(function({ connectionId }) {
+  var softphoneManager = connect.core.getSoftphoneManager();
+  if(softphoneManager){
+    // access session
+    var session = softphoneManager.getSession(connectionId); 
+  }
+});
+```
+Subscribes a callback that executes whenever a new webrtc session is created. Used for handling the rtc session stats.
+
 ## Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
 code to be called when new agent information is available.
