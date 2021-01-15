@@ -294,7 +294,12 @@
       connect.getLog().trace("Publishing event: %s", eventName).sendInternalLogToServer();
     }
 
-    if (eventName.startsWith(connect.ContactEvents.ACCEPTED) && data.contactId && !(data instanceof connect.Contact)) {
+    if (
+      eventName.startsWith(connect.ContactEvents.ACCEPTED) &&
+      data &&
+      data.contactId &&
+      !(data instanceof connect.Contact)
+    ) {
       data = new connect.Contact(data.contactId);
     }
 
