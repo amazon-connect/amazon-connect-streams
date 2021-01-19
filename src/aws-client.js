@@ -11440,6 +11440,7 @@
       if (this.expiredCredentialsError(error)) return true;
       if (this.throttledError(error)) return true;
       if (error.statusCode >= 500) return true;
+      if (error.statusCode === 403) return true;
       return false;
     },
   
