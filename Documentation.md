@@ -663,7 +663,7 @@ agent.onMuteToggle(function(obj) {
 });
 ```
 Subscribe a method to be called when the agent updates the mute status, meaning
-that agents mute/unmute APIs are called and the local media stream is succesfully updated with the new status.
+that agents mute/unmute APIs are called and the local media stream is successfully updated with the new status.
 
 ### `agent.onSpeakerDeviceChanged()`
 ```js
@@ -712,7 +712,7 @@ Subscribe a method to be invoked when the contact is pending. This event is expe
 ```js
 contact.onConnecting(function(contact) { /* ... */ });
 ```
-Subscribe a method to be invoked when the contact is connecting. This event happens when a contact comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is executed after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
+Subscribe a method to be invoked when the contact is connecting. This event happens when a contact comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is started after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
 
 ### `contact.onAccepted()`
 ```js
