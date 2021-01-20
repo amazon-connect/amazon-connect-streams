@@ -22482,6 +22482,19 @@
   ]);
 
   /**---------------------------------------------------------------
+   * enum Configuration Events
+   */
+  var ConfigurationEvents = connect.makeNamespacedEnum('configuration', [
+    'configure',
+    'set_speaker_device',
+    'set_microphone_device',
+    'set_ringer_device',
+    'speaker_device_changed',
+    'microphone_device_changed',
+    'ringer_device_changed'
+  ]);
+
+  /**---------------------------------------------------------------
    * class EventFactory
    */
   var EventFactory = function () { };
@@ -22674,6 +22687,7 @@
   connect.EventFactory = EventFactory;
   connect.EventType = EventType;
   connect.AgentEvents = AgentEvents;
+  connect.ConfigurationEvents = ConfigurationEvents;
   connect.ConnnectionEvents = ConnnectionEvents;
   connect.ContactEvents = ContactEvents;
   connect.WebSocketEvents = WebSocketEvents;
@@ -23893,6 +23907,18 @@
     connect.core.getUpstream().onUpstream(connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED, f);
   };
 
+  Agent.prototype.onSpeakerDeviceChanged = function(f){
+    connect.core.getUpstream().onUpstream(connect.AgentEvents.SPEAKER_DEVICE_CHANGED, f);
+  }
+
+  Agent.prototype.onMicrophoneDeviceChanged = function(f){
+    connect.core.getUpstream().onUpstream(connect.AgentEvents.MICROPHONE_DEVICE_CHANGED, f);
+  }
+
+  Agent.prototype.onRingerDeviceChanged = function(f){
+    connect.core.getUpstream().onUpstream(connect.AgentEvents.RINGER_DEVICE_CHANGED, f);
+  }
+
   Agent.prototype.mute = function () {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
       {
@@ -23907,6 +23933,27 @@
         event: connect.EventType.MUTE,
         data: { mute: false }
       });
+  };
+
+  Agent.prototype.setSpeakerDevice = function (deviceId) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.AgentEvents.SET_SPEAKER_DEVICE,
+      data: { deviceId: deviceId }
+    });
+  };
+
+  Agent.prototype.setMicrophoneDevice = function (deviceId) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.AgentEvents.SET_MICROPHONE_DEVICE,
+      data: { deviceId: deviceId }
+    });
+  };
+
+  Agent.prototype.setRingerDevice = function (deviceId) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.AgentEvents.SET_RINGER_DEVICE,
+      data: { deviceId: deviceId }
+    });
   };
 
   Agent.prototype.getState = function () {
@@ -25279,16 +25326,17 @@
   connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
- 
+
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.6.2";
+  connect.version = "1.6.3";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
   var CCP_LOAD_TIMEOUT = 3000; // 3 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
+  var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
  
   var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
   var CLIENT_ID_MAP = {
@@ -25368,6 +25416,115 @@
     }
   };
  
+ 
+  /**-------------------------------------------------------------------------
+  * DISASTER RECOVERY 
+  */
+  
+  var makeAgentOffline = function(agent, callbacks) {
+    var offlineState = agent.getAgentStates().find(function (state) {
+      return state.type === connect.AgentStateType.OFFLINE;
+    });
+    agent.setState(offlineState, callbacks);   
+  }
+ 
+  // Suppress Contacts function 
+  // This is used by Disaster Recovery as a safeguard to not surface incoming calls/chats to UI
+  // 
+  var suppressContacts = function (isSuppressed) {
+    connect.getLog().info("[Disaster Recovery] Signal sharedworker to set contacts suppressor to %s for instance %s.", 
+      isSuppressed, connect.core.region
+    ).sendInternalLogToServer();
+    connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.SUPPRESS, {
+      suppress: isSuppressed
+    });
+  }
+ 
+  var setForceOfflineUpstream = function(offline) {
+    connect.getLog().info("[DISASTER RECOVERY] Signal sharedworker to set forceOffline to %s for instance %s.", 
+      offline, connect.core.region
+    ).sendInternalLogToServer();
+    connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, {
+      offline: offline
+    });
+  }
+ 
+  // Force the instance to be offline. 
+  // This tries to disconnect all contacts (Hard stop)
+  // if due to a failure (the backend is not reachable), signal the shared worker to force_offline when it wakes up again
+  // This function should only be ran from native CCP for disconnecting chats.
+  var forceOffline = function() {
+    var log = connect.getLog();
+    log.info("[Disaster Recovery] Attempting to force instance %s offline", connect.core.region).sendInternalLogToServer();
+    connect.agent(function(agent) {
+      var contactClosed = 0;
+      var contacts = agent.getContacts();
+      if (contacts.length) {
+        contacts.forEach(function(contact) 
+          {
+            contact.getAgentConnection().destroy({
+              success: function() {
+                // check if all active contacts are closed
+                if (++contactClosed === contacts.length) {
+                  setForceOfflineUpstream(false);
+                  // It's ok if we're not able to put the agent offline. 
+                  // since we're suppressing the agents contacts already. 
+                  makeAgentOffline(agent);
+                  log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
+                }
+              },
+              failure: function(err) {
+                log.warn("[Disaster Recovery] An error occured while attempting to force this instance to offline in region %s", connect.core.region).sendInternalLogToServer();
+                log.warn(err).sendInternalLogToServer();
+                // signal the sharedworker to call forceOffline again when network connection 
+                // has been re-established (this happens in case of network or backend failures)
+                setForceOfflineUpstream(true);
+            }});
+          }
+        )        
+      } else {
+        setForceOfflineUpstream(false);
+        makeAgentOffline(agent);
+        log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
+      }
+    });
+  }
+ 
+  //Initiate Disaster Recovery (This should only be called from customCCP that are DR enabled)
+  connect.core.initDisasterRecovery = function(params) {
+    var log = connect.getLog();
+    connect.core.region = params.region;
+    connect.core.suppressContacts = suppressContacts;  
+    connect.core.forceOffline = forceOffline;
+
+    //Register iframe listner to set native CCP offline
+    connect.core.getUpstream().onDownstream(connect.DisasterRecoveryEvents.SET_OFFLINE, function() {
+      connect.core.forceOffline();
+    });
+ 
+    // Register Event listner to Force the Agent to be offline when shared worker recovers from network failure
+    connect.core.getUpstream().onUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, function() {
+      connect.core.forceOffline();
+    });
+
+    connect.ifMaster(connect.MasterTopics.SOFTPHONE, 
+      function() {
+        log.info("[Disaster Recovery] Initializing region %s as part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
+      }, 
+      function() {
+        log.info("[Disaster Recovery] %s already part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
+      });
+
+    if (!params.isPrimary) {
+      connect.core.suppressContacts(true);
+      connect.core.forceOffline();
+      log.info("[Disaster Recovery] %s instance is set to stand-by", connect.core.region).sendInternalLogToServer();
+    } else {
+      connect.core.suppressContacts(false);
+      log.info("[Disaster Recovery] %s instance is set to primary", connect.core.region).sendInternalLogToServer();
+    }
+  }
+ 
   /**-------------------------------------------------------------------------
    * Basic Connect client initialization.
    * Should be used only by the API Shared Worker.
@@ -25387,14 +25544,14 @@
    */
   connect.core.initClient = function (params) {
     connect.assertNotNull(params, 'params');
- 
+    
     var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
     var region = connect.assertNotNull(params.region, 'params.region');
     var endpoint = params.endpoint || null;
  
     connect.core.client = new connect.AWSClient(authToken, region, endpoint);
   };
- 
+
   /**-------------------------------------------------------------------------
    * Initialized AgentApp client
    * Should be used by Shared Worker to update AgentApp client with new credentials
@@ -25467,13 +25624,13 @@
                 new connect.ChatRingtoneEngine(ringtoneSettings.chat);
               connect.getLog().info("ChatRingtoneEngine initialized.").sendInternalLogToServer();
             }
-
+ 
             if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
               connect.core.ringtoneEngines.task =
                 new connect.TaskRingtoneEngine(ringtoneSettings.task);
                 connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
-
+ 
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
@@ -25482,6 +25639,8 @@
           });
         });
       });
+
+      handleRingerDeviceChange();
     };
  
     var mergeParams = function (params, otherParams) {
@@ -25492,7 +25651,7 @@
       params.ringtone.queue_callback = params.ringtone.queue_callback || {};
       params.ringtone.chat = params.ringtone.chat || { disabled: true };
       params.ringtone.task = params.ringtone.task || { disabled: true };
-
+ 
       if (otherParams.softphone) {
         if (otherParams.softphone.disableRingtone) {
           params.ringtone.voice.disabled = true;
@@ -25504,17 +25663,17 @@
           params.ringtone.queue_callback.ringtoneUrl = otherParams.softphone.ringtoneUrl;
         }
       }
-
+ 
       if (otherParams.chat) {
         if (otherParams.chat.disableRingtone) {
           params.ringtone.chat.disabled = true;
         }
-
+ 
         if (otherParams.chat.ringtoneUrl) {
           params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
         }
       }
-
+ 
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -25525,7 +25684,7 @@
           otherParams.ringtone.chat || {});
       }
     };
-
+ 
     // Merge params from params.softphone and params.chat into params.ringtone
     // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
@@ -25545,7 +25704,27 @@
       setupRingtoneEngines(params.ringtone);
     }
   };
- 
+
+  var handleRingerDeviceChange = function() {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.ConfigurationEvents.SET_RINGER_DEVICE, setRingerDevice);
+  }
+
+  var setRingerDevice = function (data){
+    if(connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId){
+      return;
+    }
+    var deviceId = data.deviceId;
+    for (var ringtoneType in connect.core.ringtoneEngines) {
+      connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId);
+    }
+
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ConfigurationEvents.RINGER_DEVICE_CHANGED,
+      data: { deviceId: deviceId }
+    });
+  }
+
   connect.core.initSoftphoneManager = function (paramsIn) {
     var params = paramsIn || {};
  
@@ -25597,7 +25776,24 @@
       }
     });
   };
- 
+
+  connect.core.initPageOptions = function (params) {
+    connect.assertNotNull(params, "params");
+
+    if (connect.isFramed()) {
+      // If the CCP is in a frame, wait for configuration from downstream.
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.EventType.CONFIGURE, function (data) {
+        connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+          {
+            event: connect.ConfigurationEvents.CONFIGURE,
+            data: data
+          });
+      });
+
+    }
+  };
+
   //Internal use only.
   connect.core.authorize = function (endpoint) {
     var options = {
@@ -25767,6 +25963,10 @@
       var nm = connect.core.getNotificationManager();
       nm.requestPermission();
  
+      conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, function(params) {
+        connect.core.initDisasterRecovery(params);
+      })
+ 
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
         .withException(e).sendInternalLogToServer();
@@ -25791,7 +25991,7 @@
     } else {
       params = paramsIn;
     }
-
+ 
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
  
@@ -25801,7 +26001,7 @@
     iframe.allow = "microphone; autoplay";
     iframe.style = "width: 100%; height: 100%";
     containerDiv.appendChild(iframe);
- 
+
     // Initialize the event bus and agent data providers.
     // NOTE: Setting logEvents here to FALSE in order to avoid duplicating
     // events which are logged in CCP.
@@ -25811,7 +26011,7 @@
  
     // Build the upstream conduit communicating with the CCP iframe.
     var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
-
+ 
     // Let CCP know if iframe is visible
     iframe.onload = setTimeout(function() {
       var style = window.getComputedStyle(iframe, null);
@@ -25823,7 +26023,7 @@
       };
       conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
     }, 10000);
-
+ 
     // Set the global upstream conduit for external use.
     connect.core.upstream = conduit;
  
@@ -25853,13 +26053,25 @@
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
-      if (params.softphone || params.chat) {
+ 
+      if (params.softphone || params.chat || params.pageOptions) {
         // Send configuration up to the CCP.
         //set it to false if secondary
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
           softphone: params.softphone,
-          chat: params.chat
+          chat: params.chat,
+          pageOptions: params.pageOptions
         });
+      }
+ 
+      // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
+      if (params.disasterRecoveryOn) {
+        connect.core.region = params.region;
+        connect.core.suppressContacts = suppressContacts;
+        connect.core.forceOffline = function() {
+          conduit.sendUpstream(connect.DisasterRecoveryEvents.SET_OFFLINE);
+        }       
+        conduit.sendUpstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, params);
       }
  
       if (connect.core.ccpLoadTimeoutInstance) {
@@ -25894,31 +26106,32 @@
           if (params.loginUrl) {
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
           }
-          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
+          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
+ 
         } catch (e) {
           connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
         }
       }
  
       if (connect.core.iframeRefreshInterval == null) {
+        var ccp_iframe_refresh_interval = (params.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL : CCP_IFRAME_REFRESH_INTERVAL;
         connect.core.iframeRefreshInterval = window.setInterval(function () {
-          iframe.src = params.ccpUrl;
-        }, CCP_IFRAME_REFRESH_INTERVAL);
+          iframe.src = (params.disasterRecoveryOn) ? params.loginUrl : params.ccpUrl;
+        }, ccp_iframe_refresh_interval);
  
         conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
           this.unsubscribe();
           global.clearInterval(connect.core.iframeRefreshInterval);
           connect.core.iframeRefreshInterval = null;
           connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-          if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && 
-              connect.core.loginWindow) {
+          if (params.loginPopupAutoClose && connect.core.loginWindow) {
             connect.core.loginWindow.close();
             connect.core.loginWindow = null;
           }
         });
       }
     });
-
+ 
     if (params.onViewContact) {
       connect.core.onViewContact(params.onViewContact);
     }
@@ -26255,7 +26468,7 @@
         self.bus.trigger(connect.core.getContactEventName(event, contactId), new connect.Contact(contactId));
       });
     }
- 
+
     self.bus.trigger(connect.ContactEvents.REFRESH, new connect.Contact(contactId));
     self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), new connect.Contact(contactId));
   };
@@ -26322,6 +26535,11 @@
     connect.core.getUpstream().onUpstream(connect.ConnnectionEvents.SESSION_INIT, f);
   };
  
+  /**-----------------------------------------------------------------------*/
+  connect.core.onConfigure = function(f) {
+    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CONFIGURE, f);
+  }
+
   /**-----------------------------------------------------------------------*/
   connect.core.getContactEventName = function (eventName, contactId) {
     connect.assertNotNull(eventName, 'eventName');
@@ -26425,7 +26643,7 @@
     return connect.core.client;
   };
   connect.core.client = null;
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getAgentAppClient = function () {
     if (!connect.core.agentAppClient) {
@@ -26478,7 +26696,6 @@
   connect.core.AgentDataProvider = AgentDataProvider;
  
 })();
-
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -26794,6 +27011,8 @@
       }
     });
     handleSoftPhoneMuteToggle();
+    handleSpeakerDeviceChange();
+    handleMicrophoneDeviceChange();
 
     this.ringtoneEngine = null;
     var rtcSessions = {};
@@ -26804,6 +27023,16 @@
     this.getSession = function (connectionId) {
       return rtcSessions[connectionId];
     }
+
+    this.replaceLocalMediaTrack = function(connectionId, track) {
+      var stream = localMediaStream[connectionId].stream;
+      if(stream){
+        var oldTrack = stream.getAudioTracks()[0];
+        oldTrack.enabled = false;
+        stream.removeTrack(oldTrack);
+        stream.addTrack(track);
+      }
+    };
 
     var isContactTerminated = function (contact) {
       return contact.getStatus().type === connect.ContactStatusType.ENDED ||
@@ -26998,6 +27227,16 @@
     bus.subscribe(connect.EventType.MUTE, muteToggle);
   };
 
+  var handleSpeakerDeviceChange = function() {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.ConfigurationEvents.SET_SPEAKER_DEVICE, setSpeakerDevice);
+  }
+
+  var handleMicrophoneDeviceChange = function () {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, setMicrophoneDevice);
+  }
+
   // Make sure once we disconnected we get the mute state back to normal
   var deleteLocalMediaStream = function (connectionId) {
     delete localMediaStream[connectionId];
@@ -27046,6 +27285,59 @@
       data: { muted: status }
     });
   };
+
+  var setSpeakerDevice = function (data) {
+    if (connect.keys(localMediaStream).length === 0 || !data || !data.deviceId) {
+      return;
+    }
+    var deviceId = data.deviceId;
+    var remoteAudioElement = document.getElementById('remote-audio');
+    try {
+      logger.info("Trying to set speaker to device " + deviceId);
+      if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
+        remoteAudioElement.setSinkId(deviceId);
+      }
+    } catch (e) {
+      logger.error("Failed to set speaker to device " + deviceId);
+    }
+
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
+      data: { deviceId: deviceId }
+    });
+  }
+
+  var setMicrophoneDevice = function (data) {
+    if (connect.keys(localMediaStream).length === 0  || !data || !data.deviceId) {
+      return;
+    }
+    var deviceId = data.deviceId;
+    var softphoneManager = connect.core.getSoftphoneManager();
+    try {
+      navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } })
+        .then(function (newMicrophoneStream) {
+          var newMicrophoneTrack = newMicrophoneStream.getAudioTracks()[0];
+          for (var connectionId in localMediaStream) {
+            if (localMediaStream.hasOwnProperty(connectionId)) {
+              var localMedia = localMediaStream[connectionId].stream;
+              var session = softphoneManager.getSession(connectionId);
+              //Replace the audio track in the RtcPeerConnection
+              session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
+                //Replace the audio track in the local media stream (for mute / unmute)
+                softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
+              });
+            }
+          }
+        });
+    } catch(e) {
+      logger.error("Failed to set microphone device " + deviceId);
+    }
+
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED,
+      data: { deviceId: deviceId }
+    });
+  }
 
   var publishSoftphoneFailureLogs = function (rtcSession, reason) {
     if (reason === connect.RTCErrors.ICE_COLLECTION_TIMEOUT) {

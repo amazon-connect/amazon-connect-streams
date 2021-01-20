@@ -92,6 +92,8 @@ describe('Core', function () {
         });
 
         it("uses the legacy endpoint for a legacy url", function () {
+            const href = "https://abc.awsapps.com/connect/ccp-v2";
+            window.location.href = href;
             connect.core.initSharedWorker(this.params);
             assert.isTrue(connect.Conduit.prototype.sendUpstream.called);
             assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/connect/auth/authorize");
@@ -123,7 +125,9 @@ describe('Core', function () {
         });
 
         it("uses new endpoint for new url", function () {
+            const href = "https://abc.my.connect.aws/ccp-v2";
             this.params.baseUrl = "https://abc.my.connect.aws";
+            window.location.href = href;
             connect.core.initSharedWorker(this.params);
             assert.isTrue(connect.Conduit.prototype.sendUpstream.called);
             assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/auth/authorize");
@@ -330,7 +334,8 @@ describe('Core', function () {
             connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE);
             assert.isTrue(connect.core.getUpstream().sendUpstream.calledWith(connect.EventType.CONFIGURE, {
                 softphone: this.params.softphone,
-                chat: this.params.chat
+                chat: this.params.chat,
+                pageOptions: this.params.pageOptions
             }));
         });
 
@@ -338,7 +343,8 @@ describe('Core', function () {
             connect.core.initRingtoneEngines({ ringtone: this.extraRingtone });
             connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, {
                 softphone: this.params.softphone,
-                chat: this.params.chat
+                chat: this.params.chat,
+                pageOptions: this.params.pageOptions
             });
             connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
             connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
