@@ -159,7 +159,11 @@ everything setup correctly and that you will be able to listen for events.
             allowFramedSoftphone: true,   // optional
             disableRingtone: false,       // optional
             ringtoneUrl: "./ringtone.mp3" // optional
-           }
+           },
+          pageOptions: { //optional
+            enableAudioDeviceSettings: false //optional, defaults to 'false'
+            enablePhoneTypeSettings: true //optional, defaults to 'true' 
+           }  
          });
       }
     </script>
@@ -203,6 +207,12 @@ and made available to your JS client code.
     ringtone audio that is played when a call is incoming.
   * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
     the ringtone with any browser-supported audio file accessible by the user.
+* `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
+      * `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local
+      machine. If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab. will not be
+      displayed.
+      * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
+      and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
