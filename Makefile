@@ -30,7 +30,7 @@ $(OUTPUT_JS): $(SOURCE_FILES)
 clean:
 	rm -f $(OUTPUT_JS)
 
-.DEFAULT_GOAL := all
+.DEFAULT_GOAL : all
 
 .PHONY: clean css
 
