@@ -23908,15 +23908,15 @@
   };
 
   Agent.prototype.onSpeakerDeviceChanged = function(f){
-    connect.core.getUpstream().onUpstream(connect.AgentEvents.SPEAKER_DEVICE_CHANGED, f);
+    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED, f);
   }
 
   Agent.prototype.onMicrophoneDeviceChanged = function(f){
-    connect.core.getUpstream().onUpstream(connect.AgentEvents.MICROPHONE_DEVICE_CHANGED, f);
+    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED, f);
   }
 
   Agent.prototype.onRingerDeviceChanged = function(f){
-    connect.core.getUpstream().onUpstream(connect.AgentEvents.RINGER_DEVICE_CHANGED, f);
+    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.RINGER_DEVICE_CHANGED, f);
   }
 
   Agent.prototype.mute = function () {
@@ -23937,21 +23937,21 @@
 
   Agent.prototype.setSpeakerDevice = function (deviceId) {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.AgentEvents.SET_SPEAKER_DEVICE,
+      event: connect.ConfigurationEvents.SET_SPEAKER_DEVICE,
       data: { deviceId: deviceId }
     });
   };
 
   Agent.prototype.setMicrophoneDevice = function (deviceId) {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.AgentEvents.SET_MICROPHONE_DEVICE,
+      event: connect.ConfigurationEvents.SET_MICROPHONE_DEVICE,
       data: { deviceId: deviceId }
     });
   };
 
   Agent.prototype.setRingerDevice = function (deviceId) {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.AgentEvents.SET_RINGER_DEVICE,
+      event: connect.ConfigurationEvents.SET_RINGER_DEVICE,
       data: { deviceId: deviceId }
     });
   };
