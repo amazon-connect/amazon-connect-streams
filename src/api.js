@@ -1253,9 +1253,7 @@
                 }
                 resolve(data);
               } else {
-                setTimeout(function(){
-                  evaluate();
-                },milliInterval);
+                setTimeout(evaluate, milliInterval);
               }
             } else {
               connect.getLog().error("evaluateSpeaker timeout");
@@ -1276,65 +1274,74 @@
       if(!startNew){
         evaluate();
       } else {
-        self.startSession().then(function(data){
+        self.startSession().then(function(data) {
           evaluate();
         }).catch(function(err){
           reject(err)
-        })
+        });
       }
     });
   };
 
   VoiceId.prototype.describeSession = function () {
     var self = this;
-    self.checkConferenceCall();
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    return new Promise(function (resolve, reject) {
+      client.call(connect.AgentAppClientMethods.DESCRIBE_VOICEID_SESSION, {
+        "SessionNameOrId": contactData.initialContactId || this.contactId
+      }, {
+        success: function (data) {
+          resolve(data)
+        },
+        failure: function (err) {
+          connect.getLog().error("describeSession failed")
+            .withObject({
+              err: err
+            });
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.DESCRIBE_SESSION_FAILED, "describeSession failed", err);
+          reject(error);
+        }
+      })
+    });
+  };
+
+  VoiceId.prototype.checkEnrollmentStatus = function () {
+    var self = this;
     var maxPollingTimes = 120; // It is polling for maximum 10 mins.
     var milliInterval = 5000;
+
     return new Promise(function (resolve, reject) {
-      function describe() {
-        client.call(connect.AgentAppClientMethods.DESCRIBE_VOICEID_SESSION, {
-          "SessionNameOrId": contactData.initialContactId || this.contactId
-        }, {
-          success: function (data) {
-            if(maxPollingTimes-- !== 1) {
-              if(data.Session.EnrollmentRequestDetails.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+      function describe () {
+        if(maxPollingTimes-- !== 1) {
+          self.describeSession().then(function(data){
+            switch(data.Session.EnrollmentRequestDetails.Status) {
+              case connect.VoiceIdEnrollmentRequestStatus.COMPLETED:
                 resolve(data);
-              } else if(data.Session.EnrollmentRequestDetails.Status === connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS) {
-                setTimeout(function(){
-                  describe();
-                },milliInterval);
-              } else if(data.Session.EnrollmentRequestDetails.Status === connect.VoiceIdEnrollmentRequestStatus.NOT_ENOUGH_SPEECH) {
-                if(data.Session.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED) {
-                  self.startSession().then(function(data){
+                break;
+              case connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS:
+                setTimeout(describe, milliInterval);
+                break;
+              case connect.VoiceIdEnrollmentRequestStatus.NOT_ENOUGH_SPEECH:
+                if(data.Session.StreamingStatus !== connect.VoiceIdStreamingStatus.ENDED) {
+                  setTimeout(describe,milliInterval);
+                } else {
+                  self.startSession().then(function(data) {
                     describe();
                   }).catch(function(err, data){
                     reject(err);
-                  })
-                } else {
-                  setTimeout(function(){
-                    describe();
-                  },milliInterval);
+                  });
                 }
-              } else {
+                break;
+              default:
                 reject(Error(data.Session.EnrollmentRequestDetails.Status));
-              }
-            } else {
-              connect.getLog().error("describeSession timeout");
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "describeSession timeout");
-              reject(error);
             }
-          },
-          failure: function (err) {
-            connect.getLog().error("describeSession failed")
-              .withObject({
-                err: err
-              });
-            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.DESCRIBE_SESSION_FAILED, "describeSession failed", err);
-            reject(error);
-          }
-        })
+          });
+        } else {
+          connect.getLog().error("describeSession timeout");
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "describeSession timeout");
+          reject(error);
+        }
       }
       describe();
     });
@@ -1353,7 +1360,7 @@
             if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
               resolve(data);
             } else {
-              self.describeSession().then(function(data){
+              self.checkEnrollmentStatus().then(function(data){
                 resolve(data);
               }).catch(function(err){
                 reject(err);
