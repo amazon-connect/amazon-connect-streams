@@ -91,6 +91,14 @@ describe('Utils', function () {
             connect.core.getUpstream.restore();
         });
     });
+    describe('#connect.isValidLocale', function () {
+        it('should return true for a valid locale', function() {
+            assert.equal(true, connect.isValidLocale('en_US'));
+        })
+        it('should return false for an invalid locale', function() {
+            assert.equal(false, connect.isValidLocale('incorrect'));
+        });
+    });
 
     describe('TODO', function () {
         it("include test cases for all the remaining methods");

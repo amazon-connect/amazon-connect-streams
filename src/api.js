@@ -45,6 +45,7 @@
     'Default',
     'FailedConnectAgent',
     'FailedConnectCustomer',
+    'InvalidLocale',
     'LineEngagedAgent',
     'LineEngagedCustomer',
     'MissedCallAgent',
@@ -500,21 +501,27 @@
 
   Agent.prototype.setConfiguration = function (configuration, callbacks) {
     var client = connect.core.getClient();
-    client.call(connect.ClientMethods.UPDATE_AGENT_CONFIGURATION, {
-      configuration: connect.assertNotNull(configuration, 'configuration')
-    }, {
-        success: function (data) {
-          // We need to ask the shared worker to reload agent config
-          // once we change it so every tab has accurate config.
-          var conduit = connect.core.getUpstream();
-          conduit.sendUpstream(connect.EventType.RELOAD_AGENT_CONFIGURATION);
+    if (configuration && configuration.agentPreferences && !connect.isValidLocale(configuration.agentPreferences.locale)) {
+      if (callbacks && callbacks.failure) {
+        callbacks.failure(AgentErrorStates.INVALID_LOCALE);
+      }
+    } else {
+      client.call(connect.ClientMethods.UPDATE_AGENT_CONFIGURATION, {
+        configuration: connect.assertNotNull(configuration, 'configuration')
+      }, {
+          success: function (data) {
+            // We need to ask the shared worker to reload agent config
+            // once we change it so every tab has accurate config.
+            var conduit = connect.core.getUpstream();
+            conduit.sendUpstream(connect.EventType.RELOAD_AGENT_CONFIGURATION);
 
-          if (callbacks.success) {
-            callbacks.success(data);
-          }
-        },
-        failure: callbacks && callbacks.failure
+            if (callbacks.success) {
+              callbacks.success(data);
+            }
+          },
+          failure: callbacks && callbacks.failure
       });
+    }
   };
 
   Agent.prototype.setState = function (state, callbacks) {

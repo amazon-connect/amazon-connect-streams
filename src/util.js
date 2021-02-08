@@ -248,6 +248,52 @@
     }
   };
 
+  connect.isValidLocale = function (locale) {
+    var languages = [
+      {
+        id: 'en_US',
+        label: 'English'
+      },
+      {
+        id: 'de_DE',
+        label: 'Deutsch'
+      },
+      {
+        id: 'es_ES',
+        label: 'Español'
+      },
+      {
+        id: 'fr_FR',
+        label: 'Français'
+      },
+      {
+        id: 'ja_JP',
+        label: '日本語'
+      },
+      {
+        id: 'it_IT',
+        label: 'Italiano'
+      },
+      {
+        id: 'ko_KR',
+        label: '한국어'
+      },
+      {
+        id: 'pt_BR',
+        label: 'Português'
+      },
+      {
+        id: 'zh_CN',
+        label: '中文(简体)'
+      },
+      {
+        id: 'zh_TW',
+        label: '中文(繁體)'
+      }
+    ];
+    return languages.map(function(language){ return language.id}).includes(locale);
+  }
+
   connect.getOperaBrowserVersion = function () {
     var versionOffset = userAgent.indexOf("Opera");
     var operaVersion = (userAgent.indexOf("Version") !== -1) ? userAgent.substring(versionOffset + 8) : userAgent.substring(versionOffset + 6);
