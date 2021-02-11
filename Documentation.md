@@ -1361,7 +1361,9 @@ call `.withObject(o)` to add an arbitrary object (`o`) to the logs.
 
 A new method `sendInternalLogToServer()` that can be chained to the other methods of the logger has been implemented and is intended for internal use only. It is NOT recommended for use by customers.
 
-Finally, you can trigger the logs to be downloaded to the agent's machine in JSON form by calling `connect.getLog().download()`.
+Finally, you can trigger the logs to be downloaded to the agent's machine in JSON form by calling `connect.getLog().download()`. 
+
+Please note that `connect.getLog().download()` will output Connect-internal logs, along with any custom logs logged using the `connect.getLog()` logger. However, if an agent clicks on an embedded CCP's "Download Logs" button, only the Connect-internal logs will appear. The custom logs will not appear. 
 
 ## CCP Error Logging
 The following errors are related to connectivity in the CCP. These errors are logged in the CCP logs when they occur.
