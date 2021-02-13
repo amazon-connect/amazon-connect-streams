@@ -29180,6 +29180,12 @@
       iframe.style = style || 'width: 100%; height:100%;';
       iframe.id = appName;
       iframe['aria-label'] = appName;
+      iframe.setAttribute(
+        "sandbox",
+        "allow-forms allow-popups allow-same-origin allow-scripts"
+      );
+      // TODO: Update sandbox option for 3P widget
+
       return iframe;
     };
 
