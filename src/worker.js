@@ -280,6 +280,7 @@
       portConduit.sendDownstream(connect.EventType.ACKNOWLEDGE, { id: stream.getId() });
 
       self.portConduitMap[stream.getId()] = portConduit;
+      self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, { length: Object.keys(self.portConduitMap).length });
 
       if (self.agent !== null) {
         self.updateAgent();
@@ -295,6 +296,7 @@
         self.multiplexer.removeStream(stream);
         delete self.portConduitMap[stream.getId()];
         self.masterCoord.removeMaster(stream.getId());
+        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, { length: Object.keys(self.portConduitMap).length });
       });
     };
   };
@@ -555,17 +557,22 @@
    * Handle incoming master query or modification requests from connected tab ports.
    */
   ClientEngine.prototype.handleMasterRequest = function (portConduit, portId, request) {
+    var multiplexerConduit = this.conduit;
     var response = null;
 
     switch (request.method) {
       case connect.MasterMethods.BECOME_MASTER:
+        var masterId = this.masterCoord.getMaster(request.params.topic);
+        var takeOver = Boolean(masterId) && masterId !== portId;
         this.masterCoord.setMaster(request.params.topic, portId);
         response = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
           masterId: portId,
-          isMaster: true,
+          takeOver: takeOver,
           topic: request.params.topic
         });
-
+        if (takeOver) {
+          multiplexerConduit.sendDownstream(response.event, response);
+        }
         break;
 
       case connect.MasterMethods.CHECK_MASTER:
@@ -574,13 +581,11 @@
           this.masterCoord.setMaster(request.params.topic, portId);
           masterId = portId;
         }
-
         response = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
           masterId: masterId,
           isMaster: portId === masterId,
           topic: request.params.topic
         });
-
         break;
 
       default:

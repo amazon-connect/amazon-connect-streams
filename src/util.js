@@ -356,6 +356,10 @@
     }
   };
 
+  connect.hasOtherConnectedCCPs = function () {
+    return connect.numberOfConnectedCCPs > 1;
+  }
+
   connect.fetch = function (endpoint, options, milliInterval, maxRetry) {
     maxRetry = maxRetry || 5;
     milliInterval = milliInterval || 1000;
@@ -596,4 +600,9 @@
     return error;
   }
 
+  // internal use only
+  connect.isCCP = function () {
+    var conduit = connect.core.getUpstream();
+    return conduit.name === 'ConnectSharedWorkerConduit';
+  }
 })();

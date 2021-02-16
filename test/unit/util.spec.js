@@ -64,6 +64,34 @@ describe('Utils', function () {
 
     });
 
+    describe('#connect.hasOtherConnectedCCPs', function () {
+        it('should return false if connect.numberOfConnectedCCPs is 0', function () {
+            connect.numberOfConnectedCCPs = 0;
+            assert.isFalse(connect.hasOtherConnectedCCPs());
+        });
+        it('should return false if connect.numberOfConnectedCCPs is 1', function () {
+            connect.numberOfConnectedCCPs = 1;
+            assert.isFalse(connect.hasOtherConnectedCCPs());
+        });
+        it('should return false if connect.numberOfConnectedCCPs is 2', function () {
+            connect.numberOfConnectedCCPs = 2;
+            assert.isTrue(connect.hasOtherConnectedCCPs());
+        });
+    });
+
+    describe('#connect.isCCP', function () {
+        it('should return true when the upstream.name is ConnectSharedWorkerConduit', function () {
+            sinon.stub(connect.core, 'getUpstream').returns({ name: 'ConnectSharedWorkerConduit' });
+            assert.isTrue(connect.isCCP());
+            connect.core.getUpstream.restore();
+        });
+        it('should return true when the upstream.name is NOT ConnectSharedWorkerConduit', function () {
+            sinon.stub(connect.core, 'getUpstream').returns({ name: 'https://ccp.url.com' });
+            assert.isFalse(connect.isCCP());
+            connect.core.getUpstream.restore();
+        });
+    });
+
     describe('TODO', function () {
         it("include test cases for all the remaining methods");
     });

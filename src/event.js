@@ -38,7 +38,8 @@
     'client_side_logs',
     'server_bound_internal_log',
     'mute',
-    "iframe_style"
+    "iframe_style",
+    "update_connected_ccps"
   ]);
 
   /**---------------------------------------------------------------
@@ -112,10 +113,11 @@
 
 
   /**---------------------------------------------------------------
-  * enum ConnnectionEvents
+  * enum ConnectionEvents
   */
-  var ConnnectionEvents = connect.makeNamespacedEnum('connection', [
-    'session_init'
+  var ConnectionEvents = connect.makeNamespacedEnum('connection', [
+    'session_init',
+    'ready_to_start_session'
   ]);
 
   /**---------------------------------------------------------------
@@ -339,7 +341,7 @@
   connect.EventType = EventType;
   connect.AgentEvents = AgentEvents;
   connect.ConfigurationEvents = ConfigurationEvents;
-  connect.ConnnectionEvents = ConnnectionEvents;
+  connect.ConnectionEvents = ConnectionEvents;
   connect.ContactEvents = ContactEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
