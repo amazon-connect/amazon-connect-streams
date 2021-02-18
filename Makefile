@@ -5,6 +5,7 @@
 
 VERSION = $(shell git describe --tags)
 OUTPUT_JS = 'amazon-connect-$(VERSION).js'
+all: $(OUTPUT_JS)
 
 SOURCE_FILES = src/aws-client.js \
 					src/sprintf.js \
