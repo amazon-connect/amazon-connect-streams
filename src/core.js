@@ -433,7 +433,7 @@
         });
       });
     };
-
+ 
     /**
      * If the window is framed, we need to wait for a CONFIGURE message from
      * downstream before we try to initialize, unless params.allowFramedSoftphone is true.
@@ -747,7 +747,6 @@
       conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, function(params) {
         connect.core.initDisasterRecovery(params);
       })
-
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
         .withException(e).sendInternalLogToServer();

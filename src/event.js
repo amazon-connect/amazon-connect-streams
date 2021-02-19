@@ -142,6 +142,19 @@
   ]);
 
   /**---------------------------------------------------------------
+   * enum Configuration Events
+   */
+  var ConfigurationEvents = connect.makeNamespacedEnum('configuration', [
+    'configure',
+    'set_speaker_device',
+    'set_microphone_device',
+    'set_ringer_device',
+    'speaker_device_changed',
+    'microphone_device_changed',
+    'ringer_device_changed'
+  ]);
+
+  /**---------------------------------------------------------------
    * class EventFactory
    */
   var EventFactory = function () { };
@@ -305,6 +318,9 @@
       data = new connect.Contact(data.contactId);
     }
 
+    if (eventName.startsWith(connect.ContactEvents.ACCEPTED) && data.contactId && !(data instanceof connect.Contact)) {
+      data = new connect.Contact(data.contactId);
+    }
     allEventSubs.concat(eventSubs).forEach(function (sub) {
       try {
         sub.f(data || null, eventName, self);
@@ -342,6 +358,7 @@
   connect.AgentEvents = AgentEvents;
   connect.ConfigurationEvents = ConfigurationEvents;
   connect.ConnectionEvents = ConnectionEvents;
+  connect.ConnnectionEvents = ConnectionEvents; //deprecate on next major version release.
   connect.ContactEvents = ContactEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;

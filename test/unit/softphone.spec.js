@@ -1,7 +1,11 @@
+const mochaJsdom = require("mocha-jsdom");
+
 require("../unit/test-setup.js");
 
 // TODO: Make these work as standalone, for some reason they require a initCCP call to not fail
 describe('SoftphoneManager', function () {
+    jsdom({ url: "http://localhost" });
+    
     var sandbox = sinon.createSandbox();
 
     describe('#SoftphoneManager RTC session for Chrome browser', function () {

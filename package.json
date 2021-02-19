@@ -1,6 +1,6 @@
 {
   "name": "@amzn/amazon-connect-streams",
-  "version": "1.6.0",
+  "version": "1.6.4",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
@@ -47,6 +47,7 @@
     "gulp-uglify": "^3.0.0",
     "gulp-watch": "^5.0.1",
     "jshint": "^2.9.7",
+    "mocha-jsdom": "^2.0.0",
     "pump": "^3.0.0",
     "sinon": "^9.0.0",
     "typescript": "3.0.1"

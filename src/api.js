@@ -255,6 +255,48 @@
   ]);
 
   /*----------------------------------------------------------------
+   * enum for VoiceId streaming status
+   */
+  connect.VoiceIdStreamingStatus = connect.makeEnum([
+    "ONGOING",
+    "ENDED"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId authentication decision
+   */
+  connect.VoiceIdAuthenticationDecision = connect.makeEnum([
+    "ACCEPT",
+    "REJECT",
+    "NOT_ENOUGH_SPEECH",
+    "SPEAKER_NOT_ENROLLED",
+    "SPEAKER_OPTED_OUT",
+    "SPEAKER_ID_NOT_PROVIDED"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for contact flow authentication decision 
+   */
+  connect.ContactFlowAuthenticationDecision = connect.makeEnum([
+    "Authenticated",
+    "NotAuthenticated",
+    "Inconclusive",
+    "NotEnrolled",
+    "OptedOut",
+    "Error"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId EnrollmentRequestStatus status
+   */
+  connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
+    "NOT_ENOUGH_SPEECH",
+    "IN_PROGRESS",
+    "COMPLETED",
+    "FAILED"
+  ]);
+
+  /*----------------------------------------------------------------
    * class Agent
    */
   var Agent = function () {
@@ -825,9 +867,13 @@
       });
   };
 
-  Contact.prototype.destroy = function (callbacks) {
+  Contact.prototype.destroy = function () {
+    connect.getLog().warn("contact.destroy() has been deprecated.");
+  };
+
+  Contact.prototype.reject = function (callbacks) {
     var client = connect.core.getClient();
-    client.call(connect.ClientMethods.DESTROY_CONTACT, {
+    client.call(connect.ClientMethods.REJECT_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
   };
@@ -1695,9 +1741,9 @@
   };
 
   /**
-   * Execute the given function asynchronously only if the shared worker
+   * Starts the given function asynchronously only if the shared worker
    * says we are the master for the given topic.  If there is no master for
-   * the given topic, we become the master and execute the function.
+   * the given topic, we become the master and start the function.
    *
    * @param topic The master topic we are concerned about.
    * @param f_true The callback to be invoked if we are the master.

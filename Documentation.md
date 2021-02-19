@@ -1,6 +1,20 @@
 # Amazon Connect Streams Documentation
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
+# Important Announcements
+1. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Wisdom (preview). See the [updated documentation](#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
+    * ### About Amazon Connect Customer Profiles
+        + Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place. 
+    * ### About Amazon Connect Wisdom (this feature is in preview release for Amazon Connect and is subject to change)
+        + With Amazon Connect Wisdom, agents can search and find content across multiple repositories, such as frequently asked questions (FAQs), wikis, articles, and step-by-step instructions for handling different customer issues. They can type questions or phrases in a search box (such as, "how long after purchase can handbags be exchanged?") without having to guess which keywords will work.
+    * ### About Amazon Connect Voice ID (this feature is in preview release for Amazon Connect and is subject to change)
+        + Amazon Connect Voice ID provides real-time caller authentication which makes voice interactions in contact centers more secure and efficient. Voice ID uses machine learning to verify the identity of genuine customers by analyzing a caller’s unique voice characteristics. This allows contact centers to use an additional security layer that doesn’t rely on the caller answering multiple security questions, and makes it easy to enroll and verify customers without changing the natural flow of their conversation.
+2. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
+    * `FailedConnectAgent` -- Previously, we required the agent to click the "Clear Contact" button to clear this state. When the agent clicked the "Clear Contact" button, the previous behavior took the agent back to the `Available` state without fail. Now the `FailedConnectAgent` state will be "auto-cleared", much like `FailedConnectCustomer` always has been. 
+    * `FailedConnectAgent` and `FailedConnectCustomer` -- We are now using the `contact.clear()` API to auto-clear these states. As a result, the agent will be returned to their previous visible agent state (e.g. `Available`). Previously, the agent had always been set to `Available` as a result of this "auto-clearing" behavior. Note that even custom CCPs will behave differently with this update for `FailedConnectAgent` and `FailedConnectCustomer`.
+    * `AfterCallWork` -- As part of the new `contact.clear()` behavior, clicking "Clear Contact" while in `AfterCallWork` will return the agent to their previous visible agent state (e.g. `Available`, etc.). Note that custom CCPs that implement their own After Call Work behavior will not be affected by this change.
+        * We are putting `contact.complete()` on a deprecation path. Therefore, you should start using `contact.clear()` in its place. If you want to emulate CCP's After Call Work behavior in your customer CCP, then make sure you use `contact.clear()` when clearing voice contacts. 
+
 
 # Important Announcements
 1. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
@@ -10,14 +24,9 @@
         * We are putting `contact.complete()` on a deprecation path. Therefore, you should start using `contact.clear()` in its place. If you want to emulate CCP's After Call Work behavior in your customer CCP, then make sure you use `contact.clear()` when clearing voice contacts. 
         
 ## Overview
-The Amazon Connect Streams API (Streams) gives you the power to integrate your
-existing web applications with Amazon Connect. Streams lets you
-embed the Contact Control Panel (CCP) UI components into your page, and/or
-handle agent and contact state events directly giving you the power to control
-agent and contact state through an object oriented event driven interface. You
-can use the built in interface or build your own from scratch: Streams gives you
-the choice. This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs) or [amazon-connect-taskjs](https://github.com/amazon-connect/amazon-connect-taskjs)
-in order to utilize Amazon Connect's Chat or Task functionality.
+The Amazon Connect Streams API (Streams) gives you the power to integrate your existing web applications with Amazon Connect.  Streams lets you embed the Contact Control Panel (CCP) and Customer Profiles app UI into your page.  It also enables you to handle agent and contact state events directly through an object oriented event driven interface.  You can use the built in interface or build your own from scratch: Streams gives you the choice.
+
+This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs) or [amazon-connect-taskjs](https://github.com/amazon-connect/amazon-connect-taskjs) in order to utilize Amazon Connect's Chat or Task functionality.
 
 ## Architecture
 Click [here](Architecture.md) to view a quick architecture overview of how the
@@ -28,18 +37,18 @@ Amazon Connect Streams API works.
 ### Upgrading to the Latest Version of the CCP (AKA /ccp-v2)?
 If you are migrating to the new CCP, we encourage you to upgrade to the latest version of this repository. You should also upgrade to [the latest version of RTC-JS](https://github.com/aws/connect-rtc-js) as well, if you are using it. For a complete migration guide to the new CCP, and to fully understand the differences when using Streams with the new CCP, please see this post: https://docs.aws.amazon.com/connect/latest/adminguide/upgrade-to-latest-ccp.html. Also see: https://docs.aws.amazon.com/connect/latest/adminguide/upgrade-ccp-streams-api.html.
 
-### Whitelisting
-The first step to using the Streams API is to whitelist the pages you wish to embed.
+### Allowlisting
+The first step to using the Streams API is to allowlist the pages you wish to embed.
 For our customer's security, we require that all domains which embed the CCP for
-a particular instance are explicitly whitelisted. Each domain entry identifies
+a particular instance are explicitly allowlisted. Each domain entry identifies
 the protocol scheme, host, and port. Any pages hosted behind the same protocol
 scheme, host, and port will be allowed to embed the CCP components which are
 required to use the Streams library.
 
-To whitelist your pages:
+To allowlist your pages:
 
 1. Login to your AWS Account, then navigate to the Amazon Connect console.
-2. Choose the instance alias of the instance to whitelist
+2. Choose the instance alias of the instance to allowlist
    pages for to load the settings Overview page for your instance.
 3. Choose "Application integration" link on the left.
 4. Choose "+ Add Origin", then enter a domain URL, e.g.
@@ -47,9 +56,9 @@ To whitelist your pages:
    website is hosted on a non-standard port.
 
 #### A few things to note:
-* Whitelisted domains must be HTTPS.
+* Allowlisted domains must be HTTPS.
 * All of the pages that attempt to initialize the Streams library must be hosted
-  on domains that are whitelisted as per the previous steps.
+  on domains that are allowlisted as per the previous steps.
 * All open tabs that contain an initialized Streams library or any other CCP
   tabs opened will be synchronized. This means that state changes made in one
   open window will be communicated to all open windows.
@@ -73,7 +82,7 @@ This will make the `connect` variable available in the current context.
 ```ts
 import "amazon-connect-streams";
 
-connect.initCCP({ /* ... */ });
+connect.core.initCCP({ /* ... */ });
 ```
 
 ## Downloading Streams from Github
@@ -126,22 +135,31 @@ everything set up correctly and that you are able to listen for events.
 ### `connect.core.initCCP()`
 ```html
 <!DOCTYPE html>
-<meta charset="UTF-8">
 <html>
   <head>
+    <meta charset="UTF-8">
     <script type="text/javascript" src="amazon-connect-1.4.js"></script>
   </head>
   <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
   <body onload="init()">
-    <div id=containerDiv style="width: 400px;height: 800px;"></div>
+    <div id="container-div" style="width: 400px;height: 800px;"></div>
     <script type="text/javascript">
+      var containerDiv = document.getElementById("container-div");
       var instanceURL = "https://my-instance-domain.awsapps.com/connect/ccp-v2/";
-      // initialise the streams api
+      // initialize the streams api
       function init() {
         // initialize the ccp
         connect.core.initCCP(containerDiv, {
           ccpUrl: instanceURL,            // REQUIRED
           loginPopup: true,               // optional, defaults to `true`
+          loginPopupAutoClose: true,      // optional, defaults to `true`
+          loginOptions: {                 // optional, if provided opens login in new window
+            autoClose: true,              // optional, defaults to `false`
+            height: 600,                  // optional, defaults to 578
+            width: 400,                   // optional, defaults to 433
+            top: 0,                       // optional, defaults to 0
+            left: 0                       // optional, defaults to 0
+          },
           region: "eu-central-1",         // REQUIRED for `CHAT`, optional otherwise
           softphone: {                    // optional
             allowFramedSoftphone: true,   // optional
@@ -166,12 +184,22 @@ and made available to your JS client code.
   in order to use the CCP in a standalone page, it is different for each
   instance.
 * `region`: Amazon connect instance region. ex: `us-west-2`. only required for chat channel.
-* `loginPopup`: Optional, defaults to `true`. Set to `false` to disable the login
-  popup which is shown when the user's authentication expires.
-* `loginPopupAutoClose`: Optional, defaults to `false`. Set to `true` in conjunction with the `loginPopup` parameter
-  to automatically close the login Popup window once the authentication step has completed.
-  If the login page opened in a new tab, this parameter will also auto-close that tab.
-* `loginUrl`: Optional. Allows custom URL to be used to initiate the ccp, as in
+* `loginPopup`: Optional, defaults to `true`.  Set to `false` to disable the login popup   
+   which is shown when the user's authentication expires.
+* `loginOptions`: Optional, only valid when `loginPopup` is set to `true`.
+   Provide an object with the following properties to open loginpopup in a new window instead of a
+   new tab.
+   * `autoClose`: Optional, defaults to `false`. Set to `true` to automatically
+      close the login popup after the user logs in.
+   * `height`: This allows you to define the height of the login pop-up window.
+   * `width`: This allows you to define the width of the login pop-up window.
+   * `top`: This allows you to define the top of the login pop-up window.
+   * `left`: This allows you to define the left of the login pop-up window.
+* `loginPopupAutoClose`: Optional, defaults to `false`. Set to `true` in conjunction with the 
+   `loginPopup` parameter to automatically close the login Popup window once the authentication step
+   has completed. If the login page opened in a new tab, this parameter will also auto-close that
+   tab. This can also be set in `loginOptions` if those options are used.
+* `loginUrl`: Optional.  Allows custom URL to be used to initiate the ccp, as in
   the case of SAML authentication.
 * `softphone`: This object is optional and allows you to specify some settings
   surrounding the softphone feature of Connect.
@@ -200,20 +228,19 @@ and made available to your JS client code.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
-`containerDiv` into which you place the iframe, or applying a CSS rule like
+`container-div` into which you place the iframe, or applying a CSS rule like
 this:
 ```css
-.containerDiv iframe {
+#container-div iframe {
   display: none;
 }
 ```
-* The pre-built CCP UI is portrait oriented and capable of contracting
-  horizontally to fit smaller widths. It can expand from a width of 200px to
-  a maximum of 320px based on the size of its container div. If the CCP is
-  placed into a container where it would be sized under 221px in width, the CCP
-  switches to a different layout style with smaller buttons and fonts.
-* In its normal larger style, the CCP is 465px tall. In its smaller form, the
-  CCP is reduced to 400px tall.
+* The CCP UI is rendered in an iframe under the container element provided.
+  The iframe fills its container element with `width: 100%; height: 100%`.
+  To customize the size of the CCP, set the width and height for the container element.
+* The CCP is designed to be responsive (used in various sizes).
+  The smallest size we design for is 320px x 460px.
+  For a good user experience, we recommend that you do not go smaller than this size.
 * CSS styles you add to your site will NOT be applied to the CCP because it is
   rendered in an iframe.
 * If you are trying to use chat specific functionalities, please also include
@@ -257,20 +284,20 @@ connect.core.onViewContact(function(event) {
   // ...
 });
 ```
-Subscribes a callback that executes whenever the currently selected contact on the CCP changes.
+Subscribes a callback that starts whenever the currently selected contact on the CCP changes.
 The callback is called when the contact changes in the UI (i.e. via `click` events) or via `connect.core.viewContact()`.
 
 ### `connect.core.onAuthFail()`
 ```js
 connect.core.onAuthFail(function() { /* ... */ });
 ```
-Subscribes a callback that executes whenever authentication fails (e.g. SAML authentication).
+Subscribes a callback that starts whenever authentication fails (e.g. SAML authentication).
 
 ### `connect.core.onAccessDenied()`
 ```js
 connect.core.onAccessDenied(function() { /* ... */ });
 ```
-Subscribes a callback that executes whenever authorization fails (i.e. access denied).
+Subscribes a callback that starts whenever authorization fails (i.e. access denied).
 
 ### `connect.core.onSoftphoneSessionInit()`
 ```js
@@ -282,7 +309,19 @@ connect.core.onSoftphoneSessionInit(function({ connectionId }) {
   }
 });
 ```
-Subscribes a callback that executes whenever a new webrtc session is created. Used for handling the rtc session stats.
+Subscribes a callback that starts whenever a new webrtc session is created. Used for handling the rtc session stats.
+
+### `connect.core.getWebSocketManager()`
+```js
+// `connect.ChatSession` is defined by `amazon-connect-chatjs`
+connect.ChatSession.create({
+  type: connect.ChatSession.SessionTypes.AGENT,
+  websocketManager: connect.core.getWebSocketManager()
+  // ...
+});
+```
+Gets the `WebSocket` manager. This method is only used when integrating with `amazon-connect-chatjs`.
+See the [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs) documentation for more information.
 
 ## Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
@@ -301,7 +340,7 @@ longer exist. Users can also manually unsubscribe from events by calling
 connect.agent(function(agent) { /* ... */ });
 ```
 Subscribe a method to be called when the agent is initialized. If the agent has
-already been initalized, the call is synchronous and the callback is invoked
+already been initialized, the call is synchronous and the callback is invoked
 immediately. Otherwise, the callback is invoked once the first agent data is
 received from upstream. This callback is provided with an `Agent` API object,
 which can also be created at any time after initialization is complete via `new
@@ -395,13 +434,13 @@ Subscribe a method to be called when the agent is put into an error state specif
 The `error` argument is a `connect.SoftphoneError` instance with the following methods: `getErrorType()`, `getErrorMessage()`, `getEndPointUrl()`.
 
 ### `agent.onWebSocketConnectionLost()`
-```
+```js
 agent.onWebSocketConnectionLost(function(agent) { ... });
 ```
 Subscribe a method to be called when the agent is put into an error state specific to losing a WebSocket connection.
 
 ### `agent.onWebSocketConnectionGained()`
-```
+```js
 agent.onWebSocketConnectionGained(function(agent) { ... });
 ```
 Subscribe a method to be called when the agent gains a WebSocket connection.
@@ -644,7 +683,7 @@ agent.onMuteToggle(function(obj) {
 });
 ```
 Subscribe a method to be called when the agent updates the mute status, meaning
-that agents mute/unmute APIs are called and the local media stream is succesfully updated with the new status.
+that agents mute/unmute APIs are called and the local media stream is successfully updated with the new status.
 
 ### `agent.onSpeakerDeviceChanged()`
 ```js
@@ -693,7 +732,7 @@ Subscribe a method to be invoked when the contact is pending. This event is expe
 ```js
 contact.onConnecting(function(contact) { /* ... */ });
 ```
-Subscribe a method to be invoked when the contact is connecting. This event happens when a contact comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is executed after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
+Subscribe a method to be invoked when the contact is connecting. This event happens when a contact comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is started after the callback is accepted). Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
 
 ### `contact.onAccepted()`
 ```js
@@ -822,7 +861,7 @@ Get the initial connection of the contact.
 ```js
 var initialConn = contact.getActiveInitialConnection();
 ```
-Get the inital connection of the contact, or null if the initial connection is
+Get the initial connection of the contact, or null if the initial connection is
 no longer active.
 
 ### `contact.getThirdPartyConnections()`
@@ -886,18 +925,7 @@ Accept an incoming contact.
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
 ### `contact.destroy()`
-```js
-contact.destroy({
-   success: function() { /* ... */ },
-   failure: function(err) { /* ... */ }
-});
-```
-Close the contact and all of its associated connections. 
-This method can also reject and clear contacts but those behaviors will be deprecated.
-If the contact is a voice contact, and there is a third-party, the customer remains bridged with the third party and will not
-be disconnected from the call. Otherwise, the agent and customer are disconnected. 
-
-Optional success and failure callbacks can be provided to determine if the operation was successful.
+This method is now deprecated.
 
 ### `contact.reject()`
 ```js
@@ -1026,7 +1054,7 @@ Gets references for the contact. A sample reference looks like the following:
 ## Connection API
 The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state
 of a particular connection within a contact. Like contacts, connections come and go. It is good practice not
-to persist these object or keep them as internal state. If you need to, store the `contactId` and `connectionId`
+to persist these objects or keep them as internal state. If you need to, store the `contactId` and `connectionId`
 of the connection and make sure that the contact and connection still exist by fetching them in order from
 the `Agent` API object before calling methods on them.
 
@@ -1115,7 +1143,9 @@ conn.destroy({
    failure: function(err) { /* ... */ }
 });
 ```
-Ends the connection.
+Ends the connection. This can be used to reject contacts, end live contacts, and clear chat ACW.
+At this point, it should be used to reject contacts and end live contacts only. We are deprecating the behavior of clearing ACW with this API.
+To clear ACW for voice and chat contacts, use the `contact.clear()` API.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
@@ -1159,7 +1189,7 @@ Optional success and failure callbacks can be provided to determine if the opera
 ## VoiceConnection API
 The VoiceConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
 of a particular voice connection within a contact. Like contacts, connections come and go. It is good practice not
-to persist these object or keep them as internal state. If you need to, store the `contactId` and `connectionId`
+to persist these objects or keep them as internal state. If you need to, store the `contactId` and `connectionId`
 of the connection and make sure that the contact and connection still exist by fetching them in order from
 the `Agent` API object before calling methods on them.
 
@@ -1187,7 +1217,7 @@ The promise resolves to the return value of `voiceConnection.getMediaInfo()` but
 ## ChatConnection API
 The ChatConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
 of a particular chat connection within a contact. Like contacts, connections come and go. It is good practice not
-to persist these object or keep them as internal state. If you need to, store the `contactId` and `connectionId`
+to persist these objects or keep them as internal state. If you need to, store the `contactId` and `connectionId`
 of the connection and make sure that the contact and connection still exist by fetching them in order from
 the `Agent` API object before calling methods on them.
 
@@ -1332,7 +1362,7 @@ This is a list of some of the special event types which are published into the l
 
 * `EventType.ACKNOWLEDGE`: Event received when the backend API shared worker acknowledges the current tab.
 * `EventType.ACK_TIMEOUT`: Event which is published if the backend API shared worker fails to respond to an `EventType.SYNCHRONIZE` event in a timely manner, meaning that the tab or window has been disconnected from the shared worker.
-* `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid. This usually requires the user to log in again for the CCP to continue to function. See `connect.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
+* `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid. This usually requires the user to log in again for the CCP to continue to function. See `connect.core.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
 * `EventType.LOG`: An event published whenever the CCP or the API shared worker creates a log entry.
 * `EventType.TERMINATED`: Event published when the agent logged out from ccp.
 
@@ -1364,6 +1394,21 @@ A new method `sendInternalLogToServer()` that can be chained to the other method
 Finally, you can trigger the logs to be downloaded to the agent's machine in JSON form by calling `connect.getLog().download()`. 
 
 Please note that `connect.getLog().download()` will output Connect-internal logs, along with any custom logs logged using the `connect.getLog()` logger. However, if an agent clicks on an embedded CCP's "Download Logs" button, only the Connect-internal logs will appear. The custom logs will not appear. 
+
+### LogLevel
+
+For debugging, you can change the log level.
+
+Valid log levels are `TEST`, `TRACE`, `DEBUG`, `INFO`, `LOG`, `WARN`, `ERROR`, and `CRITICAL`.
+
+```js
+const rootLogger = connect.getLog();
+
+// Set log level.
+rootLogger.setLogLevel(connect.LogLevel.TRACE);
+// Set console output level.
+rootLogger.setEchoLevel(connect.LogLevel.TRACE);
+```
 
 ## CCP Error Logging
 The following errors are related to connectivity in the CCP. These errors are logged in the CCP logs when they occur.
@@ -1450,3 +1495,75 @@ fetch("https://<your-instance-domain>/connect/logout", { credentials: 'include'}
   });
 ```
 In addition, it is recommended to remove the auth token cookies (`lily-auth-*`) after logging out, otherwise you’ll see AuthFail errors. ([Browser API Reference](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/cookies/remove)).
+## Initialization for CCP, Customer Profiles, and Wisdom
+
+*Note that if you are only using CCP, please follow [these directions](#initialization)*
+
+Initializing the Streams API is the first step to verify that you have everything set up correctly and that you are able to listen for events.
+
+### `connect.agentApp.initApp(name, containerId, appUrl, config)`
+
+```js
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<html>
+  <head>
+    <script type="text/javascript" src="amazon-connect-1.7.js"></script>
+  </head>
+  <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
+  <body onload="init()">
+    <main>
+      <div id="ccp-container"></div>
+      <div id="customerprofiles-container"></div>
+      <div id="wisdom-container"></div>
+    </main>
+    <script type="text/javascript">
+      function init() {
+        const connectUrl = "https://my-instance-domain.awsapps.com/connect";
+        connect.agentApp.initApp(
+            "ccp", 
+            "ccp-container", 
+            connectUrl + "/ccp-v2/",
+            { style: "width:400px; height:600px;" }
+        );
+        connect.agentApp.initApp(
+            "customerprofiles", 
+            "customerprofiles-container", 
+            connectUrl + "/customerprofiles/",
+            { style: "width:400px; height:600px;" }
+        );
+        connect.agentApp.initApp(
+            "wisdom", 
+            "wisdom-container", 
+            connectUrl + "/wisdom/",
+            { style: "width:400px; height:600px;" }
+        );
+      }
+    </script>
+  </body>
+</html>
+```
+
+Integrates with Amazon Connect by loading the pre-built app located at `appUrl` into an iframe and appending it into the DOM element with id of `containerId`. Underneath the hood, `initApp` creates a `WindowIOStream` for the iframes to communicate with the main CCP iframe, which is in charge of authenticating the agent's session, managing the agent state, and contact state.
+* `name`: A string which should be one of `ccp`, `customerprofiles`, or `wisdom`.
+* `containerId`: The string id of the DOM element that will contain the app iframe.
+* `appUrl`: The string URL of the app. This is the page you would normally navigate to in order to use the app in a standalone page, it is different for each instance.
+* `config`: This object is optional and allows you to specify some settings surrounding the CCP.
+    * `ccpParams`: Optional params that mirror the configuration options for `initCCP`.
+    * `style`: An optional string to supply inline styling for the iframe.
+
+## Voice ID APIs
+Use the following methods to integrate Voice ID into your existing agent web applications.
+
+### `voiceConnection.enrollSpeakerInVoiceId()`
+Enroll a customer to Voice ID using a click of a button.
+### `voiceConnection.evaluateSpeakerWithVoiceId()`
+Check the customer's Voice ID verification status.
+### `voiceConnection.optOutVoiceIdSpeaker()`
+ Opt out a customer from Voice ID.
+### `voiceConnection.getVoiceIdSpeakerStatus()`
+Describe the enrollment status of a customer.
+### `voiceConnection.getVoiceIdSpeakerId()`
+Get the speaker ID.
+### `voiceConnection.updateVoiceIdSpeakerId()`
+Update the speaker ID.

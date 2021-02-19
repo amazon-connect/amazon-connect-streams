@@ -26,7 +26,7 @@
     var logger = connect.getLog();
     var logComponent = connect.LogComponent.CHAT;
 
-    var metadata = params || {};
+    var metadata = connect.merge({}, params) || {};
     metadata.region =  metadata.region || "us-west-2"; // Default it to us-west-2
 
     var getMediaController = function (connectionObj) {

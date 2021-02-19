@@ -407,7 +407,7 @@
 
     return lines.join("\n");
   };
-
+  
   /**
    * Download/Archive logs to a file, 
    * By default, it returns all logs.

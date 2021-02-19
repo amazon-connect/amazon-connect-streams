@@ -28,7 +28,9 @@ var sourceCode = {
     "src/ringtone.js",
     "src/softphone.js",
     "src/worker.js",
-    "src/mediaControllers/*"
+    "src/mediaControllers/*",
+    "src/agent-app/agent-app.js",
+    "src/agent-app/app-registry.js"
     ],
     destFilename: 'connect-streams.js',
     destMinifiedFilename: 'connect-streams-min.js',

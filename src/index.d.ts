@@ -40,7 +40,7 @@ declare namespace connect {
 
   /**
    * Subscribe a method to be called when the agent is initialized.
-   * If the agent has already been initalized, the call is synchronous and the callback is invoked immediately.
+   * If the agent has already been initialized, the call is synchronous and the callback is invoked immediately.
    * Otherwise, the callback is invoked once the first agent data is received from upstream.
    * This callback is provided with an `Agent` API object, which can also be created at any time after initialization is complete via `new connect.Agent()`.
    *
@@ -104,7 +104,7 @@ declare namespace connect {
     viewContact(contactId: string): void;
 
     /**
-     * Subscribes a callback that executes whenever the currently selected contact on the CCP changes.
+     * Subscribes a callback that starts whenever the currently selected contact on the CCP changes.
      * The callback is called when the contact changes in the UI (i.e. via `click` events) or via `connect.core.viewContact()`.
      *
      * @param callback A callback that will receive a `ViewContactEvent` object.
@@ -112,21 +112,79 @@ declare namespace connect {
     onViewContact(callback: ViewContactCallback): void;
 
     /**
-     * Subscribes a callback that executes whenever authentication fails (e.g. SAML authentication).
+     * Subscribes a callback that starts whenever authentication fails (e.g. SAML authentication).
      *
-     * @param callback A callback that will execute whenever authentication fails.
+     * @param callback A callback that will start whenever authentication fails.
      */
     onAuthFail(callback: SuccessFailCallback): void;
 
     /**
-     * Subscribes a callback that executes whenever authorization fails (i.e. access denied).
+     * Subscribes a callback that starts whenever authorization fails (i.e. access denied).
      *
-     * @param callback A callback that will execute whenever access is denied.
+     * @param callback A callback that will start whenever access is denied.
      */
     onAccessDenied(callback: SuccessFailCallback): void;
+
+    /**
+     * Gets the `WebSocket` manager.
+     * This method is only used when integrating with `amazon-connect-chatjs`.
+     */
+    getWebSocketManager(): any;
   }
 
   const core: Core;
+
+  interface AgentApp {
+    /** Alias for connect.core.initCCP */
+    initCCP(container: HTMLElement, options: InitCCPOptions): void;
+    /** Waits for CCP to load to begin iframe communication. */
+    initAppCommunication(iframeId: string, endpoint: string): void;
+    /** Registers the app to the registry and initializes it. */
+    initApp(appName: string, containerId: string, appUrl: string, config?: AppOptions): void;
+    /** Destoys the app by calling the destroy method defined in the app registry. */
+    stopApp(): void;
+    /** Memoizes app data along with start and stop functions. */
+    AppRegistry: AppRegistry;
+  }
+
+  const agentApp: AgentApp;
+
+  interface AppOptions {
+    /** Optional CCP configuration that overrides and gets merged with defaults. */
+    ccpParams?: OptionalInitCCPOptions;
+    /** Optional inline styling for the app iframe. */
+    style?: string;
+  }
+
+  interface AppRegistry {
+    /** Saves app data to memory. */
+    register(appName: string, config: AppRegistryOptions, containerDOM: HTMLElement): void;
+    /** Initializes the app by calling the init method defined in the creator. */
+    start(appName: string, creator: AppCreator): void;
+    /** Destoys the app by calling the destroy method defined in the creator. */
+    stop(): void;
+  }
+
+  type AppCreator = (moduleData: AppData) => AppMethods;
+
+  type AppData = {
+    containerDOM: HTMLElement;
+    endpoint: string;
+    style?: string;
+    instance?: AppMethods;
+  }
+
+  interface AppMethods {
+    init(): void;
+    destroy(): void;
+  }
+
+  interface AppRegistryOptions {
+    /** This is the page you would normally navigate to in order to use the app in a standalone page. */
+    endpoint: string;
+    /** An optional string to supply inline styling for the iframe. */
+    style?: string;
+  }
 
   interface ViewContactEvent {
     /** The ID of the viewed contact. */
@@ -155,6 +213,29 @@ declare namespace connect {
 
     /** If the ringtone is not disabled, this allows for overriding the ringtone with any browser-supported audio file accessible by the user. */
     readonly ringtoneUrl?: string;
+  }
+
+  interface LoginOptions {
+    /*
+    * Whether to auto close the login prompt.
+    */
+    autoClose?: boolean,
+    /*
+    * The height of the login prompt window.
+    */
+    height?: number,
+    /*
+    * The width of the login prompt window.
+    */
+    width?: number,
+    /*
+    * The top of the login prompt window.
+    */
+    top?: number,
+    /*
+    * The left of the login prompt window.
+    */
+    left?: number
   }
 
   interface PageOptions {
@@ -191,8 +272,53 @@ declare namespace connect {
     readonly loginPopup?: boolean;
 
     /**
-     * Set to `true` in conjunction with the `loginPopup` parameter to automatically close the login Popup window once the authentication step has completed.
-     * If the login page opened in a new tab, this parameter will also auto-close that tab.
+     * Options to open login popup in a new window instead of a new tab. If loginPopup is set to
+     * `false`, these options will be ignored.
+     */
+    readonly loginOptions?: LoginOptions;
+
+    /**
+     * Set to `true` in conjunction with the `loginPopup` parameter to automatically close the login
+     * Popup window once the authentication step has completed. If the login page opened in a new
+     * tab, this parameter will also auto-close that tab.
+     * @default false
+     */
+    readonly loginPopupAutoClose?: boolean;
+
+    /** Allows custom URL to be used to initiate the ccp, as in the case of SAML authentication. */
+    readonly loginUrl?: string;
+
+    /** Allows you to specify some settings surrounding the softphone feature of Connect. */
+    readonly softphone?: SoftPhoneOptions;
+
+    /** Allows you to specify ringtone settings for Chat. */
+    readonly chat?: ChatOptions;
+  }
+
+
+  interface OptionalInitCCPOptions {
+    /**
+     * Amazon connect instance region. Only required for chat channel.
+     * @example "us-west-2"
+     */
+    readonly region?: string;
+
+    /**
+     * Set to `false` to disable the login popup which is shown when the user's authentication expires.
+     * @default true
+     */
+    readonly loginPopup?: boolean;
+
+    /**
+     * Options to open login popup in a new window instead of a new tab. If loginPopup is set to
+     * `false`, these options will be ignored.
+     */
+    readonly loginOptions?: LoginOptions;
+
+    /**
+     * Set to `true` in conjunction with the `loginPopup` parameter to automatically close the login
+     * Popup window once the authentication step has completed. If the login page opened in a new
+     * tab, this parameter will also auto-close that tab.
      * @default false
      */
     readonly loginPopupAutoClose?: boolean;
@@ -435,10 +561,10 @@ declare namespace connect {
   type SuccessFailCallback<T extends any[] = []> = (...args: T) => void;
 
   interface SuccessFailOptions {
-    /** A callback that executes when the operation completes successfully. */
+    /** A callback that starts when the operation completes successfully. */
     readonly success?: SuccessFailCallback;
 
-    /** A callback that executes when the operation has an error. */
+    /** A callback that starts when the operation has an error. */
     readonly failure?: SuccessFailCallback<[string]>;
   }
 
@@ -618,15 +744,6 @@ declare namespace connect {
      */
     createTask(taskContact: TaskContactDefinition, callbacks?: SuccessFailOptions): void;
 
-    /**
-     * Create task contact.
-     * Can only be performed if the agent is not handling a live contact.
-     *
-     * @param taskContact The new task contact.
-     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
-     */
-    createTask(taskContact: TaskContactDefinition, callbacks?: SuccessFailOptions): void;
-
     /** Alias for `setState()`. */
     setStatus(
       state: AgentStateDefinition,
@@ -689,7 +806,7 @@ declare namespace connect {
     setRingerDevice(deviceId: string): void;
 
     /**
-     * Subscribe a method to be called when the agent updates the mute status, meaning that agents mute/unmute APIs are called and the local media stream is succesfully updated with the new status.
+     * Subscribe a method to be called when the agent updates the mute status, meaning that agents mute/unmute APIs are called and the local media stream is successfully updated with the new status.
      *
      * @param callback A callback to receive updates on agent mute state
      */
@@ -916,7 +1033,7 @@ declare namespace connect {
     /**
      * Subscribe a method to be invoked when the contact is connecting.
      * This works with chat and softphone contacts.
-     * This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is executed after the callback is accepted).
+     * This event happens when a call or chat comes in, before accepting (there is an exception for queue callbacks, in which onConnecting's handler is started after the callback is accepted).
      * Note that once the contact has been accepted, the `onAccepted` handler will be triggered.
      *
      * @param callback A callback to receive the `Contact` API object instance.
@@ -1039,7 +1156,7 @@ declare namespace connect {
     /** Get the initial connection of the contact. */
     getInitialConnection(): BaseConnection;
 
-    /** Get the inital connection of the contact, or null if the initial connection is no longer active. */
+    /** Get the initial connection of the contact, or null if the initial connection is no longer active. */
     getActiveInitialConnection(): BaseConnection | null;
 
     /** Get a list of all of the third-party connections, i.e. the list of all connections except for the initial connection, or an empty list if there are no third-party connections. */
@@ -1210,7 +1327,7 @@ declare namespace connect {
   /**
    * The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular connection within a contact.
    * Like contacts, connections come and go.
-   * It is good practice not to persist these object or keep them as internal state.
+   * It is good practice not to persist these objects or keep them as internal state.
    * If you need to, store the contactId and connectionId of the connection and make sure that the contact and connection still exist by fetching them in order from the Agent API object before calling methods on them.
    */
   class BaseConnection {
@@ -1305,7 +1422,7 @@ declare namespace connect {
   /**
    * The VoiceConnection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular voice connection within a contact.
    * Like contacts, connections come and go.
-   * It is good practice not to persist these object or keep them as internal state.
+   * It is good practice not to persist these objects or keep them as internal state.
    * If you need to, store the `contactId` and `connectionId` of the connection and make sure that the contact and connection still exist by fetching them in order from the `Agent` API object before calling methods on them.
    */
   class VoiceConnection extends BaseConnection {
@@ -1341,7 +1458,7 @@ declare namespace connect {
   /**
    * The ChatConnection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular chat connection within a contact.
    * Like contacts, connections come and go.
-   * It is good practice not to persist these object or keep them as internal state.
+   * It is good practice not to persist these objects or keep them as internal state.
    * If you need to, store the `contactId` and `connectionId` of the connection and make sure that the contact and connection still exist by fetching them in order from the `Agent` API object before calling methods on them.
    */
   class ChatConnection extends BaseConnection {
@@ -1364,7 +1481,7 @@ declare namespace connect {
   /**
    * The TaskConnection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular task connection within a contact.
    * Like contacts, connections come and go.
-   * It is good practice not to persist these object or keep them as internal state.
+   * It is good practice not to persist these objects or keep them as internal state.
    * If you need to, store the `contactId` and `connectionId` of the connection and make sure that the contact and connection still exist by fetching them in order from the `Agent` API object before calling methods on them.
    */
   class TaskConnection extends BaseConnection {

@@ -21602,7 +21602,7 @@
 
     return lines.join("\n");
   };
-
+  
   /**
    * Download/Archive logs to a file, 
    * By default, it returns all logs.
@@ -21760,6 +21760,8 @@
 
   var userAgent = navigator.userAgent;
   var ONE_DAY_MILLIS = 24 * 60 * 60 * 1000;
+  var DEFAULT_POPUP_HEIGHT = 578;
+  var DEFAULT_POPUP_WIDTH = 433;
 
   /**
    * Unpollute sprintf functions from the global namespace.
@@ -22105,6 +22107,10 @@
     }
   };
 
+  connect.hasOtherConnectedCCPs = function () {
+    return connect.numberOfConnectedCCPs > 1;
+  }
+
   connect.fetch = function (endpoint, options, milliInterval, maxRetry) {
     maxRetry = maxRetry || 5;
     milliInterval = milliInterval || 1000;
@@ -22186,19 +22192,32 @@
    */
   connect.PopupManager = function () { };
 
-  connect.PopupManager.prototype.open = function(url, name) {
+  connect.PopupManager.prototype.open = function (url, name, options) {
     var then = this._getLastOpenedTimestamp(name);
     var now = new Date().getTime();
-    var win = null;      
+    var win = null;
     if (now - then > ONE_DAY_MILLIS) {
-       win = window.open('', name);
-       if (win.location !== url) {
+      if (options) {
+        // default values are chosen to provide a minimum height without scrolling
+        // and a uniform margin based on the css of the ccp login page
+        var height = options.height || DEFAULT_POPUP_HEIGHT;
+        var width = options.width || DEFAULT_POPUP_WIDTH;
+        var top = options.top || 0;
+        var left = options.left || 0;
+        win = window.open('', name, "width="+width+", height="+height+", top="+top+", left="+left);
+        if (win.location !== url) {
+          win = window.open(url, name, "width="+width+", height="+height+", top="+top+", left="+left);
+        }
+      } else {
+        win = window.open('', name);
+        if (win.location !== url) {
           win = window.open(url, name);
-       }
-       this._setLastOpenedTimestamp(name, now);
+        }
+      }
+      this._setLastOpenedTimestamp(name, now);
     }
     return win;
- };
+  };
 
   connect.PopupManager.prototype.clear = function (name) {
     var key = this._getLocalStorageKey(name);
@@ -22345,6 +22364,11 @@
     return error;
   }
 
+  // internal use only
+  connect.isCCP = function () {
+    var conduit = connect.core.getUpstream();
+    return conduit.name === 'ConnectSharedWorkerConduit';
+  }
 })();
 
 /*
@@ -22387,7 +22411,8 @@
     'client_side_logs',
     'server_bound_internal_log',
     'mute',
-    "iframe_style"
+    "iframe_style",
+    "update_connected_ccps"
   ]);
 
   /**---------------------------------------------------------------
@@ -22461,10 +22486,11 @@
 
 
   /**---------------------------------------------------------------
-  * enum ConnnectionEvents
+  * enum ConnectionEvents
   */
-  var ConnnectionEvents = connect.makeNamespacedEnum('connection', [
-    'session_init'
+  var ConnectionEvents = connect.makeNamespacedEnum('connection', [
+    'session_init',
+    'ready_to_start_session'
   ]);
 
   /**---------------------------------------------------------------
@@ -22486,6 +22512,19 @@
     'set_offline', // iframe letting the native ccp to set offline
     'init_disaster_recovery',
     'failover' // used to propagate failover state to other windows
+  ]);
+
+  /**---------------------------------------------------------------
+   * enum Configuration Events
+   */
+  var ConfigurationEvents = connect.makeNamespacedEnum('configuration', [
+    'configure',
+    'set_speaker_device',
+    'set_microphone_device',
+    'set_ringer_device',
+    'speaker_device_changed',
+    'microphone_device_changed',
+    'ringer_device_changed'
   ]);
 
   /**---------------------------------------------------------------
@@ -22652,6 +22691,9 @@
       data = new connect.Contact(data.contactId);
     }
 
+    if (eventName.startsWith(connect.ContactEvents.ACCEPTED) && data.contactId && !(data instanceof connect.Contact)) {
+      data = new connect.Contact(data.contactId);
+    }
     allEventSubs.concat(eventSubs).forEach(function (sub) {
       try {
         sub.f(data || null, eventName, self);
@@ -22688,7 +22730,8 @@
   connect.EventType = EventType;
   connect.AgentEvents = AgentEvents;
   connect.ConfigurationEvents = ConfigurationEvents;
-  connect.ConnnectionEvents = ConnnectionEvents;
+  connect.ConnectionEvents = ConnectionEvents;
+  connect.ConnnectionEvents = ConnectionEvents; //deprecate on next major version release.
   connect.ContactEvents = ContactEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
@@ -23829,6 +23872,48 @@
   ]);
 
   /*----------------------------------------------------------------
+   * enum for VoiceId streaming status
+   */
+  connect.VoiceIdStreamingStatus = connect.makeEnum([
+    "ONGOING",
+    "ENDED"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId authentication decision
+   */
+  connect.VoiceIdAuthenticationDecision = connect.makeEnum([
+    "ACCEPT",
+    "REJECT",
+    "NOT_ENOUGH_SPEECH",
+    "SPEAKER_NOT_ENROLLED",
+    "SPEAKER_OPTED_OUT",
+    "SPEAKER_ID_NOT_PROVIDED"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for contact flow authentication decision 
+   */
+  connect.ContactFlowAuthenticationDecision = connect.makeEnum([
+    "Authenticated",
+    "NotAuthenticated",
+    "Inconclusive",
+    "NotEnrolled",
+    "OptedOut",
+    "Error"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId EnrollmentRequestStatus status
+   */
+  connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
+    "NOT_ENOUGH_SPEECH",
+    "IN_PROGRESS",
+    "COMPLETED",
+    "FAILED"
+  ]);
+
+  /*----------------------------------------------------------------
    * class Agent
    */
   var Agent = function () {
@@ -24376,10 +24461,20 @@
             data: new connect.Contact(contactId)
           });
           conduit.sendUpstream(connect.EventType.BROADCAST, {
-            event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED,
-              self.getContactId()),
+            event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, self.getContactId()),
             data: new connect.Contact(contactId)
           });
+
+          // In Firefox, there's a browser restriction that an unfocused browser tab is not allowed to access the user's microphone.
+          // The problem is that the restriction could cause a webrtc session creation timeout error when you get an incoming call while you are not on the primary tab.
+          // It was hard to workaround the issue especially when you have multiple tabs open because you needed to find the right tab and accept the contact before the timeout.
+          // To avoid the error, when multiple tabs are open in Firefox, a webrtc session is not immediately created as an incoming softphone contact is detected.
+          // Instead, it waits until contact.accept() is called on a tab and lets the tab become the new primary tab and start the web rtc session there
+          // because the tab should be focused at the moment and have access to the user's microphone.
+          var contact = new connect.Contact(contactId);
+          if (connect.isFirefoxBrowser() && contact.isSoftphoneCall()) {
+            connect.core.triggerReadyToStartSessionEvent();
+          }
 
           if (callbacks && callbacks.success) {
             callbacks.success(data);
@@ -24389,9 +24484,13 @@
       });
   };
 
-  Contact.prototype.destroy = function (callbacks) {
+  Contact.prototype.destroy = function () {
+    connect.getLog().warn("contact.destroy() has been deprecated.");
+  };
+
+  Contact.prototype.reject = function (callbacks) {
     var client = connect.core.getClient();
-    client.call(connect.ClientMethods.DESTROY_CONTACT, {
+    client.call(connect.ClientMethods.REJECT_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
   };
@@ -25259,9 +25358,9 @@
   };
 
   /**
-   * Execute the given function asynchronously only if the shared worker
+   * Starts the given function asynchronously only if the shared worker
    * says we are the master for the given topic.  If there is no master for
-   * the given topic, we become the master and execute the function.
+   * the given topic, we become the master and start the function.
    *
    * @param topic The master topic we are concerned about.
    * @param f_true The callback to be invoked if we are the master.
@@ -25296,14 +25395,29 @@
   };
 
   /**
-   * Notify the shared worker that we are now the master for the given topic.
+   * Notify the shared worker and other CCP tabs that we are now the master for the given topic.
    */
-  connect.becomeMaster = function (topic) {
+  connect.becomeMaster = function (topic, successCallback, failureCallback) {
     connect.assertNotNull(topic, "A topic must be provided.");
-    var masterClient = connect.core.getMasterClient();
-    masterClient.call(connect.MasterMethods.BECOME_MASTER, {
-      topic: topic
-    });
+
+    if (!connect.core.masterClient) {
+      // We can't be the master because there is no master client!
+      connect.getLog().warn("We can't be the master for topic '%s' because there is no master client!", topic);
+      if (failureCallback) {
+        failureCallback();
+      }
+    } else {
+      var masterClient = connect.core.getMasterClient();
+      masterClient.call(connect.MasterMethods.BECOME_MASTER, {
+        topic: topic
+      }, {
+        success: function () {
+          if (successCallback) {
+            successCallback();
+          }
+        }
+      });
+    }
   };
 
   connect.Agent = Agent;
@@ -25340,7 +25454,7 @@
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.6.0";
+  connect.version = "1.6.4";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -25363,7 +25477,9 @@
   var WHITELISTED_ORIGINS_ENDPOINT = "/whitelisted-origins";
   var WHITELISTED_ORIGINS_RETRY_INTERVAL = 2000;
   var WHITELISTED_ORIGINS_MAX_RETRY = 5;
- 
+
+  connect.numberOfConnectedCCPs = 0;
+
   /**
    * @deprecated
    * This function was only meant for internal use. 
@@ -25772,9 +25888,11 @@
           this.unsubscribe();
           competeForMasterOnAgentUpdate(data.softphone);
         }
+        setupEventListenersForMultiTabUseInFirefox(data.softphone);
       });
     } else {
       competeForMasterOnAgentUpdate(params);
+      setupEventListenersForMultiTabUseInFirefox(params);
     }
  
     connect.agent(function (agent) {
@@ -25786,6 +25904,95 @@
           });
       }
     });
+
+    function setupEventListenersForMultiTabUseInFirefox(softphoneParamsIn) {
+      var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
+
+      // keep the softphone params for external use
+      connect.core.softphoneParams = softphoneParams;
+
+      if (connect.isFirefoxBrowser()) {
+        // In Firefox, when a tab takes over another tab's softphone primary,
+        // the previous primary tab should delete sofphone manager and stop microphone
+        connect.core.getUpstream().onUpstream(connect.EventType.MASTER_RESPONSE, function (res) {
+          if (res.data && res.data.topic === connect.MasterTopics.SOFTPHONE && res.data.takeOver && (res.data.masterId !== connect.core.portStreamId)) {
+            if (connect.core.softphoneManager) {
+              connect.core.softphoneManager.onInitContactSub.unsubscribe();
+              delete connect.core.softphoneManager;
+            }
+            var userMediaStream = connect.core.getSoftphoneUserMediaStream();
+            if (userMediaStream) {
+              userMediaStream.getTracks().forEach(function(track) { track.stop(); });
+              connect.core.setSoftphoneUserMediaStream(null);
+            }
+          }
+        });
+
+        // In Firefox, when multiple tabs are open,
+        // webrtc session is not started until READY_TO_START_SESSION event is triggered
+        connect.core.getEventBus().subscribe(connect.ConnectionEvents.READY_TO_START_SESSION, function () {
+          connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
+            if (connect.core.softphoneManager) {
+              connect.core.softphoneManager.startSession();
+            }
+          }, function () {
+            connect.becomeMaster(connect.MasterTopics.SOFTPHONE, function () {
+              connect.agent(function (agent) {
+                if (!connect.core.softphoneManager && agent.isSoftphoneEnabled()) {
+                  connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
+                  connect.core.softphoneManager = new connect.SoftphoneManager(softphoneParams);
+                  connect.core.softphoneManager.startSession();
+                }
+              });
+            });
+          });
+        });
+
+        // handling outbound-call and auto-accept cases for pending session
+        connect.contact(function (c) {
+          connect.agent(function (agent) {
+            c.onRefresh(function (contact) {
+              if (
+                connect.hasOtherConnectedCCPs() &&
+                document.visibilityState === 'visible' &&
+                (contact.getStatus().type === connect.ContactStatusType.CONNECTING || contact.getStatus().type === connect.ContactStatusType.INCOMING)
+              ) {
+                var isOutBoundCall = contact.isSoftphoneCall() && !contact.isInbound();
+                var isAutoAcceptEnabled = contact.isSoftphoneCall() && agent.getConfiguration().softphoneAutoAccept;
+                var isQueuedCallback = contact.getType() === connect.ContactType.QUEUE_CALLBACK;
+                if (isOutBoundCall || isAutoAcceptEnabled || isQueuedCallback) {
+                  connect.core.triggerReadyToStartSessionEvent();
+                }
+              }
+            });
+          });
+        });
+      }
+    }
+  };
+
+  // trigger READY_TO_START_SESSION event in a context with Softphone Manager
+  // internal use only
+  connect.core.triggerReadyToStartSessionEvent = function () {
+    var allowFramedSoftphone = connect.core.softphoneParams && connect.core.softphoneParams.allowFramedSoftphone;
+    if (connect.isCCP()) {
+      if (allowFramedSoftphone) {
+        // the event is triggered in this iframed CCP context
+        connect.core.getEventBus().trigger(connect.ConnectionEvents.READY_TO_START_SESSION);
+      } else {
+        // 1) if this is an iframed CCP, the event is send to downstream (CRM)
+        // 2) if this is a standalone CCP, the event is triggered in this context because window.parent is window itself in WindowIOStream
+        connect.core.getUpstream().sendDownstream(connect.ConnectionEvents.READY_TO_START_SESSION);
+      }
+    } else {
+      if (allowFramedSoftphone) {
+        // the event is send to the upstream (iframed CCP)
+        connect.core.getUpstream().sendUpstream(connect.ConnectionEvents.READY_TO_START_SESSION);
+      } else {
+        // the event is triggered in this CRM context
+        connect.core.getEventBus().trigger(connect.ConnectionEvents.READY_TO_START_SESSION);
+      }
+    }
   };
 
   connect.core.initPageOptions = function (params) {
@@ -25934,9 +26141,10 @@
         authCookieName: authCookieName
       });
  
-      conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+      conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
         connect.getLog().info("Acknowledged by the ConnectSharedWorker!").sendInternalLogToServer();
         connect.core.initialized = true;
+        connect.core.portStreamId = data.id;
         this.unsubscribe();
       });
       // Add all upstream log entries to our own logger.
@@ -25954,7 +26162,12 @@
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
         location.reload();
       });
- 
+
+      conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
+        connect.getLog().info("Number of connected CCPs updated: " + data.length);
+        connect.numberOfConnectedCCPs = data.length;
+      });
+
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
  
@@ -25977,7 +26190,6 @@
       conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, function(params) {
         connect.core.initDisasterRecovery(params);
       })
- 
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
         .withException(e).sendInternalLogToServer();
@@ -26059,12 +26271,13 @@
  
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.
-    conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+    conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
       connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.initialized = true;
- 
+      connect.core.portStreamId = data.id;
+
       if (params.softphone || params.chat || params.pageOptions) {
         // Send configuration up to the CCP.
         //set it to false if secondary
@@ -26146,6 +26359,13 @@
     if (params.onViewContact) {
       connect.core.onViewContact(params.onViewContact);
     }
+
+    conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
+      connect.numberOfConnectedCCPs = data.length;
+    });
+
+    // keep the softphone params for external use
+    connect.core.softphoneParams = params.softphone;
   };
  
   /**-----------------------------------------------------------------------*/
@@ -26543,7 +26763,7 @@
    */
  
   connect.core.onSoftphoneSessionInit = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConnnectionEvents.SESSION_INIT, f);
+    connect.core.getUpstream().onUpstream(connect.ConnectionEvents.SESSION_INIT, f);
   };
  
   /**-----------------------------------------------------------------------*/
@@ -26751,7 +26971,10 @@
 
   RingtoneEngineBase.prototype._startRingtone = function (contact) {
     if (this._audio) {
-      this._audio.play();
+      this._audio.play()
+        .catch(function(e) {
+          this._publishTelemetryEvent("Ringtone Playback Failure", contact);
+        });
       this._publishTelemetryEvent("Ringtone Start", contact);
     }
   };
@@ -27026,6 +27249,23 @@
     var rtcSessions = {};
     // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
     var callsDetected = {};
+    this.onInitContactSub = {};
+    this.onInitContactSub.unsubscribe = function() {};
+
+    // variables for firefox multitab
+    var isSessionPending = false;
+    var pendingContact = null;
+    var pendingAgentConnectionId = null;
+    var postponeStartingSession = function (contact, agentConnectionId) {
+      isSessionPending = true;
+      pendingContact = contact;
+      pendingAgentConnectionId = agentConnectionId;
+    }
+    var cancelPendingSession = function () {
+      isSessionPending = false;
+      pendingContact = null;
+      pendingAgentConnectionId = null;
+    }
 
     // helper method to provide access to rtc sessions
     this.getSession = function (connectionId) {
@@ -27070,7 +27310,7 @@
         // Error! our state doesn't match, tear it all down.
         for (var connectionId in rtcSessions) {
           if (rtcSessions.hasOwnProperty(connectionId)) {
-            // Log an error for the session we are about to kill.
+            // Log an error for the session we are about to end.
             publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
             destroySession(connectionId);
           }
@@ -27079,103 +27319,118 @@
       }
     };
 
-    var onRefreshContact = function (contact, agentConnectionId) {
-      if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
-        destroySession(agentConnectionId);
+    this.startSession = function (_contact, _agentConnectionId) {
+      var contact = isSessionPending ? pendingContact : _contact;
+      var agentConnectionId = isSessionPending ? pendingAgentConnectionId : _agentConnectionId;
+      if (!contact || !agentConnectionId) {
+        return;
       }
-      if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
-        contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
-        contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+      cancelPendingSession();
+      
+      // Set to true, this will block subsequent invokes from entering.
+      callsDetected[agentConnectionId] = true;
+      logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
-        // Set to true, this will block subsequent invokes from entering.
-        callsDetected[agentConnectionId] = true;
-        logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
+      // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
+      sanityCheckActiveSessions(rtcSessions);
 
-        // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
-        sanityCheckActiveSessions(rtcSessions);
+      if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
+        publishTelemetryEvent("Softphone Connecting", contact.getContactId());
+      }
 
-        if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
-          publishTelemetryEvent("Softphone Connecting", contact.getContactId());
+      initializeParams();
+      var softphoneInfo = contact.getAgentConnection().getSoftphoneMediaInfo();
+      var callConfig = parseCallConfig(softphoneInfo.callConfigJson);
+      var webSocketProvider;
+      if (callConfig.useWebSocketProvider) {
+        webSocketProvider = connect.core.getWebSocketManager();
+      }
+      var session = new connect.RTCSession(
+        callConfig.signalingEndpoint,
+        callConfig.iceServers,
+        softphoneInfo.callContextToken,
+        logger,
+        contact.getContactId(),
+        agentConnectionId,
+        webSocketProvider);
+
+      rtcSessions[agentConnectionId] = session;
+
+      if (connect.core.getSoftphoneUserMediaStream()) {
+        session.mediaStream = connect.core.getSoftphoneUserMediaStream();
+      }
+
+      // Custom Event to indicate the session init operations
+      connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+        event: connect.ConnectionEvents.SESSION_INIT,
+        data: {
+          connectionId: agentConnectionId
         }
+      });
 
-        initializeParams();
-        var softphoneInfo = contact.getAgentConnection().getSoftphoneMediaInfo();
-        var callConfig = parseCallConfig(softphoneInfo.callConfigJson);
-        var webSocketProvider;
-        if (callConfig.useWebSocketProvider) {
-          webSocketProvider = connect.core.getWebSocketManager();
-        }
-        var session = new connect.RTCSession(
-          callConfig.signalingEndpoint,
-          callConfig.iceServers,
-          softphoneInfo.callContextToken,
-          logger,
-          contact.getContactId(),
-          agentConnectionId,
-          webSocketProvider);
+      session.onSessionFailed = function (rtcSession, reason) {
+        delete rtcSessions[agentConnectionId];
+        delete callsDetected[agentConnectionId];
+        publishSoftphoneFailureLogs(rtcSession, reason);
+        publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
+        stopJobsAndReport(contact, rtcSession.sessionReport);
+      };
+      session.onSessionConnected = function (rtcSession) {
+        publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
+        // Become master to send logs, since we need logs from softphone tab.
+        connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
+        //start stats collection and reporting jobs
+        startStatsCollectionJob(rtcSession);
+        startStatsReportingJob(contact);
+        fireContactAcceptedEvent(contact);
+      };
 
-        rtcSessions[agentConnectionId] = session;
+      session.onSessionCompleted = function (rtcSession) {
+        publishTelemetryEvent("Softphone Session Completed", contact.getContactId());
 
-        if (connect.core.getSoftphoneUserMediaStream()) {
-          session.mediaStream = connect.core.getSoftphoneUserMediaStream();
-        }
+        delete rtcSessions[agentConnectionId];
+        delete callsDetected[agentConnectionId];
+        // Stop all jobs and perform one last job.
+        stopJobsAndReport(contact, rtcSession.sessionReport);
 
-        // Custom Event to indicate the session init operations
+        // Cleanup the cached streams
+        deleteLocalMediaStream(agentConnectionId);
+      };
+
+      session.onLocalStreamAdded = function (rtcSession, stream) {
+        // Cache the streams for mute/unmute
+        localMediaStream[agentConnectionId] = {
+          stream: stream
+        };
         connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-          event: connect.ConnnectionEvents.SESSION_INIT,
+          event: connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED,
           data: {
             connectionId: agentConnectionId
           }
         });
+      };
 
-        session.onSessionFailed = function (rtcSession, reason) {
-          delete rtcSessions[agentConnectionId];
-          delete callsDetected[agentConnectionId];
-          publishSoftphoneFailureLogs(rtcSession, reason);
-          publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
-          stopJobsAndReport(contact, rtcSession.sessionReport);
-        };
-        session.onSessionConnected = function (rtcSession) {
-          publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
-          // Become master to send logs, since we need logs from softphone tab.
-          connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
-          //start stats collection and reporting jobs
-          startStatsCollectionJob(rtcSession);
-          startStatsReportingJob(contact);
-          fireContactAcceptedEvent(contact);
-        };
+      session.remoteAudioElement = document.getElementById('remote-audio');
+      if (rtcPeerConnectionFactory) {
+        session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
+      } else {
+        session.connect();
+      }
+    }
 
-        session.onSessionCompleted = function (rtcSession) {
-          publishTelemetryEvent("Softphone Session Completed", contact.getContactId());
-
-          delete rtcSessions[agentConnectionId];
-          delete callsDetected[agentConnectionId];
-          // Stop all jobs and perform one last job.
-          stopJobsAndReport(contact, rtcSession.sessionReport);
-
-          // Cleanup the cached streams
-          deleteLocalMediaStream(agentConnectionId);
-        };
-
-        session.onLocalStreamAdded = function (rtcSession, stream) {
-          // Cache the streams for mute/unmute
-          localMediaStream[agentConnectionId] = {
-            stream: stream
-          };
-          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-            event: connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED,
-            data: {
-              connectionId: agentConnectionId
-            }
-          });
-        };
-
-        session.remoteAudioElement = document.getElementById('remote-audio');
-        if (rtcPeerConnectionFactory) {
-          session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
-        } else {
-          session.connect();
-        }
+    var onRefreshContact = function (contact, agentConnectionId) {
+      if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
+        destroySession(agentConnectionId);
+        cancelPendingSession();
+      }
+      if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
+        contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
+        contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+          if (connect.isFirefoxBrowser() && connect.hasOtherConnectedCCPs()) {
+            postponeStartingSession(contact, agentConnectionId);
+          } else {
+            self.startSession(contact, agentConnectionId);
+          }
       }
     };
 
@@ -27190,7 +27445,7 @@
       }
     };
 
-    connect.contact(onInitContact);
+    self.onInitContactSub = connect.contact(onInitContact);
 
     // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed. 
     new connect.Agent().getContacts().forEach(function (contact) {
@@ -27948,6 +28203,7 @@
       portConduit.sendDownstream(connect.EventType.ACKNOWLEDGE, { id: stream.getId() });
 
       self.portConduitMap[stream.getId()] = portConduit;
+      self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, { length: Object.keys(self.portConduitMap).length });
 
       if (self.agent !== null) {
         self.updateAgent();
@@ -27963,6 +28219,7 @@
         self.multiplexer.removeStream(stream);
         delete self.portConduitMap[stream.getId()];
         self.masterCoord.removeMaster(stream.getId());
+        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, { length: Object.keys(self.portConduitMap).length });
       });
     };
   };
@@ -28223,17 +28480,22 @@
    * Handle incoming master query or modification requests from connected tab ports.
    */
   ClientEngine.prototype.handleMasterRequest = function (portConduit, portId, request) {
+    var multiplexerConduit = this.conduit;
     var response = null;
 
     switch (request.method) {
       case connect.MasterMethods.BECOME_MASTER:
+        var masterId = this.masterCoord.getMaster(request.params.topic);
+        var takeOver = Boolean(masterId) && masterId !== portId;
         this.masterCoord.setMaster(request.params.topic, portId);
         response = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
           masterId: portId,
-          isMaster: true,
+          takeOver: takeOver,
           topic: request.params.topic
         });
-
+        if (takeOver) {
+          multiplexerConduit.sendDownstream(response.event, response);
+        }
         break;
 
       case connect.MasterMethods.CHECK_MASTER:
@@ -28242,13 +28504,11 @@
           this.masterCoord.setMaster(request.params.topic, portId);
           masterId = portId;
         }
-
         response = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
           masterId: masterId,
           isMaster: portId === masterId,
           topic: request.params.topic
         });
-
         break;
 
       default:
@@ -28596,7 +28856,7 @@
     var logger = connect.getLog();
     var logComponent = connect.LogComponent.CHAT;
 
-    var metadata = params || {};
+    var metadata = connect.merge({}, params) || {};
     metadata.region =  metadata.region || "us-west-2"; // Default it to us-west-2
 
     var getMediaController = function (connectionObj) {
@@ -28800,4 +29060,168 @@
       },
     };
   };
+})();
+
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+  global.lily = connect;
+
+  connect.agentApp = {};
+
+  var IFRAME_REFRESH_INTERVAL = 5000;
+  var APP = {
+    CCP: 'ccp',
+  };
+
+  connect.agentApp.initCCP = connect.core.initCCP;
+  connect.agentApp.isInitialized = function (instanceAlias) {};
+
+  connect.agentApp.initAppCommunication = function (iframeId, endpoint) {
+    var iframe = document.getElementById(iframeId);
+    var iframeConduit = new connect.IFrameConduit(endpoint, window, iframe);
+    var BROADCAST_TYPE = [connect.AgentEvents.UPDATE, connect.ContactEvents.VIEW, connect.EventType.ACKNOWLEDGE, connect.EventType.TERMINATED];
+    iframe.addEventListener('load', function (e) {
+      BROADCAST_TYPE.forEach(function (type) {
+        connect.core.getUpstream().onUpstream(type, function (data) {
+          iframeConduit.sendUpstream(type, data);
+        });
+      });
+    });
+
+    var iframeRefreshInterval = window.setInterval(function () {
+      iframe.src += '';
+    }, IFRAME_REFRESH_INTERVAL);
+
+    connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+      global.clearInterval(iframeRefreshInterval);
+    });
+  };
+
+  var getConnectUrl = function (ccpUrl) {
+    var pos = ccpUrl.indexOf('ccp-v2');
+    return ccpUrl.slice(0, pos - 1);
+  };
+
+  var signOutThroughCCP = function (ccpUrl) {
+    var logoutUrl = getConnectUrl(ccpUrl) + '/logout';
+    return connect.fetch(logoutUrl, {
+      credentials: 'include',
+    }).then(function () {
+      var eventBus = connect.core.getEventBus();
+      eventBus.trigger(connect.EventType.TERMINATE);
+      return true;
+    }).catch(function (e) {
+      connect
+        .getLog()
+        .error('An error occured on logout.' + e)
+        .withException(e);
+      window.location.href = logoutUrl;
+      return false;
+    });
+  };
+
+  var signInThroughinitCCP = function (ccpUrl, container, config) {
+    var defaultParams = {
+      ccpUrl: ccpUrl,
+      ccpLoadTimeout: 10000,
+      loginPopup: true,
+      loginUrl: getConnectUrl(ccpUrl) + '/login',
+      softphone: {
+        allowFramedSoftphone: true,
+        disableRingtone: false,
+      }
+    };
+    var ccpParams = connect.merge(defaultParams, config.ccpParams);
+    connect.core.initCCP(container, ccpParams);
+  };
+
+  connect.agentApp.initApp = function (name, containerId, appUrl, config) {
+    config = config ? config : {};
+    var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
+    var registerConfig = { endpoint: endpoint, style: config.style };
+    connect.agentApp.AppRegistry.register(name, registerConfig, document.getElementById(containerId));
+    connect.agentApp.AppRegistry.start(name, function (moduleData) {
+      var endpoint = moduleData.endpoint;
+      var containerDOM = moduleData.containerDOM;
+      return {
+        init: function () {
+          if (name === APP.CCP) return signInThroughinitCCP(endpoint, containerDOM, config);
+          return connect.agentApp.initAppCommunication(name, endpoint);
+        },
+        destroy: function () {
+          if (name === APP.CCP) return signOutThroughCCP(endpoint);
+          return null;
+        }
+      };
+    });
+  };
+
+  connect.agentApp.stopApp = function (name) {
+    return connect.agentApp.AppRegistry.stop(name);
+  };
+})();
+
+(function () {
+  var global = this;
+  connect = global.connect || {};
+  global.connect = connect;
+
+  var APP = {
+    CCP: 'ccp',
+  };
+
+  function AppRegistry() {
+    var moduleData = {};
+    var makeAppIframe = function (appName, endpoint, style) {
+      var iframe = document.createElement('iframe');
+      iframe.src = endpoint;
+      iframe.style = style || 'width: 100%; height:100%;';
+      iframe.id = appName;
+      iframe['aria-label'] = appName;
+      return iframe;
+    };
+
+    return {
+      register: function (appName, config, containerDOM) {
+        moduleData[appName] = {
+          containerDOM: containerDOM,
+          endpoint: config.endpoint,
+          style: config.style,
+          instance: undefined,
+        };
+      },
+      start: function (appName, creator) {
+        if (!moduleData[appName]) return;
+        var containerDOM = moduleData[appName].containerDOM;
+        var endpoint = moduleData[appName].endpoint;
+        var style = moduleData[appName].style;
+        if (appName !== APP.CCP) {
+          var app = makeAppIframe(appName, endpoint, style);
+          containerDOM.appendChild(app);
+        }
+
+        moduleData[appName].instance = creator(moduleData[appName]);
+        return moduleData[appName].instance.init();
+      },
+      stop: function (appName) {
+        if (!moduleData[appName]) return;
+
+        var data = moduleData[appName];
+        var app = data.containerDOM.querySelector('iframe');
+        data.containerDOM.removeChild(app);
+
+        var result;
+        if (data.instance) {
+          result = data.instance.destroy();
+          delete data.instance;
+        }
+
+        return result;
+      }
+    };
+  }
+
+  global.connect.agentApp.AppRegistry = AppRegistry();
 })();

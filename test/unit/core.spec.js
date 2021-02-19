@@ -33,6 +33,7 @@ describe('Core', function () {
     });
 
     describe('#connect.core.initSharedWorker()', function () {
+        jsdom({ url: "http://localhost" });
 
         beforeEach(function () {
             sandbox.stub(connect.core, "checkNotInitialized").returns(true);
@@ -64,22 +65,6 @@ describe('Core', function () {
             expect(SharedWorker.calledWith(this.params.sharedWorkerUrl, "ConnectSharedWorker"));
             expect(connect.core.region).not.to.be.a("null");
         });
-        it("uses the legacy endpoint for a legacy url", function () {
-            const href = "https://abc.awsapps.com/connect/ccp-v2";
-            window.location.href = href;
-            connect.core.initSharedWorker(this.params);
-            assert.isTrue(connect.Conduit.prototype.sendUpstream.called);
-            assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/connect/auth/authorize");
-        });
-        it("uses new endpoint for new url", function () {
-            const href = "https://abc.my.connect.aws/ccp-v2";
-            this.params.baseUrl = "https://abc.my.connect.aws";
-            window.location.href = href;
-            connect.core.initSharedWorker(this.params);
-            assert.isTrue(connect.Conduit.prototype.sendUpstream.called);
-            assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/auth/authorize");
-            this.params.baseUrl = "https://abc.my.connect.aws";
-        });
         it("should update the number of connected CCPs on UPDATE_CONNECTED_CCPS event", function () {
             connect.core.initSharedWorker(this.params);
             expect(connect.numberOfConnectedCCPs).to.equal(0);
@@ -92,8 +77,75 @@ describe('Core', function () {
             connect.core.initialized = false;
         });
     });
+    describe('legacy endpoint', function () {
+        jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
+
+        beforeEach(function () {
+            sandbox.stub(connect.core, "checkNotInitialized").returns(true);
+            global.SharedWorker = sandbox.stub().returns({
+                port: {
+                    start: sandbox.spy(),
+                    addEventListener: sandbox.spy()
+                },
+            })
+
+            global.connect.agent.initialized = true;
+            sandbox.stub(connect.core, 'getNotificationManager').returns({
+                requestPermission: sandbox.spy()
+            });
+
+            sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
+        });
+
+        afterEach(function () {
+            sandbox.restore();
+        });
+
+        it("uses the legacy endpoint for a legacy url", function () {
+            const href = "https://abc.awsapps.com/connect/ccp-v2";
+            window.location.href = href;
+            connect.core.initSharedWorker(this.params);
+            assert.isTrue(connect.Conduit.prototype.sendUpstream.called);
+            assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/connect/auth/authorize");
+        });
+    });
+    describe('new endpoint', function () {
+        jsdom({ url: "https://abc.my.connect.aws/ccp-v2" });
+
+        beforeEach(function () {
+            sandbox.stub(connect.core, "checkNotInitialized").returns(true);
+            global.SharedWorker = sandbox.stub().returns({
+                port: {
+                    start: sandbox.spy(),
+                    addEventListener: sandbox.spy()
+                },
+            })
+
+            global.connect.agent.initialized = true;
+            sandbox.stub(connect.core, 'getNotificationManager').returns({
+                requestPermission: sandbox.spy()
+            });
+
+            sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
+        });
+        afterEach(function () {
+            sandbox.restore();
+        });
+
+        it("uses new endpoint for new url", function () {
+            const href = "https://abc.my.connect.aws/ccp-v2";
+            this.params.baseUrl = "https://abc.my.connect.aws";
+            window.location.href = href;
+            connect.core.initSharedWorker(this.params);
+            assert.isTrue(connect.Conduit.prototype.sendUpstream.called);
+            assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/auth/authorize");
+            this.params.baseUrl = "https://abc.my.connect.aws";
+        });
+    });
 
     describe('#initSoftphoneManager()', function () {
+        jsdom({ url: "http://localhost" });
+
         before(function () {
             sandbox.stub(connect.core, "checkNotInitialized").returns(false);
             sandbox.stub(connect, "SoftphoneManager").returns({})
@@ -125,7 +177,7 @@ describe('Core', function () {
             sandbox.restore();
         });
 
-        describe('in Chrome', function() {
+        describe('in Chrome', function () {
             before(function () {
                 sandbox.stub(connect, 'isChromeBrowser').returns(true);
                 sandbox.stub(connect, 'getChromeBrowserVersion').returns(79);
@@ -143,7 +195,7 @@ describe('Core', function () {
             });
         });
 
-        describe('in Firefox', function() {
+        describe('in Firefox', function () {
             before(function () {
                 sandbox.stub(connect, 'isChromeBrowser').returns(false);
                 sandbox.stub(connect, 'isFirefoxBrowser').returns(true);
@@ -161,7 +213,7 @@ describe('Core', function () {
                 connect.ifMaster.callArg(1);
                 assert.isTrue(connect.SoftphoneManager.calledWithNew());
             });
-    
+
             it("should set connect.core.softphoneParams", function () {
                 expect(connect.core.softphoneParams).to.include({ ringtoneUrl: this.defaultRingtoneUrl });
             });
@@ -169,6 +221,8 @@ describe('Core', function () {
     });
 
     describe('#connect.core.initRingtoneEngines()', function () {
+        jsdom({ url: "http://localhost" });
+
         describe('with default settings', function () {
             beforeEach(function () {
                 sandbox.stub(connect, "ifMaster");
@@ -258,6 +312,8 @@ describe('Core', function () {
     });
 
     describe('#connect.core.initCCP()', function () {
+        jsdom({ url: "http://localhost" });
+
         before(function () {
             this.containerDiv = { appendChild: sandbox.spy() };
             this.params = connect.merge({}, this.params, {
@@ -278,6 +334,7 @@ describe('Core', function () {
             sandbox.stub(connect, "VoiceRingtoneEngine");
             sandbox.stub(connect, "QueueCallbackRingtoneEngine");
             sandbox.stub(connect, "ChatRingtoneEngine");
+            sandbox.spy(document, "createElement");
             connect.numberOfConnectedCCPs = 0;
             connect.core.initCCP(this.containerDiv, this.params);
             sandbox.spy(connect.core.getUpstream(), "sendUpstream");
@@ -396,28 +453,32 @@ describe('Core', function () {
             });
         });
 
-        it('matches url correctly', async () => {
-            isFramed = true;
-            whitelistedOrigins = ['https://www.abc.com'];
-            setup();
-            const testDomains = {
-                'https://www.abc.com': true,
-                'http://www.abc.com': false,
-                'http://www.xyz.com': false,
-                'https://www.abc.de': false,
-                'https://xyz.abc.com': false,
-                'https://www.abc.com/sub?x=1#123': true
-            };
-            const urls = Object.keys(testDomains);
-            for (let i = 0; i < urls.length; i++) {
-                global.window.document.referrer = urls[i];
-                await connect.core.verifyDomainAccess('token', 'endpoint').then(() => {
-                    expect(testDomains[urls[i]]).to.be.true;
-                }).catch(() => {
-                    expect(testDomains[urls[i]]).to.be.false;
-                });
-            }
-        });
-    });
+        var testDomains = {
+            'https://www.abc.com': true,
+            'http://www.abc.com': false,
+            'http://www.xyz.com': false,
+            'https://www.abc.de': false,
+            'https://xyz.abc.com': false,
+            'https://www.abc.com/sub?x=1#123': true
+        };
+        var referrers = Object.keys(testDomains);
+        for (var i = 0; i < referrers.length; i++) {
+            describe('matches url ' + referrers[i], function () {
+                var referrer = referrers[i];
+                jsdom({ url: "http://localhost", referrer: referrer });
 
+                it('matches correctly', async function () {
+                    isFramed = true;
+                    whitelistedOrigins = ['https://www.abc.com'];
+                    setup();
+                    await connect.core.verifyDomainAccess('token', 'endpoint').then(function () {
+                        expect(testDomains[referrer]).to.be.true;
+                    }).catch(function (error) {
+                        expect(error).to.equal(undefined);
+                        expect(testDomains[referrer]).to.be.false;
+                    });
+                });
+            });
+        }
+    });
 });
