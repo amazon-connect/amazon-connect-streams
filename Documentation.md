@@ -1155,6 +1155,8 @@ Put this connection on hold.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
+During a conference call, you can't immediatly put all calls on hold due to the nature of Conferenced state in the VoiceService. We put one one leg on hold, wait for about 500ms and then put the other leg on hold.
+
 ### `connection.resume()`
 ```js
 conn.resume({
