@@ -153,8 +153,7 @@ describe('Core', function () {
             sandbox.stub(connect.Agent.prototype, "isSoftphoneEnabled").returns(true);
             sandbox.stub(connect, "becomeMaster").returns({});
             sandbox.stub(connect.core, "getUpstream").returns({
-                sendUpstream: sandbox.stub(),
-                onUpstream: sandbox.stub()
+                sendUpstream: sandbox.stub()
             });
 
             connect.core.getAgentDataProvider = sandbox.stub().returns({
@@ -177,46 +176,12 @@ describe('Core', function () {
             sandbox.restore();
         });
 
-        describe('in Chrome', function () {
-            before(function () {
-                sandbox.stub(connect, 'isChromeBrowser').returns(true);
-                sandbox.stub(connect, 'getChromeBrowserVersion').returns(79);
-            });
-            after(function () {
-                connect.isChromeBrowser.restore();
-                connect.getChromeBrowserVersion.restore();
-            });
-            it("Softphone manager should get initialized for master tab", function () {
-                connect.core.initSoftphoneManager(this.params);
-                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-                connect.ifMaster.callArg(1);
-                assert.isTrue(connect.SoftphoneManager.calledWithNew());
-            });
-        });
-
-        describe('in Firefox', function () {
-            before(function () {
-                sandbox.stub(connect, 'isChromeBrowser').returns(false);
-                sandbox.stub(connect, 'isFirefoxBrowser').returns(true);
-                sandbox.stub(connect, 'getFirefoxBrowserVersion').returns(84);
-            });
-            after(function () {
-                connect.isChromeBrowser.restore();
-                connect.isFirefoxBrowser.restore();
-                connect.getFirefoxBrowserVersion.restore();
-            });
-            it("Softphone manager should get initialized for master tab", function () {
-                connect.core.initSoftphoneManager(this.params);
-                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-                connect.ifMaster.callArg(1);
-                assert.isTrue(connect.SoftphoneManager.calledWithNew());
-            });
-
-            it("should set connect.core.softphoneParams", function () {
-                expect(connect.core.softphoneParams).to.include({ ringtoneUrl: this.defaultRingtoneUrl });
-            });
+        it("Softphone manager should get initialized for master tab", function () {
+            connect.core.initSoftphoneManager(this.params);
+            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+            connect.ifMaster.callArg(1);
+            assert.isTrue(connect.SoftphoneManager.calledWithNew());
         });
     });
 
@@ -334,8 +299,6 @@ describe('Core', function () {
             sandbox.stub(connect, "VoiceRingtoneEngine");
             sandbox.stub(connect, "QueueCallbackRingtoneEngine");
             sandbox.stub(connect, "ChatRingtoneEngine");
-            sandbox.spy(document, "createElement");
-            connect.numberOfConnectedCCPs = 0;
             connect.core.initCCP(this.containerDiv, this.params);
             sandbox.spy(connect.core.getUpstream(), "sendUpstream");
         });
@@ -375,7 +338,7 @@ describe('Core', function () {
         });
 
         it("sends initCCP ringtone params on ACK", function () {
-            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE);
             assert.isTrue(connect.core.getUpstream().sendUpstream.calledWith(connect.EventType.CONFIGURE, {
                 softphone: this.params.softphone,
                 chat: this.params.chat,
@@ -397,22 +360,6 @@ describe('Core', function () {
             assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew(this.params.softphone));
             assert.isTrue(connect.QueueCallbackRingtoneEngine.calledWithNew(this.params.softphone));
             assert.isTrue(connect.ChatRingtoneEngine.calledWithNew(this.params.chat));
-        });
-
-        it("should update the number of connected CCPs on UPDATE_CONNECTED_CCPS event", function () {
-            expect(connect.numberOfConnectedCCPs).to.equal(0);
-            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 });
-            expect(connect.numberOfConnectedCCPs).to.equal(1);
-        });
-
-        it("should set portStreamId on ACK", function () {
-            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
-            expect(connect.core.portStreamId).to.equal('portId');
-            connect.core.initialized = true;
-        });
-
-        it("should set connect.core.softphoneParams", function () {
-            expect(connect.core.softphoneParams).to.include({ ringtoneUrl: "customVoiceRingtone.amazon.com" });
         });
     });
 

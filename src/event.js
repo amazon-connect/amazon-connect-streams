@@ -38,8 +38,7 @@
     'client_side_logs',
     'server_bound_internal_log',
     'mute',
-    "iframe_style",
-    "update_connected_ccps"
+    "iframe_style"
   ]);
 
   /**---------------------------------------------------------------
@@ -113,11 +112,10 @@
 
 
   /**---------------------------------------------------------------
-  * enum ConnectionEvents
+  * enum ConnnectionEvents
   */
-  var ConnectionEvents = connect.makeNamespacedEnum('connection', [
-    'session_init',
-    'ready_to_start_session'
+  var ConnnectionEvents = connect.makeNamespacedEnum('connection', [
+    'session_init'
   ]);
 
   /**---------------------------------------------------------------
