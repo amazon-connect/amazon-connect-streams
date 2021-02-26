@@ -323,6 +323,12 @@ connect.ChatSession.create({
 Gets the `WebSocket` manager. This method is only used when integrating with `amazon-connect-chatjs`.
 See the [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs) documentation for more information.
 
+### `connect.core.onInitialized()`
+```js
+connect.core.onInitialized(function() { /* ... */ });
+```
+Subscribes a callback that executes when the CCP initialization is completed.
+
 ## Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
 code to be called when new agent information is available.

@@ -16,6 +16,7 @@
   var EventType = connect.makeEnum([
     'acknowledge',
     'ack_timeout',
+    'init',
     'api_request',
     'api_response',
     'auth_fail',

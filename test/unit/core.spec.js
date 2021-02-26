@@ -339,7 +339,6 @@ describe('Core', function () {
             sandbox.spy(document, "createElement");
             connect.numberOfConnectedCCPs = 0;
             connect.core.initCCP(this.containerDiv, this.params);
-            sandbox.spy(connect.core.getUpstream(), "sendUpstream");
         });
 
         after(function () {
@@ -377,12 +376,14 @@ describe('Core', function () {
         });
 
         it("sends initCCP ringtone params on ACK", function () {
+            const spy = sinon.spy(connect.core.getUpstream(), "sendUpstream");
             connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
             assert.isTrue(connect.core.getUpstream().sendUpstream.calledWith(connect.EventType.CONFIGURE, {
                 softphone: this.params.softphone,
                 chat: this.params.chat,
                 pageOptions: this.params.pageOptions
             }));
+            spy.restore();
         });
 
         it("sets up ringtone engines on CONFIGURE with initCCP params", function () {
@@ -407,14 +408,29 @@ describe('Core', function () {
             expect(connect.numberOfConnectedCCPs).to.equal(1);
         });
 
-        it("should set portStreamId on ACK", function () {
-            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
-            expect(connect.core.portStreamId).to.equal('portId');
-            connect.core.initialized = true;
-        });
+        describe("on ACK", function () {
+            let fakeOnInitHandler;
 
-        it("should set connect.core.softphoneParams", function () {
-            expect(connect.core.softphoneParams).to.include({ ringtoneUrl: "customVoiceRingtone.amazon.com" });
+            before(function () {
+                fakeOnInitHandler = sinon.fake();
+                connect.core.onInitialized(fakeOnInitHandler);
+                sandbox.stub(connect.WindowIOStream.prototype, 'send').returns(null);
+                connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+            });
+
+            it("should set portStreamId on ACK", function () {
+                connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+                expect(connect.core.portStreamId).to.equal('portId');
+                connect.core.initialized = true;
+            });
+    
+            it("should set connect.core.softphoneParams", function () {
+                expect(connect.core.softphoneParams).to.include({ ringtoneUrl: "customVoiceRingtone.amazon.com" });
+            });
+    
+            it("should trigger INIT event on ACK", function () {
+                expect(fakeOnInitHandler.callCount).to.equal(1);
+            });
         });
     });
 

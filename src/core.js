@@ -832,7 +832,6 @@
       connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
-      connect.core.initialized = true;
       connect.core.portStreamId = data.id;
 
       if (params.softphone || params.chat || params.pageOptions) {
@@ -862,6 +861,9 @@
  
       connect.core.keepaliveManager.start();
       this.unsubscribe();
+
+      connect.core.initialized = true;
+      connect.core.getEventBus().trigger(connect.EventType.INIT);
     });
  
     // Add any logs from the upstream to our own logger.
@@ -1332,6 +1334,12 @@
   /**-----------------------------------------------------------------------*/
   connect.core.onConfigure = function(f) {
     connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CONFIGURE, f);
+  }
+
+   /**-----------------------------------------------------------------------*/
+   connect.core.onInitialized = function(f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.EventType.INIT, f);
   }
 
   /**-----------------------------------------------------------------------*/
