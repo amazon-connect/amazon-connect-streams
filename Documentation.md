@@ -291,6 +291,18 @@ connect.core.onAccessDenied(function() { /* ... */ });
 ```
 Subscribes a callback that starts whenever authorization fails (i.e. access denied).
 
+### `connect.core.onSoftphoneSessionInit()`
+```js
+connect.core.onSoftphoneSessionInit(function({ connectionId }) {
+  var softphoneManager = connect.core.getSoftphoneManager();
+  if(softphoneManager){
+    // access session
+    var session = softphoneManager.getSession(connectionId); 
+  }
+});
+```
+Subscribes a callback that starts whenever a new webrtc session is created. Used for handling the rtc session stats.
+
 ### `connect.core.getWebSocketManager()`
 ```js
 // `connect.ChatSession` is defined by `amazon-connect-chatjs`
@@ -414,13 +426,13 @@ Subscribe a method to be called when the agent is put into an error state specif
 The `error` argument is a `connect.SoftphoneError` instance with the following methods: `getErrorType()`, `getErrorMessage()`, `getEndPointUrl()`.
 
 ### `agent.onWebSocketConnectionLost()`
-```
+```js
 agent.onWebSocketConnectionLost(function(agent) { ... });
 ```
 Subscribe a method to be called when the agent is put into an error state specific to losing a WebSocket connection.
 
 ### `agent.onWebSocketConnectionGained()`
-```
+```js
 agent.onWebSocketConnectionGained(function(agent) { ... });
 ```
 Subscribe a method to be called when the agent gains a WebSocket connection.
@@ -1454,6 +1466,25 @@ An internal communication error occurred.
 ### `ERROR Default`
 All errors not otherwise defined.
 
+## Logging out
+In the default CCP UI, agent can log out by clicking on the "Logout" link on the Settings page. If you want to do something after an agent gets logged out, you can subscribe to the `EventType.TERMINATED` event.
+```js
+const eventBus = connect.core.getEventBus();
+eventBus.subscribe(connect.EventType.TERMINATED, () => {
+  console.log('Logged out');
+  // Do stuff...
+});
+```
+
+If you are using a custom UI, you can log out the agent by visiting the logout endpoint (`/connect/logout`). In this case, `EventType.TERMINATED` event won't be triggered. If you want the code above to work, you can manually trigger the `EventType.TERMINATE` event after logging out. When the event is triggered, `connect.core.terminate()` is internally called to clean up the Streams and the `EventType.TERMINATED` event will be triggered.
+```js
+fetch("https://<your-instance-domain>/connect/logout", { credentials: 'include'})
+  .then(() => {
+    const eventBus = connect.core.getEventBus();
+    eventBus.trigger(connect.EventType.TERMINATE);
+  });
+```
+In addition, it is recommended to remove the auth token cookies (`lily-auth-*`) after logging out, otherwise you’ll see AuthFail errors. ([Browser API Reference](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/cookies/remove)).
 ## Initialization for CCP, Customer Profiles, and Wisdom
 
 *Note that if you are only using CCP, please follow [these directions](#initialization)*
