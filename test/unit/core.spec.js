@@ -66,7 +66,6 @@ describe('Core', function () {
             expect(connect.core.region).not.to.be.a("null");
         });
     });
-
     describe('legacy endpoint', function () {
         jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
 
@@ -99,7 +98,6 @@ describe('Core', function () {
             assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/connect/auth/authorize");
         });
     });
-
     describe('new endpoint', function () {
         jsdom({ url: "https://abc.my.connect.aws/ccp-v2" });
 
@@ -119,7 +117,6 @@ describe('Core', function () {
 
             sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
         });
-
         afterEach(function () {
             sandbox.restore();
         });

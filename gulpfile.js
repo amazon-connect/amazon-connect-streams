@@ -7,6 +7,8 @@ var istanbul = require('gulp-istanbul'),
     jshint = require('gulp-jshint'),
     replace = require('gulp-replace'),
     pump = require('pump');
+    fs = require('fs');
+    path = require('path');
 
 var source = [ "src/aws-client.js",
     "src/sprintf.js",
@@ -49,15 +51,16 @@ gulp.task('watch', function() {
 });
 
 gulp.task('script', function (cb) {
+  var streamJs = sourceCode.streamJs;
   pump([
-    gulp.src(source),
+    gulp.src(streamJs.sources),
     jshint(),
     replace("STREAMS_VERSION", process.env.npm_package_version),
     concat('connect-streams.js'),
     gulp.dest('./release/'),
     rename('connect-streams-min.js'),
     uglify(),
-    gulp.dest('./release/')
+    gulp.dest(DESTINATION_FOLDER)
   ], cb);
 });
 
