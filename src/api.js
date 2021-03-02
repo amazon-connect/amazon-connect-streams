@@ -256,48 +256,6 @@
   ]);
 
   /*----------------------------------------------------------------
-   * enum for VoiceId streaming status
-   */
-  connect.VoiceIdStreamingStatus = connect.makeEnum([
-    "ONGOING",
-    "ENDED"
-  ]);
-
-  /*----------------------------------------------------------------
-   * enum for VoiceId authentication decision
-   */
-  connect.VoiceIdAuthenticationDecision = connect.makeEnum([
-    "ACCEPT",
-    "REJECT",
-    "NOT_ENOUGH_SPEECH",
-    "SPEAKER_NOT_ENROLLED",
-    "SPEAKER_OPTED_OUT",
-    "SPEAKER_ID_NOT_PROVIDED"
-  ]);
-
-  /*----------------------------------------------------------------
-   * enum for contact flow authentication decision 
-   */
-  connect.ContactFlowAuthenticationDecision = connect.makeEnum([
-    "Authenticated",
-    "NotAuthenticated",
-    "Inconclusive",
-    "NotEnrolled",
-    "OptedOut",
-    "Error"
-  ]);
-
-  /*----------------------------------------------------------------
-   * enum for VoiceId EnrollmentRequestStatus status
-   */
-  connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
-    "NOT_ENOUGH_SPEECH",
-    "IN_PROGRESS",
-    "COMPLETED",
-    "FAILED"
-  ]);
-
-  /*----------------------------------------------------------------
    * class Agent
    */
   var Agent = function () {
