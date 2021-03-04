@@ -132,6 +132,8 @@
     this.portConduitMap = {};
     this.masterCoord = new MasterTopicCoordinator();
     this.logsBuffer = [];
+    this.suppress = false;
+    this.forceOffline = false;
 
     var webSocketManager = null;
 
