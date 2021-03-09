@@ -147,6 +147,24 @@
   };
 
   /**
+   * Private method to remove sensitive info from client log
+   */
+  var redactSensitiveInfo = function(data) {
+    var regex = /AuthToken.*\=/g;
+    if(data && typeof data === 'object') {
+      Object.keys(data).forEach(function(key) {
+        if(key === "url" || key === "text") {
+          data[key] = data[key].replace(regex, "[redacted]");
+        }
+        if (typeof data[key] === 'object') {
+          redactSensitiveInfo(data[key])
+        }
+      }); 
+    }
+    
+  }
+
+  /**
    * Pulls the type, message, and stack trace
    * out of the given exception for JSON serialization.
    */
@@ -209,7 +227,9 @@
    * may contain any number of objects.
    */
   LogEntry.prototype.withObject = function (obj) {
-    this.objects.push(connect.deepcopy(obj));
+    var copiedObj = connect.deepcopy(obj)
+    redactSensitiveInfo(copiedObj);
+    this.objects.push(copiedObj);
     return this;
   };
 
@@ -296,6 +316,7 @@
    */
   Logger.prototype.write = function (component, level, text) {
     var logEntry = new LogEntry(component, level, text, this.getLoggerId());
+    redactSensitiveInfo(logEntry);
     this.addLogEntry(logEntry);
     return logEntry;
   };
