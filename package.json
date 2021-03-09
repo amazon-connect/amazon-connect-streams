@@ -1,12 +1,12 @@
 {
-  "name": "@amzn/amazon-connect-streams",
-  "version": "1.6.4",
+  "name": "@griffisc753/amazon-connect-streams-fixpopup",
+  "version": "1.0.0",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
   },
   "directories": {
-    "lib": "./release"
+    "test": "test"
   },
   "files": [
     "/release",
@@ -27,7 +27,7 @@
     "clean": "rm -rf build/ node_modules build package-lock.json",
     "release-watch": "npm run release && npm run watch"
   },
-  "author": "Amazon Web Services",
+  "author": "griffisc",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/aws/amazon-connect-streams/issues"
@@ -51,5 +51,12 @@
     "pump": "^3.0.0",
     "sinon": "^9.0.0",
     "typescript": "3.0.1"
+  },
+  "dependencies": {
+    "np": "^7.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/griffisc306/amazon-connect-streams-fixpopup.git"
   }
 }
