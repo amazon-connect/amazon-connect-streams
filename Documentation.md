@@ -1565,6 +1565,8 @@ Use the following methods to integrate Voice ID into your existing agent web app
 Enroll a customer to Voice ID using a click of a button.
 ### `voiceConnection.evaluateSpeakerWithVoiceId()`
 Check the customer's Voice ID verification status.
+### `voiceConnection.evaluateSpeakerWithVoiceId(true)`
+Start a new audio stream to check the customer's Voice ID verification status.
 ### `voiceConnection.optOutVoiceIdSpeaker()`
  Opt out a customer from Voice ID.
 ### `voiceConnection.getVoiceIdSpeakerStatus()`
