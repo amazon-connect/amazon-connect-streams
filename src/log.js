@@ -153,11 +153,12 @@
     var regex = /AuthToken.*\=/g;
     if(data && typeof data === 'object') {
       Object.keys(data).forEach(function(key) {
-        if(key === "url" || key === "text") {
-          data[key] = data[key].replace(regex, "[redacted]");
-        }
         if (typeof data[key] === 'object') {
           redactSensitiveInfo(data[key])
+        }
+        
+        if(typeof data[key] === 'string' && (key === "url" || key === "text")) {
+          data[key] = data[key].replace(regex, "[redacted]");
         }
       }); 
     }
