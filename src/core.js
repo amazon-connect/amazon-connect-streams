@@ -537,9 +537,13 @@
         // the event is triggered in this iframed CCP context
         connect.core.getEventBus().trigger(connect.ConnectionEvents.READY_TO_START_SESSION);
       } else {
-        // 1) if this is an iframed CCP, the event is send to downstream (CRM)
-        // 2) if this is a standalone CCP, the event is triggered in this context because window.parent is window itself in WindowIOStream
-        connect.core.getUpstream().sendDownstream(connect.ConnectionEvents.READY_TO_START_SESSION);
+        if (connect.isFramed()) {
+          // if this is an iframed CCP, the event is send to downstream (CRM)
+          connect.core.getUpstream().sendDownstream(connect.ConnectionEvents.READY_TO_START_SESSION);
+        } else {
+          // if this is a standalone CCP, trigger this event in this CCP context
+          connect.core.getEventBus().trigger(connect.ConnectionEvents.READY_TO_START_SESSION);
+        }
       }
     } else {
       if (allowFramedSoftphone) {
@@ -679,14 +683,16 @@
       connect.getLog().scheduleDownstreamClientSideLogsPush();
       // Bridge all upstream messages into the event bus.
       conduit.onAllUpstream(connect.core.getEventBus().bridge());
-      // Bridge all downstream messages into the event bus.
-      conduit.onAllDownstream(connect.core.getEventBus().bridge());
       // Pass all upstream messages (from shared worker) downstream (to CCP consumer).
       conduit.onAllUpstream(conduit.passDownstream());
-      // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
-      conduit.onAllDownstream(conduit.passUpstream());
+
+      if (connect.isFramed()) {
+        // Bridge all downstream messages into the event bus.
+        conduit.onAllDownstream(connect.core.getEventBus().bridge());
+        // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
+        conduit.onAllDownstream(conduit.passUpstream());
+      }
       // Send configuration up to the shared worker.
- 
       conduit.sendUpstream(connect.EventType.CONFIGURE, {
         authToken: authToken,
         authTokenExpiration: authTokenExpiration,
