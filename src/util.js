@@ -465,18 +465,24 @@
   };
 
   connect.publishMetric = function (metricData) {
-    var bus = connect.core.getEventBus();
-    bus.trigger(connect.EventType.CLIENT_METRIC, metricData);
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.CLIENT_METRIC,
+      data: metricData
+    });
   };
 
   connect.publishSoftphoneStats = function(stats) {
-    var bus = connect.core.getEventBus();
-    bus.trigger(connect.EventType.SOFTPHONE_STATS, stats);
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.SOFTPHONE_STATS,
+      data: stats
+    });
   };
 
   connect.publishSoftphoneReport = function(report) {
-    var bus = connect.core.getEventBus();
-    bus.trigger(connect.EventType.SOFTPHONE_REPORT, report);
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.SOFTPHONE_REPORT,
+      data: report
+    });
   };
 
   connect.publishClientSideLogs = function(logs) {
