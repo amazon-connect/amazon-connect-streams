@@ -410,19 +410,22 @@
   }
 
   connect.core.initSoftphoneManager = function (paramsIn) {
+    connect.getLog().info("[Softphone Manager] initSoftphoneManager started").sendInternalLogToServer();
     var params = paramsIn || {};
  
     var competeForMasterOnAgentUpdate = function (softphoneParamsIn) {
       var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
- 
+      connect.getLog().info("[Softphone Manager] competeForMasterOnAgentUpdate executed").sendInternalLogToServer();
       connect.agent(function (agent) {
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
         }
         agent.onRefresh(function () {
           var sub = this;
+          connect.getLog().info("[Softphone Manager] agent refresh handler executed").sendInternalLogToServer();
  
           connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
+            connect.getLog().info("[Softphone Manager] confirmed as softphone master topic").sendInternalLogToServer();
             if (!connect.core.softphoneManager && agent.isSoftphoneEnabled()) {
               // Become master to send logs, since we need logs from softphone tab.
               connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
@@ -441,9 +444,11 @@
     if (connect.isFramed() && !params.allowFramedSoftphone) {
       var bus = connect.core.getEventBus();
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
+        connect.getLog().info("[Softphone Manager] Configure event handler executed").sendInternalLogToServer();
         if (data.softphone && data.softphone.allowFramedSoftphone) {
           this.unsubscribe();
           competeForMasterOnAgentUpdate(data.softphone);
+          
         }
         setupEventListenersForMultiTabUseInFirefox(data.softphone);
       });

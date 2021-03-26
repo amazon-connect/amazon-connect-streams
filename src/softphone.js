@@ -65,6 +65,7 @@
   var SoftphoneManager = function (softphoneParams) {
     var self = this;
     logger = new SoftphoneLogger(connect.getLog());
+    logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
     var rtcPeerConnectionFactory;
     if (connect.RtcPeerConnectionFactory) {
       rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
