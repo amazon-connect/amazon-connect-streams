@@ -130,6 +130,13 @@ declare namespace connect {
      * This method is only used when integrating with `amazon-connect-chatjs`.
      */
     getWebSocketManager(): any;
+
+    /**
+     * Subscribes a callback that executes when the CCP initialization is completed.
+     *
+     * @param callback A callback that will execute when the CCP initialization is completed.
+     */
+    onInitialized(callback: Function): void;
   }
 
   const core: Core;

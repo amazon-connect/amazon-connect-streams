@@ -51,16 +51,15 @@ gulp.task('watch', function() {
 });
 
 gulp.task('script', function (cb) {
-  var streamJs = sourceCode.streamJs;
   pump([
-    gulp.src(streamJs.sources),
+    gulp.src(source),
     jshint(),
     replace("STREAMS_VERSION", process.env.npm_package_version),
     concat('connect-streams.js'),
     gulp.dest('./release/'),
     rename('connect-streams-min.js'),
     uglify(),
-    gulp.dest(DESTINATION_FOLDER)
+    gulp.dest('./release/')
   ], cb);
 });
 

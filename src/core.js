@@ -18,7 +18,6 @@
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
   var CCP_LOAD_TIMEOUT = 3000; // 3 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
-  var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
  
   var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
   var CLIENT_ID_MAP = {
@@ -34,7 +33,9 @@
   var WHITELISTED_ORIGINS_ENDPOINT = "/whitelisted-origins";
   var WHITELISTED_ORIGINS_RETRY_INTERVAL = 2000;
   var WHITELISTED_ORIGINS_MAX_RETRY = 5;
- 
+
+  connect.numberOfConnectedCCPs = 0;
+
   /**
    * @deprecated
    * This function was only meant for internal use. 
@@ -97,115 +98,6 @@
       log.warn("Connect core already initialized, only needs to be initialized once.").sendInternalLogToServer();
     }
   };
- 
- 
-  /**-------------------------------------------------------------------------
-  * DISASTER RECOVERY 
-  */
-  
-  var makeAgentOffline = function(agent, callbacks) {
-    var offlineState = agent.getAgentStates().find(function (state) {
-      return state.type === connect.AgentStateType.OFFLINE;
-    });
-    agent.setState(offlineState, callbacks);   
-  }
- 
-  // Suppress Contacts function 
-  // This is used by Disaster Recovery as a safeguard to not surface incoming calls/chats to UI
-  // 
-  var suppressContacts = function (isSuppressed) {
-    connect.getLog().info("[Disaster Recovery] Signal sharedworker to set contacts suppressor to %s for instance %s.", 
-      isSuppressed, connect.core.region
-    ).sendInternalLogToServer();
-    connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.SUPPRESS, {
-      suppress: isSuppressed
-    });
-  }
- 
-  var setForceOfflineUpstream = function(offline) {
-    connect.getLog().info("[DISASTER RECOVERY] Signal sharedworker to set forceOffline to %s for instance %s.", 
-      offline, connect.core.region
-    ).sendInternalLogToServer();
-    connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, {
-      offline: offline
-    });
-  }
- 
-  // Force the instance to be offline. 
-  // This tries to disconnect all contacts (Hard stop)
-  // if due to a failure (the backend is not reachable), signal the shared worker to force_offline when it wakes up again
-  // This function should only be ran from native CCP for disconnecting chats.
-  var forceOffline = function() {
-    var log = connect.getLog();
-    log.info("[Disaster Recovery] Attempting to force instance %s offline", connect.core.region).sendInternalLogToServer();
-    connect.agent(function(agent) {
-      var contactClosed = 0;
-      var contacts = agent.getContacts();
-      if (contacts.length) {
-        contacts.forEach(function(contact) 
-          {
-            contact.getAgentConnection().destroy({
-              success: function() {
-                // check if all active contacts are closed
-                if (++contactClosed === contacts.length) {
-                  setForceOfflineUpstream(false);
-                  // It's ok if we're not able to put the agent offline. 
-                  // since we're suppressing the agents contacts already. 
-                  makeAgentOffline(agent);
-                  log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
-                }
-              },
-              failure: function(err) {
-                log.warn("[Disaster Recovery] An error occured while attempting to force this instance to offline in region %s", connect.core.region).sendInternalLogToServer();
-                log.warn(err).sendInternalLogToServer();
-                // signal the sharedworker to call forceOffline again when network connection 
-                // has been re-established (this happens in case of network or backend failures)
-                setForceOfflineUpstream(true);
-            }});
-          }
-        )        
-      } else {
-        setForceOfflineUpstream(false);
-        makeAgentOffline(agent);
-        log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
-      }
-    });
-  }
- 
-  //Initiate Disaster Recovery (This should only be called from customCCP that are DR enabled)
-  connect.core.initDisasterRecovery = function(params) {
-    var log = connect.getLog();
-    connect.core.region = params.region;
-    connect.core.suppressContacts = suppressContacts;  
-    connect.core.forceOffline = forceOffline;
-
-    //Register iframe listner to set native CCP offline
-    connect.core.getUpstream().onDownstream(connect.DisasterRecoveryEvents.SET_OFFLINE, function() {
-      connect.core.forceOffline();
-    });
- 
-    // Register Event listner to Force the Agent to be offline when shared worker recovers from network failure
-    connect.core.getUpstream().onUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, function() {
-      connect.core.forceOffline();
-    });
-
-    connect.ifMaster(connect.MasterTopics.SOFTPHONE, 
-      function() {
-        log.info("[Disaster Recovery] Initializing region %s as part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
-      }, 
-      function() {
-        log.info("[Disaster Recovery] %s already part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
-      });
-
-    if (!params.isPrimary) {
-      connect.core.suppressContacts(true);
-      connect.core.forceOffline();
-      log.info("[Disaster Recovery] %s instance is set to stand-by", connect.core.region).sendInternalLogToServer();
-    } else {
-      connect.core.suppressContacts(false);
-      log.info("[Disaster Recovery] %s instance is set to primary", connect.core.region).sendInternalLogToServer();
-    }
-  }
  
   /**-------------------------------------------------------------------------
    * Basic Connect client initialization.
@@ -431,7 +323,7 @@
         });
       });
     };
- 
+
     /**
      * If the window is framed, we need to wait for a CONFIGURE message from
      * downstream before we try to initialize, unless params.allowFramedSoftphone is true.
@@ -443,9 +335,11 @@
           this.unsubscribe();
           competeForMasterOnAgentUpdate(data.softphone);
         }
+        setupEventListenersForMultiTabUseInFirefox(data.softphone);
       });
     } else {
       competeForMasterOnAgentUpdate(params);
+      setupEventListenersForMultiTabUseInFirefox(params);
     }
  
     connect.agent(function (agent) {
@@ -457,6 +351,99 @@
           });
       }
     });
+
+    function setupEventListenersForMultiTabUseInFirefox(softphoneParamsIn) {
+      var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
+
+      // keep the softphone params for external use
+      connect.core.softphoneParams = softphoneParams;
+
+      if (connect.isFirefoxBrowser()) {
+        // In Firefox, when a tab takes over another tab's softphone primary,
+        // the previous primary tab should delete sofphone manager and stop microphone
+        connect.core.getUpstream().onUpstream(connect.EventType.MASTER_RESPONSE, function (res) {
+          if (res.data && res.data.topic === connect.MasterTopics.SOFTPHONE && res.data.takeOver && (res.data.masterId !== connect.core.portStreamId)) {
+            if (connect.core.softphoneManager) {
+              connect.core.softphoneManager.onInitContactSub.unsubscribe();
+              delete connect.core.softphoneManager;
+            }
+            var userMediaStream = connect.core.getSoftphoneUserMediaStream();
+            if (userMediaStream) {
+              userMediaStream.getTracks().forEach(function(track) { track.stop(); });
+              connect.core.setSoftphoneUserMediaStream(null);
+            }
+          }
+        });
+
+        // In Firefox, when multiple tabs are open,
+        // webrtc session is not started until READY_TO_START_SESSION event is triggered
+        connect.core.getEventBus().subscribe(connect.ConnectionEvents.READY_TO_START_SESSION, function () {
+          connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
+            if (connect.core.softphoneManager) {
+              connect.core.softphoneManager.startSession();
+            }
+          }, function () {
+            connect.becomeMaster(connect.MasterTopics.SOFTPHONE, function () {
+              connect.agent(function (agent) {
+                if (!connect.core.softphoneManager && agent.isSoftphoneEnabled()) {
+                  connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
+                  connect.core.softphoneManager = new connect.SoftphoneManager(softphoneParams);
+                  connect.core.softphoneManager.startSession();
+                }
+              });
+            });
+          });
+        });
+
+        // handling outbound-call and auto-accept cases for pending session
+        connect.contact(function (c) {
+          connect.agent(function (agent) {
+            c.onRefresh(function (contact) {
+              if (
+                connect.hasOtherConnectedCCPs() &&
+                document.visibilityState === 'visible' &&
+                (contact.getStatus().type === connect.ContactStatusType.CONNECTING || contact.getStatus().type === connect.ContactStatusType.INCOMING)
+              ) {
+                var isOutBoundCall = contact.isSoftphoneCall() && !contact.isInbound();
+                var isAutoAcceptEnabled = contact.isSoftphoneCall() && agent.getConfiguration().softphoneAutoAccept;
+                var isQueuedCallback = contact.getType() === connect.ContactType.QUEUE_CALLBACK;
+                if (isOutBoundCall || isAutoAcceptEnabled || isQueuedCallback) {
+                  connect.core.triggerReadyToStartSessionEvent();
+                }
+              }
+            });
+          });
+        });
+      }
+    }
+  };
+
+  // trigger READY_TO_START_SESSION event in a context with Softphone Manager
+  // internal use only
+  connect.core.triggerReadyToStartSessionEvent = function () {
+    var allowFramedSoftphone = connect.core.softphoneParams && connect.core.softphoneParams.allowFramedSoftphone;
+    if (connect.isCCP()) {
+      if (allowFramedSoftphone) {
+        // the event is triggered in this iframed CCP context
+        connect.core.getEventBus().trigger(connect.ConnectionEvents.READY_TO_START_SESSION);
+      } else {
+        if (connect.isFramed()) {
+          // if this is an iframed CCP, the event is send to downstream (CRM)
+          connect.core.getUpstream().sendDownstream(connect.ConnectionEvents.READY_TO_START_SESSION);
+        } else {
+          // if this is a standalone CCP, trigger this event in this CCP context
+          connect.core.getEventBus().trigger(connect.ConnectionEvents.READY_TO_START_SESSION);
+        }
+      }
+    } else {
+      if (allowFramedSoftphone) {
+        // the event is send to the upstream (iframed CCP)
+        connect.core.getUpstream().sendUpstream(connect.ConnectionEvents.READY_TO_START_SESSION);
+      } else {
+        // the event is triggered in this CRM context
+        connect.core.getEventBus().trigger(connect.ConnectionEvents.READY_TO_START_SESSION);
+      }
+    }
   };
 
   connect.core.initPageOptions = function (params) {
@@ -586,14 +573,16 @@
       connect.getLog().scheduleDownstreamClientSideLogsPush();
       // Bridge all upstream messages into the event bus.
       conduit.onAllUpstream(connect.core.getEventBus().bridge());
-      // Bridge all downstream messages into the event bus.
-      conduit.onAllDownstream(connect.core.getEventBus().bridge());
       // Pass all upstream messages (from shared worker) downstream (to CCP consumer).
       conduit.onAllUpstream(conduit.passDownstream());
-      // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
-      conduit.onAllDownstream(conduit.passUpstream());
+
+      if (connect.isFramed()) {
+        // Bridge all downstream messages into the event bus.
+        conduit.onAllDownstream(connect.core.getEventBus().bridge());
+        // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
+        conduit.onAllDownstream(conduit.passUpstream());
+      }
       // Send configuration up to the shared worker.
- 
       conduit.sendUpstream(connect.EventType.CONFIGURE, {
         authToken: authToken,
         authTokenExpiration: authTokenExpiration,
@@ -605,9 +594,10 @@
         authCookieName: authCookieName
       });
  
-      conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+      conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
         connect.getLog().info("Acknowledged by the ConnectSharedWorker!").sendInternalLogToServer();
         connect.core.initialized = true;
+        connect.core.portStreamId = data.id;
         this.unsubscribe();
       });
       // Add all upstream log entries to our own logger.
@@ -625,7 +615,12 @@
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
         location.reload();
       });
- 
+
+      conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
+        connect.getLog().info("Number of connected CCPs updated: " + data.length);
+        connect.numberOfConnectedCCPs = data.length;
+      });
+
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
  
@@ -645,9 +640,6 @@
       var nm = connect.core.getNotificationManager();
       nm.requestPermission();
  
-      conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, function(params) {
-        connect.core.initDisasterRecovery(params);
-      })
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
         .withException(e).sendInternalLogToServer();
@@ -729,12 +721,12 @@
  
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.
-    conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+    conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
       connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
-      connect.core.initialized = true;
- 
+      connect.core.portStreamId = data.id;
+
       if (params.softphone || params.chat || params.pageOptions) {
         // Send configuration up to the CCP.
         //set it to false if secondary
@@ -745,16 +737,6 @@
         });
       }
  
-      // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
-      if (params.disasterRecoveryOn) {
-        connect.core.region = params.region;
-        connect.core.suppressContacts = suppressContacts;
-        connect.core.forceOffline = function() {
-          conduit.sendUpstream(connect.DisasterRecoveryEvents.SET_OFFLINE);
-        }       
-        conduit.sendUpstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, params);
-      }
- 
       if (connect.core.ccpLoadTimeoutInstance) {
         global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
         connect.core.ccpLoadTimeoutInstance = null;
@@ -762,6 +744,9 @@
  
       connect.core.keepaliveManager.start();
       this.unsubscribe();
+
+      connect.core.initialized = true;
+      connect.core.getEventBus().trigger(connect.EventType.INIT);
     });
  
     // Add any logs from the upstream to our own logger.
@@ -795,10 +780,9 @@
       }
  
       if (connect.core.iframeRefreshInterval == null) {
-        var ccp_iframe_refresh_interval = (params.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL : CCP_IFRAME_REFRESH_INTERVAL;
         connect.core.iframeRefreshInterval = window.setInterval(function () {
-          iframe.src = (params.disasterRecoveryOn) ? params.loginUrl : params.ccpUrl;
-        }, ccp_iframe_refresh_interval);
+          iframe.src = params.ccpUrl;
+        }, CCP_IFRAME_REFRESH_INTERVAL);
  
         conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
           this.unsubscribe();
@@ -817,6 +801,13 @@
     if (params.onViewContact) {
       connect.core.onViewContact(params.onViewContact);
     }
+
+    conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
+      connect.numberOfConnectedCCPs = data.length;
+    });
+
+    // keep the softphone params for external use
+    connect.core.softphoneParams = params.softphone;
   };
  
   /**-----------------------------------------------------------------------*/
@@ -1214,12 +1205,18 @@
    */
  
   connect.core.onSoftphoneSessionInit = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConnnectionEvents.SESSION_INIT, f);
+    connect.core.getUpstream().onUpstream(connect.ConnectionEvents.SESSION_INIT, f);
   };
  
   /**-----------------------------------------------------------------------*/
   connect.core.onConfigure = function(f) {
     connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CONFIGURE, f);
+  }
+
+   /**-----------------------------------------------------------------------*/
+   connect.core.onInitialized = function(f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.EventType.INIT, f);
   }
 
   /**-----------------------------------------------------------------------*/
