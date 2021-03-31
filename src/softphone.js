@@ -127,6 +127,7 @@
       var stream = localMediaStream[connectionId].stream;
       if(stream){
         var oldTrack = stream.getAudioTracks()[0];
+        track.enabled = oldTrack.enabled;
         oldTrack.enabled = false;
         stream.removeTrack(oldTrack);
         stream.addTrack(track);
