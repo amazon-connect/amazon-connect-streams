@@ -83,35 +83,81 @@ describe('Worker', function () {
     });
 
     it("sets master topic", function () {
-      var conduit = { sendDownstream: sinon.spy() };
+      var portConduit = { sendDownstream: sinon.spy() };
       var request = { method: connect.MasterMethods.BECOME_MASTER, params: { topic: connect.MasterTopics.SOFTPHONE } };
       connect.worker.clientEngine.handleMasterRequest(
-        conduit, 
-        "portId", 
+        portConduit,
+        "portId_A", 
         request
       );
       var expected = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
-        masterId: "portId",
-        isMaster: true,
+        masterId: "portId_A",
+        takeOver: false,
         topic: connect.MasterTopics.SOFTPHONE,
       });
-      assert.isTrue(conduit.sendDownstream.calledWith(expected.event, expected));
+      assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
+      assert.isTrue(connect.worker.clientEngine.conduit.sendDownstream.neverCalledWith(expected.event, expected));
+    });
+
+    it("takes over master topic", function () {
+      var portConduit = { sendDownstream: sinon.spy() };
+      var request = { method: connect.MasterMethods.BECOME_MASTER, params: { topic: connect.MasterTopics.SOFTPHONE } };
+      connect.worker.clientEngine.handleMasterRequest(
+        portConduit,
+        "portId_B", 
+        request
+      );
+      var expected = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
+        masterId: "portId_B",
+        takeOver: true,
+        topic: connect.MasterTopics.SOFTPHONE,
+      });
+      assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
+      assert.isTrue(connect.worker.clientEngine.conduit.sendDownstream.calledWith(expected.event, expected));
     });
 
     it("returns isMaster as false in MASTER_RESPONSE if not master topic", function () {
-      var conduit = { sendDownstream: sinon.spy() };
+      var portConduit = { sendDownstream: sinon.spy() };
       var request = { method: connect.MasterMethods.CHECK_MASTER, params: { topic: connect.MasterTopics.SOFTPHONE } };
       connect.worker.clientEngine.handleMasterRequest(
-        conduit,
-        "someOtherPortId",
+        portConduit,
+        "portId_C",
         request
       );
       var expected = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
-        masterId: "portId",
+        masterId: "portId_B",
         isMaster: false,
         topic: connect.MasterTopics.SOFTPHONE,
       });
-      assert.isTrue(conduit.sendDownstream.calledWith(expected.event, expected));
+      assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
+    });
+
+    describe('global.onconnect()', function () {
+      var dummyEvent;
+      beforeEach(function() {
+        dummyEvent = {
+          ports: [
+            {
+              addEventListener: sandbox.stub(),
+              postMessage: sandbox.stub(),
+              start: sandbox.spy()
+            }
+          ]
+        };
+      });
+      it('global.onconnect() exists', function () {
+        expect(global).to.have.property('onconnect');
+      });
+      it('UPDATE_CONNECTED_CCPS is called with an incremented value', function () {
+        global.onconnect(dummyEvent);
+        assert.isTrue(connect.worker.clientEngine.conduit.sendDownstream.calledWith(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 }));
+        global.onconnect(dummyEvent);
+        assert.isTrue(connect.worker.clientEngine.conduit.sendDownstream.calledWith(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 2 }));
+      });
+      it('sends ACK event to the downstream with the port id', function () {
+        global.onconnect(dummyEvent);
+        expect(connect.worker.clientEngine.conduit.sendDownstream.calledWithMatch(connect.EventType.ACKNOWLEDGE, sinon.match.string));
+      });
     });
   });
 

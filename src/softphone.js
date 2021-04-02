@@ -99,6 +99,23 @@
     var rtcSessions = {};
     // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
     var callsDetected = {};
+    this.onInitContactSub = {};
+    this.onInitContactSub.unsubscribe = function() {};
+
+    // variables for firefox multitab
+    var isSessionPending = false;
+    var pendingContact = null;
+    var pendingAgentConnectionId = null;
+    var postponeStartingSession = function (contact, agentConnectionId) {
+      isSessionPending = true;
+      pendingContact = contact;
+      pendingAgentConnectionId = agentConnectionId;
+    }
+    var cancelPendingSession = function () {
+      isSessionPending = false;
+      pendingContact = null;
+      pendingAgentConnectionId = null;
+    }
 
     // helper method to provide access to rtc sessions
     this.getSession = function (connectionId) {
@@ -152,103 +169,118 @@
       }
     };
 
-    var onRefreshContact = function (contact, agentConnectionId) {
-      if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
-        destroySession(agentConnectionId);
+    this.startSession = function (_contact, _agentConnectionId) {
+      var contact = isSessionPending ? pendingContact : _contact;
+      var agentConnectionId = isSessionPending ? pendingAgentConnectionId : _agentConnectionId;
+      if (!contact || !agentConnectionId) {
+        return;
       }
-      if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
-        contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
-        contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+      cancelPendingSession();
+      
+      // Set to true, this will block subsequent invokes from entering.
+      callsDetected[agentConnectionId] = true;
+      logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
-        // Set to true, this will block subsequent invokes from entering.
-        callsDetected[agentConnectionId] = true;
-        logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
+      // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
+      sanityCheckActiveSessions(rtcSessions);
 
-        // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
-        sanityCheckActiveSessions(rtcSessions);
+      if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
+        publishTelemetryEvent("Softphone Connecting", contact.getContactId());
+      }
 
-        if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
-          publishTelemetryEvent("Softphone Connecting", contact.getContactId());
+      initializeParams();
+      var softphoneInfo = contact.getAgentConnection().getSoftphoneMediaInfo();
+      var callConfig = parseCallConfig(softphoneInfo.callConfigJson);
+      var webSocketProvider;
+      if (callConfig.useWebSocketProvider) {
+        webSocketProvider = connect.core.getWebSocketManager();
+      }
+      var session = new connect.RTCSession(
+        callConfig.signalingEndpoint,
+        callConfig.iceServers,
+        softphoneInfo.callContextToken,
+        logger,
+        contact.getContactId(),
+        agentConnectionId,
+        webSocketProvider);
+
+      rtcSessions[agentConnectionId] = session;
+
+      if (connect.core.getSoftphoneUserMediaStream()) {
+        session.mediaStream = connect.core.getSoftphoneUserMediaStream();
+      }
+
+      // Custom Event to indicate the session init operations
+      connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+        event: connect.ConnectionEvents.SESSION_INIT,
+        data: {
+          connectionId: agentConnectionId
         }
+      });
 
-        initializeParams();
-        var softphoneInfo = contact.getAgentConnection().getSoftphoneMediaInfo();
-        var callConfig = parseCallConfig(softphoneInfo.callConfigJson);
-        var webSocketProvider;
-        if (callConfig.useWebSocketProvider) {
-          webSocketProvider = connect.core.getWebSocketManager();
-        }
-        var session = new connect.RTCSession(
-          callConfig.signalingEndpoint,
-          callConfig.iceServers,
-          softphoneInfo.callContextToken,
-          logger,
-          contact.getContactId(),
-          agentConnectionId,
-          webSocketProvider);
+      session.onSessionFailed = function (rtcSession, reason) {
+        delete rtcSessions[agentConnectionId];
+        delete callsDetected[agentConnectionId];
+        publishSoftphoneFailureLogs(rtcSession, reason);
+        publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
+        stopJobsAndReport(contact, rtcSession.sessionReport);
+      };
+      session.onSessionConnected = function (rtcSession) {
+        publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
+        // Become master to send logs, since we need logs from softphone tab.
+        connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
+        //start stats collection and reporting jobs
+        startStatsCollectionJob(rtcSession);
+        startStatsReportingJob(contact);
+        fireContactAcceptedEvent(contact);
+      };
 
-        rtcSessions[agentConnectionId] = session;
+      session.onSessionCompleted = function (rtcSession) {
+        publishTelemetryEvent("Softphone Session Completed", contact.getContactId());
 
-        if (connect.core.getSoftphoneUserMediaStream()) {
-          session.mediaStream = connect.core.getSoftphoneUserMediaStream();
-        }
+        delete rtcSessions[agentConnectionId];
+        delete callsDetected[agentConnectionId];
+        // Stop all jobs and perform one last job.
+        stopJobsAndReport(contact, rtcSession.sessionReport);
 
-        // Custom Event to indicate the session init operations
+        // Cleanup the cached streams
+        deleteLocalMediaStream(agentConnectionId);
+      };
+
+      session.onLocalStreamAdded = function (rtcSession, stream) {
+        // Cache the streams for mute/unmute
+        localMediaStream[agentConnectionId] = {
+          stream: stream
+        };
         connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-          event: connect.ConnnectionEvents.SESSION_INIT,
+          event: connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED,
           data: {
             connectionId: agentConnectionId
           }
         });
+      };
 
-        session.onSessionFailed = function (rtcSession, reason) {
-          delete rtcSessions[agentConnectionId];
-          delete callsDetected[agentConnectionId];
-          publishSoftphoneFailureLogs(rtcSession, reason);
-          publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
-          stopJobsAndReport(contact, rtcSession.sessionReport);
-        };
-        session.onSessionConnected = function (rtcSession) {
-          publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
-          // Become master to send logs, since we need logs from softphone tab.
-          connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
-          //start stats collection and reporting jobs
-          startStatsCollectionJob(rtcSession);
-          startStatsReportingJob(contact);
-          fireContactAcceptedEvent(contact);
-        };
+      session.remoteAudioElement = document.getElementById('remote-audio');
+      if (rtcPeerConnectionFactory) {
+        session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
+      } else {
+        session.connect();
+      }
+    }
 
-        session.onSessionCompleted = function (rtcSession) {
-          publishTelemetryEvent("Softphone Session Completed", contact.getContactId());
-
-          delete rtcSessions[agentConnectionId];
-          delete callsDetected[agentConnectionId];
-          // Stop all jobs and perform one last job.
-          stopJobsAndReport(contact, rtcSession.sessionReport);
-
-          // Cleanup the cached streams
-          deleteLocalMediaStream(agentConnectionId);
-        };
-
-        session.onLocalStreamAdded = function (rtcSession, stream) {
-          // Cache the streams for mute/unmute
-          localMediaStream[agentConnectionId] = {
-            stream: stream
-          };
-          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-            event: connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED,
-            data: {
-              connectionId: agentConnectionId
-            }
-          });
-        };
-
-        session.remoteAudioElement = document.getElementById('remote-audio');
-        if (rtcPeerConnectionFactory) {
-          session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
-        } else {
-          session.connect();
-        }
+    var onRefreshContact = function (contact, agentConnectionId) {
+      if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
+        destroySession(agentConnectionId);
+        cancelPendingSession();
+      }
+      if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
+        contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
+        contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+          if (connect.isFirefoxBrowser() && connect.hasOtherConnectedCCPs()) {
+            postponeStartingSession(contact, agentConnectionId);
+          } else {
+            self.startSession(contact, agentConnectionId);
+          }
       }
     };
 
@@ -263,7 +295,7 @@
       }
     };
 
-    connect.contact(onInitContact);
+    self.onInitContactSub = connect.contact(onInitContact);
 
     // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed. 
     new connect.Agent().getContacts().forEach(function (contact) {

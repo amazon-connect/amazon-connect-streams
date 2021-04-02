@@ -315,6 +315,12 @@ connect.ChatSession.create({
 Gets the `WebSocket` manager. This method is only used when integrating with `amazon-connect-chatjs`.
 See the [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs) documentation for more information.
 
+### `connect.core.onInitialized()`
+```js
+connect.core.onInitialized(function() { /* ... */ });
+```
+Subscribes a callback that executes when the CCP initialization is completed.
+
 ## Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
 code to be called when new agent information is available.
@@ -1549,6 +1555,8 @@ Use the following methods to integrate Voice ID into your existing agent web app
 Enroll a customer to Voice ID using a click of a button.
 ### `voiceConnection.evaluateSpeakerWithVoiceId()`
 Check the customer's Voice ID verification status.
+### `voiceConnection.evaluateSpeakerWithVoiceId(true)`
+Start a new audio stream to check the customer's Voice ID verification status.
 ### `voiceConnection.optOutVoiceIdSpeaker()`
  Opt out a customer from Voice ID.
 ### `voiceConnection.getVoiceIdSpeakerStatus()`

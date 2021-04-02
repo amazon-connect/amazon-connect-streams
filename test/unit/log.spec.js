@@ -25,4 +25,50 @@ describe('Logger', function() {
             assert.deepEqual(loggedException.stack, []);
         });
     });
+    describe('Logger.withObject()', function(){
+        it('Log should not contain websocket auth token', function(){
+            var obj =  {
+                "webSocketTransport": {
+                    "url": "wss://15isv8flsl.execute-api.us-west-2.amazonaws.com/gamma/?AuthToken=QVFJREFIa==",
+                    "transportLifeTimeInSeconds": 3869,
+                    "expiry": "2021-03-09T20:03:34.625Z"
+                }
+            };
+            var expectedObj = [{
+                "webSocketTransport": {
+                    "url": "wss://15isv8flsl.execute-api.us-west-2.amazonaws.com/gamma/?[redacted]",
+                    "transportLifeTimeInSeconds": 3869,
+                    "expiry": "2021-03-09T20:03:34.625Z"
+                }
+            }];
+            var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);
+            assert.deepEqual(loggedObject.objects, expectedObj);
+        });
+        it('Log should not break if the value of url or text is not a string', function(){
+            var obj =  {
+                "webSocketTransport": {
+                    "url": {
+                        "text": "wss://15isv8flsl.execute-api.us-west-2.amazonaws.com/gamma/?AuthToken=QVFJREFIa==",
+                        "url":[]
+                    },
+                    "text":545,
+                    "transportLifeTimeInSeconds": 3869,
+                    "expiry": "2021-03-09T20:03:34.625Z"
+                }
+            };
+            var expectedObj = [{
+                "webSocketTransport": {
+                    "url": {
+                        "text":"wss://15isv8flsl.execute-api.us-west-2.amazonaws.com/gamma/?[redacted]",
+                        "url":[]
+                    },
+                    "text":545,
+                    "transportLifeTimeInSeconds": 3869,
+                    "expiry": "2021-03-09T20:03:34.625Z"
+                }
+            }];
+            var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);
+            assert.deepEqual(loggedObject.objects, expectedObj);
+        })
+    });
 });
