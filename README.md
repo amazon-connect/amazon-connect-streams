@@ -146,7 +146,7 @@ everything setup correctly and that you will be able to listen for events.
         connect.core.initCCP(containerDiv, {
           ccpUrl: instanceURL,            // REQUIRED
           loginPopup: true,               // optional, defaults to `true`
-          loginPopupAutoClose: true,      // optional, defaults to `true`
+          loginPopupAutoClose: true,      // optional, defaults to `false`
           loginOptions: {                 // optional, if provided opens login in new window
             autoClose: true,              // optional, defaults to `false`
             height: 600,                  // optional, defaults to 578
