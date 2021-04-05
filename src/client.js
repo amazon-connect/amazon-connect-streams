@@ -50,6 +50,7 @@
     */
    connect.AgentAppClientMethods = {
       GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
+      DELETE_VOICEID_SPEAKER: "AgentAppService.VoiceId.deleteSpeaker",
       ENROLL_SPEAKER_IN_VOICEID: "AgentAppService.VoiceId.enrollBySession",
       EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
       GET_SPEAKER_STATUS: "AgentAppService.VoiceId.describeSpeaker",

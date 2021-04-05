@@ -188,6 +188,7 @@
     'get_speaker_id_failed',
     'get_speaker_status_failed',
     'opt_out_speaker_failed',
+    'delete_speaker_failed',
     'start_session_failed',
     'evaluate_speaker_failed',
     'describe_session_failed',
@@ -1218,6 +1219,35 @@
     });
   };
 
+  VoiceId.prototype.deleteSpeaker = function () {
+    var self = this;
+    self.checkConferenceCall();
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      self.getSpeakerId().then(function(data){
+        client.call(connect.AgentAppClientMethods.DELETE_VOICEID_SPEAKER, {
+          "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
+          "DomainId" : "ConnectDefaultDomainId"
+          }, {
+            success: function (data) {
+              connect.getLog().info("deleteSpeaker succeeded");
+              resolve(data);
+            },
+            failure: function (err) {
+              connect.getLog().error("deleteSpeaker failed")
+                .withObject({
+                  err: err,
+                });
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.DELETE_SPEAKER_FAILED, "deleteSpeaker failed.", err);
+              reject(error);
+            }
+          });
+      }).catch(function(err){
+        reject(err);
+      });
+    });
+  };
+
   VoiceId.prototype.startSession = function () {
     var self = this;
     self.checkConferenceCall();
@@ -1490,6 +1520,10 @@
   VoiceConnection.prototype.optOutVoiceIdSpeaker = function() {
     
     return this._speakerAuthenticator.optOutSpeaker();
+  }
+
+  VoiceConnection.prototype.deleteVoiceIdSpeaker = function() {
+    return this._speakerAuthenticator.deleteSpeaker();
   }
 
   VoiceConnection.prototype.evaluateSpeakerWithVoiceId = function(startNew) {

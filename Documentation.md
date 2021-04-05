@@ -1568,7 +1568,9 @@ Check the customer's Voice ID verification status.
 ### `voiceConnection.evaluateSpeakerWithVoiceId(true)`
 Start a new audio stream to check the customer's Voice ID verification status.
 ### `voiceConnection.optOutVoiceIdSpeaker()`
- Opt out a customer from Voice ID.
+Opt out a customer from Voice ID.
+### `voiceConnection.deleteVoiceIdSpeaker()`
+Delete the speaker ID from Voice ID.
 ### `voiceConnection.getVoiceIdSpeakerStatus()`
 Describe the enrollment status of a customer.
 ### `voiceConnection.getVoiceIdSpeakerId()`

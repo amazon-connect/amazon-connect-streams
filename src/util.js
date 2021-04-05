@@ -416,7 +416,7 @@
       function fetchData(maxRetry) {
         fetch(endpoint, options).then(function (res) {
           if (res.status === connect.HTTP_STATUS_CODES.SUCCESS) {
-            resolve(res.json());
+            res.json().then(json => resolve(json)).catch(() => resolve({}));
           } else if (maxRetry !== 1 && (res.status >= connect.HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR || res.status === connect.HTTP_STATUS_CODES.TOO_MANY_REQUESTS)) {
             setTimeout(function () {
               fetchData(--maxRetry);

@@ -1483,6 +1483,9 @@ declare namespace connect {
     /** Update speaker id */
     updateVoiceIdSpeakerId(): Promise<any>;
 
+    /** Delete speaker id */
+    deleteVoiceIdSpeakerId(): Promise<any>;
+
   }
 
   /**

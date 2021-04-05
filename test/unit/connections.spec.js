@@ -153,6 +153,14 @@ describe('Connections API', function () {
         assert.equal(Promise.resolve(updateVoiceIdSpeakerId), updateVoiceIdSpeakerId);
       });
      });
+
+     describe('deleteVoiceIdSpeakerId', function() {
+      it('Should return deleteVoiceIdSpeakerId promise.', function () {
+        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+        var voiceIdSpeakerId = voiceConnection.deleteVoiceIdSpeaker();
+        assert.equal(Promise.resolve(voiceIdSpeakerId), voiceIdSpeakerId);
+      });
+     });
   });
 
   describe('#Task Connection API', function () {
