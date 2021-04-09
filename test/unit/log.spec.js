@@ -25,6 +25,13 @@ describe('Logger', function() {
             assert.deepEqual(loggedException.stack, []);
         });
     });
+    describe('Exceptions in logger class should not be thrown', function() {
+        it('Set wrong level should not throw error to out side', function() {
+            var logger = connect.getLog();
+            logger.setLogLevel("invalid log level");
+            assert.equal(logger._logLevel, 30);
+        })
+    });
     describe('Logger.withObject()', function(){
         it('Log should not contain websocket auth token', function(){
             var obj =  {

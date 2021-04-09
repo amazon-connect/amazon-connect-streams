@@ -557,8 +557,36 @@
     this._serverBoundInternalLogs = [];
   };
 
+  /**
+   * Wrap a function with try catch block
+   */
+  var tryCatchWrapperMethod = function (fn) {
+    var wrappedfunction = function() {
+      try {
+        return fn.apply(this, arguments);
+      } catch (e) {
+        // Since this wraps Logger class, we can only print it in the console and eat it.
+        CONSOLE_LOGGER_MAP.ERROR(e);
+      }
+    }
+    return wrappedfunction;
+  }
+  /**
+   * This is a wrapper method to wrap each function
+   * in an object with try catch block.
+   */
+  var tryCatchWrapperObject = function (obj) {
+    for (var method in obj) {
+      if (typeof(obj[method]) === 'function') {
+        obj[method] = tryCatchWrapperMethod(obj[method]);
+      }
+    }
+  }
+
   /** Create the singleton logger instance. */
   connect.rootLogger = new Logger();
+  tryCatchWrapperObject(connect.rootLogger);
+
 
   /** Fetch the singleton logger instance. */
   var getLog = function () {
