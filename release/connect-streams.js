@@ -26173,6 +26173,7 @@
       connect.core.portStreamId = data.id;
 
       if (params.softphone || params.chat || params.pageOptions) {
+        connect.getLog().info("sending CONFIGURE with softphone params: ", params.softphone);
         // Send configuration up to the CCP.
         //set it to false if secondary
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
@@ -26183,6 +26184,7 @@
       }
  
       if (connect.core.ccpLoadTimeoutInstance) {
+        connect.getLog().info("Clearing timeout");
         global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
         connect.core.ccpLoadTimeoutInstance = null;
       }
@@ -26191,6 +26193,7 @@
       this.unsubscribe();
 
       connect.core.initialized = true;
+
       connect.core.getEventBus().trigger(connect.EventType.INIT);
     });
  
@@ -26208,6 +26211,7 @@
  
     // Pop a login page when we encounter an ACK timeout.
     connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
+      connect.getLog().info("ACK_TIMEOUT received");
       // loginPopup is true by default, only false if explicitly set to false.
       if (params.loginPopup !== false) {
         try {
@@ -26269,6 +26273,7 @@
   KeepaliveManager.prototype.start = function () {
     var self = this;
  
+    connect.getLog().info("Attempting to send synchronize");
     this.conduit.sendUpstream(connect.EventType.SYNCHRONIZE);
     this.ackSub = this.conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
       this.unsubscribe();
