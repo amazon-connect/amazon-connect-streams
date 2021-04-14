@@ -722,7 +722,12 @@
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.
     conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
-      connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
+      try {
+        connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
+      }
+      catch(e) {
+        console.log("error in logging acknowledged by the CCP", e);
+      }
       connect.core.client = new connect.UpstreamConduitClient(conduit);
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.portStreamId = data.id;
@@ -771,7 +776,7 @@
       if (params.loginPopup !== false) {
         try {
           var loginUrl = getLoginUrl(params);
-          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
+          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.");
           // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
           if (params.loginUrl) {
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
@@ -779,7 +784,7 @@
           connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
 
         } catch (e) {
-          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
+          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e);
         }
       }
  
