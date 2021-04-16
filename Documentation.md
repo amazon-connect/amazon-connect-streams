@@ -159,7 +159,7 @@ everything set up correctly and that you are able to listen for events.
             ringtoneUrl: "./ringtone.mp3" // optional
            },
            pageOptions: { //optional
-            enableAudioDeviceSettings: false //optional, defaults to 'false'
+            enableAudioDeviceSettings: false, //optional, defaults to 'false'
             enablePhoneTypeSettings: true //optional, defaults to 'true' 
            }       
          });
