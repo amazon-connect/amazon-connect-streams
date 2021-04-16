@@ -130,11 +130,11 @@ everything set up correctly and that you are able to listen for events.
 <html>
   <head>
     <meta charset="UTF-8">
-    <script type="text/javascript" src="amazon-connect-1.4.js"></script>
+    <script type="text/javascript" src="connect-streams-min.js"></script>
   </head>
   <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
   <body onload="init()">
-    <div id="container-div" style="width: 400px;height: 800px;"></div>
+    <div id="container-div" style="width: 400px; height: 800px;"></div>
     <script type="text/javascript">
       var containerDiv = document.getElementById("container-div");
       var instanceURL = "https://my-instance-domain.awsapps.com/connect/ccp-v2/";
@@ -154,15 +154,15 @@ everything set up correctly and that you are able to listen for events.
           },
           region: "eu-central-1",         // REQUIRED for `CHAT`, optional otherwise
           softphone: {                    // optional
-            allowFramedSoftphone: true,   // optional
-            disableRingtone: false,       // optional
-            ringtoneUrl: "./ringtone.mp3" // optional
-           },
-           pageOptions: { //optional
-            enableAudioDeviceSettings: false, //optional, defaults to 'false'
-            enablePhoneTypeSettings: true //optional, defaults to 'true' 
-           }       
-         });
+            allowFramedSoftphone: true,   // optional, defaults to false
+            disableRingtone: false,       // optional, defaults to false
+            ringtoneUrl: "./ringtone.mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
+          },
+          pageOptions: {                  // optional
+            enableAudioDeviceSettings: false, // optional, defaults to 'false'
+            enablePhoneTypeSettings: true // optional, defaults to 'true'
+          }
+        });
       }
     </script>
   </body>
