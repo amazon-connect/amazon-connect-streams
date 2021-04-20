@@ -1153,7 +1153,7 @@
             connect.getLog().error("Get SpeakerId failed")
               .withObject({
                 err: err
-              });
+              }).sendInternalLogToServer();
             var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_ID_FAILED, "Get SpeakerId failed", err);
             reject(error);
           }
@@ -1178,7 +1178,7 @@
               connect.getLog().error("getSpeakerStatus failed")
                 .withObject({
                   err: err
-                });
+                }).sendInternalLogToServer();
               var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
               reject(error);
             }
@@ -1208,7 +1208,7 @@
               connect.getLog().error("optOutSpeaker failed")
                 .withObject({
                   err: err,
-                });
+                }).sendInternalLogToServer();
               var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.OPT_OUT_SPEAKER_FAILED, "optOutSpeaker failed.", err);
               reject(error);
             }
@@ -1237,7 +1237,7 @@
               connect.getLog().error("deleteSpeaker failed")
                 .withObject({
                   err: err,
-                });
+                }).sendInternalLogToServer();
               var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.DELETE_SPEAKER_FAILED, "deleteSpeaker failed.", err);
               reject(error);
             }
@@ -1270,7 +1270,7 @@
             connect.getLog().error("startVoiceIdSession failed")
               .withObject({
                 err: err
-              });
+              }).sendInternalLogToServer();
             var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "startVoiceIdSession failed", err);
             reject(error);
           }
@@ -1317,7 +1317,7 @@
                 setTimeout(evaluate, milliInterval);
               }
             } else {
-              connect.getLog().error("evaluateSpeaker timeout");
+              connect.getLog().error("evaluateSpeaker timeout").sendInternalLogToServer();
               var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "evaluateSpeaker timeout");
               reject(error);
             }
@@ -1326,7 +1326,7 @@
             connect.getLog().error("evaluateSpeaker failed")
               .withObject({
                 err: err
-              });
+              }).sendInternalLogToServer();
             var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
             reject(error);
           }
@@ -1359,7 +1359,7 @@
           connect.getLog().error("describeSession failed")
             .withObject({
               err: err
-            });
+            }).sendInternalLogToServer();
           var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.DESCRIBE_SESSION_FAILED, "describeSession failed", err);
           reject(error);
         }
@@ -1399,7 +1399,7 @@
             }
           });
         } else {
-          connect.getLog().error("describeSession timeout");
+          connect.getLog().error("describeSession timeout").sendInternalLogToServer();
           var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "describeSession timeout");
           reject(error);
         }
@@ -1432,7 +1432,7 @@
             connect.getLog().error("enrollSpeaker failed")
               .withObject({
                 err: err
-              });
+              }).sendInternalLogToServer();
             var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
             reject(error);
           }
@@ -1457,7 +1457,7 @@
             connect.getLog().error("updateSpeakerId failed")
               .withObject({
                 err: err
-              });
+              }).sendInternalLogToServer();
             var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerId failed", err);
             reject(error);
           }
