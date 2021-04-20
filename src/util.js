@@ -662,7 +662,7 @@
     var error = {};
     error.type = type;
     error.message = message;
-    error.stack = Error(message);
+    error.stack = Error(message).stack;
     error.err = err;
     return error;
   }
