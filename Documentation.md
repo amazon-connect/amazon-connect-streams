@@ -237,7 +237,7 @@ this:
   rendered in an iframe.
 * If you are trying to use chat specific functionalities, please also include
   [ChatJS](https://github.com/amazon-connect/amazon-connect-chatjs) in your code.
-  We omit ChatJS from the Makefile so that streams can be used without ChatJS.
+  We omit ChatJS from the release file so that streams can be used without ChatJS.
   Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
   it must be imported after StreamsJS, or there will be AWS SDK issues
   (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
