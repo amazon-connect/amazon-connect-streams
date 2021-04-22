@@ -45,8 +45,10 @@
       this._audio.play()
         .catch(function(e) {
           this._publishTelemetryEvent("Ringtone Playback Failure", contact);
+          connect.getLog().error("Ringtone Playback Failure").sendInternalLogToServer();
         });
       this._publishTelemetryEvent("Ringtone Start", contact);
+      connect.getLog().info("Ringtone Start").sendInternalLogToServer();
     }
   };
 
@@ -55,6 +57,7 @@
       this._audio.pause();
       this._audio.currentTime = 0;
       this._publishTelemetryEvent("Ringtone Stop", contact);
+      connect.getLog().info("Ringtone Stop").sendInternalLogToServer();
     }
   };
 
@@ -135,6 +138,7 @@
         contact.isSoftphoneCall() && contact.isInbound()) {
         self._ringtoneSetup(contact);
         self._publishTelemetryEvent("Ringtone Connecting", contact);
+        connect.getLog().info("Ringtone Connecting").sendInternalLogToServer();
       }
     };
 
@@ -163,6 +167,7 @@
       if (contact.getType() === lily.ContactType.CHAT && contact.isInbound()) {
         self._ringtoneSetup(contact);
         self._publishTelemetryEvent("Chat Ringtone Connecting", contact);
+        connect.getLog().info("Chat Ringtone Connecting").sendInternalLogToServer();
       }
     };
 
@@ -184,6 +189,7 @@
       if (contact.getType() === lily.ContactType.TASK && contact.isInbound()) {
         self._ringtoneSetup(contact);
         self._publishTelemetryEvent("Task Ringtone Connecting", contact);
+        connect.getLog().info("Task Ringtone Connecting").sendInternalLogToServer();
       }
     };
 
@@ -207,6 +213,7 @@
         if (contact.getType() === lily.ContactType.QUEUE_CALLBACK) {
           self._ringtoneSetup(contact);
           self._publishTelemetryEvent("Callback Ringtone Connecting", contact);
+          connect.getLog().info("Callback Ringtone Connecting").sendInternalLogToServer();
         }
       });
     });
