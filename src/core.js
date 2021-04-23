@@ -732,7 +732,7 @@
       });
 
       conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
-        connect.getLog().info("Number of connected CCPs updated: " + data.length);
+        connect.getLog().info("Number of connected CCPs updated: " + data.length).sendInternalLogToServer();
         connect.numberOfConnectedCCPs = data.length;
       });
 
