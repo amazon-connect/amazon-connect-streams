@@ -68,9 +68,9 @@
           self._recordAPILatency(method, request_start);
           callbacks.success(data);
         },
-        failure: function (error, data) {
+        failure: function (error) {
           self._recordAPILatency(method, request_start, error);
-          callbacks.failure(error, data);
+          callbacks.failure(error);
         }
       })
     } else {

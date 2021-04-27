@@ -201,7 +201,19 @@
       connect.fetch(self.endpointUrl, options).then(function(res){
          callbacks.success(res);
       }).catch(function(err){
-         callbacks.failure(err);
+         const reader = err.body.getReader();
+         let body = '';
+         const decoder = new TextDecoder();
+         reader.read().then(function processText({ done, value }) {
+            if (done) {
+               var error = JSON.parse(body);
+               error.status = err.status;
+               callbacks.failure(error);
+               return;
+            }
+            body += decoder.decode(value);
+            return reader.read().then(processText);
+         });
       })
    };
    /**---------------------------------------------------------------
