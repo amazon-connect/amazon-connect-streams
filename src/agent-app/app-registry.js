@@ -17,7 +17,7 @@
       iframe['aria-label'] = appName;
       iframe.setAttribute(
         "sandbox",
-        "allow-forms allow-popups allow-same-origin allow-scripts"
+        "allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
       );
       // TODO: Update sandbox option for 3P widget
 
