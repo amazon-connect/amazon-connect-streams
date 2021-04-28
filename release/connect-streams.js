@@ -25456,7 +25456,7 @@
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.6.5";
+  connect.version = "1.6.6";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -29049,7 +29049,7 @@
       iframe['aria-label'] = appName;
       iframe.setAttribute(
         "sandbox",
-        "allow-forms allow-popups allow-same-origin allow-scripts"
+        "allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
       );
       // TODO: Update sandbox option for 3P widget
 
