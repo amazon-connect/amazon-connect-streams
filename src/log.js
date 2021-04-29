@@ -491,6 +491,17 @@
     });
   };
 
+  Logger.prototype.scheduleUpstreamOuterContextCCPLogsPush = function(conduit) {
+    global.setInterval(connect.hitch(this, this.pushOuterContextCCPLogsUpstream, conduit), 1000);
+  }
+
+  Logger.prototype.pushOuterContextCCPLogsUpstream = function(conduit) {
+    if (this._serverBoundInternalLogs.length > 0) {
+      conduit.sendUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, this._serverBoundInternalLogs);
+      this._serverBoundInternalLogs = [];
+    }
+  }
+
   Logger.prototype.getLoggerId = function () {
     return this._loggerId;
   };

@@ -721,10 +721,15 @@
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
         }
       });
+      // Get worker logs
       conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
-        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
-          connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
-        }
+        connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
+      });
+      // Get outer context logs
+      conduit.onDownstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logs) {
+        logs.forEach(function (log) {
+          connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(log));
+        });
       });
       // Reload the page if the shared worker detects an API auth failure.
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
@@ -837,6 +842,8 @@
       connect.core.ccpLoadTimeoutInstance = null;
       connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
     }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
+
+    connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
  
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.
@@ -882,11 +889,6 @@
     conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
       if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
         connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
-      }
-    });
-    conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
-      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
-        connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
       }
     });
  
