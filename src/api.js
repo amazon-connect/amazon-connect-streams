@@ -185,6 +185,7 @@
    */
   connect.VoiceIdErrorTypes = connect.makeEnum([
     'no_speaker_id_found',
+    'speaker_id_not_enrolled',
     'get_speaker_id_failed',
     'get_speaker_status_failed',
     'opt_out_speaker_failed',
@@ -1175,12 +1176,20 @@
               resolve(data);
             },
             failure: function (err) {
-              connect.getLog().error("getSpeakerStatus failed")
-                .withObject({
-                  err: err
-                }).sendInternalLogToServer();
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
-              reject(error);
+              const parsedErr = JSON.parse(err);
+              if (parsedErr.status === 400) {
+                var data = parsedErr;
+                data.type = data.type ? data.type : connect.VoiceIdErrorTypes.SPEAKER_ID_NOT_ENROLLED;
+                connect.getLog().info("Speaker is not enrolled.").sendInternalLogToServer();
+                resolve(data);
+              } else {
+                connect.getLog().error("getSpeakerStatus failed")
+                  .withObject({
+                    err: err
+                  }).sendInternalLogToServer();
+                var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
+                reject(error);
+              }
             }
           });
       }).catch(function(err){
