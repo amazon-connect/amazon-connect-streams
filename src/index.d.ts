@@ -63,6 +63,11 @@ declare namespace connect {
   type ViewContactCallback = (contact: ViewContactEvent) => void;
 
   /**
+   * A callback with no arguments.
+   */ 
+  type Callback = () => void;
+
+  /**
    * Subscribe a method to be called for each newly detected agent contact.
    * Note that this function is not only for incoming contacts, but for contacts which already existed when Streams was initialized, such as from a previous agent session.
    * This callback is provided with a `Contact` API object for this contact. `Contact` API objects can also be listed from the `Agent` API by calling `agent.getContacts()`.
@@ -70,6 +75,16 @@ declare namespace connect {
    * @param callback A callback that will receive an `Contact` API object instance.
    */
   function contact(callback: ContactCallback): void;
+
+  /**
+   * Subscribe a method to be called when the WebSocket connection fails to initialize.
+   * If the WebSocket has already failed at least once in initializing, the call is
+   * synchronous and the callback is invoked immediately.  Otherwise, the callback is
+   * invoked once the first attempt to initialize fails.
+   * 
+   * @param callback A callback with no arguments
+   */
+  function onWebsocketInitFailure(callback: Callback): void;
 
   /**
    * A useful utility function for creating callback closures that bind a function to an object instance.
@@ -650,6 +665,13 @@ declare namespace connect {
      * @param callback A callback to receive the `Agent` API object instance.
      */
     onAfterCallWork(callback: AgentCallback): void;
+
+    /** 
+     * Subscribe a method to be called when the agent is put into an error state specific to losing a WebSocket connection.
+     * 
+     * @param callback A callback to receive the `Agent` API object instance.
+     */
+    onWebSocketConnectionLost(callback: AgentCallback): void;
 
     /** Get the agent's current 'AgentAvailabilityState' object indicating their actual state type. */
     getAvailabilityState(): AgentAvailabilityState;
