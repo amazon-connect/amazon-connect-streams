@@ -111,10 +111,14 @@
         })
       ]);
       return playableAudioWithTimeout.then(function (audio) {
-        if (audio.setSinkId) {
-          return Promise.resolve(audio.setSinkId(deviceId));
+        if (audio) {
+          if (audio.setSinkId) {
+            return Promise.resolve(audio.setSinkId(deviceId));
+          } else {
+            return Promise.reject("Not supported");
+          }
         } else {
-          return Promise.reject("Not supported");
+          return Promise.reject("No audio found");
         }
       });
     }
