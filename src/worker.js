@@ -691,7 +691,10 @@
               err: err,
               data: data
             });
-          reject(Error("getWebSocketUrl failed"));
+          reject({
+            reason: 'getWebSocketUrl failed', 
+            _debug: err
+          });
         },
         authFailure: function () {
           connect.getLog().error("getWebSocketUrl Auth Failure").sendInternalLogToServer();
