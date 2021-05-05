@@ -727,9 +727,11 @@
       });
       // Get outer context logs
       conduit.onDownstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logs) {
-        logs.forEach(function (log) {
-          connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(log));
-        });
+        if (connect.isFramed() && Array.isArray(logs)) {
+          logs.forEach(function (log) {
+            connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(log));
+          });
+        }
       });
       // Reload the page if the shared worker detects an API auth failure.
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
