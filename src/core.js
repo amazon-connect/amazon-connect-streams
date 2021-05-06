@@ -738,6 +738,14 @@
         location.reload();
       });
 
+      connect.getLog().info("User Agent: " + navigator.userAgent).sendInternalLogToServer();
+      connect.getLog().info("isCCPv2: " + true).sendInternalLogToServer();
+      connect.getLog().info("isFramed: " + connect.isFramed()).sendInternalLogToServer();
+      connect.core.upstream.onDownstream(connect.EventType.OUTER_CONTEXT_INFO, function (data) {
+        var streamsVersion = data.streamsVersion;
+        connect.getLog().info("StreamsJS Version: " + streamsVersion).sendInternalLogToServer();
+      });
+
       conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
         connect.getLog().info("Number of connected CCPs updated: " + data.length).sendInternalLogToServer();
         connect.numberOfConnectedCCPs = data.length;
@@ -879,6 +887,8 @@
         global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
         connect.core.ccpLoadTimeoutInstance = null;
       }
+
+      conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
  
       connect.core.keepaliveManager.start();
       this.unsubscribe();

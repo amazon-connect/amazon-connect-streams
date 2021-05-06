@@ -40,7 +40,8 @@
     'server_bound_internal_log',
     'mute',
     "iframe_style",
-    "update_connected_ccps"
+    "update_connected_ccps",
+    "outer_context_info"
   ]);
 
   /**---------------------------------------------------------------
