@@ -577,7 +577,7 @@
 
       case connect.MasterMethods.CHECK_MASTER:
         var masterId = this.masterCoord.getMaster(request.params.topic);
-        if (!masterId) {
+        if (!masterId && !request.params.shouldNotBecomeMasterIfNone) {
           this.masterCoord.setMaster(request.params.topic, portId);
           masterId = portId;
         }

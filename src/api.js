@@ -1761,13 +1761,15 @@
   /**
    * Starts the given function asynchronously only if the shared worker
    * says we are the master for the given topic.  If there is no master for
-   * the given topic, we become the master and start the function.
+   * the given topic, we become the master and start the function unless
+   * shouldNotBecomeMasterIfNone is true.
    *
    * @param topic The master topic we are concerned about.
    * @param f_true The callback to be invoked if we are the master.
    * @param f_else [optional] A callback to be invoked if we are not the master.
+   * @param shouldNotBecomeMasterIfNone [optional] if true, this tab won't become master.
    */
-  connect.ifMaster = function (topic, f_true, f_else) {
+  connect.ifMaster = function (topic, f_true, f_else, shouldNotBecomeMasterIfNone) {
     connect.assertNotNull(topic, "A topic must be provided.");
     connect.assertNotNull(f_true, "A true callback must be provided.");
 
@@ -1782,7 +1784,8 @@
 
     var masterClient = connect.core.getMasterClient();
     masterClient.call(connect.MasterMethods.CHECK_MASTER, {
-      topic: topic
+      topic: topic,
+      shouldNotBecomeMasterIfNone: shouldNotBecomeMasterIfNone
     }, {
         success: function (data) {
           if (data.isMaster) {
