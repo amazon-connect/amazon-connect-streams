@@ -746,11 +746,12 @@ Subscribe a method to be invoked whenever the contact is missed. This is an even
 
 ### `contact.onEnded()`
 ```js
-contact.onEnded(function(contact) { /* ... */ });
+contact.onEnded(function(contact, contactEvent) { /* ... */ });
 ```
 Subscribe a method to be invoked whenever the contact is ended or destroyed. This could be due to the conversation
 being ended by the agent, or due to the contact being missed. Call `contact.getState()` to determine the state
 of the contact and take appropriate action.
+`contactEvent` will be 'contact::ended` or `contact::destroyed`. When conversation is ended by by the agent, `contact::ended` is fired and `contact::destroyed` is fired after that.
 
 ### `contact.onDestroy()`
 ```js
