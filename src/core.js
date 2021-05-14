@@ -574,9 +574,32 @@
             data: data
           });
       });
-
+      bus.subscribe(connect.EventType.MEDIA_DEVICE_REQUEST, function () {
+        if (navigator && navigator.mediaDevices) {
+          navigator.mediaDevices.enumerateDevices()
+          .then((devices = []) => {
+            devices = devices.map(d => d.toJSON());
+            connect.core.getUpstream().sendDownstream(connect.EventType.MEDIA_DEVICE_RESPONSE, devices);
+          }); 
+        } else {
+          connect.core.getUpstream().sendDownstream(connect.EventType.MEDIA_DEVICE_RESPONSE, false);
+        }
+      });
     }
   };
+
+  /**
+   * Get the list of media devices from iframed CCP
+   */
+  connect.core.getFrameMediaDevices = function () {
+    return new Promise(function(resolve) {
+      var bus = connect.core.getEventBus();
+      bus.subscribe(connect.EventType.MEDIA_DEVICE_RESPONSE, function (data) {
+        resolve(data)
+      });
+      connect.core.getUpstream().sendUpstream(connect.EventType.MEDIA_DEVICE_REQUEST);
+    })
+  }
 
   //Internal use only.
   connect.core.authorize = function (endpoint) {

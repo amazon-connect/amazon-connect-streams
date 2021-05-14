@@ -41,7 +41,9 @@
     'mute',
     "iframe_style",
     "update_connected_ccps",
-    "outer_context_info"
+    "outer_context_info",
+    "media_device_request",
+    "media_device_response"
   ]);
 
   /**---------------------------------------------------------------
