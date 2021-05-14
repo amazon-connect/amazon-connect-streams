@@ -594,11 +594,24 @@
    */
   connect.core.getFrameMediaDevices = function () {
     return new Promise(function(resolve) {
-      var bus = connect.core.getEventBus();
-      bus.subscribe(connect.EventType.MEDIA_DEVICE_RESPONSE, function (data) {
-        resolve(data)
-      });
-      connect.core.getUpstream().sendUpstream(connect.EventType.MEDIA_DEVICE_REQUEST);
+      if (connect.isFramed()) {
+        if (navigator && navigator.mediaDevices) {
+          navigator.mediaDevices.enumerateDevices()
+          .then(function(devices) {
+            devices = devices || [];
+            devices = devices.map(function(d) { return d.toJSON() });
+            resolve(devices);
+          }); 
+        } else {
+          resolve(false);
+        }
+      } else {
+        var bus = connect.core.getEventBus();
+        bus.subscribe(connect.EventType.MEDIA_DEVICE_RESPONSE, function (data) {
+          resolve(data)
+        });
+        connect.core.getUpstream().sendUpstream(connect.EventType.MEDIA_DEVICE_REQUEST);
+      }
     })
   }
 
