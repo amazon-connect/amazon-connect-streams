@@ -577,8 +577,9 @@
       bus.subscribe(connect.EventType.MEDIA_DEVICE_REQUEST, function () {
         if (navigator && navigator.mediaDevices) {
           navigator.mediaDevices.enumerateDevices()
-          .then((devices = []) => {
-            devices = devices.map(d => d.toJSON());
+          .then(function(devices) {
+            devices = devices || [];
+            devices = devices.map(function(d) { return d.toJSON() });
             connect.core.getUpstream().sendDownstream(connect.EventType.MEDIA_DEVICE_RESPONSE, devices);
           }); 
         } else {
