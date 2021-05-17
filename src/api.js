@@ -236,6 +236,15 @@
   ]);
 
   /*----------------------------------------------------------------
+   * enum for VoiceId authentication decision
+   */
+  connect.VoiceIdFraudDetectionDecision = connect.makeEnum([
+    "NOT_ENOUGH_SPEECH",
+    "HIGH_RISK",
+    "LOW_RISK"
+  ]);
+
+  /*----------------------------------------------------------------
    * enum for contact flow authentication decision 
    */
   connect.ContactFlowAuthenticationDecision = connect.makeEnum([
@@ -1301,6 +1310,7 @@
         }, {
           success: function (data) {
             if(maxPollTimes-- !== 1) {
+              // TODO: Add data.FraudDetectionResult.Decision === connect.VoiceIdFraudDetectionDecision.NOT_ENOUGH_SPEECH check once it's ready
               if(data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED && data.AuthenticationResult.Decision === connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH){
                 data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
                 resolve(data);
@@ -1320,6 +1330,12 @@
                     break;
                   default:
                     data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.ERROR;
+                }
+                // Hard code the FraudDetectionResult decision to unblock UI development
+                // TODO: remove the following logic once VoiceID Fraud Detection development is complete
+                if (!data.FraudDetectionResult || !data.FraudDetectionResult.Decision) {
+                  data.FraudDetectionResult = data.FraudDetectionResult ? data.FraudDetectionResult : {};
+                  data.FraudDetectionResult.Decision = connect.VoiceIdFraudDetectionDecision.LOW_RISK;
                 }
                 resolve(data);
               } else {
