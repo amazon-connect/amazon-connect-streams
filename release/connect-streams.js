@@ -21423,7 +21423,18 @@
    * may contain any number of objects.
    */
   LogEntry.prototype.withObject = function (obj) {
-    var copiedObj = connect.deepcopy(obj)
+    var copiedObj = connect.deepcopy(obj);
+    redactSensitiveInfo(copiedObj);
+    this.objects.push(copiedObj);
+    return this;
+  };
+
+  /**
+   * Add a cross origin event object to the log entry.  A log entry
+   * may contain any number of objects.
+   */
+   LogEntry.prototype.withCrossOriginEventObject = function (obj) {
+    var copiedObj = connect.deepcopyCrossOriginEvent(obj);
     redactSensitiveInfo(copiedObj);
     this.objects.push(copiedObj);
     return this;
@@ -21784,6 +21795,7 @@
   var ONE_DAY_MILLIS = 24 * 60 * 60 * 1000;
   var DEFAULT_POPUP_HEIGHT = 578;
   var DEFAULT_POPUP_WIDTH = 433;
+  var COPYABLE_EVENT_FIELDS = ["bubbles", "cancelBubble", "cancelable", "composed", "data", "defaultPrevented", "eventPhase", "isTrusted", "lastEventId", "origin", "returnValue", "timeStamp", "type"];
 
   /**
    * Unpollute sprintf functions from the global namespace.
@@ -22145,6 +22157,20 @@
   connect.deepcopy = function (src) {
     return JSON.parse(JSON.stringify(src));
   };
+
+  connect.deepcopyCrossOriginEvent = function(event) {
+    const obj = {};
+    const listOfAcceptableKeys = COPYABLE_EVENT_FIELDS;
+    listOfAcceptableKeys.forEach((key) => {
+      try {
+        obj[key] = event[key];
+      }
+      catch(e) {
+        connect.getLog().info("deepcopyCrossOriginEvent failed on key: ", key).sendInternalLogToServer();
+      }
+    });
+    return connect.deepcopy(obj);
+  }
 
   /**
    * Get the current base url of the open page, e.g. if the page is
@@ -22878,7 +22904,14 @@
    };
 
    WindowIOStream.prototype.onMessage = function(f) {
-      this.input.addEventListener("message", f);
+      this.input.addEventListener("message", (message) => {
+         if (message.source === this.output) {
+            f(message);
+         }
+         else {
+            connect.getLog().warn("[Window IO Stream] message event came from somewhere other than the CCP iFrame").withCrossOriginEventObject(message).sendInternalLogToServer();
+         }
+      });
    };
 
    /**---------------------------------------------------------------
@@ -25456,7 +25489,7 @@
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.6.6";
+  connect.version = "1.6.7";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec

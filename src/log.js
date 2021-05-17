@@ -228,7 +228,18 @@
    * may contain any number of objects.
    */
   LogEntry.prototype.withObject = function (obj) {
-    var copiedObj = connect.deepcopy(obj)
+    var copiedObj = connect.deepcopy(obj);
+    redactSensitiveInfo(copiedObj);
+    this.objects.push(copiedObj);
+    return this;
+  };
+
+  /**
+   * Add a cross origin event object to the log entry.  A log entry
+   * may contain any number of objects.
+   */
+   LogEntry.prototype.withCrossOriginEventObject = function (obj) {
+    var copiedObj = connect.deepcopyCrossOriginEvent(obj);
     redactSensitiveInfo(copiedObj);
     this.objects.push(copiedObj);
     return this;
