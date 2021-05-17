@@ -603,10 +603,12 @@
   connect.core.getFrameMediaDevices = function (timeoutIn) {
     var sub = null;
     var timeout = timeoutIn || 1000;
-    return new Promise(function (resolve, reject) {
+    var timeoutPromise = new Promise(function (resolve, reject) {
       setTimeout(function () { 
         reject(new Error("Timeout exceeded")); 
       }, timeout);
+    });
+    var mediaDevicesPromise = new Promise(function (resolve, reject) { 
       if (connect.isFramed() || connect.isCCP()) {
         if (navigator && navigator.mediaDevices) {
           navigator.mediaDevices.enumerateDevices()
@@ -630,6 +632,7 @@
         connect.core.getUpstream().sendUpstream(connect.EventType.MEDIA_DEVICE_REQUEST);
       }
     })
+    return Promise.race([mediaDevicesPromise, timeoutPromise])
     .finally(function () {
       if (sub) {
         sub.unsubscribe();
