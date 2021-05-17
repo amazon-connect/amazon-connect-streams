@@ -563,7 +563,6 @@
 
   connect.core.initPageOptions = function (params) {
     connect.assertNotNull(params, "params");
-
     if (connect.isFramed()) {
       // If the CCP is in a frame, wait for configuration from downstream.
       var bus = connect.core.getEventBus();
@@ -574,45 +573,68 @@
             data: data
           });
       });
+      // Listen for iframe media devices request from CRM
       bus.subscribe(connect.EventType.MEDIA_DEVICE_REQUEST, function () {
+        function sendDevices(devices) {
+          connect.core.getUpstream().sendDownstream(connect.EventType.MEDIA_DEVICE_RESPONSE, devices);
+        }
         if (navigator && navigator.mediaDevices) {
           navigator.mediaDevices.enumerateDevices()
-          .then(function(devices) {
-            devices = devices || [];
+          .then(function (devicesIn) {
+            devices = devicesIn || [];
             devices = devices.map(function(d) { return d.toJSON() });
-            connect.core.getUpstream().sendDownstream(connect.EventType.MEDIA_DEVICE_RESPONSE, devices);
+            sendDevices(devices);
+          })
+          .catch(function (err) {
+            sendDevices({error: err.message});
           }); 
         } else {
-          connect.core.getUpstream().sendDownstream(connect.EventType.MEDIA_DEVICE_RESPONSE, false);
+          sendDevices({error: "No navigator or navigator.mediaDevices object found"});
         }
       });
     }
   };
 
-  /**
+  /**-------------------------------------------------------------------------
    * Get the list of media devices from iframed CCP
+   * Timeout for the request is passed an an optional argument
+   * The default timeout is 1000ms
    */
-  connect.core.getFrameMediaDevices = function () {
-    return new Promise(function(resolve) {
-      if (connect.isFramed()) {
+  connect.core.getFrameMediaDevices = function (timeoutIn) {
+    var sub = null;
+    var timeout = timeoutIn || 1000;
+    return new Promise(function (resolve, reject) {
+      setTimeout(function () { 
+        reject(new Error("Timeout exceeded")); 
+      }, timeout);
+      if (connect.isFramed() || connect.isCCP()) {
         if (navigator && navigator.mediaDevices) {
           navigator.mediaDevices.enumerateDevices()
-          .then(function(devices) {
-            devices = devices || [];
-            devices = devices.map(function(d) { return d.toJSON() });
+          .then(function (devicesIn) {
+            devices = devicesIn || [];
+            devices = devices.map(function (d) { return d.toJSON() });
             resolve(devices);
-          }); 
+          });
         } else {
-          resolve(false);
+          reject(new Error("No navigator or navigator.mediaDevices object found"));
         }
       } else {
         var bus = connect.core.getEventBus();
-        bus.subscribe(connect.EventType.MEDIA_DEVICE_RESPONSE, function (data) {
-          resolve(data)
+        sub = bus.subscribe(connect.EventType.MEDIA_DEVICE_RESPONSE, function (data) {
+          if (data.error) {
+            reject(new Error(data.error));
+          } else {
+            resolve(data);
+          }
         });
         connect.core.getUpstream().sendUpstream(connect.EventType.MEDIA_DEVICE_REQUEST);
       }
     })
+    .finally(function () {
+      if (sub) {
+        sub.unsubscribe();
+      }
+    });
   }
 
   //Internal use only.

@@ -137,6 +137,13 @@ declare namespace connect {
      * @param callback A callback that will execute when the CCP initialization is completed.
      */
     onInitialized(callback: Function): void;
+
+     /**
+     * Returns a promise that is resolved with the list of media devices from iframe.
+     *
+     * @param timeout A timeout for the request in milliseconds.
+     */
+    getFrameMediaDevices(timeout: Number): Promise<any[]>;
   }
 
   const core: Core;

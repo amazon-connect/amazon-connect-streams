@@ -329,6 +329,17 @@ connect.core.onInitialized(function() { /* ... */ });
 ```
 Subscribes a callback that executes when the CCP initialization is completed.
 
+### `connect.core.getFrameMediaDevices()`
+```js
+connect.core.onInitialized(function() {
+  connect.core.getFrameMediaDevices(timeout)
+  .then(function(devices) { /* ... */ })
+  .catch(function(err) { /* ... */ })
+})
+```
+Returns a promise that is resolved with the list of media devices from iframe. 
+Timeout for the request can be passed as an optional argument. The default timeout is 1000ms.
+
 ## Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
 code to be called when new agent information is available.

@@ -500,6 +500,7 @@ describe('Core', function () {
         }
     });
 
+
     describe('AgentDataProvider', function () {
         function createState(type, name) {
             return { type: type, name: name }
@@ -566,6 +567,73 @@ describe('Core', function () {
             connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, agentSnapshotWithNextState);
             assert.isTrue(enqueuedNextState);
             assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.ENQUEUED_NEXT_STATE));
+        });
+    });
+
+    describe('#connect.core.getFrameMediaDevices()', function () {
+        jsdom({ url: "http://localhost" });
+        
+        var clock 
+        
+        before(function () {
+            clock = sinon.useFakeTimers();
+            global.navigator = {
+                mediaDevices: {
+                    enumerateDevices: () => new Promise((resolve) => {
+                        setTimeout(() => {
+                            resolve([{
+                                toJSON: () => ({
+                                    deviceId: "deviceId",
+                                    groupId: "groupId",
+                                    kind: "audioinput",
+                                    label: "Microphone"
+                                })
+                            }])
+                        }, 500);
+                    })
+                }
+            };
+        });
+
+        after(function () {
+            clock.restore();
+        });
+
+        beforeEach(function () {
+            connect.core.eventBus = new connect.EventBus({ logEvents: true });
+            sandbox.stub(connect.core, "getUpstream").returns({
+                sendUpstream: (...params) => connect.core.getEventBus().trigger(...params),
+                sendDownstream: (...params) => connect.core.getEventBus().trigger(...params)
+            });
+            sandbox.stub(connect, "isFramed").returns(true);
+            sandbox.stub(connect, "isCCP").returns(true);
+            connect.core.initPageOptions(this.params);
+            connect.isFramed.restore();
+            connect.isCCP.restore();
+            sandbox.stub(connect, "isFramed").returns(false);
+            sandbox.stub(connect, "isCCP").returns(false);
+        });
+
+        afterEach(function () {
+            sandbox.restore();
+        });
+
+        it('getting the list of media devices in the iframe with default timeout', function() { 
+            const arr = [{
+                deviceId: "deviceId",
+                groupId: "groupId",
+                kind: "audioinput",
+                label: "Microphone"
+            }];
+            connect.core.getFrameMediaDevices()
+            .then(data => expect(data).to.eql(arr));  
+            clock.next();
+        });
+
+        it('timing out on the media devices request with a custom timeout', function() { 
+            connect.core.getFrameMediaDevices(400)
+            .catch(err => expect(err.message).to.equal("Timeout exceeded"));
+            clock.next();
         });
     });
 
