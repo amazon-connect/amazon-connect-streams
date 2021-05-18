@@ -26306,11 +26306,13 @@
     this.ackSub = this.conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
       this.unsubscribe();
       global.clearTimeout(self.ackTimer);
+      this.synTimer = null;
       self.deferStart();
     });
     this.ackTimer = global.setTimeout(function () {
       self.ackSub.unsubscribe();
       self.eventBus.trigger(connect.EventType.ACK_TIMEOUT);
+      this.synTimer = null;
       self.deferStart();
     }, this.ackTimeout);
   };
