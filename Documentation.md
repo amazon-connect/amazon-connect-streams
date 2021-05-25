@@ -380,7 +380,9 @@ connect.onWebSocketInitFailure(function() { ... });
 Subscribe a method to be called when the WebSocket connection fails to initialize.
 If the WebSocket has already failed at least once in initializing, the call is
 synchronous and the callback is invoked immediately.  Otherwise, the callback is
-invoked once the first attempt to initialize fails.
+invoked once the first attempt to initialize fails. Since the WebSocket connection
+will be periodically refreshed as needed, the callback will also be invoked 
+if the WebSocket connection fails to re-initialize successfully.
 
 ## Agent API
 The Agent API provides event subscription methods and action methods which can
