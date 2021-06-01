@@ -1306,7 +1306,8 @@
     return new Promise(function (resolve, reject) {
       function evaluate() {
         client.call(connect.AgentAppClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
-          "SessionNameOrId": contactData.initialContactId || this.contactId
+          "SessionNameOrId": contactData.initialContactId || this.contactId,
+          "DomainId" : "ConnectDefaultDomainId"
         }, {
           success: function (data) {
             if(maxPollTimes-- !== 1) {
@@ -1375,7 +1376,8 @@
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       client.call(connect.AgentAppClientMethods.DESCRIBE_VOICEID_SESSION, {
-        "SessionNameOrId": contactData.initialContactId || this.contactId
+        "SessionNameOrId": contactData.initialContactId || this.contactId,
+        "DomainId" : "ConnectDefaultDomainId"
       }, {
         success: function (data) {
           resolve(data)
@@ -1440,7 +1442,8 @@
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
-        "SessionNameOrId": contactData.initialContactId || this.contactId
+        "SessionNameOrId": contactData.initialContactId || this.contactId,
+        "DomainId" : "ConnectDefaultDomainId"
         }, {
           success: function (data) {
             if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
@@ -1473,7 +1476,8 @@
     return new Promise(function (resolve, reject) {
       client.call(connect.AgentAppClientMethods.UPDATE_VOICEID_SESSION, {
         "SessionNameOrId": contactData.initialContactId || this.contactId,
-        "SpeakerId": connect.assertNotNull(speakerId, 'speakerId')
+        "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
+        "DomainId" : "ConnectDefaultDomainId"
         }, {
           success: function (data) {
             resolve(data);
