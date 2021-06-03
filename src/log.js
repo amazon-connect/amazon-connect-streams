@@ -153,7 +153,7 @@
     entry.objects = obj.objects;
     return entry;
   };
-
+  
   /**
    * Private method to remove sensitive info from client log
    */
@@ -346,8 +346,8 @@
     //TODO add CCP logs once we are sure that no sensitive data is being logged.
     if (LogComponent.SOFTPHONE === logEntry.component) {
       this._logsToPush.push(logEntry);
-    }
-
+    } 
+ 
     if (logEntry.level in LogLevelOrder &&
       LogLevelOrder[logEntry.level] >= this._logLevel) {
 
