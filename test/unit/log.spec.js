@@ -78,4 +78,18 @@ describe('Logger', function() {
             assert.deepEqual(loggedObject.objects, expectedObj);
         })
     });
+    describe('LogEntry fields', () => {
+        var sandbox = sinon.createSandbox();
+        let agentResourceId = "id";
+        it("provides the correct agentResourceId", () => {
+            let log = connect.getLog().info("hi");
+            assert.equal(log.getAgentResourceId(), agentResourceId);
+        });
+        it("includes the agentResourceId when printed, and the correct log string", () => {
+            let spy = sandbox.spy(connect, "sprintf");
+            let log = connect.getLog().info("hello");
+            sandbox.assert.calledWithMatch(spy, sinon.match.string, sinon.match.string, sinon.match.string, agentResourceId, "hello");
+            sandbox.restore();
+        });
+    });
 });

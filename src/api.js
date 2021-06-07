@@ -579,6 +579,19 @@
 
   Agent.prototype.getAddresses = Agent.prototype.getEndpoints;
 
+  //Internal identifier.
+  Agent.prototype._getResourceId = function() {
+    queueArns = this.getAllQueueARNs();
+    for (let queueArn of queueArns) {
+      const agentIdMatch = queueArn.match(/\/agent\/([^/]+)/);
+      
+      if (agentIdMatch) {
+        return agentIdMatch[1];
+      }
+    }
+    return new Error("Agent.prototype._getResourceId: queueArns did not contain agentResourceId: ", queueArns);
+  }
+
   Agent.prototype.toSnapshot = function () {
     return new connect.AgentSnapshot(this._getData());
   };

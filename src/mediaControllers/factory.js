@@ -34,9 +34,9 @@
       var mediaInfo = connectionObj.getMediaInfo();
       /** if we do not have the media info then just reject the request */
       if (!mediaInfo) {
-        logger.error(logComponent, "Media info does not exists for a media type %s")
+        logger.error(logComponent, "Media info does not exist for a media type %s", connectionObj.getMediaType())
           .withObject(connectionObj).sendInternalLogToServer();
-        return Promise.reject("Media info does not exists for this connection");
+        return Promise.reject("Media info does not exist for this connection");
       }
 
       if (!mediaControllers[connectionId]) {

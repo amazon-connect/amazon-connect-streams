@@ -33,7 +33,7 @@ describe('Core', function () {
             task: { ringtoneUrl: this.defaultRingtoneUrl }
         };
     });
-
+    
     describe('#connect.core.initSharedWorker()', function () {
         jsdom({ url: "http://localhost" });
 

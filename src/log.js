@@ -125,6 +125,14 @@
     this.exception = null;
     this.objects = [];
     this.line = 0;
+    this.agentResourceId = null;
+    try {
+      if (connect.agent.initialized){
+        this.agentResourceId = new connect.Agent()._getResourceId();
+      }
+    } catch(e) {
+      console.log("Issue finding agentResourceId: ", e); //can't use our logger here as we might infinitely attempt to log this error.
+    }
     this.loggerId = loggerId;
   };
 
@@ -180,9 +188,10 @@
    * to the console.
    */
   LogEntry.prototype.toString = function () {
-    return connect.sprintf("[%s] [%s]: %s",
+    return connect.sprintf("[%s] [%s] [%s]: %s",
       this.getTime() && this.getTime().toISOString ? this.getTime().toISOString() : "???",
       this.getLevel(),
+      this.getAgentResourceId(),
       this.getText());
   };
 
@@ -192,6 +201,10 @@
   LogEntry.prototype.getTime = function () {
     return this.time;
   };
+
+  LogEntry.prototype.getAgentResourceId = function () {
+    return this.agentResourceId;
+  }
 
   /**
    * Get the level of the log entry.
