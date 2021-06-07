@@ -1383,6 +1383,27 @@
       }
     });
   };
+
+  /** ----- minimal view layer event handling **/
+ 
+  connect.core.onActivateChannelWithViewType = function (f) {
+    connect.core.getUpstream().onUpstream(connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
+  };
+ 
+  /**
+   * Used of agent interface control. 
+   * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad or quick connects into view.
+   */
+  connect.core.activateChannelWithViewType = function (viewType, mediaType) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+      data: {
+        viewType: viewType,
+        mediaType: mediaType 
+      }
+    });
+  };
+
  
   /** ------------------------------------------------- */
  
