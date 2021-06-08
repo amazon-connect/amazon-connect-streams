@@ -220,7 +220,8 @@
    */
   connect.VoiceIdStreamingStatus = connect.makeEnum([
     "ONGOING",
-    "ENDED"
+    "ENDED",
+    "PENDING_CONFIGURATION"
   ]);
 
   /*----------------------------------------------------------------
@@ -232,11 +233,12 @@
     "NOT_ENOUGH_SPEECH",
     "SPEAKER_NOT_ENROLLED",
     "SPEAKER_OPTED_OUT",
-    "SPEAKER_ID_NOT_PROVIDED"
+    "SPEAKER_ID_NOT_PROVIDED",
+    "SPEAKER_EXPIRED"
   ]);
 
   /*----------------------------------------------------------------
-   * enum for VoiceId authentication decision
+   * enum for VoiceId fraud detection decision
    */
   connect.VoiceIdFraudDetectionDecision = connect.makeEnum([
     "NOT_ENOUGH_SPEECH",
@@ -253,7 +255,19 @@
     "Inconclusive",
     "NotEnrolled",
     "OptedOut",
+    "NotEnabled",
     "Error"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for contact flow  fraud detection decision
+   */
+  connect.ContactFlowFraudDetectionDecision = connect.makeEnum([
+    "HighRisk",
+    "LowRisk",
+    "Inconclusive",
+    "NotEnabled",
+    "Error",
   ]);
 
   /*----------------------------------------------------------------
@@ -1324,36 +1338,83 @@
         }, {
           success: function (data) {
             if(maxPollTimes-- !== 1) {
-              // TODO: Add data.FraudDetectionResult.Decision === connect.VoiceIdFraudDetectionDecision.NOT_ENOUGH_SPEECH check once it's ready
-              if(data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED && data.AuthenticationResult.Decision === connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH){
-                data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
-                resolve(data);
-              }else if(data.AuthenticationResult.Decision !== connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH) {
-                switch (data.AuthenticationResult.Decision) {
-                  case connect.VoiceIdAuthenticationDecision.ACCEPT:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.AUTHENTICATED;
-                    break;
-                  case connect.VoiceIdAuthenticationDecision.REJECT:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_AUTHENTICATED;
-                    break;
-                  case connect.VoiceIdAuthenticationDecision.SPEAKER_OPTED_OUT:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.OPTED_OUT;
-                    break;
-                  case connect.VoiceIdAuthenticationDecision.SPEAKER_NOT_ENROLLED:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENROLLED;
-                    break;
-                  default:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.ERROR;
-                }
-                // Hard code the FraudDetectionResult decision to unblock UI development
-                // TODO: remove the following logic once VoiceID Fraud Detection development is complete
-                if (!data.FraudDetectionResult || !data.FraudDetectionResult.Decision) {
-                  data.FraudDetectionResult = data.FraudDetectionResult ? data.FraudDetectionResult : {};
-                  data.FraudDetectionResult.Decision = connect.VoiceIdFraudDetectionDecision.LOW_RISK;
-                }
-                resolve(data);
-              } else {
+              if(data.StreamingStatus === connect.VoiceIdStreamingStatus.PENDING_CONFIGURATION) {
                 setTimeout(evaluate, milliInterval);
+              } else {
+                if(!data.AuthenticationResult) {
+                  data.AuthenticationResult = {};
+                  data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENABLED;
+                }
+
+                if(!data.FraudDetectionResult) {
+                  data.FraudDetectionResult = {};
+                  data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.NOT_ENABLED;
+                }
+
+                //Resolve if both authentication and fraud detection are not enabled.
+                if(!self.isAuthEnabled(data.AuthenticationResult.Decision) && 
+                  !self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
+                    resolve(data);
+                    return;
+                }
+
+                if(data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED) {
+                  if(self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision)) {
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
+                  }
+                  if(self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision)) {
+                    data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.INCONCLUSIVE;
+                  }
+                }
+                // Voice print is not long enough for both authentication and fraud detection
+                if(self.isAuthResultInconclusive(data.AuthenticationResult.Decision) &&
+                  self.isFraudResultInconclusive(data.FraudDetectionResult.Decision)) {
+                    resolve(data);
+                    return;
+                }
+
+                if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) && 
+                  self.isAuthEnabled(data.AuthenticationResult.Decision)) {
+                  switch (data.AuthenticationResult.Decision) {
+                    case connect.VoiceIdAuthenticationDecision.ACCEPT:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.AUTHENTICATED;
+                      break;
+                    case connect.VoiceIdAuthenticationDecision.REJECT:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_AUTHENTICATED;
+                      break;
+                    case connect.VoiceIdAuthenticationDecision.SPEAKER_OPTED_OUT:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.OPTED_OUT;
+                      break;
+                    case connect.VoiceIdAuthenticationDecision.SPEAKER_NOT_ENROLLED:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENROLLED;
+                      break;
+                    default:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.ERROR;
+                  }
+                }
+
+                if(!self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision) && 
+                  self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
+                  switch (data.FraudDetectionResult.Decision) {
+                    case connect.VoiceIdFraudDetectionDecision.HIGH_RISK:
+                      data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.HIGH_RISK;
+                      break;
+                    case connect.VoiceIdFraudDetectionDecision.LOW_RISK:
+                      data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.LOW_RISK;
+                      break;
+                    default:
+                      data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.ERROR;
+                  }
+                }
+
+                if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) &&
+                  !self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision)) {
+                    // Resolve only when both authentication and fraud detection have results. Otherwise, keep polling.
+                    resolve(data);
+                    return;
+                } else {
+                  setTimeout(evaluate, milliInterval);
+                }
               }
             } else {
               connect.getLog().error("evaluateSpeaker timeout").sendInternalLogToServer();
@@ -1516,7 +1577,31 @@
       throw new connect.NotImplementedError("VoiceId is not supported for conference calls");
     }
   }
-  
+
+  VoiceId.prototype.isAuthEnabled = function(authResult) {
+    return authResult !== connect.ContactFlowAuthenticationDecision.NOT_ENABLED;
+  }
+
+  VoiceId.prototype.isAuthResultNotEnoughSpeech = function(authResult) {
+    return authResult === connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH;
+  }
+
+  VoiceId.prototype.isAuthResultInconclusive = function(authResult) {
+    return authResult === connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
+  }
+
+  VoiceId.prototype.isFraudEnabled = function(fraudResult) {
+    return fraudResult !== connect.ContactFlowFraudDetectionDecision.NOT_ENABLED;
+  }
+
+  VoiceId.prototype.isFraudResultNotEnoughSpeech = function(fraudResult) {
+    return fraudResult === connect.VoiceIdFraudDetectionDecision.NOT_ENOUGH_SPEECH;
+  }
+
+  VoiceId.prototype.isFraudResultInconclusive = function(fraudResult) {
+    return fraudResult === connect.ContactFlowFraudDetectionDecision.INCONCLUSIVE;
+  }
+
   /**
    * @class VoiceConnection
    * @param {number} contactId 
