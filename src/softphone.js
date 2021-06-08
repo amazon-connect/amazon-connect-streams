@@ -84,9 +84,7 @@
     }
     var gumPromise = fetchUserMedia({
       success: function (stream) {
-        if (connect.isFirefoxBrowser()) {
-          connect.core.setSoftphoneUserMediaStream(stream);
-        }
+        connect.core.setSoftphoneUserMediaStream(stream);
       },
       failure: function (err) {
         publishError(err, "Your microphone is not enabled in your browser. ", "");
