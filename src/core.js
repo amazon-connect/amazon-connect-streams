@@ -795,6 +795,12 @@
           });
         }
       });
+      // Get log from outer context
+      conduit.onDownstream(connect.EventType.LOG, function (log) {
+        if (connect.isFramed() && log.loggerId !== connect.getLog().getLoggerId()) { 
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(log));
+        }
+      });
       // Reload the page if the shared worker detects an API auth failure.
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
         location.reload();
@@ -916,6 +922,7 @@
     }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
 
     connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
+    connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(conduit);
  
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.

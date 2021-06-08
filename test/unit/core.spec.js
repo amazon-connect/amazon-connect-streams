@@ -36,8 +36,10 @@ describe('Core', function () {
     
     describe('#connect.core.initSharedWorker()', function () {
         jsdom({ url: "http://localhost" });
-
+        var clock 
+         
         beforeEach(function () {
+            clock = sinon.useFakeTimers();
             sandbox.stub(connect.core, "checkNotInitialized").returns(true);
             global.SharedWorker = sandbox.stub().returns({
                 port: {
@@ -53,11 +55,10 @@ describe('Core', function () {
 
             sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
         });
-
         afterEach(function () {
             sandbox.restore();
+            clock.restore();
         });
-
         it("shared worker initialization", function () {
             expect(this.params.sharedWorkerUrl).not.to.be.a("0");
             expect(this.params.authToken).not.to.be.a("null");
@@ -77,6 +78,28 @@ describe('Core', function () {
             connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
             expect(connect.core.portStreamId).to.equal('portId');
             connect.core.initialized = false;
+        });
+        it("Replicates logs received upstream while ignoring duplicates", function () {
+            var logger = connect.getLog();
+            var loggerId = logger.getLoggerId();
+            var originalLoggerLength = logger._logs.length;
+            var newLogs = [
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some log", "some-logger-id"),
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some log with no logger id", null),
+                new connect.LogEntry("test", connect.LogLevel.INFO, "some log info", "some-logger-id"),
+                new connect.LogEntry("test", connect.LogLevel.ERROR, "some log error", "some-logger-id")
+            ];
+            var dupLogs = [
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some dup log", loggerId),
+                new connect.LogEntry("test", connect.LogLevel.INFO, "some dup log info", loggerId),
+                new connect.LogEntry("test", connect.LogLevel.ERROR, "some dup log error", loggerId)
+            ]
+            var allLogs = newLogs.concat(dupLogs);
+            for (var i = 0; i < allLogs.length; i++) {
+                connect.core.getUpstream().upstreamBus.trigger(connect.EventType.LOG, allLogs[i]);
+            }
+            clock.tick(2000);
+            assert.lengthOf(logger._logs, originalLoggerLength + newLogs.length);
         });
     });
     describe('legacy endpoint', function () {
@@ -315,8 +338,10 @@ describe('Core', function () {
 
     describe('#connect.core.initCCP()', function () {
         jsdom({ url: "http://localhost" });
-
+        var clock 
+            
         before(function () {
+            clock = sinon.useFakeTimers();
             this.containerDiv = { appendChild: sandbox.spy() };
             this.params = connect.merge({}, this.params, {
                 ccpUrl: "url.com",
@@ -343,6 +368,7 @@ describe('Core', function () {
 
         after(function () {
             sandbox.restore();
+            clock.restore();
         });
 
         it("CCP initialization", function () {
@@ -372,6 +398,7 @@ describe('Core', function () {
             for (var i = 0; i < allLogs.length; i++) {
                 connect.core.getUpstream().upstreamBus.trigger(connect.EventType.LOG, allLogs[i]);
             }
+            clock.tick(2000);
             assert.lengthOf(logger._logs, originalLoggerLength + newLogs.length);
         });
 

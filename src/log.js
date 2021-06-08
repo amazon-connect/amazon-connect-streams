@@ -271,6 +271,7 @@
     this._logRollTimer = null;
     this._loggerId = new Date().getTime() + "-" + Math.random().toString(36).slice(2);
     this.setLogRollInterval(DEFAULT_LOG_ROLL_INTERVAL);
+    this._startLogIndexToPush = 0;
   };
 
   /**
@@ -289,6 +290,7 @@
       this._logRollTimer = global.setInterval(function () {
         this._rolledLogs = this._logs;
         this._logs = [];
+        this._startLogIndexToPush = 0;
         self.info("Log roll interval occurred.");
       }, this._logRollInterval);
     } else {
@@ -336,6 +338,8 @@
   };
 
   Logger.prototype.addLogEntry = function (logEntry) {
+    // Call this second time as in some places this function is called directly
+    redactSensitiveInfo(logEntry);
     this._logs.push(logEntry);
 
     //For now only send softphone logs only.
@@ -504,15 +508,33 @@
     });
   };
 
+  Logger.prototype.scheduleUpstreamOuterContextCCPserverBoundLogsPush = function(conduit) {
+    global.setInterval(connect.hitch(this, this.pushOuterContextCCPserverBoundLogsUpstream, conduit), 1000);
+  }
+
   Logger.prototype.scheduleUpstreamOuterContextCCPLogsPush = function(conduit) {
     global.setInterval(connect.hitch(this, this.pushOuterContextCCPLogsUpstream, conduit), 1000);
   }
 
-  Logger.prototype.pushOuterContextCCPLogsUpstream = function(conduit) {
+  Logger.prototype.pushOuterContextCCPserverBoundLogsUpstream = function(conduit) {
     if (this._serverBoundInternalLogs.length > 0) {
+      for (var i = 0; i < this._serverBoundInternalLogs.length; i++) {
+        this._serverBoundInternalLogs[i].text = this._serverBoundInternalLogs[i].text;
+      }
+
       conduit.sendUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, this._serverBoundInternalLogs);
       this._serverBoundInternalLogs = [];
     }
+  }
+
+  Logger.prototype.pushOuterContextCCPLogsUpstream = function(conduit) {
+    for (var i = this._startLogIndexToPush; i < this._logs.length; i++) {
+      if (this._logs[i].loggerId !== this._loggerId) {
+        continue;
+      }
+      conduit.sendUpstream(connect.EventType.LOG, this._logs[i]);
+    }
+    this._startLogIndexToPush = this._logs.length;
   }
 
   Logger.prototype.getLoggerId = function () {
