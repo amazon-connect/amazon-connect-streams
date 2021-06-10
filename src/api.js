@@ -267,11 +267,11 @@
     "LowRisk",
     "Inconclusive",
     "NotEnabled",
-    "Error",
+    "Error"
   ]);
 
   /*----------------------------------------------------------------
-   * enum for VoiceId EnrollmentRequestStatus status
+   * enum for VoiceId EnrollmentRequest Status 
    */
   connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
     "NOT_ENOUGH_SPEECH",
@@ -279,6 +279,14 @@
     "COMPLETED",
     "FAILED"
   ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId Speaker status
+   */
+  connect.VoiceIdSpeakerStatus = connect.makeEnum([
+    "OPTED_OUT",
+    "ENROLLED"
+  ])
 
   /*----------------------------------------------------------------
    * class Agent
@@ -1512,34 +1520,53 @@
   VoiceId.prototype.enrollSpeaker = function () {
     var self = this;
     self.checkConferenceCall();
+    return new Promise(function(resolve, reject) {
+      self.getSpeakerStatus().then(function(data) {
+        return data;
+      }).then(function(data) {
+        if(data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
+          self.deleteSpeaker().then(function(data) {
+            self.enrollSpeakerHelper(resolve, reject);
+          }).catch(function(err) {
+            reject(err);
+          });
+        } else {
+          self.enrollSpeakerHelper(resolve, reject);
+        }
+      }).catch(function(err) {
+        reject(err);
+      })
+    })
+  }
+
+  VoiceId.prototype.enrollSpeakerHelper = function (resolve, reject) {
+    var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-    return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
-        "SessionNameOrId": contactData.initialContactId || this.contactId,
-        "DomainId" : "ConnectDefaultDomainId"
-        }, {
-          success: function (data) {
-            if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+    client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
+      "SessionNameOrId": contactData.initialContactId || this.contactId,
+      "DomainId" : "ConnectDefaultDomainId"
+      }, {
+        success: function (data) {
+          if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+            resolve(data);
+          } else {
+            self.checkEnrollmentStatus().then(function(data){
               resolve(data);
-            } else {
-              self.checkEnrollmentStatus().then(function(data){
-                resolve(data);
-              }).catch(function(err){
-                reject(err);
-              })
-            }
-          },
-          failure: function (err) {
-            connect.getLog().error("enrollSpeaker failed")
-              .withObject({
-                err: err
-              }).sendInternalLogToServer();
-            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
-            reject(error);
+            }).catch(function(err){
+              reject(err);
+            })
           }
-        });
-    });
+        },
+        failure: function (err) {
+          connect.getLog().error("enrollSpeaker failed")
+            .withObject({
+              err: err
+            }).sendInternalLogToServer();
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
+          reject(error);
+        }
+      });
   };
 
   VoiceId.prototype.updateSpeakerId = function (speakerId) {
