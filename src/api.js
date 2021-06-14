@@ -1524,7 +1524,7 @@
       self.getSpeakerStatus().then(function(data) {
         return data;
       }).then(function(data) {
-        if(data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
+        if(data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
           self.deleteSpeaker().then(function(data) {
             self.enrollSpeakerHelper(resolve, reject);
           }).catch(function(err) {
