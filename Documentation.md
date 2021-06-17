@@ -1484,7 +1484,7 @@ eventBus.subscribe(connect.EventType.TERMINATED, () => {
 
 If you are using a custom UI, you can log out the agent by visiting the logout endpoint (`/connect/logout`). In this case, `EventType.TERMINATED` event won't be triggered. If you want the code above to work, you can manually trigger the `EventType.TERMINATE` event after logging out. When the event is triggered, `connect.core.terminate()` is internally called to clean up the Streams and the `EventType.TERMINATED` event will be triggered.
 ```js
-fetch("https://<your-instance-domain>/connect/logout", { credentials: 'include'})
+fetch("https://<your-instance-domain>/connect/logout", { credentials: 'include', mode: 'no-cors'})
   .then(() => {
     const eventBus = connect.core.getEventBus();
     eventBus.trigger(connect.EventType.TERMINATE);
