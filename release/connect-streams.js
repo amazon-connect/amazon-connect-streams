@@ -21320,6 +21320,14 @@
     this.exception = null;
     this.objects = [];
     this.line = 0;
+    this.agentResourceId = null;
+    try {
+      if (connect.agent.initialized){
+        this.agentResourceId = new connect.Agent()._getResourceId();
+      }
+    } catch(e) {
+      console.log("Issue finding agentResourceId: ", e); //can't use our logger here as we might infinitely attempt to log this error.
+    }
     this.loggerId = loggerId;
   };
 
@@ -21375,9 +21383,10 @@
    * to the console.
    */
   LogEntry.prototype.toString = function () {
-    return connect.sprintf("[%s] [%s]: %s",
+    return connect.sprintf("[%s] [%s] [%s]: %s",
       this.getTime() && this.getTime().toISOString ? this.getTime().toISOString() : "???",
       this.getLevel(),
+      this.getAgentResourceId(),
       this.getText());
   };
 
@@ -21387,6 +21396,10 @@
   LogEntry.prototype.getTime = function () {
     return this.time;
   };
+
+  LogEntry.prototype.getAgentResourceId = function () {
+    return this.agentResourceId;
+  }
 
   /**
    * Get the level of the log entry.
@@ -21453,6 +21466,7 @@
     this._logRollTimer = null;
     this._loggerId = new Date().getTime() + "-" + Math.random().toString(36).slice(2);
     this.setLogRollInterval(DEFAULT_LOG_ROLL_INTERVAL);
+    this._startLogIndexToPush = 0;
   };
 
   /**
@@ -21471,6 +21485,7 @@
       this._logRollTimer = global.setInterval(function () {
         this._rolledLogs = this._logs;
         this._logs = [];
+        this._startLogIndexToPush = 0;
         self.info("Log roll interval occurred.");
       }, this._logRollInterval);
     } else {
@@ -21518,6 +21533,8 @@
   };
 
   Logger.prototype.addLogEntry = function (logEntry) {
+    // Call this second time as in some places this function is called directly
+    redactSensitiveInfo(logEntry);
     this._logs.push(logEntry);
 
     //For now only send softphone logs only.
@@ -21686,15 +21703,33 @@
     });
   };
 
+  Logger.prototype.scheduleUpstreamOuterContextCCPserverBoundLogsPush = function(conduit) {
+    global.setInterval(connect.hitch(this, this.pushOuterContextCCPserverBoundLogsUpstream, conduit), 1000);
+  }
+
   Logger.prototype.scheduleUpstreamOuterContextCCPLogsPush = function(conduit) {
     global.setInterval(connect.hitch(this, this.pushOuterContextCCPLogsUpstream, conduit), 1000);
   }
 
-  Logger.prototype.pushOuterContextCCPLogsUpstream = function(conduit) {
+  Logger.prototype.pushOuterContextCCPserverBoundLogsUpstream = function(conduit) {
     if (this._serverBoundInternalLogs.length > 0) {
+      for (var i = 0; i < this._serverBoundInternalLogs.length; i++) {
+        this._serverBoundInternalLogs[i].text = this._serverBoundInternalLogs[i].text;
+      }
+
       conduit.sendUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, this._serverBoundInternalLogs);
       this._serverBoundInternalLogs = [];
     }
+  }
+
+  Logger.prototype.pushOuterContextCCPLogsUpstream = function(conduit) {
+    for (var i = this._startLogIndexToPush; i < this._logs.length; i++) {
+      if (this._logs[i].loggerId !== this._loggerId) {
+        continue;
+      }
+      conduit.sendUpstream(connect.EventType.LOG, this._logs[i]);
+    }
+    this._startLogIndexToPush = this._logs.length;
   }
 
   Logger.prototype.getLoggerId = function () {
@@ -23973,7 +24008,8 @@
    */
   connect.VoiceIdStreamingStatus = connect.makeEnum([
     "ONGOING",
-    "ENDED"
+    "ENDED",
+    "PENDING_CONFIGURATION"
   ]);
 
   /*----------------------------------------------------------------
@@ -23985,11 +24021,12 @@
     "NOT_ENOUGH_SPEECH",
     "SPEAKER_NOT_ENROLLED",
     "SPEAKER_OPTED_OUT",
-    "SPEAKER_ID_NOT_PROVIDED"
+    "SPEAKER_ID_NOT_PROVIDED",
+    "SPEAKER_EXPIRED"
   ]);
 
   /*----------------------------------------------------------------
-   * enum for VoiceId authentication decision
+   * enum for VoiceId fraud detection decision
    */
   connect.VoiceIdFraudDetectionDecision = connect.makeEnum([
     "NOT_ENOUGH_SPEECH",
@@ -24006,11 +24043,23 @@
     "Inconclusive",
     "NotEnrolled",
     "OptedOut",
+    "NotEnabled",
     "Error"
   ]);
 
   /*----------------------------------------------------------------
-   * enum for VoiceId EnrollmentRequestStatus status
+   * enum for contact flow  fraud detection decision
+   */
+  connect.ContactFlowFraudDetectionDecision = connect.makeEnum([
+    "HighRisk",
+    "LowRisk",
+    "Inconclusive",
+    "NotEnabled",
+    "Error"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId EnrollmentRequest Status 
    */
   connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
     "NOT_ENOUGH_SPEECH",
@@ -24018,6 +24067,14 @@
     "COMPLETED",
     "FAILED"
   ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId Speaker status
+   */
+  connect.VoiceIdSpeakerStatus = connect.makeEnum([
+    "OPTED_OUT",
+    "ENROLLED"
+  ])
 
   /*----------------------------------------------------------------
    * class Agent
@@ -24229,7 +24286,7 @@
     var client = connect.core.getClient();
     if (configuration && configuration.agentPreferences && !connect.isValidLocale(configuration.agentPreferences.locale)) {
       if (callbacks && callbacks.failure) {
-        callbacks.failure(AgentErrorStates.INVALID_LOCALE);
+        callbacks.failure(connect.AgentErrorStates.INVALID_LOCALE);
       }
     } else {
       client.call(connect.ClientMethods.UPDATE_AGENT_CONFIGURATION, {
@@ -24331,6 +24388,19 @@
   };
 
   Agent.prototype.getAddresses = Agent.prototype.getEndpoints;
+
+  //Internal identifier.
+  Agent.prototype._getResourceId = function() {
+    queueArns = this.getAllQueueARNs();
+    for (let queueArn of queueArns) {
+      const agentIdMatch = queueArn.match(/\/agent\/([^/]+)/);
+      
+      if (agentIdMatch) {
+        return agentIdMatch[1];
+      }
+    }
+    return new Error("Agent.prototype._getResourceId: queueArns did not contain agentResourceId: ", queueArns);
+  }
 
   Agent.prototype.toSnapshot = function () {
     return new connect.AgentSnapshot(this._getData());
@@ -25059,40 +25129,88 @@
     return new Promise(function (resolve, reject) {
       function evaluate() {
         client.call(connect.AgentAppClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
-          "SessionNameOrId": contactData.initialContactId || this.contactId
+          "SessionNameOrId": contactData.initialContactId || this.contactId,
+          "DomainId" : "ConnectDefaultDomainId"
         }, {
           success: function (data) {
             if(maxPollTimes-- !== 1) {
-              // TODO: Add data.FraudDetectionResult.Decision === connect.VoiceIdFraudDetectionDecision.NOT_ENOUGH_SPEECH check once it's ready
-              if(data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED && data.AuthenticationResult.Decision === connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH){
-                data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
-                resolve(data);
-              }else if(data.AuthenticationResult.Decision !== connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH) {
-                switch (data.AuthenticationResult.Decision) {
-                  case connect.VoiceIdAuthenticationDecision.ACCEPT:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.AUTHENTICATED;
-                    break;
-                  case connect.VoiceIdAuthenticationDecision.REJECT:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_AUTHENTICATED;
-                    break;
-                  case connect.VoiceIdAuthenticationDecision.SPEAKER_OPTED_OUT:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.OPTED_OUT;
-                    break;
-                  case connect.VoiceIdAuthenticationDecision.SPEAKER_NOT_ENROLLED:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENROLLED;
-                    break;
-                  default:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.ERROR;
-                }
-                // Hard code the FraudDetectionResult decision to unblock UI development
-                // TODO: remove the following logic once VoiceID Fraud Detection development is complete
-                if (!data.FraudDetectionResult || !data.FraudDetectionResult.Decision) {
-                  data.FraudDetectionResult = data.FraudDetectionResult ? data.FraudDetectionResult : {};
-                  data.FraudDetectionResult.Decision = connect.VoiceIdFraudDetectionDecision.LOW_RISK;
-                }
-                resolve(data);
-              } else {
+              if(data.StreamingStatus === connect.VoiceIdStreamingStatus.PENDING_CONFIGURATION) {
                 setTimeout(evaluate, milliInterval);
+              } else {
+                if(!data.AuthenticationResult) {
+                  data.AuthenticationResult = {};
+                  data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENABLED;
+                }
+
+                if(!data.FraudDetectionResult) {
+                  data.FraudDetectionResult = {};
+                  data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.NOT_ENABLED;
+                }
+
+                //Resolve if both authentication and fraud detection are not enabled.
+                if(!self.isAuthEnabled(data.AuthenticationResult.Decision) && 
+                  !self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
+                    resolve(data);
+                    return;
+                }
+
+                if(data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED) {
+                  if(self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision)) {
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
+                  }
+                  if(self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision)) {
+                    data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.INCONCLUSIVE;
+                  }
+                }
+                // Voice print is not long enough for both authentication and fraud detection
+                if(self.isAuthResultInconclusive(data.AuthenticationResult.Decision) &&
+                  self.isFraudResultInconclusive(data.FraudDetectionResult.Decision)) {
+                    resolve(data);
+                    return;
+                }
+
+                if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) && 
+                  self.isAuthEnabled(data.AuthenticationResult.Decision)) {
+                  switch (data.AuthenticationResult.Decision) {
+                    case connect.VoiceIdAuthenticationDecision.ACCEPT:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.AUTHENTICATED;
+                      break;
+                    case connect.VoiceIdAuthenticationDecision.REJECT:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_AUTHENTICATED;
+                      break;
+                    case connect.VoiceIdAuthenticationDecision.SPEAKER_OPTED_OUT:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.OPTED_OUT;
+                      break;
+                    case connect.VoiceIdAuthenticationDecision.SPEAKER_NOT_ENROLLED:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENROLLED;
+                      break;
+                    default:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.ERROR;
+                  }
+                }
+
+                if(!self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision) && 
+                  self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
+                  switch (data.FraudDetectionResult.Decision) {
+                    case connect.VoiceIdFraudDetectionDecision.HIGH_RISK:
+                      data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.HIGH_RISK;
+                      break;
+                    case connect.VoiceIdFraudDetectionDecision.LOW_RISK:
+                      data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.LOW_RISK;
+                      break;
+                    default:
+                      data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.ERROR;
+                  }
+                }
+
+                if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) &&
+                  !self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision)) {
+                    // Resolve only when both authentication and fraud detection have results. Otherwise, keep polling.
+                    resolve(data);
+                    return;
+                } else {
+                  setTimeout(evaluate, milliInterval);
+                }
               }
             } else {
               connect.getLog().error("evaluateSpeaker timeout").sendInternalLogToServer();
@@ -25128,7 +25246,8 @@
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       client.call(connect.AgentAppClientMethods.DESCRIBE_VOICEID_SESSION, {
-        "SessionNameOrId": contactData.initialContactId || this.contactId
+        "SessionNameOrId": contactData.initialContactId || this.contactId,
+        "DomainId" : "ConnectDefaultDomainId"
       }, {
         success: function (data) {
           resolve(data)
@@ -25189,33 +25308,53 @@
   VoiceId.prototype.enrollSpeaker = function () {
     var self = this;
     self.checkConferenceCall();
+    return new Promise(function(resolve, reject) {
+      self.getSpeakerStatus().then(function(data) {
+        return data;
+      }).then(function(data) {
+        if(data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
+          self.deleteSpeaker().then(function(data) {
+            self.enrollSpeakerHelper(resolve, reject);
+          }).catch(function(err) {
+            reject(err);
+          });
+        } else {
+          self.enrollSpeakerHelper(resolve, reject);
+        }
+      }).catch(function(err) {
+        reject(err);
+      })
+    })
+  }
+
+  VoiceId.prototype.enrollSpeakerHelper = function (resolve, reject) {
+    var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-    return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
-        "SessionNameOrId": contactData.initialContactId || this.contactId
-        }, {
-          success: function (data) {
-            if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+    client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
+      "SessionNameOrId": contactData.initialContactId || this.contactId,
+      "DomainId" : "ConnectDefaultDomainId"
+      }, {
+        success: function (data) {
+          if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+            resolve(data);
+          } else {
+            self.checkEnrollmentStatus().then(function(data){
               resolve(data);
-            } else {
-              self.checkEnrollmentStatus().then(function(data){
-                resolve(data);
-              }).catch(function(err){
-                reject(err);
-              })
-            }
-          },
-          failure: function (err) {
-            connect.getLog().error("enrollSpeaker failed")
-              .withObject({
-                err: err
-              }).sendInternalLogToServer();
-            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
-            reject(error);
+            }).catch(function(err){
+              reject(err);
+            })
           }
-        });
-    });
+        },
+        failure: function (err) {
+          connect.getLog().error("enrollSpeaker failed")
+            .withObject({
+              err: err
+            }).sendInternalLogToServer();
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
+          reject(error);
+        }
+      });
   };
 
   VoiceId.prototype.updateSpeakerId = function (speakerId) {
@@ -25226,7 +25365,8 @@
     return new Promise(function (resolve, reject) {
       client.call(connect.AgentAppClientMethods.UPDATE_VOICEID_SESSION, {
         "SessionNameOrId": contactData.initialContactId || this.contactId,
-        "SpeakerId": connect.assertNotNull(speakerId, 'speakerId')
+        "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
+        "DomainId" : "ConnectDefaultDomainId"
         }, {
           success: function (data) {
             resolve(data);
@@ -25252,7 +25392,31 @@
       throw new connect.NotImplementedError("VoiceId is not supported for conference calls");
     }
   }
-  
+
+  VoiceId.prototype.isAuthEnabled = function(authResult) {
+    return authResult !== connect.ContactFlowAuthenticationDecision.NOT_ENABLED;
+  }
+
+  VoiceId.prototype.isAuthResultNotEnoughSpeech = function(authResult) {
+    return authResult === connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH;
+  }
+
+  VoiceId.prototype.isAuthResultInconclusive = function(authResult) {
+    return authResult === connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
+  }
+
+  VoiceId.prototype.isFraudEnabled = function(fraudResult) {
+    return fraudResult !== connect.ContactFlowFraudDetectionDecision.NOT_ENABLED;
+  }
+
+  VoiceId.prototype.isFraudResultNotEnoughSpeech = function(fraudResult) {
+    return fraudResult === connect.VoiceIdFraudDetectionDecision.NOT_ENOUGH_SPEECH;
+  }
+
+  VoiceId.prototype.isFraudResultInconclusive = function(fraudResult) {
+    return fraudResult === connect.ContactFlowFraudDetectionDecision.INCONCLUSIVE;
+  }
+
   /**
    * @class VoiceConnection
    * @param {number} contactId 
@@ -26411,6 +26575,12 @@
           });
         }
       });
+      // Get log from outer context
+      conduit.onDownstream(connect.EventType.LOG, function (log) {
+        if (connect.isFramed() && log.loggerId !== connect.getLog().getLoggerId()) { 
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(log));
+        }
+      });
       // Reload the page if the shared worker detects an API auth failure.
       conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
         location.reload();
@@ -26532,6 +26702,7 @@
     }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
 
     connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
+    connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(conduit);
  
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.
@@ -27542,9 +27713,7 @@
     }
     var gumPromise = fetchUserMedia({
       success: function (stream) {
-        if (connect.isFirefoxBrowser()) {
-          connect.core.setSoftphoneUserMediaStream(stream);
-        }
+        connect.core.setSoftphoneUserMediaStream(stream);
       },
       failure: function (err) {
         publishError(err, "Your microphone is not enabled in your browser. ", "");
@@ -29177,9 +29346,9 @@
       var mediaInfo = connectionObj.getMediaInfo();
       /** if we do not have the media info then just reject the request */
       if (!mediaInfo) {
-        logger.error(logComponent, "Media info does not exists for a media type %s")
+        logger.error(logComponent, "Media info does not exist for a media type %s", connectionObj.getMediaType())
           .withObject(connectionObj).sendInternalLogToServer();
-        return Promise.reject("Media info does not exists for this connection");
+        return Promise.reject("Media info does not exist for this connection");
       }
 
       if (!mediaControllers[connectionId]) {

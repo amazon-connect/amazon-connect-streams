@@ -498,7 +498,7 @@
     var client = connect.core.getClient();
     if (configuration && configuration.agentPreferences && !connect.isValidLocale(configuration.agentPreferences.locale)) {
       if (callbacks && callbacks.failure) {
-        callbacks.failure(AgentErrorStates.INVALID_LOCALE);
+        callbacks.failure(connect.AgentErrorStates.INVALID_LOCALE);
       }
     } else {
       client.call(connect.ClientMethods.UPDATE_AGENT_CONFIGURATION, {
