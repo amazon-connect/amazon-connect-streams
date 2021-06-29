@@ -192,6 +192,7 @@
     'delete_speaker_failed',
     'start_session_failed',
     'evaluate_speaker_failed',
+    'session_not_exists',
     'describe_session_failed',
     'enroll_speaker_failed',
     'update_speaker_id_failed',
@@ -1431,11 +1432,17 @@
             }
           },
           failure: function (err) {
-            connect.getLog().error("evaluateSpeaker failed")
-              .withObject({
-                err: err
-              }).sendInternalLogToServer();
-            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
+            var error;
+            var parsedErr = JSON.parse(err);
+            switch(parsedErr.status) {
+              case 400:
+                error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "evaluateSpeaker failed, session not exists", err);
+                connect.getLog().error("evaluateSpeaker failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
+                break;
+              default:
+                error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
+                connect.getLog().error("evaluateSpeaker failed").withObject({ err: err }).sendInternalLogToServer();    
+            }
             reject(error);
           }
         })
