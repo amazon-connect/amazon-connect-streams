@@ -925,6 +925,9 @@ declare namespace connect {
     /** The task references */
     readonly references: ReferenceDictionary;
 
+    /** The task scheduled time */
+    readonly scheduledTime: number;
+
     /** A random value */
     readonly idempotencyToken: string;
 

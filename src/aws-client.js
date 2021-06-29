@@ -758,6 +758,7 @@
             "references": {
               "shape": "Sr"
             },
+            "scheduledTime": {},
             "idempotencyToken": {}
           }
         },
