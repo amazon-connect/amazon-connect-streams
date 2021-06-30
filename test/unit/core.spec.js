@@ -527,6 +527,7 @@ describe('Core', function () {
         }
     });
 
+
     describe('AgentDataProvider', function () {
         function createState(type, name) {
             return { type: type, name: name }
