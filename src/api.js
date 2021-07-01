@@ -197,7 +197,8 @@
     'enroll_speaker_failed',
     'update_speaker_id_failed',
     'not_supported_on_conference_calls',
-    'timeout'
+    'enroll_speaker_timeout',
+    'evaluate_speaker_timeout'
   ]);
 
   /*----------------------------------------------------------------
@@ -1427,7 +1428,7 @@
               }
             } else {
               connect.getLog().error("evaluateSpeaker timeout").sendInternalLogToServer();
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "evaluateSpeaker timeout");
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_TIMEOUT, "evaluateSpeaker timeout");
               reject(error);
             }
           },
@@ -1515,8 +1516,8 @@
             }
           });
         } else {
-          connect.getLog().error("describeSession timeout").sendInternalLogToServer();
-          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "describeSession timeout");
+          connect.getLog().error("enrollSpeaker timeout").sendInternalLogToServer();
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_TIMEOUT, "enrollSpeaker timeout");
           reject(error);
         }
       }
