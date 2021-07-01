@@ -450,7 +450,7 @@ Subscribe a method to be called when the agent gains a WebSocket connection.
 ```js
 agent.onAfterCallWork(function(agent) { /* ... */ });
 ```
-Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state (note that this only happens for voice contacts. All contacts enter the ACW contact state, though. See contact.onACW below. This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
+Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state (note that this event is only triggered for voice contacts even though all contacts enter ACW contact state. See contact.onACW below). This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
 
 ### `agent.getState()` / `agent.getStatus()`
 ```js
