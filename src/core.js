@@ -257,6 +257,8 @@
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
+    var upstreamBus = connect.getUpstream();
+    if (upstreamBus) upstreamBus.unsubscribeAll();
     connect.core.bus = new connect.EventBus();
     connect.core.agentDataProvider = null;
     connect.core.softphoneManager = null;
