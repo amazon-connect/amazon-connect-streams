@@ -22638,6 +22638,10 @@
     'accepted'
   ]);
 
+  var TaskListEvents = connect.makeNamespacedEnum('taskList', [
+    'activate_channel_with_view_type'
+  ]);
+
 
   /**---------------------------------------------------------------
   * enum ConnectionEvents
@@ -22887,6 +22891,7 @@
   connect.ConnectionEvents = ConnectionEvents;
   connect.ConnnectionEvents = ConnectionEvents; //deprecate on next major version release.
   connect.ContactEvents = ContactEvents;
+  connect.TaskListEvents = TaskListEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
   connect.DisasterRecoveryEvents = DisasterRecoveryEvents;
@@ -23976,7 +23981,6 @@
     'delete_speaker_failed',
     'start_session_failed',
     'evaluate_speaker_failed',
-    'session_not_exists',
     'describe_session_failed',
     'enroll_speaker_failed',
     'update_speaker_id_failed',
@@ -25216,17 +25220,11 @@
             }
           },
           failure: function (err) {
-            var error;
-            var parsedErr = JSON.parse(err);
-            switch(parsedErr.status) {
-              case 400:
-                error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "evaluateSpeaker failed, session not exists", err);
-                connect.getLog().error("evaluateSpeaker failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
-                break;
-              default:
-                error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
-                connect.getLog().error("evaluateSpeaker failed").withObject({ err: err }).sendInternalLogToServer();    
-            }
+            connect.getLog().error("evaluateSpeaker failed")
+              .withObject({
+                err: err
+              }).sendInternalLogToServer();
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
             reject(error);
           }
         })
@@ -27173,6 +27171,27 @@
       }
     });
   };
+
+  /** ----- minimal view layer event handling **/
+ 
+  connect.core.onActivateChannelWithViewType = function (f) {
+    connect.core.getUpstream().onUpstream(connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
+  };
+ 
+  /**
+   * Used of agent interface control. 
+   * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad or quick connects into view.
+   */
+  connect.core.activateChannelWithViewType = function (viewType, mediaType) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+      data: {
+        viewType: viewType,
+        mediaType: mediaType 
+      }
+    });
+  };
+
  
   /** ------------------------------------------------- */
  
