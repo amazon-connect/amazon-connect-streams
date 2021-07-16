@@ -290,6 +290,14 @@
     "ENROLLED"
   ])
 
+  connect.VoiceIdConstants = {
+    EVALUATION_MAX_POLL_TIMES: 120, // EvaluateSpeaker is Polling for maximum 2 mins.
+    EVALUATION_POLLING_INTERVAL: 1000,
+    ENROLLMENT_MAX_POLL_TIMES: 120, // EnrollmentSpeaker is Polling for maximum 10 mins.
+    ENROLLMENT_POLLING_INTERVAL: 5000,
+    START_SESSION_DELAY: 8000
+  }
+
   /*----------------------------------------------------------------
    * class Agent
    */
@@ -1338,8 +1346,7 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-    var maxPollTimes = 120; // Polling for maximum 2 mins.
-    var milliInterval = 1000;
+    var pollTimes = 0; 
     return new Promise(function (resolve, reject) {
       function evaluate() {
         client.call(connect.AgentAppClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
@@ -1347,9 +1354,9 @@
           "DomainId" : "ConnectDefaultDomainId"
         }, {
           success: function (data) {
-            if(maxPollTimes-- !== 1) {
+            if(++pollTimes < connect.VoiceIdConstants.EVALUATION_MAX_POLL_TIMES) {
               if(data.StreamingStatus === connect.VoiceIdStreamingStatus.PENDING_CONFIGURATION) {
-                setTimeout(evaluate, milliInterval);
+                setTimeout(evaluate, connect.VoiceIdConstants.EVALUATION_POLLING_INTERVAL);
               } else {
                 if(!data.AuthenticationResult) {
                   data.AuthenticationResult = {};
@@ -1423,7 +1430,7 @@
                     resolve(data);
                     return;
                 } else {
-                  setTimeout(evaluate, milliInterval);
+                  setTimeout(evaluate, connect.VoiceIdConstants.EVALUATION_POLLING_INTERVAL);
                 }
               }
             } else {
@@ -1448,15 +1455,19 @@
           }
         })
       }
-      if(!startNew){
-        evaluate();
-      } else {
-        self.startSession().then(function(data) {
+      self.syncSpeakerId().then(function () {
+        if(!startNew){
           evaluate();
-        }).catch(function(err){
-          reject(err)
-        });
-      }
+        } else {
+          self.startSession().then(function(data) {
+            evaluate();
+          }).catch(function(err){
+            reject(err)
+          });
+        }
+      }).catch(function (err) {
+        reject(err);
+      })
     });
   };
 
@@ -1486,33 +1497,37 @@
 
   VoiceId.prototype.checkEnrollmentStatus = function () {
     var self = this;
-    var maxPollingTimes = 120; // It is polling for maximum 10 mins.
-    var milliInterval = 5000;
+    var pollingTimes = 0;
 
     return new Promise(function (resolve, reject) {
       function describe () {
-        if(maxPollingTimes-- !== 1) {
+        if(++pollingTimes !== connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES) {
           self.describeSession().then(function(data){
             switch(data.Session.EnrollmentRequestDetails.Status) {
               case connect.VoiceIdEnrollmentRequestStatus.COMPLETED:
                 resolve(data);
                 break;
               case connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS:
-                setTimeout(describe, milliInterval);
+                setTimeout(describe, connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL);
                 break;
               case connect.VoiceIdEnrollmentRequestStatus.NOT_ENOUGH_SPEECH:
                 if(data.Session.StreamingStatus !== connect.VoiceIdStreamingStatus.ENDED) {
-                  setTimeout(describe,milliInterval);
+                  setTimeout(describe,connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL);
                 } else {
-                  self.startSession().then(function(data) {
-                    describe();
-                  }).catch(function(err, data){
-                    reject(err);
-                  });
+                  setTimeout(function(){
+                    self.startSession().then(function(data) {
+                      describe();
+                    }).catch(function(err, data){
+                      reject(err);
+                    });
+                  }, connect.VoiceIdConstants.START_SESSION_DELAY);
                 }
                 break;
               default:
-                reject(Error(data.Session.EnrollmentRequestDetails.Status));
+                var message = data.Session.EnrollmentRequestDetails.Message ? data.Session.EnrollmentRequestDetails.Message : "enrollSpeaker failed. Unknown enrollment status has been received";
+                connect.getLog().error(message).sendInternalLogToServer();
+  		          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, message, data.Session.EnrollmentRequestDetails.Status);
+  		          reject(error);
             }
           });
         } else {
@@ -1529,20 +1544,24 @@
     var self = this;
     self.checkConferenceCall();
     return new Promise(function(resolve, reject) {
-      self.getSpeakerStatus().then(function(data) {
-        return data;
-      }).then(function(data) {
-        if(data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
-          self.deleteSpeaker().then(function(data) {
+      self.syncSpeakerId().then(function() {
+        self.getSpeakerStatus().then(function(data) {
+          return data;
+        }).then(function(data) {
+          if(data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
+            self.deleteSpeaker().then(function(data) {
+              self.enrollSpeakerHelper(resolve, reject);
+            }).catch(function(err) {
+              reject(err);
+            });
+          } else {
             self.enrollSpeakerHelper(resolve, reject);
-          }).catch(function(err) {
-            reject(err);
-          });
-        } else {
-          self.enrollSpeakerHelper(resolve, reject);
-        }
+          }
+        }).catch(function(err) {
+          reject(err);
+        })
       }).catch(function(err) {
-        reject(err);
+        reject(err)
       })
     })
   }
@@ -1577,7 +1596,7 @@
       });
   };
 
-  VoiceId.prototype.updateSpeakerId = function (speakerId) {
+  VoiceId.prototype.updateSpeakerIdInVoiceId = function (speakerId) {
     var self = this;
     self.checkConferenceCall();
     var client = connect.core.getClient();
@@ -1602,6 +1621,21 @@
         });
     });
   };
+
+  VoiceId.prototype.syncSpeakerId = function () {
+    var self = this;
+    return new Promise(function (resolve, reject) {
+      self.getSpeakerId().then(function(data){
+        self.updateSpeakerIdInVoiceId(data.speakerId).then(function(data){
+          resolve(data);
+        }).catch(function(err) {
+          reject(err);
+        })
+      }).catch(function(err){
+        reject(err);
+      });
+    })
+  }
 
   VoiceId.prototype.checkConferenceCall = function(){
     var self = this;
@@ -1697,7 +1731,7 @@
   }
 
   VoiceConnection.prototype.updateVoiceIdSpeakerId = function(speakerId) {
-    return this._speakerAuthenticator.updateSpeakerId(speakerId);
+    return this._speakerAuthenticator.updateSpeakerIdInVoiceId(speakerId);
   }
 
   /**
