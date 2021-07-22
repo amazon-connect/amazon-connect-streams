@@ -300,6 +300,9 @@ declare namespace connect {
 
     /** Allows you to specify ringtone settings for Chat. */
     readonly chat?: ChatOptions;
+
+    /** Allows you to configure which configuration sections are displayed in the settings tab.  **/
+    readonly pageOptions?: PageOptions;
   }
 
 
