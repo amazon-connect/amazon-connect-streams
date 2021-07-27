@@ -1320,7 +1320,8 @@
         "contactId": self.contactId,
         "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
-        "clientToken": AWS.util.uuid.v4()
+        "clientToken": AWS.util.uuid.v4(),
+        "domainId" : "ConnectDefaultDomainId"
         }, {
           success: function (data) {
             if(data.sessionId) {
