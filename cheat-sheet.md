@@ -220,7 +220,7 @@ Get contact attributes
                 console.log (Here's your value for lastName " + attr.lastName.value);
             }
         });
-  });
+    });
 
 Add a log message to agent logs
 
