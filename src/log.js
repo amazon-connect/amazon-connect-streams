@@ -125,6 +125,14 @@
     this.exception = null;
     this.objects = [];
     this.line = 0;
+    this.agentResourceId = null;
+    try {
+      if (connect.agent.initialized){
+        this.agentResourceId = new connect.Agent()._getResourceId();
+      }
+    } catch(e) {
+      console.log("Issue finding agentResourceId: ", e); //can't use our logger here as we might infinitely attempt to log this error.
+    }
     this.loggerId = loggerId;
   };
 
@@ -180,9 +188,10 @@
    * to the console.
    */
   LogEntry.prototype.toString = function () {
-    return connect.sprintf("[%s] [%s]: %s",
+    return connect.sprintf("[%s] [%s] [%s]: %s",
       this.getTime() && this.getTime().toISOString ? this.getTime().toISOString() : "???",
       this.getLevel(),
+      this.getAgentResourceId(),
       this.getText());
   };
 
@@ -192,6 +201,10 @@
   LogEntry.prototype.getTime = function () {
     return this.time;
   };
+
+  LogEntry.prototype.getAgentResourceId = function () {
+    return this.agentResourceId;
+  }
 
   /**
    * Get the level of the log entry.
@@ -269,6 +282,7 @@
     this._logRollTimer = null;
     this._loggerId = new Date().getTime() + "-" + Math.random().toString(36).slice(2);
     this.setLogRollInterval(DEFAULT_LOG_ROLL_INTERVAL);
+    this._startLogIndexToPush = 0;
   };
 
   /**
@@ -287,6 +301,7 @@
       this._logRollTimer = global.setInterval(function () {
         this._rolledLogs = this._logs;
         this._logs = [];
+        this._startLogIndexToPush = 0;
         self.info("Log roll interval occurred.");
       }, this._logRollInterval);
     } else {
@@ -334,6 +349,8 @@
   };
 
   Logger.prototype.addLogEntry = function (logEntry) {
+    // Call this second time as in some places this function is called directly
+    redactSensitiveInfo(logEntry);
     this._logs.push(logEntry);
 
     //For now only send softphone logs only.
@@ -502,6 +519,35 @@
     });
   };
 
+  Logger.prototype.scheduleUpstreamOuterContextCCPserverBoundLogsPush = function(conduit) {
+    global.setInterval(connect.hitch(this, this.pushOuterContextCCPserverBoundLogsUpstream, conduit), 1000);
+  }
+
+  Logger.prototype.scheduleUpstreamOuterContextCCPLogsPush = function(conduit) {
+    global.setInterval(connect.hitch(this, this.pushOuterContextCCPLogsUpstream, conduit), 1000);
+  }
+
+  Logger.prototype.pushOuterContextCCPserverBoundLogsUpstream = function(conduit) {
+    if (this._serverBoundInternalLogs.length > 0) {
+      for (var i = 0; i < this._serverBoundInternalLogs.length; i++) {
+        this._serverBoundInternalLogs[i].text = this._serverBoundInternalLogs[i].text;
+      }
+
+      conduit.sendUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, this._serverBoundInternalLogs);
+      this._serverBoundInternalLogs = [];
+    }
+  }
+
+  Logger.prototype.pushOuterContextCCPLogsUpstream = function(conduit) {
+    for (var i = this._startLogIndexToPush; i < this._logs.length; i++) {
+      if (this._logs[i].loggerId !== this._loggerId) {
+        continue;
+      }
+      conduit.sendUpstream(connect.EventType.LOG, this._logs[i]);
+    }
+    this._startLogIndexToPush = this._logs.length;
+  }
+
   Logger.prototype.getLoggerId = function () {
     return this._loggerId;
   };
@@ -568,8 +614,36 @@
     this._serverBoundInternalLogs = [];
   };
 
+  /**
+   * Wrap a function with try catch block
+   */
+  var tryCatchWrapperMethod = function (fn) {
+    var wrappedfunction = function() {
+      try {
+        return fn.apply(this, arguments);
+      } catch (e) {
+        // Since this wraps Logger class, we can only print it in the console and eat it.
+        CONSOLE_LOGGER_MAP.ERROR(e);
+      }
+    }
+    return wrappedfunction;
+  }
+  /**
+   * This is a wrapper method to wrap each function
+   * in an object with try catch block.
+   */
+  var tryCatchWrapperObject = function (obj) {
+    for (var method in obj) {
+      if (typeof(obj[method]) === 'function') {
+        obj[method] = tryCatchWrapperMethod(obj[method]);
+      }
+    }
+  }
+
   /** Create the singleton logger instance. */
   connect.rootLogger = new Logger();
+  tryCatchWrapperObject(connect.rootLogger);
+
 
   /** Fetch the singleton logger instance. */
   var getLog = function () {

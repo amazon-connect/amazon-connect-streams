@@ -758,7 +758,10 @@
             "references": {
               "shape": "Sr"
             },
-            "idempotencyToken": {}
+            "idempotencyToken": {},
+            "scheduledTime": {
+              "type": "long"
+            }
           }
         },
         "output": {
@@ -950,10 +953,10 @@
               ],
               "members": {
                 "state": {
-                  "shape": "S1z"
+                  "shape": "S20"
                 },
                 "nextState": {
-                  "shape": "S1z"
+                  "shape": "S20"
                 },
                 "agentAvailabilityState": {
                   "type": "structure",
@@ -978,14 +981,6 @@
                     "members": {
                       "contactId": {},
                       "initialContactId": {},
-                      "contactFeatures": {
-                        "type": "structure",
-                        "members": {
-                          "attachmentsEnabled": {
-                            "type": "boolean"
-                          }
-                        }
-                      },
                       "type": {},
                       "state": {
                         "type": "structure",
@@ -1097,7 +1092,15 @@
                       "references": {
                         "shape": "Sr"
                       },
-                      "initiationMethod": {}
+                      "initiationMethod": {},
+                      "contactFeatures": {
+                        "type": "structure",
+                        "members": {
+                          "attachmentsEnabled": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
                     }
                   }
                 },
@@ -1135,7 +1138,7 @@
             "states": {
               "type": "list",
               "member": {
-                "shape": "S1z"
+                "shape": "S20"
               }
             },
             "nextToken": {}
@@ -1319,7 +1322,7 @@
               "shape": "S2"
             },
             "state": {
-              "shape": "S1z"
+              "shape": "S20"
             },
             "enqueueNextState": {
               "type": "boolean"
@@ -1436,7 +1439,7 @@
             "contactId": {},
             "ccpVersion": {},
             "softphoneStreamStatistics": {
-              "shape": "S3n"
+              "shape": "S3p"
             }
           }
         },
@@ -1469,7 +1472,7 @@
                   "type": "timestamp"
                 },
                 "softphoneStreamStatistics": {
-                  "shape": "S3n"
+                  "shape": "S3p"
                 },
                 "gumTimeMillis": {
                   "type": "long"
@@ -1669,7 +1672,7 @@
           }
         }
       },
-      "S1z": {
+      "S20": {
         "type": "structure",
         "required": [
           "type",
@@ -1684,7 +1687,7 @@
           }
         }
       },
-      "S3n": {
+      "S3p": {
         "type": "list",
         "member": {
           "type": "structure",
@@ -1843,6 +1846,10 @@
       "prefix": "config",
       "name": "ConfigService",
       "cors": true
+    },
+    "connect": {
+        "name": "Connect",
+        "cors": true
     },
     "cur": {
       "name": "CUR",
@@ -2279,10 +2286,6 @@
     "transcribeservice": {
       "prefix": "transcribe",
       "name": "TranscribeService"
-    },
-    "connect": {
-      "name": "Connect",
-      "cors": true
     },
     "acmpca": {
       "prefix": "acm-pca",
@@ -2950,7 +2953,7 @@
       convertToBuffer: convertToBuffer,
   };
   
-  },{"buffer/":80}],12:[function(require,module,exports){
+  },{"buffer/":81}],12:[function(require,module,exports){
   var hashUtils = require('./browserHashUtils');
   
   /**
@@ -3201,7 +3204,7 @@
       return cmn(c ^ (b | (~d)), a, b, x, s, t);
   }
   
-  },{"./browserHashUtils":11,"buffer/":80}],14:[function(require,module,exports){
+  },{"./browserHashUtils":11,"buffer/":81}],14:[function(require,module,exports){
   var Buffer = require('buffer/').Buffer;
   var hashUtils = require('./browserHashUtils');
   
@@ -3369,7 +3372,7 @@
       }
   };
   
-  },{"./browserHashUtils":11,"buffer/":80}],15:[function(require,module,exports){
+  },{"./browserHashUtils":11,"buffer/":81}],15:[function(require,module,exports){
   var Buffer = require('buffer/').Buffer;
   var hashUtils = require('./browserHashUtils');
   
@@ -3610,8 +3613,8 @@
       state[7] += state7;
   };
   
-  },{"./browserHashUtils":11,"buffer/":80}],16:[function(require,module,exports){
-  (function (process){
+  },{"./browserHashUtils":11,"buffer/":81}],16:[function(require,module,exports){
+  (function (process){(function (){
   var util = require('./util');
   
   // browser specific modules
@@ -3652,8 +3655,8 @@
     };
   }
   
-  }).call(this,require('_process'))
-  },{"./browserCryptoLib":10,"./core":18,"./credentials":19,"./credentials/chainable_temporary_credentials":20,"./credentials/cognito_identity_credentials":21,"./credentials/credential_provider_chain":22,"./credentials/saml_credentials":23,"./credentials/temporary_credentials":24,"./credentials/web_identity_credentials":25,"./event-stream/buffered-create-event-stream":27,"./http/xhr":35,"./realclock/browserClock":52,"./util":71,"./xml/browser_parser":72,"_process":85,"buffer/":80,"querystring/":92,"url/":94}],17:[function(require,module,exports){
+  }).call(this)}).call(this,require('_process'))
+  },{"./browserCryptoLib":10,"./core":18,"./credentials":19,"./credentials/chainable_temporary_credentials":20,"./credentials/cognito_identity_credentials":21,"./credentials/credential_provider_chain":22,"./credentials/saml_credentials":23,"./credentials/temporary_credentials":24,"./credentials/web_identity_credentials":25,"./event-stream/buffered-create-event-stream":27,"./http/xhr":35,"./realclock/browserClock":52,"./util":71,"./xml/browser_parser":72,"_process":86,"buffer/":81,"querystring/":92,"url/":94}],17:[function(require,module,exports){
   var AWS = require('./core');
   require('./credentials');
   require('./credentials/credential_provider_chain');
@@ -5230,7 +5233,7 @@
    *   @return [Array<AWS.Credentials, Function>]
    *     a list of credentials objects or functions that return credentials
    *     objects. If the provider is a function, the function will be
-   *     started lazily when the provider needs to be checked for valid
+   *     executed lazily when the provider needs to be checked for valid
    *     credentials. By default, this object will be set to the
    *     {defaultProviders}.
    *   @see defaultProviders
@@ -5716,7 +5719,7 @@
   });
   
   },{"../../clients/sts":8,"../core":18}],26:[function(require,module,exports){
-  (function (process){
+  (function (process){(function (){
   var AWS = require('./core');
   var util = require('./util');
   var endpointDiscoveryEnabledEnvs = ['AWS_ENABLE_ENDPOINT_DISCOVERY', 'AWS_ENDPOINT_DISCOVERY_ENABLED'];
@@ -6077,8 +6080,8 @@
     invalidateCachedEndpoint: invalidateCachedEndpoints,
   };
   
-  }).call(this,require('_process'))
-  },{"./core":18,"./util":71,"_process":85}],27:[function(require,module,exports){
+  }).call(this)}).call(this,require('_process'))
+  },{"./core":18,"./util":71,"_process":86}],27:[function(require,module,exports){
   var eventMessageChunker = require('../event-stream/event-message-chunker').eventMessageChunker;
   var parseEvent = require('./parse-event').parseEvent;
   
@@ -7497,7 +7500,7 @@
    */
   AWS.HttpClient.streamsApiVersion = 1;
   
-  },{"../core":18,"../http":34,"events":81}],36:[function(require,module,exports){
+  },{"../core":18,"../http":34,"events":82}],36:[function(require,module,exports){
   var util = require('../util');
   
   function JsonBuilder() { }
@@ -9451,7 +9454,7 @@
   }
   
   },{}],55:[function(require,module,exports){
-  (function (process){
+  (function (process){(function (){
   var AWS = require('./core');
   var AcceptorStateMachine = require('./state_machine');
   var inherit = AWS.util.inherit;
@@ -10259,8 +10262,8 @@
   
   AWS.util.mixin(AWS.Request, AWS.SequentialExecutor);
   
-  }).call(this,require('_process'))
-  },{"./core":18,"./state_machine":70,"_process":85,"jmespath":84}],56:[function(require,module,exports){
+  }).call(this)}).call(this,require('_process'))
+  },{"./core":18,"./state_machine":70,"_process":86,"jmespath":85}],56:[function(require,module,exports){
   /**
    * Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
    *
@@ -10466,7 +10469,7 @@
     }
   });
   
-  },{"./core":18,"jmespath":84}],57:[function(require,module,exports){
+  },{"./core":18,"jmespath":85}],57:[function(require,module,exports){
   var AWS = require('./core');
   var inherit = AWS.util.inherit;
   var jmespath = require('jmespath');
@@ -10669,7 +10672,7 @@
   
   });
   
-  },{"./core":18,"jmespath":84}],58:[function(require,module,exports){
+  },{"./core":18,"jmespath":85}],58:[function(require,module,exports){
   var AWS = require('./core');
   
   /**
@@ -10907,7 +10910,7 @@
   module.exports = AWS.SequentialExecutor;
   
   },{"./core":18}],59:[function(require,module,exports){
-  (function (process){
+  (function (process){(function (){
   var AWS = require('./core');
   var Api = require('./model/api');
   var regionConfig = require('./region_config');
@@ -11440,7 +11443,6 @@
       if (this.expiredCredentialsError(error)) return true;
       if (this.throttledError(error)) return true;
       if (error.statusCode >= 500) return true;
-      if (error.statusCode === 403) return true;
       return false;
     },
   
@@ -11730,8 +11732,8 @@
    */
   module.exports = AWS.Service;
   
-  }).call(this,require('_process'))
-  },{"./core":18,"./model/api":38,"./region_config":53,"_process":85}],60:[function(require,module,exports){
+  }).call(this)}).call(this,require('_process'))
+  },{"./core":18,"./model/api":38,"./region_config":53,"_process":86}],60:[function(require,module,exports){
   var AWS = require('../core');
   
   AWS.util.update(AWS.CognitoIdentity.prototype, {
@@ -11749,7 +11751,7 @@
   });
   
   },{"../core":18}],61:[function(require,module,exports){
-  (function (process){
+  (function (process){(function (){
   var AWS = require('../core');
   var regionConfig = require('../region_config');
   var ENV_REGIONAL_ENDPOINT_ENABLED = 'AWS_STS_REGIONAL_ENDPOINTS';
@@ -11878,8 +11880,8 @@
   
   });
   
-  }).call(this,require('_process'))
-  },{"../core":18,"../region_config":53,"_process":85}],62:[function(require,module,exports){
+  }).call(this)}).call(this,require('_process'))
+  },{"../core":18,"../region_config":53,"_process":86}],62:[function(require,module,exports){
   var AWS = require('../core');
   var inherit = AWS.util.inherit;
   
@@ -12741,7 +12743,7 @@
   module.exports = AcceptorStateMachine;
   
   },{}],71:[function(require,module,exports){
-  (function (process,setImmediate){
+  (function (process,setImmediate){(function (){
   /* eslint guard-for-in:0 */
   var AWS;
   
@@ -13747,8 +13749,8 @@
    */
   module.exports = util;
   
-  }).call(this,require('_process'),require("timers").setImmediate)
-  },{"../apis/metadata.json":4,"./core":18,"_process":85,"fs":79,"timers":93,"uuid":98}],72:[function(require,module,exports){
+  }).call(this)}).call(this,require('_process'),require("timers").setImmediate)
+  },{"../apis/metadata.json":4,"./core":18,"_process":86,"fs":79,"timers":93,"uuid":98}],72:[function(require,module,exports){
   var util = require('../util');
   var Shape = require('../model/shape');
   
@@ -14279,9 +14281,7 @@
   
     // go through the array every three bytes, we'll deal with trailing stuff later
     for (var i = 0, len2 = len - extraBytes; i < len2; i += maxChunkLength) {
-      parts.push(encodeChunk(
-        uint8, i, (i + maxChunkLength) > len2 ? len2 : (i + maxChunkLength)
-      ))
+      parts.push(encodeChunk(uint8, i, (i + maxChunkLength) > len2 ? len2 : (i + maxChunkLength)))
     }
   
     // pad the end with zeros, but make sure to not forget the extra bytes
@@ -14308,7 +14308,541 @@
   },{}],79:[function(require,module,exports){
   
   },{}],80:[function(require,module,exports){
-  (function (global,Buffer){
+  (function (global){(function (){
+  /*! https://mths.be/punycode v1.3.2 by @mathias */
+  ;(function(root) {
+  
+    /** Detect free variables */
+    var freeExports = typeof exports == 'object' && exports &&
+      !exports.nodeType && exports;
+    var freeModule = typeof module == 'object' && module &&
+      !module.nodeType && module;
+    var freeGlobal = typeof global == 'object' && global;
+    if (
+      freeGlobal.global === freeGlobal ||
+      freeGlobal.window === freeGlobal ||
+      freeGlobal.self === freeGlobal
+    ) {
+      root = freeGlobal;
+    }
+  
+    /**
+     * The `punycode` object.
+     * @name punycode
+     * @type Object
+     */
+    var punycode,
+  
+    /** Highest positive signed 32-bit float value */
+    maxInt = 2147483647, // aka. 0x7FFFFFFF or 2^31-1
+  
+    /** Bootstring parameters */
+    base = 36,
+    tMin = 1,
+    tMax = 26,
+    skew = 38,
+    damp = 700,
+    initialBias = 72,
+    initialN = 128, // 0x80
+    delimiter = '-', // '\x2D'
+  
+    /** Regular expressions */
+    regexPunycode = /^xn--/,
+    regexNonASCII = /[^\x20-\x7E]/, // unprintable ASCII chars + non-ASCII chars
+    regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g, // RFC 3490 separators
+  
+    /** Error messages */
+    errors = {
+      'overflow': 'Overflow: input needs wider integers to process',
+      'not-basic': 'Illegal input >= 0x80 (not a basic code point)',
+      'invalid-input': 'Invalid input'
+    },
+  
+    /** Convenience shortcuts */
+    baseMinusTMin = base - tMin,
+    floor = Math.floor,
+    stringFromCharCode = String.fromCharCode,
+  
+    /** Temporary variable */
+    key;
+  
+    /*--------------------------------------------------------------------------*/
+  
+    /**
+     * A generic error utility function.
+     * @private
+     * @param {String} type The error type.
+     * @returns {Error} Throws a `RangeError` with the applicable error message.
+     */
+    function error(type) {
+      throw RangeError(errors[type]);
+    }
+  
+    /**
+     * A generic `Array#map` utility function.
+     * @private
+     * @param {Array} array The array to iterate over.
+     * @param {Function} callback The function that gets called for every array
+     * item.
+     * @returns {Array} A new array of values returned by the callback function.
+     */
+    function map(array, fn) {
+      var length = array.length;
+      var result = [];
+      while (length--) {
+        result[length] = fn(array[length]);
+      }
+      return result;
+    }
+  
+    /**
+     * A simple `Array#map`-like wrapper to work with domain name strings or email
+     * addresses.
+     * @private
+     * @param {String} domain The domain name or email address.
+     * @param {Function} callback The function that gets called for every
+     * character.
+     * @returns {Array} A new string of characters returned by the callback
+     * function.
+     */
+    function mapDomain(string, fn) {
+      var parts = string.split('@');
+      var result = '';
+      if (parts.length > 1) {
+        // In email addresses, only the domain name should be punycoded. Leave
+        // the local part (i.e. everything up to `@`) intact.
+        result = parts[0] + '@';
+        string = parts[1];
+      }
+      // Avoid `split(regex)` for IE8 compatibility. See #17.
+      string = string.replace(regexSeparators, '\x2E');
+      var labels = string.split('.');
+      var encoded = map(labels, fn).join('.');
+      return result + encoded;
+    }
+  
+    /**
+     * Creates an array containing the numeric code points of each Unicode
+     * character in the string. While JavaScript uses UCS-2 internally,
+     * this function will convert a pair of surrogate halves (each of which
+     * UCS-2 exposes as separate characters) into a single code point,
+     * matching UTF-16.
+     * @see `punycode.ucs2.encode`
+     * @see <https://mathiasbynens.be/notes/javascript-encoding>
+     * @memberOf punycode.ucs2
+     * @name decode
+     * @param {String} string The Unicode input string (UCS-2).
+     * @returns {Array} The new array of code points.
+     */
+    function ucs2decode(string) {
+      var output = [],
+          counter = 0,
+          length = string.length,
+          value,
+          extra;
+      while (counter < length) {
+        value = string.charCodeAt(counter++);
+        if (value >= 0xD800 && value <= 0xDBFF && counter < length) {
+          // high surrogate, and there is a next character
+          extra = string.charCodeAt(counter++);
+          if ((extra & 0xFC00) == 0xDC00) { // low surrogate
+            output.push(((value & 0x3FF) << 10) + (extra & 0x3FF) + 0x10000);
+          } else {
+            // unmatched surrogate; only append this code unit, in case the next
+            // code unit is the high surrogate of a surrogate pair
+            output.push(value);
+            counter--;
+          }
+        } else {
+          output.push(value);
+        }
+      }
+      return output;
+    }
+  
+    /**
+     * Creates a string based on an array of numeric code points.
+     * @see `punycode.ucs2.decode`
+     * @memberOf punycode.ucs2
+     * @name encode
+     * @param {Array} codePoints The array of numeric code points.
+     * @returns {String} The new Unicode string (UCS-2).
+     */
+    function ucs2encode(array) {
+      return map(array, function(value) {
+        var output = '';
+        if (value > 0xFFFF) {
+          value -= 0x10000;
+          output += stringFromCharCode(value >>> 10 & 0x3FF | 0xD800);
+          value = 0xDC00 | value & 0x3FF;
+        }
+        output += stringFromCharCode(value);
+        return output;
+      }).join('');
+    }
+  
+    /**
+     * Converts a basic code point into a digit/integer.
+     * @see `digitToBasic()`
+     * @private
+     * @param {Number} codePoint The basic numeric code point value.
+     * @returns {Number} The numeric value of a basic code point (for use in
+     * representing integers) in the range `0` to `base - 1`, or `base` if
+     * the code point does not represent a value.
+     */
+    function basicToDigit(codePoint) {
+      if (codePoint - 48 < 10) {
+        return codePoint - 22;
+      }
+      if (codePoint - 65 < 26) {
+        return codePoint - 65;
+      }
+      if (codePoint - 97 < 26) {
+        return codePoint - 97;
+      }
+      return base;
+    }
+  
+    /**
+     * Converts a digit/integer into a basic code point.
+     * @see `basicToDigit()`
+     * @private
+     * @param {Number} digit The numeric value of a basic code point.
+     * @returns {Number} The basic code point whose value (when used for
+     * representing integers) is `digit`, which needs to be in the range
+     * `0` to `base - 1`. If `flag` is non-zero, the uppercase form is
+     * used; else, the lowercase form is used. The behavior is undefined
+     * if `flag` is non-zero and `digit` has no uppercase form.
+     */
+    function digitToBasic(digit, flag) {
+      //  0..25 map to ASCII a..z or A..Z
+      // 26..35 map to ASCII 0..9
+      return digit + 22 + 75 * (digit < 26) - ((flag != 0) << 5);
+    }
+  
+    /**
+     * Bias adaptation function as per section 3.4 of RFC 3492.
+     * http://tools.ietf.org/html/rfc3492#section-3.4
+     * @private
+     */
+    function adapt(delta, numPoints, firstTime) {
+      var k = 0;
+      delta = firstTime ? floor(delta / damp) : delta >> 1;
+      delta += floor(delta / numPoints);
+      for (/* no initialization */; delta > baseMinusTMin * tMax >> 1; k += base) {
+        delta = floor(delta / baseMinusTMin);
+      }
+      return floor(k + (baseMinusTMin + 1) * delta / (delta + skew));
+    }
+  
+    /**
+     * Converts a Punycode string of ASCII-only symbols to a string of Unicode
+     * symbols.
+     * @memberOf punycode
+     * @param {String} input The Punycode string of ASCII-only symbols.
+     * @returns {String} The resulting string of Unicode symbols.
+     */
+    function decode(input) {
+      // Don't use UCS-2
+      var output = [],
+          inputLength = input.length,
+          out,
+          i = 0,
+          n = initialN,
+          bias = initialBias,
+          basic,
+          j,
+          index,
+          oldi,
+          w,
+          k,
+          digit,
+          t,
+          /** Cached calculation results */
+          baseMinusT;
+  
+      // Handle the basic code points: let `basic` be the number of input code
+      // points before the last delimiter, or `0` if there is none, then copy
+      // the first basic code points to the output.
+  
+      basic = input.lastIndexOf(delimiter);
+      if (basic < 0) {
+        basic = 0;
+      }
+  
+      for (j = 0; j < basic; ++j) {
+        // if it's not a basic code point
+        if (input.charCodeAt(j) >= 0x80) {
+          error('not-basic');
+        }
+        output.push(input.charCodeAt(j));
+      }
+  
+      // Main decoding loop: start just after the last delimiter if any basic code
+      // points were copied; start at the beginning otherwise.
+  
+      for (index = basic > 0 ? basic + 1 : 0; index < inputLength; /* no final expression */) {
+  
+        // `index` is the index of the next character to be consumed.
+        // Decode a generalized variable-length integer into `delta`,
+        // which gets added to `i`. The overflow checking is easier
+        // if we increase `i` as we go, then subtract off its starting
+        // value at the end to obtain `delta`.
+        for (oldi = i, w = 1, k = base; /* no condition */; k += base) {
+  
+          if (index >= inputLength) {
+            error('invalid-input');
+          }
+  
+          digit = basicToDigit(input.charCodeAt(index++));
+  
+          if (digit >= base || digit > floor((maxInt - i) / w)) {
+            error('overflow');
+          }
+  
+          i += digit * w;
+          t = k <= bias ? tMin : (k >= bias + tMax ? tMax : k - bias);
+  
+          if (digit < t) {
+            break;
+          }
+  
+          baseMinusT = base - t;
+          if (w > floor(maxInt / baseMinusT)) {
+            error('overflow');
+          }
+  
+          w *= baseMinusT;
+  
+        }
+  
+        out = output.length + 1;
+        bias = adapt(i - oldi, out, oldi == 0);
+  
+        // `i` was supposed to wrap around from `out` to `0`,
+        // incrementing `n` each time, so we'll fix that now:
+        if (floor(i / out) > maxInt - n) {
+          error('overflow');
+        }
+  
+        n += floor(i / out);
+        i %= out;
+  
+        // Insert `n` at position `i` of the output
+        output.splice(i++, 0, n);
+  
+      }
+  
+      return ucs2encode(output);
+    }
+  
+    /**
+     * Converts a string of Unicode symbols (e.g. a domain name label) to a
+     * Punycode string of ASCII-only symbols.
+     * @memberOf punycode
+     * @param {String} input The string of Unicode symbols.
+     * @returns {String} The resulting Punycode string of ASCII-only symbols.
+     */
+    function encode(input) {
+      var n,
+          delta,
+          handledCPCount,
+          basicLength,
+          bias,
+          j,
+          m,
+          q,
+          k,
+          t,
+          currentValue,
+          output = [],
+          /** `inputLength` will hold the number of code points in `input`. */
+          inputLength,
+          /** Cached calculation results */
+          handledCPCountPlusOne,
+          baseMinusT,
+          qMinusT;
+  
+      // Convert the input in UCS-2 to Unicode
+      input = ucs2decode(input);
+  
+      // Cache the length
+      inputLength = input.length;
+  
+      // Initialize the state
+      n = initialN;
+      delta = 0;
+      bias = initialBias;
+  
+      // Handle the basic code points
+      for (j = 0; j < inputLength; ++j) {
+        currentValue = input[j];
+        if (currentValue < 0x80) {
+          output.push(stringFromCharCode(currentValue));
+        }
+      }
+  
+      handledCPCount = basicLength = output.length;
+  
+      // `handledCPCount` is the number of code points that have been handled;
+      // `basicLength` is the number of basic code points.
+  
+      // Finish the basic string - if it is not empty - with a delimiter
+      if (basicLength) {
+        output.push(delimiter);
+      }
+  
+      // Main encoding loop:
+      while (handledCPCount < inputLength) {
+  
+        // All non-basic code points < n have been handled already. Find the next
+        // larger one:
+        for (m = maxInt, j = 0; j < inputLength; ++j) {
+          currentValue = input[j];
+          if (currentValue >= n && currentValue < m) {
+            m = currentValue;
+          }
+        }
+  
+        // Increase `delta` enough to advance the decoder's <n,i> state to <m,0>,
+        // but guard against overflow
+        handledCPCountPlusOne = handledCPCount + 1;
+        if (m - n > floor((maxInt - delta) / handledCPCountPlusOne)) {
+          error('overflow');
+        }
+  
+        delta += (m - n) * handledCPCountPlusOne;
+        n = m;
+  
+        for (j = 0; j < inputLength; ++j) {
+          currentValue = input[j];
+  
+          if (currentValue < n && ++delta > maxInt) {
+            error('overflow');
+          }
+  
+          if (currentValue == n) {
+            // Represent delta as a generalized variable-length integer
+            for (q = delta, k = base; /* no condition */; k += base) {
+              t = k <= bias ? tMin : (k >= bias + tMax ? tMax : k - bias);
+              if (q < t) {
+                break;
+              }
+              qMinusT = q - t;
+              baseMinusT = base - t;
+              output.push(
+                stringFromCharCode(digitToBasic(t + qMinusT % baseMinusT, 0))
+              );
+              q = floor(qMinusT / baseMinusT);
+            }
+  
+            output.push(stringFromCharCode(digitToBasic(q, 0)));
+            bias = adapt(delta, handledCPCountPlusOne, handledCPCount == basicLength);
+            delta = 0;
+            ++handledCPCount;
+          }
+        }
+  
+        ++delta;
+        ++n;
+  
+      }
+      return output.join('');
+    }
+  
+    /**
+     * Converts a Punycode string representing a domain name or an email address
+     * to Unicode. Only the Punycoded parts of the input will be converted, i.e.
+     * it doesn't matter if you call it on a string that has already been
+     * converted to Unicode.
+     * @memberOf punycode
+     * @param {String} input The Punycoded domain name or email address to
+     * convert to Unicode.
+     * @returns {String} The Unicode representation of the given Punycode
+     * string.
+     */
+    function toUnicode(input) {
+      return mapDomain(input, function(string) {
+        return regexPunycode.test(string)
+          ? decode(string.slice(4).toLowerCase())
+          : string;
+      });
+    }
+  
+    /**
+     * Converts a Unicode string representing a domain name or an email address to
+     * Punycode. Only the non-ASCII parts of the domain name will be converted,
+     * i.e. it doesn't matter if you call it with a domain that's already in
+     * ASCII.
+     * @memberOf punycode
+     * @param {String} input The domain name or email address to convert, as a
+     * Unicode string.
+     * @returns {String} The Punycode representation of the given domain name or
+     * email address.
+     */
+    function toASCII(input) {
+      return mapDomain(input, function(string) {
+        return regexNonASCII.test(string)
+          ? 'xn--' + encode(string)
+          : string;
+      });
+    }
+  
+    /*--------------------------------------------------------------------------*/
+  
+    /** Define the public API */
+    punycode = {
+      /**
+       * A string representing the current Punycode.js version number.
+       * @memberOf punycode
+       * @type String
+       */
+      'version': '1.3.2',
+      /**
+       * An object of methods to convert from JavaScript's internal character
+       * representation (UCS-2) to Unicode code points, and back.
+       * @see <https://mathiasbynens.be/notes/javascript-encoding>
+       * @memberOf punycode
+       * @type Object
+       */
+      'ucs2': {
+        'decode': ucs2decode,
+        'encode': ucs2encode
+      },
+      'decode': decode,
+      'encode': encode,
+      'toASCII': toASCII,
+      'toUnicode': toUnicode
+    };
+  
+    /** Expose `punycode` */
+    // Some AMD build optimizers, like r.js, check for specific condition patterns
+    // like the following:
+    if (
+      typeof define == 'function' &&
+      typeof define.amd == 'object' &&
+      define.amd
+    ) {
+      define('punycode', function() {
+        return punycode;
+      });
+    } else if (freeExports && freeModule) {
+      if (module.exports == freeExports) { // in Node.js or RingoJS v0.8.0+
+        freeModule.exports = punycode;
+      } else { // in Narwhal or RingoJS v0.7.0-
+        for (key in punycode) {
+          punycode.hasOwnProperty(key) && (freeExports[key] = punycode[key]);
+        }
+      }
+    } else { // in Rhino or a web browser
+      root.punycode = punycode;
+    }
+  
+  }(this));
+  
+  }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+  },{}],81:[function(require,module,exports){
+  (function (global,Buffer){(function (){
   /*!
    * The buffer module from node.js, for the browser.
    *
@@ -16099,8 +16633,8 @@
     return val !== val // eslint-disable-line no-self-compare
   }
   
-  }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-  },{"base64-js":78,"buffer":80,"ieee754":82,"isarray":83}],81:[function(require,module,exports){
+  }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
+  },{"base64-js":78,"buffer":81,"ieee754":83,"isarray":84}],82:[function(require,module,exports){
   // Copyright Joyent, Inc. and other Node contributors.
   //
   // Permission is hereby granted, free of charge, to any person obtaining a
@@ -16404,7 +16938,7 @@
     return arg === void 0;
   }
   
-  },{}],82:[function(require,module,exports){
+  },{}],83:[function(require,module,exports){
   exports.read = function (buffer, offset, isLE, mLen, nBytes) {
     var e, m
     var eLen = (nBytes * 8) - mLen - 1
@@ -16490,14 +17024,14 @@
     buffer[offset + i - d] |= s * 128
   }
   
-  },{}],83:[function(require,module,exports){
+  },{}],84:[function(require,module,exports){
   var toString = {}.toString;
   
   module.exports = Array.isArray || function (arr) {
     return toString.call(arr) == '[object Array]';
   };
   
-  },{}],84:[function(require,module,exports){
+  },{}],85:[function(require,module,exports){
   (function(exports) {
     "use strict";
   
@@ -18166,7 +18700,7 @@
     exports.strictDeepEqual = strictDeepEqual;
   })(typeof exports === "undefined" ? this.jmespath = {} : exports);
   
-  },{}],85:[function(require,module,exports){
+  },{}],86:[function(require,module,exports){
   // shim for using process in browser
   var process = module.exports = {};
   
@@ -18352,540 +18886,6 @@
   };
   process.umask = function() { return 0; };
   
-  },{}],86:[function(require,module,exports){
-  (function (global){
-  /*! https://mths.be/punycode v1.3.2 by @mathias */
-  ;(function(root) {
-  
-    /** Detect free variables */
-    var freeExports = typeof exports == 'object' && exports &&
-      !exports.nodeType && exports;
-    var freeModule = typeof module == 'object' && module &&
-      !module.nodeType && module;
-    var freeGlobal = typeof global == 'object' && global;
-    if (
-      freeGlobal.global === freeGlobal ||
-      freeGlobal.window === freeGlobal ||
-      freeGlobal.self === freeGlobal
-    ) {
-      root = freeGlobal;
-    }
-  
-    /**
-     * The `punycode` object.
-     * @name punycode
-     * @type Object
-     */
-    var punycode,
-  
-    /** Highest positive signed 32-bit float value */
-    maxInt = 2147483647, // aka. 0x7FFFFFFF or 2^31-1
-  
-    /** Bootstring parameters */
-    base = 36,
-    tMin = 1,
-    tMax = 26,
-    skew = 38,
-    damp = 700,
-    initialBias = 72,
-    initialN = 128, // 0x80
-    delimiter = '-', // '\x2D'
-  
-    /** Regular expressions */
-    regexPunycode = /^xn--/,
-    regexNonASCII = /[^\x20-\x7E]/, // unprintable ASCII chars + non-ASCII chars
-    regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g, // RFC 3490 separators
-  
-    /** Error messages */
-    errors = {
-      'overflow': 'Overflow: input needs wider integers to process',
-      'not-basic': 'Illegal input >= 0x80 (not a basic code point)',
-      'invalid-input': 'Invalid input'
-    },
-  
-    /** Convenience shortcuts */
-    baseMinusTMin = base - tMin,
-    floor = Math.floor,
-    stringFromCharCode = String.fromCharCode,
-  
-    /** Temporary variable */
-    key;
-  
-    /*--------------------------------------------------------------------------*/
-  
-    /**
-     * A generic error utility function.
-     * @private
-     * @param {String} type The error type.
-     * @returns {Error} Throws a `RangeError` with the applicable error message.
-     */
-    function error(type) {
-      throw RangeError(errors[type]);
-    }
-  
-    /**
-     * A generic `Array#map` utility function.
-     * @private
-     * @param {Array} array The array to iterate over.
-     * @param {Function} callback The function that gets called for every array
-     * item.
-     * @returns {Array} A new array of values returned by the callback function.
-     */
-    function map(array, fn) {
-      var length = array.length;
-      var result = [];
-      while (length--) {
-        result[length] = fn(array[length]);
-      }
-      return result;
-    }
-  
-    /**
-     * A simple `Array#map`-like wrapper to work with domain name strings or email
-     * addresses.
-     * @private
-     * @param {String} domain The domain name or email address.
-     * @param {Function} callback The function that gets called for every
-     * character.
-     * @returns {Array} A new string of characters returned by the callback
-     * function.
-     */
-    function mapDomain(string, fn) {
-      var parts = string.split('@');
-      var result = '';
-      if (parts.length > 1) {
-        // In email addresses, only the domain name should be punycoded. Leave
-        // the local part (i.e. everything up to `@`) intact.
-        result = parts[0] + '@';
-        string = parts[1];
-      }
-      // Avoid `split(regex)` for IE8 compatibility. See #17.
-      string = string.replace(regexSeparators, '\x2E');
-      var labels = string.split('.');
-      var encoded = map(labels, fn).join('.');
-      return result + encoded;
-    }
-  
-    /**
-     * Creates an array containing the numeric code points of each Unicode
-     * character in the string. While JavaScript uses UCS-2 internally,
-     * this function will convert a pair of surrogate halves (each of which
-     * UCS-2 exposes as separate characters) into a single code point,
-     * matching UTF-16.
-     * @see `punycode.ucs2.encode`
-     * @see <https://mathiasbynens.be/notes/javascript-encoding>
-     * @memberOf punycode.ucs2
-     * @name decode
-     * @param {String} string The Unicode input string (UCS-2).
-     * @returns {Array} The new array of code points.
-     */
-    function ucs2decode(string) {
-      var output = [],
-          counter = 0,
-          length = string.length,
-          value,
-          extra;
-      while (counter < length) {
-        value = string.charCodeAt(counter++);
-        if (value >= 0xD800 && value <= 0xDBFF && counter < length) {
-          // high surrogate, and there is a next character
-          extra = string.charCodeAt(counter++);
-          if ((extra & 0xFC00) == 0xDC00) { // low surrogate
-            output.push(((value & 0x3FF) << 10) + (extra & 0x3FF) + 0x10000);
-          } else {
-            // unmatched surrogate; only append this code unit, in case the next
-            // code unit is the high surrogate of a surrogate pair
-            output.push(value);
-            counter--;
-          }
-        } else {
-          output.push(value);
-        }
-      }
-      return output;
-    }
-  
-    /**
-     * Creates a string based on an array of numeric code points.
-     * @see `punycode.ucs2.decode`
-     * @memberOf punycode.ucs2
-     * @name encode
-     * @param {Array} codePoints The array of numeric code points.
-     * @returns {String} The new Unicode string (UCS-2).
-     */
-    function ucs2encode(array) {
-      return map(array, function(value) {
-        var output = '';
-        if (value > 0xFFFF) {
-          value -= 0x10000;
-          output += stringFromCharCode(value >>> 10 & 0x3FF | 0xD800);
-          value = 0xDC00 | value & 0x3FF;
-        }
-        output += stringFromCharCode(value);
-        return output;
-      }).join('');
-    }
-  
-    /**
-     * Converts a basic code point into a digit/integer.
-     * @see `digitToBasic()`
-     * @private
-     * @param {Number} codePoint The basic numeric code point value.
-     * @returns {Number} The numeric value of a basic code point (for use in
-     * representing integers) in the range `0` to `base - 1`, or `base` if
-     * the code point does not represent a value.
-     */
-    function basicToDigit(codePoint) {
-      if (codePoint - 48 < 10) {
-        return codePoint - 22;
-      }
-      if (codePoint - 65 < 26) {
-        return codePoint - 65;
-      }
-      if (codePoint - 97 < 26) {
-        return codePoint - 97;
-      }
-      return base;
-    }
-  
-    /**
-     * Converts a digit/integer into a basic code point.
-     * @see `basicToDigit()`
-     * @private
-     * @param {Number} digit The numeric value of a basic code point.
-     * @returns {Number} The basic code point whose value (when used for
-     * representing integers) is `digit`, which needs to be in the range
-     * `0` to `base - 1`. If `flag` is non-zero, the uppercase form is
-     * used; else, the lowercase form is used. The behavior is undefined
-     * if `flag` is non-zero and `digit` has no uppercase form.
-     */
-    function digitToBasic(digit, flag) {
-      //  0..25 map to ASCII a..z or A..Z
-      // 26..35 map to ASCII 0..9
-      return digit + 22 + 75 * (digit < 26) - ((flag != 0) << 5);
-    }
-  
-    /**
-     * Bias adaptation function as per section 3.4 of RFC 3492.
-     * http://tools.ietf.org/html/rfc3492#section-3.4
-     * @private
-     */
-    function adapt(delta, numPoints, firstTime) {
-      var k = 0;
-      delta = firstTime ? floor(delta / damp) : delta >> 1;
-      delta += floor(delta / numPoints);
-      for (/* no initialization */; delta > baseMinusTMin * tMax >> 1; k += base) {
-        delta = floor(delta / baseMinusTMin);
-      }
-      return floor(k + (baseMinusTMin + 1) * delta / (delta + skew));
-    }
-  
-    /**
-     * Converts a Punycode string of ASCII-only symbols to a string of Unicode
-     * symbols.
-     * @memberOf punycode
-     * @param {String} input The Punycode string of ASCII-only symbols.
-     * @returns {String} The resulting string of Unicode symbols.
-     */
-    function decode(input) {
-      // Don't use UCS-2
-      var output = [],
-          inputLength = input.length,
-          out,
-          i = 0,
-          n = initialN,
-          bias = initialBias,
-          basic,
-          j,
-          index,
-          oldi,
-          w,
-          k,
-          digit,
-          t,
-          /** Cached calculation results */
-          baseMinusT;
-  
-      // Handle the basic code points: let `basic` be the number of input code
-      // points before the last delimiter, or `0` if there is none, then copy
-      // the first basic code points to the output.
-  
-      basic = input.lastIndexOf(delimiter);
-      if (basic < 0) {
-        basic = 0;
-      }
-  
-      for (j = 0; j < basic; ++j) {
-        // if it's not a basic code point
-        if (input.charCodeAt(j) >= 0x80) {
-          error('not-basic');
-        }
-        output.push(input.charCodeAt(j));
-      }
-  
-      // Main decoding loop: start just after the last delimiter if any basic code
-      // points were copied; start at the beginning otherwise.
-  
-      for (index = basic > 0 ? basic + 1 : 0; index < inputLength; /* no final expression */) {
-  
-        // `index` is the index of the next character to be consumed.
-        // Decode a generalized variable-length integer into `delta`,
-        // which gets added to `i`. The overflow checking is easier
-        // if we increase `i` as we go, then subtract off its starting
-        // value at the end to obtain `delta`.
-        for (oldi = i, w = 1, k = base; /* no condition */; k += base) {
-  
-          if (index >= inputLength) {
-            error('invalid-input');
-          }
-  
-          digit = basicToDigit(input.charCodeAt(index++));
-  
-          if (digit >= base || digit > floor((maxInt - i) / w)) {
-            error('overflow');
-          }
-  
-          i += digit * w;
-          t = k <= bias ? tMin : (k >= bias + tMax ? tMax : k - bias);
-  
-          if (digit < t) {
-            break;
-          }
-  
-          baseMinusT = base - t;
-          if (w > floor(maxInt / baseMinusT)) {
-            error('overflow');
-          }
-  
-          w *= baseMinusT;
-  
-        }
-  
-        out = output.length + 1;
-        bias = adapt(i - oldi, out, oldi == 0);
-  
-        // `i` was supposed to wrap around from `out` to `0`,
-        // incrementing `n` each time, so we'll fix that now:
-        if (floor(i / out) > maxInt - n) {
-          error('overflow');
-        }
-  
-        n += floor(i / out);
-        i %= out;
-  
-        // Insert `n` at position `i` of the output
-        output.splice(i++, 0, n);
-  
-      }
-  
-      return ucs2encode(output);
-    }
-  
-    /**
-     * Converts a string of Unicode symbols (e.g. a domain name label) to a
-     * Punycode string of ASCII-only symbols.
-     * @memberOf punycode
-     * @param {String} input The string of Unicode symbols.
-     * @returns {String} The resulting Punycode string of ASCII-only symbols.
-     */
-    function encode(input) {
-      var n,
-          delta,
-          handledCPCount,
-          basicLength,
-          bias,
-          j,
-          m,
-          q,
-          k,
-          t,
-          currentValue,
-          output = [],
-          /** `inputLength` will hold the number of code points in `input`. */
-          inputLength,
-          /** Cached calculation results */
-          handledCPCountPlusOne,
-          baseMinusT,
-          qMinusT;
-  
-      // Convert the input in UCS-2 to Unicode
-      input = ucs2decode(input);
-  
-      // Cache the length
-      inputLength = input.length;
-  
-      // Initialize the state
-      n = initialN;
-      delta = 0;
-      bias = initialBias;
-  
-      // Handle the basic code points
-      for (j = 0; j < inputLength; ++j) {
-        currentValue = input[j];
-        if (currentValue < 0x80) {
-          output.push(stringFromCharCode(currentValue));
-        }
-      }
-  
-      handledCPCount = basicLength = output.length;
-  
-      // `handledCPCount` is the number of code points that have been handled;
-      // `basicLength` is the number of basic code points.
-  
-      // Finish the basic string - if it is not empty - with a delimiter
-      if (basicLength) {
-        output.push(delimiter);
-      }
-  
-      // Main encoding loop:
-      while (handledCPCount < inputLength) {
-  
-        // All non-basic code points < n have been handled already. Find the next
-        // larger one:
-        for (m = maxInt, j = 0; j < inputLength; ++j) {
-          currentValue = input[j];
-          if (currentValue >= n && currentValue < m) {
-            m = currentValue;
-          }
-        }
-  
-        // Increase `delta` enough to advance the decoder's <n,i> state to <m,0>,
-        // but guard against overflow
-        handledCPCountPlusOne = handledCPCount + 1;
-        if (m - n > floor((maxInt - delta) / handledCPCountPlusOne)) {
-          error('overflow');
-        }
-  
-        delta += (m - n) * handledCPCountPlusOne;
-        n = m;
-  
-        for (j = 0; j < inputLength; ++j) {
-          currentValue = input[j];
-  
-          if (currentValue < n && ++delta > maxInt) {
-            error('overflow');
-          }
-  
-          if (currentValue == n) {
-            // Represent delta as a generalized variable-length integer
-            for (q = delta, k = base; /* no condition */; k += base) {
-              t = k <= bias ? tMin : (k >= bias + tMax ? tMax : k - bias);
-              if (q < t) {
-                break;
-              }
-              qMinusT = q - t;
-              baseMinusT = base - t;
-              output.push(
-                stringFromCharCode(digitToBasic(t + qMinusT % baseMinusT, 0))
-              );
-              q = floor(qMinusT / baseMinusT);
-            }
-  
-            output.push(stringFromCharCode(digitToBasic(q, 0)));
-            bias = adapt(delta, handledCPCountPlusOne, handledCPCount == basicLength);
-            delta = 0;
-            ++handledCPCount;
-          }
-        }
-  
-        ++delta;
-        ++n;
-  
-      }
-      return output.join('');
-    }
-  
-    /**
-     * Converts a Punycode string representing a domain name or an email address
-     * to Unicode. Only the Punycoded parts of the input will be converted, i.e.
-     * it doesn't matter if you call it on a string that has already been
-     * converted to Unicode.
-     * @memberOf punycode
-     * @param {String} input The Punycoded domain name or email address to
-     * convert to Unicode.
-     * @returns {String} The Unicode representation of the given Punycode
-     * string.
-     */
-    function toUnicode(input) {
-      return mapDomain(input, function(string) {
-        return regexPunycode.test(string)
-          ? decode(string.slice(4).toLowerCase())
-          : string;
-      });
-    }
-  
-    /**
-     * Converts a Unicode string representing a domain name or an email address to
-     * Punycode. Only the non-ASCII parts of the domain name will be converted,
-     * i.e. it doesn't matter if you call it with a domain that's already in
-     * ASCII.
-     * @memberOf punycode
-     * @param {String} input The domain name or email address to convert, as a
-     * Unicode string.
-     * @returns {String} The Punycode representation of the given domain name or
-     * email address.
-     */
-    function toASCII(input) {
-      return mapDomain(input, function(string) {
-        return regexNonASCII.test(string)
-          ? 'xn--' + encode(string)
-          : string;
-      });
-    }
-  
-    /*--------------------------------------------------------------------------*/
-  
-    /** Define the public API */
-    punycode = {
-      /**
-       * A string representing the current Punycode.js version number.
-       * @memberOf punycode
-       * @type String
-       */
-      'version': '1.3.2',
-      /**
-       * An object of methods to convert from JavaScript's internal character
-       * representation (UCS-2) to Unicode code points, and back.
-       * @see <https://mathiasbynens.be/notes/javascript-encoding>
-       * @memberOf punycode
-       * @type Object
-       */
-      'ucs2': {
-        'decode': ucs2decode,
-        'encode': ucs2encode
-      },
-      'decode': decode,
-      'encode': encode,
-      'toASCII': toASCII,
-      'toUnicode': toUnicode
-    };
-  
-    /** Expose `punycode` */
-    // Some AMD build optimizers, like r.js, check for specific condition patterns
-    // like the following:
-    if (
-      typeof define == 'function' &&
-      typeof define.amd == 'object' &&
-      define.amd
-    ) {
-      define('punycode', function() {
-        return punycode;
-      });
-    } else if (freeExports && freeModule) {
-      if (module.exports == freeExports) { // in Node.js or RingoJS v0.8.0+
-        freeModule.exports = punycode;
-      } else { // in Narwhal or RingoJS v0.7.0-
-        for (key in punycode) {
-          punycode.hasOwnProperty(key) && (freeExports[key] = punycode[key]);
-        }
-      }
-    } else { // in Rhino or a web browser
-      root.punycode = punycode;
-    }
-  
-  }(this));
-  
-  }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
   },{}],87:[function(require,module,exports){
   // Copyright Joyent, Inc. and other Node contributors.
   //
@@ -19216,7 +19216,7 @@
   },{}],92:[function(require,module,exports){
   arguments[4][89][0].apply(exports,arguments)
   },{"./decode":90,"./encode":91,"dup":89}],93:[function(require,module,exports){
-  (function (setImmediate,clearImmediate){
+  (function (setImmediate,clearImmediate){(function (){
   var nextTick = require('process/browser.js').nextTick;
   var apply = Function.prototype.apply;
   var slice = Array.prototype.slice;
@@ -19293,8 +19293,8 @@
   exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
     delete immediateIds[id];
   };
-  }).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-  },{"process/browser.js":85,"timers":93}],94:[function(require,module,exports){
+  }).call(this)}).call(this,require("timers").setImmediate,require("timers").clearImmediate)
+  },{"process/browser.js":86,"timers":93}],94:[function(require,module,exports){
   // Copyright Joyent, Inc. and other Node contributors.
   //
   // Permission is hereby granted, free of charge, to any person obtaining a
@@ -20003,7 +20003,7 @@
     return  arg == null;
   }
   
-  },{"punycode":86,"querystring":89}],95:[function(require,module,exports){
+  },{"punycode":80,"querystring":89}],95:[function(require,module,exports){
   if (typeof Object.create === 'function') {
     // implementation from standard node.js 'util' module
     module.exports = function inherits(ctor, superCtor) {
@@ -20036,7 +20036,7 @@
       && typeof arg.readUInt8 === 'function';
   }
   },{}],97:[function(require,module,exports){
-  (function (process,global){
+  (function (process,global){(function (){
   // Copyright Joyent, Inc. and other Node contributors.
   //
   // Permission is hereby granted, free of charge, to any person obtaining a
@@ -20624,8 +20624,8 @@
     return Object.prototype.hasOwnProperty.call(obj, prop);
   }
   
-  }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-  },{"./support/isBuffer":96,"_process":85,"inherits":95}],98:[function(require,module,exports){
+  }).call(this)}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+  },{"./support/isBuffer":96,"_process":86,"inherits":95}],98:[function(require,module,exports){
   var v1 = require('./v1');
   var v4 = require('./v4');
   
@@ -21054,7 +21054,6 @@
   
   },{"../apis/connect-2017-02-15.min":3,"../apis/sts-2011-06-15.min":5,"./browser_loader":16,"./core":18,"./services/sts":61}]},{},[105]);
   
-  
 /*! @license sprintf.js | Copyright (c) 2007-2013 Alexandru Marasteanu <hello at alexei dot ro> | 3 clause BSD license */
 
 (function() {
@@ -21320,6 +21319,14 @@
     this.exception = null;
     this.objects = [];
     this.line = 0;
+    this.agentResourceId = null;
+    try {
+      if (connect.agent.initialized){
+        this.agentResourceId = new connect.Agent()._getResourceId();
+      }
+    } catch(e) {
+      console.log("Issue finding agentResourceId: ", e); //can't use our logger here as we might infinitely attempt to log this error.
+    }
     this.loggerId = loggerId;
   };
 
@@ -21375,9 +21382,10 @@
    * to the console.
    */
   LogEntry.prototype.toString = function () {
-    return connect.sprintf("[%s] [%s]: %s",
+    return connect.sprintf("[%s] [%s] [%s]: %s",
       this.getTime() && this.getTime().toISOString ? this.getTime().toISOString() : "???",
       this.getLevel(),
+      this.getAgentResourceId(),
       this.getText());
   };
 
@@ -21387,6 +21395,10 @@
   LogEntry.prototype.getTime = function () {
     return this.time;
   };
+
+  LogEntry.prototype.getAgentResourceId = function () {
+    return this.agentResourceId;
+  }
 
   /**
    * Get the level of the log entry.
@@ -21464,6 +21476,7 @@
     this._logRollTimer = null;
     this._loggerId = new Date().getTime() + "-" + Math.random().toString(36).slice(2);
     this.setLogRollInterval(DEFAULT_LOG_ROLL_INTERVAL);
+    this._startLogIndexToPush = 0;
   };
 
   /**
@@ -21482,6 +21495,7 @@
       this._logRollTimer = global.setInterval(function () {
         this._rolledLogs = this._logs;
         this._logs = [];
+        this._startLogIndexToPush = 0;
         self.info("Log roll interval occurred.");
       }, this._logRollInterval);
     } else {
@@ -21529,6 +21543,8 @@
   };
 
   Logger.prototype.addLogEntry = function (logEntry) {
+    // Call this second time as in some places this function is called directly
+    redactSensitiveInfo(logEntry);
     this._logs.push(logEntry);
 
     //For now only send softphone logs only.
@@ -21697,6 +21713,35 @@
     });
   };
 
+  Logger.prototype.scheduleUpstreamOuterContextCCPserverBoundLogsPush = function(conduit) {
+    global.setInterval(connect.hitch(this, this.pushOuterContextCCPserverBoundLogsUpstream, conduit), 1000);
+  }
+
+  Logger.prototype.scheduleUpstreamOuterContextCCPLogsPush = function(conduit) {
+    global.setInterval(connect.hitch(this, this.pushOuterContextCCPLogsUpstream, conduit), 1000);
+  }
+
+  Logger.prototype.pushOuterContextCCPserverBoundLogsUpstream = function(conduit) {
+    if (this._serverBoundInternalLogs.length > 0) {
+      for (var i = 0; i < this._serverBoundInternalLogs.length; i++) {
+        this._serverBoundInternalLogs[i].text = this._serverBoundInternalLogs[i].text;
+      }
+
+      conduit.sendUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, this._serverBoundInternalLogs);
+      this._serverBoundInternalLogs = [];
+    }
+  }
+
+  Logger.prototype.pushOuterContextCCPLogsUpstream = function(conduit) {
+    for (var i = this._startLogIndexToPush; i < this._logs.length; i++) {
+      if (this._logs[i].loggerId !== this._loggerId) {
+        continue;
+      }
+      conduit.sendUpstream(connect.EventType.LOG, this._logs[i]);
+    }
+    this._startLogIndexToPush = this._logs.length;
+  }
+
   Logger.prototype.getLoggerId = function () {
     return this._loggerId;
   };
@@ -21763,8 +21808,36 @@
     this._serverBoundInternalLogs = [];
   };
 
+  /**
+   * Wrap a function with try catch block
+   */
+  var tryCatchWrapperMethod = function (fn) {
+    var wrappedfunction = function() {
+      try {
+        return fn.apply(this, arguments);
+      } catch (e) {
+        // Since this wraps Logger class, we can only print it in the console and eat it.
+        CONSOLE_LOGGER_MAP.ERROR(e);
+      }
+    }
+    return wrappedfunction;
+  }
+  /**
+   * This is a wrapper method to wrap each function
+   * in an object with try catch block.
+   */
+  var tryCatchWrapperObject = function (obj) {
+    for (var method in obj) {
+      if (typeof(obj[method]) === 'function') {
+        obj[method] = tryCatchWrapperMethod(obj[method]);
+      }
+    }
+  }
+
   /** Create the singleton logger instance. */
   connect.rootLogger = new Logger();
+  tryCatchWrapperObject(connect.rootLogger);
+
 
   /** Fetch the singleton logger instance. */
   var getLog = function () {
@@ -22213,7 +22286,7 @@
       function fetchData(maxRetry) {
         fetch(endpoint, options).then(function (res) {
           if (res.status === connect.HTTP_STATUS_CODES.SUCCESS) {
-            resolve(res.json());
+            res.json().then(json => resolve(json)).catch(() => resolve({}));
           } else if (maxRetry !== 1 && (res.status >= connect.HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR || res.status === connect.HTTP_STATUS_CODES.TOO_MANY_REQUESTS)) {
             setTimeout(function () {
               fetchData(--maxRetry);
@@ -22262,18 +22335,24 @@
   };
 
   connect.publishMetric = function (metricData) {
-    var bus = connect.core.getEventBus();
-    bus.trigger(connect.EventType.CLIENT_METRIC, metricData);
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.CLIENT_METRIC,
+      data: metricData
+    });
   };
 
   connect.publishSoftphoneStats = function(stats) {
-    var bus = connect.core.getEventBus();
-    bus.trigger(connect.EventType.SOFTPHONE_STATS, stats);
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.SOFTPHONE_STATS,
+      data: stats
+    });
   };
 
   connect.publishSoftphoneReport = function(report) {
-    var bus = connect.core.getEventBus();
-    bus.trigger(connect.EventType.SOFTPHONE_REPORT, report);
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.SOFTPHONE_REPORT,
+      data: report
+    });
   };
 
   connect.publishClientSideLogs = function(logs) {
@@ -22453,7 +22532,7 @@
     var error = {};
     error.type = type;
     error.message = message;
-    error.stack = Error(message);
+    error.stack = Error(message).stack;
     error.err = err;
     return error;
   }
@@ -22507,7 +22586,10 @@
     'server_bound_internal_log',
     'mute',
     "iframe_style",
-    "update_connected_ccps"
+    "update_connected_ccps",
+    "outer_context_info",
+    "media_device_request",
+    "media_device_response"
   ]);
 
   /**---------------------------------------------------------------
@@ -22540,7 +22622,8 @@
     'state_change',
     'acw',
     'mute_toggle',
-    'local_media_stream_created'
+    'local_media_stream_created',
+    'enqueued_next_state'
   ]);
 
   /**---------------------------------------------------------------
@@ -22577,6 +22660,10 @@
     'ended',
     'error',
     'accepted'
+  ]);
+
+  var TaskListEvents = connect.makeNamespacedEnum('taskList', [
+    'activate_channel_with_view_type'
   ]);
 
 
@@ -22804,6 +22891,7 @@
   connect.ConnectionEvents = ConnectionEvents;
   connect.ConnnectionEvents = ConnectionEvents; //deprecate on next major version release.
   connect.ContactEvents = ContactEvents;
+  connect.TaskListEvents = TaskListEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
 })();
@@ -23193,6 +23281,7 @@
     */
    connect.AgentAppClientMethods = {
       GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
+      DELETE_VOICEID_SPEAKER: "AgentAppService.VoiceId.deleteSpeaker",
       ENROLL_SPEAKER_IN_VOICEID: "AgentAppService.VoiceId.enrollBySession",
       EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
       GET_SPEAKER_STATUS: "AgentAppService.VoiceId.describeSpeaker",
@@ -23343,7 +23432,19 @@
       connect.fetch(self.endpointUrl, options).then(function(res){
          callbacks.success(res);
       }).catch(function(err){
-         callbacks.failure(err);
+         const reader = err.body.getReader();
+         let body = '';
+         const decoder = new TextDecoder();
+         reader.read().then(function processText({ done, value }) {
+            if (done) {
+               var error = JSON.parse(body);
+               error.status = err.status;
+               callbacks.failure(error);
+               return;
+            }
+            body += decoder.decode(value);
+            return reader.read().then(processText);
+         });
       })
    };
    /**---------------------------------------------------------------
@@ -23879,16 +23980,20 @@
    */
   connect.VoiceIdErrorTypes = connect.makeEnum([
     'no_speaker_id_found',
+    'speaker_id_not_enrolled',
     'get_speaker_id_failed',
     'get_speaker_status_failed',
     'opt_out_speaker_failed',
+    'delete_speaker_failed',
     'start_session_failed',
     'evaluate_speaker_failed',
+    'session_not_exists',
     'describe_session_failed',
     'enroll_speaker_failed',
     'update_speaker_id_failed',
     'not_supported_on_conference_calls',
-    'timeout'
+    'enroll_speaker_timeout',
+    'evaluate_speaker_timeout'
   ]);
 
   /*----------------------------------------------------------------
@@ -23912,7 +24017,8 @@
    */
   connect.VoiceIdStreamingStatus = connect.makeEnum([
     "ONGOING",
-    "ENDED"
+    "ENDED",
+    "PENDING_CONFIGURATION"
   ]);
 
   /*----------------------------------------------------------------
@@ -23924,7 +24030,17 @@
     "NOT_ENOUGH_SPEECH",
     "SPEAKER_NOT_ENROLLED",
     "SPEAKER_OPTED_OUT",
-    "SPEAKER_ID_NOT_PROVIDED"
+    "SPEAKER_ID_NOT_PROVIDED",
+    "SPEAKER_EXPIRED"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId fraud detection decision
+   */
+  connect.VoiceIdFraudDetectionDecision = connect.makeEnum([
+    "NOT_ENOUGH_SPEECH",
+    "HIGH_RISK",
+    "LOW_RISK"
   ]);
 
   /*----------------------------------------------------------------
@@ -23936,11 +24052,23 @@
     "Inconclusive",
     "NotEnrolled",
     "OptedOut",
+    "NotEnabled",
     "Error"
   ]);
 
   /*----------------------------------------------------------------
-   * enum for VoiceId EnrollmentRequestStatus status
+   * enum for contact flow  fraud detection decision
+   */
+  connect.ContactFlowFraudDetectionDecision = connect.makeEnum([
+    "HighRisk",
+    "LowRisk",
+    "Inconclusive",
+    "NotEnabled",
+    "Error"
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId EnrollmentRequest Status 
    */
   connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
     "NOT_ENOUGH_SPEECH",
@@ -23948,6 +24076,22 @@
     "COMPLETED",
     "FAILED"
   ]);
+
+  /*----------------------------------------------------------------
+   * enum for VoiceId Speaker status
+   */
+  connect.VoiceIdSpeakerStatus = connect.makeEnum([
+    "OPTED_OUT",
+    "ENROLLED"
+  ])
+
+  connect.VoiceIdConstants = {
+    EVALUATION_MAX_POLL_TIMES: 120, // EvaluateSpeaker is Polling for maximum 2 mins.
+    EVALUATION_POLLING_INTERVAL: 1000,
+    ENROLLMENT_MAX_POLL_TIMES: 120, // EnrollmentSpeaker is Polling for maximum 10 mins.
+    ENROLLMENT_POLLING_INTERVAL: 5000,
+    START_SESSION_DELAY: 8000
+  }
 
   /*----------------------------------------------------------------
    * class Agent
@@ -24082,6 +24226,10 @@
     return this._getData().snapshot.state;
   };
 
+  Agent.prototype.getNextState = function () {
+    return this._getData().snapshot.nextState;
+  };
+
   Agent.prototype.getAvailabilityState = function () {
     return this._getData().snapshot.agentAvailabilityState;
   };
@@ -24155,7 +24303,7 @@
     var client = connect.core.getClient();
     if (configuration && configuration.agentPreferences && !connect.isValidLocale(configuration.agentPreferences.locale)) {
       if (callbacks && callbacks.failure) {
-        callbacks.failure(AgentErrorStates.INVALID_LOCALE);
+        callbacks.failure(connect.AgentErrorStates.INVALID_LOCALE);
       }
     } else {
       client.call(connect.ClientMethods.UPDATE_AGENT_CONFIGURATION, {
@@ -24176,11 +24324,16 @@
     }
   };
 
-  Agent.prototype.setState = function (state, callbacks) {
+  Agent.prototype.setState = function (state, callbacks, options) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.PUT_AGENT_STATE, {
-      state: connect.assertNotNull(state, 'state')
+      state: connect.assertNotNull(state, 'state'),
+      enqueueNextState: options && !!options.enqueueNextState
     }, callbacks);
+  };
+  Agent.prototype.onEnqueuedNextState = function (f) {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
   };
 
   Agent.prototype.setStatus = Agent.prototype.setState;
@@ -24251,6 +24404,19 @@
   };
 
   Agent.prototype.getAddresses = Agent.prototype.getEndpoints;
+
+  //Internal identifier.
+  Agent.prototype._getResourceId = function() {
+    queueArns = this.getAllQueueARNs();
+    for (let queueArn of queueArns) {
+      const agentIdMatch = queueArn.match(/\/agent\/([^/]+)/);
+      
+      if (agentIdMatch) {
+        return agentIdMatch[1];
+      }
+    }
+    return new Error("Agent.prototype._getResourceId: queueArns did not contain agentResourceId: ", queueArns);
+  }
 
   Agent.prototype.toSnapshot = function () {
     return new connect.AgentSnapshot(this._getData());
@@ -24820,7 +24986,7 @@
               }
               resolve(obj);
             } else {
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call", err);
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call");
               reject(error);
             }
             
@@ -24829,7 +24995,7 @@
             connect.getLog().error("Get SpeakerId failed")
               .withObject({
                 err: err
-              });
+              }).sendInternalLogToServer();
             var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_ID_FAILED, "Get SpeakerId failed", err);
             reject(error);
           }
@@ -24851,12 +25017,20 @@
               resolve(data);
             },
             failure: function (err) {
-              connect.getLog().error("getSpeakerStatus failed")
-                .withObject({
-                  err: err
-                });
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
-              reject(error);
+              const parsedErr = JSON.parse(err);
+              if (parsedErr.status === 400) {
+                var data = parsedErr;
+                data.type = data.type ? data.type : connect.VoiceIdErrorTypes.SPEAKER_ID_NOT_ENROLLED;
+                connect.getLog().info("Speaker is not enrolled.").sendInternalLogToServer();
+                resolve(data);
+              } else {
+                connect.getLog().error("getSpeakerStatus failed")
+                  .withObject({
+                    err: err
+                  }).sendInternalLogToServer();
+                var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
+                reject(error);
+              }
             }
           });
       }).catch(function(err){
@@ -24884,8 +25058,37 @@
               connect.getLog().error("optOutSpeaker failed")
                 .withObject({
                   err: err,
-                });
+                }).sendInternalLogToServer();
               var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.OPT_OUT_SPEAKER_FAILED, "optOutSpeaker failed.", err);
+              reject(error);
+            }
+          });
+      }).catch(function(err){
+        reject(err);
+      });
+    });
+  };
+
+  VoiceId.prototype.deleteSpeaker = function () {
+    var self = this;
+    self.checkConferenceCall();
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      self.getSpeakerId().then(function(data){
+        client.call(connect.AgentAppClientMethods.DELETE_VOICEID_SPEAKER, {
+          "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
+          "DomainId" : "ConnectDefaultDomainId"
+          }, {
+            success: function (data) {
+              connect.getLog().info("deleteSpeaker succeeded");
+              resolve(data);
+            },
+            failure: function (err) {
+              connect.getLog().error("deleteSpeaker failed")
+                .withObject({
+                  err: err,
+                }).sendInternalLogToServer();
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.DELETE_SPEAKER_FAILED, "deleteSpeaker failed.", err);
               reject(error);
             }
           });
@@ -24917,7 +25120,7 @@
             connect.getLog().error("startVoiceIdSession failed")
               .withObject({
                 err: err
-              });
+              }).sendInternalLogToServer();
             var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "startVoiceIdSession failed", err);
             reject(error);
           }
@@ -24930,64 +25133,128 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-    var maxPollTimes = 120; // Polling for maximum 2 mins.
-    var milliInterval = 1000;
+    var pollTimes = 0; 
     return new Promise(function (resolve, reject) {
       function evaluate() {
         client.call(connect.AgentAppClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
-          "SessionNameOrId": contactData.initialContactId || this.contactId
+          "SessionNameOrId": contactData.initialContactId || this.contactId,
+          "DomainId" : "ConnectDefaultDomainId"
         }, {
           success: function (data) {
-            if(maxPollTimes-- !== 1) {
-              if(data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED && data.AuthenticationResult.Decision === connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH){
-                data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
-                resolve(data);
-              }else if(data.AuthenticationResult.Decision !== connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH) {
-                switch (data.AuthenticationResult.Decision) {
-                  case connect.VoiceIdAuthenticationDecision.ACCEPT:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.AUTHENTICATED;
-                    break;
-                  case connect.VoiceIdAuthenticationDecision.REJECT:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_AUTHENTICATED;
-                    break;
-                  case connect.VoiceIdAuthenticationDecision.SPEAKER_OPTED_OUT:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.OPTED_OUT;
-                    break;
-                  case connect.VoiceIdAuthenticationDecision.SPEAKER_NOT_ENROLLED:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENROLLED;
-                    break;
-                  default:
-                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.ERROR;
-                }
-                resolve(data);
+            if(++pollTimes < connect.VoiceIdConstants.EVALUATION_MAX_POLL_TIMES) {
+              if(data.StreamingStatus === connect.VoiceIdStreamingStatus.PENDING_CONFIGURATION) {
+                setTimeout(evaluate, connect.VoiceIdConstants.EVALUATION_POLLING_INTERVAL);
               } else {
-                setTimeout(evaluate, milliInterval);
+                if(!data.AuthenticationResult) {
+                  data.AuthenticationResult = {};
+                  data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENABLED;
+                }
+
+                if(!data.FraudDetectionResult) {
+                  data.FraudDetectionResult = {};
+                  data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.NOT_ENABLED;
+                }
+
+                //Resolve if both authentication and fraud detection are not enabled.
+                if(!self.isAuthEnabled(data.AuthenticationResult.Decision) && 
+                  !self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
+                    resolve(data);
+                    return;
+                }
+
+                if(data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED) {
+                  if(self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision)) {
+                    data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
+                  }
+                  if(self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision)) {
+                    data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.INCONCLUSIVE;
+                  }
+                }
+                // Voice print is not long enough for both authentication and fraud detection
+                if(self.isAuthResultInconclusive(data.AuthenticationResult.Decision) &&
+                  self.isFraudResultInconclusive(data.FraudDetectionResult.Decision)) {
+                    resolve(data);
+                    return;
+                }
+
+                if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) && 
+                  self.isAuthEnabled(data.AuthenticationResult.Decision)) {
+                  switch (data.AuthenticationResult.Decision) {
+                    case connect.VoiceIdAuthenticationDecision.ACCEPT:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.AUTHENTICATED;
+                      break;
+                    case connect.VoiceIdAuthenticationDecision.REJECT:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_AUTHENTICATED;
+                      break;
+                    case connect.VoiceIdAuthenticationDecision.SPEAKER_OPTED_OUT:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.OPTED_OUT;
+                      break;
+                    case connect.VoiceIdAuthenticationDecision.SPEAKER_NOT_ENROLLED:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENROLLED;
+                      break;
+                    default:
+                      data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.ERROR;
+                  }
+                }
+
+                if(!self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision) && 
+                  self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
+                  switch (data.FraudDetectionResult.Decision) {
+                    case connect.VoiceIdFraudDetectionDecision.HIGH_RISK:
+                      data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.HIGH_RISK;
+                      break;
+                    case connect.VoiceIdFraudDetectionDecision.LOW_RISK:
+                      data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.LOW_RISK;
+                      break;
+                    default:
+                      data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.ERROR;
+                  }
+                }
+
+                if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) &&
+                  !self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision)) {
+                    // Resolve only when both authentication and fraud detection have results. Otherwise, keep polling.
+                    resolve(data);
+                    return;
+                } else {
+                  setTimeout(evaluate, connect.VoiceIdConstants.EVALUATION_POLLING_INTERVAL);
+                }
               }
             } else {
-              connect.getLog().error("evaluateSpeaker timeout");
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "evaluateSpeaker timeout");
+              connect.getLog().error("evaluateSpeaker timeout").sendInternalLogToServer();
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_TIMEOUT, "evaluateSpeaker timeout");
               reject(error);
             }
           },
           failure: function (err) {
-            connect.getLog().error("evaluateSpeaker failed")
-              .withObject({
-                err: err
-              });
-            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
+            var error;
+            var parsedErr = JSON.parse(err);
+            switch(parsedErr.status) {
+              case 400:
+                error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "evaluateSpeaker failed, session not exists", err);
+                connect.getLog().error("evaluateSpeaker failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
+                break;
+              default:
+                error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
+                connect.getLog().error("evaluateSpeaker failed").withObject({ err: err }).sendInternalLogToServer();    
+            }
             reject(error);
           }
         })
       }
-      if(!startNew){
-        evaluate();
-      } else {
-        self.startSession().then(function(data) {
+      self.syncSpeakerId().then(function () {
+        if(!startNew){
           evaluate();
-        }).catch(function(err){
-          reject(err)
-        });
-      }
+        } else {
+          self.startSession().then(function(data) {
+            evaluate();
+          }).catch(function(err){
+            reject(err)
+          });
+        }
+      }).catch(function (err) {
+        reject(err);
+      })
     });
   };
 
@@ -24997,7 +25264,8 @@
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       client.call(connect.AgentAppClientMethods.DESCRIBE_VOICEID_SESSION, {
-        "SessionNameOrId": contactData.initialContactId || this.contactId
+        "SessionNameOrId": contactData.initialContactId || this.contactId,
+        "DomainId" : "ConnectDefaultDomainId"
       }, {
         success: function (data) {
           resolve(data)
@@ -25006,7 +25274,7 @@
           connect.getLog().error("describeSession failed")
             .withObject({
               err: err
-            });
+            }).sendInternalLogToServer();
           var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.DESCRIBE_SESSION_FAILED, "describeSession failed", err);
           reject(error);
         }
@@ -25016,38 +25284,42 @@
 
   VoiceId.prototype.checkEnrollmentStatus = function () {
     var self = this;
-    var maxPollingTimes = 120; // It is polling for maximum 10 mins.
-    var milliInterval = 5000;
+    var pollingTimes = 0;
 
     return new Promise(function (resolve, reject) {
       function describe () {
-        if(maxPollingTimes-- !== 1) {
+        if(++pollingTimes !== connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES) {
           self.describeSession().then(function(data){
             switch(data.Session.EnrollmentRequestDetails.Status) {
               case connect.VoiceIdEnrollmentRequestStatus.COMPLETED:
                 resolve(data);
                 break;
               case connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS:
-                setTimeout(describe, milliInterval);
+                setTimeout(describe, connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL);
                 break;
               case connect.VoiceIdEnrollmentRequestStatus.NOT_ENOUGH_SPEECH:
                 if(data.Session.StreamingStatus !== connect.VoiceIdStreamingStatus.ENDED) {
-                  setTimeout(describe,milliInterval);
+                  setTimeout(describe,connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL);
                 } else {
-                  self.startSession().then(function(data) {
-                    describe();
-                  }).catch(function(err, data){
-                    reject(err);
-                  });
+                  setTimeout(function(){
+                    self.startSession().then(function(data) {
+                      describe();
+                    }).catch(function(err, data){
+                      reject(err);
+                    });
+                  }, connect.VoiceIdConstants.START_SESSION_DELAY);
                 }
                 break;
               default:
-                reject(Error(data.Session.EnrollmentRequestDetails.Status));
+                var message = data.Session.EnrollmentRequestDetails.Message ? data.Session.EnrollmentRequestDetails.Message : "enrollSpeaker failed. Unknown enrollment status has been received";
+                connect.getLog().error(message).sendInternalLogToServer();
+  		          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, message, data.Session.EnrollmentRequestDetails.Status);
+  		          reject(error);
             }
           });
         } else {
-          connect.getLog().error("describeSession timeout");
-          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.TIMEOUT, "describeSession timeout");
+          connect.getLog().error("enrollSpeaker timeout").sendInternalLogToServer();
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_TIMEOUT, "enrollSpeaker timeout");
           reject(error);
         }
       }
@@ -25058,36 +25330,60 @@
   VoiceId.prototype.enrollSpeaker = function () {
     var self = this;
     self.checkConferenceCall();
+    return new Promise(function(resolve, reject) {
+      self.syncSpeakerId().then(function() {
+        self.getSpeakerStatus().then(function(data) {
+          return data;
+        }).then(function(data) {
+          if(data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
+            self.deleteSpeaker().then(function(data) {
+              self.enrollSpeakerHelper(resolve, reject);
+            }).catch(function(err) {
+              reject(err);
+            });
+          } else {
+            self.enrollSpeakerHelper(resolve, reject);
+          }
+        }).catch(function(err) {
+          reject(err);
+        })
+      }).catch(function(err) {
+        reject(err)
+      })
+    })
+  }
+
+  VoiceId.prototype.enrollSpeakerHelper = function (resolve, reject) {
+    var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-    return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
-        "SessionNameOrId": contactData.initialContactId || this.contactId
-        }, {
-          success: function (data) {
-            if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+    client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
+      "SessionNameOrId": contactData.initialContactId || this.contactId,
+      "DomainId" : "ConnectDefaultDomainId"
+      }, {
+        success: function (data) {
+          if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+            resolve(data);
+          } else {
+            self.checkEnrollmentStatus().then(function(data){
               resolve(data);
-            } else {
-              self.checkEnrollmentStatus().then(function(data){
-                resolve(data);
-              }).catch(function(err){
-                reject(err);
-              })
-            }
-          },
-          failure: function (err) {
-            connect.getLog().error("enrollSpeaker failed")
-              .withObject({
-                err: err
-              });
-            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
-            reject(error);
+            }).catch(function(err){
+              reject(err);
+            })
           }
-        });
-    });
+        },
+        failure: function (err) {
+          connect.getLog().error("enrollSpeaker failed")
+            .withObject({
+              err: err
+            }).sendInternalLogToServer();
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
+          reject(error);
+        }
+      });
   };
 
-  VoiceId.prototype.updateSpeakerId = function (speakerId) {
+  VoiceId.prototype.updateSpeakerIdInVoiceId = function (speakerId) {
     var self = this;
     self.checkConferenceCall();
     var client = connect.core.getClient();
@@ -25095,7 +25391,8 @@
     return new Promise(function (resolve, reject) {
       client.call(connect.AgentAppClientMethods.UPDATE_VOICEID_SESSION, {
         "SessionNameOrId": contactData.initialContactId || this.contactId,
-        "SpeakerId": connect.assertNotNull(speakerId, 'speakerId')
+        "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
+        "DomainId" : "ConnectDefaultDomainId"
         }, {
           success: function (data) {
             resolve(data);
@@ -25104,13 +25401,28 @@
             connect.getLog().error("updateSpeakerId failed")
               .withObject({
                 err: err
-              });
+              }).sendInternalLogToServer();
             var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerId failed", err);
             reject(error);
           }
         });
     });
   };
+
+  VoiceId.prototype.syncSpeakerId = function () {
+    var self = this;
+    return new Promise(function (resolve, reject) {
+      self.getSpeakerId().then(function(data){
+        self.updateSpeakerIdInVoiceId(data.speakerId).then(function(data){
+          resolve(data);
+        }).catch(function(err) {
+          reject(err);
+        })
+      }).catch(function(err){
+        reject(err);
+      });
+    })
+  }
 
   VoiceId.prototype.checkConferenceCall = function(){
     var self = this;
@@ -25121,7 +25433,31 @@
       throw new connect.NotImplementedError("VoiceId is not supported for conference calls");
     }
   }
-  
+
+  VoiceId.prototype.isAuthEnabled = function(authResult) {
+    return authResult !== connect.ContactFlowAuthenticationDecision.NOT_ENABLED;
+  }
+
+  VoiceId.prototype.isAuthResultNotEnoughSpeech = function(authResult) {
+    return authResult === connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH;
+  }
+
+  VoiceId.prototype.isAuthResultInconclusive = function(authResult) {
+    return authResult === connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
+  }
+
+  VoiceId.prototype.isFraudEnabled = function(fraudResult) {
+    return fraudResult !== connect.ContactFlowFraudDetectionDecision.NOT_ENABLED;
+  }
+
+  VoiceId.prototype.isFraudResultNotEnoughSpeech = function(fraudResult) {
+    return fraudResult === connect.VoiceIdFraudDetectionDecision.NOT_ENOUGH_SPEECH;
+  }
+
+  VoiceId.prototype.isFraudResultInconclusive = function(fraudResult) {
+    return fraudResult === connect.ContactFlowFraudDetectionDecision.INCONCLUSIVE;
+  }
+
   /**
    * @class VoiceConnection
    * @param {number} contactId 
@@ -25169,6 +25505,10 @@
     return this._speakerAuthenticator.optOutSpeaker();
   }
 
+  VoiceConnection.prototype.deleteVoiceIdSpeaker = function() {
+    return this._speakerAuthenticator.deleteSpeaker();
+  }
+
   VoiceConnection.prototype.evaluateSpeakerWithVoiceId = function(startNew) {
     return this._speakerAuthenticator.evaluateSpeaker(startNew);
   }
@@ -25178,7 +25518,7 @@
   }
 
   VoiceConnection.prototype.updateVoiceIdSpeakerId = function(speakerId) {
-    return this._speakerAuthenticator.updateSpeakerId(speakerId);
+    return this._speakerAuthenticator.updateSpeakerIdInVoiceId(speakerId);
   }
 
   /**
@@ -25395,13 +25735,15 @@
   /**
    * Starts the given function asynchronously only if the shared worker
    * says we are the master for the given topic.  If there is no master for
-   * the given topic, we become the master and start the function.
+   * the given topic, we become the master and start the function unless
+   * shouldNotBecomeMasterIfNone is true.
    *
    * @param topic The master topic we are concerned about.
    * @param f_true The callback to be invoked if we are the master.
    * @param f_else [optional] A callback to be invoked if we are not the master.
+   * @param shouldNotBecomeMasterIfNone [optional] if true, this tab won't become master.
    */
-  connect.ifMaster = function (topic, f_true, f_else) {
+  connect.ifMaster = function (topic, f_true, f_else, shouldNotBecomeMasterIfNone) {
     connect.assertNotNull(topic, "A topic must be provided.");
     connect.assertNotNull(f_true, "A true callback must be provided.");
 
@@ -25416,7 +25758,8 @@
 
     var masterClient = connect.core.getMasterClient();
     masterClient.call(connect.MasterMethods.CHECK_MASTER, {
-      topic: topic
+      topic: topic,
+      shouldNotBecomeMasterIfNone: shouldNotBecomeMasterIfNone
     }, {
         success: function (data) {
           if (data.isMaster) {
@@ -25473,7 +25816,7 @@
 })();
 
 
-!function(e){var n={};function t(o){if(n[o])return n[o].exports;var r=n[o]={i:o,l:!1,exports:{}};return e[o].call(r.exports,r,r.exports,t),r.l=!0,r.exports}t.m=e,t.c=n,t.d=function(e,n,o){t.o(e,n)||Object.defineProperty(e,n,{enumerable:!0,get:o})},t.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},t.t=function(e,n){if(1&n&&(e=t(e)),8&n)return e;if(4&n&&"object"==typeof e&&e&&e.__esModule)return e;var o=Object.create(null);if(t.r(o),Object.defineProperty(o,"default",{enumerable:!0,value:e}),2&n&&"string"!=typeof e)for(var r in e)t.d(o,r,function(n){return e[n]}.bind(null,r));return o},t.n=function(e){var n=e&&e.__esModule?function(){return e.default}:function(){return e};return t.d(n,"a",n),n},t.o=function(e,n){return Object.prototype.hasOwnProperty.call(e,n)},t.p="",t(t.s=2)}([function(e,n,t){"use strict";var o=t(1),r="NULL",i="CLIENT_LOGGER",c="DEBUG",s=2e3,a="aws/subscribe",u="aws/unsubscribe",l="aws/heartbeat",f="connected",p="disconnected";function d(e){return(d="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var b={assertTrue:function(e,n){if(!e)throw new Error(n)},assertNotNull:function(e,n){return b.assertTrue(null!==e&&void 0!==d(e),Object(o.sprintf)("%s must be provided",n||"A value")),e},isNonEmptyString:function(e){return"string"==typeof e&&e.length>0},assertIsList:function(e,n){if(!Array.isArray(e))throw new Error(n+" is not an array")},isFunction:function(e){return!!(e&&e.constructor&&e.call&&e.apply)},isObject:function(e){return!("object"!==d(e)||null===e)},isString:function(e){return"string"==typeof e},isNumber:function(e){return"number"==typeof e}},g=new RegExp("^(wss://)\\w*");b.validWSUrl=function(e){return g.test(e)},b.getSubscriptionResponse=function(e,n,t){return{topic:e,content:{status:n?"success":"failure",topics:t}}},b.assertIsObject=function(e,n){if(!b.isObject(e))throw new Error(n+" is not an object!")},b.addJitter=function(e){var n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:1;n=Math.min(n,1);var t=Math.random()>.5?1:-1;return Math.floor(e+t*e*Math.random()*n)},b.isNetworkOnline=function(){return navigator.onLine},b.isNetworkFailure=function(e){return!(!e._debug||!e._debug.type)&&"NetworkingError"===e._debug.type};var m=b;function y(e){return(y="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function S(e,n){return!n||"object"!==y(n)&&"function"!=typeof n?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):n}function k(e){return(k=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}function h(e,n){return(h=Object.setPrototypeOf||function(e,n){return e.__proto__=n,e})(e,n)}function v(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}function w(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}function C(e,n,t){return n&&w(e.prototype,n),t&&w(e,t),e}var T=function(){function e(){v(this,e)}return C(e,[{key:"debug",value:function(e){}},{key:"info",value:function(e){}},{key:"warn",value:function(e){}},{key:"error",value:function(e){}}]),e}(),O={DEBUG:10,INFO:20,WARN:30,ERROR:40},I=function(){function e(){v(this,e),this.updateLoggerConfig(),this.consoleLoggerWrapper=_()}return C(e,[{key:"writeToClientLogger",value:function(e,n){if(this.hasClientLogger())switch(e){case O.DEBUG:return this._clientLogger.debug(n);case O.INFO:return this._clientLogger.info(n);case O.WARN:return this._clientLogger.warn(n);case O.ERROR:return this._clientLogger.error(n)}}},{key:"isLevelEnabled",value:function(e){return e>=this._level}},{key:"hasClientLogger",value:function(){return null!==this._clientLogger}},{key:"getLogger",value:function(e){var n=e.prefix||"";return this._logsDestination===c?this.consoleLoggerWrapper:new N(n)}},{key:"updateLoggerConfig",value:function(e){var n=e||{};this._level=n.level||O.DEBUG,this._clientLogger=n.logger||null,this._logsDestination=r,n.debug&&(this._logsDestination=c),n.logger&&(this._logsDestination=i)}}]),e}(),W=function(){function e(){v(this,e)}return C(e,[{key:"debug",value:function(){}},{key:"info",value:function(){}},{key:"warn",value:function(){}},{key:"error",value:function(){}}]),e}(),N=function(e){function n(e){var t;return v(this,n),(t=S(this,k(n).call(this))).prefix=e||"",t}return function(e,n){if("function"!=typeof n&&null!==n)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(n&&n.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),n&&h(e,n)}(n,W),C(n,[{key:"debug",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.DEBUG,n)}},{key:"info",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.INFO,n)}},{key:"warn",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.WARN,n)}},{key:"error",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.ERROR,n)}},{key:"_shouldLog",value:function(e){return E.hasClientLogger()&&E.isLevelEnabled(e)}},{key:"_writeToClientLogger",value:function(e,n){return E.writeToClientLogger(e,n)}},{key:"_log",value:function(e,n){if(this._shouldLog(e)){var t=this._convertToSingleStatement(n);return this._writeToClientLogger(e,t)}}},{key:"_convertToSingleStatement",value:function(e){var n="";this.prefix&&(n+=this.prefix+" ");for(var t=0;t<e.length;t++){var o=e[t];n+=this._convertToString(o)+" "}return n}},{key:"_convertToString",value:function(e){try{if(!e)return"";if(m.isString(e))return e;if(m.isObject(e)&&m.isFunction(e.toString)){var n=e.toString();if("[object Object]"!==n)return n}return JSON.stringify(e)}catch(n){return console.error("Error while converting argument to string",e,n),""}}}]),n}(),_=function(){var e=new W;return e.debug=console.debug,e.info=console.info,e.warn=console.warn,e.error=console.error,e},E=new I;function L(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}var F=function(){function e(n){var t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:s;!function(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}(this,e),this.numAttempts=0,this.executor=n,this.hasActiveReconnection=!1,this.defaultRetry=t}var n,t,o;return n=e,(t=[{key:"retry",value:function(){var e=this;this.hasActiveReconnection||(this.hasActiveReconnection=!0,setTimeout(function(){e._execute()},this._getDelay()))}},{key:"_execute",value:function(){this.hasActiveReconnection=!1,this.executor(),this.numAttempts++}},{key:"connected",value:function(){this.numAttempts=0}},{key:"_getDelay",value:function(){var e=Math.pow(2,this.numAttempts)*this.defaultRetry;return e<=3e4?e:3e4}}])&&L(n.prototype,t),o&&L(n,o),e}();t.d(n,"a",function(){return R});var x=function(){var e=E.getLogger({}),n=m.isNetworkOnline(),t={primary:null,secondary:null},o={reconnectWebSocket:!0,websocketInitFailed:!1,exponentialBackOffTime:1e3,exponentialTimeoutHandle:null,lifeTimeTimeoutHandle:null,webSocketInitCheckerTimeoutId:null,connState:null},r={connectWebSocketRetryCount:0,connectionAttemptStartTime:null,noOpenConnectionsTimestamp:null},i={pendingResponse:!1,intervalHandle:null},c={initFailure:new Set,getWebSocketTransport:null,subscriptionUpdate:new Set,subscriptionFailure:new Set,topic:new Map,allMessage:new Set,connectionGain:new Set,connectionLost:new Set,connectionOpen:new Set,connectionClose:new Set},s={connConfig:null,promiseHandle:null,promiseCompleted:!0},d={subscribed:new Set,pending:new Set,subscriptionHistory:new Set},b={responseCheckIntervalId:null,requestCompleted:!0,reSubscribeIntervalId:null,consecutiveFailedSubscribeAttempts:0,consecutiveNoResponseRequest:0},g=new F(function(){U()}),y=new Set([a,u,l]),S=setInterval(function(){if(n!==m.isNetworkOnline()){if(!(n=m.isNetworkOnline()))return void J(e.info("Network offline"));var t=O();n&&(!t||w(t,WebSocket.CLOSING)||w(t,WebSocket.CLOSED))&&(J(e.info("Network online, connecting to WebSocket server")),U())}},250),k=function(n,t){n.forEach(function(n){try{n(t)}catch(n){J(e.error("Error executing callback",n))}})},h=function(e){if(null===e)return"NULL";switch(e.readyState){case WebSocket.CONNECTING:return"CONNECTING";case WebSocket.OPEN:return"OPEN";case WebSocket.CLOSING:return"CLOSING";case WebSocket.CLOSED:return"CLOSED";default:return"UNDEFINED"}},v=function(){var n=arguments.length>0&&void 0!==arguments[0]?arguments[0]:"";J(e.debug("["+n+"] Primary WebSocket: "+h(t.primary)+" | Secondary WebSocket: "+h(t.secondary)))},w=function(e,n){return e&&e.readyState===n},C=function(e){return w(e,WebSocket.OPEN)},T=function(e){return null===e||void 0===e.readyState||w(e,WebSocket.CLOSED)},O=function(){return null!==t.secondary?t.secondary:t.primary},I=function(){return C(O())},W=function(){if(i.pendingResponse)return J(e.warn("Heartbeat response not received")),clearInterval(i.intervalHandle),i.pendingResponse=!1,void U();I()?(J(e.debug("Sending heartbeat")),O().send(G(l)),i.pendingResponse=!0):(J(e.warn("Failed to send heartbeat since WebSocket is not open")),v("sendHeartBeat"),U())},N=function(){o.exponentialBackOffTime=1e3,i.pendingResponse=!1,o.reconnectWebSocket=!0,clearTimeout(o.lifeTimeTimeoutHandle),clearInterval(i.intervalHandle),clearTimeout(o.exponentialTimeoutHandle),clearTimeout(o.webSocketInitCheckerTimeoutId)},_=function(){b.consecutiveFailedSubscribeAttempts=0,b.consecutiveNoResponseRequest=0,clearInterval(b.responseCheckIntervalId),clearInterval(b.reSubscribeIntervalId)},L=function(){r.connectWebSocketRetryCount=0,r.connectionAttemptStartTime=null,r.noOpenConnectionsTimestamp=null},x=function(){try{J(e.info("WebSocket connection established!")),v("webSocketOnOpen"),null!==o.connState&&o.connState!==p||k(c.connectionGain),o.connState=f;var n=Date.now();k(c.connectionOpen,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,noOpenConnectionsTimestamp:r.noOpenConnectionsTimestamp,connectionEstablishedTime:n,timeToConnect:n-r.connectionAttemptStartTime,timeWithoutConnection:r.noOpenConnectionsTimestamp?n-r.noOpenConnectionsTimestamp:null}),L(),N(),O().openTimestamp=Date.now(),0===d.subscribed.size&&C(t.secondary)&&D(t.primary,"[Primary WebSocket] Closing WebSocket"),(d.subscribed.size>0||d.pending.size>0)&&(C(t.secondary)&&J(e.info("Subscribing secondary websocket to topics of primary websocket")),d.subscribed.forEach(function(e){d.subscriptionHistory.add(e),d.pending.add(e)}),d.subscribed.clear(),A()),W(),i.intervalHandle=setInterval(W,1e4);var a=1e3*s.connConfig.webSocketTransport.transportLifeTimeInSeconds;J(e.debug("Scheduling WebSocket manager reconnection, after delay "+a+" ms")),o.lifeTimeTimeoutHandle=setTimeout(function(){J(e.debug("Starting scheduled WebSocket manager reconnection")),U()},a)}catch(n){J(e.error("Error after establishing WebSocket connection",n))}},R=function(n){v("webSocketOnError"),J(e.error("WebSocketManager Error, error_event: ",JSON.stringify(n))),U()},j=function(n){var o=JSON.parse(n.data);switch(o.topic){case a:if(J(e.debug("Subscription Message received from webSocket server",n.data)),b.requestCompleted=!0,b.consecutiveNoResponseRequest=0,"success"===o.content.status)b.consecutiveFailedSubscribeAttempts=0,o.content.topics.forEach(function(e){d.subscriptionHistory.delete(e),d.pending.delete(e),d.subscribed.add(e)}),0===d.subscriptionHistory.size?C(t.secondary)&&(J(e.info("Successfully subscribed secondary websocket to all topics of primary websocket")),D(t.primary,"[Primary WebSocket] Closing WebSocket")):A(),k(c.subscriptionUpdate,o);else{if(clearInterval(b.reSubscribeIntervalId),++b.consecutiveFailedSubscribeAttempts,5===b.consecutiveFailedSubscribeAttempts)return k(c.subscriptionFailure,o),void(b.consecutiveFailedSubscribeAttempts=0);b.reSubscribeIntervalId=setInterval(function(){A()},500)}break;case l:J(e.debug("Heartbeat response received")),i.pendingResponse=!1;break;default:if(o.topic){if(J(e.debug("Message received for topic "+o.topic)),C(t.primary)&&C(t.secondary)&&0===d.subscriptionHistory.size&&this===t.primary)return void J(e.warn("Ignoring Message for Topic "+o.topic+", to avoid duplicates"));if(0===c.allMessage.size&&0===c.topic.size)return void J(e.warn("No registered callback listener for Topic",o.topic));k(c.allMessage,o),c.topic.has(o.topic)&&k(c.topic.get(o.topic),o)}else o.message?J(e.warn("WebSocketManager Message Error",o)):J(e.warn("Invalid incoming message",o))}},A=function n(){if(b.consecutiveNoResponseRequest>3)return J(e.warn("Ignoring subscribePendingTopics since we have exhausted max subscription retries with no response")),void k(c.subscriptionFailure,m.getSubscriptionResponse(a,!1,Array.from(d.pending)));I()?(clearInterval(b.responseCheckIntervalId),O().send(G(a,{topics:Array.from(d.pending)})),b.requestCompleted=!1,b.responseCheckIntervalId=setInterval(function(){b.requestCompleted||(++b.consecutiveNoResponseRequest,n())},1e3)):J(e.warn("Ignoring subscribePendingTopics call since Default WebSocket is not open"))},D=function(n,t){w(n,WebSocket.CONNECTING)||w(n,WebSocket.OPEN)?n.close(1e3,t):J(e.warn("Ignoring WebSocket Close request, WebSocket State: "+h(n)))},M=function(e){D(t.primary,"[Primary] WebSocket "+e),D(t.secondary,"[Secondary] WebSocket "+e)},P=function(){r.connectWebSocketRetryCount++;var n=m.addJitter(o.exponentialBackOffTime,.3);Date.now()+n<=s.connConfig.urlConnValidTime?(J(e.debug("Scheduling WebSocket reinitialization, after delay "+n+" ms")),o.exponentialTimeoutHandle=setTimeout(function(){return q()},n),o.exponentialBackOffTime*=2):(J(e.warn("WebSocket URL cannot be used to establish connection")),U())},H=function(n){N(),_(),J(e.error("WebSocket Initialization failed")),o.websocketInitFailed=!0,M("Terminating WebSocket Manager"),clearInterval(S),k(c.initFailure,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,reason:n}),L()},G=function(e,n){return JSON.stringify({topic:e,content:n})},z=function(n){return!!(m.isObject(n)&&m.isObject(n.webSocketTransport)&&m.isNonEmptyString(n.webSocketTransport.url)&&m.validWSUrl(n.webSocketTransport.url)&&1e3*n.webSocketTransport.transportLifeTimeInSeconds>=3e5)||(J(e.error("Invalid WebSocket Connection Configuration",n)),!1)},U=function(){if(m.isNetworkOnline())if(o.websocketInitFailed)J(e.debug("WebSocket Init had failed, ignoring this getWebSocketConnConfig request"));else{if(s.promiseCompleted)return N(),J(e.info("Fetching new WebSocket connection configuration")),r.connectionAttemptStartTime=r.connectionAttemptStartTime||Date.now(),s.promiseCompleted=!1,s.promiseHandle=c.getWebSocketTransport(),s.promiseHandle.then(function(n){return s.promiseCompleted=!0,J(e.debug("Successfully fetched webSocket connection configuration",n)),z(n)?(s.connConfig=n,s.connConfig.urlConnValidTime=Date.now()+85e3,g.connected(),q()):(H("Invalid WebSocket connection configuration: "+n),{webSocketConnectionFailed:!0})},function(n){return s.promiseCompleted=!0,J(e.error("Failed to fetch webSocket connection configuration",n)),m.isNetworkFailure(n)&&(J(e.info("Retrying fetching new WebSocket connection configuration")),g.retry()),{webSocketConnectionFailed:!0}});J(e.debug("There is an ongoing getWebSocketConnConfig request, this request will be ignored"))}else J(e.info("Network offline, ignoring this getWebSocketConnConfig request"))},q=function(){if(o.websocketInitFailed)return J(e.info("web-socket initializing had failed, aborting re-init")),{webSocketConnectionFailed:!0};if(!m.isNetworkOnline())return J(e.warn("System is offline aborting web-socket init")),{webSocketConnectionFailed:!0};J(e.info("Initializing Websocket Manager")),v("initWebSocket");try{if(z(s.connConfig)){var n=null;return C(t.primary)?(J(e.debug("Primary Socket connection is already open")),w(t.secondary,WebSocket.CONNECTING)||(J(e.debug("Establishing a secondary web-socket connection")),t.secondary=B()),n=t.secondary):(w(t.primary,WebSocket.CONNECTING)||(J(e.debug("Establishing a primary web-socket connection")),t.primary=B()),n=t.primary),o.webSocketInitCheckerTimeoutId=setTimeout(function(){C(n)||P()},1e3),{webSocketConnectionFailed:!1}}}catch(n){return J(e.error("Error Initializing web-socket-manager",n)),H("Failed to initialize new WebSocket: "+n.message),{webSocketConnectionFailed:!0}}},B=function(){var n=new WebSocket(s.connConfig.webSocketTransport.url);return n.addEventListener("open",x),n.addEventListener("message",j),n.addEventListener("error",R),n.addEventListener("close",function(i){return function(n,i){J(e.info("Socket connection is closed",n)),v("webSocketOnClose before-cleanup"),k(c.connectionClose,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),T(t.primary)&&(t.primary=null),T(t.secondary)&&(t.secondary=null),o.reconnectWebSocket&&(C(t.primary)||C(t.secondary)?T(t.primary)&&C(t.secondary)&&(J(e.info("[Primary] WebSocket Cleanly Closed")),t.primary=t.secondary,t.secondary=null):(J(e.warn("Neither primary websocket and nor secondary websocket have open connections, attempting to re-establish connection")),o.connState===p?J(e.info("Ignoring connectionLost callback invocation")):(k(c.connectionLost,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),r.noOpenConnectionsTimestamp=Date.now()),o.connState=p,U()),v("webSocketOnClose after-cleanup"))}(i,n)}),n},J=function(e){return e&&"function"==typeof e.sendInternalLogToServer&&e.sendInternalLogToServer(),e};this.init=function(n){if(m.assertTrue(m.isFunction(n),"transportHandle must be a function"),null===c.getWebSocketTransport)return c.getWebSocketTransport=n,U();J(e.warn("Web Socket Manager was already initialized"))},this.onInitFailure=function(e){return m.assertTrue(m.isFunction(e),"cb must be a function"),c.initFailure.add(e),o.websocketInitFailed&&e(),function(){return c.initFailure.delete(e)}},this.onConnectionOpen=function(e){return m.assertTrue(m.isFunction(e),"cb must be a function"),c.connectionOpen.add(e),function(){return c.connectionOpen.delete(e)}},this.onConnectionClose=function(e){return m.assertTrue(m.isFunction(e),"cb must be a function"),c.connectionClose.add(e),function(){return c.connectionClose.delete(e)}},this.onConnectionGain=function(e){return m.assertTrue(m.isFunction(e),"cb must be a function"),c.connectionGain.add(e),I()&&e(),function(){return c.connectionGain.delete(e)}},this.onConnectionLost=function(e){return m.assertTrue(m.isFunction(e),"cb must be a function"),c.connectionLost.add(e),o.connState===p&&e(),function(){return c.connectionLost.delete(e)}},this.onSubscriptionUpdate=function(e){return m.assertTrue(m.isFunction(e),"cb must be a function"),c.subscriptionUpdate.add(e),function(){return c.subscriptionUpdate.delete(e)}},this.onSubscriptionFailure=function(e){return m.assertTrue(m.isFunction(e),"cb must be a function"),c.subscriptionFailure.add(e),function(){return c.subscriptionFailure.delete(e)}},this.onMessage=function(e,n){return m.assertNotNull(e,"topicName"),m.assertTrue(m.isFunction(n),"cb must be a function"),c.topic.has(e)?c.topic.get(e).add(n):c.topic.set(e,new Set([n])),function(){return c.topic.get(e).delete(n)}},this.onAllMessage=function(e){return m.assertTrue(m.isFunction(e),"cb must be a function"),c.allMessage.add(e),function(){return c.allMessage.delete(e)}},this.subscribeTopics=function(e){m.assertNotNull(e,"topics"),m.assertIsList(e),e.forEach(function(e){d.subscribed.has(e)||d.pending.add(e)}),b.consecutiveNoResponseRequest=0,A()},this.sendMessage=function(n){if(m.assertIsObject(n,"payload"),void 0===n.topic||y.has(n.topic))J(e.warn("Cannot send message, Invalid topic",n));else{try{n=JSON.stringify(n)}catch(t){return void J(e.warn("Error stringify message",n))}I()?O().send(n):J(e.warn("Cannot send message, web socket connection is not open"))}},this.closeWebSocket=function(){N(),_(),o.reconnectWebSocket=!1,clearInterval(S),M("User request to close WebSocket")},this.terminateWebSocketManager=H},R={create:function(){return new x},setGlobalConfig:function(e){var n=e.loggerConfig;E.updateLoggerConfig(n)},LogLevel:O,Logger:T}},function(e,n,t){var o;!function(){"use strict";var r={not_string:/[^s]/,not_bool:/[^t]/,not_type:/[^T]/,not_primitive:/[^v]/,number:/[diefg]/,numeric_arg:/[bcdiefguxX]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijostTuvxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[+-]/};function i(e){return function(e,n){var t,o,c,s,a,u,l,f,p,d=1,b=e.length,g="";for(o=0;o<b;o++)if("string"==typeof e[o])g+=e[o];else if("object"==typeof e[o]){if((s=e[o]).keys)for(t=n[d],c=0;c<s.keys.length;c++){if(null==t)throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"',s.keys[c],s.keys[c-1]));t=t[s.keys[c]]}else t=s.param_no?n[s.param_no]:n[d++];if(r.not_type.test(s.type)&&r.not_primitive.test(s.type)&&t instanceof Function&&(t=t()),r.numeric_arg.test(s.type)&&"number"!=typeof t&&isNaN(t))throw new TypeError(i("[sprintf] expecting number but found %T",t));switch(r.number.test(s.type)&&(f=t>=0),s.type){case"b":t=parseInt(t,10).toString(2);break;case"c":t=String.fromCharCode(parseInt(t,10));break;case"d":case"i":t=parseInt(t,10);break;case"j":t=JSON.stringify(t,null,s.width?parseInt(s.width):0);break;case"e":t=s.precision?parseFloat(t).toExponential(s.precision):parseFloat(t).toExponential();break;case"f":t=s.precision?parseFloat(t).toFixed(s.precision):parseFloat(t);break;case"g":t=s.precision?String(Number(t.toPrecision(s.precision))):parseFloat(t);break;case"o":t=(parseInt(t,10)>>>0).toString(8);break;case"s":t=String(t),t=s.precision?t.substring(0,s.precision):t;break;case"t":t=String(!!t),t=s.precision?t.substring(0,s.precision):t;break;case"T":t=Object.prototype.toString.call(t).slice(8,-1).toLowerCase(),t=s.precision?t.substring(0,s.precision):t;break;case"u":t=parseInt(t,10)>>>0;break;case"v":t=t.valueOf(),t=s.precision?t.substring(0,s.precision):t;break;case"x":t=(parseInt(t,10)>>>0).toString(16);break;case"X":t=(parseInt(t,10)>>>0).toString(16).toUpperCase()}r.json.test(s.type)?g+=t:(!r.number.test(s.type)||f&&!s.sign?p="":(p=f?"+":"-",t=t.toString().replace(r.sign,"")),u=s.pad_char?"0"===s.pad_char?"0":s.pad_char.charAt(1):" ",l=s.width-(p+t).length,a=s.width&&l>0?u.repeat(l):"",g+=s.align?p+t+a:"0"===u?p+a+t:a+p+t)}return g}(function(e){if(s[e])return s[e];var n,t=e,o=[],i=0;for(;t;){if(null!==(n=r.text.exec(t)))o.push(n[0]);else if(null!==(n=r.modulo.exec(t)))o.push("%");else{if(null===(n=r.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(n[2]){i|=1;var c=[],a=n[2],u=[];if(null===(u=r.key.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(c.push(u[1]);""!==(a=a.substring(u[0].length));)if(null!==(u=r.key_access.exec(a)))c.push(u[1]);else{if(null===(u=r.index_access.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");c.push(u[1])}n[2]=c}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");o.push({placeholder:n[0],param_no:n[1],keys:n[2],sign:n[3],pad_char:n[4],align:n[5],width:n[6],precision:n[7],type:n[8]})}t=t.substring(n[0].length)}return s[e]=o}(e),arguments)}function c(e,n){return i.apply(null,[e].concat(n||[]))}var s=Object.create(null);n.sprintf=i,n.vsprintf=c,"undefined"!=typeof window&&(window.sprintf=i,window.vsprintf=c,void 0===(o=function(){return{sprintf:i,vsprintf:c}}.call(n,t,n,e))||(e.exports=o))}()},function(e,n,t){"use strict";t.r(n),function(e){t.d(n,"WebSocketManager",function(){return r});var o=t(0);e.connect=e.connect||{},connect.WebSocketManager=o.a;var r=o.a}.call(this,t(3))},function(e,n){var t;t=function(){return this}();try{t=t||new Function("return this")()}catch(e){"object"==typeof window&&(t=window)}e.exports=t}]);
+!function(e){var n={};function t(o){if(n[o])return n[o].exports;var r=n[o]={i:o,l:!1,exports:{}};return e[o].call(r.exports,r,r.exports,t),r.l=!0,r.exports}t.m=e,t.c=n,t.d=function(e,n,o){t.o(e,n)||Object.defineProperty(e,n,{enumerable:!0,get:o})},t.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},t.t=function(e,n){if(1&n&&(e=t(e)),8&n)return e;if(4&n&&"object"==typeof e&&e&&e.__esModule)return e;var o=Object.create(null);if(t.r(o),Object.defineProperty(o,"default",{enumerable:!0,value:e}),2&n&&"string"!=typeof e)for(var r in e)t.d(o,r,function(n){return e[n]}.bind(null,r));return o},t.n=function(e){var n=e&&e.__esModule?function(){return e.default}:function(){return e};return t.d(n,"a",n),n},t.o=function(e,n){return Object.prototype.hasOwnProperty.call(e,n)},t.p="",t(t.s=2)}([function(e,n,t){"use strict";var o=t(1),r="NULL",i="CLIENT_LOGGER",c="DEBUG",s=2e3,a="aws/subscribe",u="aws/unsubscribe",l="aws/heartbeat",f="connected",p="disconnected";function d(e){return(d="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var b={assertTrue:function(e,n){if(!e)throw new Error(n)},assertNotNull:function(e,n){return b.assertTrue(null!==e&&void 0!==d(e),Object(o.sprintf)("%s must be provided",n||"A value")),e},isNonEmptyString:function(e){return"string"==typeof e&&e.length>0},assertIsList:function(e,n){if(!Array.isArray(e))throw new Error(n+" is not an array")},isFunction:function(e){return!!(e&&e.constructor&&e.call&&e.apply)},isObject:function(e){return!("object"!==d(e)||null===e)},isString:function(e){return"string"==typeof e},isNumber:function(e){return"number"==typeof e}},g=new RegExp("^(wss://)\\w*");b.validWSUrl=function(e){return g.test(e)},b.getSubscriptionResponse=function(e,n,t){return{topic:e,content:{status:n?"success":"failure",topics:t}}},b.assertIsObject=function(e,n){if(!b.isObject(e))throw new Error(n+" is not an object!")},b.addJitter=function(e){var n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:1;n=Math.min(n,1);var t=Math.random()>.5?1:-1;return Math.floor(e+t*e*Math.random()*n)},b.isNetworkOnline=function(){return navigator.onLine},b.isNetworkFailure=function(e){return!(!e._debug||!e._debug.type)&&"NetworkingError"===e._debug.type};var y=b;function m(e){return(m="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function S(e,n){return!n||"object"!==m(n)&&"function"!=typeof n?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):n}function k(e){return(k=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}function h(e,n){return(h=Object.setPrototypeOf||function(e,n){return e.__proto__=n,e})(e,n)}function v(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}function w(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}function C(e,n,t){return n&&w(e.prototype,n),t&&w(e,t),e}var T=function(){function e(){v(this,e)}return C(e,[{key:"debug",value:function(e){}},{key:"info",value:function(e){}},{key:"warn",value:function(e){}},{key:"error",value:function(e){}}]),e}(),O={DEBUG:10,INFO:20,WARN:30,ERROR:40},I=function(){function e(){v(this,e),this.updateLoggerConfig(),this.consoleLoggerWrapper=_()}return C(e,[{key:"writeToClientLogger",value:function(e,n){if(this.hasClientLogger())switch(e){case O.DEBUG:return this._clientLogger.debug(n);case O.INFO:return this._clientLogger.info(n);case O.WARN:return this._clientLogger.warn(n);case O.ERROR:return this._clientLogger.error(n)}}},{key:"isLevelEnabled",value:function(e){return e>=this._level}},{key:"hasClientLogger",value:function(){return null!==this._clientLogger}},{key:"getLogger",value:function(e){var n=e.prefix||"";return this._logsDestination===c?this.consoleLoggerWrapper:new N(n)}},{key:"updateLoggerConfig",value:function(e){var n=e||{};this._level=n.level||O.DEBUG,this._clientLogger=n.logger||null,this._logsDestination=r,n.debug&&(this._logsDestination=c),n.logger&&(this._logsDestination=i)}}]),e}(),W=function(){function e(){v(this,e)}return C(e,[{key:"debug",value:function(){}},{key:"info",value:function(){}},{key:"warn",value:function(){}},{key:"error",value:function(){}}]),e}(),N=function(e){function n(e){var t;return v(this,n),(t=S(this,k(n).call(this))).prefix=e||"",t}return function(e,n){if("function"!=typeof n&&null!==n)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(n&&n.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),n&&h(e,n)}(n,W),C(n,[{key:"debug",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.DEBUG,n)}},{key:"info",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.INFO,n)}},{key:"warn",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.WARN,n)}},{key:"error",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.ERROR,n)}},{key:"_shouldLog",value:function(e){return E.hasClientLogger()&&E.isLevelEnabled(e)}},{key:"_writeToClientLogger",value:function(e,n){return E.writeToClientLogger(e,n)}},{key:"_log",value:function(e,n){if(this._shouldLog(e)){var t=this._convertToSingleStatement(n);return this._writeToClientLogger(e,t)}}},{key:"_convertToSingleStatement",value:function(e){var n="";this.prefix&&(n+=this.prefix+" ");for(var t=0;t<e.length;t++){var o=e[t];n+=this._convertToString(o)+" "}return n}},{key:"_convertToString",value:function(e){try{if(!e)return"";if(y.isString(e))return e;if(y.isObject(e)&&y.isFunction(e.toString)){var n=e.toString();if("[object Object]"!==n)return n}return JSON.stringify(e)}catch(n){return console.error("Error while converting argument to string",e,n),""}}}]),n}(),_=function(){var e=new W;return e.debug=console.debug,e.info=console.info,e.warn=console.warn,e.error=console.error,e},E=new I;function F(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}var L=function(){function e(n){var t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:s;!function(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}(this,e),this.numAttempts=0,this.executor=n,this.hasActiveReconnection=!1,this.defaultRetry=t}var n,t,o;return n=e,(t=[{key:"retry",value:function(){var e=this;this.hasActiveReconnection||(this.hasActiveReconnection=!0,setTimeout(function(){e._execute()},this._getDelay()))}},{key:"_execute",value:function(){this.hasActiveReconnection=!1,this.executor(),this.numAttempts++}},{key:"connected",value:function(){this.numAttempts=0}},{key:"_getDelay",value:function(){var e=Math.pow(2,this.numAttempts)*this.defaultRetry;return e<=3e4?e:3e4}}])&&F(n.prototype,t),o&&F(n,o),e}();t.d(n,"a",function(){return R});var x=function(){var e=E.getLogger({}),n=y.isNetworkOnline(),t={primary:null,secondary:null},o={reconnectWebSocket:!0,websocketInitFailed:!1,exponentialBackOffTime:1e3,exponentialTimeoutHandle:null,lifeTimeTimeoutHandle:null,webSocketInitCheckerTimeoutId:null,connState:null},r={connectWebSocketRetryCount:0,connectionAttemptStartTime:null,noOpenConnectionsTimestamp:null},i={pendingResponse:!1,intervalHandle:null},c={initFailure:new Set,getWebSocketTransport:null,subscriptionUpdate:new Set,subscriptionFailure:new Set,topic:new Map,allMessage:new Set,connectionGain:new Set,connectionLost:new Set,connectionOpen:new Set,connectionClose:new Set},s={connConfig:null,promiseHandle:null,promiseCompleted:!0},d={subscribed:new Set,pending:new Set,subscriptionHistory:new Set},b={responseCheckIntervalId:null,requestCompleted:!0,reSubscribeIntervalId:null,consecutiveFailedSubscribeAttempts:0,consecutiveNoResponseRequest:0},g=new L(function(){U()}),m=new Set([a,u,l]),S=setInterval(function(){if(n!==y.isNetworkOnline()){if(!(n=y.isNetworkOnline()))return void J(e.info("Network offline"));var t=O();n&&(!t||w(t,WebSocket.CLOSING)||w(t,WebSocket.CLOSED))&&(J(e.info("Network online, connecting to WebSocket server")),U())}},250),k=function(n,t){n.forEach(function(n){try{n(t)}catch(n){J(e.error("Error executing callback",n))}})},h=function(e){if(null===e)return"NULL";switch(e.readyState){case WebSocket.CONNECTING:return"CONNECTING";case WebSocket.OPEN:return"OPEN";case WebSocket.CLOSING:return"CLOSING";case WebSocket.CLOSED:return"CLOSED";default:return"UNDEFINED"}},v=function(){var n=arguments.length>0&&void 0!==arguments[0]?arguments[0]:"";J(e.debug("["+n+"] Primary WebSocket: "+h(t.primary)+" | Secondary WebSocket: "+h(t.secondary)))},w=function(e,n){return e&&e.readyState===n},C=function(e){return w(e,WebSocket.OPEN)},T=function(e){return null===e||void 0===e.readyState||w(e,WebSocket.CLOSED)},O=function(){return null!==t.secondary?t.secondary:t.primary},I=function(){return C(O())},W=function(){if(i.pendingResponse)return J(e.warn("Heartbeat response not received")),clearInterval(i.intervalHandle),i.pendingResponse=!1,void U();I()?(J(e.debug("Sending heartbeat")),O().send(G(l)),i.pendingResponse=!0):(J(e.warn("Failed to send heartbeat since WebSocket is not open")),v("sendHeartBeat"),U())},N=function(){o.exponentialBackOffTime=1e3,i.pendingResponse=!1,o.reconnectWebSocket=!0,clearTimeout(o.lifeTimeTimeoutHandle),clearInterval(i.intervalHandle),clearTimeout(o.exponentialTimeoutHandle),clearTimeout(o.webSocketInitCheckerTimeoutId)},_=function(){b.consecutiveFailedSubscribeAttempts=0,b.consecutiveNoResponseRequest=0,clearInterval(b.responseCheckIntervalId),clearInterval(b.reSubscribeIntervalId)},F=function(){r.connectWebSocketRetryCount=0,r.connectionAttemptStartTime=null,r.noOpenConnectionsTimestamp=null},x=function(){try{J(e.info("WebSocket connection established!")),v("webSocketOnOpen"),null!==o.connState&&o.connState!==p||k(c.connectionGain),o.connState=f;var n=Date.now();k(c.connectionOpen,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,noOpenConnectionsTimestamp:r.noOpenConnectionsTimestamp,connectionEstablishedTime:n,timeToConnect:n-r.connectionAttemptStartTime,timeWithoutConnection:r.noOpenConnectionsTimestamp?n-r.noOpenConnectionsTimestamp:null}),F(),N(),O().openTimestamp=Date.now(),0===d.subscribed.size&&C(t.secondary)&&D(t.primary,"[Primary WebSocket] Closing WebSocket"),(d.subscribed.size>0||d.pending.size>0)&&(C(t.secondary)&&J(e.info("Subscribing secondary websocket to topics of primary websocket")),d.subscribed.forEach(function(e){d.subscriptionHistory.add(e),d.pending.add(e)}),d.subscribed.clear(),A()),W(),i.intervalHandle=setInterval(W,1e4);var a=1e3*s.connConfig.webSocketTransport.transportLifeTimeInSeconds;J(e.debug("Scheduling WebSocket manager reconnection, after delay "+a+" ms")),o.lifeTimeTimeoutHandle=setTimeout(function(){J(e.debug("Starting scheduled WebSocket manager reconnection")),U()},a)}catch(n){J(e.error("Error after establishing WebSocket connection",n))}},R=function(n){v("webSocketOnError"),J(e.error("WebSocketManager Error, error_event: ",JSON.stringify(n))),U()},j=function(n){var o=JSON.parse(n.data);switch(o.topic){case a:if(J(e.debug("Subscription Message received from webSocket server",n.data)),b.requestCompleted=!0,b.consecutiveNoResponseRequest=0,"success"===o.content.status)b.consecutiveFailedSubscribeAttempts=0,o.content.topics.forEach(function(e){d.subscriptionHistory.delete(e),d.pending.delete(e),d.subscribed.add(e)}),0===d.subscriptionHistory.size?C(t.secondary)&&(J(e.info("Successfully subscribed secondary websocket to all topics of primary websocket")),D(t.primary,"[Primary WebSocket] Closing WebSocket")):A(),k(c.subscriptionUpdate,o);else{if(clearInterval(b.reSubscribeIntervalId),++b.consecutiveFailedSubscribeAttempts,5===b.consecutiveFailedSubscribeAttempts)return k(c.subscriptionFailure,o),void(b.consecutiveFailedSubscribeAttempts=0);b.reSubscribeIntervalId=setInterval(function(){A()},500)}break;case l:J(e.debug("Heartbeat response received")),i.pendingResponse=!1;break;default:if(o.topic){if(J(e.debug("Message received for topic "+o.topic)),C(t.primary)&&C(t.secondary)&&0===d.subscriptionHistory.size&&this===t.primary)return void J(e.warn("Ignoring Message for Topic "+o.topic+", to avoid duplicates"));if(0===c.allMessage.size&&0===c.topic.size)return void J(e.warn("No registered callback listener for Topic",o.topic));k(c.allMessage,o),c.topic.has(o.topic)&&k(c.topic.get(o.topic),o)}else o.message?J(e.warn("WebSocketManager Message Error",o)):J(e.warn("Invalid incoming message",o))}},A=function n(){if(b.consecutiveNoResponseRequest>3)return J(e.warn("Ignoring subscribePendingTopics since we have exhausted max subscription retries with no response")),void k(c.subscriptionFailure,y.getSubscriptionResponse(a,!1,Array.from(d.pending)));I()?(clearInterval(b.responseCheckIntervalId),O().send(G(a,{topics:Array.from(d.pending)})),b.requestCompleted=!1,b.responseCheckIntervalId=setInterval(function(){b.requestCompleted||(++b.consecutiveNoResponseRequest,n())},1e3)):J(e.warn("Ignoring subscribePendingTopics call since Default WebSocket is not open"))},D=function(n,t){w(n,WebSocket.CONNECTING)||w(n,WebSocket.OPEN)?n.close(1e3,t):J(e.warn("Ignoring WebSocket Close request, WebSocket State: "+h(n)))},M=function(e){D(t.primary,"[Primary] WebSocket "+e),D(t.secondary,"[Secondary] WebSocket "+e)},P=function(){r.connectWebSocketRetryCount++;var n=y.addJitter(o.exponentialBackOffTime,.3);Date.now()+n<=s.connConfig.urlConnValidTime?(J(e.debug("Scheduling WebSocket reinitialization, after delay "+n+" ms")),o.exponentialTimeoutHandle=setTimeout(function(){return q()},n),o.exponentialBackOffTime*=2):(J(e.warn("WebSocket URL cannot be used to establish connection")),U())},H=function(n){N(),_(),J(e.error("WebSocket Initialization failed")),o.websocketInitFailed=!0,M("Terminating WebSocket Manager"),clearInterval(S),k(c.initFailure,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,reason:n}),F()},G=function(e,n){return JSON.stringify({topic:e,content:n})},z=function(n){return!!(y.isObject(n)&&y.isObject(n.webSocketTransport)&&y.isNonEmptyString(n.webSocketTransport.url)&&y.validWSUrl(n.webSocketTransport.url)&&1e3*n.webSocketTransport.transportLifeTimeInSeconds>=3e5)||(J(e.error("Invalid WebSocket Connection Configuration",n)),!1)},U=function(){if(y.isNetworkOnline())if(o.websocketInitFailed)J(e.debug("WebSocket Init had failed, ignoring this getWebSocketConnConfig request"));else{if(s.promiseCompleted)return N(),J(e.info("Fetching new WebSocket connection configuration")),r.connectionAttemptStartTime=r.connectionAttemptStartTime||Date.now(),s.promiseCompleted=!1,s.promiseHandle=c.getWebSocketTransport(),s.promiseHandle.then(function(n){return s.promiseCompleted=!0,J(e.debug("Successfully fetched webSocket connection configuration",n)),z(n)?(s.connConfig=n,s.connConfig.urlConnValidTime=Date.now()+85e3,g.connected(),q()):(H("Invalid WebSocket connection configuration: "+n),{webSocketConnectionFailed:!0})},function(n){return s.promiseCompleted=!0,J(e.error("Failed to fetch webSocket connection configuration",n)),y.isNetworkFailure(n)?(J(e.info("Retrying fetching new WebSocket connection configuration")),g.retry()):H("Failed to fetch webSocket connection configuration: "+JSON.stringify(n)),{webSocketConnectionFailed:!0}});J(e.debug("There is an ongoing getWebSocketConnConfig request, this request will be ignored"))}else J(e.info("Network offline, ignoring this getWebSocketConnConfig request"))},q=function(){if(o.websocketInitFailed)return J(e.info("web-socket initializing had failed, aborting re-init")),{webSocketConnectionFailed:!0};if(!y.isNetworkOnline())return J(e.warn("System is offline aborting web-socket init")),{webSocketConnectionFailed:!0};J(e.info("Initializing Websocket Manager")),v("initWebSocket");try{if(z(s.connConfig)){var n=null;return C(t.primary)?(J(e.debug("Primary Socket connection is already open")),w(t.secondary,WebSocket.CONNECTING)||(J(e.debug("Establishing a secondary web-socket connection")),t.secondary=B()),n=t.secondary):(w(t.primary,WebSocket.CONNECTING)||(J(e.debug("Establishing a primary web-socket connection")),t.primary=B()),n=t.primary),o.webSocketInitCheckerTimeoutId=setTimeout(function(){C(n)||P()},1e3),{webSocketConnectionFailed:!1}}}catch(n){return J(e.error("Error Initializing web-socket-manager",n)),H("Failed to initialize new WebSocket: "+n.message),{webSocketConnectionFailed:!0}}},B=function(){var n=new WebSocket(s.connConfig.webSocketTransport.url);return n.addEventListener("open",x),n.addEventListener("message",j),n.addEventListener("error",R),n.addEventListener("close",function(i){return function(n,i){J(e.info("Socket connection is closed",n)),v("webSocketOnClose before-cleanup"),k(c.connectionClose,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),T(t.primary)&&(t.primary=null),T(t.secondary)&&(t.secondary=null),o.reconnectWebSocket&&(C(t.primary)||C(t.secondary)?T(t.primary)&&C(t.secondary)&&(J(e.info("[Primary] WebSocket Cleanly Closed")),t.primary=t.secondary,t.secondary=null):(J(e.warn("Neither primary websocket and nor secondary websocket have open connections, attempting to re-establish connection")),o.connState===p?J(e.info("Ignoring connectionLost callback invocation")):(k(c.connectionLost,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),r.noOpenConnectionsTimestamp=Date.now()),o.connState=p,U()),v("webSocketOnClose after-cleanup"))}(i,n)}),n},J=function(e){return e&&"function"==typeof e.sendInternalLogToServer&&e.sendInternalLogToServer(),e};this.init=function(n){if(y.assertTrue(y.isFunction(n),"transportHandle must be a function"),null===c.getWebSocketTransport)return c.getWebSocketTransport=n,U();J(e.warn("Web Socket Manager was already initialized"))},this.onInitFailure=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.initFailure.add(e),o.websocketInitFailed&&e(),function(){return c.initFailure.delete(e)}},this.onConnectionOpen=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionOpen.add(e),function(){return c.connectionOpen.delete(e)}},this.onConnectionClose=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionClose.add(e),function(){return c.connectionClose.delete(e)}},this.onConnectionGain=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionGain.add(e),I()&&e(),function(){return c.connectionGain.delete(e)}},this.onConnectionLost=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionLost.add(e),o.connState===p&&e(),function(){return c.connectionLost.delete(e)}},this.onSubscriptionUpdate=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.subscriptionUpdate.add(e),function(){return c.subscriptionUpdate.delete(e)}},this.onSubscriptionFailure=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.subscriptionFailure.add(e),function(){return c.subscriptionFailure.delete(e)}},this.onMessage=function(e,n){return y.assertNotNull(e,"topicName"),y.assertTrue(y.isFunction(n),"cb must be a function"),c.topic.has(e)?c.topic.get(e).add(n):c.topic.set(e,new Set([n])),function(){return c.topic.get(e).delete(n)}},this.onAllMessage=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.allMessage.add(e),function(){return c.allMessage.delete(e)}},this.subscribeTopics=function(e){y.assertNotNull(e,"topics"),y.assertIsList(e),e.forEach(function(e){d.subscribed.has(e)||d.pending.add(e)}),b.consecutiveNoResponseRequest=0,A()},this.sendMessage=function(n){if(y.assertIsObject(n,"payload"),void 0===n.topic||m.has(n.topic))J(e.warn("Cannot send message, Invalid topic",n));else{try{n=JSON.stringify(n)}catch(t){return void J(e.warn("Error stringify message",n))}I()?O().send(n):J(e.warn("Cannot send message, web socket connection is not open"))}},this.closeWebSocket=function(){N(),_(),o.reconnectWebSocket=!1,clearInterval(S),M("User request to close WebSocket")},this.terminateWebSocketManager=H},R={create:function(){return new x},setGlobalConfig:function(e){var n=e.loggerConfig;E.updateLoggerConfig(n)},LogLevel:O,Logger:T}},function(e,n,t){var o;!function(){"use strict";var r={not_string:/[^s]/,not_bool:/[^t]/,not_type:/[^T]/,not_primitive:/[^v]/,number:/[diefg]/,numeric_arg:/[bcdiefguxX]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijostTuvxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[+-]/};function i(e){return function(e,n){var t,o,c,s,a,u,l,f,p,d=1,b=e.length,g="";for(o=0;o<b;o++)if("string"==typeof e[o])g+=e[o];else if("object"==typeof e[o]){if((s=e[o]).keys)for(t=n[d],c=0;c<s.keys.length;c++){if(null==t)throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"',s.keys[c],s.keys[c-1]));t=t[s.keys[c]]}else t=s.param_no?n[s.param_no]:n[d++];if(r.not_type.test(s.type)&&r.not_primitive.test(s.type)&&t instanceof Function&&(t=t()),r.numeric_arg.test(s.type)&&"number"!=typeof t&&isNaN(t))throw new TypeError(i("[sprintf] expecting number but found %T",t));switch(r.number.test(s.type)&&(f=t>=0),s.type){case"b":t=parseInt(t,10).toString(2);break;case"c":t=String.fromCharCode(parseInt(t,10));break;case"d":case"i":t=parseInt(t,10);break;case"j":t=JSON.stringify(t,null,s.width?parseInt(s.width):0);break;case"e":t=s.precision?parseFloat(t).toExponential(s.precision):parseFloat(t).toExponential();break;case"f":t=s.precision?parseFloat(t).toFixed(s.precision):parseFloat(t);break;case"g":t=s.precision?String(Number(t.toPrecision(s.precision))):parseFloat(t);break;case"o":t=(parseInt(t,10)>>>0).toString(8);break;case"s":t=String(t),t=s.precision?t.substring(0,s.precision):t;break;case"t":t=String(!!t),t=s.precision?t.substring(0,s.precision):t;break;case"T":t=Object.prototype.toString.call(t).slice(8,-1).toLowerCase(),t=s.precision?t.substring(0,s.precision):t;break;case"u":t=parseInt(t,10)>>>0;break;case"v":t=t.valueOf(),t=s.precision?t.substring(0,s.precision):t;break;case"x":t=(parseInt(t,10)>>>0).toString(16);break;case"X":t=(parseInt(t,10)>>>0).toString(16).toUpperCase()}r.json.test(s.type)?g+=t:(!r.number.test(s.type)||f&&!s.sign?p="":(p=f?"+":"-",t=t.toString().replace(r.sign,"")),u=s.pad_char?"0"===s.pad_char?"0":s.pad_char.charAt(1):" ",l=s.width-(p+t).length,a=s.width&&l>0?u.repeat(l):"",g+=s.align?p+t+a:"0"===u?p+a+t:a+p+t)}return g}(function(e){if(s[e])return s[e];var n,t=e,o=[],i=0;for(;t;){if(null!==(n=r.text.exec(t)))o.push(n[0]);else if(null!==(n=r.modulo.exec(t)))o.push("%");else{if(null===(n=r.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(n[2]){i|=1;var c=[],a=n[2],u=[];if(null===(u=r.key.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(c.push(u[1]);""!==(a=a.substring(u[0].length));)if(null!==(u=r.key_access.exec(a)))c.push(u[1]);else{if(null===(u=r.index_access.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");c.push(u[1])}n[2]=c}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");o.push({placeholder:n[0],param_no:n[1],keys:n[2],sign:n[3],pad_char:n[4],align:n[5],width:n[6],precision:n[7],type:n[8]})}t=t.substring(n[0].length)}return s[e]=o}(e),arguments)}function c(e,n){return i.apply(null,[e].concat(n||[]))}var s=Object.create(null);n.sprintf=i,n.vsprintf=c,"undefined"!=typeof window&&(window.sprintf=i,window.vsprintf=c,void 0===(o=function(){return{sprintf:i,vsprintf:c}}.call(n,t,n,e))||(e.exports=o))}()},function(e,n,t){"use strict";t.r(n),function(e){t.d(n,"WebSocketManager",function(){return r});var o=t(0);e.connect=e.connect||{},connect.WebSocketManager=o.a;var r=o.a}.call(this,t(3))},function(e,n){var t;t=function(){return this}();try{t=t||new Function("return this")()}catch(e){"object"==typeof window&&(t=window)}e.exports=t}]);
 //# sourceMappingURL=amazon-connect-websocket-manager.js.map
 
 /*
@@ -25489,7 +25832,7 @@
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.6.8";
+  connect.version = "1.6.9";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -25778,19 +26121,22 @@
   }
 
   connect.core.initSoftphoneManager = function (paramsIn) {
+    connect.getLog().info("[Softphone Manager] initSoftphoneManager started").sendInternalLogToServer();
     var params = paramsIn || {};
  
     var competeForMasterOnAgentUpdate = function (softphoneParamsIn) {
       var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
- 
+      connect.getLog().info("[Softphone Manager] competeForMasterOnAgentUpdate executed").sendInternalLogToServer();
       connect.agent(function (agent) {
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
         }
         agent.onRefresh(function () {
           var sub = this;
+          connect.getLog().info("[Softphone Manager] agent refresh handler executed").sendInternalLogToServer();
  
           connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
+            connect.getLog().info("[Softphone Manager] confirmed as softphone master topic").sendInternalLogToServer();
             if (!connect.core.softphoneManager && agent.isSoftphoneEnabled()) {
               // Become master to send logs, since we need logs from softphone tab.
               connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
@@ -25809,9 +26155,11 @@
     if (connect.isFramed() && !params.allowFramedSoftphone) {
       var bus = connect.core.getEventBus();
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
+        connect.getLog().info("[Softphone Manager] Configure event handler executed").sendInternalLogToServer();
         if (data.softphone && data.softphone.allowFramedSoftphone) {
           this.unsubscribe();
           competeForMasterOnAgentUpdate(data.softphone);
+          
         }
         setupEventListenersForMultiTabUseInFirefox(data.softphone);
       });
@@ -25926,7 +26274,6 @@
 
   connect.core.initPageOptions = function (params) {
     connect.assertNotNull(params, "params");
-
     if (connect.isFramed()) {
       // If the CCP is in a frame, wait for configuration from downstream.
       var bus = connect.core.getEventBus();
@@ -25937,9 +26284,72 @@
             data: data
           });
       });
-
+      // Listen for iframe media devices request from CRM
+      bus.subscribe(connect.EventType.MEDIA_DEVICE_REQUEST, function () {
+        function sendDevices(devices) {
+          connect.core.getUpstream().sendDownstream(connect.EventType.MEDIA_DEVICE_RESPONSE, devices);
+        }
+        if (navigator && navigator.mediaDevices) {
+          navigator.mediaDevices.enumerateDevices()
+          .then(function (devicesIn) {
+            devices = devicesIn || [];
+            devices = devices.map(function(d) { return d.toJSON() });
+            sendDevices(devices);
+          })
+          .catch(function (err) {
+            sendDevices({error: err.message});
+          }); 
+        } else {
+          sendDevices({error: "No navigator or navigator.mediaDevices object found"});
+        }
+      });
     }
   };
+
+  /**-------------------------------------------------------------------------
+   * Get the list of media devices from iframed CCP
+   * Timeout for the request is passed an an optional argument
+   * The default timeout is 1000ms
+   */
+  connect.core.getFrameMediaDevices = function (timeoutIn) {
+    var sub = null;
+    var timeout = timeoutIn || 1000;
+    var timeoutPromise = new Promise(function (resolve, reject) {
+      setTimeout(function () { 
+        reject(new Error("Timeout exceeded")); 
+      }, timeout);
+    });
+    var mediaDevicesPromise = new Promise(function (resolve, reject) { 
+      if (connect.isFramed() || connect.isCCP()) {
+        if (navigator && navigator.mediaDevices) {
+          navigator.mediaDevices.enumerateDevices()
+          .then(function (devicesIn) {
+            devices = devicesIn || [];
+            devices = devices.map(function (d) { return d.toJSON() });
+            resolve(devices);
+          });
+        } else {
+          reject(new Error("No navigator or navigator.mediaDevices object found"));
+        }
+      } else {
+        var bus = connect.core.getEventBus();
+        sub = bus.subscribe(connect.EventType.MEDIA_DEVICE_RESPONSE, function (data) {
+          if (data.error) {
+            reject(new Error(data.error));
+          } else {
+            resolve(data);
+          }
+        });
+        connect.core.getUpstream().sendUpstream(connect.EventType.MEDIA_DEVICE_REQUEST);
+      }
+    })
+    return Promise.race([mediaDevicesPromise, timeoutPromise])
+    .finally(function () {
+      if (sub) {
+        sub.unsubscribe();
+      }
+    });
+  }
 
   //Internal use only.
   connect.core.authorize = function (endpoint) {
@@ -26084,9 +26494,22 @@
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
         }
       });
+      // Get worker logs
       conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
-        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
-          connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
+        connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
+      });
+      // Get outer context logs
+      conduit.onDownstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logs) {
+        if (connect.isFramed() && Array.isArray(logs)) {
+          logs.forEach(function (log) {
+            connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(log));
+          });
+        }
+      });
+      // Get log from outer context
+      conduit.onDownstream(connect.EventType.LOG, function (log) {
+        if (connect.isFramed() && log.loggerId !== connect.getLog().getLoggerId()) { 
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(log));
         }
       });
       // Reload the page if the shared worker detects an API auth failure.
@@ -26094,8 +26517,16 @@
         location.reload();
       });
 
+      connect.getLog().info("User Agent: " + navigator.userAgent).sendInternalLogToServer();
+      connect.getLog().info("isCCPv2: " + true).sendInternalLogToServer();
+      connect.getLog().info("isFramed: " + connect.isFramed()).sendInternalLogToServer();
+      connect.core.upstream.onDownstream(connect.EventType.OUTER_CONTEXT_INFO, function (data) {
+        var streamsVersion = data.streamsVersion;
+        connect.getLog().info("StreamsJS Version: " + streamsVersion).sendInternalLogToServer();
+      });
+
       conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
-        connect.getLog().info("Number of connected CCPs updated: " + data.length);
+        connect.getLog().info("Number of connected CCPs updated: " + data.length).sendInternalLogToServer();
         connect.numberOfConnectedCCPs = data.length;
       });
 
@@ -26151,6 +26582,7 @@
     iframe.src = params.ccpUrl;
     iframe.allow = "microphone; autoplay";
     iframe.style = "width: 100%; height: 100%";
+    iframe.title = 'Amazon Connect CCP';
     containerDiv.appendChild(iframe);
 
     // Initialize the event bus and agent data providers.
@@ -26196,6 +26628,9 @@
       connect.core.ccpLoadTimeoutInstance = null;
       connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
     }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
+
+    connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
+    connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(conduit);
  
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.
@@ -26219,6 +26654,8 @@
         global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
         connect.core.ccpLoadTimeoutInstance = null;
       }
+
+      conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
  
       connect.core.keepaliveManager.start();
       this.unsubscribe();
@@ -26231,11 +26668,6 @@
     conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
       if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
         connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
-      }
-    });
-    conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
-      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
-        connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
       }
     });
  
@@ -26583,7 +27015,13 @@
         self.bus.trigger(event, new connect.Agent());
       });
     }
- 
+
+    var oldNextState = oldAgentData && oldAgentData.snapshot.nextState ? oldAgentData.snapshot.nextState.name : null;
+    var newNextState = this.agentData.snapshot.nextState ? this.agentData.snapshot.nextState.name : null;
+    if (oldNextState !== newNextState && newNextState) {
+      self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
+    }
+
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
  
@@ -26652,6 +27090,27 @@
       }
     });
   };
+
+  /** ----- minimal view layer event handling **/
+ 
+  connect.core.onActivateChannelWithViewType = function (f) {
+    connect.core.getUpstream().onUpstream(connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
+  };
+ 
+  /**
+   * Used of agent interface control. 
+   * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad or quick connects into view.
+   */
+  connect.core.activateChannelWithViewType = function (viewType, mediaType) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+      data: {
+        viewType: viewType,
+        mediaType: mediaType 
+      }
+    });
+  };
+
  
   /** ------------------------------------------------- */
  
@@ -26855,6 +27314,7 @@
   connect.core.AgentDataProvider = AgentDataProvider;
  
 })();
+
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -26902,8 +27362,10 @@
       this._audio.play()
         .catch(function(e) {
           this._publishTelemetryEvent("Ringtone Playback Failure", contact);
+          connect.getLog().error("Ringtone Playback Failure").sendInternalLogToServer();
         });
       this._publishTelemetryEvent("Ringtone Start", contact);
+      connect.getLog().info("Ringtone Start").sendInternalLogToServer();
     }
   };
 
@@ -26912,6 +27374,7 @@
       this._audio.pause();
       this._audio.currentTime = 0;
       this._publishTelemetryEvent("Ringtone Stop", contact);
+      connect.getLog().info("Ringtone Stop").sendInternalLogToServer();
     }
   };
 
@@ -26965,10 +27428,14 @@
         })
       ]);
       return playableAudioWithTimeout.then(function (audio) {
-        if (audio.setSinkId) {
-          return Promise.resolve(audio.setSinkId(deviceId));
+        if (audio) {
+          if (audio.setSinkId) {
+            return Promise.resolve(audio.setSinkId(deviceId));
+          } else {
+            return Promise.reject("Not supported");
+          }
         } else {
-          return Promise.reject("Not supported");
+          return Promise.reject("No audio found");
         }
       });
     }
@@ -26992,6 +27459,7 @@
         contact.isSoftphoneCall() && contact.isInbound()) {
         self._ringtoneSetup(contact);
         self._publishTelemetryEvent("Ringtone Connecting", contact);
+        connect.getLog().info("Ringtone Connecting").sendInternalLogToServer();
       }
     };
 
@@ -27020,6 +27488,7 @@
       if (contact.getType() === lily.ContactType.CHAT && contact.isInbound()) {
         self._ringtoneSetup(contact);
         self._publishTelemetryEvent("Chat Ringtone Connecting", contact);
+        connect.getLog().info("Chat Ringtone Connecting").sendInternalLogToServer();
       }
     };
 
@@ -27041,6 +27510,7 @@
       if (contact.getType() === lily.ContactType.TASK && contact.isInbound()) {
         self._ringtoneSetup(contact);
         self._publishTelemetryEvent("Task Ringtone Connecting", contact);
+        connect.getLog().info("Task Ringtone Connecting").sendInternalLogToServer();
       }
     };
 
@@ -27064,6 +27534,7 @@
         if (contact.getType() === lily.ContactType.QUEUE_CALLBACK) {
           self._ringtoneSetup(contact);
           self._publishTelemetryEvent("Callback Ringtone Connecting", contact);
+          connect.getLog().info("Callback Ringtone Connecting").sendInternalLogToServer();
         }
       });
     });
@@ -27143,6 +27614,7 @@
   var SoftphoneManager = function (softphoneParams) {
     var self = this;
     logger = new SoftphoneLogger(connect.getLog());
+    logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
     var rtcPeerConnectionFactory;
     if (connect.RtcPeerConnectionFactory) {
       rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
@@ -27161,9 +27633,7 @@
     }
     var gumPromise = fetchUserMedia({
       success: function (stream) {
-        if (connect.isFirefoxBrowser()) {
-          connect.core.setSoftphoneUserMediaStream(stream);
-        }
+        connect.core.setSoftphoneUserMediaStream(stream);
       },
       failure: function (err) {
         publishError(err, "Your microphone is not enabled in your browser. ", "");
@@ -27204,6 +27674,7 @@
       var stream = localMediaStream[connectionId].stream;
       if(stream){
         var oldTrack = stream.getAudioTracks()[0];
+        track.enabled = oldTrack.enabled;
         oldTrack.enabled = false;
         stream.removeTrack(oldTrack);
         stream.addTrack(track);
@@ -27919,9 +28390,9 @@
           self._recordAPILatency(method, request_start);
           callbacks.success(data);
         },
-        failure: function (error, data) {
+        failure: function (error) {
           self._recordAPILatency(method, request_start, error);
-          callbacks.failure(error, data);
+          callbacks.failure(error);
         }
       })
     } else {
@@ -28410,7 +28881,7 @@
 
       case connect.MasterMethods.CHECK_MASTER:
         var masterId = this.masterCoord.getMaster(request.params.topic);
-        if (!masterId) {
+        if (!masterId && !request.params.shouldNotBecomeMasterIfNone) {
           this.masterCoord.setMaster(request.params.topic, portId);
           masterId = portId;
         }
@@ -28516,7 +28987,10 @@
               err: err,
               data: data
             });
-          reject(Error("getWebSocketUrl failed"));
+          reject({
+            reason: 'getWebSocketUrl failed', 
+            _debug: err
+          });
         },
         authFailure: function () {
           connect.getLog().error("getWebSocketUrl Auth Failure").sendInternalLogToServer();
@@ -28766,9 +29240,9 @@
       var mediaInfo = connectionObj.getMediaInfo();
       /** if we do not have the media info then just reject the request */
       if (!mediaInfo) {
-        logger.error(logComponent, "Media info does not exists for a media type %s")
+        logger.error(logComponent, "Media info does not exist for a media type %s", connectionObj.getMediaType())
           .withObject(connectionObj).sendInternalLogToServer();
-        return Promise.reject("Media info does not exists for this connection");
+        return Promise.reject("Media info does not exist for this connection");
       }
 
       if (!mediaControllers[connectionId]) {
@@ -28972,7 +29446,6 @@
 
   connect.agentApp = {};
 
-  var IFRAME_REFRESH_INTERVAL = 5000;
   var APP = {
     CCP: 'ccp',
   };
@@ -28990,14 +29463,6 @@
           iframeConduit.sendUpstream(type, data);
         });
       });
-    });
-
-    var iframeRefreshInterval = window.setInterval(function () {
-      iframe.src += '';
-    }, IFRAME_REFRESH_INTERVAL);
-
-    connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-      global.clearInterval(iframeRefreshInterval);
     });
   };
 

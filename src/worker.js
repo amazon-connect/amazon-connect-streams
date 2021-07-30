@@ -68,9 +68,9 @@
           self._recordAPILatency(method, request_start);
           callbacks.success(data);
         },
-        failure: function (error, data) {
+        failure: function (error) {
           self._recordAPILatency(method, request_start, error);
-          callbacks.failure(error, data);
+          callbacks.failure(error);
         }
       })
     } else {
@@ -559,7 +559,7 @@
 
       case connect.MasterMethods.CHECK_MASTER:
         var masterId = this.masterCoord.getMaster(request.params.topic);
-        if (!masterId) {
+        if (!masterId && !request.params.shouldNotBecomeMasterIfNone) {
           this.masterCoord.setMaster(request.params.topic, portId);
           masterId = portId;
         }
@@ -665,7 +665,10 @@
               err: err,
               data: data
             });
-          reject(Error("getWebSocketUrl failed"));
+          reject({
+            reason: 'getWebSocketUrl failed', 
+            _debug: err
+          });
         },
         authFailure: function () {
           connect.getLog().error("getWebSocketUrl Auth Failure").sendInternalLogToServer();

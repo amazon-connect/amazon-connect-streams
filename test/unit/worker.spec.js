@@ -82,54 +82,88 @@ describe('Worker', function () {
       assert.isTrue(this.client.call.calledWith(connect.ClientMethods.GET_AGENT_CONFIGURATION));
     });
 
-    it("sets master topic", function () {
-      var portConduit = { sendDownstream: sinon.spy() };
-      var request = { method: connect.MasterMethods.BECOME_MASTER, params: { topic: connect.MasterTopics.SOFTPHONE } };
-      connect.worker.clientEngine.handleMasterRequest(
-        portConduit,
-        "portId_A", 
-        request
-      );
-      var expected = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
-        masterId: "portId_A",
-        takeOver: false,
-        topic: connect.MasterTopics.SOFTPHONE,
+    describe("handleMasterRequest", function () {
+      it("sets master topic", function () {
+        var portConduit = { sendDownstream: sinon.spy() };
+        var request = { method: connect.MasterMethods.BECOME_MASTER, params: { topic: connect.MasterTopics.SOFTPHONE } };
+        connect.worker.clientEngine.handleMasterRequest(
+          portConduit,
+          "portId_A", 
+          request
+        );
+        var expected = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
+          masterId: "portId_A",
+          takeOver: false,
+          topic: connect.MasterTopics.SOFTPHONE,
+        });
+        assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
+        assert.isTrue(connect.worker.clientEngine.conduit.sendDownstream.neverCalledWith(expected.event, expected));
       });
-      assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
-      assert.isTrue(connect.worker.clientEngine.conduit.sendDownstream.neverCalledWith(expected.event, expected));
-    });
+  
+      it("takes over master topic", function () {
+        var portConduit = { sendDownstream: sinon.spy() };
+        var request = { method: connect.MasterMethods.BECOME_MASTER, params: { topic: connect.MasterTopics.SOFTPHONE } };
+        connect.worker.clientEngine.handleMasterRequest(
+          portConduit,
+          "portId_B", 
+          request
+        );
+        var expected = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
+          masterId: "portId_B",
+          takeOver: true,
+          topic: connect.MasterTopics.SOFTPHONE,
+        });
+        assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
+        assert.isTrue(connect.worker.clientEngine.conduit.sendDownstream.calledWith(expected.event, expected));
+      });
+  
+      it("returns isMaster as false in MASTER_RESPONSE if not master topic", function () {
+        var portConduit = { sendDownstream: sinon.spy() };
+        var request = { method: connect.MasterMethods.CHECK_MASTER, params: { topic: connect.MasterTopics.SOFTPHONE } };
+        connect.worker.clientEngine.handleMasterRequest(
+          portConduit,
+          "portId_C",
+          request
+        );
+        var expected = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
+          masterId: "portId_B",
+          isMaster: false,
+          topic: connect.MasterTopics.SOFTPHONE,
+        });
+        assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
+      });
 
-    it("takes over master topic", function () {
-      var portConduit = { sendDownstream: sinon.spy() };
-      var request = { method: connect.MasterMethods.BECOME_MASTER, params: { topic: connect.MasterTopics.SOFTPHONE } };
-      connect.worker.clientEngine.handleMasterRequest(
-        portConduit,
-        "portId_B", 
-        request
-      );
-      var expected = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
-        masterId: "portId_B",
-        takeOver: true,
-        topic: connect.MasterTopics.SOFTPHONE,
+      it("becomes master if there's no master tab when checking it", function () {
+        var portConduit = { sendDownstream: sinon.spy() };
+        var request = { method: connect.MasterMethods.CHECK_MASTER, params: { topic: connect.MasterTopics.RINGTONE } };
+        connect.worker.clientEngine.handleMasterRequest(
+          portConduit,
+          "portId_D",
+          request
+        );
+        var expected = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
+          masterId: "portId_D",
+          isMaster: true,
+          topic: connect.MasterTopics.RINGTONE,
+        });
+        assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
       });
-      assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
-      assert.isTrue(connect.worker.clientEngine.conduit.sendDownstream.calledWith(expected.event, expected));
-    });
 
-    it("returns isMaster as false in MASTER_RESPONSE if not master topic", function () {
-      var portConduit = { sendDownstream: sinon.spy() };
-      var request = { method: connect.MasterMethods.CHECK_MASTER, params: { topic: connect.MasterTopics.SOFTPHONE } };
-      connect.worker.clientEngine.handleMasterRequest(
-        portConduit,
-        "portId_C",
-        request
-      );
-      var expected = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
-        masterId: "portId_B",
-        isMaster: false,
-        topic: connect.MasterTopics.SOFTPHONE,
+      it("shouldn't become master if there's no master tab when checking it with a shouldNotBecomeMasterIfNone flag", function () {
+        var portConduit = { sendDownstream: sinon.spy() };
+        var request = { method: connect.MasterMethods.CHECK_MASTER, params: { topic: connect.MasterTopics.METRICS, shouldNotBecomeMasterIfNone: true } };
+        connect.worker.clientEngine.handleMasterRequest(
+          portConduit,
+          "portId_E",
+          request
+        );
+        var expected = connect.EventFactory.createResponse(connect.EventType.MASTER_RESPONSE, request, {
+          masterId: null,
+          isMaster: false,
+          topic: connect.MasterTopics.METRICS,
+        });
+        assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
       });
-      assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
     });
 
     describe('global.onconnect()', function () {

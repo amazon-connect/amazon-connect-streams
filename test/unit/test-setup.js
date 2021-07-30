@@ -18,6 +18,13 @@ require("../../release/connect-streams.js");
 
 global.connect.RTCSession = function () {};
 
+before(() => {
+  global.sinon.stub(connect.Agent.prototype, "_getResourceId").returns("id");
+});
+after(() => {
+  global.sinon.restore();
+});
+
 // Polyfill for Promise.finally
 Promise.prototype.finally = function(onFinally) {
     return this.then(

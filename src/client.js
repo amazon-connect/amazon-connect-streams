@@ -50,6 +50,7 @@
     */
    connect.AgentAppClientMethods = {
       GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
+      DELETE_VOICEID_SPEAKER: "AgentAppService.VoiceId.deleteSpeaker",
       ENROLL_SPEAKER_IN_VOICEID: "AgentAppService.VoiceId.enrollBySession",
       EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
       GET_SPEAKER_STATUS: "AgentAppService.VoiceId.describeSpeaker",
@@ -200,7 +201,19 @@
       connect.fetch(self.endpointUrl, options).then(function(res){
          callbacks.success(res);
       }).catch(function(err){
-         callbacks.failure(err);
+         const reader = err.body.getReader();
+         let body = '';
+         const decoder = new TextDecoder();
+         reader.read().then(function processText({ done, value }) {
+            if (done) {
+               var error = JSON.parse(body);
+               error.status = err.status;
+               callbacks.failure(error);
+               return;
+            }
+            body += decoder.decode(value);
+            return reader.read().then(processText);
+         });
       })
    };
    /**---------------------------------------------------------------

@@ -25,6 +25,13 @@ describe('Logger', function() {
             assert.deepEqual(loggedException.stack, []);
         });
     });
+    describe('Exceptions in logger class should not be thrown', function() {
+        it('Set wrong level should not throw error to out side', function() {
+            var logger = connect.getLog();
+            logger.setLogLevel("invalid log level");
+            assert.equal(logger._logLevel, 30);
+        })
+    });
     describe('Logger.withObject()', function(){
         it('Log should not contain websocket auth token', function(){
             var obj =  {
@@ -100,6 +107,20 @@ describe('Logger', function() {
             }];
             var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);
             assert.deepEqual(loggedObject.objects, expectedObj);
-        })
+        });
+    });
+    describe('LogEntry fields', () => {
+        var sandbox = sinon.createSandbox();
+        let agentResourceId = "id";
+        it("provides the correct agentResourceId", () => {
+            let log = connect.getLog().info("hi");
+            assert.equal(log.getAgentResourceId(), agentResourceId);
+        });
+        it("includes the agentResourceId when printed, and the correct log string", () => {
+            let spy = sandbox.spy(connect, "sprintf");
+            let log = connect.getLog().info("hello");
+            sandbox.assert.calledWithMatch(spy, sinon.match.string, sinon.match.string, sinon.match.string, agentResourceId, "hello");
+            sandbox.restore();
+        });
     });
 });

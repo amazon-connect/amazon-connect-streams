@@ -137,6 +137,13 @@ declare namespace connect {
      * @param callback A callback that will execute when the CCP initialization is completed.
      */
     onInitialized(callback: Function): void;
+
+     /**
+     * Returns a promise that is resolved with the list of media devices from iframe.
+     *
+     * @param timeout A timeout for the request in milliseconds.
+     */
+    getFrameMediaDevices(timeout: Number): Promise<any[]>;
   }
 
   const core: Core;
@@ -580,6 +587,11 @@ declare namespace connect {
     readonly queueARN?: string;
   }
 
+  interface AgentSetStateOptions {
+    /**  Enables enqueuing agent state while agent is handling a live contact. */
+    readonly enqueueNextState?: boolean;
+  }
+
   /**
    * The Agent API provides event subscription methods and action methods which can be called on behalf of the agent.
    * There is only ever one agent per Streams instantiation and all contacts and actions are assumed to be taken on behalf of this one agent.
@@ -735,12 +747,17 @@ declare namespace connect {
 
     /**
      * Set the agent's current availability state.
-     * Can only be performed if the agent is not handling a live contact.
+     * Will enqueue state if the agent is handling a live contact and enqueueNextState is true.
      *
      * @param state The new agent state.
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     * @param options
      */
-    setState(state: AgentStateDefinition, callbacks?: SuccessFailOptions): void;
+    setState(
+      state: AgentStateDefinition,
+      callbacks?: SuccessFailOptions,
+      options?: AgentSetStateOptions
+    ): void;
 
     /**
      * Create task contact.
@@ -840,13 +857,20 @@ declare namespace connect {
      * @param callback A callback to receive updates on the microphone device
      */
     onMicrophoneDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
-
+    
     /**
      * Subscribe a method to be called when the agent changes the ringer device (output device for ringtone).
      *
      * @param callback A callback to receive updates on the ringer device
      */
     onRingerDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+
+    /**
+     * Subscribe a method to be called when the agent has a nextState.
+     *
+     * @param callback A callback that is invoked with the Agent object.
+     */
+    onEnqueuedNextState(callback: Agent): void;
   }
 
   interface AgentMutedStatus {
@@ -900,6 +924,9 @@ declare namespace connect {
 
     /** The task references */
     readonly references: ReferenceDictionary;
+
+    /** The task scheduled time */
+    readonly scheduledTime: number;
 
     /** A random value */
     readonly idempotencyToken: string;
@@ -1465,6 +1492,9 @@ declare namespace connect {
 
     /** Update speaker id */
     updateVoiceIdSpeakerId(): Promise<any>;
+
+    /** Delete speaker id */
+    deleteVoiceIdSpeakerId(): Promise<any>;
 
   }
 

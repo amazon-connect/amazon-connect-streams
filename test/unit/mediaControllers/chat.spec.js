@@ -11,6 +11,9 @@ describe('Media Controllers', function () {
     before(function () {
       var bus = new connect.EventBus();
       sandbox.stub(connect.core, "getEventBus").returns(bus);
+      sandbox.stub(connect.core, "getUpstream").returns({
+        sendUpstream: sandbox.stub()
+      });
 
       connect.core.mediaController = new connect.MediaFactory();
       chatMediaConnectMethod = sandbox.stub().resolves({});

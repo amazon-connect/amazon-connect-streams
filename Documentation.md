@@ -2,14 +2,19 @@
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
 # Important Announcements
-1. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Wisdom (preview). See the [updated documentation](#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
+1. July 2021 - 1. We released a change to the CCP that lets agent set a next status such as Lunch or Offline while still on a contact, and indicate they don’t want to be routed new contacts while they finish up their remaining work. See the release notes for more details on this feature ( https://docs.aws.amazon.com/connect/latest/adminguide/amazon-connect-release-notes.html#july21-release-notes ). If your agents interact directly with Connect’s out-of-the-box CCPV2 UX, they will be able to access this feature by default. Otherwise, if your streamsJS application calls `agent.setState()` to switch agent status, you will need to update your code to use this feature:
+    *  **Agent.setState()** has been updated so you can pass an optional flag `enqueueNextState: true` to trigger the Next Status behavior. 
+    * A new **agent.onEnqueuedNextState()** listener lets you subscribe to events for when agents have selected/successfully enqueued their next status.
+    * A new **agent.getNextState()** API returns a state object if the agent has successfully selected a next state, and null otherwise. 
+    * If you want to use the Next Status feature via `agent.setState()`, please also ensure that your code is using `contact.clear()` and not `contact.complete()` when clearing After Contact Work off a contact.
+2. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Wisdom (preview). See the [updated documentation](#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
     * ### About Amazon Connect Customer Profiles
         + Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place. 
     * ### About Amazon Connect Wisdom (this feature is in preview release for Amazon Connect and is subject to change)
         + With Amazon Connect Wisdom, agents can search and find content across multiple repositories, such as frequently asked questions (FAQs), wikis, articles, and step-by-step instructions for handling different customer issues. They can type questions or phrases in a search box (such as, "how long after purchase can handbags be exchanged?") without having to guess which keywords will work.
     * ### About Amazon Connect Voice ID (this feature is in preview release for Amazon Connect and is subject to change)
         + Amazon Connect Voice ID provides real-time caller authentication which makes voice interactions in contact centers more secure and efficient. Voice ID uses machine learning to verify the identity of genuine customers by analyzing a caller’s unique voice characteristics. This allows contact centers to use an additional security layer that doesn’t rely on the caller answering multiple security questions, and makes it easy to enroll and verify customers without changing the natural flow of their conversation.
-2. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
+3. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
     * `FailedConnectAgent` -- Previously, we required the agent to click the "Clear Contact" button to clear this state. When the agent clicked the "Clear Contact" button, the previous behavior took the agent back to the `Available` state without fail. Now the `FailedConnectAgent` state will be "auto-cleared", much like `FailedConnectCustomer` always has been. 
     * `FailedConnectAgent` and `FailedConnectCustomer` -- We are now using the `contact.clear()` API to auto-clear these states. As a result, the agent will be returned to their previous visible agent state (e.g. `Available`). Previously, the agent had always been set to `Available` as a result of this "auto-clearing" behavior. Note that even custom CCPs will behave differently with this update for `FailedConnectAgent` and `FailedConnectCustomer`.
     * `AfterCallWork` -- As part of the new `contact.clear()` behavior, clicking "Clear Contact" while in `AfterCallWork` will return the agent to their previous visible agent state (e.g. `Available`, etc.). Note that custom CCPs that implement their own After Call Work behavior will not be affected by this change.
@@ -321,6 +326,16 @@ connect.core.onInitialized(function() { /* ... */ });
 ```
 Subscribes a callback that executes when the CCP initialization is completed.
 
+### `connect.core.getFrameMediaDevices()`
+```js
+  connect.core.getFrameMediaDevices(timeout)
+  .then(function(devices) { /* ... */ })
+  .catch(function(err) { /* ... */ })
+```
+Returns a promise that is resolved with the list of media devices from iframe. 
+Timeout for the request can be passed as an optional argument. The default timeout is 1000ms.
+The API should be called after the iframe CCP initialization is complete.
+
 ## Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
 code to be called when new agent information is available.
@@ -362,7 +377,9 @@ connect.onWebSocketInitFailure(function() { ... });
 Subscribe a method to be called when the WebSocket connection fails to initialize.
 If the WebSocket has already failed at least once in initializing, the call is
 synchronous and the callback is invoked immediately.  Otherwise, the callback is
-invoked once the first attempt to initialize fails.
+invoked once the first attempt to initialize fails. Since the WebSocket connection
+will be periodically refreshed as needed, the callback will also be invoked 
+if the WebSocket connection fails to re-initialize successfully.
 
 ## Agent API
 The Agent API provides event subscription methods and action methods which can
@@ -582,13 +599,32 @@ Optional success and failure callbacks can be provided to determine if the opera
 ```js
 var state = agent.getAgentStates()[0];
 agent.setState(state, {
-   success: function() { /* ... */ },
-   failure: function(err) { /* ... */ }
+    success: function() { /* ... */ },
+    failure: function(err) { /* ... */ },
+   },
+   {enqueueNextState: false}
 });
 ```
 Set the agent's current availability state. Can only be performed if the agent is not handling a live contact.
 
+Optional `enqueueNextState` flag can be passed to trigger Next Status behavior.
+By default this is false.
+
 Optional success and failure callbacks can be provided to determine if the operation was successful.
+
+### `agent.onEnqueuedNextState()`
+```js
+agent.onEnqueuedNextState(function(agent) { /* ... */ });
+Subscribe a method to be called when an agent has enqueued a next status.
+```
+
+### `agent.getNextState()`
+```js
+var state = agent.getNextState();
+
+Get the AgentState object of the agent's enqueued next status. 
+If the agent has not enqueued a next status, returns null.
+```
 
 ### `agent.connect()`
 ```js
@@ -1558,7 +1594,9 @@ Check the customer's Voice ID verification status.
 ### `voiceConnection.evaluateSpeakerWithVoiceId(true)`
 Start a new audio stream to check the customer's Voice ID verification status.
 ### `voiceConnection.optOutVoiceIdSpeaker()`
- Opt out a customer from Voice ID.
+Opt out a customer from Voice ID.
+### `voiceConnection.deleteVoiceIdSpeaker()`
+Delete the speaker ID from Voice ID.
 ### `voiceConnection.getVoiceIdSpeakerStatus()`
 Describe the enrollment status of a customer.
 ### `voiceConnection.getVoiceIdSpeakerId()`

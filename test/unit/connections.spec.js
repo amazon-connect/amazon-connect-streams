@@ -70,89 +70,97 @@ describe('Connections API', function () {
  
   describe('#Voice Connection API', function () {
  
-     const connectionId = "connectionId";
-     const contactId = "contactId";
-     const instanceId = "instanceId";
-     const AWSAccountId = "AWSAccountId";
-     const initMediaController = sinon.spy();
+    const connectionId = "connectionId";
+    const contactId = "contactId";
+    const instanceId = "instanceId";
+    const AWSAccountId = "AWSAccountId";
+    const initMediaController = sinon.spy();
  
-     before(function () {
-       connect.core.getClient = sinon.stub();
-       connect.core.getAgentDataProvider = sinon.stub().returns({
-         getContactData: () => { return {connections:[{state:{type:"connected"}}]} },
-         _initMediaController: initMediaController,
-         getConnectionData: () => {
-           return {
-             state: {},
-             getMediaController: () => { }
-           }
-         },
-         getInstanceId: () => {return instanceId},
-         getAWSAccountId: () => {return AWSAccountId},
-       });
-     });
+    before(function () {
+      connect.core.getClient = sinon.stub();
+      connect.core.getAgentDataProvider = sinon.stub().returns({
+        getContactData: () => { return {connections:[{state:{type:"connected"}}]} },
+        _initMediaController: initMediaController,
+        getConnectionData: () => {
+          return {
+            state: {},
+            getMediaController: () => { }
+          }
+        },
+        getInstanceId: () => {return instanceId},
+        getAWSAccountId: () => {return AWSAccountId},
+      });
+    });
   
-     after(function () {
-       initMediaController.resetHistory();
-       connect.core.getAgentDataProvider.resetBehavior();
-     });
- 
-     it('Should create new Voice connection Object given the Voice Contact and Connection Id with Speaker Authenticator ', function () {
-       const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-       assert.equal(voiceConnection.connectionId, connectionId);
-       assert.equal(voiceConnection.contactId, contactId);
-       assert.equal(voiceConnection.getMediaType(), connect.MediaType.SOFTPHONE);
-       assert.equal(typeof(voiceConnection.getVoiceIdSpeakerId), 'function');
-       assert.equal(typeof(voiceConnection.getVoiceIdSpeakerStatus), 'function')
-     });
- 
-     describe('getVoiceIdSpeakerId', function() {
-       it('Should return SpeakerId promise.', function () {
-         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-         var speakerId = voiceConnection.getVoiceIdSpeakerId();
-         assert.equal(Promise.resolve(speakerId), speakerId);
-       });
-     });
+    after(function () {
+      initMediaController.resetHistory();
+      connect.core.getAgentDataProvider.resetBehavior();
+    });
 
-     describe('getVoiceIdSpeakerStatus', function() {
+    it('Should create new Voice connection Object given the Voice Contact and Connection Id with Speaker Authenticator ', function () {
+      const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+      assert.equal(voiceConnection.connectionId, connectionId);
+      assert.equal(voiceConnection.contactId, contactId);
+      assert.equal(voiceConnection.getMediaType(), connect.MediaType.SOFTPHONE);
+      assert.equal(typeof(voiceConnection.getVoiceIdSpeakerId), 'function');
+      assert.equal(typeof(voiceConnection.getVoiceIdSpeakerStatus), 'function')
+    });
+
+    describe('getVoiceIdSpeakerId', function() {
+      it('Should return SpeakerId promise.', function () {
+        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+        var speakerId = voiceConnection.getVoiceIdSpeakerId();
+        assert.equal(Promise.resolve(speakerId), speakerId);
+      });
+    });
+
+    describe('getVoiceIdSpeakerStatus', function() {
       it('Should return getVoiceIdSpeakerStatus promise.', function () {
         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
         var getVoiceIdSpeakerStatus = voiceConnection.getVoiceIdSpeakerStatus();
         assert.equal(Promise.resolve(getVoiceIdSpeakerStatus), getVoiceIdSpeakerStatus);
       });
-     });
+    });
 
-     describe('optOutVoiceIdSpeaker', function() {
+    describe('optOutVoiceIdSpeaker', function() {
       it('Should return optOutVoiceIdSpeaker promise.', function () {
         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
         var optOutVoiceIdSpeaker = voiceConnection.optOutVoiceIdSpeaker();
         assert.equal(Promise.resolve(optOutVoiceIdSpeaker), optOutVoiceIdSpeaker);
       });
-     });
+    });
 
-     describe('evaluateSpeakerWithVoiceId', function() {
+    describe('evaluateSpeakerWithVoiceId', function() {
       it('Should return evaluateSpeakerWithVoiceId promise.', function () {
         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
         var evaluateSpeakerWithVoiceId = voiceConnection.evaluateSpeakerWithVoiceId();
         assert.equal(Promise.resolve(evaluateSpeakerWithVoiceId), evaluateSpeakerWithVoiceId);
       });
-     });
+    });
 
-     describe('enrollSpeakerInVoiceId', function() {
+    describe('enrollSpeakerInVoiceId', function() {
       it('Should return enrollSpeakerInVoiceId promise.', function () {
         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
         var enrollSpeakerInVoiceId = voiceConnection.enrollSpeakerInVoiceId();
         assert.equal(Promise.resolve(enrollSpeakerInVoiceId), enrollSpeakerInVoiceId);
       });
-     });
+    });
 
-     describe('updateVoiceIdSpeakerId', function() {
+    describe('updateVoiceIdSpeakerId', function() {
       it('Should return updateVoiceIdSpeakerId promise.', function () {
         const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
         var updateVoiceIdSpeakerId = voiceConnection.updateVoiceIdSpeakerId();
         assert.equal(Promise.resolve(updateVoiceIdSpeakerId), updateVoiceIdSpeakerId);
       });
-     });
+    });
+
+    describe('deleteVoiceIdSpeakerId', function() {
+      it('Should return deleteVoiceIdSpeakerId promise.', function () {
+        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+        var voiceIdSpeakerId = voiceConnection.deleteVoiceIdSpeaker();
+        assert.equal(Promise.resolve(voiceIdSpeakerId), voiceIdSpeakerId);
+      });
+    });
   });
 
   describe('#Task Connection API', function () {

@@ -65,6 +65,7 @@
   var SoftphoneManager = function (softphoneParams) {
     var self = this;
     logger = new SoftphoneLogger(connect.getLog());
+    logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
     var rtcPeerConnectionFactory;
     if (connect.RtcPeerConnectionFactory) {
       rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
@@ -83,9 +84,7 @@
     }
     var gumPromise = fetchUserMedia({
       success: function (stream) {
-        if (connect.isFirefoxBrowser()) {
-          connect.core.setSoftphoneUserMediaStream(stream);
-        }
+        connect.core.setSoftphoneUserMediaStream(stream);
       },
       failure: function (err) {
         publishError(err, "Your microphone is not enabled in your browser. ", "");
@@ -126,6 +125,7 @@
       var stream = localMediaStream[connectionId].stream;
       if(stream){
         var oldTrack = stream.getAudioTracks()[0];
+        track.enabled = oldTrack.enabled;
         oldTrack.enabled = false;
         stream.removeTrack(oldTrack);
         stream.addTrack(track);
