@@ -300,19 +300,22 @@
   }
 
   connect.core.initSoftphoneManager = function (paramsIn) {
+    connect.getLog().info("[Softphone Manager] initSoftphoneManager started").sendInternalLogToServer();
     var params = paramsIn || {};
  
     var competeForMasterOnAgentUpdate = function (softphoneParamsIn) {
       var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
- 
+      connect.getLog().info("[Softphone Manager] competeForMasterOnAgentUpdate executed").sendInternalLogToServer();
       connect.agent(function (agent) {
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
         }
         agent.onRefresh(function () {
           var sub = this;
+          connect.getLog().info("[Softphone Manager] agent refresh handler executed").sendInternalLogToServer();
  
           connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
+            connect.getLog().info("[Softphone Manager] confirmed as softphone master topic").sendInternalLogToServer();
             if (!connect.core.softphoneManager && agent.isSoftphoneEnabled()) {
               // Become master to send logs, since we need logs from softphone tab.
               connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
@@ -331,9 +334,11 @@
     if (connect.isFramed() && !params.allowFramedSoftphone) {
       var bus = connect.core.getEventBus();
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
+        connect.getLog().info("[Softphone Manager] Configure event handler executed").sendInternalLogToServer();
         if (data.softphone && data.softphone.allowFramedSoftphone) {
           this.unsubscribe();
           competeForMasterOnAgentUpdate(data.softphone);
+          
         }
         setupEventListenersForMultiTabUseInFirefox(data.softphone);
       });
@@ -448,7 +453,6 @@
 
   connect.core.initPageOptions = function (params) {
     connect.assertNotNull(params, "params");
-
     if (connect.isFramed()) {
       // If the CCP is in a frame, wait for configuration from downstream.
       var bus = connect.core.getEventBus();
@@ -459,9 +463,72 @@
             data: data
           });
       });
-
+      // Listen for iframe media devices request from CRM
+      bus.subscribe(connect.EventType.MEDIA_DEVICE_REQUEST, function () {
+        function sendDevices(devices) {
+          connect.core.getUpstream().sendDownstream(connect.EventType.MEDIA_DEVICE_RESPONSE, devices);
+        }
+        if (navigator && navigator.mediaDevices) {
+          navigator.mediaDevices.enumerateDevices()
+          .then(function (devicesIn) {
+            devices = devicesIn || [];
+            devices = devices.map(function(d) { return d.toJSON() });
+            sendDevices(devices);
+          })
+          .catch(function (err) {
+            sendDevices({error: err.message});
+          }); 
+        } else {
+          sendDevices({error: "No navigator or navigator.mediaDevices object found"});
+        }
+      });
     }
   };
+
+  /**-------------------------------------------------------------------------
+   * Get the list of media devices from iframed CCP
+   * Timeout for the request is passed an an optional argument
+   * The default timeout is 1000ms
+   */
+  connect.core.getFrameMediaDevices = function (timeoutIn) {
+    var sub = null;
+    var timeout = timeoutIn || 1000;
+    var timeoutPromise = new Promise(function (resolve, reject) {
+      setTimeout(function () { 
+        reject(new Error("Timeout exceeded")); 
+      }, timeout);
+    });
+    var mediaDevicesPromise = new Promise(function (resolve, reject) { 
+      if (connect.isFramed() || connect.isCCP()) {
+        if (navigator && navigator.mediaDevices) {
+          navigator.mediaDevices.enumerateDevices()
+          .then(function (devicesIn) {
+            devices = devicesIn || [];
+            devices = devices.map(function (d) { return d.toJSON() });
+            resolve(devices);
+          });
+        } else {
+          reject(new Error("No navigator or navigator.mediaDevices object found"));
+        }
+      } else {
+        var bus = connect.core.getEventBus();
+        sub = bus.subscribe(connect.EventType.MEDIA_DEVICE_RESPONSE, function (data) {
+          if (data.error) {
+            reject(new Error(data.error));
+          } else {
+            resolve(data);
+          }
+        });
+        connect.core.getUpstream().sendUpstream(connect.EventType.MEDIA_DEVICE_REQUEST);
+      }
+    })
+    return Promise.race([mediaDevicesPromise, timeoutPromise])
+    .finally(function () {
+      if (sub) {
+        sub.unsubscribe();
+      }
+    });
+  }
 
   //Internal use only.
   connect.core.authorize = function (endpoint) {
@@ -606,9 +673,22 @@
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
         }
       });
+      // Get worker logs
       conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
-        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
-          connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
+        connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
+      });
+      // Get outer context logs
+      conduit.onDownstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logs) {
+        if (connect.isFramed() && Array.isArray(logs)) {
+          logs.forEach(function (log) {
+            connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(log));
+          });
+        }
+      });
+      // Get log from outer context
+      conduit.onDownstream(connect.EventType.LOG, function (log) {
+        if (connect.isFramed() && log.loggerId !== connect.getLog().getLoggerId()) { 
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(log));
         }
       });
       // Reload the page if the shared worker detects an API auth failure.
@@ -616,8 +696,16 @@
         location.reload();
       });
 
+      connect.getLog().info("User Agent: " + navigator.userAgent).sendInternalLogToServer();
+      connect.getLog().info("isCCPv2: " + true).sendInternalLogToServer();
+      connect.getLog().info("isFramed: " + connect.isFramed()).sendInternalLogToServer();
+      connect.core.upstream.onDownstream(connect.EventType.OUTER_CONTEXT_INFO, function (data) {
+        var streamsVersion = data.streamsVersion;
+        connect.getLog().info("StreamsJS Version: " + streamsVersion).sendInternalLogToServer();
+      });
+
       conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
-        connect.getLog().info("Number of connected CCPs updated: " + data.length);
+        connect.getLog().info("Number of connected CCPs updated: " + data.length).sendInternalLogToServer();
         connect.numberOfConnectedCCPs = data.length;
       });
 
@@ -673,6 +761,7 @@
     iframe.src = params.ccpUrl;
     iframe.allow = "microphone; autoplay";
     iframe.style = "width: 100%; height: 100%";
+    iframe.title = 'Amazon Connect CCP';
     containerDiv.appendChild(iframe);
 
     // Initialize the event bus and agent data providers.
@@ -718,6 +807,9 @@
       connect.core.ccpLoadTimeoutInstance = null;
       connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
     }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
+
+    connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
+    connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(conduit);
  
     // Once we receive the first ACK, setup our upstream API client and establish
     // the SYN/ACK refresh flow.
@@ -741,6 +833,8 @@
         global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
         connect.core.ccpLoadTimeoutInstance = null;
       }
+
+      conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
  
       connect.core.keepaliveManager.start();
       this.unsubscribe();
@@ -753,11 +847,6 @@
     conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
       if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
         connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
-      }
-    });
-    conduit.onUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, function (logEntry) {
-      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
-        connect.getLog().sendInternalLogEntryToServer(connect.LogEntry.fromObject(logEntry));
       }
     });
  
@@ -1105,7 +1194,13 @@
         self.bus.trigger(event, new connect.Agent());
       });
     }
- 
+
+    var oldNextState = oldAgentData && oldAgentData.snapshot.nextState ? oldAgentData.snapshot.nextState.name : null;
+    var newNextState = this.agentData.snapshot.nextState ? this.agentData.snapshot.nextState.name : null;
+    if (oldNextState !== newNextState && newNextState) {
+      self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
+    }
+
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
  
@@ -1174,6 +1269,27 @@
       }
     });
   };
+
+  /** ----- minimal view layer event handling **/
+ 
+  connect.core.onActivateChannelWithViewType = function (f) {
+    connect.core.getUpstream().onUpstream(connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
+  };
+ 
+  /**
+   * Used of agent interface control. 
+   * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad or quick connects into view.
+   */
+  connect.core.activateChannelWithViewType = function (viewType, mediaType) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+      data: {
+        viewType: viewType,
+        mediaType: mediaType 
+      }
+    });
+  };
+
  
   /** ------------------------------------------------- */
  

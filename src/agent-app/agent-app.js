@@ -6,7 +6,6 @@
 
   connect.agentApp = {};
 
-  var IFRAME_REFRESH_INTERVAL = 5000;
   var APP = {
     CCP: 'ccp',
   };
@@ -24,14 +23,6 @@
           iframeConduit.sendUpstream(type, data);
         });
       });
-    });
-
-    var iframeRefreshInterval = window.setInterval(function () {
-      iframe.src += '';
-    }, IFRAME_REFRESH_INTERVAL);
-
-    connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-      global.clearInterval(iframeRefreshInterval);
     });
   };
 

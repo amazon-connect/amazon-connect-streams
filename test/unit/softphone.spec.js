@@ -21,6 +21,30 @@ describe('SoftphoneManager', function () {
             });
             contactId = "1234567890";
             contact = new connect.Contact(contactId);
+            var streamsFake = {
+                getAudioTracks: () => {
+                    return [{ kind: "audio", enabled: true, }];
+                },
+            };
+            global.navigator = {
+                mediaDevices: {
+                    enumerateDevices: () => new Promise((resolve) => {
+                        setTimeout(() => {
+                            resolve([{
+                                toJSON: () => ({
+                                    deviceId: "deviceId",
+                                    groupId: "groupId",
+                                    kind: "audioinput",
+                                    label: "Microphone"
+                                })
+                            }])
+                        }, 500);
+                    }),
+                    getUserMedia: () => new Promise((resolve) => {
+                        resolve(streamsFake);
+                    }),
+                },
+            };
             sandbox.stub(contact, "isSoftphoneCall").returns(true);
             sandbox.stub(contact, "isInbound").returns(true);
             sandbox.stub(connect, 'RTCSession').returns({
@@ -152,6 +176,49 @@ describe('SoftphoneManager', function () {
                 softphoneManager.startSession();
                 assert.isTrue(connect.RTCSession.calledOnce);
             });
+        });
+    });
+
+    describe('#SoftphoneManager successfully sets the softphoneUserMediaStreams', function () {
+        var bus, contact, contactId;
+
+        before(function () {
+            bus = new connect.EventBus();
+            contactId = "1234567890";
+            contact = new connect.Contact(contactId);
+        });
+
+        beforeEach(function () {
+            sandbox.stub(connect.core, "getEventBus").returns(bus);
+            sandbox.stub(connect.core, "getUpstream").returns({
+                sendUpstream: sandbox.stub()
+            });
+            sandbox.stub(contact, "isSoftphoneCall").returns(true);
+            sandbox.stub(contact, "isInbound").returns(true);
+            sandbox.stub(connect, 'RTCSession').returns({
+                connect: sandbox.stub()
+            });
+            sandbox.stub(connect, 'getFirefoxBrowserVersion').returns(84);
+            sandbox.stub(connect.Agent.prototype, 'getContacts').returns([]);
+        });
+
+        afterEach(function () {
+            sandbox.restore();
+        });
+
+        it('Successfully sets the softphoneUserMediaStreams in Chrome', async function () {
+                sandbox.stub(connect, 'isChromeBrowser').returns(false);
+                sandbox.stub(connect, 'isFirefoxBrowser').returns(true);
+                await new connect.SoftphoneManager({});
+
+                assert.isNotNull(connect.core.getSoftphoneUserMediaStream());
+        });
+        it('Successfully sets the softphoneUserMediaStreams in Firefox', async function () {
+            sandbox.stub(connect, 'isChromeBrowser').returns(true);
+            sandbox.stub(connect, 'isFirefoxBrowser').returns(false);
+            await new connect.SoftphoneManager({});
+
+            assert.isNotNull(connect.core.getSoftphoneUserMediaStream());
         });
     });
 });

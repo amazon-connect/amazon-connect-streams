@@ -1,3 +1,5 @@
+const { assert } = require("chai");
+
 require("../unit/test-setup.js");
 
 describe('Core', function () {
@@ -31,11 +33,13 @@ describe('Core', function () {
             task: { ringtoneUrl: this.defaultRingtoneUrl }
         };
     });
-
+    
     describe('#connect.core.initSharedWorker()', function () {
         jsdom({ url: "http://localhost" });
-
+        var clock 
+         
         beforeEach(function () {
+            clock = sinon.useFakeTimers();
             sandbox.stub(connect.core, "checkNotInitialized").returns(true);
             global.SharedWorker = sandbox.stub().returns({
                 port: {
@@ -51,11 +55,10 @@ describe('Core', function () {
 
             sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
         });
-
         afterEach(function () {
             sandbox.restore();
+            clock.restore();
         });
-
         it("shared worker initialization", function () {
             expect(this.params.sharedWorkerUrl).not.to.be.a("0");
             expect(this.params.authToken).not.to.be.a("null");
@@ -64,6 +67,39 @@ describe('Core', function () {
             expect(connect.core.checkNotInitialized.called);
             expect(SharedWorker.calledWith(this.params.sharedWorkerUrl, "ConnectSharedWorker"));
             expect(connect.core.region).not.to.be.a("null");
+        });
+        it("should update the number of connected CCPs on UPDATE_CONNECTED_CCPS event", function () {
+            connect.core.initSharedWorker(this.params);
+            expect(connect.numberOfConnectedCCPs).to.equal(0);
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 });
+            expect(connect.numberOfConnectedCCPs).to.equal(1);
+        });
+        it("should set portStreamId on ACK", function () {
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+            expect(connect.core.portStreamId).to.equal('portId');
+            connect.core.initialized = false;
+        });
+        it.skip("Replicates logs received upstream while ignoring duplicates", function () {
+            var logger = connect.getLog();
+            var loggerId = logger.getLoggerId();
+            var originalLoggerLength = logger._logs.length;
+            var newLogs = [
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some log", "some-logger-id"),
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some log with no logger id", null),
+                new connect.LogEntry("test", connect.LogLevel.INFO, "some log info", "some-logger-id"),
+                new connect.LogEntry("test", connect.LogLevel.ERROR, "some log error", "some-logger-id")
+            ];
+            var dupLogs = [
+                new connect.LogEntry("test", connect.LogLevel.LOG, "some dup log", loggerId),
+                new connect.LogEntry("test", connect.LogLevel.INFO, "some dup log info", loggerId),
+                new connect.LogEntry("test", connect.LogLevel.ERROR, "some dup log error", loggerId)
+            ]
+            var allLogs = newLogs.concat(dupLogs);
+            for (var i = 0; i < allLogs.length; i++) {
+                connect.core.getUpstream().upstreamBus.trigger(connect.EventType.LOG, allLogs[i]);
+            }
+            clock.tick(2000);
+            assert.lengthOf(logger._logs, originalLoggerLength + newLogs.length);
         });
     });
     describe('legacy endpoint', function () {
@@ -129,17 +165,6 @@ describe('Core', function () {
             assert.isTrue(connect.Conduit.prototype.sendUpstream.called);
             assert.isTrue(connect.Conduit.prototype.sendUpstream.getCalls()[0].lastArg.authorizeEndpoint === "/auth/authorize");
             this.params.baseUrl = "https://abc.my.connect.aws";
-        });
-        it("should update the number of connected CCPs on UPDATE_CONNECTED_CCPS event", function () {
-            connect.core.initSharedWorker(this.params);
-            expect(connect.numberOfConnectedCCPs).to.equal(0);
-            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 });
-            expect(connect.numberOfConnectedCCPs).to.equal(1);
-        });
-        it("should set portStreamId on ACK", function () {
-            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
-            expect(connect.core.portStreamId).to.equal('portId');
-            connect.core.initialized = false;
         });
     });
 
@@ -313,8 +338,10 @@ describe('Core', function () {
 
     describe('#connect.core.initCCP()', function () {
         jsdom({ url: "http://localhost" });
-
+        var clock 
+            
         before(function () {
+            clock = sinon.useFakeTimers();
             this.containerDiv = { appendChild: sandbox.spy() };
             this.params = connect.merge({}, this.params, {
                 ccpUrl: "url.com",
@@ -341,6 +368,7 @@ describe('Core', function () {
 
         after(function () {
             sandbox.restore();
+            clock.restore();
         });
 
         it("CCP initialization", function () {
@@ -370,6 +398,7 @@ describe('Core', function () {
             for (var i = 0; i < allLogs.length; i++) {
                 connect.core.getUpstream().upstreamBus.trigger(connect.EventType.LOG, allLogs[i]);
             }
+            clock.tick(2000);
             assert.lengthOf(logger._logs, originalLoggerLength + newLogs.length);
         });
 
@@ -497,4 +526,141 @@ describe('Core', function () {
             });
         }
     });
+
+    describe('AgentDataProvider', function () {
+        function createState(type, name) {
+            return { type: type, name: name }
+        }
+        function createAgentSnapshotState(type, name) {
+            return {
+                snapshot: { state: createState(type, name) }
+            }; 
+        }
+
+        before(function () {
+            connect.core.eventBus = new connect.EventBus({ logEvents: true });
+            sandbox.spy(connect.core.eventBus, "trigger");
+            connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());
+            sandbox.spy(connect.core.AgentDataProvider.prototype, "_fireAgentUpdateEvents");
+            connect.agent.initialized = false;
+        });
+
+        after(function () {
+            sandbox.restore();
+        });
+
+        beforeEach(function () {
+            connect.core.getEventBus().trigger.resetHistory();
+        });
+
+        it('updates agent data after receiving an UPDATE event', function () {
+            assert.isFalse(connect.agent.initialized);
+            connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, createAgentSnapshotState(connect.AgentStateType.ROUTABLE, "Available"));
+            assert.isTrue(connect.agent.initialized);
+            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.INIT));
+            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.REFRESH));
+            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.ROUTABLE));
+        });
+
+        it('triggers event when going from ROUTABLE to NOT_ROUTABLE', function () {
+            connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, createAgentSnapshotState(connect.AgentStateType.NOT_ROUTABLE, "Unavailable"));
+            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.NOT_ROUTABLE));
+            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.STATE_CHANGE, {
+                agent: new connect.Agent(),
+                oldState: "Available",
+                newState: "Unavailable"
+            }));
+        });
+
+        it('triggers only state_change event when going to same routing state', function () {
+            connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, createAgentSnapshotState(connect.AgentStateType.NOT_ROUTABLE, "Lunch"));
+            assert.isFalse(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.NOT_ROUTABLE));
+            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.STATE_CHANGE, {
+                agent: new connect.Agent(),
+                oldState: "Unavailable",
+                newState: "Lunch"
+            }));
+        });
+
+        it('triggers enqueued_next_state when nextState is populated', function () {
+            var agentSnapshotWithNextState = createAgentSnapshotState(connect.AgentStateType.ROUTABLE, "Available");
+            agentSnapshotWithNextState.snapshot.nextState = createState(connect.AgentStateType.NOT_ROUTABLE, "Lunch");
+            var enqueuedNextState = false;
+            new connect.Agent().onEnqueuedNextState(function (agent) {
+                assert.isTrue(agent instanceof connect.Agent);
+                enqueuedNextState = true;
+            });
+            connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, agentSnapshotWithNextState);
+            assert.isTrue(enqueuedNextState);
+            assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.ENQUEUED_NEXT_STATE));
+        });
+    });
+
+    describe('#connect.core.getFrameMediaDevices()', function () {
+        jsdom({ url: "http://localhost" });
+        
+        var clock 
+        
+        before(function () {
+            clock = sinon.useFakeTimers();
+            global.navigator = {
+                mediaDevices: {
+                    enumerateDevices: () => new Promise((resolve) => {
+                        setTimeout(() => {
+                            resolve([{
+                                toJSON: () => ({
+                                    deviceId: "deviceId",
+                                    groupId: "groupId",
+                                    kind: "audioinput",
+                                    label: "Microphone"
+                                })
+                            }])
+                        }, 500);
+                    })
+                }
+            };
+        });
+
+        after(function () {
+            clock.restore();
+        });
+
+        beforeEach(function () {
+            connect.core.eventBus = new connect.EventBus({ logEvents: true });
+            sandbox.stub(connect.core, "getUpstream").returns({
+                sendUpstream: (...params) => connect.core.getEventBus().trigger(...params),
+                sendDownstream: (...params) => connect.core.getEventBus().trigger(...params)
+            });
+            sandbox.stub(connect, "isFramed").returns(true);
+            sandbox.stub(connect, "isCCP").returns(true);
+            connect.core.initPageOptions(this.params);
+            connect.isFramed.restore();
+            connect.isCCP.restore();
+            sandbox.stub(connect, "isFramed").returns(false);
+            sandbox.stub(connect, "isCCP").returns(false);
+        });
+
+        afterEach(function () {
+            sandbox.restore();
+        });
+
+        it('getting the list of media devices in the iframe with default timeout', function() { 
+            const arr = [{
+                deviceId: "deviceId",
+                groupId: "groupId",
+                kind: "audioinput",
+                label: "Microphone"
+            }];
+            connect.core.getFrameMediaDevices()
+            .then(data => expect(data).to.eql(arr));  
+            clock.next();
+        });
+
+        it('timing out on the media devices request with a custom timeout', function() { 
+            connect.core.getFrameMediaDevices(400)
+            .catch(err => expect(err.message).to.equal("Timeout exceeded"));
+            clock.next();
+        });
+    });
+
 });

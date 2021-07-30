@@ -431,7 +431,7 @@
       function fetchData(maxRetry) {
         fetch(endpoint, options).then(function (res) {
           if (res.status === connect.HTTP_STATUS_CODES.SUCCESS) {
-            resolve(res.json());
+            res.json().then(json => resolve(json)).catch(() => resolve({}));
           } else if (maxRetry !== 1 && (res.status >= connect.HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR || res.status === connect.HTTP_STATUS_CODES.TOO_MANY_REQUESTS)) {
             setTimeout(function () {
               fetchData(--maxRetry);
@@ -480,18 +480,24 @@
   };
 
   connect.publishMetric = function (metricData) {
-    var bus = connect.core.getEventBus();
-    bus.trigger(connect.EventType.CLIENT_METRIC, metricData);
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.CLIENT_METRIC,
+      data: metricData
+    });
   };
 
   connect.publishSoftphoneStats = function(stats) {
-    var bus = connect.core.getEventBus();
-    bus.trigger(connect.EventType.SOFTPHONE_STATS, stats);
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.SOFTPHONE_STATS,
+      data: stats
+    });
   };
 
   connect.publishSoftphoneReport = function(report) {
-    var bus = connect.core.getEventBus();
-    bus.trigger(connect.EventType.SOFTPHONE_REPORT, report);
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.SOFTPHONE_REPORT,
+      data: report
+    });
   };
 
   connect.publishClientSideLogs = function(logs) {
@@ -671,7 +677,7 @@
     var error = {};
     error.type = type;
     error.message = message;
-    error.stack = Error(message);
+    error.stack = Error(message).stack;
     error.err = err;
     return error;
   }

@@ -40,7 +40,10 @@
     'server_bound_internal_log',
     'mute',
     "iframe_style",
-    "update_connected_ccps"
+    "update_connected_ccps",
+    "outer_context_info",
+    "media_device_request",
+    "media_device_response"
   ]);
 
   /**---------------------------------------------------------------
@@ -73,7 +76,8 @@
     'state_change',
     'acw',
     'mute_toggle',
-    'local_media_stream_created'
+    'local_media_stream_created',
+    'enqueued_next_state'
   ]);
 
   /**---------------------------------------------------------------
@@ -110,6 +114,10 @@
     'ended',
     'error',
     'accepted'
+  ]);
+
+  var TaskListEvents = connect.makeNamespacedEnum('taskList', [
+    'activate_channel_with_view_type'
   ]);
 
 
@@ -337,6 +345,7 @@
   connect.ConnectionEvents = ConnectionEvents;
   connect.ConnnectionEvents = ConnectionEvents; //deprecate on next major version release.
   connect.ContactEvents = ContactEvents;
+  connect.TaskListEvents = TaskListEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
 })();
