@@ -674,6 +674,13 @@ declare namespace connect {
 
     /** Alias for `getState()`. */
     getStatus(): AgentState;
+    
+    /** 
+     * Get the AgentState object of the agent's enqueued next status. 
+     * If the agent has not enqueued a next status, returns null.
+     */
+    getNextState(): AgentState;
+    
 
     /**
      * Get the duration of the agent's state in milliseconds relative to local time.
