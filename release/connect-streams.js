@@ -25832,12 +25832,12 @@
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.6.9";
+  connect.version = "1.6.10";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
-  var CCP_LOAD_TIMEOUT = 10000; // 10 sec
+  var CCP_LOAD_TIMEOUT = 5000; // 5 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
  
   var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
