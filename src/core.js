@@ -16,7 +16,7 @@
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
-  var CCP_LOAD_TIMEOUT = 3000; // 3 sec
+  var CCP_LOAD_TIMEOUT = 10000; // 10 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
  
   var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
@@ -917,17 +917,21 @@
     this.ackSub = this.conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
       this.unsubscribe();
       global.clearTimeout(self.ackTimer);
-      this.synTimer = null;
-      self.deferStart();
+      self._deferStart();
     });
     this.ackTimer = global.setTimeout(function () {
       self.ackSub.unsubscribe();
       self.eventBus.trigger(connect.EventType.ACK_TIMEOUT);
-      this.synTimer = null;
-      self.deferStart();
+      self._deferStart();
     }, this.ackTimeout);
   };
  
+  //Fixes the keepalivemanager.
+  KeepaliveManager.prototype._deferStart = function () {
+    this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
+  };
+
+  // For backwards compatibility only, in case customers are using this to start the keepalivemanager for some reason.
   KeepaliveManager.prototype.deferStart = function () {
     if (this.synTimer == null) {
       this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
