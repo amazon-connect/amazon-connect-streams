@@ -880,7 +880,7 @@ declare namespace connect {
      *
      * @param callback A callback that is invoked with the Agent object.
      */
-    onEnqueuedNextState(callback: Agent): void;
+    onEnqueuedNextState(callback: AgentCallback): void;
   }
 
   interface AgentMutedStatus {
