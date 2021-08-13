@@ -58,6 +58,7 @@
       DESCRIBE_VOICEID_SESSION: "AgentAppService.VoiceId.describeSession",
       UPDATE_VOICEID_SESSION: "AgentAppService.VoiceId.updateSession",
       START_VOICEID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
+      GET_DOMAIN_ID: "AgentAppService.Acs.listIntegrationAssociations"
    };
 
    /**---------------------------------------------------------------

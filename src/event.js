@@ -164,6 +164,13 @@
   ]);
 
   /**---------------------------------------------------------------
+   * enum VoiceId Events
+   */
+   var VoiceIdEvents = connect.makeNamespacedEnum('voiceId', [
+    'update_domain_id'
+  ]);
+
+  /**---------------------------------------------------------------
    * class EventFactory
    */
   var EventFactory = function () { };
@@ -370,6 +377,7 @@
   connect.ConnnectionEvents = ConnectionEvents; //deprecate on next major version release.
   connect.ContactEvents = ContactEvents;
   connect.TaskListEvents = TaskListEvents;
+  connect.VoiceIdEvents = VoiceIdEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
   connect.DisasterRecoveryEvents = DisasterRecoveryEvents;
