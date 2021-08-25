@@ -22993,7 +22993,7 @@
 
    WindowIOStream.prototype.onMessage = function(f) {
       this.input.addEventListener("message", (message) => {
-         if (message.source.is(this.output)) {
+         if (Object.is(message.source, this.output)) {
             f(message);
          }
          else {
