@@ -95,7 +95,7 @@
 
    WindowIOStream.prototype.onMessage = function(f) {
       this.input.addEventListener("message", (message) => {
-         if (message.source === this.output) {
+         if (message.source.is(this.output)) {
             f(message);
          }
          else {
