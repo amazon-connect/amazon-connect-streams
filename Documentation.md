@@ -1,6 +1,9 @@
 # Amazon Connect Streams Documentation
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
+### A note on "Routability"
+Note that routability in streams is only affected by agent statuses. Voice contacts will change the agent status, and thus can affect routability. Task and chat contacts do not affect routability. However, if the other channels hit their concurrent live contact limit(s), the agent will not be routed more contacts, but they will technically be in a routable agent state.
+
 # Important Announcements
 1. July 2021 - We released a change to the CCP that lets agent set a next status such as Lunch or Offline while still on a contact, and indicate they don’t want to be routed new contacts while they finish up their remaining work. For more details on this feature, see the [Amazon Connect agent training guide](https://docs.aws.amazon.com/connect/latest/adminguide/set-next-status.html) and [the feature's release notes](https://docs.aws.amazon.com/connect/latest/adminguide/amazon-connect-release-notes.html#july21-release-notes). If your agents interact directly with Connect’s out-of-the-box CCPV2 UX, they will be able to access this feature by default. Otherwise, if your streamsJS application calls `agent.setState()` to switch agent status, you will need to update your code to use this feature:
     *  **Agent.setState()** has been updated so you can pass an optional flag `enqueueNextState: true` to trigger the Next Status behavior. 
@@ -387,11 +390,11 @@ be called on behalf of the agent. There is only ever one agent per Streams
 instantiation and all contacts and actions are assumed to be taken on behalf of
 this one agent.
 
-### `agent.onContactPending()`
+### `agent.onContactPending()` -- DEPRECATED
 ```js
 agent.onContactPending(function(agent) { /* ... */ });
 ```
-Subscribe a method to be called whenever a contact enters the pending state for this particular agent.
+Subscribe a method to be called whenever a contact enters the pending state for this particular agent. This api is being deprecated.
 
 ### `agent.onRefresh()`
 ```js
@@ -415,7 +418,7 @@ Subscribe a method to be called when the agent's state changes. The
 agent.onRoutable(function(agent) { /* ... */ });
 ```
 Subscribe a method to be called when the agent becomes routable, meaning
-that they can be routed incoming contacts.
+that they can be routed incoming contacts. 
 
 ### `agent.onNotRoutable()`
 ```js
@@ -464,7 +467,7 @@ Subscribe a method to be called when the agent gains a WebSocket connection.
 ```js
 agent.onAfterCallWork(function(agent) { /* ... */ });
 ```
-Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state. This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
+Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state (note that this event is only triggered for voice contacts even though all contacts enter ACW contact state. See contact.onACW below). This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
 
 ### `agent.getState()` / `agent.getStatus()`
 ```js
