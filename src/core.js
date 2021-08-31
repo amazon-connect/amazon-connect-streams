@@ -1435,7 +1435,13 @@
     });
   };
 
- 
+  /**
+   * Used to publish 'task created' event
+   */
+  connect.core.triggerTaskCreated = function (data) {
+    connect.core.getUpstream().upstreamBus.trigger(connect.TaskEvents.CREATED, data);
+  };
+
   /** ------------------------------------------------- */
  
   /**

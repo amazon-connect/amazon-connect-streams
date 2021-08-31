@@ -16,7 +16,13 @@
   connect.agentApp.initAppCommunication = function (iframeId, endpoint) {
     var iframe = document.getElementById(iframeId);
     var iframeConduit = new connect.IFrameConduit(endpoint, window, iframe);
-    var BROADCAST_TYPE = [connect.AgentEvents.UPDATE, connect.ContactEvents.VIEW, connect.EventType.ACKNOWLEDGE, connect.EventType.TERMINATED];
+    var BROADCAST_TYPE = [
+      connect.AgentEvents.UPDATE,
+      connect.ContactEvents.VIEW,
+      connect.EventType.ACKNOWLEDGE,
+      connect.EventType.TERMINATED,
+      connect.TaskEvents.CREATED
+    ];
     iframe.addEventListener('load', function (e) {
       BROADCAST_TYPE.forEach(function (type) {
         connect.core.getUpstream().onUpstream(type, function (data) {
