@@ -1418,16 +1418,18 @@
   /** ----- minimal view layer event handling **/
  
   connect.core.onActivateChannelWithViewType = function (f) {
-    connect.core.getUpstream().onUpstream(connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
+    connect.core.getUpstream().onUpstream(connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
   };
  
   /**
    * Used of agent interface control. 
-   * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad or quick connects into view.
+   * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad, quick connects, or create task into view.
+   * the valid combinations are ("create_task", "task"), ("number_pad", "softphone"), ("create_task", "softphone"), ("quick_connects", "softphone")
+   * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
    */
   connect.core.activateChannelWithViewType = function (viewType, mediaType) {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+      event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
       data: {
         viewType: viewType,
         mediaType: mediaType 

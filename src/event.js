@@ -116,7 +116,7 @@
     'accepted'
   ]);
 
-  var TaskListEvents = connect.makeNamespacedEnum('taskList', [
+  var ChannelViewEvents = connect.makeNamespacedEnum('taskList', [
     'activate_channel_with_view_type'
   ]);
   
@@ -380,7 +380,7 @@
   connect.ConnectionEvents = ConnectionEvents;
   connect.ConnnectionEvents = ConnectionEvents; //deprecate on next major version release.
   connect.ContactEvents = ContactEvents;
-  connect.TaskListEvents = TaskListEvents;
+  connect.ChannelViewEvents = ChannelViewEvents;
   connect.TaskEvents = TaskEvents;
   connect.VoiceIdEvents = VoiceIdEvents;
   connect.WebSocketEvents = WebSocketEvents;
