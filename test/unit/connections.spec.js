@@ -77,7 +77,7 @@ describe('Connections API', function () {
     const initMediaController = sinon.spy();
  
     before(function () {
-      connect.core.getClient = sinon.stub();
+      sinon.stub(connect.core, 'getClient');
       connect.core.getAgentDataProvider = sinon.stub().returns({
         getContactData: () => { return {connections:[{state:{type:"connected"}}]} },
         _initMediaController: initMediaController,
@@ -93,6 +93,7 @@ describe('Connections API', function () {
     });
   
     after(function () {
+      connect.core.getClient.restore();
       initMediaController.resetHistory();
       connect.core.getAgentDataProvider.resetBehavior();
     });

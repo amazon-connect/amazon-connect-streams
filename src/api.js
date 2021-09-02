@@ -1207,6 +1207,7 @@
               var obj = {
                 speakerId: data.contactData.customerId
               }
+              connect.getLog().info("getSpeakerId succeeded").withObject(data).sendInternalLogToServer();
               resolve(obj);
             } else {
               var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call");
@@ -1238,6 +1239,7 @@
             "DomainId" : domainId
             }, {
               success: function (data) {
+                connect.getLog().info("getSpeakerStatus succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               },
               failure: function (err) {
@@ -1278,8 +1280,7 @@
             "DomainId" : domainId
             }, {
               success: function (data) {
-                connect.getLog().info("optOutSpeaker succeeded");
-                //TODO add more logic here for filtering out data once VoiceId API finalized
+                connect.getLog().info("optOutSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               },
               failure: function (err) {
@@ -1312,7 +1313,7 @@
             "DomainId" : domainId
             }, {
               success: function (data) {
-                connect.getLog().info("deleteSpeaker succeeded");
+                connect.getLog().info("deleteSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               },
               failure: function (err) {
@@ -1350,7 +1351,12 @@
               if(data.sessionId) {
                 resolve(data);
               } else {
-                reject(Error("No contact id is returned from start session api."))
+                connect.getLog().error("startVoiceIdSession failed, no session id returned")
+                  .withObject({
+                    data: data
+                  }).sendInternalLogToServer();
+                var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "No session id returned from start session api");
+                reject(error);
               }
             },
             failure: function (err) {
@@ -1396,9 +1402,10 @@
                     data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.NOT_ENABLED;
                   }
 
-                  //Resolve if both authentication and fraud detection are not enabled.
+                  // Resolve if both authentication and fraud detection are not enabled.
                   if(!self.isAuthEnabled(data.AuthenticationResult.Decision) && 
                     !self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
+                      connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
                       resolve(data);
                       return;
                   }
@@ -1414,6 +1421,7 @@
                   // Voice print is not long enough for both authentication and fraud detection
                   if(self.isAuthResultInconclusive(data.AuthenticationResult.Decision) &&
                     self.isFraudResultInconclusive(data.FraudDetectionResult.Decision)) {
+                      connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
                       resolve(data);
                       return;
                   }
@@ -1455,6 +1463,7 @@
                   if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) &&
                     !self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision)) {
                       // Resolve only when both authentication and fraud detection have results. Otherwise, keep polling.
+                      connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
                       resolve(data);
                       return;
                   } else {
@@ -1536,7 +1545,7 @@
 
     return new Promise(function (resolve, reject) {
       function describe () {
-        if(++pollingTimes !== connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES) {
+        if(++pollingTimes < connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES) {
           self.describeSession().then(function(data){
             switch(data.Session.EnrollmentRequestDetails.Status) {
               case connect.VoiceIdEnrollmentRequestStatus.COMPLETED:
@@ -1581,10 +1590,8 @@
     return new Promise(function(resolve, reject) {
       self.syncSpeakerId().then(function() {
         self.getSpeakerStatus().then(function(data) {
-          return data;
-        }).then(function(data) {
           if(data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
-            self.deleteSpeaker().then(function(data) {
+            self.deleteSpeaker().then(function() {
               self.enrollSpeakerHelper(resolve, reject);
             }).catch(function(err) {
               reject(err);
@@ -1612,9 +1619,11 @@
         }, {
           success: function (data) {
             if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+              connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
               resolve(data);
             } else {
               self.checkEnrollmentStatus().then(function(data){
+                connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               }).catch(function(err){
                 reject(err);
@@ -1648,14 +1657,15 @@
           "DomainId" : domainId
           }, {
             success: function (data) {
+              connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
               resolve(data);
             },
             failure: function (err) {
-              connect.getLog().error("updateSpeakerId failed")
+              connect.getLog().error("updateSpeakerIdInVoiceId failed")
                 .withObject({
                   err: err
                 }).sendInternalLogToServer();
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerId failed", err);
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
               reject(error);
             }
           });
