@@ -1268,6 +1268,36 @@
     });
   };
 
+  // internal only
+  VoiceId.prototype._optOutSpeakerInLcms = function (speakerId) {
+    var self = this;
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      client.call(connect.AgentAppClientMethods.OPT_OUT_VOICEID_SPEAKER_IN_LCMS, {
+        "ContactId": self.contactId,
+        "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+        "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
+        "CustomerId": connect.assertNotNull(speakerId, 'speakerId'),
+        "VoiceIdResult": {
+          "SpeakerOptedOut": true
+        }
+        }, {
+          success: function (data) {
+            connect.getLog().info("optOutSpeakerInLcms succeeded").withObject(data).sendInternalLogToServer();
+            resolve(data);
+          },
+          failure: function (err) {
+            connect.getLog().error("optOutSpeakerInLcms failed")
+              .withObject({
+                err: err,
+              }).sendInternalLogToServer();
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.OPT_OUT_SPEAKER_IN_LCMS_FAILED, "optOutSpeakerInLcms failed", err);
+              reject(error);
+          }
+        });
+    });
+  };
+
   VoiceId.prototype.optOutSpeaker = function () {
     var self = this;
     self.checkConferenceCall();
@@ -1275,11 +1305,13 @@
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
         self.getDomainId().then(function(domainId) {
+          var speakerId = data.speakerId;
           client.call(connect.AgentAppClientMethods.OPT_OUT_VOICEID_SPEAKER, {
-            "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
+            "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
             "DomainId" : domainId
             }, {
               success: function (data) {
+                self._optOutSpeakerInLcms(speakerId).catch(function(){});
                 connect.getLog().info("optOutSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               },

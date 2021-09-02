@@ -262,6 +262,39 @@ describe('VoiceId', () => {
     });
   });
 
+  describe('optOutSpeakerInLcms', () => {
+    it('should get resolved with data', async () => {
+      const response = 'fakeData';
+      sinon.stub(connect.core, 'getClient').callsFake(() => ({
+        call: (endpoint, params, callbacks) => {
+          callbacks.success(response);
+        }
+      }));
+      const voiceId = new connect.VoiceId(contactId);
+      const obj = await voiceId._optOutSpeakerInLcms(speakerId);
+      expect(obj).to.equal(response);
+      connect.core.getClient.restore();
+    });
+
+    it('should get rejected if backend call fails', async () => {
+      sinon.stub(connect.core, 'getClient').callsFake(() => ({
+        call: (endpoint, params, callbacks) => {
+          callbacks.failure({});
+        }
+      }));
+      const voiceId = new connect.VoiceId(contactId);
+      let obj, error;
+      try {
+        obj = await voiceId._optOutSpeakerInLcms(speakerId);
+      } catch (e) {
+        error = e;
+      }
+      expect(obj).to.be.a('undefined');
+      expect(error.type).to.equal(connect.VoiceIdErrorTypes.OPT_OUT_SPEAKER_IN_LCMS_FAILED);
+      connect.core.getClient.restore();
+    });
+  });
+
   describe('optOutSpeaker', () => {
     it('should get resolved with data', async () => {
       const response = 'fakeData';
@@ -274,11 +307,13 @@ describe('VoiceId', () => {
       voiceId.checkConferenceCall = sinon.stub();
       voiceId.getSpeakerId = sinon.stub().callsFake(() => Promise.resolve({ speakerId }));
       voiceId.getDomainId = sinon.stub().callsFake(() => Promise.resolve(domainId));
+      voiceId._optOutSpeakerInLcms = sinon.stub().callsFake(() => Promise.resolve());
       const obj = await voiceId.optOutSpeaker();
       expect(obj).to.equal(response);
       sinon.assert.calledOnce(voiceId.checkConferenceCall);
       sinon.assert.calledOnce(voiceId.getSpeakerId);
       sinon.assert.calledOnce(voiceId.getDomainId);
+      sinon.assert.calledOnce(voiceId._optOutSpeakerInLcms);
       connect.core.getClient.restore();
     });
 
@@ -292,6 +327,7 @@ describe('VoiceId', () => {
       voiceId.checkConferenceCall = sinon.stub();
       voiceId.getSpeakerId = sinon.stub().callsFake(() => Promise.resolve({ speakerId }));
       voiceId.getDomainId = sinon.stub().callsFake(() => Promise.resolve(domainId));
+      voiceId._optOutSpeakerInLcms = sinon.stub().callsFake(() => Promise.resolve());
       let obj, error;
       try {
         obj = await voiceId.optOutSpeaker();

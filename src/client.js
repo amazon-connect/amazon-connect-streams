@@ -55,6 +55,7 @@
       EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
       GET_SPEAKER_STATUS: "AgentAppService.VoiceId.describeSpeaker",
       OPT_OUT_VOICEID_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
+      OPT_OUT_VOICEID_SPEAKER_IN_LCMS: "AgentAppService.Lcms.updateVoiceIdData",
       DESCRIBE_VOICEID_SESSION: "AgentAppService.VoiceId.describeSession",
       UPDATE_VOICEID_SESSION: "AgentAppService.VoiceId.updateSession",
       START_VOICEID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
