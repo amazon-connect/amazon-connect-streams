@@ -1197,7 +1197,7 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.GET_SPEAKER_ID, {
+      client.call(connect.AgentAppClientMethods.GET_CONTACT, {
         "contactId": self.contactId,
         "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "awsAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
@@ -1234,7 +1234,7 @@
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
         self.getDomainId().then(function(domainId) {
-          client.call(connect.AgentAppClientMethods.GET_SPEAKER_STATUS, {
+          client.call(connect.AgentAppClientMethods.DESCRIBE_SPEAKER, {
             "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
             "DomainId" : domainId
             }, {
@@ -1273,7 +1273,7 @@
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.OPT_OUT_VOICEID_SPEAKER_IN_LCMS, {
+      client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, {
         "ContactId": self.contactId,
         "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
@@ -1306,7 +1306,7 @@
       self.getSpeakerId().then(function(data){
         self.getDomainId().then(function(domainId) {
           var speakerId = data.speakerId;
-          client.call(connect.AgentAppClientMethods.OPT_OUT_VOICEID_SPEAKER, {
+          client.call(connect.AgentAppClientMethods.OPT_OUT_SPEAKER, {
             "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
             "DomainId" : domainId
             }, {
@@ -1340,7 +1340,7 @@
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
         self.getDomainId().then(function(domainId) {
-          client.call(connect.AgentAppClientMethods.DELETE_VOICEID_SPEAKER, {
+          client.call(connect.AgentAppClientMethods.DELETE_SPEAKER, {
             "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
             "DomainId" : domainId
             }, {
@@ -1372,7 +1372,7 @@
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function(domainId) {
-        client.call(connect.AgentAppClientMethods.START_VOICEID_SESSION, {
+        client.call(connect.AgentAppClientMethods.START_VOICE_ID_SESSION, {
           "contactId": self.contactId,
           "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
           "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
@@ -1415,7 +1415,7 @@
     return new Promise(function (resolve, reject) {
       function evaluate() {
         self.getDomainId().then(function(domainId) {
-          client.call(connect.AgentAppClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
+          client.call(connect.AgentAppClientMethods.EVALUATE_SESSION, {
             "SessionNameOrId": contactData.initialContactId || this.contactId,
             "DomainId" : domainId
           }, {
@@ -1549,7 +1549,7 @@
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function(domainId) {
-        client.call(connect.AgentAppClientMethods.DESCRIBE_VOICEID_SESSION, {
+        client.call(connect.AgentAppClientMethods.DESCRIBE_SESSION, {
           "SessionNameOrId": contactData.initialContactId || this.contactId,
           "DomainId" : domainId
         }, {
@@ -1645,7 +1645,7 @@
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     self.getDomainId().then(function(domainId) {
-      client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
+      client.call(connect.AgentAppClientMethods.ENROLL_BY_SESSION, {
         "SessionNameOrId": contactData.initialContactId || this.contactId,
         "DomainId" : domainId
         }, {
@@ -1683,7 +1683,7 @@
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function(domainId) {
-        client.call(connect.AgentAppClientMethods.UPDATE_VOICEID_SESSION, {
+        client.call(connect.AgentAppClientMethods.UPDATE_SESSION, {
           "SessionNameOrId": contactData.initialContactId || this.contactId,
           "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
           "DomainId" : domainId
@@ -1731,7 +1731,7 @@
         resolve(connect.core.voiceIdDomainId);
       } else {
         var client = connect.core.getClient();
-        client.call(connect.AgentAppClientMethods.GET_DOMAIN_ID, {
+        client.call(connect.AgentAppClientMethods.LIST_INTEGRATION_ASSOCIATIONS, {
           "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
           "IntegrationType": "VOICE_ID"
         }, {

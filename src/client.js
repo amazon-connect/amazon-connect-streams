@@ -49,17 +49,17 @@
     * enum AgentAppClientMethods
     */
    connect.AgentAppClientMethods = {
-      GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
-      DELETE_VOICEID_SPEAKER: "AgentAppService.VoiceId.deleteSpeaker",
-      ENROLL_SPEAKER_IN_VOICEID: "AgentAppService.VoiceId.enrollBySession",
-      EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
-      GET_SPEAKER_STATUS: "AgentAppService.VoiceId.describeSpeaker",
-      OPT_OUT_VOICEID_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
-      OPT_OUT_VOICEID_SPEAKER_IN_LCMS: "AgentAppService.Lcms.updateVoiceIdData",
-      DESCRIBE_VOICEID_SESSION: "AgentAppService.VoiceId.describeSession",
-      UPDATE_VOICEID_SESSION: "AgentAppService.VoiceId.updateSession",
-      START_VOICEID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
-      GET_DOMAIN_ID: "AgentAppService.Acs.listIntegrationAssociations"
+      GET_CONTACT: "AgentAppService.Lcms.getContact",
+      DELETE_SPEAKER: "AgentAppService.VoiceId.deleteSpeaker",
+      ENROLL_BY_SESSION: "AgentAppService.VoiceId.enrollBySession",
+      EVALUATE_SESSION: "AgentAppService.VoiceId.evaluateSession",
+      DESCRIBE_SPEAKER: "AgentAppService.VoiceId.describeSpeaker",
+      OPT_OUT_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
+      UPDATE_VOICE_ID_DATA: "AgentAppService.Lcms.updateVoiceIdData",
+      DESCRIBE_SESSION: "AgentAppService.VoiceId.describeSession",
+      UPDATE_SESSION: "AgentAppService.VoiceId.updateSession",
+      START_VOICE_ID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
+      LIST_INTEGRATION_ASSOCIATIONS: "AgentAppService.Acs.listIntegrationAssociations"
    };
 
    /**---------------------------------------------------------------
