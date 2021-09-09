@@ -502,9 +502,12 @@ describe('VoiceId', () => {
       voiceId.syncSpeakerId = sinon.stub().callsFake(() => Promise.resolve());
       voiceId.startSession = sinon.stub().callsFake(() => Promise.resolve());
       voiceId.getDomainId = sinon.stub().callsFake(() => Promise.resolve(domainId));
-      const obj = await voiceId.evaluateSpeaker(true);
+      let obj, error;
+      voiceId.evaluateSpeaker(true).then((data) => { obj = data }).catch((err) => { error = err });
+      await clock.tickAsync(connect.VoiceIdConstants.EVALUATE_SESSION_DELAY);
       expect(obj.AuthenticationResult.Decision).to.equal(connect.ContactFlowAuthenticationDecision.AUTHENTICATED);
       expect(obj.FraudDetectionResult.Decision).to.equal(connect.ContactFlowFraudDetectionDecision.LOW_RISK);
+      expect(error).to.be.a('undefined');
       sinon.assert.calledOnce(voiceId.checkConferenceCall);
       sinon.assert.calledOnce(voiceId.syncSpeakerId);
       sinon.assert.calledOnce(voiceId.startSession);
@@ -535,8 +538,9 @@ describe('VoiceId', () => {
       voiceId.getDomainId = sinon.stub().callsFake(() => Promise.resolve(domainId));
 
       let error;
-      const obj = voiceId.evaluateSpeaker().then(() => {}).catch(() => {});
+      voiceId.evaluateSpeaker().then(() => {}).catch((err) => { error = err });
       await clock.tickAsync(connect.VoiceIdConstants.EVALUATION_POLLING_INTERVAL);
+      expect(error).to.be.a('undefined');
       sinon.assert.calledTwice(fakeCallFn);
       connect.core.getClient.restore();
     });
@@ -711,8 +715,10 @@ describe('VoiceId', () => {
       voiceId.startSession = sinon.stub().callsFake(() => Promise.resolve());
       voiceId.getDomainId = sinon.stub().callsFake(() => Promise.resolve(domainId));
 
-      const obj = voiceId.evaluateSpeaker().then(() => {}).catch(() => {});
+      let error;
+      voiceId.evaluateSpeaker().then(() => {}).catch((err) => { error = err });
       await clock.tickAsync(connect.VoiceIdConstants.EVALUATION_POLLING_INTERVAL);
+      expect(error).to.be.a('undefined');
       sinon.assert.calledTwice(fakeCallFn);
       connect.core.getClient.restore();
     });
@@ -739,8 +745,10 @@ describe('VoiceId', () => {
       voiceId.startSession = sinon.stub().callsFake(() => Promise.resolve());
       voiceId.getDomainId = sinon.stub().callsFake(() => Promise.resolve(domainId));
 
-      const obj = voiceId.evaluateSpeaker().then(() => {}).catch(() => {});
+      let error;
+      voiceId.evaluateSpeaker().then(() => {}).catch((err) => { error = err });
       await clock.tickAsync(connect.VoiceIdConstants.EVALUATION_POLLING_INTERVAL * connect.VoiceIdConstants.EVALUATION_MAX_POLL_TIMES);
+      expect(error.type).to.equal(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_TIMEOUT);
       expect(fakeCallFn.callCount).to.equal(connect.VoiceIdConstants.EVALUATION_MAX_POLL_TIMES);
       connect.core.getClient.restore();
     });
@@ -873,8 +881,10 @@ describe('VoiceId', () => {
       };
       const voiceId = new connect.VoiceId(contactId);
       voiceId.describeSession = sinon.stub().callsFake(() => Promise.resolve(response));
-      const obj = voiceId.checkEnrollmentStatus().then(() => {}).catch(() => {});
+      let error;
+      voiceId.checkEnrollmentStatus().then(() => {}).catch((err) => { error = err });
       await clock.tickAsync(connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL);
+      expect(error).to.be.a('undefined');
       sinon.assert.calledTwice(voiceId.describeSession);
     });
 
@@ -910,8 +920,10 @@ describe('VoiceId', () => {
       const voiceId = new connect.VoiceId(contactId);
       voiceId.describeSession = sinon.stub().callsFake(() => Promise.resolve(response));
       voiceId.startSession = sinon.stub().callsFake(() => Promise.resolve());
-      const obj = voiceId.checkEnrollmentStatus().then(() => {}).catch(() => {});
+      let error;
+      voiceId.checkEnrollmentStatus().then(() => {}).catch((err) => { error = err });
       await clock.tickAsync(connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL + connect.VoiceIdConstants.START_SESSION_DELAY);
+      expect(error).to.be.a('undefined');
       sinon.assert.calledTwice(voiceId.describeSession);
       sinon.assert.calledOnce(voiceId.startSession);
     });
@@ -955,8 +967,10 @@ describe('VoiceId', () => {
       const voiceId = new connect.VoiceId(contactId);
       voiceId.describeSession = sinon.stub().callsFake(() => Promise.resolve(response));
 
-      const obj = voiceId.checkEnrollmentStatus().then(() => {}).catch(() => {});
+      let error;
+      voiceId.checkEnrollmentStatus().then(() => {}).catch((err) => { error = err });
       await clock.tickAsync(connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL * connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES);
+      expect(error.type).to.equal(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_TIMEOUT);
       expect(voiceId.describeSession.callCount).to.equal(connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES - 1);
     });
   });

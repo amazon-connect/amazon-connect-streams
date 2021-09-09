@@ -23286,16 +23286,17 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     * enum AgentAppClientMethods
     */
    connect.AgentAppClientMethods = {
-      GET_SPEAKER_ID: "AgentAppService.Lcms.getContact",
-      DELETE_VOICEID_SPEAKER: "AgentAppService.VoiceId.deleteSpeaker",
-      ENROLL_SPEAKER_IN_VOICEID: "AgentAppService.VoiceId.enrollBySession",
-      EVALUATE_SPEAKER_WITH_VOICEID: "AgentAppService.VoiceId.evaluateSession",
-      GET_SPEAKER_STATUS: "AgentAppService.VoiceId.describeSpeaker",
-      OPT_OUT_VOICEID_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
-      DESCRIBE_VOICEID_SESSION: "AgentAppService.VoiceId.describeSession",
-      UPDATE_VOICEID_SESSION: "AgentAppService.VoiceId.updateSession",
-      START_VOICEID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
-      GET_DOMAIN_ID: "AgentAppService.Acs.listIntegrationAssociations"
+      GET_CONTACT: "AgentAppService.Lcms.getContact",
+      DELETE_SPEAKER: "AgentAppService.VoiceId.deleteSpeaker",
+      ENROLL_BY_SESSION: "AgentAppService.VoiceId.enrollBySession",
+      EVALUATE_SESSION: "AgentAppService.VoiceId.evaluateSession",
+      DESCRIBE_SPEAKER: "AgentAppService.VoiceId.describeSpeaker",
+      OPT_OUT_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
+      UPDATE_VOICE_ID_DATA: "AgentAppService.Lcms.updateVoiceIdData",
+      DESCRIBE_SESSION: "AgentAppService.VoiceId.describeSession",
+      UPDATE_SESSION: "AgentAppService.VoiceId.updateSession",
+      START_VOICE_ID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
+      LIST_INTEGRATION_ASSOCIATIONS: "AgentAppService.Acs.listIntegrationAssociations"
    };
 
    /**---------------------------------------------------------------
@@ -24095,8 +24096,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   ])
 
   connect.VoiceIdConstants = {
-    EVALUATION_MAX_POLL_TIMES: 120, // EvaluateSpeaker is Polling for maximum 2 mins.
-    EVALUATION_POLLING_INTERVAL: 1000,
+    EVALUATE_SESSION_DELAY: 10000,
+    EVALUATION_MAX_POLL_TIMES: 24, // EvaluateSpeaker is Polling for maximum 2 mins.
+    EVALUATION_POLLING_INTERVAL: 5000,
     ENROLLMENT_MAX_POLL_TIMES: 120, // EnrollmentSpeaker is Polling for maximum 10 mins.
     ENROLLMENT_POLLING_INTERVAL: 5000,
     START_SESSION_DELAY: 8000
@@ -24999,7 +25001,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.GET_SPEAKER_ID, {
+      client.call(connect.AgentAppClientMethods.GET_CONTACT, {
         "contactId": self.contactId,
         "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "awsAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
@@ -25009,6 +25011,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
               var obj = {
                 speakerId: data.contactData.customerId
               }
+              connect.getLog().info("getSpeakerId succeeded").withObject(data).sendInternalLogToServer();
               resolve(obj);
             } else {
               var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call");
@@ -25035,11 +25038,12 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
         self.getDomainId().then(function(domainId) {
-          client.call(connect.AgentAppClientMethods.GET_SPEAKER_STATUS, {
+          client.call(connect.AgentAppClientMethods.DESCRIBE_SPEAKER, {
             "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
             "DomainId" : domainId
             }, {
               success: function (data) {
+                connect.getLog().info("getSpeakerStatus succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               },
               failure: function (err) {
@@ -25068,6 +25072,36 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     });
   };
 
+  // internal only
+  VoiceId.prototype._optOutSpeakerInLcms = function (speakerId) {
+    var self = this;
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, {
+        "ContactId": self.contactId,
+        "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+        "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
+        "CustomerId": connect.assertNotNull(speakerId, 'speakerId'),
+        "VoiceIdResult": {
+          "SpeakerOptedOut": true
+        }
+        }, {
+          success: function (data) {
+            connect.getLog().info("optOutSpeakerInLcms succeeded").withObject(data).sendInternalLogToServer();
+            resolve(data);
+          },
+          failure: function (err) {
+            connect.getLog().error("optOutSpeakerInLcms failed")
+              .withObject({
+                err: err,
+              }).sendInternalLogToServer();
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.OPT_OUT_SPEAKER_IN_LCMS_FAILED, "optOutSpeakerInLcms failed", err);
+              reject(error);
+          }
+        });
+    });
+  };
+
   VoiceId.prototype.optOutSpeaker = function () {
     var self = this;
     self.checkConferenceCall();
@@ -25075,13 +25109,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
         self.getDomainId().then(function(domainId) {
-          client.call(connect.AgentAppClientMethods.OPT_OUT_VOICEID_SPEAKER, {
-            "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
+          var speakerId = data.speakerId;
+          client.call(connect.AgentAppClientMethods.OPT_OUT_SPEAKER, {
+            "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
             "DomainId" : domainId
             }, {
               success: function (data) {
-                connect.getLog().info("optOutSpeaker succeeded");
-                //TODO add more logic here for filtering out data once VoiceId API finalized
+                self._optOutSpeakerInLcms(speakerId).catch(function(){});
+                connect.getLog().info("optOutSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               },
               failure: function (err) {
@@ -25109,12 +25144,12 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
         self.getDomainId().then(function(domainId) {
-          client.call(connect.AgentAppClientMethods.DELETE_VOICEID_SPEAKER, {
+          client.call(connect.AgentAppClientMethods.DELETE_SPEAKER, {
             "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
             "DomainId" : domainId
             }, {
               success: function (data) {
-                connect.getLog().info("deleteSpeaker succeeded");
+                connect.getLog().info("deleteSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               },
               failure: function (err) {
@@ -25141,7 +25176,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function(domainId) {
-        client.call(connect.AgentAppClientMethods.START_VOICEID_SESSION, {
+        client.call(connect.AgentAppClientMethods.START_VOICE_ID_SESSION, {
           "contactId": self.contactId,
           "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
           "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
@@ -25152,7 +25187,12 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
               if(data.sessionId) {
                 resolve(data);
               } else {
-                reject(Error("No contact id is returned from start session api."))
+                connect.getLog().error("startVoiceIdSession failed, no session id returned")
+                  .withObject({
+                    data: data
+                  }).sendInternalLogToServer();
+                var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "No session id returned from start session api");
+                reject(error);
               }
             },
             failure: function (err) {
@@ -25179,7 +25219,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return new Promise(function (resolve, reject) {
       function evaluate() {
         self.getDomainId().then(function(domainId) {
-          client.call(connect.AgentAppClientMethods.EVALUATE_SPEAKER_WITH_VOICEID, {
+          client.call(connect.AgentAppClientMethods.EVALUATE_SESSION, {
             "SessionNameOrId": contactData.initialContactId || this.contactId,
             "DomainId" : domainId
           }, {
@@ -25198,9 +25238,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
                     data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.NOT_ENABLED;
                   }
 
-                  //Resolve if both authentication and fraud detection are not enabled.
+                  // Resolve if both authentication and fraud detection are not enabled.
                   if(!self.isAuthEnabled(data.AuthenticationResult.Decision) && 
                     !self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
+                      connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
                       resolve(data);
                       return;
                   }
@@ -25216,6 +25257,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
                   // Voice print is not long enough for both authentication and fraud detection
                   if(self.isAuthResultInconclusive(data.AuthenticationResult.Decision) &&
                     self.isFraudResultInconclusive(data.FraudDetectionResult.Decision)) {
+                      connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
                       resolve(data);
                       return;
                   }
@@ -25257,6 +25299,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
                   if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) &&
                     !self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision)) {
                       // Resolve only when both authentication and fraud detection have results. Otherwise, keep polling.
+                      connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
                       resolve(data);
                       return;
                   } else {
@@ -25293,7 +25336,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           evaluate();
         } else {
           self.startSession().then(function(data) {
-            evaluate();
+            setTimeout(evaluate, connect.VoiceIdConstants.EVALUATE_SESSION_DELAY);
           }).catch(function(err){
             reject(err)
           });
@@ -25310,7 +25353,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function(domainId) {
-        client.call(connect.AgentAppClientMethods.DESCRIBE_VOICEID_SESSION, {
+        client.call(connect.AgentAppClientMethods.DESCRIBE_SESSION, {
           "SessionNameOrId": contactData.initialContactId || this.contactId,
           "DomainId" : domainId
         }, {
@@ -25338,7 +25381,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
     return new Promise(function (resolve, reject) {
       function describe () {
-        if(++pollingTimes !== connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES) {
+        if(++pollingTimes < connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES) {
           self.describeSession().then(function(data){
             switch(data.Session.EnrollmentRequestDetails.Status) {
               case connect.VoiceIdEnrollmentRequestStatus.COMPLETED:
@@ -25383,10 +25426,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return new Promise(function(resolve, reject) {
       self.syncSpeakerId().then(function() {
         self.getSpeakerStatus().then(function(data) {
-          return data;
-        }).then(function(data) {
           if(data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
-            self.deleteSpeaker().then(function(data) {
+            self.deleteSpeaker().then(function() {
               self.enrollSpeakerHelper(resolve, reject);
             }).catch(function(err) {
               reject(err);
@@ -25408,15 +25449,17 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     self.getDomainId().then(function(domainId) {
-      client.call(connect.AgentAppClientMethods.ENROLL_SPEAKER_IN_VOICEID, {
+      client.call(connect.AgentAppClientMethods.ENROLL_BY_SESSION, {
         "SessionNameOrId": contactData.initialContactId || this.contactId,
         "DomainId" : domainId
         }, {
           success: function (data) {
             if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+              connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
               resolve(data);
             } else {
               self.checkEnrollmentStatus().then(function(data){
+                connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               }).catch(function(err){
                 reject(err);
@@ -25444,20 +25487,21 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function(domainId) {
-        client.call(connect.AgentAppClientMethods.UPDATE_VOICEID_SESSION, {
+        client.call(connect.AgentAppClientMethods.UPDATE_SESSION, {
           "SessionNameOrId": contactData.initialContactId || this.contactId,
           "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
           "DomainId" : domainId
           }, {
             success: function (data) {
+              connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
               resolve(data);
             },
             failure: function (err) {
-              connect.getLog().error("updateSpeakerId failed")
+              connect.getLog().error("updateSpeakerIdInVoiceId failed")
                 .withObject({
                   err: err
                 }).sendInternalLogToServer();
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerId failed", err);
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
               reject(error);
             }
           });
@@ -25491,7 +25535,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         resolve(connect.core.voiceIdDomainId);
       } else {
         var client = connect.core.getClient();
-        client.call(connect.AgentAppClientMethods.GET_DOMAIN_ID, {
+        client.call(connect.AgentAppClientMethods.LIST_INTEGRATION_ASSOCIATIONS, {
           "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
           "IntegrationType": "VOICE_ID"
         }, {

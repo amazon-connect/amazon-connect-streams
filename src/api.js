@@ -293,8 +293,9 @@
   ])
 
   connect.VoiceIdConstants = {
-    EVALUATION_MAX_POLL_TIMES: 120, // EvaluateSpeaker is Polling for maximum 2 mins.
-    EVALUATION_POLLING_INTERVAL: 1000,
+    EVALUATE_SESSION_DELAY: 10000,
+    EVALUATION_MAX_POLL_TIMES: 24, // EvaluateSpeaker is Polling for maximum 2 mins.
+    EVALUATION_POLLING_INTERVAL: 5000,
     ENROLLMENT_MAX_POLL_TIMES: 120, // EnrollmentSpeaker is Polling for maximum 10 mins.
     ENROLLMENT_POLLING_INTERVAL: 5000,
     START_SESSION_DELAY: 8000
@@ -1532,7 +1533,7 @@
           evaluate();
         } else {
           self.startSession().then(function(data) {
-            evaluate();
+            setTimeout(evaluate, connect.VoiceIdConstants.EVALUATE_SESSION_DELAY);
           }).catch(function(err){
             reject(err)
           });
