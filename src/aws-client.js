@@ -1068,6 +1068,9 @@ module.exports={
                                 "type": "timestamp"
                               }
                             }
+                          },
+                          "mute": {
+                            "type": "boolean"
                           }
                         }
                       }
@@ -1288,6 +1291,27 @@ module.exports={
         "members": {}
       }
     },
+    "MuteParticipant": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "authentication",
+          "contactId",
+          "connectionId"
+        ],
+        "members": {
+          "authentication": {
+            "shape": "S2"
+          },
+          "contactId": {},
+          "connectionId": {}
+        }
+      },
+      "output": {
+        "type": "structure",
+        "members": {}
+      }
+    },
     "NotifyContactIssue": {
       "input": {
         "type": "structure",
@@ -1439,7 +1463,7 @@ module.exports={
           "contactId": {},
           "ccpVersion": {},
           "softphoneStreamStatistics": {
-            "shape": "S3p"
+            "shape": "S3r"
           }
         }
       },
@@ -1472,7 +1496,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S3p"
+                "shape": "S3r"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -1541,6 +1565,27 @@ module.exports={
       }
     },
     "ToggleActiveConnections": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "authentication",
+          "contactId",
+          "connectionId"
+        ],
+        "members": {
+          "authentication": {
+            "shape": "S2"
+          },
+          "contactId": {},
+          "connectionId": {}
+        }
+      },
+      "output": {
+        "type": "structure",
+        "members": {}
+      }
+    },
+    "UnmuteParticipant": {
       "input": {
         "type": "structure",
         "required": [
@@ -1687,7 +1732,7 @@ module.exports={
         }
       }
     },
-    "S3p": {
+    "S3r": {
       "type": "list",
       "member": {
         "type": "structure",
