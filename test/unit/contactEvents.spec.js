@@ -11,7 +11,7 @@ describe('Contact Events', function () {
     sandbox.stub(connect.core, 'getUpstream').returns({
       sendUpstream: sandbox.stub(),
     });
-    contactId = '1234567890';
+    contactId = '0000000000';
     contact = new connect.Contact(contactId);
   });
 

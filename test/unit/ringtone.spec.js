@@ -12,7 +12,7 @@ describe('RingtoneEngine', function () {
         global.ringtoneObj = {
             ringtoneUrl: "ringtone.com"
         }
-        contactId = "1234567890";
+        contactId = "0000000000";
         contact = new connect.Contact(contactId);
     });
 
