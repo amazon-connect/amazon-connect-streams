@@ -116,8 +116,12 @@
     'accepted'
   ]);
 
-  var TaskListEvents = connect.makeNamespacedEnum('taskList', [
+  var ChannelViewEvents = connect.makeNamespacedEnum('taskList', [
     'activate_channel_with_view_type'
+  ]);
+  
+  var TaskEvents = connect.makeNamespacedEnum('task', [
+      'created'
   ]);
 
 
@@ -140,6 +144,13 @@
     'speaker_device_changed',
     'microphone_device_changed',
     'ringer_device_changed'
+  ]);
+
+  /**---------------------------------------------------------------
+   * enum VoiceId Events
+   */
+   var VoiceIdEvents = connect.makeNamespacedEnum('voiceId', [
+    'update_domain_id'
   ]);
 
   /**---------------------------------------------------------------
@@ -345,7 +356,9 @@
   connect.ConnectionEvents = ConnectionEvents;
   connect.ConnnectionEvents = ConnectionEvents; //deprecate on next major version release.
   connect.ContactEvents = ContactEvents;
-  connect.TaskListEvents = TaskListEvents;
+  connect.ChannelViewEvents = ChannelViewEvents;
+  connect.TaskEvents = TaskEvents;
+  connect.VoiceIdEvents = VoiceIdEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
 })();
