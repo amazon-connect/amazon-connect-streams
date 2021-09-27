@@ -586,8 +586,8 @@
     url = url || window.location.href;
     return url.includes('.awsapps.com');
   }
-
  
+
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
    * Used only by the CCP
@@ -723,6 +723,24 @@
       });
  
       worker.port.start();
+
+      conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, function (data) {
+        if (data && data.domainId) {
+          connect.core.voiceIdDomainId = data.domainId;
+        }
+      });
+
+      // try fetching voiceId's domainId once the agent is initialized
+      connect.agent(function () {
+        var voiceId = new connect.VoiceId();
+        voiceId.getDomainId()
+          .then(function(domainId) {
+            connect.getLog().info("voiceId domainId successfully fetched at agent initialization: " + domainId).sendInternalLogToServer();
+          })
+          .catch(function(err) {
+            connect.getLog().info("voiceId domainId not fetched at agent initialization").withObject({ err: err }).sendInternalLogToServer();
+          });
+      });
  
       // Attempt to get permission to show notifications.
       var nm = connect.core.getNotificationManager();
@@ -893,6 +911,12 @@
 
     conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
       connect.numberOfConnectedCCPs = data.length;
+    });
+
+    conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, function (data) {
+      if (data && data.domainId) {
+        connect.core.voiceIdDomainId = data.domainId;
+      }
     });
 
     // keep the softphone params for external use
@@ -1277,16 +1301,18 @@
   /** ----- minimal view layer event handling **/
  
   connect.core.onActivateChannelWithViewType = function (f) {
-    connect.core.getUpstream().onUpstream(connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
+    connect.core.getUpstream().onUpstream(connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
   };
  
   /**
    * Used of agent interface control. 
-   * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad or quick connects into view.
+   * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad, quick connects, or create task into view.
+   * the valid combinations are ("create_task", "task"), ("number_pad", "softphone"), ("create_task", "softphone"), ("quick_connects", "softphone")
+   * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
    */
   connect.core.activateChannelWithViewType = function (viewType, mediaType) {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.TaskListEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+      event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
       data: {
         viewType: viewType,
         mediaType: mediaType 
@@ -1294,7 +1320,13 @@
     });
   };
 
- 
+  /**
+   * Used to publish 'task created' event
+   */
+  connect.core.triggerTaskCreated = function (data) {
+    connect.core.getUpstream().upstreamBus.trigger(connect.TaskEvents.CREATED, data);
+  };
+
   /** ------------------------------------------------- */
  
   /**
