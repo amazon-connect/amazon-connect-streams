@@ -1528,19 +1528,30 @@
           reject(err);
         });
       }
-      self.syncSpeakerId().then(function () {
-        if(!startNew){
+      
+      if(!startNew) {
+        self.syncSpeakerId().then(function () {
           evaluate();
-        } else {
-          self.startSession().then(function(data) {
+        }).catch(function (err) {
+          connect.getLog().error("syncSpeakerId failed when session startNew=false")
+                .withObject({err: err}).sendInternalLogToServer();
+          reject(err);
+        })
+      } else { 
+        self.startSession().then(function(data) {
+          self.syncSpeakerId().then(function(data) {
             setTimeout(evaluate, connect.VoiceIdConstants.EVALUATE_SESSION_DELAY);
+          }).catch(function (err) {
+              connect.getLog().error("syncSpeakerId failed when session startNew=true")
+                .withObject({err: err}).sendInternalLogToServer();
+              reject(err);
+            });
           }).catch(function(err){
-            reject(err)
-          });
-        }
-      }).catch(function (err) {
-        reject(err);
-      })
+            connect.getLog().error("startSession failed when session startNew=true")
+              .withObject({err: err}).sendInternalLogToServer();
+          reject(err)
+        });
+      }
     });
   };
 
