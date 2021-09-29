@@ -1,20 +1,24 @@
 # Amazon Connect Streams Documentation
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
+### A note on "Routability"
+Note that routability in streams is only affected by agent statuses. Voice contacts will change the agent status, and thus can affect routability. Task and chat contacts do not affect routability. However, if the other channels hit their concurrent live contact limit(s), the agent will not be routed more contacts, but they will technically be in a routable agent state.
+
 # Important Announcements
-1. July 2021 - We released a change to the CCP that lets agent set a next status such as Lunch or Offline while still on a contact, and indicate they don’t want to be routed new contacts while they finish up their remaining work. For more details on this feature, see the [Amazon Connect agent training guide](https://docs.aws.amazon.com/connect/latest/adminguide/set-next-status.html) and [the feature's release notes](https://docs.aws.amazon.com/connect/latest/adminguide/amazon-connect-release-notes.html#july21-release-notes). If your agents interact directly with Connect’s out-of-the-box CCPV2 UX, they will be able to access this feature by default. Otherwise, if your streamsJS application calls `agent.setState()` to switch agent status, you will need to update your code to use this feature:
+1. September 2021 - 1.7.0 comes with changes needed to use Amazon Connect Voice ID, which launched on 9/27/2021. For customers who want to use Voice ID, please upgrade Streams to version 1.7.0 or later in the next 1 month, otherwise the Voice ID APIs will stop working by the end of October 2021. For more details on the Voice ID APIs, please look at [the Voice ID APIs section](#voice-id-apis).
+2. July 2021 - We released a change to the CCP that lets agent set a next status such as Lunch or Offline while still on a contact, and indicate they don’t want to be routed new contacts while they finish up their remaining work. For more details on this feature, see the [Amazon Connect agent training guide](https://docs.aws.amazon.com/connect/latest/adminguide/set-next-status.html) and [the feature's release notes](https://docs.aws.amazon.com/connect/latest/adminguide/amazon-connect-release-notes.html#july21-release-notes). If your agents interact directly with Connect’s out-of-the-box CCPV2 UX, they will be able to access this feature by default. Otherwise, if your streamsJS application calls `agent.setState()` to switch agent status, you will need to update your code to use this feature:
     *  **Agent.setState()** has been updated so you can pass an optional flag `enqueueNextState: true` to trigger the Next Status behavior. 
     * A new **agent.onEnqueuedNextState()** listener lets you subscribe to events for when agents have selected/successfully enqueued their next status.
     * A new **agent.getNextState()** API returns a state object if the agent has successfully selected a next state, and null otherwise. 
     * If you want to use the Next Status feature via `agent.setState()`, please also ensure that your code is using `contact.clear()` and not `contact.complete()` when clearing After Contact Work off a contact.
-2. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Wisdom (preview). See the [updated documentation](#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
+3. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Wisdom. See the [updated documentation](#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
     * ### About Amazon Connect Customer Profiles
         + Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place. 
-    * ### About Amazon Connect Wisdom (this feature is in preview release for Amazon Connect and is subject to change)
+    * ### About Amazon Connect Wisdom
         + With Amazon Connect Wisdom, agents can search and find content across multiple repositories, such as frequently asked questions (FAQs), wikis, articles, and step-by-step instructions for handling different customer issues. They can type questions or phrases in a search box (such as, "how long after purchase can handbags be exchanged?") without having to guess which keywords will work.
     * ### About Amazon Connect Voice ID (this feature is in preview release for Amazon Connect and is subject to change)
         + Amazon Connect Voice ID provides real-time caller authentication which makes voice interactions in contact centers more secure and efficient. Voice ID uses machine learning to verify the identity of genuine customers by analyzing a caller’s unique voice characteristics. This allows contact centers to use an additional security layer that doesn’t rely on the caller answering multiple security questions, and makes it easy to enroll and verify customers without changing the natural flow of their conversation.
-3. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
+4. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
     * `FailedConnectAgent` -- Previously, we required the agent to click the "Clear Contact" button to clear this state. When the agent clicked the "Clear Contact" button, the previous behavior took the agent back to the `Available` state without fail. Now the `FailedConnectAgent` state will be "auto-cleared", much like `FailedConnectCustomer` always has been. 
     * `FailedConnectAgent` and `FailedConnectCustomer` -- We are now using the `contact.clear()` API to auto-clear these states. As a result, the agent will be returned to their previous visible agent state (e.g. `Available`). Previously, the agent had always been set to `Available` as a result of this "auto-clearing" behavior. Note that even custom CCPs will behave differently with this update for `FailedConnectAgent` and `FailedConnectCustomer`.
     * `AfterCallWork` -- As part of the new `contact.clear()` behavior, clicking "Clear Contact" while in `AfterCallWork` will return the agent to their previous visible agent state (e.g. `Available`, etc.). Note that custom CCPs that implement their own After Call Work behavior will not be affected by this change.
@@ -387,11 +391,11 @@ be called on behalf of the agent. There is only ever one agent per Streams
 instantiation and all contacts and actions are assumed to be taken on behalf of
 this one agent.
 
-### `agent.onContactPending()`
+### `agent.onContactPending()` -- DEPRECATED
 ```js
 agent.onContactPending(function(agent) { /* ... */ });
 ```
-Subscribe a method to be called whenever a contact enters the pending state for this particular agent.
+Subscribe a method to be called whenever a contact enters the pending state for this particular agent. This api is being deprecated.
 
 ### `agent.onRefresh()`
 ```js
@@ -415,7 +419,7 @@ Subscribe a method to be called when the agent's state changes. The
 agent.onRoutable(function(agent) { /* ... */ });
 ```
 Subscribe a method to be called when the agent becomes routable, meaning
-that they can be routed incoming contacts.
+that they can be routed incoming contacts. 
 
 ### `agent.onNotRoutable()`
 ```js
@@ -464,7 +468,7 @@ Subscribe a method to be called when the agent gains a WebSocket connection.
 ```js
 agent.onAfterCallWork(function(agent) { /* ... */ });
 ```
-Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state. This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
+Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state (note that this event is only triggered for voice contacts even though all contacts enter ACW contact state. See contact.onACW below). This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
 
 ### `agent.getState()` / `agent.getStatus()`
 ```js
@@ -1567,7 +1571,7 @@ Initializing the Streams API is the first step to verify that you have everythin
         connect.agentApp.initApp(
             "wisdom", 
             "wisdom-container", 
-            connectUrl + "/wisdom/",
+            connectUrl + "/wisdom-v2/",
             { style: "width:400px; height:600px;" }
         );
       }
@@ -1585,21 +1589,150 @@ Integrates with Amazon Connect by loading the pre-built app located at `appUrl` 
     * `style`: An optional string to supply inline styling for the iframe.
 
 ## Voice ID APIs
-Use the following methods to integrate Voice ID into your existing agent web applications.
+Amazon Voice Connect ID provides real-time caller authentication and fraud risk detection which make voice interactions in contact centers more secure and efficient. For the Voice ID overview and administrator guide, please check the [AWS public doc](https://docs.aws.amazon.com/connect/latest/adminguide/voice-id.html). For more information about the agent experience in default CCP UI, please see [Use Voice ID page](https://docs.aws.amazon.com/connect/latest/adminguide/use-voiceid.html).
+
+Streams Voice ID APIs can be tested after all these prerequisites are met:
+
+1. A Voice ID domain is associated to your Connect instance ([link](https://docs.aws.amazon.com/connect/latest/adminguide/enable-voiceid.html#enable-voiceid-step1))
+2. The contact flow is configured for Voice ID ([link](https://docs.aws.amazon.com/connect/latest/adminguide/enable-voiceid.html#enable-voiceid-step2))
+3. "Voice ID" permission is given to the agent in the Security Profile page under the Contact Control Panel (CCP) section
+
+The Voice ID APIs are exposed as Voice Connection methods and only work with two-party calls, not with conference calls at this moment. You can get the voice connection object by calling `contact.getAgentConnection()` when there's a voice connection.
+
+
+### `voiceConnection.getVoiceIdSpeakerStatus()`
+Describes the enrollment status of a customer. If the customer exists in the Voice ID, it resolves with a response object that contains one of the valid statuses, ENROLLED or OPTED_OUT. If the customer does not exist in the Voice ID, it still resolves but with an error object because backend API call fails. The case needs to be taken care of in a way like the code sample below.
+
+```js
+voiceConnection.getVoiceIdSpeakerStatus()
+  .then((data) => {
+    if (data.type === connect.VoiceIdErrorTypes.SPEAKER_ID_NOT_ENROLLED) {
+      // speaker is not enrolled
+    } else {
+      const { Status } = data.Speaker;
+      switch(Status) {
+        case connect.VoiceIdSpeakerStatus.ENROLLED:
+          // speaker is enrolled
+          break;
+        case connect.VoiceIdSpeakerStatus.OPTED_OUT:
+          // speaker is opted out
+          break;
+      }
+    }
+  })
+  .catch((err) => {
+    console.error(err);
+  });
+```
+
 
 ### `voiceConnection.enrollSpeakerInVoiceId()`
-Enroll a customer to Voice ID using a click of a button.
-### `voiceConnection.evaluateSpeakerWithVoiceId()`
-Check the customer's Voice ID verification status.
-### `voiceConnection.evaluateSpeakerWithVoiceId(true)`
-Start a new audio stream to check the customer's Voice ID verification status.
+Enrolls a customer in Voice ID. The enrollment process completes once the backend has collected enough speech data (30 seconds of net customer's audio). If after 10 minutes the process hasn't completed, the method will throw a timeout error. If you call this API for a customer who is already enrolled, it will re-enroll the customer by collecting new speech data and registering a new digital voiceprint. Enrollment can happen only once in a voice contact.
+
+```js
+voiceConnection.enrollSpeakerInVoiceId()
+  .then((data) => {
+    // it returns session data but no additional actions needed
+  })
+  .catch((err) => {
+    console.error(err);
+  });
+```
+
+
+### `voiceConnection.evaluateSpeakerWithVoiceId(boolean)`
+Checks the customer's Voice ID verification status. The evaluation process completes once the backend has collected enough speech data (10 seconds of net customer's audio). If after 2 minutes the process hasn't completed, the method will throw a timeout error. If you pass in false, it uses the existing audio stream, which is typically started in the contact flow, and immediately returns the result if enough audio has already been collected. If you pass in true, it starts a new audio stream and returns the result when enough audio has been collected. The default value is false.
+
+The response will contain two results, AuthenticationResult and FraudDetectionResult. If one of them is disabled in the Set Voice ID contact flow block, the result will be null for that particular field. The authentication decision can be found at AuthenticationResult.Decision and it can be either AUTHENTICATED, NOT_AUTHENTICATED, OPTED_OUT, or NOT_ENROLLED. The fraud detection decision can be found at FraudDetection.Decision and it can be either HIGH_RISK or LOW_RISK.
+
+Please note that there’s a known issue that you can’t start a new audio session within 4 minutes since the last session started. If you encounter SESSION_NOT_EXISTS error when you call evaluateSpeakerWithVoiceId(true), that is probably due to the issue. We’re working on addressing the issue very soon.
+
+```js
+voiceConnection.evaluateSpeakerWithVoiceId()
+  .then((data) => {
+    // authentication result
+    const authDecision = data.AuthenticationResult.Decision;
+    switch(authDecision) {
+      case connect.ContactFlowAuthenticationDecision.AUTHENTICATED:
+        // authenticated
+        break;
+      case connect.ContactFlowAuthenticationDecision.NOT_AUTHENTICATED:
+        // not authenticated
+        break;
+      case connect.ContactFlowAuthenticationDecision.OPTED_OUT:
+        // opted out
+        break;
+      case connect.ContactFlowAuthenticationDecision.NOT_ENROLLED:
+        // not enrolled
+        break;
+    }
+
+    // fraud detection result
+    const fraudDetectionDecision = data.FraudDetectionResult.Decision;
+    switch(fraudDetectionDecision) {
+      case connect.ContactFlowFraudDetectionDecision.HIGH_RISK:
+        // authenticated
+        break;
+      case connect.ContactFlowFraudDetectionDecision.LOW_RISK:
+        // not authenticated
+        break;
+    }
+  })
+  .catch((err) => {
+    console.error(err);
+  });
+```
+
+
 ### `voiceConnection.optOutVoiceIdSpeaker()`
-Opt out a customer from Voice ID.
-### `voiceConnection.deleteVoiceIdSpeaker()`
-Delete the speaker ID from Voice ID.
-### `voiceConnection.getVoiceIdSpeakerStatus()`
-Describe the enrollment status of a customer.
+Opts-out a customer from Voice ID. This API can work for the customer who hasn’t enrolled in Voice ID.
+
+```js
+voiceConnection.optOutVoiceIdSpeaker()
+  .then((data) => {
+    // it returns speaker data but no additional actions needed
+  })
+  .catch((err) => {
+    console.error(err);
+  });
+```
+
+
 ### `voiceConnection.getVoiceIdSpeakerId()`
-Get the speaker ID.
-### `voiceConnection.updateVoiceIdSpeakerId()`
-Update the speaker ID.
+Gets the speaker ID of the customer, which is set by the Set Contact Attributes block in the contact flow.
+
+```js
+voiceConnection.getVoiceIdSpeakerId()
+  .then((data) => {
+    console.log(data.speakerId);
+  })
+  .catch((err) => {
+    console.error(err);
+  });
+```
+
+
+### `voiceConnection.deleteVoiceIdSpeaker()`
+Deletes the speaker ID of the customer from Voice ID. This API work only if the customer exists in Voice ID.
+
+```js
+voiceConnection.deleteVoiceIdSpeaker()
+  .then(() => {
+  })
+  .catch((err) => {
+    console.error(err);
+  });
+```
+
+
+### `voiceConnection.updateVoiceIdSpeakerId(string)`
+Updates the speaker ID of the customer with the provided string.
+
+```js
+voiceConnection.deleteVoiceIdSpeaker()
+  .then(() => {
+  })
+  .catch((err) => {
+    console.error(err);
+  });
+```

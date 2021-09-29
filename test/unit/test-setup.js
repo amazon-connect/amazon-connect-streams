@@ -17,6 +17,13 @@ global.parent = global.window;
 require("../../release/connect-streams.js");
 
 global.connect.RTCSession = function () {};
+global.AWS = {
+  util: {
+    uuid: {
+      v4: () => "4383f0b7-ddcb-4f8c-a63b-cbd53c852d39"
+    }
+  }
+};
 
 before(() => {
   global.sinon.stub(connect.Agent.prototype, "_getResourceId").returns("id");
