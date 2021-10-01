@@ -25380,19 +25380,30 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           reject(err);
         });
       }
-      self.syncSpeakerId().then(function () {
-        if(!startNew){
+      
+      if(!startNew) {
+        self.syncSpeakerId().then(function () {
           evaluate();
-        } else {
-          self.startSession().then(function(data) {
+        }).catch(function (err) {
+          connect.getLog().error("syncSpeakerId failed when session startNew=false")
+                .withObject({err: err}).sendInternalLogToServer();
+          reject(err);
+        })
+      } else { 
+        self.startSession().then(function(data) {
+          self.syncSpeakerId().then(function(data) {
             setTimeout(evaluate, connect.VoiceIdConstants.EVALUATE_SESSION_DELAY);
+          }).catch(function (err) {
+              connect.getLog().error("syncSpeakerId failed when session startNew=true")
+                .withObject({err: err}).sendInternalLogToServer();
+              reject(err);
+            });
           }).catch(function(err){
-            reject(err)
-          });
-        }
-      }).catch(function (err) {
-        reject(err);
-      })
+            connect.getLog().error("startSession failed when session startNew=true")
+              .withObject({err: err}).sendInternalLogToServer();
+          reject(err)
+        });
+      }
     });
   };
 
@@ -26031,7 +26042,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.7.0";
+  connect.version = "1.7.1";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
