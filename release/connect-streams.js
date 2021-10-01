@@ -26042,7 +26042,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.7.1";
+  connect.version = "1.7.2";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
