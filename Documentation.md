@@ -1535,7 +1535,8 @@ In addition, it is recommended to remove the auth token cookies (`lily-auth-*`) 
 
 *Note that if you are only using CCP, please follow [these directions](#initialization)*
 
-Initializing the Streams API is the first step to verify that you have everything set up correctly and that you are able to listen for events.
+Initializing the Streams API is the first step to verify that you have everything set up correctly and that you are able to listen for events. 
+To get latest streams file and allowlist required urls follow [these instructions](#getting-started)
 
 ### `connect.agentApp.initApp(name, containerId, appUrl, config)`
 
@@ -1544,7 +1545,7 @@ Initializing the Streams API is the first step to verify that you have everythin
 <meta charset="UTF-8">
 <html>
   <head>
-    <script type="text/javascript" src="amazon-connect-1.7.js"></script>
+    <script type="text/javascript" src="connect-streams-min.js"></script>
   </head>
   <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
   <body onload="init()">
