@@ -189,6 +189,7 @@
     'get_speaker_id_failed',
     'get_speaker_status_failed',
     'opt_out_speaker_failed',
+    'opt_out_speaker_in_lcms_failed',
     'delete_speaker_failed',
     'start_session_failed',
     'evaluate_speaker_failed',
@@ -196,6 +197,7 @@
     'describe_session_failed',
     'enroll_speaker_failed',
     'update_speaker_id_failed',
+    'update_speaker_id_in_lcms_failed',
     'not_supported_on_conference_calls',
     'enroll_speaker_timeout',
     'evaluate_speaker_timeout',
@@ -1688,6 +1690,36 @@
     });
   };
 
+  // internal only
+  VoiceId.prototype._updateSpeakerIdInLcms = function (speakerId) {
+    var self = this;
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, {
+        "ContactId": self.contactId,
+        "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+        "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
+        "CustomerId": connect.assertNotNull(speakerId, 'speakerId'),
+        "VoiceIdResult": {
+          "generatedSpeakerId": speakerId
+        }
+      }, {
+        success: function (data) {
+          connect.getLog().info("updateSpeakerIdInLcms succeeded").withObject(data).sendInternalLogToServer();
+          resolve(data);
+        },
+        failure: function (err) {
+          connect.getLog().error("updateSpeakerIdInLcms failed")
+            .withObject({
+              err: err,
+            }).sendInternalLogToServer();
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_IN_LCMS_FAILED, "updateSpeakerIdInLcms failed", err);
+            reject(error);
+        }
+      });
+    });
+  };
+
   VoiceId.prototype.updateSpeakerIdInVoiceId = function (speakerId) {
     var self = this;
     self.checkConferenceCall();
@@ -1702,14 +1734,21 @@
           }, {
             success: function (data) {
               connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
+              self._updateSpeakerIdInLcms(speakerId).catch(function(){});
               resolve(data);
             },
             failure: function (err) {
-              connect.getLog().error("updateSpeakerIdInVoiceId failed")
-                .withObject({
-                  err: err
-                }).sendInternalLogToServer();
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
+              var error;
+              var parsedErr = JSON.parse(err);
+              switch(parsedErr.status) {
+                case 400:
+                  error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "updateSpeakerIdInVoiceId failed, session not exists", err);
+                  connect.getLog().error("updateSpeakerIdInVoiceId failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
+                  break;
+                default:
+                  error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
+                  connect.getLog().error("updateSpeakerIdInVoiceId failed").withObject({ err: err }).sendInternalLogToServer();    
+              }
               reject(error);
             }
           });
