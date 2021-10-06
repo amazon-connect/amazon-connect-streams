@@ -24045,6 +24045,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     'get_speaker_id_failed',
     'get_speaker_status_failed',
     'opt_out_speaker_failed',
+    'opt_out_speaker_in_lcms_failed',
     'delete_speaker_failed',
     'start_session_failed',
     'evaluate_speaker_failed',
@@ -24052,6 +24053,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     'describe_session_failed',
     'enroll_speaker_failed',
     'update_speaker_id_failed',
+    'update_speaker_id_in_lcms_failed',
     'not_supported_on_conference_calls',
     'enroll_speaker_timeout',
     'evaluate_speaker_timeout',
@@ -25096,19 +25098,23 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
                 resolve(data);
               },
               failure: function (err) {
-                const parsedErr = JSON.parse(err);
-                if (parsedErr.status === 400) {
-                  var data = parsedErr;
-                  data.type = data.type ? data.type : connect.VoiceIdErrorTypes.SPEAKER_ID_NOT_ENROLLED;
-                  connect.getLog().info("Speaker is not enrolled.").sendInternalLogToServer();
-                  resolve(data);
-                } else {
-                  connect.getLog().error("getSpeakerStatus failed")
+                var error;
+                var parsedErr = JSON.parse(err);
+                switch(parsedErr.status) {
+                  case 400:
+                  case 404:
+                    var data = parsedErr;
+                    data.type = data.type ? data.type : connect.VoiceIdErrorTypes.SPEAKER_ID_NOT_ENROLLED;
+                    connect.getLog().info("Speaker is not enrolled.").sendInternalLogToServer();
+                    resolve(data);
+                    break;
+                  default:
+                    connect.getLog().error("getSpeakerStatus failed")
                     .withObject({
                       err: err
                     }).sendInternalLogToServer();
-                  var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
-                  reject(error);
+                    var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
+                    reject(error);
                 }
               }
             });
@@ -25366,6 +25372,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
               var parsedErr = JSON.parse(err);
               switch(parsedErr.status) {
                 case 400:
+                case 404:
                   error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "evaluateSpeaker failed, session not exists", err);
                   connect.getLog().error("evaluateSpeaker failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
                   break;
@@ -25540,6 +25547,36 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     });
   };
 
+  // internal only
+  VoiceId.prototype._updateSpeakerIdInLcms = function (speakerId) {
+    var self = this;
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, {
+        "ContactId": self.contactId,
+        "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+        "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
+        "CustomerId": connect.assertNotNull(speakerId, 'speakerId'),
+        "VoiceIdResult": {
+          "generatedSpeakerId": speakerId
+        }
+      }, {
+        success: function (data) {
+          connect.getLog().info("updateSpeakerIdInLcms succeeded").withObject(data).sendInternalLogToServer();
+          resolve(data);
+        },
+        failure: function (err) {
+          connect.getLog().error("updateSpeakerIdInLcms failed")
+            .withObject({
+              err: err,
+            }).sendInternalLogToServer();
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_IN_LCMS_FAILED, "updateSpeakerIdInLcms failed", err);
+            reject(error);
+        }
+      });
+    });
+  };
+
   VoiceId.prototype.updateSpeakerIdInVoiceId = function (speakerId) {
     var self = this;
     self.checkConferenceCall();
@@ -25554,14 +25591,22 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           }, {
             success: function (data) {
               connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
+              self._updateSpeakerIdInLcms(speakerId).catch(function(){});
               resolve(data);
             },
             failure: function (err) {
-              connect.getLog().error("updateSpeakerIdInVoiceId failed")
-                .withObject({
-                  err: err
-                }).sendInternalLogToServer();
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
+              var error;
+              var parsedErr = JSON.parse(err);
+              switch(parsedErr.status) {
+                case 400:
+                case 404:
+                  error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "updateSpeakerIdInVoiceId failed, session not exists", err);
+                  connect.getLog().error("updateSpeakerIdInVoiceId failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
+                  break;
+                default:
+                  error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
+                  connect.getLog().error("updateSpeakerIdInVoiceId failed").withObject({ err: err }).sendInternalLogToServer();    
+              }
               reject(error);
             }
           });
@@ -26042,7 +26087,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.7.2";
+  connect.version = "1.7.3";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
