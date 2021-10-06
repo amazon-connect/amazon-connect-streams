@@ -1246,19 +1246,23 @@
                 resolve(data);
               },
               failure: function (err) {
-                const parsedErr = JSON.parse(err);
-                if (parsedErr.status === 400) {
-                  var data = parsedErr;
-                  data.type = data.type ? data.type : connect.VoiceIdErrorTypes.SPEAKER_ID_NOT_ENROLLED;
-                  connect.getLog().info("Speaker is not enrolled.").sendInternalLogToServer();
-                  resolve(data);
-                } else {
-                  connect.getLog().error("getSpeakerStatus failed")
+                var error;
+                var parsedErr = JSON.parse(err);
+                switch(parsedErr.status) {
+                  case 400:
+                  case 404:
+                    var data = parsedErr;
+                    data.type = data.type ? data.type : connect.VoiceIdErrorTypes.SPEAKER_ID_NOT_ENROLLED;
+                    connect.getLog().info("Speaker is not enrolled.").sendInternalLogToServer();
+                    resolve(data);
+                    break;
+                  default:
+                    connect.getLog().error("getSpeakerStatus failed")
                     .withObject({
                       err: err
                     }).sendInternalLogToServer();
-                  var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
-                  reject(error);
+                    var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
+                    reject(error);
                 }
               }
             });
@@ -1516,6 +1520,7 @@
               var parsedErr = JSON.parse(err);
               switch(parsedErr.status) {
                 case 400:
+                case 404:
                   error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "evaluateSpeaker failed, session not exists", err);
                   connect.getLog().error("evaluateSpeaker failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
                   break;
@@ -1742,6 +1747,7 @@
               var parsedErr = JSON.parse(err);
               switch(parsedErr.status) {
                 case 400:
+                case 404:
                   error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "updateSpeakerIdInVoiceId failed, session not exists", err);
                   connect.getLog().error("updateSpeakerIdInVoiceId failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
                   break;
