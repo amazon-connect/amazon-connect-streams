@@ -1161,6 +1161,8 @@ Determine if the contact is active. The connection is active it is incoming, con
 if (conn.isConnected()) { /* ... */ }
 ```
 Determine if the connection is connected, meaning that the agent is live in a conversation through this connection.
+   
+Note that, in the case of Agent A transferring a contact to Agent B, the new (third party) agent connection will be marked as `connected` (`connection.isConnected` will return true) as soon as the contact is routed to Agent B's queue, not when Agent B actually is "live" and able to communicate in the conversation.
 
 ### `connection.isConnecting()`
 ```js
