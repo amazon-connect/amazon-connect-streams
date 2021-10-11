@@ -13,7 +13,7 @@ Note that routability in streams is only affected by agent statuses. Voice conta
     * If you want to use the Next Status feature via `agent.setState()`, please also ensure that your code is using `contact.clear()` and not `contact.complete()` when clearing After Contact Work off a contact.
 3. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Wisdom. See the [updated documentation](#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
     * ### About Amazon Connect Customer Profiles
-        + Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place. 
+        + Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place. See the [detailed documentation](https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles.html).
     * ### About Amazon Connect Wisdom
         + With Amazon Connect Wisdom, agents can search and find content across multiple repositories, such as frequently asked questions (FAQs), wikis, articles, and step-by-step instructions for handling different customer issues. They can type questions or phrases in a search box (such as, "how long after purchase can handbags be exchanged?") without having to guess which keywords will work.
     * ### About Amazon Connect Voice ID (this feature is in preview release for Amazon Connect and is subject to change)
@@ -1568,7 +1568,7 @@ To get latest streams file and allowlist required urls follow [these instruction
         connect.agentApp.initApp(
             "customerprofiles", 
             "customerprofiles-container", 
-            connectUrl + "/customerprofiles/",
+            connectUrl + "/customerprofiles-v2/",
             { style: "width:400px; height:600px;" }
         );
         connect.agentApp.initApp(
