@@ -25591,8 +25591,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           }, {
             success: function (data) {
               connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
-              self._updateSpeakerIdInLcms(speakerId).catch(function(){});
-              resolve(data);
+              self._updateSpeakerIdInLcms(speakerId)
+                .then(function() {
+                  resolve(data);
+                })
+                .catch(function(err) {
+                  reject(err);
+                });
             },
             failure: function (err) {
               var error;
@@ -26087,7 +26092,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.7.3";
+  connect.version = "1.7.4";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
