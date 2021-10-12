@@ -1739,8 +1739,13 @@
           }, {
             success: function (data) {
               connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
-              self._updateSpeakerIdInLcms(speakerId).catch(function(){});
-              resolve(data);
+              self._updateSpeakerIdInLcms(speakerId)
+                .then(function() {
+                  resolve(data);
+                })
+                .catch(function(err) {
+                  reject(err);
+                });
             },
             failure: function (err) {
               var error;
