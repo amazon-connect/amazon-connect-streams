@@ -1426,14 +1426,17 @@
    * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad, quick connects, or create task into view.
    * the valid combinations are ("create_task", "task"), ("number_pad", "softphone"), ("create_task", "softphone"), ("quick_connects", "softphone")
    * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
+   *
+   * The 'source' is an optional parameter which indicates the requester. For example, if invoked with ("create_task", "task", "agentapp") we would know agentapp requested open task view.
    */
-  connect.core.activateChannelWithViewType = function (viewType, mediaType) {
+  connect.core.activateChannelWithViewType = function (viewType, mediaType, source) {
+    const data = { viewType, mediaType };
+    if (source) {
+      data.source = source;
+    }
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
-      data: {
-        viewType: viewType,
-        mediaType: mediaType 
-      }
+      data
     });
   };
 
