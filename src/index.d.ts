@@ -307,6 +307,12 @@ declare namespace connect {
 
     /** Allows you to specify ringtone settings for Chat. */
     readonly chat?: ChatOptions;
+
+    /**
+     * Allows you to customize the title attribute of the CCP iframe.
+     * @example "Contact Control Panel"
+     */
+     readonly iframeTitle?: string;
   }
 
 

@@ -892,7 +892,7 @@
     iframe.src = params.ccpUrl;
     iframe.allow = "microphone; autoplay";
     iframe.style = "width: 100%; height: 100%";
-    iframe.title = 'Amazon Connect CCP';
+    iframe.title = params.iframeTitle || 'Amazon Connect CCP';
     containerDiv.appendChild(iframe);
 
     // Initialize the event bus and agent data providers.

@@ -173,8 +173,9 @@ everything set up correctly and that you are able to listen for events.
            },
            pageOptions: { //optional
             enableAudioDeviceSettings: false //optional, defaults to 'false'
-            enablePhoneTypeSettings: true //optional, defaults to 'true' 
-           }       
+            enablePhoneTypeSettings: true // optional, defaults to 'true'
+           },
+           iframeTitle: "Contact Control Panel" // optional, defaults to `Amazon Connect CCP`
          });
       }
     </script>
@@ -230,6 +231,8 @@ and made available to your JS client code.
   * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab 
     will display a section for configuring the agent's phone type and deskphone number.  
     If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
+* `iframeTitle`: Optional.  This option allows you to customize the title attribute of the CCP iframe.
+  If not provided it defaults to `"Amazon Connect CCP"`.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
