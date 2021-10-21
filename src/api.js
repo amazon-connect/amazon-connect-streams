@@ -328,6 +328,10 @@
     return new connect.Contact(contactData.contactId);
   };
 
+  /**
+   * @deprecated
+   * Use `contact.onPending` for any particular contact instead.
+   */
   Agent.prototype.onContactPending = function (f) {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.AgentEvents.CONTACT_PENDING, f);
@@ -549,7 +553,6 @@
       enqueueNextState: options && !!options.enqueueNextState
     }, callbacks);
   };
-
   Agent.prototype.onEnqueuedNextState = function (f) {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
@@ -913,13 +916,6 @@
 
   Contact.prototype.destroy = function () {
     connect.getLog().warn("contact.destroy() has been deprecated.");
-  };
-
-  Contact.prototype.reject = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.REJECT_CONTACT, {
-      contactId: this.getContactId()
-    }, callbacks);
   };
 
   Contact.prototype.reject = function (callbacks) {

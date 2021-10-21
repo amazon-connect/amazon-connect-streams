@@ -124,7 +124,8 @@ Hang up calls, set status to Offline and redirect to logout URL
         }
       });
       
-      window.location.replace('https://'+ccpInstance+'.awsapps.com/connect/logout');
+      window.location.replace('https://<your-instance-domain>/connect/logout');
+      // or fetch("https://<your-instance-domain>/connect/logout", { credentials: 'include'})
     });
 			
 
@@ -219,7 +220,7 @@ Get contact attributes
                 console.log (Here's your value for lastName " + attr.lastName.value);
             }
         });
-  });
+    });
 
 Add a log message to agent logs
 

@@ -1,5 +1,7 @@
 require("../unit/test-setup.js");
 
+var COPYABLE_EVENT_FIELDS = ["bubbles", "cancelBubble", "cancelable", "composed", "data", "defaultPrevented", "eventPhase", "isTrusted", "lastEventId", "origin", "returnValue", "timeStamp", "type"];
+
 describe('Utils', function () {
 
     describe('#connect.hitch', function () {
@@ -91,12 +93,27 @@ describe('Utils', function () {
             connect.core.getUpstream.restore();
         });
     });
+
     describe('#connect.isValidLocale', function () {
         it('should return true for a valid locale', function() {
             assert.equal(true, connect.isValidLocale('en_US'));
         })
         it('should return false for an invalid locale', function() {
             assert.equal(false, connect.isValidLocale('incorrect'));
+        });
+    });
+
+    describe('#connect.deepcopyCrossOriginEvent', () => {
+        it('should ignore all fields but those hardcoded in the method.', () => {
+            let obj = {"heyo": "hi"};
+            let obj2 = {};
+            COPYABLE_EVENT_FIELDS.forEach((key) => {
+                obj[key] = "hello";
+                obj2[key] = "hello";
+            });
+            assert.notDeepEqual(connect.deepcopyCrossOriginEvent(obj), obj);
+            assert.deepEqual(connect.deepcopyCrossOriginEvent(obj), obj2);
+            assert.deepEqual(connect.deepcopyCrossOriginEvent(obj2), obj2);
         });
     });
 

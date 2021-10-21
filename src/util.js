@@ -13,6 +13,7 @@
   var ONE_DAY_MILLIS = 24 * 60 * 60 * 1000;
   var DEFAULT_POPUP_HEIGHT = 578;
   var DEFAULT_POPUP_WIDTH = 433;
+  var COPYABLE_EVENT_FIELDS = ["bubbles", "cancelBubble", "cancelable", "composed", "data", "defaultPrevented", "eventPhase", "isTrusted", "lastEventId", "origin", "returnValue", "timeStamp", "type"];
 
   /**
    * Unpollute sprintf functions from the global namespace.
@@ -374,6 +375,20 @@
   connect.deepcopy = function (src) {
     return JSON.parse(JSON.stringify(src));
   };
+
+  connect.deepcopyCrossOriginEvent = function(event) {
+    const obj = {};
+    const listOfAcceptableKeys = COPYABLE_EVENT_FIELDS;
+    listOfAcceptableKeys.forEach((key) => {
+      try {
+        obj[key] = event[key];
+      }
+      catch(e) {
+        connect.getLog().info("deepcopyCrossOriginEvent failed on key: ", key).sendInternalLogToServer();
+      }
+    });
+    return connect.deepcopy(obj);
+  }
 
   /**
    * Get the current base url of the open page, e.g. if the page is

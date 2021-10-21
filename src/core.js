@@ -16,7 +16,7 @@
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
-  var CCP_LOAD_TIMEOUT = 3000; // 3 sec
+  var CCP_LOAD_TIMEOUT = 5000; // 5 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
   var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
  
@@ -1002,7 +1002,7 @@
           if (params.loginUrl) {
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
           }
-          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
+          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
  
         } catch (e) {
           connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
@@ -1020,7 +1020,7 @@
           global.clearInterval(connect.core.iframeRefreshInterval);
           connect.core.iframeRefreshInterval = null;
           connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-          if (params.loginPopupAutoClose && connect.core.loginWindow) {
+          if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
             connect.core.loginWindow.close();
             connect.core.loginWindow = null;
           }
@@ -1064,15 +1064,21 @@
     this.ackSub = this.conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
       this.unsubscribe();
       global.clearTimeout(self.ackTimer);
-      self.deferStart();
+      self._deferStart();
     });
     this.ackTimer = global.setTimeout(function () {
       self.ackSub.unsubscribe();
       self.eventBus.trigger(connect.EventType.ACK_TIMEOUT);
-      self.deferStart();
+      self._deferStart();
     }, this.ackTimeout);
   };
- 
+
+  //Fixes the keepalivemanager.
+  KeepaliveManager.prototype._deferStart = function () {
+    this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
+  };
+
+  // For backwards compatibility only, in case customers are using this to start the keepalivemanager for some reason.
   KeepaliveManager.prototype.deferStart = function () {
     if (this.synTimer == null) {
       this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);

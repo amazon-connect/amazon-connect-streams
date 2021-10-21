@@ -47,4 +47,3 @@ clean:
 .DEFAULT_GOAL := all
 
 .PHONY: clean css
-

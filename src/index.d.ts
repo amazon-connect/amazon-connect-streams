@@ -313,6 +313,9 @@ declare namespace connect {
      * @example "Contact Control Panel"
      */
      readonly iframeTitle?: string;
+     
+    /** Allows you to configure which configuration sections are displayed in the settings tab.  **/
+    readonly pageOptions?: PageOptions;
   }
 
 
@@ -677,6 +680,13 @@ declare namespace connect {
 
     /** Alias for `getState()`. */
     getStatus(): AgentState;
+    
+    /** 
+     * Get the AgentState object of the agent's enqueued next status. 
+     * If the agent has not enqueued a next status, returns null.
+     */
+    getNextState(): AgentState;
+    
 
     /**
      * Get the duration of the agent's state in milliseconds relative to local time.
@@ -876,7 +886,7 @@ declare namespace connect {
      *
      * @param callback A callback that is invoked with the Agent object.
      */
-    onEnqueuedNextState(callback: Agent): void;
+    onEnqueuedNextState(callback: AgentCallback): void;
   }
 
   interface AgentMutedStatus {

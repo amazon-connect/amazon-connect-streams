@@ -1,9 +1,12 @@
 {
   "name": "@amzn/amazon-connect-streams",
-  "version": "1.6.4",
+  "version": "1.7.4",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
+  },
+  "npm-pretty-much": {
+    "runRelease": "always"
   },
   "directories": {
     "lib": "./release"
@@ -14,6 +17,10 @@
   ],
   "main": "release/connect-streams.js",
   "types": "src/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amazon-connect/amazon-connect-streams.git"
+  },
   "keywords": [
     "streams",
     "softphone",
@@ -22,7 +29,7 @@
   ],
   "scripts": {
     "gulp-test": "gulp test",
-    "release": "tsc && gulp",
+    "release": "tsc && gulp && gulp test",
     "watch": "gulp watch",
     "clean": "rm -rf build/ node_modules build package-lock.json",
     "release-watch": "npm run release && npm run watch"
@@ -50,9 +57,6 @@
     "mocha-jsdom": "^2.0.0",
     "pump": "^3.0.0",
     "sinon": "^9.0.0",
-    "typescript": "3.0.1"
-  },
-  "npm-pretty-much": {
-    "runRelease": "always"
+    "typescript": "^4.2.4"
   }
 }

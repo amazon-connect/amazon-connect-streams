@@ -1068,6 +1068,9 @@ module.exports={
                                 "type": "timestamp"
                               }
                             }
+                          },
+                          "mute": {
+                            "type": "boolean"
                           }
                         }
                       }
@@ -1288,6 +1291,27 @@ module.exports={
         "members": {}
       }
     },
+    "MuteParticipant": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "authentication",
+          "contactId",
+          "connectionId"
+        ],
+        "members": {
+          "authentication": {
+            "shape": "S2"
+          },
+          "contactId": {},
+          "connectionId": {}
+        }
+      },
+      "output": {
+        "type": "structure",
+        "members": {}
+      }
+    },
     "NotifyContactIssue": {
       "input": {
         "type": "structure",
@@ -1439,7 +1463,7 @@ module.exports={
           "contactId": {},
           "ccpVersion": {},
           "softphoneStreamStatistics": {
-            "shape": "S3p"
+            "shape": "S3r"
           }
         }
       },
@@ -1472,7 +1496,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S3p"
+                "shape": "S3r"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -1541,6 +1565,27 @@ module.exports={
       }
     },
     "ToggleActiveConnections": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "authentication",
+          "contactId",
+          "connectionId"
+        ],
+        "members": {
+          "authentication": {
+            "shape": "S2"
+          },
+          "contactId": {},
+          "connectionId": {}
+        }
+      },
+      "output": {
+        "type": "structure",
+        "members": {}
+      }
+    },
+    "UnmuteParticipant": {
       "input": {
         "type": "structure",
         "required": [
@@ -1687,7 +1732,7 @@ module.exports={
         }
       }
     },
-    "S3p": {
+    "S3r": {
       "type": "list",
       "member": {
         "type": "structure",
@@ -21436,7 +21481,18 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    * may contain any number of objects.
    */
   LogEntry.prototype.withObject = function (obj) {
-    var copiedObj = connect.deepcopy(obj)
+    var copiedObj = connect.deepcopy(obj);
+    redactSensitiveInfo(copiedObj);
+    this.objects.push(copiedObj);
+    return this;
+  };
+
+  /**
+   * Add a cross origin event object to the log entry.  A log entry
+   * may contain any number of objects.
+   */
+   LogEntry.prototype.withCrossOriginEventObject = function (obj) {
+    var copiedObj = connect.deepcopyCrossOriginEvent(obj);
     redactSensitiveInfo(copiedObj);
     this.objects.push(copiedObj);
     return this;
@@ -21858,6 +21914,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   var ONE_DAY_MILLIS = 24 * 60 * 60 * 1000;
   var DEFAULT_POPUP_HEIGHT = 578;
   var DEFAULT_POPUP_WIDTH = 433;
+  var COPYABLE_EVENT_FIELDS = ["bubbles", "cancelBubble", "cancelable", "composed", "data", "defaultPrevented", "eventPhase", "isTrusted", "lastEventId", "origin", "returnValue", "timeStamp", "type"];
 
   /**
    * Unpollute sprintf functions from the global namespace.
@@ -22219,6 +22276,20 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.deepcopy = function (src) {
     return JSON.parse(JSON.stringify(src));
   };
+
+  connect.deepcopyCrossOriginEvent = function(event) {
+    const obj = {};
+    const listOfAcceptableKeys = COPYABLE_EVENT_FIELDS;
+    listOfAcceptableKeys.forEach((key) => {
+      try {
+        obj[key] = event[key];
+      }
+      catch(e) {
+        connect.getLog().info("deepcopyCrossOriginEvent failed on key: ", key).sendInternalLogToServer();
+      }
+    });
+    return connect.deepcopy(obj);
+  }
 
   /**
    * Get the current base url of the open page, e.g. if the page is
@@ -23005,7 +23076,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    };
 
    WindowIOStream.prototype.onMessage = function(f) {
-      this.input.addEventListener("message", f);
+      this.input.addEventListener("message", (message) => {
+         if (message.source === this.output) {
+            f(message);
+         }
+         else {
+            connect.getLog().warn("[Window IO Stream] message event came from somewhere other than the CCP iFrame").withCrossOriginEventObject(message).sendInternalLogToServer();
+         }
+      });
    };
 
    /**---------------------------------------------------------------
@@ -23992,6 +24070,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     'get_speaker_id_failed',
     'get_speaker_status_failed',
     'opt_out_speaker_failed',
+    'opt_out_speaker_in_lcms_failed',
     'delete_speaker_failed',
     'start_session_failed',
     'evaluate_speaker_failed',
@@ -23999,6 +24078,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     'describe_session_failed',
     'enroll_speaker_failed',
     'update_speaker_id_failed',
+    'update_speaker_id_in_lcms_failed',
     'not_supported_on_conference_calls',
     'enroll_speaker_timeout',
     'evaluate_speaker_timeout',
@@ -24129,6 +24209,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return new connect.Contact(contactData.contactId);
   };
 
+  /**
+   * @deprecated
+   * Use `contact.onPending` for any particular contact instead.
+   */
   Agent.prototype.onContactPending = function (f) {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.AgentEvents.CONTACT_PENDING, f);
@@ -24350,7 +24434,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       enqueueNextState: options && !!options.enqueueNextState
     }, callbacks);
   };
-
   Agent.prototype.onEnqueuedNextState = function (f) {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
@@ -24723,13 +24806,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }, callbacks);
   };
 
-  Contact.prototype.reject = function (callbacks) {
-    var client = connect.core.getClient();
-    client.call(connect.ClientMethods.REJECT_CONTACT, {
-      contactId: this.getContactId()
-    }, callbacks);
-  };
-
   Contact.prototype.complete = function (callbacks) {
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.COMPLETE_CONTACT, {
@@ -25047,19 +25123,23 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
                 resolve(data);
               },
               failure: function (err) {
-                const parsedErr = JSON.parse(err);
-                if (parsedErr.status === 400) {
-                  var data = parsedErr;
-                  data.type = data.type ? data.type : connect.VoiceIdErrorTypes.SPEAKER_ID_NOT_ENROLLED;
-                  connect.getLog().info("Speaker is not enrolled.").sendInternalLogToServer();
-                  resolve(data);
-                } else {
-                  connect.getLog().error("getSpeakerStatus failed")
+                var error;
+                var parsedErr = JSON.parse(err);
+                switch(parsedErr.status) {
+                  case 400:
+                  case 404:
+                    var data = parsedErr;
+                    data.type = data.type ? data.type : connect.VoiceIdErrorTypes.SPEAKER_ID_NOT_ENROLLED;
+                    connect.getLog().info("Speaker is not enrolled.").sendInternalLogToServer();
+                    resolve(data);
+                    break;
+                  default:
+                    connect.getLog().error("getSpeakerStatus failed")
                     .withObject({
                       err: err
                     }).sendInternalLogToServer();
-                  var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
-                  reject(error);
+                    var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
+                    reject(error);
                 }
               }
             });
@@ -25317,6 +25397,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
               var parsedErr = JSON.parse(err);
               switch(parsedErr.status) {
                 case 400:
+                case 404:
                   error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "evaluateSpeaker failed, session not exists", err);
                   connect.getLog().error("evaluateSpeaker failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
                   break;
@@ -25331,19 +25412,30 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           reject(err);
         });
       }
-      self.syncSpeakerId().then(function () {
-        if(!startNew){
+      
+      if(!startNew) {
+        self.syncSpeakerId().then(function () {
           evaluate();
-        } else {
-          self.startSession().then(function(data) {
+        }).catch(function (err) {
+          connect.getLog().error("syncSpeakerId failed when session startNew=false")
+                .withObject({err: err}).sendInternalLogToServer();
+          reject(err);
+        })
+      } else { 
+        self.startSession().then(function(data) {
+          self.syncSpeakerId().then(function(data) {
             setTimeout(evaluate, connect.VoiceIdConstants.EVALUATE_SESSION_DELAY);
+          }).catch(function (err) {
+              connect.getLog().error("syncSpeakerId failed when session startNew=true")
+                .withObject({err: err}).sendInternalLogToServer();
+              reject(err);
+            });
           }).catch(function(err){
-            reject(err)
-          });
-        }
-      }).catch(function (err) {
-        reject(err);
-      })
+            connect.getLog().error("startSession failed when session startNew=true")
+              .withObject({err: err}).sendInternalLogToServer();
+          reject(err)
+        });
+      }
     });
   };
 
@@ -25480,6 +25572,36 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     });
   };
 
+  // internal only
+  VoiceId.prototype._updateSpeakerIdInLcms = function (speakerId) {
+    var self = this;
+    var client = connect.core.getClient();
+    return new Promise(function (resolve, reject) {
+      client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, {
+        "ContactId": self.contactId,
+        "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+        "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
+        "CustomerId": connect.assertNotNull(speakerId, 'speakerId'),
+        "VoiceIdResult": {
+          "generatedSpeakerId": speakerId
+        }
+      }, {
+        success: function (data) {
+          connect.getLog().info("updateSpeakerIdInLcms succeeded").withObject(data).sendInternalLogToServer();
+          resolve(data);
+        },
+        failure: function (err) {
+          connect.getLog().error("updateSpeakerIdInLcms failed")
+            .withObject({
+              err: err,
+            }).sendInternalLogToServer();
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_IN_LCMS_FAILED, "updateSpeakerIdInLcms failed", err);
+            reject(error);
+        }
+      });
+    });
+  };
+
   VoiceId.prototype.updateSpeakerIdInVoiceId = function (speakerId) {
     var self = this;
     self.checkConferenceCall();
@@ -25494,14 +25616,27 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           }, {
             success: function (data) {
               connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
-              resolve(data);
+              self._updateSpeakerIdInLcms(speakerId)
+                .then(function() {
+                  resolve(data);
+                })
+                .catch(function(err) {
+                  reject(err);
+                });
             },
             failure: function (err) {
-              connect.getLog().error("updateSpeakerIdInVoiceId failed")
-                .withObject({
-                  err: err
-                }).sendInternalLogToServer();
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
+              var error;
+              var parsedErr = JSON.parse(err);
+              switch(parsedErr.status) {
+                case 400:
+                case 404:
+                  error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "updateSpeakerIdInVoiceId failed, session not exists", err);
+                  connect.getLog().error("updateSpeakerIdInVoiceId failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
+                  break;
+                default:
+                  error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
+                  connect.getLog().error("updateSpeakerIdInVoiceId failed").withObject({ err: err }).sendInternalLogToServer();    
+              }
               reject(error);
             }
           });
@@ -25982,12 +26117,12 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.6.4";
+  connect.version = "1.7.4";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
-  var CCP_LOAD_TIMEOUT = 3000; // 3 sec
+  var CCP_LOAD_TIMEOUT = 5000; // 5 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
   var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
  
@@ -26863,7 +26998,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     iframe.src = params.ccpUrl;
     iframe.allow = "microphone; autoplay";
     iframe.style = "width: 100%; height: 100%";
-    iframe.title = 'Amazon Connect CCP';
+    iframe.title = params.iframeTitle || 'Amazon Connect CCP';
     containerDiv.appendChild(iframe);
 
     // Initialize the event bus and agent data providers.
@@ -26973,7 +27108,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           if (params.loginUrl) {
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
           }
-          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP);
+          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
  
         } catch (e) {
           connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
@@ -26991,7 +27126,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           global.clearInterval(connect.core.iframeRefreshInterval);
           connect.core.iframeRefreshInterval = null;
           connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-          if (params.loginPopupAutoClose && connect.core.loginWindow) {
+          if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
             connect.core.loginWindow.close();
             connect.core.loginWindow = null;
           }
@@ -27035,15 +27170,21 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     this.ackSub = this.conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
       this.unsubscribe();
       global.clearTimeout(self.ackTimer);
-      self.deferStart();
+      self._deferStart();
     });
     this.ackTimer = global.setTimeout(function () {
       self.ackSub.unsubscribe();
       self.eventBus.trigger(connect.EventType.ACK_TIMEOUT);
-      self.deferStart();
+      self._deferStart();
     }, this.ackTimeout);
   };
- 
+
+  //Fixes the keepalivemanager.
+  KeepaliveManager.prototype._deferStart = function () {
+    this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
+  };
+
+  // For backwards compatibility only, in case customers are using this to start the keepalivemanager for some reason.
   KeepaliveManager.prototype.deferStart = function () {
     if (this.synTimer == null) {
       this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
@@ -27397,14 +27538,17 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad, quick connects, or create task into view.
    * the valid combinations are ("create_task", "task"), ("number_pad", "softphone"), ("create_task", "softphone"), ("quick_connects", "softphone")
    * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
+   *
+   * The 'source' is an optional parameter which indicates the requester. For example, if invoked with ("create_task", "task", "agentapp") we would know agentapp requested open task view.
    */
-  connect.core.activateChannelWithViewType = function (viewType, mediaType) {
+  connect.core.activateChannelWithViewType = function (viewType, mediaType, source) {
+    const data = { viewType, mediaType };
+    if (source) {
+      data.source = source;
+    }
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
-      data: {
-        viewType: viewType,
-        mediaType: mediaType 
-      }
+      data
     });
   };
 
@@ -27617,7 +27761,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.core.AgentDataProvider = AgentDataProvider;
  
 })();
-
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -29442,7 +29585,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   };
 
 })();
-
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *

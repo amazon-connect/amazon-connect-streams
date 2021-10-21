@@ -205,7 +205,7 @@ describe('Core', function () {
             sandbox.restore();
         });
 
-        describe('in Chrome', function () {
+        describe('in Chrome', function() {
             before(function () {
                 sandbox.stub(connect, 'isChromeBrowser').returns(true);
                 sandbox.stub(connect, 'getChromeBrowserVersion').returns(79);
@@ -223,7 +223,7 @@ describe('Core', function () {
             });
         });
 
-        describe('in Firefox', function () {
+        describe('in Firefox', function() {
             before(function () {
                 sandbox.stub(connect, 'isChromeBrowser').returns(false);
                 sandbox.stub(connect, 'isFirefoxBrowser').returns(true);
@@ -241,7 +241,7 @@ describe('Core', function () {
                 connect.ifMaster.callArg(1);
                 assert.isTrue(connect.SoftphoneManager.calledWithNew());
             });
-
+    
             it("should set connect.core.softphoneParams", function () {
                 expect(connect.core.softphoneParams).to.include({ ringtoneUrl: this.defaultRingtoneUrl });
             });
