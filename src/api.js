@@ -291,8 +291,9 @@
    */
   connect.VoiceIdSpeakerStatus = connect.makeEnum([
     "OPTED_OUT",
-    "ENROLLED"
-  ])
+    "ENROLLED",
+    "PENDING"
+  ]);
 
   connect.VoiceIdConstants = {
     EVALUATE_SESSION_DELAY: 10000,
