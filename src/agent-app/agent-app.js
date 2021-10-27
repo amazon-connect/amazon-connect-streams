@@ -73,7 +73,8 @@
   connect.agentApp.initApp = function (name, containerId, appUrl, config) {
     config = config ? config : {};
     var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
-    var registerConfig = { endpoint: endpoint, style: config.style };
+    var onLoad = config.onLoad ? config.onLoad : null;
+    var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
     connect.agentApp.AppRegistry.register(name, registerConfig, document.getElementById(containerId));
     connect.agentApp.AppRegistry.start(name, function (moduleData) {
       var endpoint = moduleData.endpoint;

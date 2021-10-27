@@ -132,6 +132,22 @@ describe('agent-app', function () {
       connect.agentApp.stopApp('ccp');
       expect(connect.fetch.calledWith('https://amazon.my.connect.aws/logout')).to.be.true;
     });
+
+    it('adds onload function', function () {
+      var divElement = document.createElement('div');
+      divElement.setAttribute('id', 'agent-app-onload');
+      document.body.appendChild(divElement);
+      var onLoad = sandbox.spy();
+      connect.agentApp.initApp('agentApp', 'agent-app-onload', endpoint, { onLoad: onLoad });
+
+      var iframe = document.querySelector('#agent-app-onload iframe');
+      iframe.onload()
+
+      expect(iframe.onload).to.equal(onLoad);
+      expect(connect.agentApp.AppRegistry.register.called).to.be.true;
+      expect(connect.agentApp.AppRegistry.start.called).to.be.true;
+      expect(onLoad.called).to.be.true;
+    });
   });
 
   describe('stopApp()', function () {
