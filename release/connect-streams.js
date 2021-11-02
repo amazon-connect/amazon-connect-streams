@@ -23081,7 +23081,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
             f(message);
          }
          else {
-            connect.getLog().warn("[Window IO Stream] message event came from somewhere other than the CCP iFrame").withCrossOriginEventObject(message).sendInternalLogToServer();
+            // connect.getLog().warn("[Window IO Stream] message event came from somewhere other than the CCP iFrame").withCrossOriginEventObject(message).sendInternalLogToServer();
          }
       });
    };
@@ -24172,8 +24172,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    */
   connect.VoiceIdSpeakerStatus = connect.makeEnum([
     "OPTED_OUT",
-    "ENROLLED"
-  ])
+    "ENROLLED",
+    "PENDING"
+  ]);
 
   connect.VoiceIdConstants = {
     EVALUATE_SESSION_DELAY: 10000,
@@ -27039,7 +27040,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       ;
     connect.core.iframeRefreshInterval = null;
  
-    // Allow 10 sec (default) before receiving the first ACK from the CCP.
+    // Allow 5 sec (default) before receiving the first ACK from the CCP.
     connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
       connect.core.ccpLoadTimeoutInstance = null;
       connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
@@ -29984,7 +29985,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.agentApp.initApp = function (name, containerId, appUrl, config) {
     config = config ? config : {};
     var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
-    var registerConfig = { endpoint: endpoint, style: config.style };
+    var onLoad = config.onLoad ? config.onLoad : null;
+    var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
     connect.agentApp.AppRegistry.register(name, registerConfig, document.getElementById(containerId));
     connect.agentApp.AppRegistry.start(name, function (moduleData) {
       var endpoint = moduleData.endpoint;
@@ -30018,12 +30020,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   function AppRegistry() {
     var moduleData = {};
-    var makeAppIframe = function (appName, endpoint, style) {
+    var makeAppIframe = function (appName, endpoint, style, onLoad) {
       var iframe = document.createElement('iframe');
       iframe.src = endpoint;
       iframe.style = style || 'width: 100%; height:100%;';
       iframe.id = appName;
       iframe['aria-label'] = appName;
+      iframe.onload = onLoad;
       iframe.setAttribute(
         "sandbox",
         "allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
@@ -30040,6 +30043,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           endpoint: config.endpoint,
           style: config.style,
           instance: undefined,
+          onLoad: config.onLoad,
         };
       },
       start: function (appName, creator) {
@@ -30047,8 +30051,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         var containerDOM = moduleData[appName].containerDOM;
         var endpoint = moduleData[appName].endpoint;
         var style = moduleData[appName].style;
+        var onLoad = moduleData[appName].onLoad;
         if (appName !== APP.CCP) {
-          var app = makeAppIframe(appName, endpoint, style);
+          var app = makeAppIframe(appName, endpoint, style, onLoad);
           containerDOM.appendChild(app);
         }
 
