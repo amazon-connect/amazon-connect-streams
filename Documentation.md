@@ -171,6 +171,8 @@ everything set up correctly and that you are able to listen for events.
             enableAudioDeviceSettings: false //optional, defaults to 'false'
             enablePhoneTypeSettings: true // optional, defaults to 'true'
            },
+           ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
+           ccpSynTimeout: 3000, //optional, defaults to 1000 (ms)
            iframeTitle: "Contact Control Panel" // optional, defaults to `Amazon Connect CCP`
          });
       }
@@ -227,6 +229,8 @@ and made available to your JS client code.
   * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab 
     will display a section for configuring the agent's phone type and deskphone number.  
     If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
+* `ccpAckTimeout`: A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its "synchronize" event emissions. These happen continuously from the first time `initCCP` is called. They should only appear when there is a problem that requires a refresh or a re-login.
+* `ccpSynTimeout`: A timeout in ms that indicates how long streams will wait to send a new "synchronize" event to the iframed CCP. These happens continuously from the first time `initCCP` is called. 
 * `iframeTitle`: Optional.  This option allows you to customize the title attribute of the CCP iframe.
   If not provided it defaults to `"Amazon Connect CCP"`.
 
