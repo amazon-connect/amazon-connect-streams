@@ -933,7 +933,7 @@
       ;
     connect.core.iframeRefreshInterval = null;
  
-    // Allow 10 sec (default) before receiving the first ACK from the CCP.
+    // Allow 5 sec (default) before receiving the first ACK from the CCP.
     connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
       connect.core.ccpLoadTimeoutInstance = null;
       connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
