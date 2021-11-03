@@ -1551,7 +1551,7 @@ To get latest streams file and allowlist required urls follow [these instruction
   </head>
   <!-- Add the call to init() as an onload so it will only run once the page is loaded -->
   <body onload="init()">
-    <main>
+    <main style="display: flex;">
       <div id="ccp-container"></div>
       <div id="customerprofiles-container"></div>
       <div id="wisdom-container"></div>
