@@ -1071,7 +1071,8 @@ module.exports={
                           },
                           "mute": {
                             "type": "boolean"
-                          }
+                          },
+                          "quickConnectName": {}
                         }
                       }
                     },
@@ -21403,14 +21404,15 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       Object.keys(data).forEach(function(key) {
         if (typeof data[key] === 'object') {
           redactSensitiveInfo(data[key])
-        }
-        
-        if(typeof data[key] === 'string' && (key === "url" || key === "text")) {
-          data[key] = data[key].replace(regex, "[redacted]");
+        } else if(typeof data[key] === 'string') {
+          if (key === "url" || key === "text") {
+            data[key] = data[key].replace(regex, "[redacted]");
+          } else if (key === "quickConnectName") {
+            data[key] = "[redacted]";
+          }
         }
       }); 
     }
-    
   }
 
   /**
@@ -23357,7 +23359,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
          'sendSoftphoneCallMetrics',
          'getEndpoints',
          'getNewAuthToken',
-         'createTransport'
+         'createTransport',
+         'muteParticipant',
+         'unmuteParticipant'
    ]);
 
    /**---------------------------------------------------------------
@@ -25806,6 +25810,31 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   VoiceConnection.prototype.updateVoiceIdSpeakerId = function(speakerId) {
     return this._speakerAuthenticator.updateSpeakerIdInVoiceId(speakerId);
   }
+
+  VoiceConnection.prototype.getQuickConnectName = function () {
+    return this._getData().quickConnectName;
+  };
+
+  VoiceConnection.prototype.isMute = function () {
+    return this._getData().mute;
+  };
+
+  VoiceConnection.prototype.muteParticipant = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.MUTE_PARTICIPANT, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId()
+    }, callbacks);
+  };
+
+  VoiceConnection.prototype.unmuteParticipant = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.UNMUTE_PARTICIPANT, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId()
+    }, callbacks);
+  };
+
 
   /**
    * @class ChatConnection

@@ -1071,7 +1071,8 @@ module.exports={
                           },
                           "mute": {
                             "type": "boolean"
-                          }
+                          },
+                          "quickConnectName": {}
                         }
                       }
                     },

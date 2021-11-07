@@ -1257,6 +1257,40 @@ Gets a `Promise` with the media controller associated with this connection.
 This method is currently a placeholder.
 The promise resolves to the return value of `voiceConnection.getMediaInfo()` but it will be replaced with the controller eventually.
 
+### `voiceConnection.getQuickConnectName()`
+```js
+var agentName = conn.getQuickConnectName();
+```
+Returns the quick connect name of the third-party call participant with which the connection is associated.
+
+### `voiceConnection.isMute()`
+```js
+if (conn.isMute()) { /* ... */ }
+```
+Determine whether the connection is mute server side.
+
+### `voiceConnection.muteParticipant()`
+```js
+conn.muteParticipant({
+   success: function() { /* ... */ },
+   failure: function(err) { /* ... */ }
+});
+```
+Mute the connection server side.
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
+
+### `voiceConnection.unmuteParticipant()`
+```js
+conn.unmuteParticipant({
+   success: function() { /* ... */ },
+   failure: function(err) { /* ... */ }
+});
+```
+Unmute the connection server side.
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
+
 ## ChatConnection API
 The ChatConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
 of a particular chat connection within a contact. Like contacts, connections come and go. It is good practice not
