@@ -163,14 +163,15 @@
       Object.keys(data).forEach(function(key) {
         if (typeof data[key] === 'object') {
           redactSensitiveInfo(data[key])
-        }
-        
-        if(typeof data[key] === 'string' && (key === "url" || key === "text")) {
-          data[key] = data[key].replace(regex, "[redacted]");
+        } else if(typeof data[key] === 'string') {
+          if (key === "url" || key === "text") {
+            data[key] = data[key].replace(regex, "[redacted]");
+          } else if (key === "quickConnectName") {
+            data[key] = "[redacted]";
+          }
         }
       }); 
     }
-    
   }
 
   /**
