@@ -307,7 +307,7 @@ declare namespace connect {
 
     /** Allows you to specify ringtone settings for Chat. */
     readonly chat?: ChatOptions;
-
+     
     /** Allows you to configure which configuration sections are displayed in the settings tab.  **/
     readonly pageOptions?: PageOptions;
   }
@@ -1505,6 +1505,26 @@ declare namespace connect {
 
     /** Delete speaker id */
     deleteVoiceIdSpeakerId(): Promise<any>;
+
+    /** Returns the quick connect name of the third-party call participant with which the connection is associated. */
+    getQuickConnectName(): string | null;
+ 
+    /** Determine whether the connection is mute server side. */
+    isMute(): boolean;
+
+    /**
+     * Mute the connection server side
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    muteParticipant(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Unmute the connection server side if it was mute
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    unmuteParticipant(callbacks?: SuccessFailOptions): void;
 
   }
 

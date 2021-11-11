@@ -160,16 +160,19 @@ everything setup correctly and that you will be able to listen for events.
             left: 0                       // optional, defaults to 0
           },
           region: "eu-central-1",         // REQUIRED for `CHAT`, optional otherwise
-          softphone: {                    // optional, defaults below apply if not provided
-            allowFramedSoftphone: true,   // optional, defaults to false
-            disableRingtone: false,       // optional, defaults to false
-            ringtoneUrl: "./ringtone.mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
+          softphone: {                    // optional
+            allowFramedSoftphone: true,   // optional
+            disableRingtone: false,       // optional
+            ringtoneUrl: "./ringtone.mp3" // optional
           },
-          pageOptions: {                  // optional
-            enableAudioDeviceSettings: false, // optional, defaults to 'false'
-            enablePhoneTypeSettings: true // optional, defaults to 'true'
-          }
-        });
+          pageOptions: { //optional
+            enableAudioDeviceSettings: false, //optional, defaults to 'false'
+            enablePhoneTypeSettings: true //optional, defaults to 'true' 
+          },
+          ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
+          ccpSynTimeout: 3000, //optional, defaults to 1000 (ms)
+          ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms)
+         });
       }
     </script>
   </body>
@@ -218,7 +221,9 @@ and made available to your JS client code.
       displayed.
   * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
       and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
-
+* `ccpAckTimeout`: A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its `SYNCHRONIZE` event emissions. These happen continuously from the first time `initCCP` is called. They should only appear when there is a problem that requires a refresh or a re-login.
+* `ccpSynTimeout`: A timeout in ms that indicates how long streams will wait to send a new `SYNCHRONIZE` event to the iframed CCP. These happens continuously from the first time `initCCP` is called. 
+* `ccpLoadTimeout`: A timeout in ms that indicates how long streams will wait for the initial `ACKNOWLEDGE` event from the shared worker while the CCP is still standing itself up.
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
 `containerDiv` into which you place the iframe, or applying a CSS rule like

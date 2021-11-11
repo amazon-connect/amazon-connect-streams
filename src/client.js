@@ -42,7 +42,9 @@
          'sendSoftphoneCallMetrics',
          'getEndpoints',
          'getNewAuthToken',
-         'createTransport'
+         'createTransport',
+         'muteParticipant',
+         'unmuteParticipant'
    ]);
 
    /**---------------------------------------------------------------

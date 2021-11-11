@@ -12,6 +12,7 @@ describe('Core', function () {
             authToken: "xyz",
             authTokenExpiration: "Thu Apr 19 23:30:07 UTC 2018",
             baseUrl: "https://abc.awsapps.com",
+            ccpUrl: "url.com",
             refreshToken: "abc",
             region: "us-west-2",
             sharedWorkerUrl: "/connect/static/connect-shared-worker.js",
@@ -40,6 +41,8 @@ describe('Core', function () {
          
         beforeEach(function () {
             clock = sinon.useFakeTimers();
+            this.containerDiv = { appendChild: sandbox.spy() };
+            connect.core.initCCP(this.containerDiv, this.params);
             sandbox.stub(connect.core, "checkNotInitialized").returns(true);
             global.SharedWorker = sandbox.stub().returns({
                 port: {
