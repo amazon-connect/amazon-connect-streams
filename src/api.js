@@ -291,8 +291,9 @@
    */
   connect.VoiceIdSpeakerStatus = connect.makeEnum([
     "OPTED_OUT",
-    "ENROLLED"
-  ])
+    "ENROLLED",
+    "PENDING"
+  ]);
 
   connect.VoiceIdConstants = {
     EVALUATE_SESSION_DELAY: 10000,
@@ -1924,6 +1925,31 @@
   VoiceConnection.prototype.updateVoiceIdSpeakerId = function(speakerId) {
     return this._speakerAuthenticator.updateSpeakerIdInVoiceId(speakerId);
   }
+
+  VoiceConnection.prototype.getQuickConnectName = function () {
+    return this._getData().quickConnectName;
+  };
+
+  VoiceConnection.prototype.isMute = function () {
+    return this._getData().mute;
+  };
+
+  VoiceConnection.prototype.muteParticipant = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.MUTE_PARTICIPANT, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId()
+    }, callbacks);
+  };
+
+  VoiceConnection.prototype.unmuteParticipant = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.UNMUTE_PARTICIPANT, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId()
+    }, callbacks);
+  };
+
 
   /**
    * @class ChatConnection

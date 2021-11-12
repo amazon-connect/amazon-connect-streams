@@ -167,17 +167,20 @@ everything set up correctly and that you are able to listen for events.
             disableRingtone: false,       // optional, defaults to false
             ringtoneUrl: "./ringtone.mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
           },
-          pageOptions: {                  // optional
-            enableAudioDeviceSettings: false, // optional, defaults to 'false'
-            enablePhoneTypeSettings: true // optional, defaults to 'true'
-          }
-        });
+          pageOptions: { //optional
+            enableAudioDeviceSettings: false, //optional, defaults to 'false'
+            enablePhoneTypeSettings: true //optional, defaults to 'true' 
+          },
+          ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
+          ccpSynTimeout: 3000, //optional, defaults to 1000 (ms)
+          ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms)
+         });
       }
     </script>
   </body>
 </html>
 ```
-Integrates with Amazon Connect by loading the pre-built CCP located at `ccpUrl` into an
+Integrates with Connect by loading the pre-built CCP located at `ccpUrl` into an
 iframe and placing it into the `containerDiv` provided. API requests are
 funneled through this CCP and agent and contact updates are published through it
 and made available to your JS client code.
@@ -200,7 +203,7 @@ and made available to your JS client code.
    `loginPopup` parameter to automatically close the login Popup window once the authentication step
    has completed. If the login page opened in a new tab, this parameter will also auto-close that
    tab. This can also be set in `loginOptions` if those options are used.
-* `loginUrl`: Optional.  Allows custom URL to be used to initiate the ccp, as in
+* `loginUrl`: Optional. Allows custom URL to be used to initiate the ccp, as in
   the case of SAML authentication.
 * `softphone`: This object is optional and allows you to specify some settings
   surrounding the softphone feature of Connect.
@@ -214,18 +217,15 @@ and made available to your JS client code.
     ringtone audio that is played when a call is incoming.
   * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
     the ringtone with any browser-supported audio file accessible by the user.
-* `chat`: This object is optional and allows you to specify ringtone params for Chat.
-  * `disableRingtone`: This option allows you to completely disable the built-in
-    ringtone audio that is played when a chat is incoming.
-  * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
-    the ringtone with any browser-supported audio file accessible by the user.
 * `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
-  * `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local machine.
-    If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab. 
-    will not be displayed.
-  * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab 
-    will display a section for configuring the agent's phone type and deskphone number.  
-    If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
+  * `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local
+      machine. If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab. will not be
+      displayed.
+  * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
+      and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
+* `ccpAckTimeout`: A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its `SYNCHRONIZE` event emissions. These happen continuously from the first time `initCCP` is called. They should only appear when there is a problem that requires a refresh or a re-login.
+* `ccpSynTimeout`: A timeout in ms that indicates how long streams will wait to send a new `SYNCHRONIZE` event to the iframed CCP. These happens continuously from the first time `initCCP` is called. 
+* `ccpLoadTimeout`: A timeout in ms that indicates how long streams will wait for the initial `ACKNOWLEDGE` event from the shared worker while the CCP is still standing itself up.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
@@ -1254,6 +1254,40 @@ Gets a `Promise` with the media controller associated with this connection.
 This method is currently a placeholder.
 The promise resolves to the return value of `voiceConnection.getMediaInfo()` but it will be replaced with the controller eventually.
 
+### `voiceConnection.getQuickConnectName()`
+```js
+var agentName = conn.getQuickConnectName();
+```
+Returns the quick connect name of the third-party call participant with which the connection is associated.
+
+### `voiceConnection.isMute()`
+```js
+if (conn.isMute()) { /* ... */ }
+```
+Determine whether the connection is mute server side.
+
+### `voiceConnection.muteParticipant()`
+```js
+conn.muteParticipant({
+   success: function() { /* ... */ },
+   failure: function(err) { /* ... */ }
+});
+```
+Mute the connection server side.
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
+
+### `voiceConnection.unmuteParticipant()`
+```js
+conn.unmuteParticipant({
+   success: function() { /* ... */ },
+   failure: function(err) { /* ... */ }
+});
+```
+Unmute the connection server side.
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
+
 ## ChatConnection API
 The ChatConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
 of a particular chat connection within a contact. Like contacts, connections come and go. It is good practice not
@@ -1432,6 +1466,7 @@ call `.withObject(o)` to add an arbitrary object (`o`) to the logs.
 A new method `sendInternalLogToServer()` that can be chained to the other methods of the logger has been implemented and is intended for internal use only. It is NOT recommended for use by customers.
 
 Finally, you can trigger the logs to be downloaded to the agent's machine in JSON form by calling `connect.getLog().download()`.
+Please note that `connect.getLog().download()` will output Connect-internal logs, along with any custom logs logged using the `connect.getLog()` logger. However, if an agent clicks on an embedded CCP's "Download Logs" button, only the Connect-internal logs will appear. The custom logs will not appear.
 
 ### LogLevel
 

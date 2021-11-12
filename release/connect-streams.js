@@ -1071,7 +1071,8 @@ module.exports={
                           },
                           "mute": {
                             "type": "boolean"
-                          }
+                          },
+                          "quickConnectName": {}
                         }
                       }
                     },
@@ -21403,14 +21404,15 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       Object.keys(data).forEach(function(key) {
         if (typeof data[key] === 'object') {
           redactSensitiveInfo(data[key])
-        }
-        
-        if(typeof data[key] === 'string' && (key === "url" || key === "text")) {
-          data[key] = data[key].replace(regex, "[redacted]");
+        } else if(typeof data[key] === 'string') {
+          if (key === "url" || key === "text") {
+            data[key] = data[key].replace(regex, "[redacted]");
+          } else if (key === "quickConnectName") {
+            data[key] = "[redacted]";
+          }
         }
       }); 
     }
-    
   }
 
   /**
@@ -23055,9 +23057,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
          if (message.source === this.output) {
             f(message);
          }
-         else {
-            connect.getLog().warn("[Window IO Stream] message event came from somewhere other than the CCP iFrame").withCrossOriginEventObject(message).sendInternalLogToServer();
-         }
       });
    };
 
@@ -23332,7 +23331,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
          'sendSoftphoneCallMetrics',
          'getEndpoints',
          'getNewAuthToken',
-         'createTransport'
+         'createTransport',
+         'muteParticipant',
+         'unmuteParticipant'
    ]);
 
    /**---------------------------------------------------------------
@@ -24147,8 +24148,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    */
   connect.VoiceIdSpeakerStatus = connect.makeEnum([
     "OPTED_OUT",
-    "ENROLLED"
-  ])
+    "ENROLLED",
+    "PENDING"
+  ]);
 
   connect.VoiceIdConstants = {
     EVALUATE_SESSION_DELAY: 10000,
@@ -25781,6 +25783,31 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return this._speakerAuthenticator.updateSpeakerIdInVoiceId(speakerId);
   }
 
+  VoiceConnection.prototype.getQuickConnectName = function () {
+    return this._getData().quickConnectName;
+  };
+
+  VoiceConnection.prototype.isMute = function () {
+    return this._getData().mute;
+  };
+
+  VoiceConnection.prototype.muteParticipant = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.MUTE_PARTICIPANT, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId()
+    }, callbacks);
+  };
+
+  VoiceConnection.prototype.unmuteParticipant = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.UNMUTE_PARTICIPANT, {
+      contactId: this.getContactId(),
+      connectionId: this.getConnectionId()
+    }, callbacks);
+  };
+
+
   /**
    * @class ChatConnection
    * @param {*} contactId 
@@ -26092,7 +26119,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.7.4";
+  connect.version = "1.7.5";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -26901,7 +26928,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       ;
     connect.core.iframeRefreshInterval = null;
  
-    // Allow 10 sec (default) before receiving the first ACK from the CCP.
+    // Allow 5 sec (default) before receiving the first ACK from the CCP.
     connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
       connect.core.ccpLoadTimeoutInstance = null;
       connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
@@ -26961,7 +26988,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
           }
           connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
-
         } catch (e) {
           connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
         }
@@ -26977,8 +27003,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           global.clearInterval(connect.core.iframeRefreshInterval);
           connect.core.iframeRefreshInterval = null;
           connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-        if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && 
-              connect.core.loginWindow) {
+          if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
             connect.core.loginWindow.close();
             connect.core.loginWindow = null;
           }
@@ -27390,14 +27415,17 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad, quick connects, or create task into view.
    * the valid combinations are ("create_task", "task"), ("number_pad", "softphone"), ("create_task", "softphone"), ("quick_connects", "softphone")
    * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
+   *
+   * The 'source' is an optional parameter which indicates the requester. For example, if invoked with ("create_task", "task", "agentapp") we would know agentapp requested open task view.
    */
-  connect.core.activateChannelWithViewType = function (viewType, mediaType) {
+  connect.core.activateChannelWithViewType = function (viewType, mediaType, source) {
+    const data = { viewType, mediaType };
+    if (source) {
+      data.source = source;
+    }
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
-      data: {
-        viewType: viewType,
-        mediaType: mediaType 
-      }
+      data
     });
   };
 
@@ -27610,7 +27638,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.core.AgentDataProvider = AgentDataProvider;
  
 })();
-
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -29409,7 +29436,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   };
 
 })();
-
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -29809,7 +29835,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.agentApp.initApp = function (name, containerId, appUrl, config) {
     config = config ? config : {};
     var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
-    var registerConfig = { endpoint: endpoint, style: config.style };
+    var onLoad = config.onLoad ? config.onLoad : null;
+    var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
     connect.agentApp.AppRegistry.register(name, registerConfig, document.getElementById(containerId));
     connect.agentApp.AppRegistry.start(name, function (moduleData) {
       var endpoint = moduleData.endpoint;
@@ -29843,12 +29870,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   function AppRegistry() {
     var moduleData = {};
-    var makeAppIframe = function (appName, endpoint, style) {
+    var makeAppIframe = function (appName, endpoint, style, onLoad) {
       var iframe = document.createElement('iframe');
       iframe.src = endpoint;
       iframe.style = style || 'width: 100%; height:100%;';
       iframe.id = appName;
       iframe['aria-label'] = appName;
+      iframe.onload = onLoad;
       iframe.setAttribute(
         "sandbox",
         "allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
@@ -29865,6 +29893,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           endpoint: config.endpoint,
           style: config.style,
           instance: undefined,
+          onLoad: config.onLoad,
         };
       },
       start: function (appName, creator) {
@@ -29872,8 +29901,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         var containerDOM = moduleData[appName].containerDOM;
         var endpoint = moduleData[appName].endpoint;
         var style = moduleData[appName].style;
+        var onLoad = moduleData[appName].onLoad;
         if (appName !== APP.CCP) {
-          var app = makeAppIframe(appName, endpoint, style);
+          var app = makeAppIframe(appName, endpoint, style, onLoad);
           containerDOM.appendChild(app);
         }
 
