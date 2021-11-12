@@ -226,8 +226,6 @@ and made available to your JS client code.
 * `ccpAckTimeout`: A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its `SYNCHRONIZE` event emissions. These happen continuously from the first time `initCCP` is called. They should only appear when there is a problem that requires a refresh or a re-login.
 * `ccpSynTimeout`: A timeout in ms that indicates how long streams will wait to send a new `SYNCHRONIZE` event to the iframed CCP. These happens continuously from the first time `initCCP` is called. 
 * `ccpLoadTimeout`: A timeout in ms that indicates how long streams will wait for the initial `ACKNOWLEDGE` event from the shared worker while the CCP is still standing itself up.
-* `iframeTitle`: Optional.  This option allows you to customize the title attribute of the CCP iframe.
-  If not provided it defaults to `"Amazon Connect CCP"`.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
