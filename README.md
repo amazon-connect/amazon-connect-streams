@@ -160,10 +160,10 @@ everything setup correctly and that you will be able to listen for events.
             left: 0                       // optional, defaults to 0
           },
           region: "eu-central-1",         // REQUIRED for `CHAT`, optional otherwise
-          softphone: {                    // optional
-            allowFramedSoftphone: true,   // optional
-            disableRingtone: false,       // optional
-            ringtoneUrl: "./ringtone.mp3" // optional
+          softphone: {                    // optional, defaults below apply if not provided
+            allowFramedSoftphone: true,   // optional, defaults to false
+            disableRingtone: false,       // optional, defaults to false
+            ringtoneUrl: "./ringtone.mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
           },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
