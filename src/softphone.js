@@ -85,11 +85,33 @@
     var gumPromise = fetchUserMedia({
       success: function (stream) {
         connect.core.setSoftphoneUserMediaStream(stream);
+        publishTelemetryEvent("Microphone Permission: granted");
       },
       failure: function (err) {
         publishError(err, "Your microphone is not enabled in your browser. ", "");
+        publishTelemetryEvent("Microphone Permission: denied");
       }
     });
+
+    try {
+      if (connect.isChromeBrowser() && connect.getChromeBrowserVersion() > 43){
+        navigator.permissions.query({name: 'microphone'})
+        .then(function(permissionStatus){
+          permissionStatus.onchange = function(){
+            logger.info("Microphone Permission: " + permissionStatus.state);
+            publishTelemetryEvent("Microphone Permission: " + permissionStatus.state);
+            if(permissionStatus.state === 'denied'){
+              publishError(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED,
+                "Your microphone is not enabled in your browser. ",
+                "");
+            }
+          }
+        })
+      }
+    } catch (e) {
+      logger.error("Failed in detecting microphone permission status: " + e);
+    }
+
     handleSoftPhoneMuteToggle();
     handleSpeakerDeviceChange();
     handleMicrophoneDeviceChange();
@@ -554,13 +576,11 @@
   };
 
   var publishTelemetryEvent = function (eventName, contactId, data) {
-    if (contactId) {
-      connect.publishMetric({
-        name: eventName,
-        contactId: contactId,
-        data: data
-      });
-    }
+    connect.publishMetric({
+      name: eventName,
+      contactId: contactId,
+      data: data
+    });
   };
 
   // Publish the contact and agent information in a multiple sessions scenarios
