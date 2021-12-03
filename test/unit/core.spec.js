@@ -438,6 +438,14 @@ describe('Core', function () {
             expect(connect.numberOfConnectedCCPs).to.equal(1);
         });
 
+        it("Multiple calls to initCCP does not append multiple CCP iframes", function() {
+            sandbox.stub(window.document, "getElementsByTagName").returns([{ name: 'Amazon Connect CCP' }]);
+            connect.core.initCCP(this.containerDiv, this.params);
+            connect.core.initCCP(this.containerDiv, this.params);
+            connect.core.initCCP(this.containerDiv, this.params);
+            assert.isTrue(this.containerDiv.appendChild.calledOnce);
+        })
+
         describe("on ACK", function () {
             let fakeOnInitHandler;
 
