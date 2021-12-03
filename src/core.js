@@ -1601,7 +1601,7 @@
       connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
       connect.ContactEvents.ENDED)
     .assoc(connect.EventGraph.ANY,
-      connect.values(connect.AgentErrorStates),
+      connect.ContactStateType.ERROR,
       connect.ContactEvents.ERROR)
     .assoc(connect.ContactStateType.CONNECTING,
       connect.ContactStateType.MISSED,

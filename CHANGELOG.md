@@ -1,4 +1,10 @@
 # CHANGELOG.md
+
+## 1.7.6 (2021-12)
+Bugs Fixed:
+  - `connect.onError` now triggers. Previously, this api did not work at all. Please be aware that, if you have application logic within this function, its behavior has changed. See its entry in documentation.md for more details.
+
+
 ## 1.6.0 (2020-12-01)
 Features Introduced:
   - A new media channel--tasks--has been added to Connect's offerings, alongside chat and voice. With this release, Streams, in conjunction with [TaskJS](https://github.com/amazon-connect/amazon-connect-taskjs) now supports this feature with relevant apis, etc.

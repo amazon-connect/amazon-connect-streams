@@ -338,9 +338,6 @@
       data = new connect.Contact(data.contactId);
     }
 
-    if (eventName.startsWith(connect.ContactEvents.ACCEPTED) && data && data.contactId && !(data instanceof connect.Contact)) {
-      data = new connect.Contact(data.contactId);
-    }
     allEventSubs.concat(eventSubs).forEach(function (sub) {
       try {
         sub.f(data || null, eventName, self);

@@ -1144,7 +1144,7 @@ declare namespace connect {
 
     /**
      * Subscribe a method to be invoked when the contact error event is triggered. 
-     * This event is only triggered when an agent state of type error appears in the snapshot.
+     * This event is only triggered when a contact state of type error appears in the snapshot.
      * 
      * @param callback A callback to receive the `Contact` API object instance.
      */
