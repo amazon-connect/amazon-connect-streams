@@ -90,6 +90,13 @@ declare namespace connect {
     initCCP(container: HTMLElement, options: InitCCPOptions): void;
 
     /**
+     * Subscribes a callback function to be called when the connect.EventType.IFRAME_RETRIES_EXHAUSTED event is triggered.
+     * 
+     * @param f The callback function.
+     */
+    onIframeRetriesExhausted(f: Function): void;
+
+    /**
      * Terminates Amazon Connect Streams. Removing any subscription methods that have been called.
      * The CCP iframe will not be removed though, so you'll have to manually remove it.
      */
@@ -179,6 +186,7 @@ declare namespace connect {
     SERVER_BOUND_INTERNAL_LOG = 'server_bound_internal_log',
     MUTE = 'mute',
     IFRAME_STYLE = 'iframe_style',
+    IFRAME_RETRIES_EXHAUSTED = 'iframe_retries_exhausted',
     UPDATE_CONNECTED_CCPS = 'update_connected_ccps',
     OUTER_CONTEXT_INFO = 'outer_context_info',
     MEDIA_DEVICE_REQUEST = 'media_device_request',

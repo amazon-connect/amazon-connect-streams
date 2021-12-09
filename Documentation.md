@@ -260,6 +260,14 @@ this:
 
 ## `connect.core`
 
+### `connect.core.onIframeRetriesExhausted()`
+```js
+connect.core.onIframeRetriesExhausted(() => {
+  console.log("We have run out of retries to reload the CCP Iframe");
+})
+```
+Subscribes a callback function to be called when the iframe failed to load, after attempting all retries. An Iframe Retry (refresh of the iframe page) is scheduled whenever there is a `connect.EventType.ACK_TIMEOUT`. If a `connect.EventType.ACKNOWLEDGE` event happens before the scheduled retry, the retry is cancelled. We allow for 6 scheduled retries. Once these are exhausted, `connect.EventType.ACK_TIMEOUT` events do not trigger scheduled retries.
+
 ### `connect.core.terminate()`
 ```js
 var containerDiv = document.getElementById("containerDiv");
@@ -1444,6 +1452,7 @@ This is a list of some of the special event types which are published into the l
 
 * `EventType.ACKNOWLEDGE`: Event received when the backend API shared worker acknowledges the current tab.
 * `EventType.ACK_TIMEOUT`: Event which is published if the backend API shared worker fails to respond to an `EventType.SYNCHRONIZE` event in a timely manner, meaning that the tab or window has been disconnected from the shared worker.
+* `EventType.IFRAME_RETRIES_EXHAUSTED`: Event which is published once the hard limit of 6 CCP retries are all exhausted. These retries are tiggered by the `ACK_TIMEOUT` event above.
 * `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid. This usually requires the user to log in again for the CCP to continue to function. See `connect.core.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
 * `EventType.LOG`: An event published whenever the CCP or the API shared worker creates a log entry.
 * `EventType.TERMINATED`: Event published when the agent logged out from ccp.

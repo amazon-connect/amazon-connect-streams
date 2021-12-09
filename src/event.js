@@ -40,6 +40,7 @@
     'server_bound_internal_log',
     'mute',
     "iframe_style",
+    "iframe_retries_exhausted",
     "update_connected_ccps",
     "outer_context_info",
     "media_device_request",

@@ -98,9 +98,6 @@
          if (message.source === this.output) {
             f(message);
          }
-         else {
-            // connect.getLog().warn("[Window IO Stream] message event came from somewhere other than the CCP iFrame").withCrossOriginEventObject(message).sendInternalLogToServer();
-         }
       });
    };
 

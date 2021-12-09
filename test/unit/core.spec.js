@@ -1,4 +1,4 @@
-const { assert } = require("chai");
+const { assert, expect } = require("chai");
 
 require("../unit/test-setup.js");
 
@@ -341,7 +341,8 @@ describe('Core', function () {
 
     describe('#connect.core.initCCP()', function () {
         jsdom({ url: "http://localhost" });
-        var clock 
+        let clock;
+        let clearStub, openStub, closeStub;
             
         before(function () {
             clock = sinon.useFakeTimers();
@@ -354,8 +355,12 @@ describe('Core', function () {
                 },
                 chat: {
                     ringtoneUrl: "customChatRingtone.amazon.com"
-                }
+                },
+                loginOptions: { autoClose: true },
             });
+            clearStub = sandbox.fake();
+            closeStub = sandbox.fake();
+            openStub = sandbox.fake.returns({close: closeStub});
             sandbox.stub(connect.core, "checkNotInitialized").returns(false);
             sandbox.stub(connect, "UpstreamConduitClient");
             sandbox.stub(connect, "UpstreamConduitMasterClient");
@@ -365,6 +370,8 @@ describe('Core', function () {
             sandbox.stub(connect, "QueueCallbackRingtoneEngine");
             sandbox.stub(connect, "ChatRingtoneEngine");
             sandbox.spy(document, "createElement");
+            sandbox.stub(connect.core, "_refreshIframeOnTimeout");
+            sandbox.stub(connect.core, "getPopupManager").returns({ clear: clearStub, open: openStub})
             connect.numberOfConnectedCCPs = 0;
             connect.core.initCCP(this.containerDiv, this.params);
         });
@@ -450,7 +457,7 @@ describe('Core', function () {
             let fakeOnInitHandler;
 
             before(function () {
-                fakeOnInitHandler = sinon.fake();
+                fakeOnInitHandler = sandbox.fake();
                 connect.core.onInitialized(fakeOnInitHandler);
                 sandbox.stub(connect.WindowIOStream.prototype, 'send').returns(null);
                 connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
@@ -470,7 +477,233 @@ describe('Core', function () {
                 expect(fakeOnInitHandler.callCount).to.equal(1);
             });
         });
+        describe("on ACK_TIMEOUT", function () {
+            before(() => {
+                connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
+            });
+            it("calls _refreshIframeOnTimeout when ack timeout occurs", function () {
+                expect(connect.core._refreshIframeOnTimeout.calledOnce).to.be.true;
+                expect(clearStub.calledOnce).to.be.true;
+                expect(clearStub.calledWith(connect.MasterTopics.LOGIN_POPUP)).to.be.true;
+                expect(openStub.calledOnce).to.be.true;
+                expect(openStub.calledWith(this.params.loginUrl, connect.MasterTopics.LOGIN_POPUP, this.params.loginOptions));
+            });
+            describe(" on ACK", function () {
+                it("resets the iframe refresh timeout, calls popupManager.clear, calls loginWindow.close", () => {
+                    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+                    expect(connect.core.iframeRefreshTimeout === null).to.be.true;
+                    expect(clearStub.calledTwice).to.be.true;
+                    expect(closeStub.calledOnce).to.be.true;
+                    expect(connect.core.loginWindow === null).to.be.true;
+                });
+            });
+        });
     });
+
+    describe('onIframeRetriesExhausted', () => {
+        after(() => {
+            sandbox.restore();
+        })
+        it('calls the subscribe api with the proper params', () => {
+            let spy = sandbox.fake();
+            let subscribeSpy = sandbox.fake();
+            sandbox.stub(connect.core, "getEventBus").returns({subscribe: subscribeSpy});
+            connect.core.onIframeRetriesExhausted(spy);
+            sandbox.assert.calledOnce(subscribeSpy);
+            sandbox.assert.calledWith(subscribeSpy, connect.EventType.IFRAME_RETRIES_EXHAUSTED, spy);
+        });
+    })
+
+    describe('_refreshIframeOnTimeout', () => {
+        var clock;
+        function calculateRetryDelay(retryCount, retryDelayOptions) {
+            if (!retryDelayOptions) retryDelayOptions = {};
+            var customBackoff = retryDelayOptions.customBackoff || null;
+            if (typeof customBackoff === 'function') {
+              return customBackoff(retryCount);
+            }
+            var base = typeof retryDelayOptions.base === 'number' ? retryDelayOptions.base : 100;
+            var delay = (Math.pow(2, retryCount) * base); // normally this looks like Math.random() * (Math.pow(2, retryCount) * base), but for the sake of consistency
+            return delay;
+        }
+        AWS.util.calculateRetryDelay = calculateRetryDelay;
+        beforeEach(() => {
+            clock = sinon.useFakeTimers();
+        });
+        before(() => {
+            this.containerDiv = { appendChild: sandbox.spy() };
+            this.params = connect.merge({}, this.params, {
+                ccpUrl: "url.com",
+                loginUrl: "loginUrl.com",
+                softphone: {
+                    ringtoneUrl: "customVoiceRingtone.amazon.com"
+                },
+                chat: {
+                    ringtoneUrl: "customChatRingtone.amazon.com"
+                }
+            });
+        });
+        afterEach(() => {
+            clock.restore();
+        });
+        after(() => {
+            sandbox.restore();
+        })
+        it("should teardown and stand up a new iframe 6 times, and then clean itself up and stop trying.", () => {
+            let setTimeoutSpy = sandbox.spy(global, "setTimeout");
+            let fakeRemoveChildSpy = sandbox.fake();
+            let getCCPIframeSpy = sandbox.stub(connect.core, "_getCCPIframe").returns({parentNode: { removeChild: fakeRemoveChildSpy}});
+            let fakeContentWindow = { windowProp1: 1};
+            let createCCPIframeSpy = sandbox.stub(connect.core, "_createCCPIframe").returns({contentWindow: fakeContentWindow});
+            let clearTimeoutSpy = sandbox.spy(global, "clearTimeout");
+            let sendIframeStyleDataUpstreamAfterReasonableWaitTimeSpy = sandbox.stub(connect.core, "_sendIframeStyleDataUpstreamAfterReasonableWaitTime");
+            let triggerSpy = sandbox.fake();
+            sandbox.stub(connect.core, "getEventBus").returns({trigger: triggerSpy});
+
+            connect.core._refreshIframeOnTimeout(this.params, {});
+
+            expect(setTimeoutSpy.calledOnce).to.be.true;
+            expect(setTimeoutSpy.calledWith(sinon.match.any, sinon.match.number.and(sinon.match((timeout) => timeout <= 7000 && timeout >= 5000)))).to.be.true;
+            expect(connect.core.iframeRefreshAttempt).not.to.equal(0);
+            expect(clearTimeoutSpy.calledOnce).to.be.true;
+
+            clock.tick(7001); //the initial retry timeout.
+            expect(connect.core.iframeRefreshAttempt).to.equal(1);
+            expect(getCCPIframeSpy.calledOnce).to.be.true;
+            expect(fakeRemoveChildSpy.calledOnce).to.be.true;
+            expect(createCCPIframeSpy.calledOnce).to.be.true;
+            expect(sendIframeStyleDataUpstreamAfterReasonableWaitTimeSpy.calledOnce).to.be.true;
+            expect(connect.core.upstream.upstream.output === fakeContentWindow).to.be.true;
+            expect(setTimeoutSpy.calledTwice).to.be.true;
+
+            clock.tick(9001); //the 2nd retry timeout
+            expect(connect.core.iframeRefreshAttempt).to.equal(2);
+
+            clock.tick(13001); //the 3rd retry timeout
+            expect(connect.core.iframeRefreshAttempt).to.equal(3);
+
+            clock.tick(21001); //the 4th retry timeout
+            expect(connect.core.iframeRefreshAttempt).to.equal(4);
+
+            clock.tick(37001); //the 5th retry timeout
+            expect(connect.core.iframeRefreshAttempt).to.equal(5);
+
+            clock.tick(69001); //the 6th, final retry timeout
+            expect(connect.core.iframeRefreshAttempt).to.equal(6);
+            expect(getCCPIframeSpy.callCount).to.equal(6);
+            expect(fakeRemoveChildSpy.callCount).to.equal(6);
+            expect(createCCPIframeSpy.callCount).to.equal(6);
+            expect(sendIframeStyleDataUpstreamAfterReasonableWaitTimeSpy.callCount).to.equal(6);
+            expect(connect.core.upstream.upstream.output === fakeContentWindow).to.be.true;
+
+            clock.tick(133001); //the timeout that happens after the last retry timeout.
+            expect(connect.core.iframeRefreshAttempt).to.equal(7); //this counter is increased, but the condition evaluating whether we should destroy and reload the iframe fails.
+            expect(clearTimeoutSpy.callCount).to.equal(8); //even though we didn't retry in this timeout execution, we clean up the timeout.
+            sandbox.assert.calledOnceWithExactly(triggerSpy, connect.EventType.IFRAME_RETRIES_EXHAUSTED); //this only happens once we have exhausted all retries.
+            expect(setTimeoutSpy.callCount).to.equal(7);
+            expect(fakeRemoveChildSpy.callCount).to.equal(6); // As mentioned above, this execution of the callback code is not a true retry, as evidenced by the lack of an additional call to remove the current iframe
+
+            clock.tick(300000); //out of retries. Waiting a long time won't change anything.
+            expect(connect.core.iframeRefreshAttempt).to.equal(7);
+        });
+    });
+
+    describe('_getCCPIframe', function () {
+        jsdom({ url: "http://localhost" });
+        after(() => {
+            sandbox.restore();
+        });
+        it('returns an iframe if there is an iframe in the document that matches the name of the CCP iframe', function () {
+            const ccpIframe = {name: 'Amazon Connect CCP'};
+            const randomIframe = {name: "hello"};
+            let stub = sandbox.stub(global.window.document, "getElementsByTagName").returns([ccpIframe, randomIframe])
+            expect(connect.core._getCCPIframe()).to.deep.equal(ccpIframe);
+            stub.returns([randomIframe]);
+            expect(connect.core._getCCPIframe()).to.equal(null);
+        });
+    });
+
+    describe('_createCCPIframe', function () {
+        jsdom({ url: "http://localhost" });
+        let iframe = {iframeId: 1};
+        let appendChildSpy = sandbox.fake();
+        let containerDiv = { appendChild: appendChildSpy};
+        let params = {
+            ccpUrl: "url"
+        };
+        let expectedIframe = {
+            ...iframe,
+            src: params.ccpUrl,
+            allow: "microphone; autoplay",
+            style: "width: 100%; height: 100%",
+            title: "Amazon Connect CCP",
+            name: "Amazon Connect CCP",
+        };
+        before(function () {
+            sandbox.stub(global.document, "createElement").returns(iframe);
+        });
+        beforeEach(() => {
+            appendChildSpy.resetHistory();
+            global.document.createElement.resetHistory();
+        });
+        after(() => {
+            sandbox.restore();
+        })
+        it('calls appendChild with default title if iframeTitle param is not given', function () {
+            const returnedIframe = connect.core._createCCPIframe(containerDiv, params);
+            expect(appendChildSpy.calledOnce).to.be.true;
+            sandbox.assert.calledWith(appendChildSpy, expectedIframe);
+            expect(returnedIframe).to.be.deep.equal(expectedIframe);
+        });
+        it('calls appendChild with expected iframe fields if iframeTitle is given', function () {
+            params = { ...params, iframeTitle: 'title'};
+            expectedIframe.title = params.iframeTitle;
+            const returnedIframe = connect.core._createCCPIframe(containerDiv, params);
+            expect(appendChildSpy.calledOnce).to.be.true;
+            sandbox.assert.calledWith(appendChildSpy, expectedIframe);
+            expect(returnedIframe).to.be.deep.equal(expectedIframe);
+        });
+        it('calls createElement with string: iframe', function () {
+            const returnedIframe = connect.core._createCCPIframe(containerDiv, params);
+            expect(global.document.createElement.calledOnce).to.be.true;
+            sandbox.assert.calledWith(global.document.createElement, 'iframe');
+            expect(returnedIframe).to.be.deep.equal(expectedIframe);
+        });
+    });
+
+    describe('_sendIframeStyleDataUpstreamAfterReasonableWaitTime', function () {
+        jsdom({ url: "http://localhost" });
+        let iframe = {offsetWidth: 5, offsetHeight: 5, getClientRects: () => ({length: 1})};
+        var clock;
+        beforeEach(() => {
+            clock = sinon.useFakeTimers();
+        });
+        afterEach(() => {
+            clock.restore();
+        });
+        it('calls the setTimeout function', function () {
+            let setTimeoutSpy = sandbox.spy(global, "setTimeout");
+            let conduit = { "sendUpstream": function () {return "hello";} };
+            connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(iframe, conduit);
+            sandbox.assert.calledOnceWithMatch(setTimeoutSpy, sandbox.match.func, 10000);
+        });
+        it('sends an iframe style upstream with the expected data once the setTimeout executes its callback', function () {
+            // let sendUpstream = () => {};
+            let sendUpstreamSpy = sandbox.spy();
+            let conduit = { "sendUpstream": sendUpstreamSpy };
+            connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(iframe, conduit);
+            sandbox.stub(global.window, "getComputedStyle").returns({display: "display"});
+            clock.tick(10001);
+            let expectedData = {
+                display: "display",
+                offsetWidth: iframe.offsetWidth,
+                offsetHeight: iframe.offsetHeight,
+                clientRectsLength: iframe.getClientRects().length,
+            }
+            sandbox.assert.calledOnceWithMatch(sendUpstreamSpy, connect.EventType.IFRAME_STYLE, expectedData);
+        });
+    });
+
 
     describe('verifyDomainAccess', function () {
 
