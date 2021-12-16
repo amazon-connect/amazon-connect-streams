@@ -1,7 +1,7 @@
 /*! @license sprintf.js | Copyright (c) 2007-2013 Alexandru Marasteanu <hello at alexei dot ro> | 3 clause BSD license */
 
 (function() {
-   var ctx = this;
+   var ctx = this || window;
 
 	var sprintf = function() {
 		if (!sprintf.cache.hasOwnProperty(arguments[0])) {
