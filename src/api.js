@@ -2003,7 +2003,7 @@
   *  .catch(error => {})
   */
   ChatConnection.prototype.getConnectionToken = function () {
-    client = connect.core.getClient();
+    var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     var transportDetails = {
       transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
