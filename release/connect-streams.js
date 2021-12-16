@@ -21095,7 +21095,7 @@ if (!Object.prototype.hasOwnProperty.call(AWS, 'STS')) {
   AWS.STS = AWS.Service.defineService('sts', [ '2011-06-15' ]);
   require('./services/sts');
 }
-AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.min');
+//AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.min');
 
 
 },{"../apis/connect-2017-02-15.min":3,"../apis/sts-2011-06-15.min":5,"./browser_loader":16,"./core":18,"./services/sts":61}]},{},[105]);
@@ -21104,7 +21104,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 /*! @license sprintf.js | Copyright (c) 2007-2013 Alexandru Marasteanu <hello at alexei dot ro> | 3 clause BSD license */
 
 (function() {
-   var ctx = this;
+   var ctx = this || window;
 
 	var sprintf = function() {
 		if (!sprintf.cache.hasOwnProperty(arguments[0])) {
@@ -21245,8 +21245,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
@@ -21907,8 +21907,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
@@ -22598,8 +22598,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
 
   var ALL_EVENTS = '<<all>>';
@@ -22963,8 +22963,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function() {
-   var global = this;
-   connect = global.connect || {};
+   var global = this || window;
+   var connect = global.connect || {};
    global.connect = connect;
    global.lily = connect;
 
@@ -23293,8 +23293,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function() {
-   var global = this;
-   connect = global.connect || {};
+   var global = this || window;
+   var connect = global.connect || {};
    global.connect = connect;
    global.lily = connect;
 
@@ -23694,8 +23694,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function() {
-   var global = this;
-   connect = global.connect || {};
+   var global = this || window;
+   var connect = global.connect || {};
    global.connect = connect;
    global.lily = connect;
 
@@ -23861,8 +23861,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
@@ -25860,7 +25860,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   *  .catch(error => {})
   */
   ChatConnection.prototype.getConnectionToken = function () {
-    client = connect.core.getClient();
+    var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     var transportDetails = {
       transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
@@ -26112,8 +26112,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
@@ -27644,7 +27644,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
+  var global = this || window;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
@@ -27876,8 +27876,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
   global.ccpVersion = "V2";
@@ -28649,8 +28649,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
@@ -29452,8 +29452,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  */
 
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
 
   connect.ChatMediaController = function (mediaInfo, metadata) {
@@ -29542,8 +29542,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  */
 
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
 
   connect.MediaFactory = function (params) {
@@ -29645,8 +29645,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  */
 
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
 
   // TODO move softphone implementations here - Wil do this for GA
@@ -29675,8 +29675,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  */
 
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
 
   connect.TaskMediaController = function (mediaInfo) {
