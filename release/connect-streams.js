@@ -29761,8 +29761,8 @@ if (!Object.prototype.hasOwnProperty.call(AWS, 'STS')) {
 })();
 
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
@@ -29860,8 +29860,8 @@ if (!Object.prototype.hasOwnProperty.call(AWS, 'STS')) {
 })();
 
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
 
   var APP = {
