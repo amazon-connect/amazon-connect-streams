@@ -24487,7 +24487,7 @@ if (!Object.prototype.hasOwnProperty.call(AWS, 'STS')) {
 
   //Internal identifier.
   Agent.prototype._getResourceId = function() {
-    queueArns = this.getAllQueueARNs();
+    var queueArns = this.getAllQueueARNs();
     for (let queueArn of queueArns) {
       const agentIdMatch = queueArn.match(/\/agent\/([^/]+)/);
       
