@@ -21095,7 +21095,7 @@ if (!Object.prototype.hasOwnProperty.call(AWS, 'STS')) {
   AWS.STS = AWS.Service.defineService('sts', [ '2011-06-15' ]);
   require('./services/sts');
 }
-AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.min');
+//AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.min');
 
 
 },{"../apis/connect-2017-02-15.min":3,"../apis/sts-2011-06-15.min":5,"./browser_loader":16,"./core":18,"./services/sts":61}]},{},[105]);
