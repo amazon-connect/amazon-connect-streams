@@ -227,24 +227,32 @@
           });
 
           webSocketManager.init(connect.hitch(self, self.getWebSocketUrl)).then(function(response) {
-            if (response && !response.webSocketConnectionFailed) {
-              // Start polling for agent data.
-              connect.getLog().info("Kicking off agent polling")
-                .sendInternalLogToServer();
-              self.pollForAgent();
-
-              connect.getLog().info("Kicking off config polling")
-                .sendInternalLogToServer();
-              self.pollForAgentConfiguration({ repeatForever: true });
-
-              connect.getLog().info("Kicking off auth token polling")
-                .sendInternalLogToServer();
-              global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
-            } else {
-              if (!connect.webSocketInitFailed) {
-                self.conduit.sendDownstream(connect.WebSocketEvents.INIT_FAILURE);
-                connect.webSocketInitFailed = true;
+            try {
+              if (response && !response.webSocketConnectionFailed) {
+                // Start polling for agent data.
+                connect.getLog().info("Kicking off agent polling")
+                  .sendInternalLogToServer();
+                self.pollForAgent();
+  
+                connect.getLog().info("Kicking off config polling")
+                  .sendInternalLogToServer();
+                self.pollForAgentConfiguration({ repeatForever: true });
+  
+                connect.getLog().info("Kicking off auth token polling")
+                  .sendInternalLogToServer();
+                global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
+              } else {
+                if (!connect.webSocketInitFailed) {
+                  const event = connect.WebSocketEvents.INIT_FAILURE;
+                  self.conduit.sendDownstream(event);
+                  connect.webSocketInitFailed = true;
+                  throw new Error(event);
+                }
               }
+            } catch (e) {
+              connect.getLog().error("WebSocket failed to initialize")
+                .withException(e)
+                .sendInternalLogToServer();
             }
           });
         } else {
