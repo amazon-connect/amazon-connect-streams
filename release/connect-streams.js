@@ -28051,6 +28051,8 @@
 
   var RTPJobIntervalMs = 1000;
   var statsReportingJobIntervalMs = 30000;
+  var connectivityCheckJobIntervalMs = 30000;
+  var connectivityCheckJobPaused = false;
   var streamBufferSize = 500;
   var CallTypeMap = {};
   CallTypeMap[connect.SoftphoneCallType.AUDIO_ONLY] = 'Audio';
@@ -28074,6 +28076,7 @@
   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
   var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
   var MULTIPLE_SESSIONS_EVENT = "MultiSessions";
+  var mediaEndpoint = null;
 
   var localMediaStream = {};
 
@@ -28084,6 +28087,11 @@
       connect.core.getClient().call(connect.ClientMethods.CREATE_TRANSPORT, transport, {
         success: function (data) {
           resolve(data.softphoneTransport.softphoneMediaConnections);
+          try{
+            mediaEndpoint = data.softphoneTransport.softphoneMediaConnections[0].urls[0];
+          }catch(e){
+            logger.error("Failed in retrieving mediaEndpoint" + e);
+          }
         },
         failure: function (reason) {
           if (reason.message && reason.message.includes("SoftphoneConnectionLimitBreachedException")) {
@@ -28124,36 +28132,27 @@
     var gumPromise = fetchUserMedia({
       success: function (stream) {
         connect.core.setSoftphoneUserMediaStream(stream);
-        publishTelemetryEvent("Microphone Permission: granted");
+        publishTelemetryEvent("ConnectivityCheckResult", null, 
+        {
+          connectivityCheckType: "MicrophonePermission",
+          status: "granted"
+        });
       },
       failure: function (err) {
         publishError(err, "Your microphone is not enabled in your browser. ", "");
-        publishTelemetryEvent("Microphone Permission: denied");
+        publishTelemetryEvent("ConnectivityCheckResult", null, 
+        {
+          connectivityCheckType: "MicrophonePermission",
+          status: "denied"
+        });
       }
     });
-
-    try {
-      if (connect.isChromeBrowser() && connect.getChromeBrowserVersion() > 43){
-        navigator.permissions.query({name: 'microphone'})
-        .then(function(permissionStatus){
-          permissionStatus.onchange = function(){
-            logger.info("Microphone Permission: " + permissionStatus.state);
-            publishTelemetryEvent("Microphone Permission: " + permissionStatus.state);
-            if(permissionStatus.state === 'denied'){
-              publishError(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED,
-                "Your microphone is not enabled in your browser. ",
-                "");
-            }
-          }
-        })
-      }
-    } catch (e) {
-      logger.error("Failed in detecting microphone permission status: " + e);
-    }
-
+    
     handleSoftPhoneMuteToggle();
     handleSpeakerDeviceChange();
     handleMicrophoneDeviceChange();
+    monitorMicrophonePermission();
+    monitorSoftphoneConnectivity();
 
     this.ringtoneEngine = null;
     var rtcSessions = {};
@@ -28285,6 +28284,7 @@
         publishSoftphoneFailureLogs(rtcSession, reason);
         publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
         stopJobsAndReport(contact, rtcSession.sessionReport);
+        connectivityCheckJobPaused = false;
       };
       session.onSessionConnected = function (rtcSession) {
         publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
@@ -28294,6 +28294,7 @@
         startStatsCollectionJob(rtcSession);
         startStatsReportingJob(contact);
         fireContactAcceptedEvent(contact);
+        connectivityCheckJobPaused = true;
       };
 
       session.onSessionCompleted = function (rtcSession) {
@@ -28306,6 +28307,7 @@
 
         // Cleanup the cached streams
         deleteLocalMediaStream(agentConnectionId);
+        connectivityCheckJobPaused = false;
       };
 
       session.onLocalStreamAdded = function (rtcSession, stream) {
@@ -28409,6 +28411,54 @@
   var handleMicrophoneDeviceChange = function () {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, setMicrophoneDevice);
+  }
+
+  var monitorMicrophonePermission = function () {
+    try {
+      if (connect.isChromeBrowser() && connect.getChromeBrowserVersion() > 43){
+        navigator.permissions.query({name: 'microphone'})
+        .then(function(permissionStatus){
+          permissionStatus.onchange = function(){
+            logger.info("Microphone Permission: " + permissionStatus.state);
+            publishTelemetryEvent("ConnectivityCheckResult", null, 
+            {
+              connectivityCheckType: "MicrophonePermission",
+              status: permissionStatus.state
+            });
+            if(permissionStatus.state === 'denied'){
+              publishError(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED,
+                "Your microphone is not enabled in your browser. ",
+                "");
+            }
+          }
+        })
+      }
+    } catch (e) {
+      logger.error("Failed in detecting microphone permission status: " + e);
+    }
+  }
+
+  var monitorSoftphoneConnectivity = function () {
+    window.setInterval(function(){
+      var promise = null;
+      if(!connectivityCheckJobPaused && mediaEndpoint){
+        try{
+          connectivityCheckJobPaused = true;
+          promise = connect.checkMediaEndpointConnection(mediaEndpoint);
+          promise.then(function (connectivityCheckResult) {
+            publishTelemetryEvent("ConnectivityCheckResult", null, 
+              Object.assign({},connectivityCheckResult,
+                {
+                  connectivityCheckType: "MediaEndpointCheck",
+                  status: connectivityCheckResult.success
+                }));
+            connectivityCheckJobPaused = false;
+          }); 
+        }catch(e){
+          logger.error("Failed in checking media endpoint connection: " + e);
+        }
+      }
+    },connectivityCheckJobIntervalMs);
   }
 
   // Make sure once we disconnected we get the mute state back to normal
