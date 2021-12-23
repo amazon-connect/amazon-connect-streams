@@ -138,12 +138,51 @@ declare namespace connect {
      */
     onInitialized(callback: Function): void;
 
-     /**
-     * Returns a promise that is resolved with the list of media devices from iframe.
-     *
-     * @param timeout A timeout for the request in milliseconds.
-     */
+    /**
+    * Returns a promise that is resolved with the list of media devices from iframe.
+    *
+    * @param timeout A timeout for the request in milliseconds.
+    */
     getFrameMediaDevices(timeout: Number): Promise<any[]>;
+
+    /**
+     * Global upstream conduit for external use.
+     * 
+     */
+    upstream?: object | null;
+  }
+
+  enum EventType {
+    ACKNOWLEDGE = 'acknowledge',
+    ACK_TIMEOUT = 'ack_timeout',
+    INIT = 'init',
+    API_REQUEST = 'api_request',
+    API_RESPONSE = 'api_response',
+    AUTH_FAIL = 'auth_fail',
+    ACCESS_DENIED = 'access_denied',
+    CLOSE = 'close',
+    CONFIGURE = 'configure',
+    LOG = 'log',
+    MASTER_REQUEST = 'master_request',
+    MASTER_RESPONSE = 'master_response',
+    SYNCHRONIZE = 'synchronize',
+    TERMINATE = 'terminate',
+    TERMINATED = 'terminated',
+    SEND_LOGS = 'send_logs',
+    RELOAD_AGENT_CONFIGURATION = 'reload_agent_configuration',
+    BROADCAST = 'broadcast',
+    API_METRIC = 'api_metric',
+    CLIENT_METRIC = 'client_metric',
+    SOFTPHONE_STATS = 'softphone_stats',
+    SOFTPHONE_REPORT = 'softphone_report',
+    CLIENT_SIDE_LOGS = 'client_side_logs',
+    SERVER_BOUND_INTERNAL_LOG = 'server_bound_internal_log',
+    MUTE = 'mute',
+    IFRAME_STYLE = 'iframe_style',
+    UPDATE_CONNECTED_CCPS = 'update_connected_ccps',
+    OUTER_CONTEXT_INFO = 'outer_context_info',
+    MEDIA_DEVICE_REQUEST = 'media_device_request',
+    MEDIA_DEVICE_RESPONSE = 'media_device_response'
   }
 
   const core: Core;
@@ -312,8 +351,8 @@ declare namespace connect {
      * Allows you to customize the title attribute of the CCP iframe.
      * @example "Contact Control Panel"
      */
-     readonly iframeTitle?: string;
-     
+    readonly iframeTitle?: string;
+
     /** Allows you to configure which configuration sections are displayed in the settings tab.  **/
     readonly pageOptions?: PageOptions;
   }
@@ -680,13 +719,13 @@ declare namespace connect {
 
     /** Alias for `getState()`. */
     getStatus(): AgentState;
-    
+
     /** 
      * Get the AgentState object of the agent's enqueued next status. 
      * If the agent has not enqueued a next status, returns null.
      */
     getNextState(): AgentState;
-    
+
 
     /**
      * Get the duration of the agent's state in milliseconds relative to local time.
@@ -873,7 +912,7 @@ declare namespace connect {
      * @param callback A callback to receive updates on the microphone device
      */
     onMicrophoneDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
-    
+
     /**
      * Subscribe a method to be called when the agent changes the ringer device (output device for ringtone).
      *
@@ -977,7 +1016,7 @@ declare namespace connect {
   interface AgentConfiguration {
     /** See `agent.getAgentStates()` for more info. */
     readonly agentStates: AgentStateDefinition[];
-  
+
     readonly agentPreferences?: AgentPreferences;
 
     /** See `agent.getDialableCountries()` for more info. */
@@ -1187,7 +1226,7 @@ declare namespace connect {
 
     /** Get description for the contact. */
     getDescription(): string;
-    
+
     /** Get references for the contact. */
     getReferences(): ReferenceDictionary;
 
@@ -1490,7 +1529,7 @@ declare namespace connect {
 
     /** Gets a `Promise` with the media controller associated with this connection. */
     getMediaController(): Promise<any>;
-   
+
     /** Returns the `SpeakerId` associated to this Voice Connection */
     getVoiceIdSpeakerId(): Promise<any>;
 
@@ -1514,7 +1553,7 @@ declare namespace connect {
 
     /** Returns the quick connect name of the third-party call participant with which the connection is associated. */
     getQuickConnectName(): string | null;
- 
+
     /** Determine whether the connection is mute server side. */
     isMute(): boolean;
 
