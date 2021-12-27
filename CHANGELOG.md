@@ -1,6 +1,14 @@
 # CHANGELOG.md
 
-## 1.7.6 (2021-12)
+## 2.0.0
+New build system: 
+* `Make` and `gulp` have been removed and `Webpack` has been added as the new build system.
+* Running `npm run release` will continue to produce both `release/connect-streams.js` and `release/connect-streams-min.js` and run tests. 
+* `npm run build-streams` will now produce the same files without running any tests.
+* `npm run test-mocha` will just run tests and relies on the release files.
+* Every command that runs a `gulp` script has been removed.
+* See the README for more details
+
 Bugs Fixed:
   - `connect.onError` now triggers. Previously, this api did not work at all. Please be aware that, if you have application logic within this function, its behavior has changed. See its entry in documentation.md for more details.
 
