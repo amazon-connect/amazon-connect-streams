@@ -26171,6 +26171,10 @@
   var WHITELISTED_ORIGINS_RETRY_INTERVAL = 2000;
   var WHITELISTED_ORIGINS_MAX_RETRY = 5;
 
+  var CSM_IFRAME_REFRESH_ATTEMPTS = 'IframeRefreshAttempts';
+  var CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
+  var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
+
   connect.numberOfConnectedCCPs = 0;
 
   /**
@@ -27010,6 +27014,8 @@
     if (connect.core.initialized) {
       return;
     }
+    connect.getLog().info("Iframe initialization started").sendInternalLogToServer();
+    var initStartTime = Date.now();
     // Check if CCP iframe has already been initialized through initCCP
     try {
       if (connect.core._getCCPIframe()) {
@@ -27113,6 +27119,27 @@
 
       connect.core.initialized = true;
       connect.core.getEventBus().trigger(connect.EventType.INIT);
+      if (initStartTime) {
+        var initTime = Date.now() - initStartTime;
+        var refreshAttempts = connect.core.iframeRefreshAttempt || 0;
+        connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
+        connect.getLog().info(`Iframe initialization time ${initTime}`).sendInternalLogToServer();
+        connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
+        connect.publishMetric({
+          name: CSM_IFRAME_REFRESH_ATTEMPTS,
+          data: refreshAttempts
+        });
+        connect.publishMetric({
+          name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+          data: 1 
+        });
+        connect.publishMetric({
+          name: CSM_IFRAME_INITIALIZATION_TIME,
+          data: initTime
+        });
+        //to avoid metric emission after initialization
+        initStartTime = null;
+      }
     });
  
     // Add any logs from the upstream to our own logger.
@@ -27170,6 +27197,24 @@
     conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, function (data) {
       if (data && data.domainId) {
         connect.core.voiceIdDomainId = data.domainId;
+      }
+    });
+
+    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, function () {
+      if (initStartTime) {
+        var refreshAttempts = connect.core.iframeRefreshAttempt - 1;
+        connect.getLog().info('Iframe initialization failed').sendInternalLogToServer();
+        connect.getLog().info(`Time after iframe initialization started ${Date.now() - initStartTime}`).sendInternalLogToServer();
+        connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
+        connect.publishMetric({
+          name: CSM_IFRAME_REFRESH_ATTEMPTS,
+          data: refreshAttempts
+        });
+        connect.publishMetric({
+          name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+          data: 0 
+        });
+        initStartTime = null;
       }
     });
 
