@@ -1,6 +1,9 @@
 # CHANGELOG.md
 
 ## 2.0.0
+Removed Functions:
+* `agent.onContactPending` has been removed. Please use `contact.onPending` instead.
+
 New build system: 
 * `Make` and `gulp` have been removed and `Webpack` has been added as the new build system.
 * Running `npm run release` will continue to produce both `release/connect-streams.js` and `release/connect-streams-min.js` and run tests. 

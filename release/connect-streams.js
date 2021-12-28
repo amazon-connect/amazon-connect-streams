@@ -518,15 +518,6 @@
     return new connect.Contact(contactData.contactId);
   };
 
-  /**
-   * @deprecated
-   * Use `contact.onPending` for any particular contact instead.
-   */
-  Agent.prototype.onContactPending = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.CONTACT_PENDING, f);
-  };
-
   Agent.prototype.onRefresh = function (f) {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.AgentEvents.REFRESH, f);

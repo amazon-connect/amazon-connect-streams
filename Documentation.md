@@ -12,7 +12,7 @@ Run `npm run release` to generate new release files. Full instructions for build
 In version 1.x, we also support `make` for legacy builds. This option was removed in version 2.x. 
 
 # Important Announcements
-1. Jan 2022 - 2.0.0 - `connect.onError` now triggers. Previously, this api did not work at all. Please be aware that, if you have application logic within this function, its behavior has changed. See its entry in documentation.md for more details.
+1. Jan 2022 - 2.0.0 - `agent.onContactPending` has been removed. Please use `contact.onPending` instead. `connect.onError` now triggers. Previously, this api did not work at all. Please be aware that, if you have application logic within this function, its behavior has changed. See its entry in documentation.md for more details.
 1. September 2021 - 1.7.0 comes with changes needed to use Amazon Connect Voice ID, which launched on 9/27/2021. For customers who want to use Voice ID, please upgrade Streams to version 1.7.0 or later in the next 1 month, otherwise the Voice ID APIs will stop working by the end of October 2021. For more details on the Voice ID APIs, please look at [the Voice ID APIs section](Documentation.md#voice-id-apis).
 1. July 2021 - We released a change to the CCP that lets agent set a next status such as Lunch or Offline while still on a contact, and indicate they don’t want to be routed new contacts while they finish up their remaining work.  For more details on this feature, see the [Amazon Connect agent training guide](https://docs.aws.amazon.com/connect/latest/adminguide/set-next-status.html) and the feature's [release notes](https://docs.aws.amazon.com/connect/latest/adminguide/amazon-connect-release-notes.html#july21-release-notes). If your agents interact directly with Connect’s out-of-the-box CCPV2 UX, they will be able to access this feature by default. Otherwise, if your streamsJS application calls `agent.setState()` to switch agent status, you will need to update your code to use this feature:
     *  **Agent.setState()** has been updated so you can pass an optional flag `enqueueNextState: true` to trigger the Next Status behavior. 
@@ -427,13 +427,6 @@ The Agent API provides event subscription methods and action methods which can
 be called on behalf of the agent. There is only ever one agent per Streams
 instantiation and all contacts and actions are assumed to be taken on behalf of
 this one agent.
-
-### `agent.onContactPending()` -- DEPRECATED
-```js
-agent.onContactPending(function(agent) { /* ... */ });
-```
-Subscribe a method to be called whenever a contact enters the pending state for this particular agent. This api is being deprecated.
-
 ### `agent.onRefresh()`
 ```js
 agent.onRefresh(function(agent) { /* ... */ });
@@ -1030,7 +1023,7 @@ It works for both monitoring and non-monitoring connections.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
-### `contact.complete()` (TO BE DEPRECATED)
+### `contact.complete()` (DEPRECATED)
 ```js
 contact.complete({
    success: function() { /* ... */ },

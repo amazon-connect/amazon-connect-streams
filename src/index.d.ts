@@ -653,12 +653,6 @@ declare namespace connect {
    * There is only ever one agent per Streams instantiation and all contacts and actions are assumed to be taken on behalf of this one agent.
    */
   class Agent {
-    /**
-     * Subscribe a method to be called whenever a contact enters the pending state for this particular agent.
-     *
-     * @param callback A callback to receive the `Agent` API object instance.
-     */
-    onContactPending(callback: AgentCallback): void;
 
     /**
      * Subscribe a method to be called whenever new agent data is available.
