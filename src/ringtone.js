@@ -41,13 +41,14 @@
   };
 
   RingtoneEngineBase.prototype._startRingtone = function (contact) {
+    var self = this;
     if (this._audio) {
       this._audio.play()
         .catch(function(e) {
-          this._publishTelemetryEvent("Ringtone Playback Failure", contact);
-          connect.getLog().error("Ringtone Playback Failure").sendInternalLogToServer();
+          self._publishTelemetryEvent("Ringtone Playback Failure", contact);
+          connect.getLog().error("Ringtone Playback Failure").withObject(e).sendInternalLogToServer();
         });
-      this._publishTelemetryEvent("Ringtone Start", contact);
+      self._publishTelemetryEvent("Ringtone Start", contact);
       connect.getLog().info("Ringtone Start").sendInternalLogToServer();
     }
   };

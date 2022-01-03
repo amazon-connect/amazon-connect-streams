@@ -4,21 +4,29 @@
 ### A note on "Routability"
 Note that routability in streams is only affected by agent statuses. Voice contacts will change the agent status, and thus can affect routability. Task and chat contacts do not affect routability. However, if the other channels hit their concurrent live contact limit(s), the agent will not be routed more contacts, but they will technically be in a routable agent state.
 
+# Usage
+amazon-connect-streams is available from [npmjs.com](https://www.npmjs.com/package/amazon-connect-streams). If you'd like to download it here, you can use either of the files like `release/connect-streams*`. 
+
+Run `npm run release` to generate new release files. Full instructions for building locally with npm can be found [below](#build-your-own-with-npm). 
+
+In version 1.x, we also support `make` for legacy builds. This option was removed in version 2.x. 
+
 # Important Announcements
-1. September 2021 - 1.7.0 comes with changes needed to use Amazon Connect Voice ID, which launched on 9/27/2021. For customers who want to use Voice ID, please upgrade Streams to version 1.7.0 or later in the next 1 month, otherwise the Voice ID APIs will stop working by the end of October 2021. For more details on the Voice ID APIs, please look at [the Voice ID APIs section](#voice-id-apis).
-2. July 2021 - We released a change to the CCP that lets agent set a next status such as Lunch or Offline while still on a contact, and indicate they don’t want to be routed new contacts while they finish up their remaining work. For more details on this feature, see the [Amazon Connect agent training guide](https://docs.aws.amazon.com/connect/latest/adminguide/set-next-status.html) and [the feature's release notes](https://docs.aws.amazon.com/connect/latest/adminguide/amazon-connect-release-notes.html#july21-release-notes). If your agents interact directly with Connect’s out-of-the-box CCPV2 UX, they will be able to access this feature by default. Otherwise, if your streamsJS application calls `agent.setState()` to switch agent status, you will need to update your code to use this feature:
+1. Jan 2022 - 2.0.0 - `agent.onContactPending` has been removed. Please use `contact.onPending` instead. `connect.onError` now triggers. Previously, this api did not work at all. Please be aware that, if you have application logic within this function, its behavior has changed. See its entry in documentation.md for more details.
+1. September 2021 - 1.7.0 comes with changes needed to use Amazon Connect Voice ID, which launched on 9/27/2021. For customers who want to use Voice ID, please upgrade Streams to version 1.7.0 or later in the next 1 month, otherwise the Voice ID APIs will stop working by the end of October 2021. For more details on the Voice ID APIs, please look at [the Voice ID APIs section](Documentation.md#voice-id-apis).
+1. July 2021 - We released a change to the CCP that lets agent set a next status such as Lunch or Offline while still on a contact, and indicate they don’t want to be routed new contacts while they finish up their remaining work.  For more details on this feature, see the [Amazon Connect agent training guide](https://docs.aws.amazon.com/connect/latest/adminguide/set-next-status.html) and the feature's [release notes](https://docs.aws.amazon.com/connect/latest/adminguide/amazon-connect-release-notes.html#july21-release-notes). If your agents interact directly with Connect’s out-of-the-box CCPV2 UX, they will be able to access this feature by default. Otherwise, if your streamsJS application calls `agent.setState()` to switch agent status, you will need to update your code to use this feature:
     *  **Agent.setState()** has been updated so you can pass an optional flag `enqueueNextState: true` to trigger the Next Status behavior. 
     * A new **agent.onEnqueuedNextState()** listener lets you subscribe to events for when agents have selected/successfully enqueued their next status.
     * A new **agent.getNextState()** API returns a state object if the agent has successfully selected a next state, and null otherwise. 
     * If you want to use the Next Status feature via `agent.setState()`, please also ensure that your code is using `contact.clear()` and not `contact.complete()` when clearing After Contact Work off a contact.
-3. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Wisdom. See the [updated documentation](#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
+1. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Wisdom. See the [updated documentation](Documentation.md#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
     * ### About Amazon Connect Customer Profiles
-        + Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place. See the [detailed documentation](https://docs.aws.amazon.com/connect/latest/adminguide/customer-profiles.html).
+        + Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place. 
     * ### About Amazon Connect Wisdom
         + With Amazon Connect Wisdom, agents can search and find content across multiple repositories, such as frequently asked questions (FAQs), wikis, articles, and step-by-step instructions for handling different customer issues. They can type questions or phrases in a search box (such as, "how long after purchase can handbags be exchanged?") without having to guess which keywords will work.
-    * ### About Amazon Connect Voice ID (this feature is in preview release for Amazon Connect and is subject to change)
+    * ### About Amazon Connect Voice ID (The feature is in preview release for Amazon Connect and is subject to change)
         + Amazon Connect Voice ID provides real-time caller authentication which makes voice interactions in contact centers more secure and efficient. Voice ID uses machine learning to verify the identity of genuine customers by analyzing a caller’s unique voice characteristics. This allows contact centers to use an additional security layer that doesn’t rely on the caller answering multiple security questions, and makes it easy to enroll and verify customers without changing the natural flow of their conversation.
-4. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
+1. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
     * `FailedConnectAgent` -- Previously, we required the agent to click the "Clear Contact" button to clear this state. When the agent clicked the "Clear Contact" button, the previous behavior took the agent back to the `Available` state without fail. Now the `FailedConnectAgent` state will be "auto-cleared", much like `FailedConnectCustomer` always has been. 
     * `FailedConnectAgent` and `FailedConnectCustomer` -- We are now using the `contact.clear()` API to auto-clear these states. As a result, the agent will be returned to their previous visible agent state (e.g. `Available`). Previously, the agent had always been set to `Available` as a result of this "auto-clearing" behavior. Note that even custom CCPs will behave differently with this update for `FailedConnectAgent` and `FailedConnectCustomer`.
     * `AfterCallWork` -- As part of the new `contact.clear()` behavior, clicking "Clear Contact" while in `AfterCallWork` will return the agent to their previous visible agent state (e.g. `Available`, etc.). Note that custom CCPs that implement their own After Call Work behavior will not be affected by this change.
@@ -109,6 +117,23 @@ Amazon Connect Streams API which you will want to include in your page. You can 
 ## Build your own with NPM
 Install latest LTS version of [NodeJS](https://nodejs.org)
 
+### Instructions for Streams version 2.x:
+```
+$ git clone https://github.com/aws/amazon-connect-streams
+$ cd amazon-connect-streams
+$ npm install
+$ npm run release
+```
+
+Find build artifacts in **release** directory - This will generate a file called `connect-streams.js` and the minified version of the same `connect-streams-min.js` - this is the full Connect Streams API which you will want to include in your page.
+
+To run unit tests:
+```
+$ npm run test-mocha
+```
+Note: these tests run on the release files generated above
+
+### Instructions for Streams version 1.x: 
 You will also need to have `gulp` installed. You can install `gulp` globally.
 
 ```
@@ -125,6 +150,7 @@ To run unit tests:
 ```
 $ npm run gulp-test
 ```
+Note: these tests run on the release files generated above
 
 ## Using the AWS SDK and Streams
 Streams has a "baked-in" version of the AWS-SDK in the `./src/aws-client.js` file. Make sure that you import Streams before the AWS SDK so that the `AWS` object bound to the `Window` is the object from your manually included SDK, and not from Streams.
@@ -255,6 +281,14 @@ this:
   you can use [connect-rtc-js](https://github.com/aws/connect-rtc-js). Please refer to the connect-rtc-js readme for detailed instructions on integrating connect-rtc-js with Streams.
 
 ## `connect.core`
+
+### `connect.core.onIframeRetriesExhausted()`
+```js
+connect.core.onIframeRetriesExhausted(() => {
+  console.log("We have run out of retries to reload the CCP Iframe");
+})
+```
+Subscribes a callback function to be called when the iframe failed to load, after attempting all retries. An Iframe Retry (refresh of the iframe page) is scheduled whenever there is a `connect.EventType.ACK_TIMEOUT`. If a `connect.EventType.ACKNOWLEDGE` event happens before the scheduled retry, the retry is cancelled. We allow for 6 scheduled retries. Once these are exhausted, `connect.EventType.ACK_TIMEOUT` events do not trigger scheduled retries.
 
 ### `connect.core.terminate()`
 ```js
@@ -390,13 +424,6 @@ The Agent API provides event subscription methods and action methods which can
 be called on behalf of the agent. There is only ever one agent per Streams
 instantiation and all contacts and actions are assumed to be taken on behalf of
 this one agent.
-
-### `agent.onContactPending()` -- DEPRECATED
-```js
-agent.onContactPending(function(agent) { /* ... */ });
-```
-Subscribe a method to be called whenever a contact enters the pending state for this particular agent. This api is being deprecated.
-
 ### `agent.onRefresh()`
 ```js
 agent.onRefresh(function(agent) { /* ... */ });
@@ -815,7 +842,11 @@ Subscribe a method to be invoked when the contact is connected.
 contact.onError(function(contact) { /* ... */ });
 ```
 Subscribe a method to be invoked when `connect.ContactEvents.ERROR` happens. 
-This event happens when the agent state type is `error`. Why do we have a contact event representing an agent state type? Because the agent status when on voice calls reflects contact-specific errors. 
+This event happens when the *contact* state type is `error`. This is a new change as of version 1.7.6, this api used to not function at all due to the manner in which we were launching contact events. 
+
+**NOTE**
+This description used to read "This event happens when the *agent* state type is `error`. 
+The agent state type description was never accurate, as the event was never triggered, even though the source code's intention was to trigger the event on an error agent state type.
 
 ### `contact.getEventName()`
 ```js
@@ -989,7 +1020,7 @@ It works for both monitoring and non-monitoring connections.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
-### `contact.complete()` (TO BE DEPRECATED)
+### `contact.complete()` (DEPRECATED)
 ```js
 contact.complete({
    success: function() { /* ... */ },
@@ -1436,6 +1467,7 @@ This is a list of some of the special event types which are published into the l
 
 * `EventType.ACKNOWLEDGE`: Event received when the backend API shared worker acknowledges the current tab.
 * `EventType.ACK_TIMEOUT`: Event which is published if the backend API shared worker fails to respond to an `EventType.SYNCHRONIZE` event in a timely manner, meaning that the tab or window has been disconnected from the shared worker.
+* `EventType.IFRAME_RETRIES_EXHAUSTED`: Event which is published once the hard limit of 6 CCP retries are all exhausted. These retries are tiggered by the `ACK_TIMEOUT` event above.
 * `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid. This usually requires the user to log in again for the CCP to continue to function. See `connect.core.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
 * `EventType.LOG`: An event published whenever the CCP or the API shared worker creates a log entry.
 * `EventType.TERMINATED`: Event published when the agent logged out from ccp.
