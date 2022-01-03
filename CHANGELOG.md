@@ -14,6 +14,7 @@ New build system:
 
 Bugs Fixed:
   - `connect.onError` now triggers. Previously, this api did not work at all. Please be aware that, if you have application logic within this function, its behavior has changed. See its entry in documentation.md for more details.
+  - `initCCP` will no longer append additional embedded CCPs to the window when called multiple times. Please note that the use-case of initializing multiple CCPs with `initCCP` has never been supported by Streams, and this change has been added to prevent unpredictable behavior arising from such cases.
 
 New Features:
   - 1. `connect.core.onIframeRetriesExhausted`: Streams now performs backoff while attempting to reload the iframed CCP. Previously, it would endlessly retry on each ACK TIMEOUT event (`connect.EventType.ACK_TIMEOUT`). Now, there are six retries, performed with exponential backoff. Once these six retries to load the embedded CCP are exhausted, no more retries will be attempted. You can subscribe a callback via the api: `connect.core.onIframeRetriesExhausted` to understand when the retries are exhausted, and take some action.
