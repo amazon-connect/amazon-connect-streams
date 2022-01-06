@@ -46,7 +46,7 @@
       this._audio.play()
         .catch(function(e) {
           self._publishTelemetryEvent("Ringtone Playback Failure", contact);
-          connect.getLog().error("Ringtone Playback Failure").withObject(e).sendInternalLogToServer();
+          connect.getLog().error("Ringtone Playback Failure").withException(e).withObject({currentSrc: self._audio.currentSrc, sinkId: self._audio.sinkId, volume: self._audio.volume}).sendInternalLogToServer();
         });
       self._publishTelemetryEvent("Ringtone Start", contact);
       connect.getLog().info("Ringtone Start").sendInternalLogToServer();
