@@ -16,6 +16,7 @@
   var EventType = connect.makeEnum([
     'acknowledge',
     'ack_timeout',
+    'init',
     'api_request',
     'api_response',
     'auth_fail',
@@ -33,8 +34,17 @@
     'broadcast',
     'api_metric',
     'client_metric',
+    'softphone_stats',
+    'softphone_report',
+    'client_side_logs',
+    'server_bound_internal_log',
     'mute',
-    "iframe_style"
+    "iframe_style",
+    "iframe_retries_exhausted",
+    "update_connected_ccps",
+    "outer_context_info",
+    "media_device_request",
+    "media_device_response"
   ]);
 
   /**---------------------------------------------------------------
@@ -66,7 +76,9 @@
     'websocket_connection_gained',
     'state_change',
     'acw',
-    'mute_toggle'
+    'mute_toggle',
+    'local_media_stream_created',
+    'enqueued_next_state'
   ]);
 
   /**---------------------------------------------------------------
@@ -74,6 +86,9 @@
   */
   var WebSocketEvents = connect.makeNamespacedEnum('webSocket', [
     'init_failure',
+    'connection_open',
+    'connection_close',
+    'connection_error',
     'connection_gain',
     'connection_lost',
     'subscription_update',
@@ -102,12 +117,41 @@
     'accepted'
   ]);
 
+  var ChannelViewEvents = connect.makeNamespacedEnum('taskList', [
+    'activate_channel_with_view_type'
+  ]);
+  
+  var TaskEvents = connect.makeNamespacedEnum('task', [
+      'created'
+  ]);
+
 
   /**---------------------------------------------------------------
-  * enum ConnnectionEvents
+  * enum ConnectionEvents
   */
-  var ConnnectionEvents = connect.makeNamespacedEnum('connection', [
-    'session_init'
+  var ConnectionEvents = connect.makeNamespacedEnum('connection', [
+    'session_init',
+    'ready_to_start_session'
+  ]);
+
+  /**---------------------------------------------------------------
+   * enum Configuration Events
+   */
+  var ConfigurationEvents = connect.makeNamespacedEnum('configuration', [
+    'configure',
+    'set_speaker_device',
+    'set_microphone_device',
+    'set_ringer_device',
+    'speaker_device_changed',
+    'microphone_device_changed',
+    'ringer_device_changed'
+  ]);
+
+  /**---------------------------------------------------------------
+   * enum VoiceId Events
+   */
+   var VoiceIdEvents = connect.makeNamespacedEnum('voiceId', [
+    'update_domain_id'
   ]);
 
   /**---------------------------------------------------------------
@@ -256,14 +300,29 @@
     var allEventSubs = this.subMap.getSubscriptions(ALL_EVENTS);
     var eventSubs = this.subMap.getSubscriptions(eventName);
 
-    if (this.logEvents && (eventName !== connect.EventType.LOG && eventName !== connect.EventType.MASTER_RESPONSE && eventName !== connect.EventType.API_METRIC)) {
-      connect.getLog().trace("Publishing event: %s", eventName);
+    if (this.logEvents &&
+        eventName !== connect.EventType.LOG &&
+        eventName !== connect.EventType.MASTER_RESPONSE &&
+        eventName !== connect.EventType.API_METRIC &&
+        eventName !== connect.EventType.SERVER_BOUND_INTERNAL_LOG
+    ) {
+      connect.getLog().trace("Publishing event: %s", eventName).sendInternalLogToServer();
     }
+
+    if (
+      eventName.startsWith(connect.ContactEvents.ACCEPTED) &&
+      data &&
+      data.contactId &&
+      !(data instanceof connect.Contact)
+    ) {
+      data = new connect.Contact(data.contactId);
+    }
+
     allEventSubs.concat(eventSubs).forEach(function (sub) {
       try {
         sub.f(data || null, eventName, self);
       } catch (e) {
-        connect.getLog().error("'%s' event handler failed.", eventName).withException(e);
+        connect.getLog().error("'%s' event handler failed.", eventName).withException(e).sendInternalLogToServer();
       }
     });
   };
@@ -294,8 +353,13 @@
   connect.EventFactory = EventFactory;
   connect.EventType = EventType;
   connect.AgentEvents = AgentEvents;
-  connect.ConnnectionEvents = ConnnectionEvents;
+  connect.ConfigurationEvents = ConfigurationEvents;
+  connect.ConnectionEvents = ConnectionEvents;
+  connect.ConnnectionEvents = ConnectionEvents; //deprecate on next major version release.
   connect.ContactEvents = ContactEvents;
+  connect.ChannelViewEvents = ChannelViewEvents;
+  connect.TaskEvents = TaskEvents;
+  connect.VoiceIdEvents = VoiceIdEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
 })();

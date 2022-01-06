@@ -94,7 +94,11 @@
    };
 
    WindowIOStream.prototype.onMessage = function(f) {
-      this.input.addEventListener("message", f);
+      this.input.addEventListener("message", (message) => {
+         if (message.source === this.output) {
+            f(message);
+         }
+      });
    };
 
    /**---------------------------------------------------------------

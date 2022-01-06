@@ -25,6 +25,13 @@ declare namespace connect {
   type AgentStateChangeCallback = (agentStateChange: AgentStateChange) => void;
 
   /**
+   * A callback to receive 'UserMediaDeviceChange' API object instances
+   *
+   * @param userMediaDeviceChange The 'UserMediaDeviceChange' API object instance
+   */
+  type UserMediaDeviceChangeCallback = (userMediaDeviceChange: UserMediaDeviceChange) => void;
+
+  /**
    * A callback to receive `SoftphoneError` errors.
    *
    * @param error A `SoftphoneError` error.
@@ -83,6 +90,13 @@ declare namespace connect {
     initCCP(container: HTMLElement, options: InitCCPOptions): void;
 
     /**
+     * Subscribes a callback function to be called when the connect.EventType.IFRAME_RETRIES_EXHAUSTED event is triggered.
+     * 
+     * @param f The callback function.
+     */
+    onIframeRetriesExhausted(f: Function): void;
+
+    /**
      * Terminates Amazon Connect Streams. Removing any subscription methods that have been called.
      * The CCP iframe will not be removed though, so you'll have to manually remove it.
      */
@@ -123,9 +137,115 @@ declare namespace connect {
      * This method is only used when integrating with `amazon-connect-chatjs`.
      */
     getWebSocketManager(): any;
+
+    /**
+     * Subscribes a callback that executes when the CCP initialization is completed.
+     *
+     * @param callback A callback that will execute when the CCP initialization is completed.
+     */
+    onInitialized(callback: Function): void;
+
+    /**
+    * Returns a promise that is resolved with the list of media devices from iframe.
+    *
+    * @param timeout A timeout for the request in milliseconds.
+    */
+    getFrameMediaDevices(timeout: Number): Promise<any[]>;
+
+    /**
+     * Global upstream conduit for external use.
+     * 
+     */
+    upstream?: object | null;
+  }
+
+  enum EventType {
+    ACKNOWLEDGE = 'acknowledge',
+    ACK_TIMEOUT = 'ack_timeout',
+    INIT = 'init',
+    API_REQUEST = 'api_request',
+    API_RESPONSE = 'api_response',
+    AUTH_FAIL = 'auth_fail',
+    ACCESS_DENIED = 'access_denied',
+    CLOSE = 'close',
+    CONFIGURE = 'configure',
+    LOG = 'log',
+    MASTER_REQUEST = 'master_request',
+    MASTER_RESPONSE = 'master_response',
+    SYNCHRONIZE = 'synchronize',
+    TERMINATE = 'terminate',
+    TERMINATED = 'terminated',
+    SEND_LOGS = 'send_logs',
+    RELOAD_AGENT_CONFIGURATION = 'reload_agent_configuration',
+    BROADCAST = 'broadcast',
+    API_METRIC = 'api_metric',
+    CLIENT_METRIC = 'client_metric',
+    SOFTPHONE_STATS = 'softphone_stats',
+    SOFTPHONE_REPORT = 'softphone_report',
+    CLIENT_SIDE_LOGS = 'client_side_logs',
+    SERVER_BOUND_INTERNAL_LOG = 'server_bound_internal_log',
+    MUTE = 'mute',
+    IFRAME_STYLE = 'iframe_style',
+    IFRAME_RETRIES_EXHAUSTED = 'iframe_retries_exhausted',
+    UPDATE_CONNECTED_CCPS = 'update_connected_ccps',
+    OUTER_CONTEXT_INFO = 'outer_context_info',
+    MEDIA_DEVICE_REQUEST = 'media_device_request',
+    MEDIA_DEVICE_RESPONSE = 'media_device_response'
   }
 
   const core: Core;
+
+  interface AgentApp {
+    /** Alias for connect.core.initCCP */
+    initCCP(container: HTMLElement, options: InitCCPOptions): void;
+    /** Waits for CCP to load to begin iframe communication. */
+    initAppCommunication(iframeId: string, endpoint: string): void;
+    /** Registers the app to the registry and initializes it. */
+    initApp(appName: string, containerId: string, appUrl: string, config?: AppOptions): void;
+    /** Destoys the app by calling the destroy method defined in the app registry. */
+    stopApp(): void;
+    /** Memoizes app data along with start and stop functions. */
+    AppRegistry: AppRegistry;
+  }
+
+  const agentApp: AgentApp;
+
+  interface AppOptions {
+    /** Optional CCP configuration that overrides and gets merged with defaults. */
+    ccpParams?: OptionalInitCCPOptions;
+    /** Optional inline styling for the app iframe. */
+    style?: string;
+  }
+
+  interface AppRegistry {
+    /** Saves app data to memory. */
+    register(appName: string, config: AppRegistryOptions, containerDOM: HTMLElement): void;
+    /** Initializes the app by calling the init method defined in the creator. */
+    start(appName: string, creator: AppCreator): void;
+    /** Destoys the app by calling the destroy method defined in the creator. */
+    stop(): void;
+  }
+
+  type AppCreator = (moduleData: AppData) => AppMethods;
+
+  type AppData = {
+    containerDOM: HTMLElement;
+    endpoint: string;
+    style?: string;
+    instance?: AppMethods;
+  }
+
+  interface AppMethods {
+    init(): void;
+    destroy(): void;
+  }
+
+  interface AppRegistryOptions {
+    /** This is the page you would normally navigate to in order to use the app in a standalone page. */
+    endpoint: string;
+    /** An optional string to supply inline styling for the iframe. */
+    style?: string;
+  }
 
   interface ViewContactEvent {
     /** The ID of the viewed contact. */
@@ -161,22 +281,36 @@ declare namespace connect {
     * Whether to auto close the login prompt.
     */
     autoClose?: boolean,
-    /* 
+    /*
     * The height of the login prompt window.
     */
     height?: number,
-    /* 
+    /*
     * The width of the login prompt window.
     */
     width?: number,
-    /* 
+    /*
     * The top of the login prompt window.
     */
     top?: number,
-    /* 
+    /*
     * The left of the login prompt window.
     */
     left?: number
+  }
+
+  interface PageOptions {
+    /**
+     * If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local machine.
+     * If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab.
+     */
+    readonly enableAudioDeviceSettings?: boolean;
+
+    /**
+     * If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type and deskphone number.
+     * If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
+     */
+    readonly enablePhoneTypeSettings?: boolean;
   }
 
   interface InitCCPOptions {
@@ -220,6 +354,56 @@ declare namespace connect {
 
     /** Allows you to specify ringtone settings for Chat. */
     readonly chat?: ChatOptions;
+
+    /**
+     * Allows you to customize the title attribute of the CCP iframe.
+     * @example "Contact Control Panel"
+     */
+    readonly iframeTitle?: string;
+
+    /** Allows you to configure which configuration sections are displayed in the settings tab.  **/
+    readonly pageOptions?: PageOptions;
+  }
+
+
+  interface OptionalInitCCPOptions {
+    /**
+     * Amazon connect instance region. Only required for chat channel.
+     * @example "us-west-2"
+     */
+    readonly region?: string;
+
+    /**
+     * Set to `false` to disable the login popup which is shown when the user's authentication expires.
+     * @default true
+     */
+    readonly loginPopup?: boolean;
+
+    /**
+     * Options to open login popup in a new window instead of a new tab. If loginPopup is set to
+     * `false`, these options will be ignored.
+     */
+    readonly loginOptions?: LoginOptions;
+
+    /**
+     * Set to `true` in conjunction with the `loginPopup` parameter to automatically close the login
+     * Popup window once the authentication step has completed. If the login page opened in a new
+     * tab, this parameter will also auto-close that tab.
+     * @default false
+     */
+    readonly loginPopupAutoClose?: boolean;
+
+    /** Allows custom URL to be used to initiate the ccp, as in the case of SAML authentication. */
+    readonly loginUrl?: string;
+
+    /** Allows you to specify some settings surrounding the softphone feature of Connect. */
+    readonly softphone?: SoftPhoneOptions;
+
+    /** Allows you to specify ringtone settings for Chat. */
+    readonly chat?: ChatOptions;
+
+    /** Allows you to configure which configuration sections are displayed in the settings tab. */
+    readonly pageOptions?: PageOptions;
   }
 
   /** This enumeration lists the different types of agent states. */
@@ -274,6 +458,10 @@ declare namespace connect {
 
     /** An endpoint pointing to a queue call flow in the same instance. */
     QUEUE = "queue",
+  }
+
+  enum ReferenceType {
+    URL = "URL",
   }
 
   /** Lists the different types of connections. */
@@ -352,6 +540,9 @@ declare namespace connect {
     /** Indicates the contact timed out before the agent could accept it. */
     MISSED = "missed",
 
+    /** Indicates the contact is rejected */
+    REJECTED = "rejected",
+
     /** Indicates the contact is in an error state. */
     ERROR = "error",
 
@@ -379,6 +570,9 @@ declare namespace connect {
 
     /** Chat contact. */
     CHAT = "chat",
+
+    /** Task contact. */
+    TASK = "task",
   }
 
   /** This enumeration lists the different types of contact channels. */
@@ -388,11 +582,15 @@ declare namespace connect {
 
     /** A chat contact. */
     CHAT = "CHAT",
+
+    /** A task contact. */
+    TASK = "TASK",
   }
 
   enum MediaType {
     SOFTPHONE = "softphone",
     CHAT = "chat",
+    TASK = "task",
   }
 
   enum SoftphoneCallType {
@@ -445,17 +643,16 @@ declare namespace connect {
     readonly queueARN?: string;
   }
 
+  interface AgentSetStateOptions {
+    /**  Enables enqueuing agent state while agent is handling a live contact. */
+    readonly enqueueNextState?: boolean;
+  }
+
   /**
    * The Agent API provides event subscription methods and action methods which can be called on behalf of the agent.
    * There is only ever one agent per Streams instantiation and all contacts and actions are assumed to be taken on behalf of this one agent.
    */
   class Agent {
-    /**
-     * Subscribe a method to be called whenever a contact enters the pending state for this particular agent.
-     *
-     * @param callback A callback to receive the `Agent` API object instance.
-     */
-    onContactPending(callback: AgentCallback): void;
 
     /**
      * Subscribe a method to be called whenever new agent data is available.
@@ -524,6 +721,13 @@ declare namespace connect {
 
     /** Alias for `getState()`. */
     getStatus(): AgentState;
+
+    /** 
+     * Get the AgentState object of the agent's enqueued next status. 
+     * If the agent has not enqueued a next status, returns null.
+     */
+    getNextState(): AgentState;
+
 
     /**
      * Get the duration of the agent's state in milliseconds relative to local time.
@@ -600,12 +804,26 @@ declare namespace connect {
 
     /**
      * Set the agent's current availability state.
-     * Can only be performed if the agent is not handling a live contact.
+     * Will enqueue state if the agent is handling a live contact and enqueueNextState is true.
      *
      * @param state The new agent state.
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     * @param options
      */
-    setState(state: AgentStateDefinition, callbacks?: SuccessFailOptions): void;
+    setState(
+      state: AgentStateDefinition,
+      callbacks?: SuccessFailOptions,
+      options?: AgentSetStateOptions
+    ): void;
+
+    /**
+     * Create task contact.
+     * Can only be performed if the agent is not handling a live contact.
+     *
+     * @param taskContact The new task contact.
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    createTask(taskContact: TaskContactDefinition, callbacks?: SuccessFailOptions): void;
 
     /** Alias for `setState()`. */
     setStatus(
@@ -648,11 +866,68 @@ declare namespace connect {
     unmute(): void;
 
     /**
+     * Sets the speaker device (output device for call audio)
+     *
+     * @param deviceId The id of the media device.
+     */
+    setSpeakerDevice(deviceId: string): void;
+
+    /**
+     * Sets the microphone device (input device for call audio)
+     *
+     * @param deviceId The id of the media device.
+     */
+    setMicrophoneDevice(deviceId: string): void;
+
+    /**
+     * Sets the ringer device (output device for ringtone)
+     *
+     * @param deviceId The id of the media device.
+     */
+    setRingerDevice(deviceId: string): void;
+
+    /**
      * Subscribe a method to be called when the agent updates the mute status, meaning that agents mute/unmute APIs are called and the local media stream is successfully updated with the new status.
      *
      * @param callback A callback to receive updates on agent mute state
      */
     onMuteToggle(callback: AgentMutedStatusCallback): void;
+
+    /**
+     * Creates an outbound contact to the given endpoint.
+     *
+     * @param endpoint An `Endpoint` API object to connect to.
+     * @param connectOptions The connection options.
+     */
+    connect(endpoint: Endpoint, connectOptions?: ConnectOptions): void;
+
+    /**
+     * Subscribe a method to be called when the agent changes the speaker device (output device for call audio).
+     *
+     * @param callback A callback to receive updates on the speaker device
+     */
+    onSpeakerDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+
+    /**
+     * Subscribe a method to be called when the agent changes the microphone device (input device for call audio).
+     *
+     * @param callback A callback to receive updates on the microphone device
+     */
+    onMicrophoneDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+
+    /**
+     * Subscribe a method to be called when the agent changes the ringer device (output device for ringtone).
+     *
+     * @param callback A callback to receive updates on the ringer device
+     */
+    onRingerDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+
+    /**
+     * Subscribe a method to be called when the agent has a nextState.
+     *
+     * @param callback A callback that is invoked with the Agent object.
+     */
+    onEnqueuedNextState(callback: AgentCallback): void;
   }
 
   interface AgentMutedStatus {
@@ -680,6 +955,39 @@ declare namespace connect {
 
     /** The name of the agent state to be displayed in the UI. */
     readonly name: string;
+  }
+
+  interface AgentPreferences {
+    readonly locale?: string;
+  }
+
+  interface UserMediaDeviceChange {
+    /** A value indicating the id of the media device. */
+    readonly deviceId: string;
+  }
+
+  interface TaskContactDefinition {
+    /** The  endpoint to assign to */
+    readonly endpoint: Endpoint;
+
+    /** The linked contact id */
+    readonly previousContactId?: string;
+
+    /** The task name */
+    readonly name: string;
+
+    /** The task description */
+    readonly description: string;
+
+    /** The task references */
+    readonly references: ReferenceDictionary;
+
+    /** The task scheduled time */
+    readonly scheduledTime: number;
+
+    /** A random value */
+    readonly idempotencyToken: string;
+
   }
 
   /**
@@ -710,6 +1018,8 @@ declare namespace connect {
   interface AgentConfiguration {
     /** See `agent.getAgentStates()` for more info. */
     readonly agentStates: AgentStateDefinition[];
+
+    readonly agentPreferences?: AgentPreferences;
 
     /** See `agent.getDialableCountries()` for more info. */
     readonly dialableCountries: string[];
@@ -773,6 +1083,13 @@ declare namespace connect {
   interface AttributeDictionary {
     readonly [key: string]: {
       name: string;
+      value: string;
+    };
+  }
+
+  interface ReferenceDictionary {
+    readonly [key: string]: {
+      type: ReferenceType;
       value: string;
     };
   }
@@ -860,19 +1177,19 @@ declare namespace connect {
     onACW(callback: ContactCallback): void;
 
     /**
-     * Subscribe a method to be invoked whenever the contact is missed.
-     * This is an event which is fired when a contact is put in state "missed" by the backend, which happens when the agent does not answer for a certain amount of time, when the agent rejects the call, or when the other participant hangs up before the agent can accept.
-     *
-     * @param callback A callback to receive the `Contact` API object instance.
-     */
-    onMissed(callback: ContactCallback): void;
-
-    /**
      * Subscribe a method to be invoked when the contact is connected.
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
     onConnected(callback: ContactCallback): void;
+
+    /**
+     * Subscribe a method to be invoked when the contact error event is triggered. 
+     * This event is only triggered when a contact state of type error appears in the snapshot.
+     * 
+     * @param callback A callback to receive the `Contact` API object instance.
+     */
+    onError(callback: ContactCallback): void;
 
     /**
      * Returns a formatted string with the contact event and ID.
@@ -905,6 +1222,15 @@ declare namespace connect {
 
     /** Alias for `getStatus()` */
     getStatus(): ContactState;
+
+    /** Get name for the contact. */
+    getName(): string;
+
+    /** Get description for the contact. */
+    getDescription(): string;
+
+    /** Get references for the contact. */
+    getReferences(): ReferenceDictionary;
 
     /**
      * Get the duration of the contact state in milliseconds relative to local time.
@@ -970,12 +1296,20 @@ declare namespace connect {
 
     /**
      * Close the contact and all of its associated connections.
+     * This method can also reject and clear contacts but those behaviors will be deprecated.
      * If the contact is a voice contact, and there is a third-party, the customer remains bridged with the third party and will not be disconnected from the call.
      * Otherwise, the agent and customer are disconnected.
      *
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
      */
     destroy(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Reject an incoming contact.
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    reject(callbacks?: SuccessFailOptions): void;
 
     /**
      * Clear the contact.
@@ -1090,7 +1424,7 @@ declare namespace connect {
   /**
    * The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular connection within a contact.
    * Like contacts, connections come and go.
-   * It is good practice not to persist these object or keep them as internal state.
+   * It is good practice not to persist these objects or keep them as internal state.
    * If you need to, store the contactId and connectionId of the connection and make sure that the contact and connection still exist by fetching them in order from the Agent API object before calling methods on them.
    */
   class BaseConnection {
@@ -1185,7 +1519,7 @@ declare namespace connect {
   /**
    * The VoiceConnection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular voice connection within a contact.
    * Like contacts, connections come and go.
-   * It is good practice not to persist these object or keep them as internal state.
+   * It is good practice not to persist these objects or keep them as internal state.
    * If you need to, store the `contactId` and `connectionId` of the connection and make sure that the contact and connection still exist by fetching them in order from the `Agent` API object before calling methods on them.
    */
   class VoiceConnection extends BaseConnection {
@@ -1197,12 +1531,54 @@ declare namespace connect {
 
     /** Gets a `Promise` with the media controller associated with this connection. */
     getMediaController(): Promise<any>;
+
+    /** Returns the `SpeakerId` associated to this Voice Connection */
+    getVoiceIdSpeakerId(): Promise<any>;
+
+    /** Returns the `VoiceId speaker status` associated to this Voice Connection */
+    getVoiceIdSpeakerStatus(): Promise<any>;
+
+    /** Opt out speaker associated to this Voice Connection from VoiceId*/
+    optOutVoiceIdSpeaker(): Promise<any>;
+
+    /** Returns VoiceId speaker authentication status */
+    evaluateSpeakerWithVoiceId(): Promise<any>;
+
+    /** Enroll speaker into VoiceId */
+    enrollSpeakerInVoiceId(): Promise<any>;
+
+    /** Update speaker id */
+    updateVoiceIdSpeakerId(): Promise<any>;
+
+    /** Delete speaker id */
+    deleteVoiceIdSpeakerId(): Promise<any>;
+
+    /** Returns the quick connect name of the third-party call participant with which the connection is associated. */
+    getQuickConnectName(): string | null;
+
+    /** Determine whether the connection is mute server side. */
+    isMute(): boolean;
+
+    /**
+     * Mute the connection server side
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    muteParticipant(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Unmute the connection server side if it was mute
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    unmuteParticipant(callbacks?: SuccessFailOptions): void;
+
   }
 
   /**
    * The ChatConnection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular chat connection within a contact.
    * Like contacts, connections come and go.
-   * It is good practice not to persist these object or keep them as internal state.
+   * It is good practice not to persist these objects or keep them as internal state.
    * If you need to, store the `contactId` and `connectionId` of the connection and make sure that the contact and connection still exist by fetching them in order from the `Agent` API object before calling methods on them.
    */
   class ChatConnection extends BaseConnection {
@@ -1218,6 +1594,26 @@ declare namespace connect {
     /**
      * Gets a `Promise` with the media controller associated with this connection.
      * The promise resolves to a `ChatSession` object from `amazon-connect-chatjs` library.
+     */
+    getMediaController(): Promise<any>;
+  }
+
+  /**
+   * The TaskConnection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular task connection within a contact.
+   * Like contacts, connections come and go.
+   * It is good practice not to persist these objects or keep them as internal state.
+   * If you need to, store the `contactId` and `connectionId` of the connection and make sure that the contact and connection still exist by fetching them in order from the `Agent` API object before calling methods on them.
+   */
+  class TaskConnection extends BaseConnection {
+    /** Get the media info object associated with this connection. */
+    getMediaInfo(): TaskMediaInfo;
+
+    /** Returns the `MediaType` enum value: `"task"`.  */
+    getMediaType(): MediaType.TASK;
+
+    /**
+     * Gets a `Promise` with the media controller associated with this connection.
+     * The promise resolves to a `ChatSession` object from `amazon-connect-taskjs` library.
      */
     getMediaController(): Promise<any>;
   }
@@ -1256,6 +1652,11 @@ declare namespace connect {
     };
     readonly participantId: string;
     readonly participantToken: string;
+  }
+
+  interface TaskMediaInfo {
+    readonly contactId: string;
+    readonly initialContactId: string;
   }
 
   interface MonitorInfo {

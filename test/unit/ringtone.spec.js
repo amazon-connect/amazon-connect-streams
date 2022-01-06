@@ -16,6 +16,12 @@ describe('RingtoneEngine', function () {
         contact = new connect.Contact(contactId);
     });
 
+    function contactStubHelper(contactStubMethodToOutput) {
+        sandbox.stub(contact, "getType").returns(contactStubMethodToOutput.contactType);
+        sandbox.stub(contact, "isSoftphoneCall").returns(contactStubMethodToOutput.isSoftphoneCall);
+        sandbox.stub(contact, "isInbound").returns(contactStubMethodToOutput.isInbound);
+    }
+
     after(function () {
         sandbox.restore();
     });
@@ -117,6 +123,53 @@ describe('RingtoneEngine', function () {
             this.ringtoneSetup = sandbox.stub(this.chatRingtoneEngine, "_ringtoneSetup");
             bus.trigger(connect.ContactEvents.INIT, contact);
             bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
+            assert.isTrue(this.ringtoneSetup.notCalled);
+        });
+    });
+
+    describe('#connect.TaskRingtoneEngine', function () {
+        beforeEach(function () {
+            sandbox.stub(connect.core, "getEventBus").returns(bus);
+
+            this.ringtoneEngine = new connect.TaskRingtoneEngine(ringtoneObj);
+            this.ringtoneSetup = sandbox.stub(this.ringtoneEngine, "_ringtoneSetup");
+
+            assert.doesNotThrow(this.ringtoneEngine._driveRingtone, Error, "Not implemented.");
+        });
+
+        afterEach(function () {
+            sandbox.restore();
+        });
+
+        it('validate the TaskRingtoneEngine implemements the _driveRingtone method and calls the  _ringtoneSetup for TASK contacts', function () {
+            // setup
+            contactStubHelper({
+                contactType: lily.ContactType.TASK,
+                isSoftphoneCall: false,
+                isInbound: true
+            });
+
+            // enact
+            bus.trigger(connect.ContactEvents.INIT, contact);
+            bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
+
+            // verify
+            assert.isTrue(this.ringtoneSetup.withArgs(contact).calledOnce);
+        });
+
+        it('validate the TaskRingtoneEngine should not call  _ringtoneSetup for non TASK', function () {
+            // setup
+            contactStubHelper({
+                contactType: lily.ContactType.QUEUE_CALLBACK,
+                isSoftphoneCall: false,
+                isInbound: true
+            });
+
+            // enact
+            bus.trigger(connect.ContactEvents.INIT, contact);
+            bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
+
+            // verify
             assert.isTrue(this.ringtoneSetup.notCalled);
         });
     });

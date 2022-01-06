@@ -30,7 +30,7 @@
 
     } else {
       this._audio = null;
-      connect.getLog().error("Unable to provide a ringtone.");
+      connect.getLog().error("Unable to provide a ringtone.").sendInternalLogToServer();
     }
 
     self._driveRingtone();
@@ -41,9 +41,15 @@
   };
 
   RingtoneEngineBase.prototype._startRingtone = function (contact) {
+    var self = this;
     if (this._audio) {
-      this._audio.play();
-      this._publishTelemetryEvent("Ringtone Start", contact);
+      this._audio.play()
+        .catch(function(e) {
+          self._publishTelemetryEvent("Ringtone Playback Failure", contact);
+          connect.getLog().error("Ringtone Playback Failure").withObject(e).sendInternalLogToServer();
+        });
+      self._publishTelemetryEvent("Ringtone Start", contact);
+      connect.getLog().info("Ringtone Start").sendInternalLogToServer();
     }
   };
 
@@ -52,6 +58,7 @@
       this._audio.pause();
       this._audio.currentTime = 0;
       this._publishTelemetryEvent("Ringtone Stop", contact);
+      connect.getLog().info("Ringtone Stop").sendInternalLogToServer();
     }
   };
 
@@ -105,10 +112,14 @@
         })
       ]);
       return playableAudioWithTimeout.then(function (audio) {
-        if (audio.setSinkId) {
-          return Promise.resolve(audio.setSinkId(deviceId));
+        if (audio) {
+          if (audio.setSinkId) {
+            return Promise.resolve(audio.setSinkId(deviceId));
+          } else {
+            return Promise.reject("Not supported");
+          }
         } else {
-          return Promise.reject("Not supported");
+          return Promise.reject("No audio found");
         }
       });
     }
@@ -132,6 +143,7 @@
         contact.isSoftphoneCall() && contact.isInbound()) {
         self._ringtoneSetup(contact);
         self._publishTelemetryEvent("Ringtone Connecting", contact);
+        connect.getLog().info("Ringtone Connecting").sendInternalLogToServer();
       }
     };
 
@@ -160,6 +172,7 @@
       if (contact.getType() === lily.ContactType.CHAT && contact.isInbound()) {
         self._ringtoneSetup(contact);
         self._publishTelemetryEvent("Chat Ringtone Connecting", contact);
+        connect.getLog().info("Chat Ringtone Connecting").sendInternalLogToServer();
       }
     };
 
@@ -167,6 +180,29 @@
       contact.onConnecting(onContactConnect);
     });
   };
+
+  var TaskRingtoneEngine = function (ringtoneConfig) {
+    RingtoneEngineBase.call(this, ringtoneConfig);
+  };
+  TaskRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
+  TaskRingtoneEngine.prototype.constructor = TaskRingtoneEngine;
+
+  TaskRingtoneEngine.prototype._driveRingtone = function () {
+    var self = this;
+
+    var onContactConnect = function (contact) {
+      if (contact.getType() === lily.ContactType.TASK && contact.isInbound()) {
+        self._ringtoneSetup(contact);
+        self._publishTelemetryEvent("Task Ringtone Connecting", contact);
+        connect.getLog().info("Task Ringtone Connecting").sendInternalLogToServer();
+      }
+    };
+
+    connect.contact(function (contact) {
+      contact.onConnecting(onContactConnect);
+    });
+  };
+
 
   var QueueCallbackRingtoneEngine = function (ringtoneConfig) {
     RingtoneEngineBase.call(this, ringtoneConfig);
@@ -182,6 +218,7 @@
         if (contact.getType() === lily.ContactType.QUEUE_CALLBACK) {
           self._ringtoneSetup(contact);
           self._publishTelemetryEvent("Callback Ringtone Connecting", contact);
+          connect.getLog().info("Callback Ringtone Connecting").sendInternalLogToServer();
         }
       });
     });
@@ -190,5 +227,6 @@
   /* export connect.RingtoneEngine */
   connect.VoiceRingtoneEngine = VoiceRingtoneEngine;
   connect.ChatRingtoneEngine = ChatRingtoneEngine;
+  connect.TaskRingtoneEngine = TaskRingtoneEngine;
   connect.QueueCallbackRingtoneEngine = QueueCallbackRingtoneEngine;
 })();

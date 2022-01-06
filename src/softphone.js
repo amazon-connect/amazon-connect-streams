@@ -12,6 +12,8 @@
 
   var RTPJobIntervalMs = 1000;
   var statsReportingJobIntervalMs = 30000;
+  var connectivityCheckJobIntervalMs = 30000;
+  var connectivityCheckJobPaused = false;
   var streamBufferSize = 500;
   var CallTypeMap = {};
   CallTypeMap[connect.SoftphoneCallType.AUDIO_ONLY] = 'Audio';
@@ -35,6 +37,7 @@
   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
   var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
   var MULTIPLE_SESSIONS_EVENT = "MultiSessions";
+  var mediaEndpoint = null;
 
   var localMediaStream = {};
 
@@ -45,6 +48,11 @@
       connect.core.getClient().call(connect.ClientMethods.CREATE_TRANSPORT, transport, {
         success: function (data) {
           resolve(data.softphoneTransport.softphoneMediaConnections);
+          try{
+            mediaEndpoint = data.softphoneTransport.softphoneMediaConnections[0].urls[0];
+          }catch(e){
+            logger.error("Failed in retrieving mediaEndpoint" + e);
+          }
         },
         failure: function (reason) {
           if (reason.message && reason.message.includes("SoftphoneConnectionLimitBreachedException")) {
@@ -65,6 +73,7 @@
   var SoftphoneManager = function (softphoneParams) {
     var self = this;
     logger = new SoftphoneLogger(connect.getLog());
+    logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
     var rtcPeerConnectionFactory;
     if (connect.RtcPeerConnectionFactory) {
       rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
@@ -83,26 +92,66 @@
     }
     var gumPromise = fetchUserMedia({
       success: function (stream) {
-        if (connect.isFirefoxBrowser()) {
-          connect.core.setSoftphoneUserMediaStream(stream);
-        }
+        connect.core.setSoftphoneUserMediaStream(stream);
+        publishTelemetryEvent("ConnectivityCheckResult", null, 
+        {
+          connectivityCheckType: "MicrophonePermission",
+          status: "granted"
+        });
       },
       failure: function (err) {
         publishError(err, "Your microphone is not enabled in your browser. ", "");
+        publishTelemetryEvent("ConnectivityCheckResult", null, 
+        {
+          connectivityCheckType: "MicrophonePermission",
+          status: "denied"
+        });
       }
     });
+    
     handleSoftPhoneMuteToggle();
+    handleSpeakerDeviceChange();
+    handleMicrophoneDeviceChange();
+    monitorMicrophonePermission();
+    monitorSoftphoneConnectivity();
 
     this.ringtoneEngine = null;
-    var cleanMultipleSessions = 'true' === softphoneParams.cleanMultipleSessions;
     var rtcSessions = {};
     // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
     var callsDetected = {};
+    this.onInitContactSub = {};
+    this.onInitContactSub.unsubscribe = function() {};
+
+    // variables for firefox multitab
+    var isSessionPending = false;
+    var pendingContact = null;
+    var pendingAgentConnectionId = null;
+    var postponeStartingSession = function (contact, agentConnectionId) {
+      isSessionPending = true;
+      pendingContact = contact;
+      pendingAgentConnectionId = agentConnectionId;
+    }
+    var cancelPendingSession = function () {
+      isSessionPending = false;
+      pendingContact = null;
+      pendingAgentConnectionId = null;
+    }
 
     // helper method to provide access to rtc sessions
     this.getSession = function (connectionId) {
       return rtcSessions[connectionId];
     }
+
+    this.replaceLocalMediaTrack = function(connectionId, track) {
+      var stream = localMediaStream[connectionId].stream;
+      if(stream){
+        var oldTrack = stream.getAudioTracks()[0];
+        track.enabled = oldTrack.enabled;
+        oldTrack.enabled = false;
+        stream.removeTrack(oldTrack);
+        stream.addTrack(track);
+      }
+    };
 
     var isContactTerminated = function (contact) {
       return contact.getStatus().type === connect.ContactStatusType.ENDED ||
@@ -120,133 +169,148 @@
           delete callsDetected[agentConnectionId];
           session.hangup();
         }).catch(function (err) {
-          lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message);
+          lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message).sendInternalLogToServer();
         });
       }
     };
 
-    // When feature access control flag is on, ignore the new call and hang up the previous sessions.
-    // Otherwise just log the contact and agent in the client side metrics.
+    // When multiple RTC sessions detected, ignore the new call and hang up the previous sessions.
     // TODO: Update when connect-rtc exposes an API to detect session status.
     var sanityCheckActiveSessions = function (rtcSessions) {
       if (Object.keys(rtcSessions).length > 0) {
-        if (cleanMultipleSessions) {
-          // Error! our state doesn't match, tear it all down.
-          for (var connectionId in rtcSessions) {
-            if (rtcSessions.hasOwnProperty(connectionId)) {
-              // Log an error for the session we are about to end.
-              publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
-              destroySession(connectionId);
-            }
-          }
-          throw new Error("duplicate session detected, refusing to setup new connection");
-        } else {
-          for (var _connectionId in rtcSessions) {
-            if (rtcSessions.hasOwnProperty(_connectionId)) {
-              publishMultipleSessionsEvent(MULTIPLE_SESSIONS_EVENT, rtcSessions[_connectionId].callId, _connectionId);
-            }
+        // Error! our state doesn't match, tear it all down.
+        for (var connectionId in rtcSessions) {
+          if (rtcSessions.hasOwnProperty(connectionId)) {
+            // Log an error for the session we are about to end.
+            publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
+            destroySession(connectionId);
           }
         }
+        throw new Error("duplicate session detected, refusing to setup new connection");
       }
     };
 
-    var onRefreshContact = function (contact, agentConnectionId) {
-      if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
-        destroySession(agentConnectionId);
+    this.startSession = function (_contact, _agentConnectionId) {
+      var contact = isSessionPending ? pendingContact : _contact;
+      var agentConnectionId = isSessionPending ? pendingAgentConnectionId : _agentConnectionId;
+      if (!contact || !agentConnectionId) {
+        return;
       }
-      if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
-        contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
-        contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+      cancelPendingSession();
+      
+      // Set to true, this will block subsequent invokes from entering.
+      callsDetected[agentConnectionId] = true;
+      logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
-        // Set to true, this will block subsequent invokes from entering.
-        callsDetected[agentConnectionId] = true;
-        logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId);
+      // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
+      sanityCheckActiveSessions(rtcSessions);
 
-        // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
-        sanityCheckActiveSessions(rtcSessions);
+      if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
+        publishTelemetryEvent("Softphone Connecting", contact.getContactId());
+      }
 
-        if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
-          publishTelemetryEvent("Softphone Connecting", contact.getContactId());
+      initializeParams();
+      var softphoneInfo = contact.getAgentConnection().getSoftphoneMediaInfo();
+      var callConfig = parseCallConfig(softphoneInfo.callConfigJson);
+      var webSocketProvider;
+      if (callConfig.useWebSocketProvider) {
+        webSocketProvider = connect.core.getWebSocketManager();
+      }
+      var session = new connect.RTCSession(
+        callConfig.signalingEndpoint,
+        callConfig.iceServers,
+        softphoneInfo.callContextToken,
+        logger,
+        contact.getContactId(),
+        agentConnectionId,
+        webSocketProvider);
+
+      rtcSessions[agentConnectionId] = session;
+
+      if (connect.core.getSoftphoneUserMediaStream()) {
+        session.mediaStream = connect.core.getSoftphoneUserMediaStream();
+      }
+
+      // Custom Event to indicate the session init operations
+      connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+        event: connect.ConnectionEvents.SESSION_INIT,
+        data: {
+          connectionId: agentConnectionId
         }
+      });
 
-        initializeParams();
-        var softphoneInfo = contact.getAgentConnection().getSoftphoneMediaInfo();
-        var callConfig = parseCallConfig(softphoneInfo.callConfigJson);
-        var webSocketProvider;
-        if (callConfig.useWebSocketProvider) {
-          webSocketProvider = connect.core.getWebSocketManager();
-        }
-        var session = new connect.RTCSession(
-          callConfig.signalingEndpoint,
-          callConfig.iceServers,
-          softphoneInfo.callContextToken,
-          logger,
-          contact.getContactId(),
-          agentConnectionId,
-          webSocketProvider);
+      session.onSessionFailed = function (rtcSession, reason) {
+        delete rtcSessions[agentConnectionId];
+        delete callsDetected[agentConnectionId];
+        publishSoftphoneFailureLogs(rtcSession, reason);
+        publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
+        stopJobsAndReport(contact, rtcSession.sessionReport);
+        connectivityCheckJobPaused = false;
+      };
+      session.onSessionConnected = function (rtcSession) {
+        publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
+        // Become master to send logs, since we need logs from softphone tab.
+        connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
+        //start stats collection and reporting jobs
+        startStatsCollectionJob(rtcSession);
+        startStatsReportingJob(contact);
+        fireContactAcceptedEvent(contact);
+        connectivityCheckJobPaused = true;
+      };
 
-        rtcSessions[agentConnectionId] = session;
+      session.onSessionCompleted = function (rtcSession) {
+        publishTelemetryEvent("Softphone Session Completed", contact.getContactId());
 
-        if (connect.core.getSoftphoneUserMediaStream()) {
-          session.mediaStream = connect.core.getSoftphoneUserMediaStream();
-        }
+        delete rtcSessions[agentConnectionId];
+        delete callsDetected[agentConnectionId];
+        // Stop all jobs and perform one last job.
+        stopJobsAndReport(contact, rtcSession.sessionReport);
 
-        // Custom Event to indicate the session init operations
+        // Cleanup the cached streams
+        deleteLocalMediaStream(agentConnectionId);
+        connectivityCheckJobPaused = false;
+      };
+
+      session.onLocalStreamAdded = function (rtcSession, stream) {
+        // Cache the streams for mute/unmute
+        localMediaStream[agentConnectionId] = {
+          stream: stream
+        };
         connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-          event: connect.ConnnectionEvents.SESSION_INIT,
+          event: connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED,
           data: {
             connectionId: agentConnectionId
           }
         });
+      };
 
-        session.onSessionFailed = function (rtcSession, reason) {
-          delete rtcSessions[agentConnectionId];
-          delete callsDetected[agentConnectionId];
-          publishSoftphoneFailureLogs(rtcSession, reason);
-          publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
-          stopJobsAndReport(contact, rtcSession.sessionReport);
-        };
-        session.onSessionConnected = function (rtcSession) {
-          publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
-          // Become master to send logs, since we need logs from softphone tab.
-          connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
-          //start stats collection and reporting jobs
-          startStatsCollectionJob(rtcSession);
-          startStatsReportingJob(contact);
-          fireContactAcceptedEvent(contact);
-        };
+      session.remoteAudioElement = document.getElementById('remote-audio');
+      if (rtcPeerConnectionFactory) {
+        session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
+      } else {
+        session.connect();
+      }
+    }
 
-        session.onSessionCompleted = function (rtcSession) {
-          publishTelemetryEvent("Softphone Session Completed", contact.getContactId());
-
-          delete rtcSessions[agentConnectionId];
-          delete callsDetected[agentConnectionId];
-          // Stop all jobs and perform one last job.
-          stopJobsAndReport(contact, rtcSession.sessionReport);
-
-          // Cleanup the cached streams
-          deleteLocalMediaStream(agentConnectionId);
-        };
-
-        session.onLocalStreamAdded = function (rtcSession, stream) {
-          // Cache the streams for mute/unmute
-          localMediaStream[agentConnectionId] = {
-            stream: stream
-          };
-        };
-
-        session.remoteAudioElement = document.getElementById('remote-audio');
-        if (rtcPeerConnectionFactory) {
-          session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
-        } else {
-          session.connect();
-        }
+    var onRefreshContact = function (contact, agentConnectionId) {
+      if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
+        destroySession(agentConnectionId);
+        cancelPendingSession();
+      }
+      if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
+        contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
+        contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+          if (connect.isFirefoxBrowser() && connect.hasOtherConnectedCCPs()) {
+            postponeStartingSession(contact, agentConnectionId);
+          } else {
+            self.startSession(contact, agentConnectionId);
+          }
       }
     };
 
     var onInitContact = function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
-      logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId);
+      logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
       if (!callsDetected[agentConnectionId]) {
         contact.onRefresh(function () {
@@ -255,12 +319,13 @@
       }
     };
 
-    connect.contact(onInitContact);
+    self.onInitContactSub = connect.contact(onInitContact);
 
     // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed. 
     new connect.Agent().getContacts().forEach(function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
-      logger.info("Contact exist in the snapshot. Reinitiate the Contact and RTC session creation for contactId" + contact.getContactId(), "agent connectionId " + agentConnectionId);
+      logger.info("Contact exist in the snapshot. Reinitiate the Contact and RTC session creation for contactId" + contact.getContactId(), "agent connectionId " + agentConnectionId)
+        .sendInternalLogToServer();
       onInitContact(contact);
       onRefreshContact(contact, agentConnectionId);
     });
@@ -270,24 +335,26 @@
     var conduit = connect.core.getUpstream();
     var agentConnection = contact.getAgentConnection();
     if (!agentConnection) {
-      logger.info("Not able to retrieve the auto-accept setting from null AgentConnection, ignoring event publish..");
+      logger.info("Not able to retrieve the auto-accept setting from null AgentConnection, ignoring event publish..").sendInternalLogToServer();
       return;
     }
     var softphoneMediaInfo = agentConnection.getSoftphoneMediaInfo();
     if (!softphoneMediaInfo) {
-      logger.info("Not able to retrieve the auto-accept setting from null SoftphoneMediaInfo, ignoring event publish..");
+      logger.info("Not able to retrieve the auto-accept setting from null SoftphoneMediaInfo, ignoring event publish..").sendInternalLogToServer();
       return;
     }
     if (softphoneMediaInfo.autoAccept === true) {
-      logger.info("Auto-accept is enabled, sending out Accepted event to stop ringtone..");
+      logger.info("Auto-accept is enabled, sending out Accepted event to stop ringtone..").sendInternalLogToServer();
       conduit.sendUpstream(connect.EventType.BROADCAST, {
-        event: connect.ContactEvents.ACCEPTED
+        event: connect.ContactEvents.ACCEPTED,
+        data: new connect.Contact(contact.contactId)
       });
       conduit.sendUpstream(connect.EventType.BROADCAST, {
-        event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contact.contactId)
+        event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contact.contactId),
+        data: new connect.Contact(contact.contactId)
       });
     } else {
-      logger.info("Auto-accept is disabled, ringtone will be stopped by user action.");
+      logger.info("Auto-accept is disabled, ringtone will be stopped by user action.").sendInternalLogToServer();
     }
   };
 
@@ -296,6 +363,64 @@
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.EventType.MUTE, muteToggle);
   };
+
+  var handleSpeakerDeviceChange = function() {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.ConfigurationEvents.SET_SPEAKER_DEVICE, setSpeakerDevice);
+  }
+
+  var handleMicrophoneDeviceChange = function () {
+    var bus = connect.core.getEventBus();
+    bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, setMicrophoneDevice);
+  }
+
+  var monitorMicrophonePermission = function () {
+    try {
+      if (connect.isChromeBrowser() && connect.getChromeBrowserVersion() > 43){
+        navigator.permissions.query({name: 'microphone'})
+        .then(function(permissionStatus){
+          permissionStatus.onchange = function(){
+            logger.info("Microphone Permission: " + permissionStatus.state);
+            publishTelemetryEvent("ConnectivityCheckResult", null, 
+            {
+              connectivityCheckType: "MicrophonePermission",
+              status: permissionStatus.state
+            });
+            if(permissionStatus.state === 'denied'){
+              publishError(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED,
+                "Your microphone is not enabled in your browser. ",
+                "");
+            }
+          }
+        })
+      }
+    } catch (e) {
+      logger.error("Failed in detecting microphone permission status: " + e);
+    }
+  }
+
+  var monitorSoftphoneConnectivity = function () {
+    window.setInterval(function(){
+      var promise = null;
+      if(!connectivityCheckJobPaused && mediaEndpoint){
+        try{
+          connectivityCheckJobPaused = true;
+          promise = connect.checkMediaEndpointConnection(mediaEndpoint);
+          promise.then(function (connectivityCheckResult) {
+            publishTelemetryEvent("ConnectivityCheckResult", null, 
+              Object.assign({},connectivityCheckResult,
+                {
+                  connectivityCheckType: "MediaEndpointCheck",
+                  status: connectivityCheckResult.success
+                }));
+            connectivityCheckJobPaused = false;
+          }); 
+        }catch(e){
+          logger.error("Failed in checking media endpoint connection: " + e);
+        }
+      }
+    },connectivityCheckJobIntervalMs);
+  }
 
   // Make sure once we disconnected we get the mute state back to normal
   var deleteLocalMediaStream = function (connectionId) {
@@ -328,9 +453,9 @@
             localMediaStream[connectionId].muted = status;
 
             if (status) {
-              logger.info("Agent has muted the contact, connectionId -  " + connectionId);
+              logger.info("Agent has muted the contact, connectionId -  " + connectionId).sendInternalLogToServer();
             } else {
-              logger.info("Agent has unmuted the contact, connectionId - " + connectionId);
+              logger.info("Agent has unmuted the contact, connectionId - " + connectionId).sendInternalLogToServer();
             }
 
           } else {
@@ -345,6 +470,59 @@
       data: { muted: status }
     });
   };
+
+  var setSpeakerDevice = function (data) {
+    if (connect.keys(localMediaStream).length === 0 || !data || !data.deviceId) {
+      return;
+    }
+    var deviceId = data.deviceId;
+    var remoteAudioElement = document.getElementById('remote-audio');
+    try {
+      logger.info("Trying to set speaker to device " + deviceId);
+      if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
+        remoteAudioElement.setSinkId(deviceId);
+      }
+    } catch (e) {
+      logger.error("Failed to set speaker to device " + deviceId);
+    }
+
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
+      data: { deviceId: deviceId }
+    });
+  }
+
+  var setMicrophoneDevice = function (data) {
+    if (connect.keys(localMediaStream).length === 0  || !data || !data.deviceId) {
+      return;
+    }
+    var deviceId = data.deviceId;
+    var softphoneManager = connect.core.getSoftphoneManager();
+    try {
+      navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } })
+        .then(function (newMicrophoneStream) {
+          var newMicrophoneTrack = newMicrophoneStream.getAudioTracks()[0];
+          for (var connectionId in localMediaStream) {
+            if (localMediaStream.hasOwnProperty(connectionId)) {
+              var localMedia = localMediaStream[connectionId].stream;
+              var session = softphoneManager.getSession(connectionId);
+              //Replace the audio track in the RtcPeerConnection
+              session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
+                //Replace the audio track in the local media stream (for mute / unmute)
+                softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
+              });
+            }
+          }
+        });
+    } catch(e) {
+      logger.error("Failed to set microphone device " + deviceId);
+    }
+
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED,
+      data: { deviceId: deviceId }
+    });
+  }
 
   var publishSoftphoneFailureLogs = function (rtcSession, reason) {
     if (reason === connect.RTCErrors.ICE_COLLECTION_TIMEOUT) {
@@ -373,7 +551,7 @@
         rtcSession._signalingUri);
     } else if (reason === connect.RTCErrors.CALL_NOT_FOUND) {
       // No need to publish any softphone error for this case. CCP UX will handle this case.
-      logger.error("Softphone call failed due to CallNotFoundException.");
+      logger.error("Softphone call failed due to CallNotFoundException.").sendInternalLogToServer();
     } else {
       publishError(SoftphoneErrorTypes.WEBRTC_ERROR,
         "webrtc system error. ",
@@ -433,7 +611,7 @@
 
   var publishError = function (errorType, message, endPointUrl) {
     logger.error("Softphone error occurred : ", errorType,
-      message || "");
+      message || "").sendInternalLogToServer();
 
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.AgentEvents.SOFTPHONE_ERROR,
@@ -448,13 +626,11 @@
   };
 
   var publishTelemetryEvent = function (eventName, contactId, data) {
-    if (contactId) {
-      connect.publishMetric({
-        name: eventName,
-        contactId: contactId,
-        data: data
-      });
-    }
+    connect.publishMetric({
+      name: eventName,
+      contactId: contactId,
+      data: data
+    });
   };
 
   // Publish the contact and agent information in a multiple sessions scenarios
@@ -463,7 +639,8 @@
       name: "AgentConnectionId",
       value: agentConnectionId
     }]);
-    logger.info("Publish multiple session error metrics", eventName, "contactId " + contactId, "agent connectionId " + agentConnectionId);
+    logger.info("Publish multiple session error metrics", eventName, "contactId " + contactId, "agent connectionId " + agentConnectionId)
+      .sendInternalLogToServer();
   };
 
   var isBrowserSoftPhoneSupported = function () {
@@ -489,11 +666,13 @@
     if (streamStats.length > 0) {
       contact.sendSoftphoneMetrics(streamStats, {
         success: function () {
-          logger.info("sendSoftphoneMetrics success" + JSON.stringify(streamStats));
+          logger.info("sendSoftphoneMetrics success" + JSON.stringify(streamStats))
+            .sendInternalLogToServer();
         },
         failure: function (data) {
           logger.error("sendSoftphoneMetrics failed.")
-            .withObject(data);
+            .withObject(data)
+            .sendInternalLogToServer();
         }
       });
     }
@@ -528,11 +707,13 @@
     };
     contact.sendSoftphoneReport(callReport, {
       success: function () {
-        logger.info("sendSoftphoneReport success" + JSON.stringify(callReport));
+        logger.info("sendSoftphoneReport success" + JSON.stringify(callReport))
+          .sendInternalLogToServer();
       },
       failure: function (data) {
         logger.error("sendSoftphoneReport failed.")
-          .withObject(data);
+          .withObject(data)
+          .sendInternalLogToServer();
       }
     });
   };
@@ -544,14 +725,14 @@
         aggregatedUserAudioStats = stats;
         timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT));
       }, function (error) {
-        logger.debug("Failed to get user audio stats.", error);
+        logger.debug("Failed to get user audio stats.", error).sendInternalLogToServer();
       });
       rtcSession.getRemoteAudioStats().then(function (stats) {
         var previousRemoteStats = aggregatedRemoteAudioStats;
         aggregatedRemoteAudioStats = stats;
         timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT));
       }, function (error) {
-        logger.debug("Failed to get remote audio stats.", error);
+        logger.debug("Failed to get remote audio stats.", error).sendInternalLogToServer();
       });
     }, 1000);
   };
@@ -636,25 +817,25 @@
         args.forEach(function () {
           format = format + " %s";
         });
-        method.apply(self._originalLogger, [connect.LogComponent.SOFTPHONE, format].concat(args));
+        return method.apply(self._originalLogger, [connect.LogComponent.SOFTPHONE, format].concat(args));
       };
     };
   };
 
   SoftphoneLogger.prototype.debug = function () {
-    this._tee(1, this._originalLogger.debug)(arguments);
+    return this._tee(1, this._originalLogger.debug)(arguments);
   };
   SoftphoneLogger.prototype.info = function () {
-    this._tee(2, this._originalLogger.info)(arguments);
+    return this._tee(2, this._originalLogger.info)(arguments);
   };
   SoftphoneLogger.prototype.log = function () {
-    this._tee(3, this._originalLogger.log)(arguments);
+    return this._tee(3, this._originalLogger.log)(arguments);
   };
   SoftphoneLogger.prototype.warn = function () {
-    this._tee(4, this._originalLogger.warn)(arguments);
+    return this._tee(4, this._originalLogger.warn)(arguments);
   };
   SoftphoneLogger.prototype.error = function () {
-    this._tee(5, this._originalLogger.error)(arguments);
+    return this._tee(5, this._originalLogger.error)(arguments);
   };
 
   connect.SoftphoneManager = SoftphoneManager;

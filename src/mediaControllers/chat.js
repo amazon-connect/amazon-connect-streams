@@ -24,7 +24,8 @@
 
     var createMediaInstance = function () {
       publishTelemetryEvent("Chat media controller init", mediaInfo.contactId);
-      logger.info(logComponent, "Chat media controller init").withObject(mediaInfo);
+      logger.info(logComponent, "Chat media controller init")
+        .withObject(mediaInfo).sendInternalLogToServer();
 
       connect.ChatSession.setGlobalConfig({
         loggerConfig: {
@@ -44,12 +45,14 @@
       return controller
         .connect()
         .then(function (data) {
-          logger.info(logComponent, "Chat Session Successfully established for contactId %s", mediaInfo.contactId);
+          logger.info(logComponent, "Chat Session Successfully established for contactId %s", mediaInfo.contactId)
+            .sendInternalLogToServer();
           publishTelemetryEvent("Chat Session Successfully established", mediaInfo.contactId);
           return controller;
         })
         .catch(function (error) {
-          logger.error(logComponent, "Chat Session establishement failed for contact %s", mediaInfo.contactId).withException(error);
+          logger.error(logComponent, "Chat Session establishement failed for contact %s", mediaInfo.contactId)
+            .withException(error).sendInternalLogToServer();
           publishTelemetryEvent("Chat Session establishement failed", mediaInfo.contactId, error);
           throw error;
         });
@@ -65,12 +68,14 @@
 
     var trackChatConnectionStatus = function (controller) {
       controller.onConnectionBroken(function (data) {
-        logger.error(logComponent, "Chat Session connection broken").withException(data);
+        logger.error(logComponent, "Chat Session connection broken")
+          .withException(data).sendInternalLogToServer();
         publishTelemetryEvent("Chat Session connection broken", data);
       });
 
       controller.onConnectionEstablished(function (data) {
-        logger.info(logComponent, "Chat Session connection established").withObject(data);
+        logger.info(logComponent, "Chat Session connection established")
+          .withObject(data).sendInternalLogToServer();
         publishTelemetryEvent("Chat Session connection established", data);
       });
     }

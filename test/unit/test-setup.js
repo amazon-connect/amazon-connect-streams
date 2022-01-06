@@ -1,28 +1,36 @@
-var chai = require("chai"),
-    sinon = require("sinon");
+var chai = require("chai");
+var sinon = require("sinon");
+var jsdom = require("mocha-jsdom");
 
-global.assert = chai.assert,
-    global.expect = chai.expect,
-    global.should = chai.should,
-    global.sinon = sinon
+global.assert = chai.assert;
+global.expect = chai.expect;
+global.should = chai.should;
+global.sinon = sinon;
 global.navigator = {
     userAgent: 'browser'
-}
-
-global.document = {
-    getElementById: sinon.stub().returns({}),
-    createElement: sinon.stub().returns({})
-}
-
-global.window = {
-    addEventListener: sinon.spy(),
-    document: global.document
 };
+
+global.jsdom = jsdom;
+
+global.parent = global.window;
 
 require("../../release/connect-streams.js");
 
 global.connect.RTCSession = function () {};
+global.AWS = {
+  util: {
+    uuid: {
+      v4: () => "4383f0b7-ddcb-4f8c-a63b-cbd53c852d39"
+    }
+  }
+};
 
+before(() => {
+  global.sinon.stub(connect.Agent.prototype, "_getResourceId").returns("id");
+});
+after(() => {
+  global.sinon.restore();
+});
 
 // Polyfill for Promise.finally
 Promise.prototype.finally = function(onFinally) {

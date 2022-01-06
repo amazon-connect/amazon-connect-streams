@@ -23,9 +23,11 @@
          'updateAgentConfiguration',
          'acceptContact',
          'createOutboundContact',
+         'createTaskContact',
          'clearContact',
          'completeContact',
          'destroyContact',
+         'rejectContact',
          'notifyContactIssue',
          'updateContactAttributes',
          'createAdditionalConnection',
@@ -40,8 +42,27 @@
          'sendSoftphoneCallMetrics',
          'getEndpoints',
          'getNewAuthToken',
-         'createTransport'
+         'createTransport',
+         'muteParticipant',
+         'unmuteParticipant'
    ]);
+
+   /**---------------------------------------------------------------
+    * enum AgentAppClientMethods
+    */
+   connect.AgentAppClientMethods = {
+      GET_CONTACT: "AgentAppService.Lcms.getContact",
+      DELETE_SPEAKER: "AgentAppService.VoiceId.deleteSpeaker",
+      ENROLL_BY_SESSION: "AgentAppService.VoiceId.enrollBySession",
+      EVALUATE_SESSION: "AgentAppService.VoiceId.evaluateSession",
+      DESCRIBE_SPEAKER: "AgentAppService.VoiceId.describeSpeaker",
+      OPT_OUT_SPEAKER: "AgentAppService.VoiceId.optOutSpeaker",
+      UPDATE_VOICE_ID_DATA: "AgentAppService.Lcms.updateVoiceIdData",
+      DESCRIBE_SESSION: "AgentAppService.VoiceId.describeSession",
+      UPDATE_SESSION: "AgentAppService.VoiceId.updateSession",
+      START_VOICE_ID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
+      LIST_INTEGRATION_ASSOCIATIONS: "AgentAppService.Acs.listIntegrationAssociations"
+   };
 
    /**---------------------------------------------------------------
     * enum MasterMethods
@@ -150,7 +171,55 @@
    };
    UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
+   
+   /**---------------------------------------------------------------
+   * class AgentAppClient extends ClientBase
+   */
+   var AgentAppClient = function(authCookieName, authToken, endpoint) {
+      connect.assertNotNull(authCookieName, 'authCookieName');
+      connect.assertNotNull(authToken, 'authToken');
+      connect.assertNotNull(endpoint, 'endpoint');
+      ClientBase.call(this);
+      this.endpointUrl = connect.getUrlWithProtocol(endpoint);
+      this.authToken = authToken;
+      this.authCookieName = authCookieName
+   };
 
+   AgentAppClient.prototype = Object.create(ClientBase.prototype);
+   AgentAppClient.prototype.constructor = AgentAppClient;
+
+   AgentAppClient.prototype._callImpl = function(method, params, callbacks) {
+      var self = this;
+      var bear = {};
+      bear[self.authCookieName] = self.authToken;
+      var options = {
+         method: 'post',
+         body: JSON.stringify(params || {}),
+         headers: {
+               'Accept': 'application/json',
+               'Content-Type': 'application/json',
+               'X-Amz-target': method,
+               'X-Amz-Bearer': JSON.stringify(bear)
+         }
+      };
+      connect.fetch(self.endpointUrl, options).then(function(res){
+         callbacks.success(res);
+      }).catch(function(err){
+         const reader = err.body.getReader();
+         let body = '';
+         const decoder = new TextDecoder();
+         reader.read().then(function processText({ done, value }) {
+            if (done) {
+               var error = JSON.parse(body);
+               error.status = err.status;
+               callbacks.failure(error);
+               return;
+            }
+            body += decoder.decode(value);
+            return reader.read().then(processText);
+         });
+      })
+   };
    /**---------------------------------------------------------------
     * class AWSClient extends ClientBase
     */
@@ -161,7 +230,12 @@
       AWS.config.credentials = new AWS.Credentials({});
       AWS.config.region = region;
       this.authToken = authToken;
-      var endpointUrl = endpointIn || connect.getBaseUrl() + '/connect/api';
+      var baseUrl = connect.getBaseUrl();
+      var endpointUrl = endpointIn || ( 
+         baseUrl.includes(".awsapps.com")
+            ? baseUrl + '/connect/api'
+            : baseUrl + '/api'
+      );
       var endpoint = new AWS.Endpoint(endpointUrl);
       this.client = new AWS.Connect({endpoint: endpoint});
    };
@@ -179,7 +253,7 @@
       } else {
          params = this._translateParams(method, params);
 
-         log.trace("AWSClient: --> Calling operation '%s'", method);
+         log.trace("AWSClient: --> Calling operation '%s'", method).sendInternalLogToServer();
 
          this.client[method](params)
             .on('build', function(request) {
@@ -203,22 +277,25 @@
                         callbacks.failure(error, data);
                      }
 
-                     log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err));
+                     log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err)).sendInternalLogToServer();
 
                   } else {
-                     log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data);
+                     log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data).sendInternalLogToServer();
                      callbacks.success(data);
                   }
                } catch (e) {
                   connect.getLog().error("Failed to handle AWS API request for method %s", method)
-                        .withException(e);
+                        .withException(e).sendInternalLogToServer();
                }
             });
       }
    };
 
-   AWSClient.prototype._requiresAuthenticationParam = function(method) {
-      return method !== connect.ClientMethods.COMPLETE_CONTACT && method !== connect.ClientMethods.CLEAR_CONTACT;
+   AWSClient.prototype._requiresAuthenticationParam = function (method) {
+      return method !== connect.ClientMethods.COMPLETE_CONTACT &&
+         method !== connect.ClientMethods.CLEAR_CONTACT &&
+         method !== connect.ClientMethods.REJECT_CONTACT &&
+         method !== connect.ClientMethods.CREATE_TASK_CONTACT;
    };
 
    AWSClient.prototype._translateParams = function(method, params) {
@@ -318,5 +395,6 @@
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
+   connect.AgentAppClient = AgentAppClient;
 
 })();

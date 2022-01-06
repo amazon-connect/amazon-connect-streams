@@ -1,10 +1,14 @@
+const mochaJsdom = require("mocha-jsdom");
+
 require("../unit/test-setup.js");
 
 // TODO: Make these work as standalone, for some reason they require a initCCP call to not fail
 describe('SoftphoneManager', function () {
+    jsdom({ url: "http://localhost" });
+    
     var sandbox = sinon.createSandbox();
 
-    describe('#SoftphoneManager RTC session', function () {
+    describe('#SoftphoneManager RTC session for Chrome browser', function () {
         var bus,
             contact,
             contactId;
@@ -17,6 +21,30 @@ describe('SoftphoneManager', function () {
             });
             contactId = "1234567890";
             contact = new connect.Contact(contactId);
+            var streamsFake = {
+                getAudioTracks: () => {
+                    return [{ kind: "audio", enabled: true, }];
+                },
+            };
+            global.navigator = {
+                mediaDevices: {
+                    enumerateDevices: () => new Promise((resolve) => {
+                        setTimeout(() => {
+                            resolve([{
+                                toJSON: () => ({
+                                    deviceId: "deviceId",
+                                    groupId: "groupId",
+                                    kind: "audioinput",
+                                    label: "Microphone"
+                                })
+                            }])
+                        }, 500);
+                    }),
+                    getUserMedia: () => new Promise((resolve) => {
+                        resolve(streamsFake);
+                    }),
+                },
+            };
             sandbox.stub(contact, "isSoftphoneCall").returns(true);
             sandbox.stub(contact, "isInbound").returns(true);
             sandbox.stub(connect, 'RTCSession').returns({
@@ -27,7 +55,8 @@ describe('SoftphoneManager', function () {
             sandbox.stub(contact, 'getAgentConnection').returns({
                 getSoftphoneMediaInfo: sandbox.stub().returns({
                     callConfigJson: "{}"
-                })
+                }),
+                connectionId: '0987654321'
             });
             sandbox.stub(connect.Agent.prototype, 'getContacts').returns([]);
         });
@@ -77,6 +106,119 @@ describe('SoftphoneManager', function () {
         });
     });
 
-    
+    describe('#SoftphoneManager RTC session for Firefox browser', function () {
+        var bus, contact, contactId;
 
+        before(function () {
+            bus = new connect.EventBus();
+            contactId = "1234567890";
+            contact = new connect.Contact(contactId);
+        });
+
+        beforeEach(function () {
+            sandbox.stub(connect.core, "getEventBus").returns(bus);
+            sandbox.stub(connect.core, "getUpstream").returns({
+                sendUpstream: sandbox.stub()
+            });
+            sandbox.stub(contact, "isSoftphoneCall").returns(true);
+            sandbox.stub(contact, "isInbound").returns(true);
+            sandbox.stub(connect, 'RTCSession').returns({
+                connect: sandbox.stub()
+            });
+            sandbox.stub(connect, 'isChromeBrowser').returns(false);
+            sandbox.stub(connect, 'isFirefoxBrowser').returns(true);
+            sandbox.stub(connect, 'getFirefoxBrowserVersion').returns(84);
+            sandbox.stub(connect.Agent.prototype, 'getContacts').returns([]);
+        });
+
+        afterEach(function () {
+            sandbox.restore();
+        });
+
+        describe('RTC session created immediately for an incoming contact', function () {
+            it('when only one CCP tab is opened', function () {
+                sandbox.stub(contact, "getStatus").returns({
+                    type: connect.ContactStatusType.CONNECTING
+                });
+                sandbox.stub(connect, 'hasOtherConnectedCCPs').returns(false);
+                sandbox.stub(contact, 'getAgentConnection').returns({
+                    getSoftphoneMediaInfo: sandbox.stub().returns({
+                        callConfigJson: "{}",
+                        autoAccept: false
+                    }),
+                    connectionId: '0987654321'
+                });
+                new connect.SoftphoneManager({});
+                bus.trigger(connect.ContactEvents.INIT, contact);
+                bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), contact);
+                assert.isTrue(connect.RTCSession.calledOnce);
+            });
+        });
+        describe('RTC session is not created for an incoming contact', function () {
+            it('when multiple CCP tabs are opened', function () {
+                sandbox.stub(contact, "getStatus").returns({
+                    type: connect.ContactStatusType.CONNECTING
+                });
+                sandbox.stub(connect, 'hasOtherConnectedCCPs').returns(true);
+                sandbox.stub(contact, 'getAgentConnection').returns({
+                    getSoftphoneMediaInfo: sandbox.stub().returns({
+                        callConfigJson: "{}",
+                        autoAccept: false
+                    }),
+                    connectionId: '0987654321'
+                });
+                var softphoneManager = new connect.SoftphoneManager({});
+                bus.trigger(connect.ContactEvents.INIT, contact);
+                bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), contact);
+                assert.isFalse(connect.RTCSession.calledOnce);
+
+                // RTC session created after startSession() is called
+                softphoneManager.startSession();
+                assert.isTrue(connect.RTCSession.calledOnce);
+            });
+        });
+    });
+
+    describe('#SoftphoneManager successfully sets the softphoneUserMediaStreams', function () {
+        var bus, contact, contactId;
+
+        before(function () {
+            bus = new connect.EventBus();
+            contactId = "1234567890";
+            contact = new connect.Contact(contactId);
+        });
+
+        beforeEach(function () {
+            sandbox.stub(connect.core, "getEventBus").returns(bus);
+            sandbox.stub(connect.core, "getUpstream").returns({
+                sendUpstream: sandbox.stub()
+            });
+            sandbox.stub(contact, "isSoftphoneCall").returns(true);
+            sandbox.stub(contact, "isInbound").returns(true);
+            sandbox.stub(connect, 'RTCSession').returns({
+                connect: sandbox.stub()
+            });
+            sandbox.stub(connect, 'getFirefoxBrowserVersion').returns(84);
+            sandbox.stub(connect.Agent.prototype, 'getContacts').returns([]);
+        });
+
+        afterEach(function () {
+            sandbox.restore();
+        });
+
+        it('Successfully sets the softphoneUserMediaStreams in Chrome', async function () {
+                sandbox.stub(connect, 'isChromeBrowser').returns(false);
+                sandbox.stub(connect, 'isFirefoxBrowser').returns(true);
+                await new connect.SoftphoneManager({});
+
+                assert.isNotNull(connect.core.getSoftphoneUserMediaStream());
+        });
+        it('Successfully sets the softphoneUserMediaStreams in Firefox', async function () {
+            sandbox.stub(connect, 'isChromeBrowser').returns(true);
+            sandbox.stub(connect, 'isFirefoxBrowser').returns(false);
+            await new connect.SoftphoneManager({});
+
+            assert.isNotNull(connect.core.getSoftphoneUserMediaStream());
+        });
+    });
 });

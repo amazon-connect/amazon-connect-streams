@@ -9,8 +9,11 @@
   global.connect = connect;
   global.lily = connect;
 
-  // How frequently logs should be collected and reported to shared worker.
-  var LOG_REPORT_INTERVAL_MILLIS = 5000;
+  // How frequently softphone logs should be collected and reported to shared worker.
+  var SOFTPHONE_LOG_REPORT_INTERVAL_MILLIS = 5000;
+
+  // How frequently logs should be collected and sent downstream
+  var LOGS_REPORT_INTERVAL_MILLIS = 5000;
 
   // The default log roll interval (30min)
   var DEFAULT_LOG_ROLL_INTERVAL = 1800000;
@@ -35,7 +38,8 @@
   var LogComponent = {
     CCP: "ccp",
     SOFTPHONE: "softphone",
-    CHAT: "chat"
+    CHAT: "chat",
+    TASK: "task"
   };
 
   /**
@@ -74,7 +78,7 @@
   */
 
   var isValidLogComponent = function (component) {
-    return [LogComponent.SOFTPHONE, LogComponent.CCP, LogComponent.CHAT].indexOf(component) !== -1;
+    return Object.values(LogComponent).indexOf(component) !== -1;
   };
 
   /**
@@ -85,6 +89,7 @@
     var firstArg = args.shift();
     var format;
     var component;
+
     if (isValidLogComponent(firstArg)) {
       component = firstArg;
       format = args.shift();
@@ -93,6 +98,7 @@
       format = firstArg;
       component = LogComponent.CCP;
     }
+
     return {
       format: format,
       component: component,
@@ -119,6 +125,14 @@
     this.exception = null;
     this.objects = [];
     this.line = 0;
+    this.agentResourceId = null;
+    try {
+      if (connect.agent.initialized){
+        this.agentResourceId = new connect.Agent()._getResourceId();
+      }
+    } catch(e) {
+      console.log("Issue finding agentResourceId: ", e); //can't use our logger here as we might infinitely attempt to log this error.
+    }
     this.loggerId = loggerId;
   };
 
@@ -141,6 +155,26 @@
   };
 
   /**
+   * Private method to remove sensitive info from client log
+   */
+  var redactSensitiveInfo = function(data) {
+    var regex = /AuthToken.*\=/g;
+    if(data && typeof data === 'object') {
+      Object.keys(data).forEach(function(key) {
+        if (typeof data[key] === 'object') {
+          redactSensitiveInfo(data[key])
+        } else if(typeof data[key] === 'string') {
+          if (key === "url" || key === "text") {
+            data[key] = data[key].replace(regex, "[redacted]");
+          } else if (key === "quickConnectName") {
+            data[key] = "[redacted]";
+          }
+        }
+      }); 
+    }
+  }
+
+  /**
    * Pulls the type, message, and stack trace
    * out of the given exception for JSON serialization.
    */
@@ -155,9 +189,10 @@
    * to the console.
    */
   LogEntry.prototype.toString = function () {
-    return connect.sprintf("[%s] [%s]: %s",
+    return connect.sprintf("[%s] [%s] [%s]: %s",
       this.getTime() && this.getTime().toISOString ? this.getTime().toISOString() : "???",
       this.getLevel(),
+      this.getAgentResourceId(),
       this.getText());
   };
 
@@ -167,6 +202,10 @@
   LogEntry.prototype.getTime = function () {
     return this.time;
   };
+
+  LogEntry.prototype.getAgentResourceId = function () {
+    return this.agentResourceId;
+  }
 
   /**
    * Get the level of the log entry.
@@ -203,7 +242,29 @@
    * may contain any number of objects.
    */
   LogEntry.prototype.withObject = function (obj) {
-    this.objects.push(connect.deepcopy(obj));
+    var copiedObj = connect.deepcopy(obj);
+    redactSensitiveInfo(copiedObj);
+    this.objects.push(copiedObj);
+    return this;
+  };
+
+  /**
+   * Add a cross origin event object to the log entry.  A log entry
+   * may contain any number of objects.
+   */
+   LogEntry.prototype.withCrossOriginEventObject = function (obj) {
+    var copiedObj = connect.deepcopyCrossOriginEvent(obj);
+    redactSensitiveInfo(copiedObj);
+    this.objects.push(copiedObj);
+    return this;
+  };
+
+  /**
+   * Indicate that this log entry should be sent to the server
+   * NOTE: This should be used for internal logs only
+   */
+  LogEntry.prototype.sendInternalLogToServer = function () {
+    connect.getLog()._serverBoundInternalLogs.push(this);
     return this;
   };
 
@@ -214,6 +275,7 @@
     this._logs = [];
     this._rolledLogs = [];
     this._logsToPush = [];
+    this._serverBoundInternalLogs = [];
     this._echoLevel = LogLevelOrder.INFO;
     this._logLevel = LogLevelOrder.INFO;
     this._lineCount = 0;
@@ -221,6 +283,7 @@
     this._logRollTimer = null;
     this._loggerId = new Date().getTime() + "-" + Math.random().toString(36).slice(2);
     this.setLogRollInterval(DEFAULT_LOG_ROLL_INTERVAL);
+    this._startLogIndexToPush = 0;
   };
 
   /**
@@ -239,6 +302,7 @@
       this._logRollTimer = global.setInterval(function () {
         self._rolledLogs = self._logs;
         self._logs = [];
+        self._startLogIndexToPush = 0;
         self.info("Log roll interval occurred.");
       }, this._logRollInterval);
     } else {
@@ -280,17 +344,35 @@
    */
   Logger.prototype.write = function (component, level, text) {
     var logEntry = new LogEntry(component, level, text, this.getLoggerId());
+    redactSensitiveInfo(logEntry);
     this.addLogEntry(logEntry);
     return logEntry;
   };
 
   Logger.prototype.addLogEntry = function (logEntry) {
+    // Call this second time as in some places this function is called directly
+    redactSensitiveInfo(logEntry);
     this._logs.push(logEntry);
+
     //For now only send softphone logs only.
     //TODO add CCP logs once we are sure that no sensitive data is being logged.
     if (LogComponent.SOFTPHONE === logEntry.component) {
       this._logsToPush.push(logEntry);
     }
+
+    if (logEntry.level in LogLevelOrder &&
+      LogLevelOrder[logEntry.level] >= this._logLevel) {
+
+      if (LogLevelOrder[logEntry.level] >= this._echoLevel) {
+        CONSOLE_LOGGER_MAP[logEntry.getLevel()](logEntry.toString());
+      }
+
+      logEntry.line = this._lineCount++;
+    }
+  };
+
+  Logger.prototype.sendInternalLogEntryToServer = function (logEntry) {
+    this._serverBoundInternalLogs.push(logEntry);
 
     if (logEntry.level in LogLevelOrder &&
       LogLevelOrder[logEntry.level] >= this._logLevel) {
@@ -399,7 +481,7 @@
       filterByLogLevel = options.filterByLogLevel || filterByLogLevel;
     }
     else if (typeof options === 'string') {
-      logName = options || logName; 
+      logName = options || logName;
     }
 
     var self = this;
@@ -424,7 +506,7 @@
     if (!connect.upstreamLogPushScheduled) {
       connect.upstreamLogPushScheduled = true;
       /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to LARS*/
-      global.setInterval(connect.hitch(this, this.reportMasterLogsUpStream, conduit), LOG_REPORT_INTERVAL_MILLIS);
+      global.setInterval(connect.hitch(this, this.reportMasterLogsUpStream, conduit), SOFTPHONE_LOG_REPORT_INTERVAL_MILLIS);
     }
   };
 
@@ -438,13 +520,66 @@
     });
   };
 
+  Logger.prototype.scheduleUpstreamOuterContextCCPserverBoundLogsPush = function(conduit) {
+    global.setInterval(connect.hitch(this, this.pushOuterContextCCPserverBoundLogsUpstream, conduit), 1000);
+  }
+
+  Logger.prototype.scheduleUpstreamOuterContextCCPLogsPush = function(conduit) {
+    global.setInterval(connect.hitch(this, this.pushOuterContextCCPLogsUpstream, conduit), 1000);
+  }
+
+  Logger.prototype.pushOuterContextCCPserverBoundLogsUpstream = function(conduit) {
+    if (this._serverBoundInternalLogs.length > 0) {
+      for (var i = 0; i < this._serverBoundInternalLogs.length; i++) {
+        this._serverBoundInternalLogs[i].text = this._serverBoundInternalLogs[i].text;
+      }
+
+      conduit.sendUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, this._serverBoundInternalLogs);
+      this._serverBoundInternalLogs = [];
+    }
+  }
+
+  Logger.prototype.pushOuterContextCCPLogsUpstream = function(conduit) {
+    for (var i = this._startLogIndexToPush; i < this._logs.length; i++) {
+      if (this._logs[i].loggerId !== this._loggerId) {
+        continue;
+      }
+      conduit.sendUpstream(connect.EventType.LOG, this._logs[i]);
+    }
+    this._startLogIndexToPush = this._logs.length;
+  }
+
   Logger.prototype.getLoggerId = function () {
     return this._loggerId;
   };
 
+  Logger.prototype.scheduleDownstreamClientSideLogsPush = function () {
+    global.setInterval(connect.hitch(this, this.pushClientSideLogsDownstream), LOGS_REPORT_INTERVAL_MILLIS);
+  }
+
+  Logger.prototype.pushClientSideLogsDownstream = function () {
+    var logs = [];
+
+    // We do not send a request if we have less than 50 records so that we minimize the number of
+    // requests per second. 
+    // 500 is the max we accept on the server. 
+    // We chose 500 because this is the limit imposed by Firehose for a put batch request
+    if (this._serverBoundInternalLogs.length < 50) {
+      return;
+    } else if (this._serverBoundInternalLogs.length > 500) {
+      logs = this._serverBoundInternalLogs.splice(0, 500);
+    } else {
+      logs = this._serverBoundInternalLogs;
+      this._serverBoundInternalLogs = [];
+    }
+
+    connect.publishClientSideLogs(logs);
+  }
+
   var DownstreamConduitLogger = function (conduit) {
     Logger.call(this);
     this.conduit = conduit;
+    
     global.setInterval(connect.hitch(this, this._pushLogsDownstream),
       DownstreamConduitLogger.LOG_PUSH_INTERVAL);
 
@@ -467,14 +602,49 @@
 
   DownstreamConduitLogger.prototype._pushLogsDownstream = function () {
     var self = this;
+    
     this._logs.forEach(function (log) {
       self.conduit.sendDownstream(connect.EventType.LOG, log);
     });
     this._logs = [];
+
+    for (var i = 0; i < this._serverBoundInternalLogs.length; i++) {
+      this.conduit.sendDownstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, this._serverBoundInternalLogs[i]);
+    }
+
+    this._serverBoundInternalLogs = [];
   };
+
+  /**
+   * Wrap a function with try catch block
+   */
+  var tryCatchWrapperMethod = function (fn) {
+    var wrappedfunction = function() {
+      try {
+        return fn.apply(this, arguments);
+      } catch (e) {
+        // Since this wraps Logger class, we can only print it in the console and eat it.
+        CONSOLE_LOGGER_MAP.ERROR(e);
+      }
+    }
+    return wrappedfunction;
+  }
+  /**
+   * This is a wrapper method to wrap each function
+   * in an object with try catch block.
+   */
+  var tryCatchWrapperObject = function (obj) {
+    for (var method in obj) {
+      if (typeof(obj[method]) === 'function') {
+        obj[method] = tryCatchWrapperMethod(obj[method]);
+      }
+    }
+  }
 
   /** Create the singleton logger instance. */
   connect.rootLogger = new Logger();
+  tryCatchWrapperObject(connect.rootLogger);
+
 
   /** Fetch the singleton logger instance. */
   var getLog = function () {
