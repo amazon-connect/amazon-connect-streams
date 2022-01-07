@@ -1097,6 +1097,12 @@ The data behind the `Contact` API object is ephemeral and changes whenever new d
 provides an opportunity to create a snapshot version of the `Contact` API object and save it for future use,
 such as adding to a log file or posting elsewhere.
 
+### `contact.isMultiPartyConferenceEnabled()`
+```js
+if (contact.isMultiPartyConferenceEnabled()) { /* ... */ }
+```
+Determine whether this contact is a softphone call and multiparty conference feature is turned on.
+
 ### Task Contact APIs
 The following contact methods are currently only available for task contacts.
 
