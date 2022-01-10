@@ -27,7 +27,7 @@ jobs:
     - name: Check out Dashboard branch
       uses: actions/checkout@v2
       with:
-        ref: 'dashboard_branch'
+        ref: 'dashboard'
         path: 'dashboard'
 
     - name: 'Generate Dashboard'
@@ -37,26 +37,26 @@ jobs:
           title: 'Dashboard'
           output:
             format: html
-            filename: 'out/dashboard.html'
+            filename: 'dashboard/dashboard.html'
           sections:
           - title: 'Open Issues by Type'
             description: 'Queries of issues by type, using their label.'
             widgets:
             - type: 'number'
               title: 'Bug'
-              issue_query: 'repo:libgit2/libgit2 is:open is:issue label:bug'
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue label:bug'
               color: 'red'
             - type: 'number'
               title: 'Feature/enhancement'
-              issue_query: 'repo:libgit2/libgit2 is:open is:issue label:enhancement'
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue label:enhancement'
               color: 'green'
             - type: 'number'
               title: 'Co-team'
-              issue_query: 'repo:libgit2/libgit2 is:open is:issue label:"co-team"'
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue label:"co-team"'
               color: 'blue'
             - type: 'number'
               title: 'Not labelled'
-              issue_query: 'repo:libgit2/libgit2 is:open is:issue no:label'
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue no:label'
               color: 'blue'
         token: ${{ github.token }}
 
@@ -66,5 +66,5 @@ jobs:
         git config user.name 'vpogudina'
         git config user.email 'pogudina@amazon.com'
         git commit -m 'Dashboard update' --allow-empty
-        git push origin dashboard_branch
+        git push origin dashboard
       working-directory: dashboard
