@@ -1,0 +1,38 @@
+name: Build Dashboard
+
+on:
+  schedule:
+  - cron: '30 14 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+    - name: Check out GitHub Pages branch
+      uses: actions/checkout@v2
+      with:
+        ref: 'gh-pages'
+        path: 'out'
+
+    - name: 'Generate Dashboard'
+      uses: amazon-connect.github.io/amazon-connect-streams/issue-dashboard@v1
+      with:
+        config: |
+          title: 'Dashboard'
+          output:
+            format: html
+            filename: 'out/dashboard.html'
+          sections:
+          - title: 'Open Issues'
+            widgets:
+            - type: number
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:issue is:open'
+              title: 'Open pull requests'
+              color: 'blue'
+
+        token: ${{ github.token }}
+
+    
