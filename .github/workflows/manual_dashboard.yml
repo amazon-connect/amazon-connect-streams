@@ -18,13 +18,41 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "greet"
-  greet:
-    # The type of runner that the job will run on
+  build:
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Runs a single command using the runners shell
-    - name: Send greeting
-      run: echo "Hello ${{ github.event.inputs.name }}"
+    - name: Check out repository
+      uses: actions/checkout@v2
+    - name: Check out GitHub Pages branch
+      uses: actions/checkout@v2
+      with:
+        ref: 'gh-pages'
+        path: 'out'
+
+    - name: 'Generate Dashboard'
+      uses: ethomson/issue-dashboard@v1
+      with:
+        config: |
+          title: 'Dashboard'
+          output:
+            format: html
+            filename: 'out/dashboard.html'
+          sections:
+          - title: 'Open Issues'
+            widgets:
+            - type: number
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:issue is:open'
+              title: 'Open pull requests'
+              color: 'blue'
+
+        token: ${{ github.token }}
+
+    - name: Publish Dashboard
+      run: |
+        git add .
+        git config user.name 'vpogudina'
+        git config user.email 'pogudina@amazon.com'
+        git commit -m 'Dashboard update' --allow-empty
+        git push origin gh-pages
+      working-directory: out
