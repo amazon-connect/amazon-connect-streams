@@ -27,7 +27,7 @@ jobs:
     - name: Check out Dashboard branch
       uses: actions/checkout@v2
       with:
-        ref: 'dashboard_branch'
+        ref: 'dashboard'
         path: 'dashboard'
 
     - name: 'Generate Dashboard'
@@ -37,7 +37,7 @@ jobs:
           title: 'Dashboard'
           output:
             format: html
-            filename: 'out/dashboard.html'
+            filename: 'dashboard/dashboard.html'
           sections:
           - title: 'Open Issues by Type'
             description: 'Queries of issues by type, using their label.'
