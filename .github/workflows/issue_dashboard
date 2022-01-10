@@ -2,7 +2,7 @@ name: Build Dashboard
 
 on:
   schedule:
-  - cron: '30 14 * * *'
+  - cron: '45 14 * * *'
 
 jobs:
   build:
@@ -18,7 +18,7 @@ jobs:
         path: 'out'
 
     - name: 'Generate Dashboard'
-      uses: amazon-connect.github.io/amazon-connect-streams/issue-dashboard@v1
+      uses: ethomson/issue-dashboard@v1
       with:
         config: |
           title: 'Dashboard'
