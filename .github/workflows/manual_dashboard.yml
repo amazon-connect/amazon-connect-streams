@@ -44,19 +44,19 @@ jobs:
             widgets:
             - type: 'number'
               title: 'Bug'
-              issue_query: 'repo:libgit2/libgit2 is:open is:issue label:bug'
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue label:bug'
               color: 'red'
             - type: 'number'
               title: 'Feature/enhancement'
-              issue_query: 'repo:libgit2/libgit2 is:open is:issue label:enhancement'
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue label:enhancement'
               color: 'green'
             - type: 'number'
               title: 'Co-team'
-              issue_query: 'repo:libgit2/libgit2 is:open is:issue label:"co-team"'
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue label:"co-team"'
               color: 'blue'
             - type: 'number'
               title: 'Not labelled'
-              issue_query: 'repo:libgit2/libgit2 is:open is:issue no:label'
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue no:label'
               color: 'blue'
         token: ${{ github.token }}
 
