@@ -66,5 +66,5 @@ jobs:
         git config user.name 'vpogudina'
         git config user.email 'pogudina@amazon.com'
         git commit -m 'Dashboard update' --allow-empty
-        git push origin dashboard_branch
+        git push origin dashboard
       working-directory: dashboard
