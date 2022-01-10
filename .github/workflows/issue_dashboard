@@ -35,4 +35,11 @@ jobs:
 
         token: ${{ github.token }}
 
-    
+    - name: Publish Dashboard
+      run: |
+        git add .
+        git config user.name 'vpogudina'
+        git config user.email 'pogudina@amazon.com'
+        git commit -m 'Dashboard update' --allow-empty
+        git push origin gh-pages
+      working-directory: out
