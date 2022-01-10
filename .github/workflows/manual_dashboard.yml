@@ -113,7 +113,7 @@ jobs:
                 issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:{{ date("-3 years") }}..{{ date("-2 years") }}'
                 color: 'red'
               - title: '>3 years'
-                issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:<{{ date("-365 days") }}'
+                issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:<{{ date("-4 years") }}'
                 color: 'red'
 
               
