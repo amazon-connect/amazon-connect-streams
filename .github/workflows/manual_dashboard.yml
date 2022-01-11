@@ -4,7 +4,9 @@ name: Dashboard creating workflow
 
 # Controls when the action will run. Workflow runs when manually triggered using the UI
 # or API.
-on: [issues, label]
+on:
+  schedule:
+  - cron: '5 20 * * *'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
