@@ -91,11 +91,11 @@ jobs:
             description: 'This is already included in total numbers above'
             widgets:
             - type: 'number'
-              title: 'Bug'
+              title: 'Bug/ co-team'
               issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue label:bug label:co-team'
               color: '{{ value === 0 ? "none" : "red" }}'
             - type: 'number'
-              title: 'Feature/ Enhancement'
+              title: 'Enhancement/ co-team'
               issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue label:enhancement label:co-team'
               color: '{{ value === 0 ? "none" : "blue" }}'
           - title: 'Open Issues by Age'
