@@ -45,10 +45,6 @@ jobs:
               issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue'
               color: 'black'
             - type: 'number'
-              title: 'Invisible line break'
-              issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue'
-              color: "line_break"
-            - type: 'number'
               title: 'Bug'
               issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue label:bug'
               color: '{{ value === 0 ? "none" : "red" }}'
