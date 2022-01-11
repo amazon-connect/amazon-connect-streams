@@ -26,7 +26,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         ref: 'dashboard'
-        path: 'dashboard'
 
     - name: 'Generate Dashboard'
       uses: ethomson/issue-dashboard@v1
@@ -94,28 +93,27 @@ jobs:
             - type: 'graph'
               title: 'Age'
               elements:
-              - title: '2 days'
-                issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:>{{ date("-2 days") }}'
-                color: 'green'
-              - title: '2-5 days'
-                issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:{{ date("-4 days") }}..{{ date("-3 days") }}'
+              - title: '7 days'
+                issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:>{{ date("-7 days") }}'
                 color: '{{ value === 0 ? "none" : "green" }}'
               - title: '30 days'
                 issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:{{ date("-30 days") }}..{{ date("-7 days") }}'
-                color: 'blue'
+                color: '{{ value === 0 ? "none" : "blue" }}'
               - title: '90 days'
                 issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:{{ date("-90 days") }}..{{ date("-30 days") }}'
+                color: '{{ value === 0 ? "none" : "black" }}'
               - title: '1 year'
                 issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:{{ date("-1 year") }}..{{ date("-90 days") }}'
+                color: '{{ value === 0 ? "none" : "black" }}'
               - title: '2 years'
                 issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:{{ date("-2 years") }}..{{ date("-1 year") }}'
-                color: 'red'
+                color: '{{ value === 0 ? "none" : "red" }}'
               - title: '3 years'
                 issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:{{ date("-3 years") }}..{{ date("-2 years") }}'
-                color: 'red'
+                color: '{{ value === 0 ? "none" : "red" }}'
               - title: '>3 years'
                 issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue created:<{{ date("-4 years") }}'
-                color: 'red'
+                color: '{{ value === 0 ? "none" : "red" }}'
 
               
         token: ${{ github.token }}
