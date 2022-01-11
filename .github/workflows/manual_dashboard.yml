@@ -87,6 +87,17 @@ jobs:
               title: 'Not labelled'
               issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue no:label'
               color: '{{ value === 0 ? "none" : "gray" }}'
+          - title: 'Some open issues with multiple labels'
+            description: 'This is already included in total numbers above'
+            widgets:
+            - type: 'number'
+              title: 'Bug'
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue label:bug label:co-team'
+              color: '{{ value === 0 ? "none" : "red" }}'
+            - type: 'number'
+              title: 'Feature/ Enhancement'
+              issue_query: 'repo:amazon-connect/amazon-connect-streams is:open is:issue label:enhancement label:co-team'
+              color: '{{ value === 0 ? "none" : "blue" }}'
           - title: 'Open Issues by Age'
             description: 'Queries of open issues by their creation date.'
             widgets:
