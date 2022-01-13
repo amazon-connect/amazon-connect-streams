@@ -1583,9 +1583,10 @@
     });
   };
 
-  VoiceId.prototype.checkEnrollmentStatus = function () {
+  VoiceId.prototype.checkEnrollmentStatus = function (callbackOnAudioCollectionComplete) {
     var self = this;
     var pollingTimes = 0;
+    var callbackOnAudioCollectionCompleteHasBeenInvoked = false;
 
     return new Promise(function (resolve, reject) {
       function describe () {
@@ -1596,6 +1597,10 @@
                 resolve(data);
                 break;
               case connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS:
+                if (!callbackOnAudioCollectionCompleteHasBeenInvoked && typeof callbackOnAudioCollectionComplete === 'function') {
+                  callbackOnAudioCollectionComplete(data);
+                  callbackOnAudioCollectionCompleteHasBeenInvoked = true;
+                }
                 setTimeout(describe, connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL);
                 break;
               case connect.VoiceIdEnrollmentRequestStatus.NOT_ENOUGH_SPEECH:
@@ -1628,7 +1633,7 @@
     });
   };
 
-  VoiceId.prototype.enrollSpeaker = function () {
+  VoiceId.prototype.enrollSpeaker = function (callbackOnAudioCollectionComplete) {
     var self = this;
     self.checkConferenceCall();
     return new Promise(function(resolve, reject) {
@@ -1636,12 +1641,12 @@
         self.getSpeakerStatus().then(function(data) {
           if(data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
             self.deleteSpeaker().then(function() {
-              self.enrollSpeakerHelper(resolve, reject);
+              self.enrollSpeakerHelper(resolve, reject, callbackOnAudioCollectionComplete);
             }).catch(function(err) {
               reject(err);
             });
           } else {
-            self.enrollSpeakerHelper(resolve, reject);
+            self.enrollSpeakerHelper(resolve, reject, callbackOnAudioCollectionComplete);
           }
         }).catch(function(err) {
           reject(err);
@@ -1652,7 +1657,7 @@
     })
   }
 
-  VoiceId.prototype.enrollSpeakerHelper = function (resolve, reject) {
+  VoiceId.prototype.enrollSpeakerHelper = function (resolve, reject, callbackOnAudioCollectionComplete) {
     var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
@@ -1666,7 +1671,7 @@
               connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
               resolve(data);
             } else {
-              self.checkEnrollmentStatus().then(function(data){
+              self.checkEnrollmentStatus(callbackOnAudioCollectionComplete).then(function(data){
                 connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               }).catch(function(err){
@@ -1914,8 +1919,8 @@
     return this._speakerAuthenticator.evaluateSpeaker(startNew);
   }
 
-  VoiceConnection.prototype.enrollSpeakerInVoiceId = function() {
-    return this._speakerAuthenticator.enrollSpeaker();
+  VoiceConnection.prototype.enrollSpeakerInVoiceId = function(callbackOnAudioCollectionComplete) {
+    return this._speakerAuthenticator.enrollSpeaker(callbackOnAudioCollectionComplete);
   }
 
   VoiceConnection.prototype.updateVoiceIdSpeakerId = function(speakerId) {

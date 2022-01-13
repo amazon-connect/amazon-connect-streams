@@ -1708,19 +1708,29 @@ voiceConnection.getVoiceIdSpeakerStatus()
 ```
 
 
-### `voiceConnection.enrollSpeakerInVoiceId()`
-Enrolls a customer in Voice ID. The enrollment process completes once the backend has collected enough speech data (30 seconds of net customer's audio). If after 10 minutes the process hasn't completed, the method will throw a timeout error. If you call this API for a customer who is already enrolled, it will re-enroll the customer by collecting new speech data and registering a new digital voiceprint. Enrollment can happen only once in a voice contact.
+### `voiceConnection.enrollSpeakerInVoiceId(callbackOnAudioCollectionComplete)`
+Enrolls a customer in Voice ID. The enrollment process completes once the backend has collected enough speech data (30 seconds of net customer's audio). If after 10 minutes the process hasn't completed, the method will throw a timeout error. If you call this API for a customer who is already enrolled, it will re-enroll the customer by collecting new speech data and registering a new digital voiceprint. Enrollment can happen only once in a voice contact.   
+You can pass in a callback (optional) that will be invoked when our backend has collected sufficient audio for our backend service to create the new voiceprint.
 
 ```js
-voiceConnection.enrollSpeakerInVoiceId()
+const callbackOnAudioCollectionComplete = (data) => {
+  console.log(
+    `Now sufficient audio has been collected and
+    the customer no longer needs to keep talking.
+    The backend service is creating the voiceprint with the audio collected`
+  ); 
+};
+
+voiceConnection.enrollSpeakerInVoiceId(callbackOnAudioCollectionComplete)
   .then((data) => {
-    // it returns session data but no additional actions needed
+    console.log(
+      `The enrollment process is complete and the customer has been enrolled into Voice ID`
+    );
   })
   .catch((err) => {
     console.error(err);
   });
 ```
-
 
 ### `voiceConnection.evaluateSpeakerWithVoiceId(boolean)`
 Checks the customer's Voice ID verification status. The evaluation process completes once the backend has collected enough speech data (10 seconds of net customer's audio). If after 2 minutes the process hasn't completed, the method will throw a timeout error. If you pass in false, it uses the existing audio stream, which is typically started in the contact flow, and immediately returns the result if enough audio has already been collected. If you pass in true, it starts a new audio stream and returns the result when enough audio has been collected. The default value is false.
