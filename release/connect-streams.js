@@ -27396,8 +27396,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   var RTPJobIntervalMs = 1000;
   var statsReportingJobIntervalMs = 30000;
-  var connectivityCheckJobIntervalMs = 30000;
-  var connectivityCheckJobPaused = false;
   var streamBufferSize = 500;
   var CallTypeMap = {};
   CallTypeMap[connect.SoftphoneCallType.AUDIO_ONLY] = 'Audio';
@@ -27421,7 +27419,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
   var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
   var MULTIPLE_SESSIONS_EVENT = "MultiSessions";
-  var mediaEndpoint = null;
 
   var localMediaStream = {};
 
@@ -27432,11 +27429,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       connect.core.getClient().call(connect.ClientMethods.CREATE_TRANSPORT, transport, {
         success: function (data) {
           resolve(data.softphoneTransport.softphoneMediaConnections);
-          try{
-            mediaEndpoint = data.softphoneTransport.softphoneMediaConnections[0].urls[0];
-          }catch(e){
-            logger.error("Failed in retrieving mediaEndpoint" + e);
-          }
         },
         failure: function (reason) {
           if (reason.message && reason.message.includes("SoftphoneConnectionLimitBreachedException")) {
@@ -27497,7 +27489,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     handleSpeakerDeviceChange();
     handleMicrophoneDeviceChange();
     monitorMicrophonePermission();
-    monitorSoftphoneConnectivity();
 
     this.ringtoneEngine = null;
     var rtcSessions = {};
@@ -27629,7 +27620,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         publishSoftphoneFailureLogs(rtcSession, reason);
         publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
         stopJobsAndReport(contact, rtcSession.sessionReport);
-        connectivityCheckJobPaused = false;
       };
       session.onSessionConnected = function (rtcSession) {
         publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
@@ -27639,7 +27629,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         startStatsCollectionJob(rtcSession);
         startStatsReportingJob(contact);
         fireContactAcceptedEvent(contact);
-        connectivityCheckJobPaused = true;
       };
 
       session.onSessionCompleted = function (rtcSession) {
@@ -27652,7 +27641,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
         // Cleanup the cached streams
         deleteLocalMediaStream(agentConnectionId);
-        connectivityCheckJobPaused = false;
       };
 
       session.onLocalStreamAdded = function (rtcSession, stream) {
@@ -27781,29 +27769,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     } catch (e) {
       logger.error("Failed in detecting microphone permission status: " + e);
     }
-  }
-
-  var monitorSoftphoneConnectivity = function () {
-    window.setInterval(function(){
-      var promise = null;
-      if(!connectivityCheckJobPaused && mediaEndpoint){
-        try{
-          connectivityCheckJobPaused = true;
-          promise = connect.checkMediaEndpointConnection(mediaEndpoint);
-          promise.then(function (connectivityCheckResult) {
-            publishTelemetryEvent("ConnectivityCheckResult", null, 
-              Object.assign({},connectivityCheckResult,
-                {
-                  connectivityCheckType: "MediaEndpointCheck",
-                  status: connectivityCheckResult.success
-                }));
-            connectivityCheckJobPaused = false;
-          }); 
-        }catch(e){
-          logger.error("Failed in checking media endpoint connection: " + e);
-        }
-      }
-    },connectivityCheckJobIntervalMs);
   }
 
   // Make sure once we disconnected we get the mute state back to normal
