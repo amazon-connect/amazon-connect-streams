@@ -637,7 +637,7 @@ agent.setState(state, {
     failure: function(err) { /* ... */ },
    },
    {enqueueNextState: false}
-});
+);
 ```
 Set the agent's current availability state. Can only be performed if the agent is not handling a live contact.
 
