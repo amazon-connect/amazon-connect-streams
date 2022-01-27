@@ -1021,7 +1021,7 @@
 
   Contact.prototype.isMultiPartyConferenceEnabled = function () {
     var contactFeatures = this.getContactFeatures();
-    return this.isSoftphoneCall() && !!(contactFeatures && contactFeatures.multiPartyConferenceEnabled);
+    return !!(contactFeatures && contactFeatures.multiPartyConferenceEnabled);
   }
 
   /*----------------------------------------------------------------
