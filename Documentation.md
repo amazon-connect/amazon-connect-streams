@@ -327,6 +327,7 @@ connect.core.onViewContact(function(event) {
 ```
 Subscribes a callback that starts whenever the currently selected contact on the CCP changes.
 The callback is called when the contact changes in the UI (i.e. via `click` events) or via `connect.core.viewContact()`.
+The callback will also be called once when a voice contact is accepted, and another time when it is connected. And for chat and task contacts, it will be called only when accepted.
 
 ### `connect.core.onAuthFail()`
 ```js
