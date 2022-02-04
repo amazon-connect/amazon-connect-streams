@@ -23996,7 +23996,17 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   var CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
   var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
 
+  var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
+
   connect.numberOfConnectedCCPs = 0;
+  connect.numberOfConnectedCCPsInThisTab = 0;
+
+  /*----------------------------------------------------------------
+   * enum SessionStorageKeys
+   */
+  connect.SessionStorageKeys = connect.makeEnum([
+    'tab_id',
+  ]);
 
   /**
    * @deprecated
@@ -24735,6 +24745,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
         connect.getLog().info("Acknowledged by the ConnectSharedWorker!").sendInternalLogToServer();
         connect.core.initialized = true;
+        connect.core._setTabId();
         connect.core.portStreamId = data.id;
         this.unsubscribe();
       });
@@ -24778,6 +24789,18 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
         connect.getLog().info("Number of connected CCPs updated: " + data.length).sendInternalLogToServer();
         connect.numberOfConnectedCCPs = data.length;
+        if (data[connect.core.tabId] && !isNaN(data[connect.core.tabId].length)){
+          if (connect.numberOfConnectedCCPsInThisTab !== data[connect.core.tabId].length) {
+            connect.numberOfConnectedCCPsInThisTab = data[connect.core.tabId].length;
+            if (connect.numberOfConnectedCCPsInThisTab > 1) {
+              connect.getLog().warn("There are " + connect.numberOfConnectedCCPsInThisTab + " connected CCPs in this tab. Please adjust your implementation to avoid complications. If you are embedding CCP, please do so exclusively with initCCP. InitCCP will not let you embed more than one CCP.").sendInternalLogToServer();
+            }
+            connect.publishMetric({
+              name: CONNECTED_CCPS_SINGLE_TAB,
+              data: { count: connect.numberOfConnectedCCPsInThisTab}
+            });
+          }
+        }
       });
 
       connect.core.client = new connect.UpstreamConduitClient(conduit);
@@ -24825,6 +24848,19 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         .withException(e).sendInternalLogToServer();
     }
   };
+
+  connect.core._setTabId = function() {
+    try {
+      connect.core.tabId = window.sessionStorage.getItem(connect.SessionStorageKeys.TAB_ID);
+      if (!connect.core.tabId){
+        connect.core.tabId = connect.randomId();
+        window.sessionStorage.setItem(connect.SessionStorageKeys.TAB_ID, connect.core.tabId);
+      }
+      connect.core.upstream.sendUpstream(connect.EventType.TAB_ID, {tabId: connect.core.tabId});
+    } catch(e) {
+      connect.getLog().error("[Tab Id] There was an issue setting the tab Id").withException(e).sendInternalLogToServer();
+    }
+  }
  
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
@@ -25775,7 +25811,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     "update_connected_ccps",
     "outer_context_info",
     "media_device_request",
-    "media_device_response"
+    "media_device_response",
+    "tab_id"
   ]);
 
   /**---------------------------------------------------------------
@@ -29683,6 +29720,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     this.nextToken = null;
     this.initData = {};
     this.portConduitMap = {};
+    this.streamMapByTabId = {};
     this.masterCoord = new MasterTopicCoordinator();
     this.logsBuffer = [];
     this.suppress = false;
@@ -29853,12 +29891,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         connect.hitch(self, self.handleMasterRequest, portConduit, stream.getId()));
       portConduit.onDownstream(connect.EventType.RELOAD_AGENT_CONFIGURATION,
         connect.hitch(self, self.pollForAgentConfiguration));
-      portConduit.onDownstream(connect.EventType.CLOSE, function () {
-        self.multiplexer.removeStream(stream);
-        delete self.portConduitMap[stream.getId()];
-        self.masterCoord.removeMaster(stream.getId());
-        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, { length: Object.keys(self.portConduitMap).length });
-      });
+      portConduit.onDownstream(connect.EventType.TAB_ID,
+        connect.hitch(self, self.handleTabIdEvent, stream));
+      portConduit.onDownstream(connect.EventType.CLOSE, 
+        connect.hitch(self, self.handleCloseEvent, stream));
     };
   };
 
@@ -30154,6 +30190,51 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }
 
     portConduit.sendDownstream(response.event, response);
+  };
+
+  ClientEngine.prototype.handleTabIdEvent = function (stream, data) {
+    var self = this;
+    try {
+      let tabId = data.tabId;
+      let streamsInThisTab = self.streamMapByTabId[tabId];
+      let currentStreamId = stream.getId();
+      if (streamsInThisTab && streamsInThisTab.length > 0){
+        if (!streamsInThisTab.includes(currentStreamId)) {
+          self.streamMapByTabId[tabId].push(currentStreamId);
+          let updateObject = { length: Object.keys(self.portConduitMap).length };
+          updateObject[tabId] = { length: streamsInThisTab.length };
+          self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
+        }
+      }
+      else {
+        self.streamMapByTabId[tabId] = [stream.getId()];
+        let updateObject = { length: Object.keys(self.portConduitMap).length };
+        updateObject[tabId] = { length: self.streamMapByTabId[tabId].length };
+        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
+      }
+    } catch(e) {
+      connect.getLog().error("[Tab Ids] Issue updating connected CCPs within the same tab").withException(e).sendInternalLogToServer();
+    }
+  };
+
+  ClientEngine.prototype.handleCloseEvent = function(stream) {
+    var self = this;
+    self.multiplexer.removeStream(stream);
+    delete self.portConduitMap[stream.getId()];
+    self.masterCoord.removeMaster(stream.getId());
+    let updateObject = { length: Object.keys(self.portConduitMap).length };
+    try {
+      let tabId = Object.keys(self.streamMapByTabId).find(key => self.streamMapByTabId[key].includes(stream.getId()));
+      if (tabId) {
+        let streamIndexInMap = self.streamMapByTabId[tabId].findIndex((value) => stream.getId() === value);
+        self.streamMapByTabId[tabId].splice(streamIndexInMap, 1);
+        let tabLength = self.streamMapByTabId[tabId] ? self.streamMapByTabId[tabId].length : 0;
+        updateObject[tabId] = { length: tabLength };
+      }
+    } catch(e) {
+      connect.getLog().error("[Tab Ids] Issue updating tabId-specific stream data").withException(e).sendInternalLogToServer();
+    }
+    self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
   };
 
   ClientEngine.prototype.updateAgentConfiguration = function (configuration) {

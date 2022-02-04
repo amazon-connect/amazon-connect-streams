@@ -165,10 +165,78 @@ describe('Worker', function () {
         assert.isTrue(portConduit.sendDownstream.calledWith(expected.event, expected));
       });
     });
+    describe('handleTabIdEvent', function() {
+      let stream, stream2, stream3;
+      let fakeConduit = {sendDownstream: sandbox.fake()};
+      before(() => {
+        sandbox.reset();
+        stream = { getId: () => "fakeStream"};
+        stream2 = { getId: () => "fakeStream2"};
+        stream3 = { getId: () => "fakeStream3"};
+      });
+      it('does not emit an event when there is a bad streamMapByTabId', function() {
+        connect.worker.clientEngine.streamMapByTabId = null;
+        connect.worker.clientEngine.handleTabIdEvent(stream, { tabId: 'tabId' }); // should not throw an exception
+        sinon.assert.notCalled(connect.worker.clientEngine.conduit.sendDownstream);
+      });
+      it('emits an update connected ccps event with the right data object when a new tabId is communicated by a stream', function () {
+        connect.worker.clientEngine.streamMapByTabId = {};
+        connect.worker.clientEngine.portConduitMap = {"fakeStream": fakeConduit};
+        connect.worker.clientEngine.handleTabIdEvent(stream, { tabId: 'tabId' });
+        assert.deepEqual(connect.worker.clientEngine.streamMapByTabId['tabId'], ["fakeStream"]);
+        sinon.assert.calledWith(connect.worker.clientEngine.conduit.sendDownstream, connect.EventType.UPDATE_CONNECTED_CCPS, {length: 1, 'tabId': { length: 1}});
+
+        connect.worker.clientEngine.portConduitMap = {"fakeStream": fakeConduit, "fakeStream2": fakeConduit};
+        connect.worker.clientEngine.handleTabIdEvent(stream2, { tabId: 'tabId' });
+        assert.deepEqual(connect.worker.clientEngine.streamMapByTabId['tabId'], ["fakeStream", "fakeStream2"]);
+        sinon.assert.calledWith(connect.worker.clientEngine.conduit.sendDownstream, connect.EventType.UPDATE_CONNECTED_CCPS, {length: 2, 'tabId': { length: 2}});
+
+        connect.worker.clientEngine.portConduitMap = {"fakeStream": fakeConduit, "fakeStream2": fakeConduit, "fakeStream3": fakeConduit};
+        connect.worker.clientEngine.handleTabIdEvent(stream3, { tabId: 'tabId2'});
+        assert.deepEqual(connect.worker.clientEngine.streamMapByTabId['tabId2'], ["fakeStream3"]);
+        assert.deepEqual(connect.worker.clientEngine.streamMapByTabId['tabId'], ["fakeStream", "fakeStream2"]);
+        sinon.assert.calledWith(connect.worker.clientEngine.conduit.sendDownstream, connect.EventType.UPDATE_CONNECTED_CCPS, {length: 3, "tabId2": { length: 1}});
+
+        connect.worker.clientEngine.handleTabIdEvent(stream3, { tabId: 'tabId2'});
+        assert.deepEqual(connect.worker.clientEngine.streamMapByTabId['tabId2'], ["fakeStream3"]);
+        assert.deepEqual(connect.worker.clientEngine.streamMapByTabId['tabId'], ["fakeStream", "fakeStream2"]);
+
+        sinon.assert.calledThrice(connect.worker.clientEngine.conduit.sendDownstream);
+        connect.worker.clientEngine.portConduitMap = {};
+      });
+    });
+    describe('handleCloseEvent', function () {
+      let stream, stream2, stream3;
+      let fakeConduit = {sendDownstream: sandbox.fake()};
+      before(() => {
+        stream = { getId: () => "fakeStream"};
+        sandbox.reset();
+      });
+      after(() => {
+        connect.worker.clientEngine.portConduitMap = {};
+        connect.worker.clientEngine.streamMapByTabId = {};
+      })
+      it('emits a data object with the UPDATE_CONNECTED_CCPS event to notify CCP of the change in connected ccps, without tab-specific info if the table does not contain this tab id', function() {
+        connect.worker.clientEngine.portConduitMap = {"fakeStream": fakeConduit};
+        connect.worker.clientEngine.streamMapByTabId = {};
+        connect.worker.clientEngine.handleCloseEvent(stream);
+        sinon.assert.calledOnceWithExactly(connect.worker.clientEngine.conduit.sendDownstream, connect.EventType.UPDATE_CONNECTED_CCPS, {length: 0});
+      });
+      it('removes the stream from this tab\'s list and emits a data object with the UPDATE_CONNECTED_CCPS event to notify CCP of that change', function() {
+        let handleCloseEvent = connect.hitch(connect.worker.clientEngine, connect.worker.clientEngine.handleCloseEvent, stream);
+        connect.worker.clientEngine.portConduitMap = {"fakeStream1": fakeConduit, "fakeStream": fakeConduit, "fakeStream2": fakeConduit};
+        connect.worker.clientEngine.streamMapByTabId = {'tabId1': ["fakeStream", "fakeStream2"]};
+        handleCloseEvent();
+        assert.isTrue(connect.worker.clientEngine.streamMapByTabId['tabId1'].length === 1);
+        sinon.assert.calledTwice(connect.worker.clientEngine.conduit.sendDownstream);
+        sinon.assert.calledWith(connect.worker.clientEngine.conduit.sendDownstream, connect.EventType.UPDATE_CONNECTED_CCPS, {length: 2, 'tabId1': { length: 1}});
+      });
+    });
 
     describe('global.onconnect()', function () {
       var dummyEvent;
       beforeEach(function() {
+        sandbox.reset();
         dummyEvent = {
           ports: [
             {

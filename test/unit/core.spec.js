@@ -1,5 +1,4 @@
 const { assert, expect } = require("chai");
-
 require("../unit/test-setup.js");
 
 describe('Core', function () {
@@ -37,12 +36,11 @@ describe('Core', function () {
     
     describe('#connect.core.initSharedWorker()', function () {
         jsdom({ url: "http://localhost" });
-        var clock 
+        var clock;
          
         beforeEach(function () {
             clock = sinon.useFakeTimers();
             this.containerDiv = { appendChild: sandbox.spy() };
-            connect.core.initCCP(this.containerDiv, this.params);
             sandbox.stub(connect.core, "checkNotInitialized").returns(true);
             global.SharedWorker = sandbox.stub().returns({
                 port: {
@@ -57,6 +55,7 @@ describe('Core', function () {
             });
 
             sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
+            sandbox.stub(connect, 'randomId').returns('id');
         });
         afterEach(function () {
             sandbox.restore();
@@ -71,16 +70,18 @@ describe('Core', function () {
             expect(SharedWorker.calledWith(this.params.sharedWorkerUrl, "ConnectSharedWorker"));
             expect(connect.core.region).not.to.be.a("null");
         });
-        it("should update the number of connected CCPs on UPDATE_CONNECTED_CCPS event", function () {
-            connect.core.initSharedWorker(this.params);
-            expect(connect.numberOfConnectedCCPs).to.equal(0);
-            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 });
-            expect(connect.numberOfConnectedCCPs).to.equal(1);
-        });
         it("should set portStreamId on ACK", function () {
             connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
             expect(connect.core.portStreamId).to.equal('portId');
             connect.core.initialized = false;
+        });
+        it("should update the number of connected CCPs in the tab and total on UPDATE_CONNECTED_CCPS event", function () {
+            connect.core.initSharedWorker(this.params);
+            expect(connect.numberOfConnectedCCPs).to.equal(0);
+            expect(connect.numberOfConnectedCCPsInThisTab).to.equal(0);
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 , 'id': { length: 1}});
+            expect(connect.numberOfConnectedCCPs).to.equal(1);
+            expect(connect.numberOfConnectedCCPsInThisTab).to.equal(1);
         });
         it("Replicates logs received upstream while ignoring duplicates", function () {
             var logger = connect.getLog();
@@ -701,6 +702,32 @@ describe('Core', function () {
                 clientRectsLength: iframe.getClientRects().length,
             }
             sandbox.assert.calledOnceWithMatch(sendUpstreamSpy, connect.EventType.IFRAME_STYLE, expectedData);
+        });
+    });
+
+    describe('_setTabId', function () {
+        jsdom({ url: "http://localhost" });
+        let sendUpstream;
+        before(() => {
+            window.sessionStorage.setItem(connect.SessionStorageKeys.TAB_ID, null);
+            sendUpstream = sandbox.stub(connect.core.upstream, "sendUpstream");
+        })
+        beforeEach(() => {
+            sandbox.reset();
+            connect.core.tabId = null;
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        it('create a new tabId if session storage does not contain a valid one', function () {
+            connect.core._setTabId();
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.TAB_ID, {tabId: sinon.match.string});
+        });
+        it('reuses the tabId if session storage has a valid one', function () {
+            let oldTabId = window.sessionStorage.getItem(connect.SessionStorageKeys.TAB_ID);
+            connect.core._setTabId();
+            assert.isTrue(window.sessionStorage.getItem(connect.SessionStorageKeys.TAB_ID) === oldTabId);
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.TAB_ID, {tabId: sinon.match.string});
         });
     });
 

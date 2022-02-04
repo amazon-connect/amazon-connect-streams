@@ -41,7 +41,17 @@
   var CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
   var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
 
+  var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
+
   connect.numberOfConnectedCCPs = 0;
+  connect.numberOfConnectedCCPsInThisTab = 0;
+
+  /*----------------------------------------------------------------
+   * enum SessionStorageKeys
+   */
+  connect.SessionStorageKeys = connect.makeEnum([
+    'tab_id',
+  ]);
 
   /**
    * @deprecated
@@ -780,6 +790,7 @@
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
         connect.getLog().info("Acknowledged by the ConnectSharedWorker!").sendInternalLogToServer();
         connect.core.initialized = true;
+        connect.core._setTabId();
         connect.core.portStreamId = data.id;
         this.unsubscribe();
       });
@@ -823,6 +834,18 @@
       conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
         connect.getLog().info("Number of connected CCPs updated: " + data.length).sendInternalLogToServer();
         connect.numberOfConnectedCCPs = data.length;
+        if (data[connect.core.tabId] && !isNaN(data[connect.core.tabId].length)){
+          if (connect.numberOfConnectedCCPsInThisTab !== data[connect.core.tabId].length) {
+            connect.numberOfConnectedCCPsInThisTab = data[connect.core.tabId].length;
+            if (connect.numberOfConnectedCCPsInThisTab > 1) {
+              connect.getLog().warn("There are " + connect.numberOfConnectedCCPsInThisTab + " connected CCPs in this tab. Please adjust your implementation to avoid complications. If you are embedding CCP, please do so exclusively with initCCP. InitCCP will not let you embed more than one CCP.").sendInternalLogToServer();
+            }
+            connect.publishMetric({
+              name: CONNECTED_CCPS_SINGLE_TAB,
+              data: { count: connect.numberOfConnectedCCPsInThisTab}
+            });
+          }
+        }
       });
 
       connect.core.client = new connect.UpstreamConduitClient(conduit);
@@ -870,6 +893,19 @@
         .withException(e).sendInternalLogToServer();
     }
   };
+
+  connect.core._setTabId = function() {
+    try {
+      connect.core.tabId = window.sessionStorage.getItem(connect.SessionStorageKeys.TAB_ID);
+      if (!connect.core.tabId){
+        connect.core.tabId = connect.randomId();
+        window.sessionStorage.setItem(connect.SessionStorageKeys.TAB_ID, connect.core.tabId);
+      }
+      connect.core.upstream.sendUpstream(connect.EventType.TAB_ID, {tabId: connect.core.tabId});
+    } catch(e) {
+      connect.getLog().error("[Tab Id] There was an issue setting the tab Id").withException(e).sendInternalLogToServer();
+    }
+  }
  
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.

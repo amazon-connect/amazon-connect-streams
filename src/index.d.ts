@@ -190,7 +190,8 @@ declare namespace connect {
     UPDATE_CONNECTED_CCPS = 'update_connected_ccps',
     OUTER_CONTEXT_INFO = 'outer_context_info',
     MEDIA_DEVICE_REQUEST = 'media_device_request',
-    MEDIA_DEVICE_RESPONSE = 'media_device_response'
+    MEDIA_DEVICE_RESPONSE = 'media_device_response',
+    TAB_ID = 'tab_id',
   }
 
   const core: Core;
