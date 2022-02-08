@@ -72,6 +72,9 @@
 
   connect.agentApp.initApp = function (name, containerId, appUrl, config) {
     config = config ? config : {};
+    if (config.addNamespaceToLogs) {
+      connect.addNamespaceToLogs(name.toUpperCase());
+    }
     var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
     var onLoad = config.onLoad ? config.onLoad : null;
     var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
