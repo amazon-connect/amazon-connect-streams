@@ -505,7 +505,7 @@
   Logger.prototype.scheduleUpstreamLogPush = function (conduit) {
     if (!connect.upstreamLogPushScheduled) {
       connect.upstreamLogPushScheduled = true;
-      /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to LARS*/
+      /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to the CTI backend*/
       global.setInterval(connect.hitch(this, this.reportMasterLogsUpStream, conduit), SOFTPHONE_LOG_REPORT_INTERVAL_MILLIS);
     }
   };

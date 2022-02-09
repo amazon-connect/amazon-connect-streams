@@ -36,7 +36,7 @@ describe('Core', function () {
     
     describe('#connect.core.initSharedWorker()', function () {
         jsdom({ url: "http://localhost" });
-        var clock;
+        let clock, onAuthFailSpy, onAuthorizeSuccessSpy, hitchSpy;
          
         beforeEach(function () {
             clock = sinon.useFakeTimers();
@@ -56,6 +56,9 @@ describe('Core', function () {
 
             sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
             sandbox.stub(connect, 'randomId').returns('id');
+            onAuthFailSpy = sandbox.stub(connect.core, 'onAuthFail');
+            onAuthorizeSuccessSpy = sandbox.stub(connect.core, 'onAuthorizeSuccess');
+            hitchSpy = sandbox.spy(connect, "hitch");
         });
         afterEach(function () {
             sandbox.restore();
@@ -69,6 +72,10 @@ describe('Core', function () {
             expect(connect.core.checkNotInitialized.called);
             expect(SharedWorker.calledWith(this.params.sharedWorkerUrl, "ConnectSharedWorker"));
             expect(connect.core.region).not.to.be.a("null");
+            sandbox.assert.calledOnce(onAuthFailSpy);
+            sandbox.assert.calledOnce(onAuthorizeSuccessSpy);
+            sandbox.assert.calledWith(hitchSpy, sandbox.match.any, connect.core._handleAuthFail, sandbox.match.any, sandbox.match.any);
+            sandbox.assert.calledWith(hitchSpy, sandbox.match.any, connect.core._handleAuthorizeSuccess);
         });
         it("should set portStreamId on ACK", function () {
             connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
@@ -105,6 +112,269 @@ describe('Core', function () {
             clock.tick(2000);
             assert.lengthOf(logger._logs, originalLoggerLength + newLogs.length);
         });
+    });
+    describe('onAuthFail', function  () {
+        let getUpstreamSpy, onUpstreamSpy;
+        onUpstreamSpy = sandbox.fake();
+        before(() => {
+            getUpstreamSpy = sandbox.stub(connect.core, "getUpstream").returns({onUpstream: onUpstreamSpy});
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        it('calls getUpstream and sets the given function to trigger on the auth fail event via onUpstream', () => {
+            let spy = sandbox.fake();
+            connect.core.onAuthFail(spy);
+            sandbox.assert.calledOnce(getUpstreamSpy);
+            sandbox.assert.calledOnceWithExactly(onUpstreamSpy, connect.EventType.AUTH_FAIL, spy);
+        });
+    });
+    describe('onAuthorizeSuccess', function  () {
+        let getUpstreamSpy, onUpstreamSpy;
+        onUpstreamSpy = sandbox.fake();
+        before(() => {
+            getUpstreamSpy = sandbox.stub(connect.core, "getUpstream").returns({onUpstream: onUpstreamSpy});
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        it('calls getUpstream and sets the given function to trigger on the auth fail event via onUpstream', () => {
+            let spy = sandbox.fake();
+            connect.core.onAuthorizeSuccess(spy);
+            sandbox.assert.calledOnce(getUpstreamSpy);
+            sandbox.assert.calledOnceWithExactly(onUpstreamSpy, connect.EventType.AUTHORIZE_SUCCESS, spy);
+        });
+    });
+    describe('_handleAuthorizeSuccess', function () {
+        jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
+        it('resets the authRetryCount to 0', () => {
+            window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 5);
+            connect.core._handleAuthorizeSuccess();
+            assert.equal(window.sessionStorage.getItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT), 0);
+        });
+    });
+    describe('_handleAuthFail', function () {
+        let handleAuthorizeFailSpy, handleCTIAuthFailSpy;
+        let loginUrl = 'fakeLoginUrl.com/login';
+        let authorizeEndpoint = '/authorize';
+        let authFailData = {authorize: true};
+        before(() => {
+            handleAuthorizeFailSpy = sandbox.stub(connect.core, "_handleAuthorizeFail");
+            handleCTIAuthFailSpy = sandbox.stub(connect.core, "_handleCTIAuthFail");
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        it('calls _handleAuthorizeFail in the case that the authFailData exists and has an authorize field that evaluates to true', () => {
+            connect.core._handleAuthFail(loginUrl, authorizeEndpoint, authFailData);
+            sandbox.assert.calledOnceWithExactly(handleAuthorizeFailSpy, loginUrl);
+        });
+        it('calls _handleCTIAuthFail in the case that the authFailData exists and has an authorize field that evaluates to true', () => {
+            connect.core._handleAuthFail(loginUrl, authorizeEndpoint, null);
+            sandbox.assert.calledOnceWithExactly(handleCTIAuthFailSpy, authorizeEndpoint);
+        });
+    });
+    describe('_handleAuthorizeFail', function () {
+        jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
+        let clock, calculateRetryDelaySpy, redirectToLoginSpy;
+        let loginUrl = 'fakeLoginUrl.com/login';
+        before(() => {
+            calculateRetryDelaySpy = sandbox.stub(AWS.util, "calculateRetryDelay").returns(10);
+            clock = sandbox.useFakeTimers();
+            redirectToLoginSpy = sandbox.stub(connect.core, "_redirectToLogin");
+        });
+        afterEach(() => {
+            clock.reset();
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        it('Does not call redirectToLogin at all if authRetryCount is greater than max auth retry count for the session', () => {
+            window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 4);
+            connect.core._handleAuthorizeFail(loginUrl);
+            clock.runAll();
+            sandbox.assert.notCalled(calculateRetryDelaySpy);
+            sandbox.assert.notCalled(redirectToLoginSpy);
+        });
+        it('Does not call redirectToLogin at all if timeoutId is not null', () => {
+            window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0);
+            connect.core.authorizeTimeoutId = 'randomId';
+            connect.core._handleAuthorizeFail(loginUrl);
+            clock.runAll();
+            sandbox.assert.notCalled(calculateRetryDelaySpy);
+            sandbox.assert.notCalled(redirectToLoginSpy);
+        });
+        it('will call redirectToLogin three times if the timeout has been cleared each time', () => {
+            window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0); //for clarity
+            connect.core.authorizeTimeoutId = null;
+            connect.core._handleAuthorizeFail(loginUrl);
+            clock.runAll();
+            sandbox.assert.calledOnceWithExactly(calculateRetryDelaySpy, 1, {base: 2000});
+            sandbox.assert.calledOnceWithExactly(redirectToLoginSpy, loginUrl);
+            connect.core.authorizeTimeoutId = null;
+            connect.core._handleAuthorizeFail(loginUrl);
+            clock.runAll();
+            connect.core.authorizeTimeoutId = null;
+            connect.core._handleAuthorizeFail(loginUrl);
+            clock.runAll();
+            sandbox.assert.calledThrice(calculateRetryDelaySpy);
+            sandbox.assert.calledThrice(redirectToLoginSpy);
+            connect.core.authorizeTimeoutId = null;
+            connect.core._handleAuthorizeFail(loginUrl);
+            clock.runAll();
+            sandbox.assert.calledThrice(calculateRetryDelaySpy);
+            sandbox.assert.calledThrice(redirectToLoginSpy);
+        });
+    });
+
+    describe('redirectToLogin', function () {
+        jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
+        let reloadStub, assignStub;
+        before(() => {
+            reloadStub = sandbox.stub(location, "reload");
+            assignStub = sandbox.stub(location, "assign");
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        it('sets the window.location.href property if there is a loginUrl supplied', () => {
+            let loginUrl = 'fakeLogin/login';
+            connect.core._redirectToLogin(loginUrl);
+            sandbox.assert.calledOnceWithExactly(assignStub, loginUrl);
+        });
+        it('reloads the location if there is no loginUrl supplied', () => {
+            connect.core._redirectToLogin(null);
+            sandbox.assert.calledOnce(reloadStub);
+        });
+    });
+
+    describe('_handleCTIAuthFail', function () {
+        let clock, calculateRetryDelaySpy, authorizeSpy, triggerAuthorizeSuccessStub, triggerAuthFailStub;
+        let authorizeEndpoint = 'fakeLoginUrl.com/authorize';
+        before(() => {
+            calculateRetryDelaySpy = sandbox.stub(AWS.util, "calculateRetryDelay").returns(10);
+            clock = sandbox.useFakeTimers();
+            authorizeSpy = sandbox.stub(connect.core, "authorize").resolves();
+            triggerAuthorizeSuccessStub = sandbox.stub(connect.core, "_triggerAuthorizeSuccess");
+            triggerAuthFailStub = sandbox.stub(connect.core, "_triggerAuthFail");
+        });
+        afterEach(() => {
+            clock.reset();
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        let cycleCTIAuthFail = () => {
+            connect.core._handleCTIAuthFail(authorizeEndpoint);
+            clock.runAll();
+            clock.runAll();
+        }
+        it('does not do anything if the retry count is not smaller than the max', () => {
+            connect.core.ctiAuthRetryCount = 11;
+            connect.core._handleCTIAuthFail(authorizeEndpoint);
+            sandbox.assert.notCalled(calculateRetryDelaySpy);
+            sandbox.assert.notCalled(authorizeSpy);
+            connect.core._triggerAuthorizeSuccess();
+            sandbox.assert.calledOnce(triggerAuthorizeSuccessStub);
+        });
+        it('does not do anything if the timeoutId is defined', () => {
+            connect.core.ctiAuthRetryCount = 0; 
+            connect.core.ctiTimeoutId = "someId";
+            connect.core._handleCTIAuthFail(authorizeEndpoint);
+            sandbox.assert.notCalled(calculateRetryDelaySpy);
+            sandbox.assert.notCalled(authorizeSpy);
+        });
+        it('calls connect.core.authorize if the maximum number of retries is not exhausted', () => {
+            connect.core.ctiAuthRetryCount = 0; //for clarity
+            connect.core.ctiTimeoutId = null;
+            cycleCTIAuthFail();
+            sandbox.assert.calledOnceWithExactly(calculateRetryDelaySpy, connect.core.ctiAuthRetryCount, {base: 500});
+            sandbox.assert.calledOnceWithExactly(authorizeSpy, authorizeEndpoint);
+            sandbox.assert.calledOnce(calculateRetryDelaySpy);
+            sandbox.assert.calledOnce(triggerAuthorizeSuccessStub);
+            authorizeSpy.rejects();
+            cycleCTIAuthFail();
+            sandbox.assert.calledOnce(triggerAuthorizeSuccessStub);
+            for (let i = 0; i < 8; i++) {
+                cycleCTIAuthFail();
+            };
+            sandbox.assert.callCount(authorizeSpy, 10);
+            sandbox.assert.callCount(calculateRetryDelaySpy, 10);
+            sandbox.assert.callCount(triggerAuthorizeSuccessStub, 1);
+            cycleCTIAuthFail();
+            sandbox.assert.callCount(authorizeSpy, 10);
+            sandbox.assert.callCount(calculateRetryDelaySpy, 10);
+            sandbox.assert.callCount(triggerAuthorizeSuccessStub, 1);
+        });
+    });
+    describe('_triggerAuthorizeSuccess / _triggerAuthFail', function () {
+        let triggerSpy = sandbox.fake();
+        before(() => {
+            sandbox.stub(connect.core, "getUpstream").returns({upstreamBus: { trigger: triggerSpy}});
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        it('calls trigger on the upstreamBus for the upstream conduit for the corresponding events', () => {
+            connect.core._triggerAuthorizeSuccess();
+            sandbox.assert.calledOnceWithExactly(triggerSpy, connect.EventType.AUTHORIZE_SUCCESS);
+            let data = {authorize: true};
+            connect.core._triggerAuthFail(data);
+            sandbox.assert.calledWith(triggerSpy, connect.EventType.AUTH_FAIL, data);
+        });
+    });
+    describe('_getAuthRetryCount', function () {
+        jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
+        it('sets the session storage key to 0 and returns 0 when the key does not exist', () => {
+            expect(connect.core._getAuthRetryCount()).to.be.equal(0);
+        });
+        it('throws an error if the value of the correct key is NaN but not null', () => {
+            window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, "hellllllllo");
+            expect(() => connect.core._getAuthRetryCount()).to.throw();
+        });
+        it('returns the storage field as an int if it is a valid number', () => {
+            window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, (5).toString());
+            expect(connect.core._getAuthRetryCount()).to.be.equal(5);
+        });
+    });
+    describe('_incrementAuthRetryCount', function () {
+        jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
+        let getAuthRetryCount;
+        let count = 0;
+        before(() => {
+            getAuthRetryCount = sandbox.stub(connect.core, "_getAuthRetryCount").returns(count);
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        it('sets the storage key to count + 1', () => {
+            connect.core._incrementAuthRetryCount();
+            expect(parseInt(window.sessionStorage.getItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT))).to.be.equal(count+1);
+            count++;
+            getAuthRetryCount.returns(count);
+            connect.core._incrementAuthRetryCount();
+            expect(parseInt(window.sessionStorage.getItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT))).to.be.equal(count+1);
+        });
+    });
+    describe('onAuthorizeRetriesExhausted / onCTIAuthorizeRetriesExhausted', function () {
+        let subscribeSpy = sandbox.fake();
+        let inputFake = sandbox.fake();
+        before(() => {
+            sandbox.stub(connect.core, "getEventBus").returns({subscribe: subscribeSpy});
+        });
+        after(() => {
+            sandbox.restore();
+        })
+        it('subscribes the input function to AUTHORIZE_RETRIES_EXHAUSTED', () => {
+            connect.core.onAuthorizeRetriesExhausted(inputFake);
+            sandbox.assert.calledOnceWithExactly(subscribeSpy, connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, inputFake);
+            connect.core.onCTIAuthorizeRetriesExhausted(inputFake);
+            sandbox.assert.calledTwice(subscribeSpy);
+            sandbox.assert.calledWithExactly(subscribeSpy, connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, inputFake);
+        });
+    });
+    describe('onCTIAuthorizeRetriesExhausted', function () {
+
     });
     describe('legacy endpoint', function () {
         jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });

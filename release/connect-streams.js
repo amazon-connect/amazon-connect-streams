@@ -78,6 +78,9 @@
 
   connect.agentApp.initApp = function (name, containerId, appUrl, config) {
     config = config ? config : {};
+    if (config.addNamespaceToLogs) {
+      connect.addNamespaceToLogs(name.toUpperCase());
+    }
     var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
     var onLoad = config.onLoad ? config.onLoad : null;
     var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
@@ -24001,11 +24004,18 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.numberOfConnectedCCPs = 0;
   connect.numberOfConnectedCCPsInThisTab = 0;
 
+  connect.core.MAX_AUTHORIZE_RETRY_COUNT_FOR_SESSION = 3;
+  connect.core.MAX_CTI_AUTH_RETRY_COUNT = 10;
+  connect.core.ctiAuthRetryCount = 0;
+  connect.core.authorizeTimeoutId = null;
+  connect.core.ctiTimeoutId = null;
+
   /*----------------------------------------------------------------
    * enum SessionStorageKeys
    */
   connect.SessionStorageKeys = connect.makeEnum([
     'tab_id',
+    'authorize_retry_count',
   ]);
 
   /**
@@ -24730,6 +24740,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
         conduit.onAllDownstream(conduit.passUpstream());
       }
+
       // Send configuration up to the shared worker.
       conduit.sendUpstream(connect.EventType.CONFIGURE, {
         authToken: authToken,
@@ -24773,10 +24784,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(log));
         }
       });
-      // Reload the page if the shared worker detects an API auth failure.
-      conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
-        location.reload();
-      });
+
+      connect.core.onAuthFail(connect.hitch(connect.core, connect.core._handleAuthFail, params.loginEndpoint || null, authorizeEndpoint)); // For auth retry logic on 401s.
+      connect.core.onAuthorizeSuccess(connect.hitch(connect.core, connect.core._handleAuthorizeSuccess)); // For auth retry logic on 401s.
 
       connect.getLog().info("User Agent: " + navigator.userAgent).sendInternalLogToServer();
       connect.getLog().info("isCCPv2: " + true).sendInternalLogToServer();
@@ -25573,6 +25583,99 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.core.onAuthFail = function (f) {
     connect.core.getUpstream().onUpstream(connect.EventType.AUTH_FAIL, f);
   };
+
+  connect.core.onAuthorizeSuccess = function (f) {
+    connect.core.getUpstream().onUpstream(connect.EventType.AUTHORIZE_SUCCESS, f);
+  }
+
+  connect.core._handleAuthorizeSuccess = function() {
+    window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0);
+  }
+
+  connect.core._handleAuthFail = function(loginUrl, authorizeEndpoint, authFailData) {
+    if (authFailData && authFailData.authorize) {
+      connect.core._handleAuthorizeFail(loginUrl);
+    }
+    else {
+      connect.core._handleCTIAuthFail(authorizeEndpoint);
+    }
+  }
+
+  connect.core._handleAuthorizeFail = function(loginUrl) {
+    let authRetryCount = connect.core._getAuthRetryCount()
+    if (!connect.core.authorizeTimeoutId) {
+      if (authRetryCount < connect.core.MAX_AUTHORIZE_RETRY_COUNT_FOR_SESSION) {
+        connect.core._incrementAuthRetryCount();
+        let retryDelay = AWS.util.calculateRetryDelay(authRetryCount + 1 || 0, { base: 2000 });
+        connect.core.authorizeTimeoutId = setTimeout(() => {
+          connect.core._redirectToLogin(loginUrl);
+        }, retryDelay); //We don't have to clear the timeoutId because we are redirecting away from this origin once the timeout completes.
+      }
+      else  {
+        connect.getLog().warn("We have exhausted our authorization retries due to 401s from the authorize api. No more retries will be attempted in this session until the authorize api returns 200.").sendInternalLogToServer();
+        connect.core.getEventBus().trigger(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED);
+      }
+    }
+  }
+
+  connect.core._redirectToLogin = function(loginUrl) {
+    if (typeof(loginUrl) === 'string') {
+      location.assign(loginUrl);
+    } else {
+      location.reload();
+    }
+  }
+
+  connect.core._handleCTIAuthFail = function(authorizeEndpoint) {
+    if (!connect.core.ctiTimeoutId) {
+      if (connect.core.ctiAuthRetryCount < connect.core.MAX_CTI_AUTH_RETRY_COUNT) {
+        connect.core.ctiAuthRetryCount++;
+        let retryDelay = AWS.util.calculateRetryDelay(connect.core.ctiAuthRetryCount || 0, { base: 500 });
+        connect.core.ctiTimeoutId = setTimeout(() => {
+          connect.core.authorize(authorizeEndpoint).then(connect.core._triggerAuthorizeSuccess.bind(connect.core)).catch(connect.core._triggerAuthFail.bind(connect.core, {authorize: true}));
+          connect.core.ctiTimeoutId = null;
+        }, retryDelay);
+      }
+      else {
+        connect.getLog().warn("We have exhausted our authorization retries due to 401s from the CTI service. No more retries will be attempted until the page is refreshed.").sendInternalLogToServer();
+        connect.core.getEventBus().trigger(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED);
+      }
+    }
+  }
+
+  connect.core._triggerAuthorizeSuccess = function() {
+    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.AUTHORIZE_SUCCESS);
+  }
+
+  connect.core._triggerAuthFail = function(data) {
+    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.AUTH_FAIL, data);
+  }
+
+  connect.core._getAuthRetryCount = function() {
+    let item = window.sessionStorage.getItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT);
+    if (item !== null) {
+      if (!isNaN(parseInt(item))) {
+        return parseInt(item);
+      } else {
+        throw new connect.StateError("The session storage value for auth retry count was NaN");
+      }
+    } else {
+      window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0);
+      return 0;
+    } 
+  }
+
+  connect.core._incrementAuthRetryCount = function() {
+    window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, (connect.core._getAuthRetryCount()+1).toString());
+  }
+
+  connect.core.onAuthorizeRetriesExhausted = function(f) {
+    connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
+  }
+
+  connect.core.onCTIAuthorizeRetriesExhausted = function(f) {
+    connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
+  }
  
   /** ------------------------------------------------- */
  
@@ -25812,7 +25915,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     "outer_context_info",
     "media_device_request",
     "media_device_response",
-    "tab_id"
+    "tab_id",
+    'authorize_success',
+    'authorize_retries_exhausted',
+    'cti_authorize_retries_exhausted',
   ]);
 
   /**---------------------------------------------------------------
@@ -26676,7 +26782,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   Logger.prototype.scheduleUpstreamLogPush = function (conduit) {
     if (!connect.upstreamLogPushScheduled) {
       connect.upstreamLogPushScheduled = true;
-      /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to LARS*/
+      /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to the CTI backend*/
       global.setInterval(connect.hitch(this, this.reportMasterLogsUpStream, conduit), SOFTPHONE_LOG_REPORT_INTERVAL_MILLIS);
     }
   };
@@ -29398,6 +29504,19 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     bus.trigger(connect.EventType.CLIENT_SIDE_LOGS, logs);
   };
 
+  connect.addNamespaceToLogs = function(namespace) {
+    const methods = ['log', 'error', 'warn', 'info', 'debug'];
+
+    methods.forEach((method) => {
+      const consoleMethod = window.console[method];
+      window.console[method] = function () {
+        const args = Array.from(arguments);
+        args.unshift(`[${namespace}]`);
+        consoleMethod.apply(window.console, args);
+      };
+    });
+  };
+
   /**
    * A wrapper around Window.open() for managing single instance popups.
    */
@@ -30146,7 +30265,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           .withException(err)
           .sendInternalLogToServer();
       },
-      authFailure: connect.hitch(self, self.handleAuthFail)
+      authFailure: connect.hitch(self, self.handleAuthFail, {authorize: true})
     });
   };
 
@@ -30382,9 +30501,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     });
   };
 
-  ClientEngine.prototype.handleAuthFail = function () {
+  ClientEngine.prototype.handleAuthFail = function (data) {
     var self = this;
-    self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+    if (data) {
+      self.conduit.sendDownstream(connect.EventType.AUTH_FAIL, data);
+    }
+    else {
+      self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+    }
   };
 
   ClientEngine.prototype.handleAccessDenied = function () {

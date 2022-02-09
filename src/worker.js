@@ -556,7 +556,7 @@
           .withException(err)
           .sendInternalLogToServer();
       },
-      authFailure: connect.hitch(self, self.handleAuthFail)
+      authFailure: connect.hitch(self, self.handleAuthFail, {authorize: true})
     });
   };
 
@@ -792,9 +792,14 @@
     });
   };
 
-  ClientEngine.prototype.handleAuthFail = function () {
+  ClientEngine.prototype.handleAuthFail = function (data) {
     var self = this;
-    self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+    if (data) {
+      self.conduit.sendDownstream(connect.EventType.AUTH_FAIL, data);
+    }
+    else {
+      self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+    }
   };
 
   ClientEngine.prototype.handleAccessDenied = function () {

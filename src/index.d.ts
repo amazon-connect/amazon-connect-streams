@@ -90,11 +90,35 @@ declare namespace connect {
     initCCP(container: HTMLElement, options: InitCCPOptions): void;
 
     /**
+     * Subscribes a callback function to be called when the agent authorization api succeeds.
+     */
+    onAuthorizeSuccess(f: Function): void;
+
+    /**
      * Subscribes a callback function to be called when the connect.EventType.IFRAME_RETRIES_EXHAUSTED event is triggered.
      * 
      * @param f The callback function.
      */
     onIframeRetriesExhausted(f: Function): void;
+
+    /**
+     * Subscribes a callback function to be called when multiple authorization-type CTI API failures have happened.
+     * After this event occurs, streams will not try to re-authenticate the user when more CTI API authorization-type (401) failures happen.
+     * Note that CTI APIs are the agent, contact, and connection apis (specifically, those listed under the `connect.ClientMethods` enum). 
+     * Therefore, it may be prudent to indicate to the agent that there is a problem related to authorization.
+     * 
+     * @param f The callback function.
+     */
+    onCTIAuthorizeRetriesExhausted(f: Function): void;
+
+    /**
+     * Subscribes a callback function to be called when multiple agent authorization api failures have happened.
+     * After this event occurs, streams will not try to redirect the user to login when more agent authorization api failures happen. 
+     * Therefore, it may be prudent to indicate to the agent that there is a problem related to authorization.
+     * 
+     * @param f The callback function.
+     */
+    onAuthorizeRetriesExhausted(f: Function): void;
 
     /**
      * Terminates Amazon Connect Streams. Removing any subscription methods that have been called.
@@ -192,6 +216,9 @@ declare namespace connect {
     MEDIA_DEVICE_REQUEST = 'media_device_request',
     MEDIA_DEVICE_RESPONSE = 'media_device_response',
     TAB_ID = 'tab_id',
+    AUTHORIZE_SUCCESS = 'authorize_success',
+    AUTHORIZE_RETRIES_EXHAUSTED = 'authorize_retries_exhausted',
+    CTI_AUTHORIZE_RETRIES_EXHAUSTED = 'cti_authorize_retries_exhausted',
   }
 
   const core: Core;

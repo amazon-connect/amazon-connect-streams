@@ -296,6 +296,30 @@ connect.core.onIframeRetriesExhausted(() => {
 ```
 Subscribes a callback function to be called when the iframe failed to load, after attempting all retries. An Iframe Retry (refresh of the iframe page) is scheduled whenever there is a `connect.EventType.ACK_TIMEOUT`. If a `connect.EventType.ACKNOWLEDGE` event happens before the scheduled retry, the retry is cancelled. We allow for 6 scheduled retries. Once these are exhausted, `connect.EventType.ACK_TIMEOUT` events do not trigger scheduled retries.
 
+### `connect.core.onAuthorizeSuccess()`
+```js
+connect.core.onAuthorizeSuccess(() => {
+  console.log("authorization succeeded! Hooray");
+});
+```
+Subscribes a callback function to be called when the agent authorization api succeeds.
+
+### `connect.core.onCTIAuthorizeRetriesExhausted()`
+```js
+connect.core.onCTIAuthorizeRetriesExhausted(() => {
+  console.log("We have failed CTI API authorization multiple times and we are out of retries");
+});
+```
+Subscribes a callback function to be called when multiple authorization-type CTI API failures have happened. After this event occurs, streams will not try to re-authenticate the user when more CTI API authorization-type (401) failures happen. Note that CTI APIs are the agent, contact, and connection apis (specifically, those listed under the `connect.ClientMethods` enum). Therefore, it may be prudent to indicate to the agent that there is a problem related to authorization.
+
+### `connect.core.onAuthorizeRetriesExhausted()`
+```js
+connect.core.onAuthorizeRetriesExhausted(() => {
+  console.log("We have failed the agent authorization api multiple times and we are out of retries");
+});
+```
+Subscribes a callback function to be called when multiple agent authorization api failures have happened. After this event occurs, streams will not try to redirect the user to login when more agent authorization api failures happen. Therefore, it may be prudent to indicate to the agent that there is a problem related to authorization.
+
 ### `connect.core.terminate()`
 ```js
 var containerDiv = document.getElementById("containerDiv");
