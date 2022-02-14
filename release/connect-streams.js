@@ -24992,20 +24992,22 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
         connect.getLog().info(`Iframe initialization time ${initTime}`).sendInternalLogToServer();
         connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
-        connect.publishMetric({
-          name: CSM_IFRAME_REFRESH_ATTEMPTS,
-          data: refreshAttempts
-        });
-        connect.publishMetric({
-          name: CSM_IFRAME_INITIALIZATION_SUCCESS,
-          data: 1 
-        });
-        connect.publishMetric({
-          name: CSM_IFRAME_INITIALIZATION_TIME,
-          data: initTime
-        });
-        //to avoid metric emission after initialization
-        initStartTime = null;
+        setTimeout(() => {
+          connect.publishMetric({
+            name: CSM_IFRAME_REFRESH_ATTEMPTS,
+            data: { count: refreshAttempts} 
+          });
+          connect.publishMetric({
+            name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+            data: { count: 1} 
+          });
+          connect.publishMetric({
+            name: CSM_IFRAME_INITIALIZATION_TIME,
+            data: { count: initTime} 
+          });
+          //to avoid metric emission after initialization
+          initStartTime = null;
+        },1000)
       }
     });
  
@@ -25075,11 +25077,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
         connect.publishMetric({
           name: CSM_IFRAME_REFRESH_ATTEMPTS,
-          data: refreshAttempts
+          data: { count: refreshAttempts}
         });
         connect.publishMetric({
           name: CSM_IFRAME_INITIALIZATION_SUCCESS,
-          data: 0 
+          data: { count: 0}
         });
         initStartTime = null;
       }
