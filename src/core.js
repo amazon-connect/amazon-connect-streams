@@ -792,7 +792,8 @@
         region: region,
         authorizeEndpoint: authorizeEndpoint,
         agentAppEndpoint: agentAppEndpoint,
-        authCookieName: authCookieName
+        authCookieName: authCookieName,
+        longPollingOptions: params.longPollingOptions || undefined
       });
  
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {

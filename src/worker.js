@@ -135,6 +135,10 @@
     this.logsBuffer = [];
     this.suppress = false;
     this.forceOffline = false;
+    this.longPollingOptions = {
+      allowLongPollingShadowMode: false, 
+      allowLongPollingWebsocketOnlyMode: false,
+    }
 
     var webSocketManager = null;
 
@@ -173,6 +177,14 @@
       if (data.authToken && data.authToken !== self.initData.authToken) {
         self.initData = data;
         connect.core.init(data);
+        if (data.longPollingOptions) {
+          if (typeof data.longPollingOptions.allowLongPollingShadowMode == "boolean") {
+            self.longPollingOptions.allowLongPollingShadowMode = data.longPollingOptions.allowLongPollingShadowMode;
+          }
+          if (typeof data.longPollingOptions.allowLongPollingWebsocketOnlyMode == "boolean") {
+            self.longPollingOptions.allowLongPollingWebsocketOnlyMode = data.longPollingOptions.allowLongPollingWebsocketOnlyMode;
+          }
+        }
         // init only once.
         if (!webSocketManager) {
 
