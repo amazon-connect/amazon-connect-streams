@@ -33,6 +33,8 @@ describe('agent-app', function () {
   });
 
   afterEach(function () {
+    domCon.remove();
+    domCon = null;
     sandbox.restore();
   });
 
