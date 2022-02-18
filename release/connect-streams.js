@@ -78,9 +78,6 @@
 
   connect.agentApp.initApp = function (name, containerId, appUrl, config) {
     config = config ? config : {};
-    if (config.addNamespaceToLogs) {
-      connect.addNamespaceToLogs(name.toUpperCase());
-    }
     var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
     var onLoad = config.onLoad ? config.onLoad : null;
     var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
@@ -24955,13 +24952,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.portStreamId = data.id;
 
-      if (params.softphone || params.chat || params.pageOptions) {
+      if (params.softphone || params.chat || params.pageOptions || params.shouldAddNamespaceToLogs) {
         // Send configuration up to the CCP.
         //set it to false if secondary
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
           softphone: params.softphone,
           chat: params.chat,
-          pageOptions: params.pageOptions
+          pageOptions: params.pageOptions,
+          shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
         });
       }
  

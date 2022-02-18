@@ -997,13 +997,14 @@
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.portStreamId = data.id;
 
-      if (params.softphone || params.chat || params.pageOptions) {
+      if (params.softphone || params.chat || params.pageOptions || params.shouldAddNamespaceToLogs) {
         // Send configuration up to the CCP.
         //set it to false if secondary
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
           softphone: params.softphone,
           chat: params.chat,
-          pageOptions: params.pageOptions
+          pageOptions: params.pageOptions,
+          shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
         });
       }
  

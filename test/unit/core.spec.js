@@ -20,7 +20,8 @@ describe('Core', function () {
             },
             chat: {
                 ringtoneUrl: this.defaultRingtoneUrl
-            }
+            },
+            shouldAddNamespaceToLogs: true
         };
         this.defaultRingtone = {
             voice: { ringtoneUrl: this.defaultRingtoneUrl },
@@ -689,7 +690,8 @@ describe('Core', function () {
             assert.isTrue(connect.core.getUpstream().sendUpstream.calledWith(connect.EventType.CONFIGURE, {
                 softphone: this.params.softphone,
                 chat: this.params.chat,
-                pageOptions: this.params.pageOptions
+                pageOptions: this.params.pageOptions,
+                shouldAddNamespaceToLogs: this.params.shouldAddNamespaceToLogs,
             }));
             spy.restore();
         });
