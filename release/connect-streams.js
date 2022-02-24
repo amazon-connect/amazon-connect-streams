@@ -23826,7 +23826,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
                            error.stack = err.stack ? err.stack.split('\n') : [];
                         } catch (e) {
                            try {
-                              error.stack = JSON.stringify(err.stack);
+                              if (typeof err.stack === 'object') {
+                                 error.stack = [JSON.stringify(err.stack)];
+                               } else if (Array.isArray(err.stack)) {
+                                 error.stack = err.stack;
+                               }
                            } catch {}
                         }
                         
@@ -26472,7 +26476,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       this.stack = e.stack ? e.stack.split('\n') : [];
     } catch (err) {
       try {
-        error.stack = JSON.stringify(e.stack);
+        if (typeof e.stack === 'object') {
+          this.stack = [JSON.stringify(e.stack)];
+        } else if (Array.isArray(e.stack)) {
+          this.stack = e.stack;
+        }
       } catch {}
     }
   };

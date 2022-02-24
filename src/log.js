@@ -186,7 +186,11 @@
       this.stack = e.stack ? e.stack.split('\n') : [];
     } catch (err) {
       try {
-        error.stack = JSON.stringify(e.stack);
+        if (typeof e.stack === 'object') {
+          this.stack = [JSON.stringify(e.stack)];
+        } else if (Array.isArray(e.stack)) {
+          this.stack = e.stack;
+        }
       } catch {}
     }
   };

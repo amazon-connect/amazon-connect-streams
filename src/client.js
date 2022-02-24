@@ -278,7 +278,11 @@
                            error.stack = err.stack ? err.stack.split('\n') : [];
                         } catch (e) {
                            try {
-                              error.stack = JSON.stringify(err.stack);
+                              if (typeof err.stack === 'object') {
+                                 error.stack = [JSON.stringify(err.stack)];
+                               } else if (Array.isArray(err.stack)) {
+                                 error.stack = err.stack;
+                               }
                            } catch {}
                         }
                         
