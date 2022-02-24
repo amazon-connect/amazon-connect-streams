@@ -23821,7 +23821,15 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
                         var error = {};
                         error.type = err.code;
                         error.message = err.message;
-                        error.stack = err.stack ? err.stack.split('\n') : [];
+                        error.stack = [];
+                        try {
+                           error.stack = err.stack ? err.stack.split('\n') : [];
+                        } catch (e) {
+                           try {
+                              error.stack = JSON.stringify(err.stack);
+                           } catch {}
+                        }
+                        
                         callbacks.failure(error, data);
                      }
 
@@ -26459,7 +26467,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   var LoggedException = function (e) {
     this.type = (e instanceof Error) ? e.name : e.code || Object.prototype.toString.call(e);
     this.message = e.message;
-    this.stack = e.stack ? e.stack.split('\n') : [];
+    this.stack = [];
+    try {
+      this.stack = e.stack ? e.stack.split('\n') : [];
+    } catch (err) {
+      try {
+        error.stack = JSON.stringify(e.stack);
+      } catch {}
+    }
   };
 
   /**

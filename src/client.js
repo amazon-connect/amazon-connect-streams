@@ -273,7 +273,15 @@
                         var error = {};
                         error.type = err.code;
                         error.message = err.message;
-                        error.stack = err.stack ? err.stack.split('\n') : [];
+                        error.stack = [];
+                        try {
+                           error.stack = err.stack ? err.stack.split('\n') : [];
+                        } catch (e) {
+                           try {
+                              error.stack = JSON.stringify(err.stack);
+                           } catch {}
+                        }
+                        
                         callbacks.failure(error, data);
                      }
 

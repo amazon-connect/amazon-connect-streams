@@ -181,7 +181,14 @@
   var LoggedException = function (e) {
     this.type = (e instanceof Error) ? e.name : e.code || Object.prototype.toString.call(e);
     this.message = e.message;
-    this.stack = e.stack ? e.stack.split('\n') : [];
+    this.stack = [];
+    try {
+      this.stack = e.stack ? e.stack.split('\n') : [];
+    } catch (err) {
+      try {
+        error.stack = JSON.stringify(e.stack);
+      } catch {}
+    }
   };
 
   /**
