@@ -23822,14 +23822,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
                         error.type = err.code;
                         error.message = err.message;
                         error.stack = [];
-                        try {
-                           error.stack = err.stack ? err.stack.split('\n') : [];
-                        } catch (e) {
+                        if (err.stack){
                            try {
-                              if (typeof err.stack === 'object') {
-                                 error.stack = [JSON.stringify(err.stack)];
-                               } else if (Array.isArray(err.stack)) {
-                                 error.stack = err.stack;
+                               if (Array.isArray(err.stack)) {
+                                   error.stack = err.stack;
+                               } else if (typeof err.stack === 'object') {
+                                   error.stack = [JSON.stringify(err.stack)];
+                               } else if (typeof err.stack === 'string') {
+                                   error.stack = err.stack.split('\n');
                                }
                            } catch {}
                         }
@@ -26472,15 +26472,15 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     this.type = (e instanceof Error) ? e.name : e.code || Object.prototype.toString.call(e);
     this.message = e.message;
     this.stack = [];
-    try {
-      this.stack = e.stack ? e.stack.split('\n') : [];
-    } catch (err) {
+    if (e.stack){
       try {
-        if (typeof e.stack === 'object') {
-          this.stack = [JSON.stringify(e.stack)];
-        } else if (Array.isArray(e.stack)) {
-          this.stack = e.stack;
-        }
+          if (Array.isArray(e.stack)) {
+              this.stack = e.stack;
+          } else if (typeof e.stack === 'object') {
+              this.stack = [JSON.stringify(e.stack)];
+          } else if (typeof e.stack === 'string') {
+              this.stack = e.stack.split('\n');
+          }
       } catch {}
     }
   };

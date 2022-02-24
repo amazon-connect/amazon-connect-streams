@@ -274,14 +274,14 @@
                         error.type = err.code;
                         error.message = err.message;
                         error.stack = [];
-                        try {
-                           error.stack = err.stack ? err.stack.split('\n') : [];
-                        } catch (e) {
+                        if (err.stack){
                            try {
-                              if (typeof err.stack === 'object') {
-                                 error.stack = [JSON.stringify(err.stack)];
-                               } else if (Array.isArray(err.stack)) {
-                                 error.stack = err.stack;
+                               if (Array.isArray(err.stack)) {
+                                   error.stack = err.stack;
+                               } else if (typeof err.stack === 'object') {
+                                   error.stack = [JSON.stringify(err.stack)];
+                               } else if (typeof err.stack === 'string') {
+                                   error.stack = err.stack.split('\n');
                                }
                            } catch {}
                         }

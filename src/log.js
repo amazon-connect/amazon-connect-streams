@@ -182,15 +182,15 @@
     this.type = (e instanceof Error) ? e.name : e.code || Object.prototype.toString.call(e);
     this.message = e.message;
     this.stack = [];
-    try {
-      this.stack = e.stack ? e.stack.split('\n') : [];
-    } catch (err) {
+    if (e.stack){
       try {
-        if (typeof e.stack === 'object') {
-          this.stack = [JSON.stringify(e.stack)];
-        } else if (Array.isArray(e.stack)) {
-          this.stack = e.stack;
-        }
+          if (Array.isArray(e.stack)) {
+              this.stack = e.stack;
+          } else if (typeof e.stack === 'object') {
+              this.stack = [JSON.stringify(e.stack)];
+          } else if (typeof e.stack === 'string') {
+              this.stack = e.stack.split('\n');
+          }
       } catch {}
     }
   };
