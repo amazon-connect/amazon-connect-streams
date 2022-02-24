@@ -796,10 +796,6 @@ describe('Core', function () {
                 connect.core.initialized = true;
             });
     
-            it("should set connect.core.softphoneParams", function () {
-                expect(connect.core.softphoneParams).to.include({ ringtoneUrl: "customVoiceRingtone.amazon.com" });
-            });
-    
             it("should trigger INIT event on ACK", function () {
                 expect(fakeOnInitHandler.callCount).to.equal(1);
             });

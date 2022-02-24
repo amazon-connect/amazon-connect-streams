@@ -134,8 +134,7 @@
   * enum ConnectionEvents
   */
   var ConnectionEvents = connect.makeNamespacedEnum('connection', [
-    'session_init',
-    'ready_to_start_session'
+    'session_init'
   ]);
 
   /**---------------------------------------------------------------
