@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || window;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
@@ -621,7 +621,7 @@
 
   //Internal identifier.
   Agent.prototype._getResourceId = function() {
-    queueArns = this.getAllQueueARNs();
+    var queueArns = this.getAllQueueARNs();
     for (let queueArn of queueArns) {
       const agentIdMatch = queueArn.match(/\/agent\/([^/]+)/);
       
@@ -1994,7 +1994,7 @@
   *  .catch(error => {})
   */
   ChatConnection.prototype.getConnectionToken = function () {
-    client = connect.core.getClient();
+    var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     var transportDetails = {
       transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
