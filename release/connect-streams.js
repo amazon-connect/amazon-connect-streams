@@ -24009,6 +24009,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
 
   var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
+  var CCP_TABS_ACROSS_BROWSER_COUNT = 'CCPTabsAcrossBrowserCount';
 
   connect.numberOfConnectedCCPs = 0;
   connect.numberOfConnectedCCPsInThisTab = 0;
@@ -24821,6 +24822,12 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
             });
           }
         }
+        connect.ifMaster(connect.MasterTopics.METRICS, () =>
+          connect.agent(() => connect.publishMetric({
+            name: CCP_TABS_ACROSS_BROWSER_COUNT,
+            data: { tabId: data.tabId, count: data.streamsTabsAcrossBrowser }
+          }))
+        );
       });
 
       connect.core.client = new connect.UpstreamConduitClient(conduit);
@@ -30353,17 +30360,19 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       let tabId = data.tabId;
       let streamsInThisTab = self.streamMapByTabId[tabId];
       let currentStreamId = stream.getId();
+      let tabIds = Object.keys(self.streamMapByTabId);
+      let streamsTabsAcrossBrowser = tabIds.filter(tabId => self.streamMapByTabId[tabId].length > 0).length;
       if (streamsInThisTab && streamsInThisTab.length > 0){
         if (!streamsInThisTab.includes(currentStreamId)) {
           self.streamMapByTabId[tabId].push(currentStreamId);
-          let updateObject = { length: Object.keys(self.portConduitMap).length };
+          let updateObject = { length: Object.keys(self.portConduitMap).length, tabId, streamsTabsAcrossBrowser };
           updateObject[tabId] = { length: streamsInThisTab.length };
           self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
         }
       }
       else {
         self.streamMapByTabId[tabId] = [stream.getId()];
-        let updateObject = { length: Object.keys(self.portConduitMap).length };
+        let updateObject = { length: Object.keys(self.portConduitMap).length, tabId, streamsTabsAcrossBrowser: streamsTabsAcrossBrowser + 1 };
         updateObject[tabId] = { length: self.streamMapByTabId[tabId].length };
         self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
       }
@@ -30378,14 +30387,18 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     delete self.portConduitMap[stream.getId()];
     self.masterCoord.removeMaster(stream.getId());
     let updateObject = { length: Object.keys(self.portConduitMap).length };
+    let tabIds = Object.keys(self.streamMapByTabId);
     try {
-      let tabId = Object.keys(self.streamMapByTabId).find(key => self.streamMapByTabId[key].includes(stream.getId()));
+      let tabId = tabIds.find(key => self.streamMapByTabId[key].includes(stream.getId()));
       if (tabId) {
         let streamIndexInMap = self.streamMapByTabId[tabId].findIndex((value) => stream.getId() === value);
         self.streamMapByTabId[tabId].splice(streamIndexInMap, 1);
         let tabLength = self.streamMapByTabId[tabId] ? self.streamMapByTabId[tabId].length : 0;
         updateObject[tabId] = { length: tabLength };
+        updateObject.tabId = tabId;
       }
+      let streamsTabsAcrossBrowser = tabIds.filter(tabId => self.streamMapByTabId[tabId].length > 0).length;
+      updateObject.streamsTabsAcrossBrowser = streamsTabsAcrossBrowser;
     } catch(e) {
       connect.getLog().error("[Tab Ids] Issue updating tabId-specific stream data").withException(e).sendInternalLogToServer();
     }
