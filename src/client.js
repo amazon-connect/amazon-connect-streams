@@ -73,6 +73,16 @@
    ]);
 
    /**---------------------------------------------------------------
+    * enum TaskTemplatesClientMethods
+    */
+   connect.TaskTemplatesClientMethods = connect.makeEnum([
+      'listTaskTemplates',
+      'getTaskTemplate',
+      'createTemplatedTask',
+      'updateTemplatedTask'
+   ]);
+
+   /**---------------------------------------------------------------
     * abstract class ClientBase
     */
    var ClientBase = function() {};
@@ -243,6 +253,7 @@
    AWSClient.prototype.constructor = AWSClient;
 
    AWSClient.prototype._callImpl = function(method, params, callbacks) {
+
       var self = this;
       var log = connect.getLog();
 
@@ -402,11 +413,86 @@
       return report;
    };
 
+   /**---------------------------------------------------------------
+   * class TaskTemplatesClient extends ClientBase
+   */
+   var TaskTemplatesClient = function(endpoint) {
+      ClientBase.call(this);
+      this.baseUrl = connect.getBaseUrl();
+      if (endpoint) {
+         try {
+            var AWSEndpoint = new AWS.Endpoint(endpoint);
+            this.baseUrl = AWSEndpoint.protocol + '//' + AWSEndpoint.hostname;
+         } catch (e) {
+            connect.getLog().error("Failed to build an endpoint")
+            .withException(e).sendInternalLogToServer();
+         }
+      } 
+   };
+
+   TaskTemplatesClient.prototype = Object.create(ClientBase.prototype);
+   TaskTemplatesClient.prototype.constructor = TaskTemplatesClient;
+
+   TaskTemplatesClient.prototype._callImpl = function(method, params, callbacks) {
+      var self = this;
+      var options = {
+         credentials: 'include',
+         method: 'GET',
+         headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'x-csrf-token': 'csrf'         
+         }
+      };
+      var instanceId = params.instanceId;
+      var url = `${self.baseUrl}/task-templates/api`;
+      var methods = connect.TaskTemplatesClientMethods;
+      switch (method) {
+         case methods.LIST_TASK_TEMPLATES: 
+            url += `/proxy/instance/${instanceId}/task/template`;
+            break;
+         case methods.GET_TASK_TEMPLATE: 
+            const { id, version } = params.templateParams;
+            url += `/proxy/instance/${instanceId}/task/template/${id}`;
+            if (version) {
+               url += `?snapshotVersion=${version}`
+            }
+            break;
+         case methods.CREATE_TEMPLATED_TASK: 
+            url += `/ccp/${method}`;
+            options.body = JSON.stringify(params);
+            options.method = 'PUT';
+            break;
+         case methods.UPDATE_TEMPLATED_TASK: 
+            url += `/ccp/${method}`;
+            options.body = JSON.stringify(params);
+            options.method = 'POST';
+      }
+      connect.fetch(url, options)
+      .then(function(res){
+         callbacks.success(res);
+      }).catch(function(err){
+         const reader = err.body.getReader();
+         let body = '';
+         const decoder = new TextDecoder();
+         reader.read().then(function processText({ done, value }) {
+            if (done) {
+               var error = JSON.parse(body);
+               error.status = err.status;
+               callbacks.failure(error);
+               return;
+            }
+            body += decoder.decode(value);
+            return reader.read().then(processText);
+         });
+      })
+   };
+
    connect.ClientBase = ClientBase;
    connect.NullClient = NullClient;
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
    connect.AgentAppClient = AgentAppClient;
-
+   connect.TaskTemplatesClient = TaskTemplatesClient;
 })();

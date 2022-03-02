@@ -73,6 +73,17 @@
           callbacks.failure(error);
         }
       })
+    } else if(connect.containsValue(connect.TaskTemplatesClientMethods, method)) {
+      connect.core.getTaskTemplatesClient()._callImpl(method, params, {
+        success: function (data) {
+          self._recordAPILatency(method, request_start);
+          callbacks.success(data);
+        },
+        failure: function (error) {
+          self._recordAPILatency(method, request_start, error);
+          callbacks.failure(error);
+        }
+      })
     } else {
       connect.core.getClient()._callImpl(method, params, {
         success: function (data) {

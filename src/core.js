@@ -241,6 +241,7 @@
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.initClient(params);
     connect.core.initAgentAppClient(params);
+    connect.core.initTaskTemplatesClient(params);
     connect.core.initialized = true;
   };
  
@@ -272,6 +273,15 @@
     
     connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
   };
+
+  /**-------------------------------------------------------------------------
+   * Initialized TaskTemplates client
+   */
+  connect.core.initTaskTemplatesClient = function (params) {
+    connect.assertNotNull(params, 'params');
+    var endpoint = params.endpoint || null;
+    connect.core.taskTemplatesClient = new connect.TaskTemplatesClient(endpoint);
+  };
  
   /**-------------------------------------------------------------------------
    * Uninitialize Connect.
@@ -279,6 +289,7 @@
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
     connect.core.agentAppClient = new connect.NullClient();
+    connect.core.taskTemplatesClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -1865,6 +1876,15 @@
   };
   connect.core.agentAppClient = null;
  
+  /**-----------------------------------------------------------------------*/
+  connect.core.getTaskTemplatesClient = function () {
+    if (!connect.core.taskTemplatesClient) {
+      throw new connect.StateError('The connect TaskTemplates Client has not been initialized!');
+    }
+    return connect.core.taskTemplatesClient;
+  };
+  connect.core.taskTemplatesClient = null;
+
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {
     if (!connect.core.masterClient) {

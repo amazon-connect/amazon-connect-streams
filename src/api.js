@@ -843,6 +843,10 @@
     return this._getData().contactFeatures;
   };
 
+  Contact.prototype.getChannelContext = function () {
+    return this._getData().channelContext;
+  };
+
   Contact.prototype.isSoftphoneCall = function () {
     return connect.find(this.getConnections(), function (conn) {
       return conn.getSoftphoneMediaInfo() != null;

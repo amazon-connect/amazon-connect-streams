@@ -700,4 +700,5 @@
     var conduit = connect.core.getUpstream();
     return conduit.name === 'ConnectSharedWorkerConduit';
   }
+
 })();

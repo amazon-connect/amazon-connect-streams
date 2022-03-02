@@ -1032,6 +1032,10 @@
     return this._getData().contactFeatures;
   };
 
+  Contact.prototype.getChannelContext = function () {
+    return this._getData().channelContext;
+  };
+
   Contact.prototype.isSoftphoneCall = function () {
     return connect.find(this.getConnections(), function (conn) {
       return conn.getSoftphoneMediaInfo() != null;
@@ -3554,6 +3558,18 @@ module.exports={
                           "type": "boolean"
                         }
                       }
+                    },
+                    "channelContext": {
+                      "type": "structure",
+                      "members": {
+                        "scheduledTime": {
+                          "type": "long"
+                        },
+                        "taskTemplateId": {},
+                        "taskTemplateVersion": {
+                          "type": "integer"
+                        }
+                      }
                     }
                   }
                 }
@@ -3914,7 +3930,7 @@ module.exports={
           "contactId": {},
           "ccpVersion": {},
           "softphoneStreamStatistics": {
-            "shape": "S3r"
+            "shape": "S3t"
           }
         }
       },
@@ -3947,7 +3963,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S3r"
+                "shape": "S3t"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -4183,7 +4199,7 @@ module.exports={
         }
       }
     },
-    "S3r": {
+    "S3t": {
       "type": "list",
       "member": {
         "type": "structure",
@@ -23621,6 +23637,16 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    ]);
 
    /**---------------------------------------------------------------
+    * enum TaskTemplatesClientMethods
+    */
+   connect.TaskTemplatesClientMethods = connect.makeEnum([
+      'listTaskTemplates',
+      'getTaskTemplate',
+      'createTemplatedTask',
+      'updateTemplatedTask'
+   ]);
+
+   /**---------------------------------------------------------------
     * abstract class ClientBase
     */
    var ClientBase = function() {};
@@ -23791,6 +23817,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    AWSClient.prototype.constructor = AWSClient;
 
    AWSClient.prototype._callImpl = function(method, params, callbacks) {
+
       var self = this;
       var log = connect.getLog();
 
@@ -23950,13 +23977,88 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       return report;
    };
 
+   /**---------------------------------------------------------------
+   * class TaskTemplatesClient extends ClientBase
+   */
+   var TaskTemplatesClient = function(endpoint) {
+      ClientBase.call(this);
+      this.baseUrl = connect.getBaseUrl();
+      if (endpoint) {
+         try {
+            var AWSEndpoint = new AWS.Endpoint(endpoint);
+            this.baseUrl = AWSEndpoint.protocol + '//' + AWSEndpoint.hostname;
+         } catch (e) {
+            connect.getLog().error("Failed to build an endpoint")
+            .withException(e).sendInternalLogToServer();
+         }
+      } 
+   };
+
+   TaskTemplatesClient.prototype = Object.create(ClientBase.prototype);
+   TaskTemplatesClient.prototype.constructor = TaskTemplatesClient;
+
+   TaskTemplatesClient.prototype._callImpl = function(method, params, callbacks) {
+      var self = this;
+      var options = {
+         credentials: 'include',
+         method: 'GET',
+         headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'x-csrf-token': 'csrf'         
+         }
+      };
+      var instanceId = params.instanceId;
+      var url = `${self.baseUrl}/task-templates/api`;
+      var methods = connect.TaskTemplatesClientMethods;
+      switch (method) {
+         case methods.LIST_TASK_TEMPLATES: 
+            url += `/proxy/instance/${instanceId}/task/template`;
+            break;
+         case methods.GET_TASK_TEMPLATE: 
+            const { id, version } = params.templateParams;
+            url += `/proxy/instance/${instanceId}/task/template/${id}`;
+            if (version) {
+               url += `?snapshotVersion=${version}`
+            }
+            break;
+         case methods.CREATE_TEMPLATED_TASK: 
+            url += `/ccp/${method}`;
+            options.body = JSON.stringify(params);
+            options.method = 'PUT';
+            break;
+         case methods.UPDATE_TEMPLATED_TASK: 
+            url += `/ccp/${method}`;
+            options.body = JSON.stringify(params);
+            options.method = 'POST';
+      }
+      connect.fetch(url, options)
+      .then(function(res){
+         callbacks.success(res);
+      }).catch(function(err){
+         const reader = err.body.getReader();
+         let body = '';
+         const decoder = new TextDecoder();
+         reader.read().then(function processText({ done, value }) {
+            if (done) {
+               var error = JSON.parse(body);
+               error.status = err.status;
+               callbacks.failure(error);
+               return;
+            }
+            body += decoder.decode(value);
+            return reader.read().then(processText);
+         });
+      })
+   };
+
    connect.ClientBase = ClientBase;
    connect.NullClient = NullClient;
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
    connect.AgentAppClient = AgentAppClient;
-
+   connect.TaskTemplatesClient = TaskTemplatesClient;
 })();
 
 
@@ -24208,6 +24310,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.initClient(params);
     connect.core.initAgentAppClient(params);
+    connect.core.initTaskTemplatesClient(params);
     connect.core.initialized = true;
   };
  
@@ -24239,6 +24342,15 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     
     connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
   };
+
+  /**-------------------------------------------------------------------------
+   * Initialized TaskTemplates client
+   */
+  connect.core.initTaskTemplatesClient = function (params) {
+    connect.assertNotNull(params, 'params');
+    var endpoint = params.endpoint || null;
+    connect.core.taskTemplatesClient = new connect.TaskTemplatesClient(endpoint);
+  };
  
   /**-------------------------------------------------------------------------
    * Uninitialize Connect.
@@ -24246,6 +24358,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
     connect.core.agentAppClient = new connect.NullClient();
+    connect.core.taskTemplatesClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -25832,6 +25945,15 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   };
   connect.core.agentAppClient = null;
  
+  /**-----------------------------------------------------------------------*/
+  connect.core.getTaskTemplatesClient = function () {
+    if (!connect.core.taskTemplatesClient) {
+      throw new connect.StateError('The connect TaskTemplates Client has not been initialized!');
+    }
+    return connect.core.taskTemplatesClient;
+  };
+  connect.core.taskTemplatesClient = null;
+
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {
     if (!connect.core.masterClient) {
@@ -29723,6 +29845,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var conduit = connect.core.getUpstream();
     return conduit.name === 'ConnectSharedWorkerConduit';
   }
+
 })();
 
 
@@ -29797,6 +29920,17 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var request_start = new Date().getTime();
     if(connect.containsValue(connect.AgentAppClientMethods, method)) {
       connect.core.getAgentAppClient()._callImpl(method, params, {
+        success: function (data) {
+          self._recordAPILatency(method, request_start);
+          callbacks.success(data);
+        },
+        failure: function (error) {
+          self._recordAPILatency(method, request_start, error);
+          callbacks.failure(error);
+        }
+      })
+    } else if(connect.containsValue(connect.TaskTemplatesClientMethods, method)) {
+      connect.core.getTaskTemplatesClient()._callImpl(method, params, {
         success: function (data) {
           self._recordAPILatency(method, request_start);
           callbacks.success(data);
