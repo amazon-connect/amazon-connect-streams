@@ -42,6 +42,7 @@
   var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
 
   var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
+  var CCP_TABS_ACROSS_BROWSER_COUNT = 'CCPTabsAcrossBrowserCount';
 
   connect.numberOfConnectedCCPs = 0;
   connect.numberOfConnectedCCPsInThisTab = 0;
@@ -865,6 +866,12 @@
             });
           }
         }
+        connect.ifMaster(connect.MasterTopics.METRICS, () =>
+          connect.agent(() => connect.publishMetric({
+            name: CCP_TABS_ACROSS_BROWSER_COUNT,
+            data: { tabId: data.tabId, count: data.streamsTabsAcrossBrowser }
+          }))
+        );
       });
 
       connect.core.client = new connect.UpstreamConduitClient(conduit);
