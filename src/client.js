@@ -434,6 +434,8 @@
    TaskTemplatesClient.prototype.constructor = TaskTemplatesClient;
 
    TaskTemplatesClient.prototype._callImpl = function(method, params, callbacks) {
+      connect.assertNotNull(method, 'method');
+      connect.assertNotNull(params, 'params');
       var self = this;
       var options = {
          credentials: 'include',
@@ -444,15 +446,17 @@
             'x-csrf-token': 'csrf'         
          }
       };
-      var instanceId = params.instanceId;
+      var instanceId = connect.assertNotNull(params.instanceId, 'params.instanceId');
       var url = `${self.baseUrl}/task-templates/api`;
       var methods = connect.TaskTemplatesClientMethods;
       switch (method) {
          case methods.LIST_TASK_TEMPLATES: 
-            url += `/proxy/instance/${instanceId}/task/template`;
+            url += `/proxy/instance/${instanceId}/task/template?status=ACTIVE`;
             break;
          case methods.GET_TASK_TEMPLATE: 
-            const { id, version } = params.templateParams;
+            connect.assertNotNull(params.templateParams, 'params.templateParams');
+            const id = connect.assertNotNull(params.templateParams.id, 'params.templateParams.id');
+            const version = params.templateParams.version;
             url += `/proxy/instance/${instanceId}/task/template/${id}`;
             if (version) {
                url += `?snapshotVersion=${version}`

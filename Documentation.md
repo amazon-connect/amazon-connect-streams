@@ -1156,6 +1156,21 @@ Gets references for the contact. A sample reference looks like the following:
 }
 ```
 
+### `contact.getChannelContext()`
+```js
+var channelContext = contact.getChannelContext();
+```
+Gets the channel context for the contact. For task contacts the channel context contains `scheduledTime`,  `taskTemplateId`, `taskTemplateVersion` properties. It might look like the following:
+
+```js
+{
+  scheduledTime: 1646609220
+  taskTemplateId: "ba6db758-d31e-4c6c-bd51-14d8b4686ece"
+  taskTemplateVersion: 1
+}
+```
+
+
 
 ## Connection API
 The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state
