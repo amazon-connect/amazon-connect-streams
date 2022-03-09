@@ -704,6 +704,11 @@
 
   Agent.prototype.setConfiguration = function (configuration, callbacks) {
     var client = connect.core.getClient();
+    if (configuration && configuration.agentPreferences && configuration.agentPreferences.LANGUAGE && !configuration.agentPreferences.locale) {
+      // workaround for the inconsistency issue that getAgentConfiguration returns agentPreferences.LANGUAGE but updateAgentConfiguration expects agentPreferences.locale to be set.
+      configuration.agentPreferences.locale = configuration.agentPreferences.LANGUAGE;
+    }
+
     if (configuration && configuration.agentPreferences && !connect.isValidLocale(configuration.agentPreferences.locale)) {
       if (callbacks && callbacks.failure) {
         callbacks.failure(connect.AgentErrorStates.INVALID_LOCALE);
