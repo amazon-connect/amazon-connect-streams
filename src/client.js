@@ -451,7 +451,13 @@
       var methods = connect.TaskTemplatesClientMethods;
       switch (method) {
          case methods.LIST_TASK_TEMPLATES: 
-            url += `/proxy/instance/${instanceId}/task/template?status=ACTIVE`;
+            url += `/proxy/instance/${instanceId}/task/template`;
+            if (params.queryParams) {
+               const queryString = new URLSearchParams(params.queryParams).toString();
+               if (queryString) {
+                  url += `?${queryString}`;
+               }
+            }
             break;
          case methods.GET_TASK_TEMPLATE: 
             connect.assertNotNull(params.templateParams, 'params.templateParams');
@@ -459,7 +465,7 @@
             const version = params.templateParams.version;
             url += `/proxy/instance/${instanceId}/task/template/${id}`;
             if (version) {
-               url += `?snapshotVersion=${version}`
+               url += `?snapshotVersion=${version}`;
             }
             break;
          case methods.CREATE_TEMPLATED_TASK: 
