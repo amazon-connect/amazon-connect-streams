@@ -446,7 +446,7 @@
             'x-csrf-token': 'csrf'         
          }
       };
-      var instanceId = connect.assertNotNull(params.instanceId, 'params.instanceId');
+      var instanceId = params.instanceId;
       var url = `${self.baseUrl}/task-templates/api`;
       var methods = connect.TaskTemplatesClientMethods;
       switch (method) {

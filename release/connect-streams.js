@@ -24015,7 +24015,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
             'x-csrf-token': 'csrf'         
          }
       };
-      var instanceId = connect.assertNotNull(params.instanceId, 'params.instanceId');
+      var instanceId = params.instanceId;
       var url = `${self.baseUrl}/task-templates/api`;
       var methods = connect.TaskTemplatesClientMethods;
       switch (method) {
