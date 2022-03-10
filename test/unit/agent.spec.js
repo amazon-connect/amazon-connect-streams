@@ -5,7 +5,7 @@ describe('Agent APIs', () => {
   let agent;
   before(() => {
     connect.agent.initialized = true;
-    connect.core.getAgentDataProvider = sinon.stub().returns({
+    sandbox.stub(connect.core, 'getAgentDataProvider').returns({
       getAgentData: () => ({})
     });
     agent = new connect.Agent();
