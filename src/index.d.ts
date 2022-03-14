@@ -1665,6 +1665,17 @@ declare namespace connect {
     readonly joinTime: Date;
   }
 
+  enum LogLevel {
+    TEST = "TEST",
+    TRACE = "TRACE",
+    DEBUG = "DEBUG",
+    INFO = "INFO",
+    LOG = "LOG",
+    WARN = "WARN",
+    ERROR = "ERROR",
+    CRITICAL = "CRITICAL",
+  }
+
   /**
    * The Streams library comes with a logging utility that can be used to easily gather logs and provide them for diagnostic purposes.
    * You can even add your own logs to this logger if you prefer.
@@ -1701,6 +1712,20 @@ declare namespace connect {
 
     /** Downloads the logs on the agent's machine in JSON form. */
     download(): void;
+
+    /**
+     * Set the log level.  This is the minimum level at which logs will
+     * be kept for later archiving.
+     * @param level The log level.
+     */
+    setLogLevel(level: LogLevel): void;
+
+    /**
+     * Set the echo level.  This is the minimum level at which logs will
+     * be printed to the javascript console.
+     * @param level The log level.
+     */
+    setEchoLevel(level: LogLevel): void;
   }
 
   /** Allows to add additional information to a log entry. */
