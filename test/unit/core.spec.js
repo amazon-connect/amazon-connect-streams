@@ -520,10 +520,6 @@ describe('Core', function () {
                 connect.ifMaster.callArg(1);
                 assert.isTrue(connect.SoftphoneManager.calledWithNew());
             });
-    
-            it("should set connect.core.softphoneParams", function () {
-                expect(connect.core.softphoneParams).to.include({ ringtoneUrl: defaultRingtoneUrl });
-            });
         });
     });
 
