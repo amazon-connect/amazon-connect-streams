@@ -324,6 +324,104 @@ describe('Worker', function () {
         expect(result).to.be.false;
       });
     });
+
+    describe('MasterTopicCoordinator', () => {
+      const PORT_A = 'port-A';
+      const PORT_B = 'port-B';
+      const PORT_C = 'port-C';
+      const defaultMap = {
+        softphone: PORT_A,
+        ringtone: PORT_A,
+        metrics: PORT_B
+      };
+      before(() => {
+        sandbox.stub(connect, 'assertNotNull');
+      });
+      after(() => {
+        connect.worker.clientEngine.masterCoord.topicMasterMap = {};
+        sandbox.restore();
+      });
+      describe('getMaster', () => {
+        before(() => {
+          connect.worker.clientEngine.masterCoord.topicMasterMap = defaultMap;
+        });
+        afterEach(() => {
+          sandbox.resetHistory();
+        });
+        it('should assert if no topic is passed in', () => {
+          connect.worker.clientEngine.masterCoord.getMaster();
+          sinon.assert.calledOnce(connect.assertNotNull);
+        });
+        it('should return the port id if a given topic exists in the map', () => {
+          let portId = connect.worker.clientEngine.masterCoord.getMaster('softphone');
+          expect(portId).to.equal(PORT_A);
+          portId = connect.worker.clientEngine.masterCoord.getMaster('metrics');
+          expect(portId).to.equal(PORT_B);
+        });
+        it('should return null if a given topic does NOT exist in the map', () => {
+          const portId = connect.worker.clientEngine.masterCoord.getMaster('sendLogs');
+          expect(portId).to.be.null;
+        });
+      });
+      describe('setMaster', () => {
+        beforeEach(() => {
+          connect.worker.clientEngine.masterCoord.topicMasterMap = defaultMap;
+        });
+        afterEach(() => {
+          sandbox.resetHistory();
+        });
+        it('should assert if topic is NOT passed in', () => {
+          connect.worker.clientEngine.masterCoord.setMaster();
+          sinon.assert.called(connect.assertNotNull);
+        });
+        it('should assert if id is NOT passed in', () => {
+          connect.worker.clientEngine.masterCoord.setMaster('softphone');
+          sinon.assert.called(connect.assertNotNull);
+        });
+        it('should set a master for a given new topic', () => {
+          connect.worker.clientEngine.masterCoord.setMaster('sendLogs', PORT_C);
+          expect(connect.worker.clientEngine.masterCoord.topicMasterMap['sendLogs']).to.equal(PORT_C);
+        });
+        it('should overwrite a master for a given existing topic', () => {
+          connect.worker.clientEngine.masterCoord.setMaster('softphone', PORT_C);
+          expect(connect.worker.clientEngine.masterCoord.topicMasterMap['softphone']).to.equal(PORT_C);
+        });
+      });
+      describe('removeMasterWithTopic', () => {
+        beforeEach(() => {
+          connect.worker.clientEngine.masterCoord.topicMasterMap = defaultMap;
+        });
+        afterEach(() => {
+          sandbox.resetHistory();
+        });
+        it('should assert if no topic is passed in', () => {
+          connect.worker.clientEngine.masterCoord.removeMasterWithTopic();
+          sinon.assert.called(connect.assertNotNull);
+        });
+        it('should remove a master with a given topic', () => {
+          connect.worker.clientEngine.masterCoord.removeMasterWithTopic('softphone');
+          expect(connect.worker.clientEngine.masterCoord.topicMasterMap['softphone']).to.be.undefined;
+        });
+      });
+      describe('removeMasterWithId', () => {
+        beforeEach(() => {
+          connect.worker.clientEngine.masterCoord.topicMasterMap = defaultMap;
+        });
+        afterEach(() => {
+          sandbox.resetHistory();
+        });
+        it('should assert if no id is passed in', () => {
+          connect.worker.clientEngine.masterCoord.removeMasterWithId();
+          sinon.assert.called(connect.assertNotNull);
+        });
+        it('should remove all fields whose value is a given id', () => {
+          connect.worker.clientEngine.masterCoord.removeMasterWithId(PORT_A);
+          expect(connect.worker.clientEngine.masterCoord.topicMasterMap['softphone']).to.be.undefined;
+          expect(connect.worker.clientEngine.masterCoord.topicMasterMap['ringtone']).to.be.undefined;
+          expect(connect.worker.clientEngine.masterCoord.topicMasterMap['metrics']).to.equal(PORT_B);
+        });
+      });
+    });
   });
 
   describe('TODO', function () {
