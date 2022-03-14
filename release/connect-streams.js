@@ -24950,12 +24950,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
             });
           }
         }
-        connect.ifMaster(connect.MasterTopics.METRICS, () =>
-          connect.agent(() => connect.publishMetric({
-            name: CCP_TABS_ACROSS_BROWSER_COUNT,
-            data: { tabId: data.tabId, count: data.streamsTabsAcrossBrowser }
-          }))
-        );
+        if (data.tabId && data.streamsTabsAcrossBrowser) {
+          connect.ifMaster(connect.MasterTopics.METRICS, () =>
+            connect.agent(() => connect.publishMetric({
+              name: CCP_TABS_ACROSS_BROWSER_COUNT,
+              data: { tabId: data.tabId, count: data.streamsTabsAcrossBrowser }
+            }))
+          );
+        }
       });
 
       connect.core.client = new connect.UpstreamConduitClient(conduit);
@@ -27784,7 +27786,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }
     var gumPromise = fetchUserMedia({
       success: function (stream) {
-        connect.core.setSoftphoneUserMediaStream(stream);
         publishTelemetryEvent("ConnectivityCheckResult", null, 
         {
           connectivityCheckType: "MicrophonePermission",

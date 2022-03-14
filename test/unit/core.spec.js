@@ -50,6 +50,7 @@ describe('Core', function () {
             onAuthFailSpy = sandbox.stub(connect.core, 'onAuthFail');
             onAuthorizeSuccessSpy = sandbox.stub(connect.core, 'onAuthorizeSuccess');
             hitchSpy = sandbox.spy(connect, "hitch");
+            sandbox.spy(connect, 'ifMaster');
         });
         after(function () {
             sandbox.restore();
@@ -79,6 +80,12 @@ describe('Core', function () {
             connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 , 'id': { length: 1}});
             expect(connect.numberOfConnectedCCPs).to.equal(1);
             expect(connect.numberOfConnectedCCPsInThisTab).to.equal(1);
+        });
+        it("should not emit ccp tabs across browser count if no data.tabId or data.streamsTabsAcrossBrowser", function () {
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 });
+            sandbox.assert.notCalled(connect.ifMaster);
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1, tabId: 'id', streamsTabsAcrossBrowser: 1 });
+            sandbox.assert.calledOnce(connect.ifMaster);
         });
         it("Replicates logs received upstream while ignoring duplicates", function () {
             var logger = connect.getLog();
