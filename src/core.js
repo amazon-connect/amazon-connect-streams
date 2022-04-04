@@ -41,7 +41,25 @@
   var CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
   var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
 
+  var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
+  var CCP_TABS_ACROSS_BROWSER_COUNT = 'CCPTabsAcrossBrowserCount';
+
   connect.numberOfConnectedCCPs = 0;
+  connect.numberOfConnectedCCPsInThisTab = 0;
+
+  connect.core.MAX_AUTHORIZE_RETRY_COUNT_FOR_SESSION = 3;
+  connect.core.MAX_CTI_AUTH_RETRY_COUNT = 10;
+  connect.core.ctiAuthRetryCount = 0;
+  connect.core.authorizeTimeoutId = null;
+  connect.core.ctiTimeoutId = null;
+
+  /*----------------------------------------------------------------
+   * enum SessionStorageKeys
+   */
+  connect.SessionStorageKeys = connect.makeEnum([
+    'tab_id',
+    'authorize_retry_count',
+  ]);
 
   /**
    * @deprecated
@@ -115,6 +133,7 @@
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.initClient(params);
     connect.core.initAgentAppClient(params);
+    connect.core.initTaskTemplatesClient(params);
     connect.core.initialized = true;
   };
  
@@ -146,6 +165,15 @@
     
     connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
   };
+
+  /**-------------------------------------------------------------------------
+   * Initialized TaskTemplates client
+   */
+  connect.core.initTaskTemplatesClient = function (params) {
+    connect.assertNotNull(params, 'params');
+    var endpoint = params.endpoint || null;
+    connect.core.taskTemplatesClient = new connect.TaskTemplatesClient(endpoint);
+  };
  
   /**-------------------------------------------------------------------------
    * Uninitialize Connect.
@@ -153,6 +181,7 @@
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
     connect.core.agentAppClient = new connect.NullClient();
+    connect.core.taskTemplatesClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -656,6 +685,7 @@
         // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
         conduit.onAllDownstream(conduit.passUpstream());
       }
+
       // Send configuration up to the shared worker.
       conduit.sendUpstream(connect.EventType.CONFIGURE, {
         authToken: authToken,
@@ -665,12 +695,14 @@
         region: region,
         authorizeEndpoint: authorizeEndpoint,
         agentAppEndpoint: agentAppEndpoint,
-        authCookieName: authCookieName
+        authCookieName: authCookieName,
+        longPollingOptions: params.longPollingOptions || undefined
       });
  
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
         connect.getLog().info("Acknowledged by the ConnectSharedWorker!").sendInternalLogToServer();
         connect.core.initialized = true;
+        connect.core._setTabId();
         connect.core.portStreamId = data.id;
         this.unsubscribe();
       });
@@ -698,10 +730,9 @@
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(log));
         }
       });
-      // Reload the page if the shared worker detects an API auth failure.
-      conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
-        location.reload();
-      });
+
+      connect.core.onAuthFail(connect.hitch(connect.core, connect.core._handleAuthFail, params.loginEndpoint || null, authorizeEndpoint)); // For auth retry logic on 401s.
+      connect.core.onAuthorizeSuccess(connect.hitch(connect.core, connect.core._handleAuthorizeSuccess)); // For auth retry logic on 401s.
 
       connect.getLog().info("User Agent: " + navigator.userAgent).sendInternalLogToServer();
       connect.getLog().info("isCCPv2: " + true).sendInternalLogToServer();
@@ -714,6 +745,26 @@
       conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
         connect.getLog().info("Number of connected CCPs updated: " + data.length).sendInternalLogToServer();
         connect.numberOfConnectedCCPs = data.length;
+        if (data[connect.core.tabId] && !isNaN(data[connect.core.tabId].length)){
+          if (connect.numberOfConnectedCCPsInThisTab !== data[connect.core.tabId].length) {
+            connect.numberOfConnectedCCPsInThisTab = data[connect.core.tabId].length;
+            if (connect.numberOfConnectedCCPsInThisTab > 1) {
+              connect.getLog().warn("There are " + connect.numberOfConnectedCCPsInThisTab + " connected CCPs in this tab. Please adjust your implementation to avoid complications. If you are embedding CCP, please do so exclusively with initCCP. InitCCP will not let you embed more than one CCP.").sendInternalLogToServer();
+            }
+            connect.publishMetric({
+              name: CONNECTED_CCPS_SINGLE_TAB,
+              data: { count: connect.numberOfConnectedCCPsInThisTab}
+            });
+          }
+        }
+        if (data.tabId && data.streamsTabsAcrossBrowser) {
+          connect.ifMaster(connect.MasterTopics.METRICS, () =>
+            connect.agent(() => connect.publishMetric({
+              name: CCP_TABS_ACROSS_BROWSER_COUNT,
+              data: { tabId: data.tabId, count: data.streamsTabsAcrossBrowser }
+            }))
+          );
+        }
       });
 
       connect.core.client = new connect.UpstreamConduitClient(conduit);
@@ -758,6 +809,19 @@
         .withException(e).sendInternalLogToServer();
     }
   };
+
+  connect.core._setTabId = function() {
+    try {
+      connect.core.tabId = window.sessionStorage.getItem(connect.SessionStorageKeys.TAB_ID);
+      if (!connect.core.tabId){
+        connect.core.tabId = connect.randomId();
+        window.sessionStorage.setItem(connect.SessionStorageKeys.TAB_ID, connect.core.tabId);
+      }
+      connect.core.upstream.sendUpstream(connect.EventType.TAB_ID, {tabId: connect.core.tabId});
+    } catch(e) {
+      connect.getLog().error("[Tab Id] There was an issue setting the tab Id").withException(e).sendInternalLogToServer();
+    }
+  }
  
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
@@ -841,13 +905,14 @@
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.portStreamId = data.id;
 
-      if (params.softphone || params.chat || params.pageOptions) {
+      if (params.softphone || params.chat || params.pageOptions || params.shouldAddNamespaceToLogs) {
         // Send configuration up to the CCP.
         //set it to false if secondary
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
           softphone: params.softphone,
           chat: params.chat,
-          pageOptions: params.pageOptions
+          pageOptions: params.pageOptions,
+          shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
         });
       }
  
@@ -869,20 +934,22 @@
         connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
         connect.getLog().info(`Iframe initialization time ${initTime}`).sendInternalLogToServer();
         connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
-        connect.publishMetric({
-          name: CSM_IFRAME_REFRESH_ATTEMPTS,
-          data: refreshAttempts
-        });
-        connect.publishMetric({
-          name: CSM_IFRAME_INITIALIZATION_SUCCESS,
-          data: 1 
-        });
-        connect.publishMetric({
-          name: CSM_IFRAME_INITIALIZATION_TIME,
-          data: initTime
-        });
-        //to avoid metric emission after initialization
-        initStartTime = null;
+        setTimeout(() => {
+          connect.publishMetric({
+            name: CSM_IFRAME_REFRESH_ATTEMPTS,
+            data: { count: refreshAttempts} 
+          });
+          connect.publishMetric({
+            name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+            data: { count: 1} 
+          });
+          connect.publishMetric({
+            name: CSM_IFRAME_INITIALIZATION_TIME,
+            data: { count: initTime} 
+          });
+          //to avoid metric emission after initialization
+          initStartTime = null;
+        },1000)
       }
     });
  
@@ -951,11 +1018,11 @@
         connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
         connect.publishMetric({
           name: CSM_IFRAME_REFRESH_ATTEMPTS,
-          data: refreshAttempts
+          data: { count: refreshAttempts}
         });
         connect.publishMetric({
           name: CSM_IFRAME_INITIALIZATION_SUCCESS,
-          data: 0 
+          data: { count: 0}
         });
         initStartTime = null;
       }
@@ -1459,6 +1526,99 @@
   connect.core.onAuthFail = function (f) {
     connect.core.getUpstream().onUpstream(connect.EventType.AUTH_FAIL, f);
   };
+
+  connect.core.onAuthorizeSuccess = function (f) {
+    connect.core.getUpstream().onUpstream(connect.EventType.AUTHORIZE_SUCCESS, f);
+  }
+
+  connect.core._handleAuthorizeSuccess = function() {
+    window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0);
+  }
+
+  connect.core._handleAuthFail = function(loginUrl, authorizeEndpoint, authFailData) {
+    if (authFailData && authFailData.authorize) {
+      connect.core._handleAuthorizeFail(loginUrl);
+    }
+    else {
+      connect.core._handleCTIAuthFail(authorizeEndpoint);
+    }
+  }
+
+  connect.core._handleAuthorizeFail = function(loginUrl) {
+    let authRetryCount = connect.core._getAuthRetryCount()
+    if (!connect.core.authorizeTimeoutId) {
+      if (authRetryCount < connect.core.MAX_AUTHORIZE_RETRY_COUNT_FOR_SESSION) {
+        connect.core._incrementAuthRetryCount();
+        let retryDelay = AWS.util.calculateRetryDelay(authRetryCount + 1 || 0, { base: 2000 });
+        connect.core.authorizeTimeoutId = setTimeout(() => {
+          connect.core._redirectToLogin(loginUrl);
+        }, retryDelay); //We don't have to clear the timeoutId because we are redirecting away from this origin once the timeout completes.
+      }
+      else  {
+        connect.getLog().warn("We have exhausted our authorization retries due to 401s from the authorize api. No more retries will be attempted in this session until the authorize api returns 200.").sendInternalLogToServer();
+        connect.core.getEventBus().trigger(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED);
+      }
+    }
+  }
+
+  connect.core._redirectToLogin = function(loginUrl) {
+    if (typeof(loginUrl) === 'string') {
+      location.assign(loginUrl);
+    } else {
+      location.reload();
+    }
+  }
+
+  connect.core._handleCTIAuthFail = function(authorizeEndpoint) {
+    if (!connect.core.ctiTimeoutId) {
+      if (connect.core.ctiAuthRetryCount < connect.core.MAX_CTI_AUTH_RETRY_COUNT) {
+        connect.core.ctiAuthRetryCount++;
+        let retryDelay = AWS.util.calculateRetryDelay(connect.core.ctiAuthRetryCount || 0, { base: 500 });
+        connect.core.ctiTimeoutId = setTimeout(() => {
+          connect.core.authorize(authorizeEndpoint).then(connect.core._triggerAuthorizeSuccess.bind(connect.core)).catch(connect.core._triggerAuthFail.bind(connect.core, {authorize: true}));
+          connect.core.ctiTimeoutId = null;
+        }, retryDelay);
+      }
+      else {
+        connect.getLog().warn("We have exhausted our authorization retries due to 401s from the CTI service. No more retries will be attempted until the page is refreshed.").sendInternalLogToServer();
+        connect.core.getEventBus().trigger(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED);
+      }
+    }
+  }
+
+  connect.core._triggerAuthorizeSuccess = function() {
+    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.AUTHORIZE_SUCCESS);
+  }
+
+  connect.core._triggerAuthFail = function(data) {
+    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.AUTH_FAIL, data);
+  }
+
+  connect.core._getAuthRetryCount = function() {
+    let item = window.sessionStorage.getItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT);
+    if (item !== null) {
+      if (!isNaN(parseInt(item))) {
+        return parseInt(item);
+      } else {
+        throw new connect.StateError("The session storage value for auth retry count was NaN");
+      }
+    } else {
+      window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0);
+      return 0;
+    } 
+  }
+
+  connect.core._incrementAuthRetryCount = function() {
+    window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, (connect.core._getAuthRetryCount()+1).toString());
+  }
+
+  connect.core.onAuthorizeRetriesExhausted = function(f) {
+    connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
+  }
+
+  connect.core.onCTIAuthorizeRetriesExhausted = function(f) {
+    connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
+  }
  
   /** ------------------------------------------------- */
  
@@ -1602,6 +1762,15 @@
   };
   connect.core.agentAppClient = null;
  
+  /**-----------------------------------------------------------------------*/
+  connect.core.getTaskTemplatesClient = function () {
+    if (!connect.core.taskTemplatesClient) {
+      throw new connect.StateError('The connect TaskTemplates Client has not been initialized!');
+    }
+    return connect.core.taskTemplatesClient;
+  };
+  connect.core.taskTemplatesClient = null;
+
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {
     if (!connect.core.masterClient) {

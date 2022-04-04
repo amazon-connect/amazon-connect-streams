@@ -1,5 +1,10 @@
 # CHANGELOG.md
 
+## 2.1.0
+Added functions:
+* `connect.core.onAuthorizationSuccess`. See Documentation.md for more details
+* `connect.core.onAuthorizeRetriesExhausted` and `connect.core.onCTIAuthorizeRetriesExhausted` methods, along with some backoff logic to the retries / page reloads for the CTI and authorize apis. Please see these methods' entries in Documentation.md for more information.
+
 ## 2.0.0
 Removed Functions:
 * `agent.onContactPending` has been removed. Please use `contact.onPending` instead.
