@@ -350,7 +350,6 @@
         success: function (data) {
           try {
             self.agent = self.agent || {};
-            self.prevSnapshot = self.agent.snapshot;
             self.agent.snapshot = data.snapshot;
             self.agent.snapshot.localTimestamp = connect.now();
             self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
@@ -757,13 +756,15 @@
       } 
 
       try {
-        if (this.detectNewSoftphoneCallInSync(this.prevSnapshot, this.agent.snapshot)) {
-          connect.getLog().info('New softphone call detected in the shared worker. Clearing NEXT_SOFTPHONE master').sendInternalLogToServer();
+        if (this.detectNewVoiceContactInSync(this.prevSnapshot, this.agent.snapshot)) {
+          connect.getLog().info('New voice contact detected in the shared worker. Clearing NEXT_SOFTPHONE master').sendInternalLogToServer();
           this.masterCoord.removeMasterWithTopic(connect.MasterTopics.NEXT_SOFTPHONE);
         }
       } catch(err) {
-        connect.getLog().error("detectNewSoftphoneCallInSync failed").sendInternalLogToServer().withObject({ err });
+        connect.getLog().error("detectNewVoiceContactInSync failed").sendInternalLogToServer().withObject({ err });
       }
+
+      this.prevSnapshot = this.agent.snapshot;
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
   };
@@ -915,7 +916,7 @@
     return new_request;
   };
 
-  ClientEngine.prototype.detectNewSoftphoneCallInSync = function (oldSnapshot, newSnapshot) {
+  ClientEngine.prototype.detectNewVoiceContactInSync = function (oldSnapshot, newSnapshot) {
     let newContacts = [];
 
     if (!oldSnapshot) {
@@ -929,8 +930,7 @@
     }
 
     return Boolean(newContacts.find(contactData => {
-      // equivalent to contact.isSoftphoneCall()
-      if (contactData.connections.find((connData) => connData.softphoneMediaInfo)) {
+      if (contactData.type === connect.ContactType.VOICE || contactData.type === connect.ContactType.QUEUE_CALLBACK) {
         return true;
       }
     }));

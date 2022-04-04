@@ -356,6 +356,96 @@ exports.outboundVoiceContact = {
   }
 };
 
+exports.queuedCallbackContactIncoming = {
+    "agentAvailabilityState": {
+        "state": "Available",
+        "timeStamp": 1646311432.223
+    },
+    "contacts": [
+        {
+            "attributes": {
+                "greetingPlayed": {
+                    "name": "greetingPlayed",
+                    "value": "true"
+                }
+            },
+            "channelContext": null,
+            "connections": [
+                {
+                    "chatMediaInfo": null,
+                    "connectionId": "7a58a1a2-0182-4682-a26f-0a007c45d3b3_b7b7d757-1bf0-4e34-ac69-580bccf281de",
+                    "endpoint": {
+                        "agentLogin": null,
+                        "endpointARN": null,
+                        "name": null,
+                        "phoneNumber": null,
+                        "queue": null,
+                        "type": "agent"
+                    },
+                    "initial": false,
+                    "monitoringInfo": null,
+                    "mute": null,
+                    "quickConnectName": null,
+                    "softphoneMediaInfo": null,
+                    "state": {
+                        "timestamp": 1646433490.033,
+                        "type": "connecting"
+                    },
+                    "type": "agent"
+                },
+                {
+                    "chatMediaInfo": null,
+                    "connectionId": "b7b7d757-1bf0-4e34-ac69-580bccf281de",
+                    "endpoint": {
+                        "agentLogin": null,
+                        "endpointARN": null,
+                        "name": null,
+                        "phoneNumber": "redacted",
+                        "queue": null,
+                        "type": "phone_number"
+                    },
+                    "initial": true,
+                    "monitoringInfo": null,
+                    "mute": null,
+                    "quickConnectName": null,
+                    "softphoneMediaInfo": null,
+                    "state": {
+                        "timestamp": 1646433485.033,
+                        "type": "connected"
+                    },
+                    "type": "inbound"
+                }
+            ],
+            "contactDuration": "0",
+            "contactFeatures": null,
+            "contactId": "b7b7d757-1bf0-4e34-ac69-580bccf281de",
+            "description": null,
+            "initialContactId": "ffd68742-0b80-41f2-ba9d-b09b1627b792",
+            "initiationMethod": null,
+            "name": null,
+            "queue": {
+                "name": "BasicQueue",
+                "queueARN": "redacted"
+            },
+            "queueTimestamp": null,
+            "references": null,
+            "state": {
+                "timestamp": 1646433490.033,
+                "type": "incoming"
+            },
+            "type": "queue_callback"
+        }
+    ],
+    "nextState": null,
+    "snapshotTimestamp": 1646433490.033,
+    "state": {
+        "agentStateARN": null,
+        "name": "Pending",
+        "startTimestamp": 1646311433.033,
+        "type": "not_routable"
+    }
+};
+
 exports.queuedCallbackContactConnecting = {
     "agentAvailabilityState": {
         "state": "Available",
