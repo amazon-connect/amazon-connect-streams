@@ -181,7 +181,18 @@
   var LoggedException = function (e) {
     this.type = (e instanceof Error) ? e.name : e.code || Object.prototype.toString.call(e);
     this.message = e.message;
-    this.stack = e.stack ? e.stack.split('\n') : [];
+    this.stack = [];
+    if (e.stack){
+      try {
+          if (Array.isArray(e.stack)) {
+              this.stack = e.stack;
+          } else if (typeof e.stack === 'object') {
+              this.stack = [JSON.stringify(e.stack)];
+          } else if (typeof e.stack === 'string') {
+              this.stack = e.stack.split('\n');
+          }
+      } catch {}
+    }
   };
 
   /**
@@ -505,7 +516,7 @@
   Logger.prototype.scheduleUpstreamLogPush = function (conduit) {
     if (!connect.upstreamLogPushScheduled) {
       connect.upstreamLogPushScheduled = true;
-      /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to LARS*/
+      /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to the CTI backend*/
       global.setInterval(connect.hitch(this, this.reportMasterLogsUpStream, conduit), SOFTPHONE_LOG_REPORT_INTERVAL_MILLIS);
     }
   };

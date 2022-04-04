@@ -243,6 +243,7 @@
    AWSClient.prototype.constructor = AWSClient;
 
    AWSClient.prototype._callImpl = function(method, params, callbacks) {
+
       var self = this;
       var log = connect.getLog();
 
@@ -273,7 +274,19 @@
                         var error = {};
                         error.type = err.code;
                         error.message = err.message;
-                        error.stack = err.stack ? err.stack.split('\n') : [];
+                        error.stack = [];
+                        if (err.stack){
+                           try {
+                               if (Array.isArray(err.stack)) {
+                                   error.stack = err.stack;
+                               } else if (typeof err.stack === 'object') {
+                                   error.stack = [JSON.stringify(err.stack)];
+                               } else if (typeof err.stack === 'string') {
+                                   error.stack = err.stack.split('\n');
+                               }
+                           } catch {}
+                        }
+                        
                         callbacks.failure(error, data);
                      }
 
@@ -396,5 +409,4 @@
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
    connect.AgentAppClient = AgentAppClient;
-
 })();
