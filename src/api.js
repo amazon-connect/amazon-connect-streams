@@ -1019,6 +1019,11 @@
     return new connect.ContactSnapshot(this._getData());
   };
 
+  Contact.prototype.isMultiPartyConferenceEnabled = function () {
+    var contactFeatures = this.getContactFeatures();
+    return !!(contactFeatures && contactFeatures.multiPartyConferenceEnabled);
+  }
+
   /*----------------------------------------------------------------
    * class ContactSnapshot
    */

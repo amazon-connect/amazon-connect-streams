@@ -1,5 +1,9 @@
 # CHANGELOG.md
 
+## 2.1.0
+Added functions:
+* `contact.isMultiPartyConferenceEnabled` method to determine whether this contact is a softphone call and multiparty conference feature is turned on. See Documentation.md for more details
+
 ## 2.0.0
 Removed Functions:
 * `agent.onContactPending` has been removed. Please use `contact.onPending` instead.

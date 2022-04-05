@@ -1369,6 +1369,9 @@ declare namespace connect {
      * This method provides an opportunity to create a snapshot version of the `Contact` API object and save it for future use, such as adding to a log file or posting elsewhere.
      */
     toSnapshot(): Contact;
+
+    /** Determine whether this contact is a softphone call and multiparty conference feature is turned on.  */
+    isMultiPartyConferenceEnabled(): boolean;
   }
 
   interface ContactState {
