@@ -1,4 +1,5 @@
 const webpack = require('webpack');
+const ReplacePlugin = require('webpack-plugin-replace');
 const path = require('path');
 const { commonConfig } = require('./common');
 
@@ -32,7 +33,15 @@ const config = Object.assign({}, commonConfig, {
   },
   optimization: {
     minimize: false
-  }
+  },
+  plugins: [
+    new ReplacePlugin({
+      include: "core.js",
+      values: {
+        'STREAMS_VERSION': process.env.npm_package_version
+      }
+    })
+  ]
 });
 
 module.exports = [
