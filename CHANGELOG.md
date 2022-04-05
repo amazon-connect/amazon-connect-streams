@@ -2,8 +2,15 @@
 
 ## 2.1.0
 Added functions:
-* `connect.core.onAuthorizationSuccess`. See Documentation.md for more details
+* `connect.core.onAuthorizationSuccess`. See Documentation.md for more details.
 * `connect.core.onAuthorizeRetriesExhausted` and `connect.core.onCTIAuthorizeRetriesExhausted` methods, along with some backoff logic to the retries / page reloads for the CTI and authorize apis. Please see these methods' entries in Documentation.md for more information.
+* `contact.isMultiPartyConferenceEnabled` method to determine whether this contact is a softphone call and multiparty conference feature is turned on. See Documentation.md for more details
+* `contact.getChannelContext` method to provide the channel context for the contact. 
+
+Added a callback to `voiceConnection.enrollSpeakerInVoiceId`. See Documentation.md for more details.
+
+Added a new parameter `shouldAddNamespaceToLogs` to `core.initCCP` configuration to prepend `[CCP]` to all logs logged by the CCP.
+
 
 ## 2.0.0
 Removed Functions:
