@@ -356,18 +356,18 @@ The callback is called when the contact changes in the UI (i.e. via `click` even
 
 More precisely, `onViewContact` is called in the below scenarios:
 
-1. Whenever a new contact is incoming if there are no other contacts currently open in CCP. That includes both outbound contacts and contacts that are accepted using auto-accept
+1. There is a new incoming contact, and there are no other contacts currently open in CCP. This includes both outbound contacts and contacts that are accepted using auto-accept
 2. A contact is closed and there is at least one other open contact
-    1. CCP will call onViewContact with the next contact in the list of contacts
+    1. CCP will call `onViewContact` with the next contact in the list of contacts
 3. A contact has been selected as the active contact in CCP. This can happen in multiple ways
     1. An agent clicks on that contact’s tab in native or embedded CCP
-    2. CCP will trigger onViewContact when the close contact button is clicked in native or embedded CCP. CCP will call onViewContact with the next contact in the list of contacts. Note that this is redundant with scenario 2 and will result in onViewContact being called twice. 
+    2. CCP will trigger `onViewContact` when the close contact button is clicked in native or embedded CCP. CCP will call `onViewContact` with the next contact in the list of contacts. Note that this is redundant with scenario 2 and will result in `onViewContact` being called twice. 
 4. A new contact has been accepted using the accept contact button in native or embedded CCP
-5. connect.core.viewContact is called in your custom implementation
-6. There are some cases when onViewContact is called with an empty string. This denotes that the active contact has been unset. That happens in the following scenarios:
+5. `connect.core.viewContact` is called in your custom implementation
+6. There are some cases when `onViewContact` is called with an empty string. This denotes that the active contact has been unset. That happens in the following scenarios:
     1. The close contact button is clicked and there are no other active contacts
     2. An agent clicks on a new channel in CCP
-        1. Note: in this case onViewContact will be called with a contact from the newly selected channel shortly after
+        1. Note: in this case `onViewContact` will be called with a contact from the newly selected channel shortly after
 
 ### `connect.core.onAuthFail()`
 ```js
@@ -1533,21 +1533,21 @@ This enumeration lists all of the contact types supported by Connect Streams.
 This is a list of some of the special event types which are published into the low-level
 `EventBus`.
 
-* `EventType.ACKNOWLEDGE`: Event received when the backend API shared worker acknowledges the current tab. More specifically, it is sent to streams in the following scenarios:
+* `EventType.ACKNOWLEDGE`: Event received when the backend API shared worker acknowledges the current tab. More specifically, it is sent to Streams in the following scenarios:
   - a consumer port connects to the shared worker
-  - when streams sends the `EventType.SYNCHRONIZE` to the shared worker, the shared worker sends the `ACKNOWLEDGE` event back. This happens every few seconds so that streams and the shared worker are synchronized.
+  - when Streams sends the `EventType.SYNCHRONIZE` to the shared worker, the shared worker sends the `ACKNOWLEDGE` event back. This happens every few seconds so that Streams and the shared worker are synchronized.
 * `EventType.ACK_TIMEOUT`: Event which is published if the backend API shared worker fails to respond to an `EventType.SYNCHRONIZE` event in a timely manner, meaning that the tab or window has been disconnected from the shared worker.
 * `EventType.IFRAME_RETRIES_EXHAUSTED`: Event which is published once the hard limit of 6 CCP retries are all exhausted. These retries are tiggered by the `ACK_TIMEOUT` event above.
 * `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid. This usually requires the user to log in again for the CCP to continue to function. See `connect.core.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
 * `EventType.LOG`: An event published whenever the CCP or the API shared worker creates a log entry.
-* `EventType.TERMINATED`: When the `EventType.TERMINATE` (not `TERMINATED`) event is sent to streams, it is forwarded to the shared worker, which on successful termination then sends `EventType.TERMINATED` event back to streams.  The `EventType.TERMINATE` event is sent to streams in the following scenarios:
+* `EventType.TERMINATED`: When the `EventType.TERMINATE` (not `TERMINATED`) event is sent to Streams, it is forwarded to the shared worker, which on successful termination then sends `EventType.TERMINATED` event back to Streams.  The `EventType.TERMINATE` event is sent to Streams in the following scenarios:
   - The CCP is initialized as an agent app (via `connect.agentApp.initApp`), and `connect.agentApp.stopApp` is invoked
   - The user manually logs out of the CCP
 
 ### `AgentEvents`
 Event types that affect the agent's state.
 
-* `AgentEvents.UPDATE`: this event is sent to streams in the following scenarios:
+* `AgentEvents.UPDATE`: this event is sent to Streams in the following scenarios:
   - a consumer port connects to the shared worker
   - when the shared worker or ccp is first initialized, then again repeated every few seconds
   - when the `EventType.RELOAD_AGENT_CONFIGURATION` event is sent to the shared worker. This happens in the `Agent.prototype.setConfiguration` method (which is invoked when the ccp settings are saved in the UI)
