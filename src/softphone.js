@@ -107,25 +107,7 @@
 
     this.ringtoneEngine = null;
     var rtcSessions = {};
-    // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
-    var callsDetected = {};
-    this.onInitContactSub = {};
-    this.onInitContactSub.unsubscribe = function() {};
-
-    var isSessionPending = false;
-    var pendingContact = null;
-    var pendingAgentConnectionId = null;
-    var postponeStartingSession = function (contact, agentConnectionId) {
-      isSessionPending = true;
-      pendingContact = contact;
-      pendingAgentConnectionId = agentConnectionId;
-    }
-    var cancelPendingSession = function () {
-      isSessionPending = false;
-      pendingContact = null;
-      pendingAgentConnectionId = null;
-    }
-
+    
     // helper method to provide access to rtc sessions
     this.getSession = function (connectionId) {
       return rtcSessions[connectionId];
@@ -155,7 +137,6 @@
         // TODO: Update once the hangup API does not throw exceptions
         new Promise(function (resolve, reject) {
           delete rtcSessions[agentConnectionId];
-          delete callsDetected[agentConnectionId];
           session.hangup();
         }).catch(function (err) {
           lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message).sendInternalLogToServer();
@@ -179,16 +160,11 @@
       }
     };
 
-    this.startSession = function (_contact, _agentConnectionId) {
-      var contact = isSessionPending ? pendingContact : _contact;
-      var agentConnectionId = isSessionPending ? pendingAgentConnectionId : _agentConnectionId;
+    this.startSession = function (contact, agentConnectionId, userMediaStream, callbacks) {
       if (!contact || !agentConnectionId) {
-        return;
+        throw Error('Missing contact or agentConnectionId');
       }
-      cancelPendingSession();
       
-      // Set to true, this will block subsequent invokes from entering.
-      callsDetected[agentConnectionId] = true;
       logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
       // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
@@ -216,8 +192,9 @@
 
       rtcSessions[agentConnectionId] = session;
 
-      if (connect.core.getSoftphoneUserMediaStream()) {
-        session.mediaStream = connect.core.getSoftphoneUserMediaStream();
+      if (userMediaStream) {
+        logger.info('[Softphone Manager] Setting custom user media stream').withObject(userMediaStream).sendInternalLogToServer();
+        session.mediaStream = userMediaStream;
       }
 
       // Custom Event to indicate the session init operations
@@ -229,8 +206,10 @@
       });
 
       session.onSessionFailed = function (rtcSession, reason) {
+        if (callbacks && callbacks.onSessionFailed) {
+          callbacks.onSessionFailed();
+        }
         delete rtcSessions[agentConnectionId];
-        delete callsDetected[agentConnectionId];
         publishSoftphoneFailureLogs(rtcSession, reason);
         publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
         stopJobsAndReport(contact, rtcSession.sessionReport);
@@ -246,10 +225,12 @@
       };
 
       session.onSessionCompleted = function (rtcSession) {
+        if (callbacks && callbacks.onSessionCompleted) {
+          callbacks.onSessionCompleted();
+        }
         publishTelemetryEvent("Softphone Session Completed", contact.getContactId());
 
         delete rtcSessions[agentConnectionId];
-        delete callsDetected[agentConnectionId];
         // Stop all jobs and perform one last job.
         stopJobsAndReport(contact, rtcSession.sessionReport);
 
@@ -281,12 +262,6 @@
     var onRefreshContact = function (contact, agentConnectionId) {
       if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
         destroySession(agentConnectionId);
-        cancelPendingSession();
-      }
-      if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
-        contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
-        contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
-          self.startSession(contact, agentConnectionId);
       }
     };
 
@@ -294,14 +269,12 @@
       var agentConnectionId = contact.getAgentConnection().connectionId;
       logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
-      if (!callsDetected[agentConnectionId]) {
-        contact.onRefresh(function () {
-          onRefreshContact(contact, agentConnectionId);
-        });
-      }
+      contact.onRefresh(function () {
+        onRefreshContact(contact, agentConnectionId);
+      });
     };
 
-    self.onInitContactSub = connect.contact(onInitContact);
+    const onInitContactSub = connect.contact(onInitContact);
 
     // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed. 
     new connect.Agent().getContacts().forEach(function (contact) {
@@ -311,6 +284,17 @@
       onInitContact(contact);
       onRefreshContact(contact, agentConnectionId);
     });
+
+    this.terminate = () => {
+      onInitContactSub.unsubscribe();
+      if (rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId) {
+        // This method needs to be called when destroying the softphone manager instance. 
+        // Otherwise the refresh loop in rtcPeerConnectionFactory will keep spawning WebRTCConnections every 60 seconds
+        // and you will eventually get SoftphoneConnectionLimitBreachedException later.
+        rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
+      }
+      delete rtcPeerConnectionFactory;
+    };
   };
 
   var fireContactAcceptedEvent = function (contact) {
@@ -797,5 +781,304 @@
     return this._tee(5, this._originalLogger.error)(arguments);
   };
 
+  // TODO:
+  // - integrate competeForMasterOnAgentUpdate logic defined in core.js into this class
+  // - add error handling and ensure the error handling to be consistent with how RtcJS handles them
+  // - add CSM
+  class SoftphoneMasterCoordinator {
+    constructor(softphoneParams = {}) {
+      this.canCompeteForMaster = connect.isFramed() ? softphoneParams.allowFramedSoftphone : true;
+      this.softphoneParams = softphoneParams;
+      this.userMediaStream = null;
+      this.targetContact = null;
+      this.gumTimeoutId = null;
+      this.tabFocusIntervalId = null;
+      this.tabFocusTimeoutId = null;
+      this.callsDetected = {};
+
+      this.bindMethods();
+      if (this.canCompeteForMaster) {
+        this.setUpListenerForNewSoftphoneContact();
+        this.setUpListenerForTakeOverEvent();
+      }
+    }
+    bindMethods() {
+      this.setUserMediaStream = this.setUserMediaStream.bind(this);
+      this.startSoftphoneSession = this.startSoftphoneSession.bind(this);
+      this.getUserMedia = this.getUserMedia.bind(this);
+      this.takeOverSoftphoneMaster = this.takeOverSoftphoneMaster.bind(this);
+      this.cleanup = this.cleanup.bind(this);
+    }
+    setUpListenerForNewSoftphoneContact() {
+      // The reason why we need to use contact.onRefresh to detect a new softphone call is 
+      // to support QCB contacts. A QCB contact is first routed as incoming state without 
+      // softphoneMediaInfo populated (which makes isSoftphoneCall() to return false), 
+      // and it's populated only after the contact state turns to connecting state.
+      const self = this;
+
+      const onRefreshContact = function (contact, agentConnectionId) {
+        if (contact.isSoftphoneCall() && !self.callsDetected[agentConnectionId] && (
+          contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
+          contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+            self.addDetectedCall(agentConnectionId);
+            self.setTargetContact(contact);
+            self.competeForNextSoftphoneMaster();
+        }
+      };
+  
+      const onInitContact = function (contact) {
+        const agentConnectionId = contact.getAgentConnection().connectionId;
+  
+        if (!self.callsDetected[agentConnectionId]) {
+          contact.onRefresh(() => onRefreshContact(contact, agentConnectionId));
+        }
+      };
+
+      connect.contact(onInitContact);
+    }
+    setUpListenerForTakeOverEvent() {
+      const self = this;
+      connect.core.getUpstream().onUpstream(connect.EventType.MASTER_RESPONSE, (res) => {
+        const data = res ? res.data : null;
+        if (!data) return;
+        const { topic, takeOver, masterId } = data;
+        const isTakenOverByOthers = takeOver && (masterId !== connect.core.portStreamId);
+        
+        if (topic === connect.MasterTopics.SOFTPHONE && isTakenOverByOthers) {
+          self.terminateSoftphoneManager();
+        }
+      });
+    }
+    setUserMediaStream(stream) {
+      connect.assertNotNull(stream, 'UserMediaStream');
+      this.userMediaStream = stream;
+    }
+    setTargetContact(contact) {
+      connect.assertNotNull(contact, 'Contact');
+      this.targetContact = contact;
+    }
+    competeForNextSoftphoneMaster() {
+      const self = this;
+      connect.ifMaster(connect.MasterTopics.SOFTPHONE, () => {
+        // If this is the master tab, immediately call getUserMedia to accomodate the case where UserMediaCaptureOnFocus is NOT enabled.
+        // It could happen either when Google hasn't rolled out the feature or customer manually disables it with a feature flag)
+        self.getUserMedia()
+          .then(self.setUserMediaStream)
+          .then(self.becomeNextSoftphoneMasterIfNone)
+          .then(self.startSoftphoneSession)
+          .catch(self.handleErrorInCompeteForNextSoftphoneMaster)
+          .finally(self.cleanup)
+      }, () => {
+        // If this is not the master tab, pending calling getUserMedia until the tab gets focused
+        // in order to avoid unnecessary master tab switch between tabs in case UserMediaCaptureOnFocus is NOT enabled
+        self.pollForTabFocus()
+          .then(self.getUserMedia)
+          .then(self.setUserMediaStream)
+          .then(self.becomeNextSoftphoneMasterIfNone)
+          .then(self.takeOverSoftphoneMaster)
+          .then(self.startSoftphoneSession)
+          .catch(self.handleErrorInCompeteForNextSoftphoneMaster)
+          .finally(self.cleanup)
+      }, true);
+    }
+    // TODO:
+    // - integrate with the existing fetchUserMedia and refactor (follow-up task)
+    // - device configuration (follow-up task)
+    getUserMedia() {
+      const self = this;
+      const gumTimeoutPromise = new Promise((resolve, reject) => {
+        self.gumTimeoutId = setTimeout(() => {
+          reject(Error(SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT));
+        }, SoftphoneMasterCoordinator.GUM_TIMEOUT);
+      });
+
+      const constraint = { audio: true };
+      const gumPromise = navigator.mediaDevices.getUserMedia(constraint);
+      return Promise.race([gumTimeoutPromise, self.checkIfContactIsInConnectingState(self.targetContact), gumPromise]);
+    }
+    // TODO:
+    // - address the question
+    pollForTabFocus() {
+      const self = this;
+      
+      const tabFocusPromise = new Promise((resolve, reject) => {
+        // QUESTION: should we add an initial delay to avoid unnecessary take over when UserMediaCaptureOnFocus is disabled?
+        self.tabFocusIntervalId = setInterval(() => {
+          if (document.hasFocus()) {
+            clearInterval(self.tabFocusIntervalId);
+            clearTimeout(self.tabFocusTimeoutId);
+            resolve();
+          }
+        }, SoftphoneMasterCoordinator.TAB_FOCUS_POLLING_INTERVAL);
+
+        self.tabFocusTimeoutId = setTimeout(() => {
+          reject(Error(SoftphoneMasterCoordinator.errorTypes.TAB_FOCUS_TIMEOUT));
+        }, SoftphoneMasterCoordinator.TAB_FOCUS_TIMEOUT);
+      });
+
+      return Promise.race([self.checkIfContactIsInConnectingState(self.targetContact), tabFocusPromise]);
+    }
+    checkIfContactIsInConnectingState(contact) {
+      return new Promise((resolve, reject) => {
+        rejectIfContactIsNoLongerInConnectingState(contact);
+        contact.onRefresh(rejectIfContactIsNoLongerInConnectingState);
+        function rejectIfContactIsNoLongerInConnectingState(_c) {
+          if (_c.getStatus().type !== connect.ContactStatusType.CONNECTING) {
+            reject(Error(SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING));
+          }
+        }
+      });
+    }
+    becomeNextSoftphoneMasterIfNone() {
+      return new Promise((resolve, reject) => {
+        connect.ifMaster(connect.MasterTopics.NEXT_SOFTPHONE, () => {
+          resolve();
+        }, () => {
+          reject(Error(SoftphoneMasterCoordinator.errorTypes.NEXT_SOFTPHONE_MASTER_ALREADY_EXISTS));
+        });
+      });
+    }
+    takeOverSoftphoneMaster() {
+      const self = this;
+      return new Promise((resolve, reject) => {
+        connect.becomeMaster(connect.MasterTopics.SOFTPHONE, () => {
+          connect.agent((agent) => {
+            if (!agent.isSoftphoneEnabled()) {
+              reject(Error(SoftphoneMasterCoordinator.errorTypes.SOFTPHONE_NOT_ENABLED));
+            } else {
+              try { self.createSoftphoneManager() } catch (e) { reject(e) }
+              resolve(); 
+            }
+          });
+        });
+      });
+    }
+    startSoftphoneSession() {
+      const self = this;
+      
+      return new Promise((resolve, reject) => {
+        if (connect.core.softphoneManager) {
+          if (self.isMediaStreamValid(self.userMediaStream)) {
+            try {
+              const agentConnectionId = self.targetContact.getAgentConnection().connectionId;
+              const onSessionFailed = () => resolve();
+              const onSessionCompleted = () => resolve();
+              connect.core.softphoneManager.startSession(self.targetContact, agentConnectionId, self.userMediaStream, { onSessionFailed, onSessionCompleted });
+            } catch (e) {
+              reject(Error(SoftphoneMasterCoordinator.errorTypes.START_SESSION_FAILED));
+            }
+          } else {
+            reject(Error(SoftphoneMasterCoordinator.errorTypes.INVALID_MEDIA_STREAM));
+          }
+        } else {
+          reject(Error(SoftphoneMasterCoordinator.errorTypes.NO_SOFTPHONE_MANAGER));
+        }
+      });
+    }
+    isMediaStreamValid(mediaStream) {
+      return mediaStream && mediaStream.active;
+    }
+    handleErrorInCompeteForNextSoftphoneMaster(error = {}) {
+      switch(error.message) {
+        case SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT:
+        case SoftphoneMasterCoordinator.errorTypes.TAB_FOCUS_TIMEOUT:
+          // Valid case.
+          // There shouldn't be major scenarios to get these errors because 
+          // the contact state turns to missed state before these errors are triggered.
+          // One possible scenario is when agent fails to focus the page within 20 seconds
+          // for a manager-listen-in contact whose limit is longer than turning to missed state.
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING:
+          // Valid case. No longer need to compete for NextSoftphoneMaster
+          // because contact has already been ended/missed or connected by a different tab.
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.NEXT_SOFTPHONE_MASTER_ALREADY_EXISTS:
+          // Valid case. A different tab has already successfully grabbed user media
+          // and has become the NextSoftphoneMaster.
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.SOFTPHONE_NOT_ENABLED:
+          // Valid case. The agent is configured to use desk phone to handle voice contacts.
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.NO_SOFTPHONE_MANAGER:
+          // Invalid case. There is no softphone manager instantiated.
+          connect.getLog().error('[SoftphoneMasterCoordinator] No softphone manager found').sendInternalLogToServer();
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.INVALID_MEDIA_STREAM:
+          // Invalid case. The captured userMediaStream was somehow inactive.
+          connect.getLog().error('[SoftphoneMasterCoordinator] userMediaStream is invalid').sendInternalLogToServer();
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.START_SESSION_FAILED:
+          // Invalid case. Something went wrong while calling SoftphoneManager.startSession().
+          connect.getLog().error('[SoftphoneMasterCoordinator] startSoftphoneSession failed').sendInternalLogToServer();
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.CREATE_SOFTPHONE_MANAGER_FAILED:
+          // Invalid case. Something went wrong while instantiating SoftphoneManager.
+          connect.getLog().error('[SoftphoneMasterCoordinator] createSoftphoneManager failed').sendInternalLogToServer();
+          break;
+        default:
+          connect.getLog().error('[SoftphoneMasterCoordinator] Unknown error').withObject({ error }).sendInternalLogToServer();
+      }
+    }
+    cleanup() {
+      if (this.targetContact) {
+        const agentConnectionId = this.targetContact.getAgentConnection().connectionId;
+        this.removeDetectedCall(agentConnectionId);
+      }
+      clearTimeout(this.gumTimeoutId);
+      clearInterval(this.tabFocusIntervalId);
+      clearTimeout(this.tabFocusTimeoutId);
+      this.gumTimeoutId = null;
+      this.tabFocusIntervalId = null;
+      this.tabFocusTimeoutId = null;
+      if (this.userMediaStream) {
+        this.userMediaStream.getTracks().forEach((track) => track.stop());
+      }
+      this.userMediaStream = null;
+      this.targetContact = null;
+    }
+    createSoftphoneManager() {
+      connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
+      if (connect.core.softphoneManager) {
+        connect.getLog().warn('Existing SoftphoneManger detected when creating a new one. Replacing with the new one').sendInternalLogToServer();
+        this.terminateSoftphoneManager();
+      }
+      try {
+        connect.core.softphoneManager = new connect.SoftphoneManager(this.softphoneParams);
+      } catch (e) {
+        throw Error(SoftphoneMasterCoordinator.errorTypes.CREATE_SOFTPHONE_MANAGER_FAILED);
+      }
+    }
+    terminateSoftphoneManager() {
+      if (connect.core.softphoneManager) {
+        connect.core.softphoneManager.terminate();
+        delete connect.core.softphoneManager;
+      }
+    }
+    addDetectedCall(agentConnectionId) {
+      connect.assertNotNull(agentConnectionId, 'agentConnectionId');
+      this.callsDetected[agentConnectionId] = true;
+    }
+    removeDetectedCall(agentConnectionId) {
+      connect.assertNotNull(agentConnectionId, 'agentConnectionId');
+      delete this.callsDetected[agentConnectionId];
+    }
+
+    static errorTypes = connect.makeEnum([
+      'gum_timeout',
+      'contact_not_connecting',
+      'next_softphone_master_already_exists',
+      'tab_focus_timeout',
+      'softphone_not_enabled',
+      'no_softphone_manager',
+      'invalid_media_stream',
+      'start_session_failed',
+      'create_softphone_manager_failed'
+    ]);
+    static GUM_TIMEOUT = 20 * 1000;
+    static TAB_FOCUS_TIMEOUT = 20 * 1000;
+    static TAB_FOCUS_POLLING_INTERVAL = 100;
+  }
+
   connect.SoftphoneManager = SoftphoneManager;
+  connect.SoftphoneMasterCoordinator = SoftphoneMasterCoordinator;
 })();

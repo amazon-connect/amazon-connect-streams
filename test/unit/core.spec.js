@@ -51,6 +51,7 @@ describe('Core', function () {
             onAuthorizeSuccessSpy = sandbox.stub(connect.core, 'onAuthorizeSuccess');
             hitchSpy = sandbox.spy(connect, "hitch");
             sandbox.spy(connect, 'ifMaster');
+            sandbox.stub(connect, 'SoftphoneMasterCoordinator');
         });
         after(function () {
             sandbox.restore();
@@ -1199,26 +1200,24 @@ describe('Core', function () {
         
         before(function () {
             clock = sinon.useFakeTimers();
-            global.navigator = {
-                mediaDevices: {
-                    enumerateDevices: () => new Promise((resolve) => {
-                        setTimeout(() => {
-                            resolve([{
-                                toJSON: () => ({
-                                    deviceId: "deviceId",
-                                    groupId: "groupId",
-                                    kind: "audioinput",
-                                    label: "Microphone"
-                                })
-                            }])
-                        }, 500);
-                    })
-                }
-            };
+            sandbox.stub(navigator.mediaDevices, 'enumerateDevices')
+                .callsFake(() => new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve([{
+                            toJSON: () => ({
+                                deviceId: "deviceId",
+                                groupId: "groupId",
+                                kind: "audioinput",
+                                label: "Microphone"
+                            })
+                        }])
+                    }, 500);
+                }));
         });
 
         after(function () {
             clock.restore();
+            sandbox.restore();
         });
 
         beforeEach(function () {
