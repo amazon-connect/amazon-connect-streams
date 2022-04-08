@@ -87,7 +87,11 @@
       var containerDOM = moduleData.containerDOM;
       return {
         init: function () {
-          if (name === APP.CCP) return signInThroughinitCCP(endpoint, containerDOM, config);
+          if (name === APP.CCP) {
+            config.ccpParams = config.ccpParams ? config.ccpParams : {};
+            if (config.style) config.ccpParams.style = config.style;
+            return signInThroughinitCCP(endpoint, containerDOM, config);
+          }
           return connect.agentApp.initAppCommunication(name, endpoint);
         },
         destroy: function () {
@@ -25288,7 +25292,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var iframe = document.createElement('iframe');
     iframe.src = initCCPParams.ccpUrl;
     iframe.allow = "microphone; autoplay";
-    iframe.style = "width: 100%; height: 100%";
+    iframe.style = initCCPParams.style || "width: 100%; height: 100%";
     iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
     iframe.name = CCP_IFRAME_NAME;
     containerDiv.appendChild(iframe);

@@ -1204,7 +1204,7 @@
     var iframe = document.createElement('iframe');
     iframe.src = initCCPParams.ccpUrl;
     iframe.allow = "microphone; autoplay";
-    iframe.style = "width: 100%; height: 100%";
+    iframe.style = initCCPParams.style || "width: 100%; height: 100%";
     iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
     iframe.name = CCP_IFRAME_NAME;
     containerDiv.appendChild(iframe);
