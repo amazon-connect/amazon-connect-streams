@@ -104,6 +104,42 @@ describe('agent-app', function () {
       expect(connect.core.getEventBus().subscribe.called).to.be.true;
     });
 
+    it('start CCP with style in ccpParams', function () {
+      var style = 'width:200px; height:200px;';
+      var expectedParams = {
+        ccpUrl: 'https://www.amazon.com/ccp-v2/',
+        ccpLoadTimeout: 10000,
+        loginPopup: true,
+        loginUrl: 'https://www.amazon.com/login',
+        softphone: {
+          allowFramedSoftphone: true,
+          disableRingtone: false,
+        },
+        style
+      };
+      connect.agentApp.initApp('ccp', 'agent-app-dom', endpoint, { ccpParams: { style } });
+      expect(connect.core.initCCP.calledWith(domCon, expectedParams)).to.be.true;
+      expect(connect.core.getEventBus().subscribe.called).to.be.true;
+    });
+
+    it('start CCP with style in agentapp config', function () {
+      var style = 'width:200px; height:200px;';
+      var expectedParams = {
+        ccpUrl: 'https://www.amazon.com/ccp-v2/',
+        ccpLoadTimeout: 10000,
+        loginPopup: true,
+        loginUrl: 'https://www.amazon.com/login',
+        softphone: {
+          allowFramedSoftphone: true,
+          disableRingtone: false,
+        },
+        style
+      };
+      connect.agentApp.initApp('ccp', 'agent-app-dom', endpoint, { style });
+      expect(connect.core.initCCP.calledWith(domCon, expectedParams)).to.be.true;
+      expect(connect.core.getEventBus().subscribe.called).to.be.true;
+    });
+
     it('adds a trailing slash to the url', function () {
       connect.agentApp.initApp('customer-profiles', 'agent-app-dom', endpoint);
       expect(connect.agentApp.initAppCommunication.calledWith('customer-profiles', endpoint + '/')).to.be.true;

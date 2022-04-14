@@ -3,6 +3,8 @@
 ## 2.1.0
 Added functions:
 * `contact.isMultiPartyConferenceEnabled` method to determine whether this contact is a softphone call and multiparty conference feature is turned on. See Documentation.md for more details
+* `connect.core.onAuthorizationSuccess`. See Documentation.md for more details
+* `connect.core.onAuthorizeRetriesExhausted` and `connect.core.onCTIAuthorizeRetriesExhausted` methods, along with some backoff logic to the retries / page reloads for the CTI and authorize apis. Please see these methods' entries in Documentation.md for more information.
 
 ## 2.0.0
 Removed Functions:

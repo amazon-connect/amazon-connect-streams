@@ -84,7 +84,6 @@
     }
     var gumPromise = fetchUserMedia({
       success: function (stream) {
-        connect.core.setSoftphoneUserMediaStream(stream);
         publishTelemetryEvent("ConnectivityCheckResult", null, 
         {
           connectivityCheckType: "MicrophonePermission",

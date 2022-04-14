@@ -130,10 +130,15 @@
     this.nextToken = null;
     this.initData = {};
     this.portConduitMap = {};
+    this.streamMapByTabId = {};
     this.masterCoord = new MasterTopicCoordinator();
     this.logsBuffer = [];
     this.suppress = false;
     this.forceOffline = false;
+    this.longPollingOptions = {
+      allowLongPollingShadowMode: false, 
+      allowLongPollingWebsocketOnlyMode: false,
+    }
 
     var webSocketManager = null;
 
@@ -154,6 +159,14 @@
       if (data.authToken && data.authToken !== self.initData.authToken) {
         self.initData = data;
         connect.core.init(data);
+        if (data.longPollingOptions) {
+          if (typeof data.longPollingOptions.allowLongPollingShadowMode == "boolean") {
+            self.longPollingOptions.allowLongPollingShadowMode = data.longPollingOptions.allowLongPollingShadowMode;
+          }
+          if (typeof data.longPollingOptions.allowLongPollingWebsocketOnlyMode == "boolean") {
+            self.longPollingOptions.allowLongPollingWebsocketOnlyMode = data.longPollingOptions.allowLongPollingWebsocketOnlyMode;
+          }
+        }
         // init only once.
         if (!webSocketManager) {
 
@@ -282,12 +295,10 @@
         connect.hitch(self, self.handleMasterRequest, portConduit, stream.getId()));
       portConduit.onDownstream(connect.EventType.RELOAD_AGENT_CONFIGURATION,
         connect.hitch(self, self.pollForAgentConfiguration));
-      portConduit.onDownstream(connect.EventType.CLOSE, function () {
-        self.multiplexer.removeStream(stream);
-        delete self.portConduitMap[stream.getId()];
-        self.masterCoord.removeMaster(stream.getId());
-        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, { length: Object.keys(self.portConduitMap).length });
-      });
+      portConduit.onDownstream(connect.EventType.TAB_ID,
+        connect.hitch(self, self.handleTabIdEvent, stream));
+      portConduit.onDownstream(connect.EventType.CLOSE, 
+        connect.hitch(self, self.handleCloseEvent, stream));
     };
   };
 
@@ -539,7 +550,7 @@
           .withException(err)
           .sendInternalLogToServer();
       },
-      authFailure: connect.hitch(self, self.handleAuthFail)
+      authFailure: connect.hitch(self, self.handleAuthFail, {authorize: true})
     });
   };
 
@@ -583,6 +594,57 @@
     }
 
     portConduit.sendDownstream(response.event, response);
+  };
+
+  ClientEngine.prototype.handleTabIdEvent = function (stream, data) {
+    var self = this;
+    try {
+      let tabId = data.tabId;
+      let streamsInThisTab = self.streamMapByTabId[tabId];
+      let currentStreamId = stream.getId();
+      let tabIds = Object.keys(self.streamMapByTabId);
+      let streamsTabsAcrossBrowser = tabIds.filter(tabId => self.streamMapByTabId[tabId].length > 0).length;
+      if (streamsInThisTab && streamsInThisTab.length > 0){
+        if (!streamsInThisTab.includes(currentStreamId)) {
+          self.streamMapByTabId[tabId].push(currentStreamId);
+          let updateObject = { length: Object.keys(self.portConduitMap).length, tabId, streamsTabsAcrossBrowser };
+          updateObject[tabId] = { length: streamsInThisTab.length };
+          self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
+        }
+      }
+      else {
+        self.streamMapByTabId[tabId] = [stream.getId()];
+        let updateObject = { length: Object.keys(self.portConduitMap).length, tabId, streamsTabsAcrossBrowser: streamsTabsAcrossBrowser + 1 };
+        updateObject[tabId] = { length: self.streamMapByTabId[tabId].length };
+        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
+      }
+    } catch(e) {
+      connect.getLog().error("[Tab Ids] Issue updating connected CCPs within the same tab").withException(e).sendInternalLogToServer();
+    }
+  };
+
+  ClientEngine.prototype.handleCloseEvent = function(stream) {
+    var self = this;
+    self.multiplexer.removeStream(stream);
+    delete self.portConduitMap[stream.getId()];
+    self.masterCoord.removeMaster(stream.getId());
+    let updateObject = { length: Object.keys(self.portConduitMap).length };
+    let tabIds = Object.keys(self.streamMapByTabId);
+    try {
+      let tabId = tabIds.find(key => self.streamMapByTabId[key].includes(stream.getId()));
+      if (tabId) {
+        let streamIndexInMap = self.streamMapByTabId[tabId].findIndex((value) => stream.getId() === value);
+        self.streamMapByTabId[tabId].splice(streamIndexInMap, 1);
+        let tabLength = self.streamMapByTabId[tabId] ? self.streamMapByTabId[tabId].length : 0;
+        updateObject[tabId] = { length: tabLength };
+        updateObject.tabId = tabId;
+      }
+      let streamsTabsAcrossBrowser = tabIds.filter(tabId => self.streamMapByTabId[tabId].length > 0).length;
+      updateObject.streamsTabsAcrossBrowser = streamsTabsAcrossBrowser;
+    } catch(e) {
+      connect.getLog().error("[Tab Ids] Issue updating tabId-specific stream data").withException(e).sendInternalLogToServer();
+    }
+    self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
   };
 
   ClientEngine.prototype.updateAgentConfiguration = function (configuration) {
@@ -722,9 +784,14 @@
     });
   };
 
-  ClientEngine.prototype.handleAuthFail = function () {
+  ClientEngine.prototype.handleAuthFail = function (data) {
     var self = this;
-    self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+    if (data) {
+      self.conduit.sendDownstream(connect.EventType.AUTH_FAIL, data);
+    }
+    else {
+      self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+    }
   };
 
   ClientEngine.prototype.handleAccessDenied = function () {

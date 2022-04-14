@@ -505,6 +505,19 @@
     bus.trigger(connect.EventType.CLIENT_SIDE_LOGS, logs);
   };
 
+  connect.addNamespaceToLogs = function(namespace) {
+    const methods = ['log', 'error', 'warn', 'info', 'debug'];
+
+    methods.forEach((method) => {
+      const consoleMethod = window.console[method];
+      window.console[method] = function () {
+        const args = Array.from(arguments);
+        args.unshift(`[${namespace}]`);
+        consoleMethod.apply(window.console, args);
+      };
+    });
+  };
+
   /**
    * A wrapper around Window.open() for managing single instance popups.
    */
@@ -687,4 +700,5 @@
     var conduit = connect.core.getUpstream();
     return conduit.name === 'ConnectSharedWorkerConduit';
   }
+
 })();

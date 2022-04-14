@@ -87,7 +87,11 @@
       var containerDOM = moduleData.containerDOM;
       return {
         init: function () {
-          if (name === APP.CCP) return signInThroughinitCCP(endpoint, containerDOM, config);
+          if (name === APP.CCP) {
+            config.ccpParams = config.ccpParams ? config.ccpParams : {};
+            if (config.style) config.ccpParams.style = config.style;
+            return signInThroughinitCCP(endpoint, containerDOM, config);
+          }
           return connect.agentApp.initAppCommunication(name, endpoint);
         },
         destroy: function () {
@@ -704,6 +708,11 @@
 
   Agent.prototype.setConfiguration = function (configuration, callbacks) {
     var client = connect.core.getClient();
+    if (configuration && configuration.agentPreferences && configuration.agentPreferences.LANGUAGE && !configuration.agentPreferences.locale) {
+      // workaround for the inconsistency issue that getAgentConfiguration returns agentPreferences.LANGUAGE but updateAgentConfiguration expects agentPreferences.locale to be set.
+      configuration.agentPreferences.locale = configuration.agentPreferences.LANGUAGE;
+    }
+
     if (configuration && configuration.agentPreferences && !connect.isValidLocale(configuration.agentPreferences.locale)) {
       if (callbacks && callbacks.failure) {
         callbacks.failure(connect.AgentErrorStates.INVALID_LOCALE);
@@ -1030,6 +1039,10 @@
 
   Contact.prototype.getContactFeatures = function () {
     return this._getData().contactFeatures;
+  };
+
+  Contact.prototype.getChannelContext = function () {
+    return this._getData().channelContext;
   };
 
   Contact.prototype.isSoftphoneCall = function () {
@@ -1772,9 +1785,10 @@
     });
   };
 
-  VoiceId.prototype.checkEnrollmentStatus = function () {
+  VoiceId.prototype.checkEnrollmentStatus = function (callbackOnAudioCollectionComplete) {
     var self = this;
     var pollingTimes = 0;
+    var callbackOnAudioCollectionCompleteHasBeenInvoked = false;
 
     return new Promise(function (resolve, reject) {
       function describe () {
@@ -1785,6 +1799,10 @@
                 resolve(data);
                 break;
               case connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS:
+                if (!callbackOnAudioCollectionCompleteHasBeenInvoked && typeof callbackOnAudioCollectionComplete === 'function') {
+                  callbackOnAudioCollectionComplete(data);
+                  callbackOnAudioCollectionCompleteHasBeenInvoked = true;
+                }
                 setTimeout(describe, connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL);
                 break;
               case connect.VoiceIdEnrollmentRequestStatus.NOT_ENOUGH_SPEECH:
@@ -1817,7 +1835,7 @@
     });
   };
 
-  VoiceId.prototype.enrollSpeaker = function () {
+  VoiceId.prototype.enrollSpeaker = function (callbackOnAudioCollectionComplete) {
     var self = this;
     self.checkConferenceCall();
     return new Promise(function(resolve, reject) {
@@ -1825,12 +1843,12 @@
         self.getSpeakerStatus().then(function(data) {
           if(data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
             self.deleteSpeaker().then(function() {
-              self.enrollSpeakerHelper(resolve, reject);
+              self.enrollSpeakerHelper(resolve, reject, callbackOnAudioCollectionComplete);
             }).catch(function(err) {
               reject(err);
             });
           } else {
-            self.enrollSpeakerHelper(resolve, reject);
+            self.enrollSpeakerHelper(resolve, reject, callbackOnAudioCollectionComplete);
           }
         }).catch(function(err) {
           reject(err);
@@ -1841,7 +1859,7 @@
     })
   }
 
-  VoiceId.prototype.enrollSpeakerHelper = function (resolve, reject) {
+  VoiceId.prototype.enrollSpeakerHelper = function (resolve, reject, callbackOnAudioCollectionComplete) {
     var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
@@ -1855,7 +1873,7 @@
               connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
               resolve(data);
             } else {
-              self.checkEnrollmentStatus().then(function(data){
+              self.checkEnrollmentStatus(callbackOnAudioCollectionComplete).then(function(data){
                 connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               }).catch(function(err){
@@ -2103,8 +2121,8 @@
     return this._speakerAuthenticator.evaluateSpeaker(startNew);
   }
 
-  VoiceConnection.prototype.enrollSpeakerInVoiceId = function() {
-    return this._speakerAuthenticator.enrollSpeaker();
+  VoiceConnection.prototype.enrollSpeakerInVoiceId = function(callbackOnAudioCollectionComplete) {
+    return this._speakerAuthenticator.enrollSpeaker(callbackOnAudioCollectionComplete);
   }
 
   VoiceConnection.prototype.updateVoiceIdSpeakerId = function(speakerId) {
@@ -3549,6 +3567,18 @@ module.exports={
                           "type": "boolean"
                         }
                       }
+                    },
+                    "channelContext": {
+                      "type": "structure",
+                      "members": {
+                        "scheduledTime": {
+                          "type": "long"
+                        },
+                        "taskTemplateId": {},
+                        "taskTemplateVersion": {
+                          "type": "integer"
+                        }
+                      }
                     }
                   }
                 }
@@ -3909,7 +3939,7 @@ module.exports={
           "contactId": {},
           "ccpVersion": {},
           "softphoneStreamStatistics": {
-            "shape": "S3r"
+            "shape": "S3t"
           }
         }
       },
@@ -3942,7 +3972,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S3r"
+                "shape": "S3t"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -4178,7 +4208,7 @@ module.exports={
         }
       }
     },
-    "S3r": {
+    "S3t": {
       "type": "list",
       "member": {
         "type": "structure",
@@ -23616,6 +23646,16 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    ]);
 
    /**---------------------------------------------------------------
+    * enum TaskTemplatesClientMethods
+    */
+   connect.TaskTemplatesClientMethods = connect.makeEnum([
+      'listTaskTemplates',
+      'getTaskTemplate',
+      'createTemplatedTask',
+      'updateTemplatedTask'
+   ]);
+
+   /**---------------------------------------------------------------
     * abstract class ClientBase
     */
    var ClientBase = function() {};
@@ -23786,6 +23826,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    AWSClient.prototype.constructor = AWSClient;
 
    AWSClient.prototype._callImpl = function(method, params, callbacks) {
+
       var self = this;
       var log = connect.getLog();
 
@@ -23816,7 +23857,19 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
                         var error = {};
                         error.type = err.code;
                         error.message = err.message;
-                        error.stack = err.stack ? err.stack.split('\n') : [];
+                        error.stack = [];
+                        if (err.stack){
+                           try {
+                               if (Array.isArray(err.stack)) {
+                                   error.stack = err.stack;
+                               } else if (typeof err.stack === 'object') {
+                                   error.stack = [JSON.stringify(err.stack)];
+                               } else if (typeof err.stack === 'string') {
+                                   error.stack = err.stack.split('\n');
+                               }
+                           } catch {}
+                        }
+                        
                         callbacks.failure(error, data);
                      }
 
@@ -23933,13 +23986,98 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       return report;
    };
 
+   /**---------------------------------------------------------------
+   * class TaskTemplatesClient extends ClientBase
+   */
+   var TaskTemplatesClient = function(endpoint) {
+      ClientBase.call(this);
+      this.baseUrl = connect.getBaseUrl();
+      if (endpoint) {
+         try {
+            var AWSEndpoint = new AWS.Endpoint(endpoint);
+            this.baseUrl = AWSEndpoint.protocol + '//' + AWSEndpoint.hostname;
+         } catch (e) {
+            connect.getLog().error("Failed to build an endpoint")
+            .withException(e).sendInternalLogToServer();
+         }
+      } 
+   };
+
+   TaskTemplatesClient.prototype = Object.create(ClientBase.prototype);
+   TaskTemplatesClient.prototype.constructor = TaskTemplatesClient;
+
+   TaskTemplatesClient.prototype._callImpl = function(method, params, callbacks) {
+      connect.assertNotNull(method, 'method');
+      connect.assertNotNull(params, 'params');
+      var self = this;
+      var options = {
+         credentials: 'include',
+         method: 'GET',
+         headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'x-csrf-token': 'csrf'         
+         }
+      };
+      var instanceId = params.instanceId;
+      var url = `${self.baseUrl}/task-templates/api`;
+      var methods = connect.TaskTemplatesClientMethods;
+      switch (method) {
+         case methods.LIST_TASK_TEMPLATES: 
+            url += `/proxy/instance/${instanceId}/task/template`;
+            if (params.queryParams) {
+               const queryString = new URLSearchParams(params.queryParams).toString();
+               if (queryString) {
+                  url += `?${queryString}`;
+               }
+            }
+            break;
+         case methods.GET_TASK_TEMPLATE: 
+            connect.assertNotNull(params.templateParams, 'params.templateParams');
+            const id = connect.assertNotNull(params.templateParams.id, 'params.templateParams.id');
+            const version = params.templateParams.version;
+            url += `/proxy/instance/${instanceId}/task/template/${id}`;
+            if (version) {
+               url += `?snapshotVersion=${version}`;
+            }
+            break;
+         case methods.CREATE_TEMPLATED_TASK: 
+            url += `/ccp/${method}`;
+            options.body = JSON.stringify(params);
+            options.method = 'PUT';
+            break;
+         case methods.UPDATE_TEMPLATED_TASK: 
+            url += `/ccp/${method}`;
+            options.body = JSON.stringify(params);
+            options.method = 'POST';
+      }
+      connect.fetch(url, options)
+      .then(function(res){
+         callbacks.success(res);
+      }).catch(function(err){
+         const reader = err.body.getReader();
+         let body = '';
+         const decoder = new TextDecoder();
+         reader.read().then(function processText({ done, value }) {
+            if (done) {
+               var error = JSON.parse(body);
+               error.status = err.status;
+               callbacks.failure(error);
+               return;
+            }
+            body += decoder.decode(value);
+            return reader.read().then(processText);
+         });
+      })
+   };
+
    connect.ClientBase = ClientBase;
    connect.NullClient = NullClient;
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
    connect.AgentAppClient = AgentAppClient;
-
+   connect.TaskTemplatesClient = TaskTemplatesClient;
 })();
 
 
@@ -23991,7 +24129,25 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   var CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
   var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
 
+  var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
+  var CCP_TABS_ACROSS_BROWSER_COUNT = 'CCPTabsAcrossBrowserCount';
+
   connect.numberOfConnectedCCPs = 0;
+  connect.numberOfConnectedCCPsInThisTab = 0;
+
+  connect.core.MAX_AUTHORIZE_RETRY_COUNT_FOR_SESSION = 3;
+  connect.core.MAX_CTI_AUTH_RETRY_COUNT = 10;
+  connect.core.ctiAuthRetryCount = 0;
+  connect.core.authorizeTimeoutId = null;
+  connect.core.ctiTimeoutId = null;
+
+  /*----------------------------------------------------------------
+   * enum SessionStorageKeys
+   */
+  connect.SessionStorageKeys = connect.makeEnum([
+    'tab_id',
+    'authorize_retry_count',
+  ]);
 
   /**
    * @deprecated
@@ -24065,6 +24221,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.initClient(params);
     connect.core.initAgentAppClient(params);
+    connect.core.initTaskTemplatesClient(params);
     connect.core.initialized = true;
   };
  
@@ -24096,6 +24253,15 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     
     connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
   };
+
+  /**-------------------------------------------------------------------------
+   * Initialized TaskTemplates client
+   */
+  connect.core.initTaskTemplatesClient = function (params) {
+    connect.assertNotNull(params, 'params');
+    var endpoint = params.endpoint || null;
+    connect.core.taskTemplatesClient = new connect.TaskTemplatesClient(endpoint);
+  };
  
   /**-------------------------------------------------------------------------
    * Uninitialize Connect.
@@ -24103,6 +24269,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
     connect.core.agentAppClient = new connect.NullClient();
+    connect.core.taskTemplatesClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -24606,6 +24773,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
         conduit.onAllDownstream(conduit.passUpstream());
       }
+
       // Send configuration up to the shared worker.
       conduit.sendUpstream(connect.EventType.CONFIGURE, {
         authToken: authToken,
@@ -24615,12 +24783,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         region: region,
         authorizeEndpoint: authorizeEndpoint,
         agentAppEndpoint: agentAppEndpoint,
-        authCookieName: authCookieName
+        authCookieName: authCookieName,
+        longPollingOptions: params.longPollingOptions || undefined
       });
  
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
         connect.getLog().info("Acknowledged by the ConnectSharedWorker!").sendInternalLogToServer();
         connect.core.initialized = true;
+        connect.core._setTabId();
         connect.core.portStreamId = data.id;
         this.unsubscribe();
       });
@@ -24648,10 +24818,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(log));
         }
       });
-      // Reload the page if the shared worker detects an API auth failure.
-      conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
-        location.reload();
-      });
+
+      connect.core.onAuthFail(connect.hitch(connect.core, connect.core._handleAuthFail, params.loginEndpoint || null, authorizeEndpoint)); // For auth retry logic on 401s.
+      connect.core.onAuthorizeSuccess(connect.hitch(connect.core, connect.core._handleAuthorizeSuccess)); // For auth retry logic on 401s.
 
       connect.getLog().info("User Agent: " + navigator.userAgent).sendInternalLogToServer();
       connect.getLog().info("isCCPv2: " + true).sendInternalLogToServer();
@@ -24664,6 +24833,26 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
         connect.getLog().info("Number of connected CCPs updated: " + data.length).sendInternalLogToServer();
         connect.numberOfConnectedCCPs = data.length;
+        if (data[connect.core.tabId] && !isNaN(data[connect.core.tabId].length)){
+          if (connect.numberOfConnectedCCPsInThisTab !== data[connect.core.tabId].length) {
+            connect.numberOfConnectedCCPsInThisTab = data[connect.core.tabId].length;
+            if (connect.numberOfConnectedCCPsInThisTab > 1) {
+              connect.getLog().warn("There are " + connect.numberOfConnectedCCPsInThisTab + " connected CCPs in this tab. Please adjust your implementation to avoid complications. If you are embedding CCP, please do so exclusively with initCCP. InitCCP will not let you embed more than one CCP.").sendInternalLogToServer();
+            }
+            connect.publishMetric({
+              name: CONNECTED_CCPS_SINGLE_TAB,
+              data: { count: connect.numberOfConnectedCCPsInThisTab}
+            });
+          }
+        }
+        if (data.tabId && data.streamsTabsAcrossBrowser) {
+          connect.ifMaster(connect.MasterTopics.METRICS, () =>
+            connect.agent(() => connect.publishMetric({
+              name: CCP_TABS_ACROSS_BROWSER_COUNT,
+              data: { tabId: data.tabId, count: data.streamsTabsAcrossBrowser }
+            }))
+          );
+        }
       });
 
       connect.core.client = new connect.UpstreamConduitClient(conduit);
@@ -24708,6 +24897,19 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         .withException(e).sendInternalLogToServer();
     }
   };
+
+  connect.core._setTabId = function() {
+    try {
+      connect.core.tabId = window.sessionStorage.getItem(connect.SessionStorageKeys.TAB_ID);
+      if (!connect.core.tabId){
+        connect.core.tabId = connect.randomId();
+        window.sessionStorage.setItem(connect.SessionStorageKeys.TAB_ID, connect.core.tabId);
+      }
+      connect.core.upstream.sendUpstream(connect.EventType.TAB_ID, {tabId: connect.core.tabId});
+    } catch(e) {
+      connect.getLog().error("[Tab Id] There was an issue setting the tab Id").withException(e).sendInternalLogToServer();
+    }
+  }
  
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
@@ -24791,13 +24993,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.portStreamId = data.id;
 
-      if (params.softphone || params.chat || params.pageOptions) {
+      if (params.softphone || params.chat || params.pageOptions || params.shouldAddNamespaceToLogs) {
         // Send configuration up to the CCP.
         //set it to false if secondary
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
           softphone: params.softphone,
           chat: params.chat,
-          pageOptions: params.pageOptions
+          pageOptions: params.pageOptions,
+          shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
         });
       }
  
@@ -24819,20 +25022,22 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
         connect.getLog().info(`Iframe initialization time ${initTime}`).sendInternalLogToServer();
         connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
-        connect.publishMetric({
-          name: CSM_IFRAME_REFRESH_ATTEMPTS,
-          data: refreshAttempts
-        });
-        connect.publishMetric({
-          name: CSM_IFRAME_INITIALIZATION_SUCCESS,
-          data: 1 
-        });
-        connect.publishMetric({
-          name: CSM_IFRAME_INITIALIZATION_TIME,
-          data: initTime
-        });
-        //to avoid metric emission after initialization
-        initStartTime = null;
+        setTimeout(() => {
+          connect.publishMetric({
+            name: CSM_IFRAME_REFRESH_ATTEMPTS,
+            data: { count: refreshAttempts} 
+          });
+          connect.publishMetric({
+            name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+            data: { count: 1} 
+          });
+          connect.publishMetric({
+            name: CSM_IFRAME_INITIALIZATION_TIME,
+            data: { count: initTime} 
+          });
+          //to avoid metric emission after initialization
+          initStartTime = null;
+        },1000)
       }
     });
  
@@ -24901,11 +25106,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
         connect.publishMetric({
           name: CSM_IFRAME_REFRESH_ATTEMPTS,
-          data: refreshAttempts
+          data: { count: refreshAttempts}
         });
         connect.publishMetric({
           name: CSM_IFRAME_INITIALIZATION_SUCCESS,
-          data: 0 
+          data: { count: 0}
         });
         initStartTime = null;
       }
@@ -24964,7 +25169,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var iframe = document.createElement('iframe');
     iframe.src = initCCPParams.ccpUrl;
     iframe.allow = "microphone; autoplay";
-    iframe.style = "width: 100%; height: 100%";
+    iframe.style = initCCPParams.style || "width: 100%; height: 100%";
     iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
     iframe.name = CCP_IFRAME_NAME;
     containerDiv.appendChild(iframe);
@@ -25409,6 +25614,99 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.core.onAuthFail = function (f) {
     connect.core.getUpstream().onUpstream(connect.EventType.AUTH_FAIL, f);
   };
+
+  connect.core.onAuthorizeSuccess = function (f) {
+    connect.core.getUpstream().onUpstream(connect.EventType.AUTHORIZE_SUCCESS, f);
+  }
+
+  connect.core._handleAuthorizeSuccess = function() {
+    window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0);
+  }
+
+  connect.core._handleAuthFail = function(loginUrl, authorizeEndpoint, authFailData) {
+    if (authFailData && authFailData.authorize) {
+      connect.core._handleAuthorizeFail(loginUrl);
+    }
+    else {
+      connect.core._handleCTIAuthFail(authorizeEndpoint);
+    }
+  }
+
+  connect.core._handleAuthorizeFail = function(loginUrl) {
+    let authRetryCount = connect.core._getAuthRetryCount()
+    if (!connect.core.authorizeTimeoutId) {
+      if (authRetryCount < connect.core.MAX_AUTHORIZE_RETRY_COUNT_FOR_SESSION) {
+        connect.core._incrementAuthRetryCount();
+        let retryDelay = AWS.util.calculateRetryDelay(authRetryCount + 1 || 0, { base: 2000 });
+        connect.core.authorizeTimeoutId = setTimeout(() => {
+          connect.core._redirectToLogin(loginUrl);
+        }, retryDelay); //We don't have to clear the timeoutId because we are redirecting away from this origin once the timeout completes.
+      }
+      else  {
+        connect.getLog().warn("We have exhausted our authorization retries due to 401s from the authorize api. No more retries will be attempted in this session until the authorize api returns 200.").sendInternalLogToServer();
+        connect.core.getEventBus().trigger(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED);
+      }
+    }
+  }
+
+  connect.core._redirectToLogin = function(loginUrl) {
+    if (typeof(loginUrl) === 'string') {
+      location.assign(loginUrl);
+    } else {
+      location.reload();
+    }
+  }
+
+  connect.core._handleCTIAuthFail = function(authorizeEndpoint) {
+    if (!connect.core.ctiTimeoutId) {
+      if (connect.core.ctiAuthRetryCount < connect.core.MAX_CTI_AUTH_RETRY_COUNT) {
+        connect.core.ctiAuthRetryCount++;
+        let retryDelay = AWS.util.calculateRetryDelay(connect.core.ctiAuthRetryCount || 0, { base: 500 });
+        connect.core.ctiTimeoutId = setTimeout(() => {
+          connect.core.authorize(authorizeEndpoint).then(connect.core._triggerAuthorizeSuccess.bind(connect.core)).catch(connect.core._triggerAuthFail.bind(connect.core, {authorize: true}));
+          connect.core.ctiTimeoutId = null;
+        }, retryDelay);
+      }
+      else {
+        connect.getLog().warn("We have exhausted our authorization retries due to 401s from the CTI service. No more retries will be attempted until the page is refreshed.").sendInternalLogToServer();
+        connect.core.getEventBus().trigger(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED);
+      }
+    }
+  }
+
+  connect.core._triggerAuthorizeSuccess = function() {
+    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.AUTHORIZE_SUCCESS);
+  }
+
+  connect.core._triggerAuthFail = function(data) {
+    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.AUTH_FAIL, data);
+  }
+
+  connect.core._getAuthRetryCount = function() {
+    let item = window.sessionStorage.getItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT);
+    if (item !== null) {
+      if (!isNaN(parseInt(item))) {
+        return parseInt(item);
+      } else {
+        throw new connect.StateError("The session storage value for auth retry count was NaN");
+      }
+    } else {
+      window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0);
+      return 0;
+    } 
+  }
+
+  connect.core._incrementAuthRetryCount = function() {
+    window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, (connect.core._getAuthRetryCount()+1).toString());
+  }
+
+  connect.core.onAuthorizeRetriesExhausted = function(f) {
+    connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
+  }
+
+  connect.core.onCTIAuthorizeRetriesExhausted = function(f) {
+    connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
+  }
  
   /** ------------------------------------------------- */
  
@@ -25553,6 +25851,15 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   connect.core.agentAppClient = null;
  
   /**-----------------------------------------------------------------------*/
+  connect.core.getTaskTemplatesClient = function () {
+    if (!connect.core.taskTemplatesClient) {
+      throw new connect.StateError('The connect TaskTemplates Client has not been initialized!');
+    }
+    return connect.core.taskTemplatesClient;
+  };
+  connect.core.taskTemplatesClient = null;
+
+  /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {
     if (!connect.core.masterClient) {
       throw new connect.StateError('The connect master client has not been initialized!');
@@ -25647,7 +25954,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     "update_connected_ccps",
     "outer_context_info",
     "media_device_request",
-    "media_device_response"
+    "media_device_response",
+    "tab_id",
+    'authorize_success',
+    'authorize_retries_exhausted',
+    'cti_authorize_retries_exhausted',
   ]);
 
   /**---------------------------------------------------------------
@@ -25973,7 +26284,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 /***/ 286:
 /***/ (() => {
 
-!function(e){var n={};function t(o){if(n[o])return n[o].exports;var r=n[o]={i:o,l:!1,exports:{}};return e[o].call(r.exports,r,r.exports,t),r.l=!0,r.exports}t.m=e,t.c=n,t.d=function(e,n,o){t.o(e,n)||Object.defineProperty(e,n,{enumerable:!0,get:o})},t.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},t.t=function(e,n){if(1&n&&(e=t(e)),8&n)return e;if(4&n&&"object"==typeof e&&e&&e.__esModule)return e;var o=Object.create(null);if(t.r(o),Object.defineProperty(o,"default",{enumerable:!0,value:e}),2&n&&"string"!=typeof e)for(var r in e)t.d(o,r,function(n){return e[n]}.bind(null,r));return o},t.n=function(e){var n=e&&e.__esModule?function(){return e.default}:function(){return e};return t.d(n,"a",n),n},t.o=function(e,n){return Object.prototype.hasOwnProperty.call(e,n)},t.p="",t(t.s=2)}([function(e,n,t){"use strict";var o=t(1),r="NULL",i="CLIENT_LOGGER",c="DEBUG",s=2e3,a="aws/subscribe",u="aws/unsubscribe",l="aws/heartbeat",f="connected",p="disconnected";function d(e){return(d="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var b={assertTrue:function(e,n){if(!e)throw new Error(n)},assertNotNull:function(e,n){return b.assertTrue(null!==e&&void 0!==d(e),Object(o.sprintf)("%s must be provided",n||"A value")),e},isNonEmptyString:function(e){return"string"==typeof e&&e.length>0},assertIsList:function(e,n){if(!Array.isArray(e))throw new Error(n+" is not an array")},isFunction:function(e){return!!(e&&e.constructor&&e.call&&e.apply)},isObject:function(e){return!("object"!==d(e)||null===e)},isString:function(e){return"string"==typeof e},isNumber:function(e){return"number"==typeof e}},g=new RegExp("^(wss://)\\w*");b.validWSUrl=function(e){return g.test(e)},b.getSubscriptionResponse=function(e,n,t){return{topic:e,content:{status:n?"success":"failure",topics:t}}},b.assertIsObject=function(e,n){if(!b.isObject(e))throw new Error(n+" is not an object!")},b.addJitter=function(e){var n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:1;n=Math.min(n,1);var t=Math.random()>.5?1:-1;return Math.floor(e+t*e*Math.random()*n)},b.isNetworkOnline=function(){return navigator.onLine},b.isNetworkFailure=function(e){return!(!e._debug||!e._debug.type)&&"NetworkingError"===e._debug.type};var y=b;function m(e){return(m="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function S(e,n){return!n||"object"!==m(n)&&"function"!=typeof n?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):n}function k(e){return(k=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}function h(e,n){return(h=Object.setPrototypeOf||function(e,n){return e.__proto__=n,e})(e,n)}function v(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}function w(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}function C(e,n,t){return n&&w(e.prototype,n),t&&w(e,t),e}var T=function(){function e(){v(this,e)}return C(e,[{key:"debug",value:function(e){}},{key:"info",value:function(e){}},{key:"warn",value:function(e){}},{key:"error",value:function(e){}}]),e}(),O={DEBUG:10,INFO:20,WARN:30,ERROR:40},I=function(){function e(){v(this,e),this.updateLoggerConfig(),this.consoleLoggerWrapper=_()}return C(e,[{key:"writeToClientLogger",value:function(e,n){if(this.hasClientLogger())switch(e){case O.DEBUG:return this._clientLogger.debug(n);case O.INFO:return this._clientLogger.info(n);case O.WARN:return this._clientLogger.warn(n);case O.ERROR:return this._clientLogger.error(n)}}},{key:"isLevelEnabled",value:function(e){return e>=this._level}},{key:"hasClientLogger",value:function(){return null!==this._clientLogger}},{key:"getLogger",value:function(e){var n=e.prefix||"";return this._logsDestination===c?this.consoleLoggerWrapper:new N(n)}},{key:"updateLoggerConfig",value:function(e){var n=e||{};this._level=n.level||O.DEBUG,this._clientLogger=n.logger||null,this._logsDestination=r,n.debug&&(this._logsDestination=c),n.logger&&(this._logsDestination=i)}}]),e}(),W=function(){function e(){v(this,e)}return C(e,[{key:"debug",value:function(){}},{key:"info",value:function(){}},{key:"warn",value:function(){}},{key:"error",value:function(){}}]),e}(),N=function(e){function n(e){var t;return v(this,n),(t=S(this,k(n).call(this))).prefix=e||"",t}return function(e,n){if("function"!=typeof n&&null!==n)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(n&&n.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),n&&h(e,n)}(n,W),C(n,[{key:"debug",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.DEBUG,n)}},{key:"info",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.INFO,n)}},{key:"warn",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.WARN,n)}},{key:"error",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.ERROR,n)}},{key:"_shouldLog",value:function(e){return E.hasClientLogger()&&E.isLevelEnabled(e)}},{key:"_writeToClientLogger",value:function(e,n){return E.writeToClientLogger(e,n)}},{key:"_log",value:function(e,n){if(this._shouldLog(e)){var t=this._convertToSingleStatement(n);return this._writeToClientLogger(e,t)}}},{key:"_convertToSingleStatement",value:function(e){var n="";this.prefix&&(n+=this.prefix+" ");for(var t=0;t<e.length;t++){var o=e[t];n+=this._convertToString(o)+" "}return n}},{key:"_convertToString",value:function(e){try{if(!e)return"";if(y.isString(e))return e;if(y.isObject(e)&&y.isFunction(e.toString)){var n=e.toString();if("[object Object]"!==n)return n}return JSON.stringify(e)}catch(n){return console.error("Error while converting argument to string",e,n),""}}}]),n}(),_=function(){var e=new W;return e.debug=console.debug,e.info=console.info,e.warn=console.warn,e.error=console.error,e},E=new I;function F(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}var L=function(){function e(n){var t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:s;!function(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}(this,e),this.numAttempts=0,this.executor=n,this.hasActiveReconnection=!1,this.defaultRetry=t}var n,t,o;return n=e,(t=[{key:"retry",value:function(){var e=this;this.hasActiveReconnection||(this.hasActiveReconnection=!0,setTimeout(function(){e._execute()},this._getDelay()))}},{key:"_execute",value:function(){this.hasActiveReconnection=!1,this.executor(),this.numAttempts++}},{key:"connected",value:function(){this.numAttempts=0}},{key:"_getDelay",value:function(){var e=Math.pow(2,this.numAttempts)*this.defaultRetry;return e<=3e4?e:3e4}}])&&F(n.prototype,t),o&&F(n,o),e}();t.d(n,"a",function(){return R});var x=function(){var e=E.getLogger({}),n=y.isNetworkOnline(),t={primary:null,secondary:null},o={reconnectWebSocket:!0,websocketInitFailed:!1,exponentialBackOffTime:1e3,exponentialTimeoutHandle:null,lifeTimeTimeoutHandle:null,webSocketInitCheckerTimeoutId:null,connState:null},r={connectWebSocketRetryCount:0,connectionAttemptStartTime:null,noOpenConnectionsTimestamp:null},i={pendingResponse:!1,intervalHandle:null},c={initFailure:new Set,getWebSocketTransport:null,subscriptionUpdate:new Set,subscriptionFailure:new Set,topic:new Map,allMessage:new Set,connectionGain:new Set,connectionLost:new Set,connectionOpen:new Set,connectionClose:new Set},s={connConfig:null,promiseHandle:null,promiseCompleted:!0},d={subscribed:new Set,pending:new Set,subscriptionHistory:new Set},b={responseCheckIntervalId:null,requestCompleted:!0,reSubscribeIntervalId:null,consecutiveFailedSubscribeAttempts:0,consecutiveNoResponseRequest:0},g=new L(function(){U()}),m=new Set([a,u,l]),S=setInterval(function(){if(n!==y.isNetworkOnline()){if(!(n=y.isNetworkOnline()))return void J(e.info("Network offline"));var t=O();n&&(!t||w(t,WebSocket.CLOSING)||w(t,WebSocket.CLOSED))&&(J(e.info("Network online, connecting to WebSocket server")),U())}},250),k=function(n,t){n.forEach(function(n){try{n(t)}catch(n){J(e.error("Error executing callback",n))}})},h=function(e){if(null===e)return"NULL";switch(e.readyState){case WebSocket.CONNECTING:return"CONNECTING";case WebSocket.OPEN:return"OPEN";case WebSocket.CLOSING:return"CLOSING";case WebSocket.CLOSED:return"CLOSED";default:return"UNDEFINED"}},v=function(){var n=arguments.length>0&&void 0!==arguments[0]?arguments[0]:"";J(e.debug("["+n+"] Primary WebSocket: "+h(t.primary)+" | Secondary WebSocket: "+h(t.secondary)))},w=function(e,n){return e&&e.readyState===n},C=function(e){return w(e,WebSocket.OPEN)},T=function(e){return null===e||void 0===e.readyState||w(e,WebSocket.CLOSED)},O=function(){return null!==t.secondary?t.secondary:t.primary},I=function(){return C(O())},W=function(){if(i.pendingResponse)return J(e.warn("Heartbeat response not received")),clearInterval(i.intervalHandle),i.pendingResponse=!1,void U();I()?(J(e.debug("Sending heartbeat")),O().send(G(l)),i.pendingResponse=!0):(J(e.warn("Failed to send heartbeat since WebSocket is not open")),v("sendHeartBeat"),U())},N=function(){o.exponentialBackOffTime=1e3,i.pendingResponse=!1,o.reconnectWebSocket=!0,clearTimeout(o.lifeTimeTimeoutHandle),clearInterval(i.intervalHandle),clearTimeout(o.exponentialTimeoutHandle),clearTimeout(o.webSocketInitCheckerTimeoutId)},_=function(){b.consecutiveFailedSubscribeAttempts=0,b.consecutiveNoResponseRequest=0,clearInterval(b.responseCheckIntervalId),clearInterval(b.reSubscribeIntervalId)},F=function(){r.connectWebSocketRetryCount=0,r.connectionAttemptStartTime=null,r.noOpenConnectionsTimestamp=null},x=function(){try{J(e.info("WebSocket connection established!")),v("webSocketOnOpen"),null!==o.connState&&o.connState!==p||k(c.connectionGain),o.connState=f;var n=Date.now();k(c.connectionOpen,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,noOpenConnectionsTimestamp:r.noOpenConnectionsTimestamp,connectionEstablishedTime:n,timeToConnect:n-r.connectionAttemptStartTime,timeWithoutConnection:r.noOpenConnectionsTimestamp?n-r.noOpenConnectionsTimestamp:null}),F(),N(),O().openTimestamp=Date.now(),0===d.subscribed.size&&C(t.secondary)&&D(t.primary,"[Primary WebSocket] Closing WebSocket"),(d.subscribed.size>0||d.pending.size>0)&&(C(t.secondary)&&J(e.info("Subscribing secondary websocket to topics of primary websocket")),d.subscribed.forEach(function(e){d.subscriptionHistory.add(e),d.pending.add(e)}),d.subscribed.clear(),A()),W(),i.intervalHandle=setInterval(W,1e4);var a=1e3*s.connConfig.webSocketTransport.transportLifeTimeInSeconds;J(e.debug("Scheduling WebSocket manager reconnection, after delay "+a+" ms")),o.lifeTimeTimeoutHandle=setTimeout(function(){J(e.debug("Starting scheduled WebSocket manager reconnection")),U()},a)}catch(n){J(e.error("Error after establishing WebSocket connection",n))}},R=function(n){v("webSocketOnError"),J(e.error("WebSocketManager Error, error_event: ",JSON.stringify(n))),U()},j=function(n){var o=JSON.parse(n.data);switch(o.topic){case a:if(J(e.debug("Subscription Message received from webSocket server",n.data)),b.requestCompleted=!0,b.consecutiveNoResponseRequest=0,"success"===o.content.status)b.consecutiveFailedSubscribeAttempts=0,o.content.topics.forEach(function(e){d.subscriptionHistory.delete(e),d.pending.delete(e),d.subscribed.add(e)}),0===d.subscriptionHistory.size?C(t.secondary)&&(J(e.info("Successfully subscribed secondary websocket to all topics of primary websocket")),D(t.primary,"[Primary WebSocket] Closing WebSocket")):A(),k(c.subscriptionUpdate,o);else{if(clearInterval(b.reSubscribeIntervalId),++b.consecutiveFailedSubscribeAttempts,5===b.consecutiveFailedSubscribeAttempts)return k(c.subscriptionFailure,o),void(b.consecutiveFailedSubscribeAttempts=0);b.reSubscribeIntervalId=setInterval(function(){A()},500)}break;case l:J(e.debug("Heartbeat response received")),i.pendingResponse=!1;break;default:if(o.topic){if(J(e.debug("Message received for topic "+o.topic)),C(t.primary)&&C(t.secondary)&&0===d.subscriptionHistory.size&&this===t.primary)return void J(e.warn("Ignoring Message for Topic "+o.topic+", to avoid duplicates"));if(0===c.allMessage.size&&0===c.topic.size)return void J(e.warn("No registered callback listener for Topic",o.topic));k(c.allMessage,o),c.topic.has(o.topic)&&k(c.topic.get(o.topic),o)}else o.message?J(e.warn("WebSocketManager Message Error",o)):J(e.warn("Invalid incoming message",o))}},A=function n(){if(b.consecutiveNoResponseRequest>3)return J(e.warn("Ignoring subscribePendingTopics since we have exhausted max subscription retries with no response")),void k(c.subscriptionFailure,y.getSubscriptionResponse(a,!1,Array.from(d.pending)));I()?(clearInterval(b.responseCheckIntervalId),O().send(G(a,{topics:Array.from(d.pending)})),b.requestCompleted=!1,b.responseCheckIntervalId=setInterval(function(){b.requestCompleted||(++b.consecutiveNoResponseRequest,n())},1e3)):J(e.warn("Ignoring subscribePendingTopics call since Default WebSocket is not open"))},D=function(n,t){w(n,WebSocket.CONNECTING)||w(n,WebSocket.OPEN)?n.close(1e3,t):J(e.warn("Ignoring WebSocket Close request, WebSocket State: "+h(n)))},M=function(e){D(t.primary,"[Primary] WebSocket "+e),D(t.secondary,"[Secondary] WebSocket "+e)},P=function(){r.connectWebSocketRetryCount++;var n=y.addJitter(o.exponentialBackOffTime,.3);Date.now()+n<=s.connConfig.urlConnValidTime?(J(e.debug("Scheduling WebSocket reinitialization, after delay "+n+" ms")),o.exponentialTimeoutHandle=setTimeout(function(){return q()},n),o.exponentialBackOffTime*=2):(J(e.warn("WebSocket URL cannot be used to establish connection")),U())},H=function(n){N(),_(),J(e.error("WebSocket Initialization failed")),o.websocketInitFailed=!0,M("Terminating WebSocket Manager"),clearInterval(S),k(c.initFailure,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,reason:n}),F()},G=function(e,n){return JSON.stringify({topic:e,content:n})},z=function(n){return!!(y.isObject(n)&&y.isObject(n.webSocketTransport)&&y.isNonEmptyString(n.webSocketTransport.url)&&y.validWSUrl(n.webSocketTransport.url)&&1e3*n.webSocketTransport.transportLifeTimeInSeconds>=3e5)||(J(e.error("Invalid WebSocket Connection Configuration",n)),!1)},U=function(){if(y.isNetworkOnline())if(o.websocketInitFailed)J(e.debug("WebSocket Init had failed, ignoring this getWebSocketConnConfig request"));else{if(s.promiseCompleted)return N(),J(e.info("Fetching new WebSocket connection configuration")),r.connectionAttemptStartTime=r.connectionAttemptStartTime||Date.now(),s.promiseCompleted=!1,s.promiseHandle=c.getWebSocketTransport(),s.promiseHandle.then(function(n){return s.promiseCompleted=!0,J(e.debug("Successfully fetched webSocket connection configuration",n)),z(n)?(s.connConfig=n,s.connConfig.urlConnValidTime=Date.now()+85e3,g.connected(),q()):(H("Invalid WebSocket connection configuration: "+n),{webSocketConnectionFailed:!0})},function(n){return s.promiseCompleted=!0,J(e.error("Failed to fetch webSocket connection configuration",n)),y.isNetworkFailure(n)?(J(e.info("Retrying fetching new WebSocket connection configuration")),g.retry()):H("Failed to fetch webSocket connection configuration: "+JSON.stringify(n)),{webSocketConnectionFailed:!0}});J(e.debug("There is an ongoing getWebSocketConnConfig request, this request will be ignored"))}else J(e.info("Network offline, ignoring this getWebSocketConnConfig request"))},q=function(){if(o.websocketInitFailed)return J(e.info("web-socket initializing had failed, aborting re-init")),{webSocketConnectionFailed:!0};if(!y.isNetworkOnline())return J(e.warn("System is offline aborting web-socket init")),{webSocketConnectionFailed:!0};J(e.info("Initializing Websocket Manager")),v("initWebSocket");try{if(z(s.connConfig)){var n=null;return C(t.primary)?(J(e.debug("Primary Socket connection is already open")),w(t.secondary,WebSocket.CONNECTING)||(J(e.debug("Establishing a secondary web-socket connection")),t.secondary=B()),n=t.secondary):(w(t.primary,WebSocket.CONNECTING)||(J(e.debug("Establishing a primary web-socket connection")),t.primary=B()),n=t.primary),o.webSocketInitCheckerTimeoutId=setTimeout(function(){C(n)||P()},1e3),{webSocketConnectionFailed:!1}}}catch(n){return J(e.error("Error Initializing web-socket-manager",n)),H("Failed to initialize new WebSocket: "+n.message),{webSocketConnectionFailed:!0}}},B=function(){var n=new WebSocket(s.connConfig.webSocketTransport.url);return n.addEventListener("open",x),n.addEventListener("message",j),n.addEventListener("error",R),n.addEventListener("close",function(i){return function(n,i){J(e.info("Socket connection is closed",n)),v("webSocketOnClose before-cleanup"),k(c.connectionClose,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),T(t.primary)&&(t.primary=null),T(t.secondary)&&(t.secondary=null),o.reconnectWebSocket&&(C(t.primary)||C(t.secondary)?T(t.primary)&&C(t.secondary)&&(J(e.info("[Primary] WebSocket Cleanly Closed")),t.primary=t.secondary,t.secondary=null):(J(e.warn("Neither primary websocket and nor secondary websocket have open connections, attempting to re-establish connection")),o.connState===p?J(e.info("Ignoring connectionLost callback invocation")):(k(c.connectionLost,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),r.noOpenConnectionsTimestamp=Date.now()),o.connState=p,U()),v("webSocketOnClose after-cleanup"))}(i,n)}),n},J=function(e){return e&&"function"==typeof e.sendInternalLogToServer&&e.sendInternalLogToServer(),e};this.init=function(n){if(y.assertTrue(y.isFunction(n),"transportHandle must be a function"),null===c.getWebSocketTransport)return c.getWebSocketTransport=n,U();J(e.warn("Web Socket Manager was already initialized"))},this.onInitFailure=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.initFailure.add(e),o.websocketInitFailed&&e(),function(){return c.initFailure.delete(e)}},this.onConnectionOpen=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionOpen.add(e),function(){return c.connectionOpen.delete(e)}},this.onConnectionClose=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionClose.add(e),function(){return c.connectionClose.delete(e)}},this.onConnectionGain=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionGain.add(e),I()&&e(),function(){return c.connectionGain.delete(e)}},this.onConnectionLost=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionLost.add(e),o.connState===p&&e(),function(){return c.connectionLost.delete(e)}},this.onSubscriptionUpdate=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.subscriptionUpdate.add(e),function(){return c.subscriptionUpdate.delete(e)}},this.onSubscriptionFailure=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.subscriptionFailure.add(e),function(){return c.subscriptionFailure.delete(e)}},this.onMessage=function(e,n){return y.assertNotNull(e,"topicName"),y.assertTrue(y.isFunction(n),"cb must be a function"),c.topic.has(e)?c.topic.get(e).add(n):c.topic.set(e,new Set([n])),function(){return c.topic.get(e).delete(n)}},this.onAllMessage=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.allMessage.add(e),function(){return c.allMessage.delete(e)}},this.subscribeTopics=function(e){y.assertNotNull(e,"topics"),y.assertIsList(e),e.forEach(function(e){d.subscribed.has(e)||d.pending.add(e)}),b.consecutiveNoResponseRequest=0,A()},this.sendMessage=function(n){if(y.assertIsObject(n,"payload"),void 0===n.topic||m.has(n.topic))J(e.warn("Cannot send message, Invalid topic",n));else{try{n=JSON.stringify(n)}catch(t){return void J(e.warn("Error stringify message",n))}I()?O().send(n):J(e.warn("Cannot send message, web socket connection is not open"))}},this.closeWebSocket=function(){N(),_(),o.reconnectWebSocket=!1,clearInterval(S),M("User request to close WebSocket")},this.terminateWebSocketManager=H},R={create:function(){return new x},setGlobalConfig:function(e){var n=e.loggerConfig;E.updateLoggerConfig(n)},LogLevel:O,Logger:T}},function(e,n,t){var o;!function(){"use strict";var r={not_string:/[^s]/,not_bool:/[^t]/,not_type:/[^T]/,not_primitive:/[^v]/,number:/[diefg]/,numeric_arg:/[bcdiefguxX]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijostTuvxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[+-]/};function i(e){return function(e,n){var t,o,c,s,a,u,l,f,p,d=1,b=e.length,g="";for(o=0;o<b;o++)if("string"==typeof e[o])g+=e[o];else if("object"==typeof e[o]){if((s=e[o]).keys)for(t=n[d],c=0;c<s.keys.length;c++){if(null==t)throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"',s.keys[c],s.keys[c-1]));t=t[s.keys[c]]}else t=s.param_no?n[s.param_no]:n[d++];if(r.not_type.test(s.type)&&r.not_primitive.test(s.type)&&t instanceof Function&&(t=t()),r.numeric_arg.test(s.type)&&"number"!=typeof t&&isNaN(t))throw new TypeError(i("[sprintf] expecting number but found %T",t));switch(r.number.test(s.type)&&(f=t>=0),s.type){case"b":t=parseInt(t,10).toString(2);break;case"c":t=String.fromCharCode(parseInt(t,10));break;case"d":case"i":t=parseInt(t,10);break;case"j":t=JSON.stringify(t,null,s.width?parseInt(s.width):0);break;case"e":t=s.precision?parseFloat(t).toExponential(s.precision):parseFloat(t).toExponential();break;case"f":t=s.precision?parseFloat(t).toFixed(s.precision):parseFloat(t);break;case"g":t=s.precision?String(Number(t.toPrecision(s.precision))):parseFloat(t);break;case"o":t=(parseInt(t,10)>>>0).toString(8);break;case"s":t=String(t),t=s.precision?t.substring(0,s.precision):t;break;case"t":t=String(!!t),t=s.precision?t.substring(0,s.precision):t;break;case"T":t=Object.prototype.toString.call(t).slice(8,-1).toLowerCase(),t=s.precision?t.substring(0,s.precision):t;break;case"u":t=parseInt(t,10)>>>0;break;case"v":t=t.valueOf(),t=s.precision?t.substring(0,s.precision):t;break;case"x":t=(parseInt(t,10)>>>0).toString(16);break;case"X":t=(parseInt(t,10)>>>0).toString(16).toUpperCase()}r.json.test(s.type)?g+=t:(!r.number.test(s.type)||f&&!s.sign?p="":(p=f?"+":"-",t=t.toString().replace(r.sign,"")),u=s.pad_char?"0"===s.pad_char?"0":s.pad_char.charAt(1):" ",l=s.width-(p+t).length,a=s.width&&l>0?u.repeat(l):"",g+=s.align?p+t+a:"0"===u?p+a+t:a+p+t)}return g}(function(e){if(s[e])return s[e];var n,t=e,o=[],i=0;for(;t;){if(null!==(n=r.text.exec(t)))o.push(n[0]);else if(null!==(n=r.modulo.exec(t)))o.push("%");else{if(null===(n=r.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(n[2]){i|=1;var c=[],a=n[2],u=[];if(null===(u=r.key.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(c.push(u[1]);""!==(a=a.substring(u[0].length));)if(null!==(u=r.key_access.exec(a)))c.push(u[1]);else{if(null===(u=r.index_access.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");c.push(u[1])}n[2]=c}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");o.push({placeholder:n[0],param_no:n[1],keys:n[2],sign:n[3],pad_char:n[4],align:n[5],width:n[6],precision:n[7],type:n[8]})}t=t.substring(n[0].length)}return s[e]=o}(e),arguments)}function c(e,n){return i.apply(null,[e].concat(n||[]))}var s=Object.create(null);n.sprintf=i,n.vsprintf=c,"undefined"!=typeof window&&(window.sprintf=i,window.vsprintf=c,void 0===(o=function(){return{sprintf:i,vsprintf:c}}.call(n,t,n,e))||(e.exports=o))}()},function(e,n,t){"use strict";t.r(n),function(e){t.d(n,"WebSocketManager",function(){return r});var o=t(0);e.connect=e.connect||{},connect.WebSocketManager=o.a;var r=o.a}.call(this,t(3))},function(e,n){var t;t=function(){return this}();try{t=t||new Function("return this")()}catch(e){"object"==typeof window&&(t=window)}e.exports=t}]);
+!function(e){var n={};function t(o){if(n[o])return n[o].exports;var r=n[o]={i:o,l:!1,exports:{}};return e[o].call(r.exports,r,r.exports,t),r.l=!0,r.exports}t.m=e,t.c=n,t.d=function(e,n,o){t.o(e,n)||Object.defineProperty(e,n,{enumerable:!0,get:o})},t.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},t.t=function(e,n){if(1&n&&(e=t(e)),8&n)return e;if(4&n&&"object"==typeof e&&e&&e.__esModule)return e;var o=Object.create(null);if(t.r(o),Object.defineProperty(o,"default",{enumerable:!0,value:e}),2&n&&"string"!=typeof e)for(var r in e)t.d(o,r,function(n){return e[n]}.bind(null,r));return o},t.n=function(e){var n=e&&e.__esModule?function(){return e.default}:function(){return e};return t.d(n,"a",n),n},t.o=function(e,n){return Object.prototype.hasOwnProperty.call(e,n)},t.p="",t(t.s=2)}([function(e,n,t){"use strict";var o=t(1),r="NULL",i="CLIENT_LOGGER",c="DEBUG",s=2e3,a="aws/subscribe",u="aws/unsubscribe",l="aws/heartbeat",f="connected",p="disconnected";function d(e){return(d="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var b={assertTrue:function(e,n){if(!e)throw new Error(n)},assertNotNull:function(e,n){return b.assertTrue(null!==e&&void 0!==d(e),Object(o.sprintf)("%s must be provided",n||"A value")),e},isNonEmptyString:function(e){return"string"==typeof e&&e.length>0},assertIsList:function(e,n){if(!Array.isArray(e))throw new Error(n+" is not an array")},isFunction:function(e){return!!(e&&e.constructor&&e.call&&e.apply)},isObject:function(e){return!("object"!==d(e)||null===e)},isString:function(e){return"string"==typeof e},isNumber:function(e){return"number"==typeof e}},g=new RegExp("^(wss://)\\w*");b.validWSUrl=function(e){return g.test(e)},b.getSubscriptionResponse=function(e,n,t){return{topic:e,content:{status:n?"success":"failure",topics:t}}},b.assertIsObject=function(e,n){if(!b.isObject(e))throw new Error(n+" is not an object!")},b.addJitter=function(e){var n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:1;n=Math.min(n,1);var t=Math.random()>.5?1:-1;return Math.floor(e+t*e*Math.random()*n)},b.isNetworkOnline=function(){return navigator.onLine},b.isNetworkFailure=function(e){return!(!e._debug||!e._debug.type)&&"NetworkingError"===e._debug.type};var y=b;function m(e){return(m="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function S(e,n){return!n||"object"!==m(n)&&"function"!=typeof n?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):n}function h(e){return(h=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}function k(e,n){return(k=Object.setPrototypeOf||function(e,n){return e.__proto__=n,e})(e,n)}function v(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}function w(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}function C(e,n,t){return n&&w(e.prototype,n),t&&w(e,t),e}var T=function(){function e(){v(this,e)}return C(e,[{key:"debug",value:function(e){}},{key:"info",value:function(e){}},{key:"warn",value:function(e){}},{key:"error",value:function(e){}}]),e}(),O={DEBUG:10,INFO:20,WARN:30,ERROR:40},I=function(){function e(){v(this,e),this.updateLoggerConfig(),this.consoleLoggerWrapper=_()}return C(e,[{key:"writeToClientLogger",value:function(e,n){if(this.hasClientLogger())switch(e){case O.DEBUG:return this._clientLogger.debug(n);case O.INFO:return this._clientLogger.info(n);case O.WARN:return this._clientLogger.warn(n);case O.ERROR:return this._clientLogger.error(n)}}},{key:"isLevelEnabled",value:function(e){return e>=this._level}},{key:"hasClientLogger",value:function(){return null!==this._clientLogger}},{key:"getLogger",value:function(e){var n=e.prefix||"";return this._logsDestination===c?this.consoleLoggerWrapper:new N(n)}},{key:"updateLoggerConfig",value:function(e){var n=e||{};this._level=n.level||O.DEBUG,this._clientLogger=n.logger||null,this._logsDestination=r,n.debug&&(this._logsDestination=c),n.logger&&(this._logsDestination=i)}}]),e}(),W=function(){function e(){v(this,e)}return C(e,[{key:"debug",value:function(){}},{key:"info",value:function(){}},{key:"warn",value:function(){}},{key:"error",value:function(){}}]),e}(),N=function(e){function n(e){var t;return v(this,n),(t=S(this,h(n).call(this))).prefix=e||"",t}return function(e,n){if("function"!=typeof n&&null!==n)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(n&&n.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),n&&k(e,n)}(n,W),C(n,[{key:"debug",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.DEBUG,n)}},{key:"info",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.INFO,n)}},{key:"warn",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.WARN,n)}},{key:"error",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.ERROR,n)}},{key:"_shouldLog",value:function(e){return E.hasClientLogger()&&E.isLevelEnabled(e)}},{key:"_writeToClientLogger",value:function(e,n){return E.writeToClientLogger(e,n)}},{key:"_log",value:function(e,n){if(this._shouldLog(e)){var t=this._convertToSingleStatement(n);return this._writeToClientLogger(e,t)}}},{key:"_convertToSingleStatement",value:function(e){var n="";this.prefix&&(n+=this.prefix+" ");for(var t=0;t<e.length;t++){var o=e[t];n+=this._convertToString(o)+" "}return n}},{key:"_convertToString",value:function(e){try{if(!e)return"";if(y.isString(e))return e;if(y.isObject(e)&&y.isFunction(e.toString)){var n=e.toString();if("[object Object]"!==n)return n}return JSON.stringify(e)}catch(n){return console.error("Error while converting argument to string",e,n),""}}}]),n}(),_=function(){var e=new W;return e.debug=console.debug,e.info=console.info,e.warn=console.warn,e.error=console.error,e},E=new I;function F(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}var L=function(){function e(n){var t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:s;!function(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}(this,e),this.numAttempts=0,this.executor=n,this.hasActiveReconnection=!1,this.defaultRetry=t}var n,t,o;return n=e,(t=[{key:"retry",value:function(){var e=this;this.hasActiveReconnection||(this.hasActiveReconnection=!0,setTimeout(function(){e._execute()},this._getDelay()))}},{key:"_execute",value:function(){this.hasActiveReconnection=!1,this.executor(),this.numAttempts++}},{key:"connected",value:function(){this.numAttempts=0}},{key:"_getDelay",value:function(){var e=Math.pow(2,this.numAttempts)*this.defaultRetry;return e<=3e4?e:3e4}}])&&F(n.prototype,t),o&&F(n,o),e}();t.d(n,"a",function(){return R});var x=function(){var e=E.getLogger({}),n=y.isNetworkOnline(),t={primary:null,secondary:null},o={reconnectWebSocket:!0,websocketInitFailed:!1,exponentialBackOffTime:1e3,exponentialTimeoutHandle:null,lifeTimeTimeoutHandle:null,webSocketInitCheckerTimeoutId:null,connState:null},r={connectWebSocketRetryCount:0,connectionAttemptStartTime:null,noOpenConnectionsTimestamp:null},i={pendingResponse:!1,intervalHandle:null},c={initFailure:new Set,getWebSocketTransport:null,subscriptionUpdate:new Set,subscriptionFailure:new Set,topic:new Map,allMessage:new Set,connectionGain:new Set,connectionLost:new Set,connectionOpen:new Set,connectionClose:new Set},s={connConfig:null,promiseHandle:null,promiseCompleted:!0},d={subscribed:new Set,pending:new Set,subscriptionHistory:new Set},b={responseCheckIntervalId:null,requestCompleted:!0,reSubscribeIntervalId:null,consecutiveFailedSubscribeAttempts:0,consecutiveNoResponseRequest:0},g=new L(function(){U()}),m=new Set([a,u,l]),S=setInterval(function(){if(n!==y.isNetworkOnline()){if(!(n=y.isNetworkOnline()))return void J(e.info("Network offline"));var t=O();n&&(!t||w(t,WebSocket.CLOSING)||w(t,WebSocket.CLOSED))&&(J(e.info("Network online, connecting to WebSocket server")),U())}},250),h=function(n,t){n.forEach(function(n){try{n(t)}catch(n){J(e.error("Error executing callback",n))}})},k=function(e){if(null===e)return"NULL";switch(e.readyState){case WebSocket.CONNECTING:return"CONNECTING";case WebSocket.OPEN:return"OPEN";case WebSocket.CLOSING:return"CLOSING";case WebSocket.CLOSED:return"CLOSED";default:return"UNDEFINED"}},v=function(){var n=arguments.length>0&&void 0!==arguments[0]?arguments[0]:"";J(e.debug("["+n+"] Primary WebSocket: "+k(t.primary)+" | Secondary WebSocket: "+k(t.secondary)))},w=function(e,n){return e&&e.readyState===n},C=function(e){return w(e,WebSocket.OPEN)},T=function(e){return null===e||void 0===e.readyState||w(e,WebSocket.CLOSED)},O=function(){return null!==t.secondary?t.secondary:t.primary},I=function(){return C(O())},W=function(){if(i.pendingResponse)return J(e.warn("Heartbeat response not received")),clearInterval(i.intervalHandle),i.pendingResponse=!1,void U();I()?(J(e.debug("Sending heartbeat")),O().send(G(l)),i.pendingResponse=!0):(J(e.warn("Failed to send heartbeat since WebSocket is not open")),v("sendHeartBeat"),U())},N=function(){o.exponentialBackOffTime=1e3,i.pendingResponse=!1,o.reconnectWebSocket=!0,clearTimeout(o.lifeTimeTimeoutHandle),clearInterval(i.intervalHandle),clearTimeout(o.exponentialTimeoutHandle),clearTimeout(o.webSocketInitCheckerTimeoutId)},_=function(){b.consecutiveFailedSubscribeAttempts=0,b.consecutiveNoResponseRequest=0,clearInterval(b.responseCheckIntervalId),clearInterval(b.reSubscribeIntervalId)},F=function(){r.connectWebSocketRetryCount=0,r.connectionAttemptStartTime=null,r.noOpenConnectionsTimestamp=null},x=function(){try{J(e.info("WebSocket connection established!")),v("webSocketOnOpen"),null!==o.connState&&o.connState!==p||h(c.connectionGain),o.connState=f;var n=Date.now();h(c.connectionOpen,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,noOpenConnectionsTimestamp:r.noOpenConnectionsTimestamp,connectionEstablishedTime:n,timeToConnect:n-r.connectionAttemptStartTime,timeWithoutConnection:r.noOpenConnectionsTimestamp?n-r.noOpenConnectionsTimestamp:null}),F(),N(),O().openTimestamp=Date.now(),0===d.subscribed.size&&C(t.secondary)&&D(t.primary,"[Primary WebSocket] Closing WebSocket"),(d.subscribed.size>0||d.pending.size>0)&&(C(t.secondary)&&J(e.info("Subscribing secondary websocket to topics of primary websocket")),d.subscribed.forEach(function(e){d.subscriptionHistory.add(e),d.pending.add(e)}),d.subscribed.clear(),A()),W(),i.intervalHandle=setInterval(W,1e4);var a=1e3*s.connConfig.webSocketTransport.transportLifeTimeInSeconds;J(e.debug("Scheduling WebSocket manager reconnection, after delay "+a+" ms")),o.lifeTimeTimeoutHandle=setTimeout(function(){J(e.debug("Starting scheduled WebSocket manager reconnection")),U()},a)}catch(n){J(e.error("Error after establishing WebSocket connection",n))}},R=function(n){v("webSocketOnError"),J(e.error("WebSocketManager Error, error_event: ",JSON.stringify(n))),U()},j=function(n){var o=JSON.parse(n.data);switch(o.topic){case a:if(J(e.debug("Subscription Message received from webSocket server",n.data)),b.requestCompleted=!0,b.consecutiveNoResponseRequest=0,"success"===o.content.status)b.consecutiveFailedSubscribeAttempts=0,o.content.topics.forEach(function(e){d.subscriptionHistory.delete(e),d.pending.delete(e),d.subscribed.add(e)}),0===d.subscriptionHistory.size?C(t.secondary)&&(J(e.info("Successfully subscribed secondary websocket to all topics of primary websocket")),D(t.primary,"[Primary WebSocket] Closing WebSocket")):A(),h(c.subscriptionUpdate,o);else{if(clearInterval(b.reSubscribeIntervalId),++b.consecutiveFailedSubscribeAttempts,5===b.consecutiveFailedSubscribeAttempts)return h(c.subscriptionFailure,o),void(b.consecutiveFailedSubscribeAttempts=0);b.reSubscribeIntervalId=setInterval(function(){A()},500)}break;case l:J(e.debug("Heartbeat response received")),i.pendingResponse=!1;break;default:if(o.topic){if(J(e.debug("Message received for topic "+o.topic)),C(t.primary)&&C(t.secondary)&&0===d.subscriptionHistory.size&&this===t.primary)return void J(e.warn("Ignoring Message for Topic "+o.topic+", to avoid duplicates"));if(0===c.allMessage.size&&0===c.topic.size)return void J(e.warn("No registered callback listener for Topic",o.topic));h(c.allMessage,o),c.topic.has(o.topic)&&h(c.topic.get(o.topic),o)}else o.message?J(e.warn("WebSocketManager Message Error",o)):J(e.warn("Invalid incoming message",o))}},A=function n(){if(b.consecutiveNoResponseRequest>3)return J(e.warn("Ignoring subscribePendingTopics since we have exhausted max subscription retries with no response")),void h(c.subscriptionFailure,y.getSubscriptionResponse(a,!1,Array.from(d.pending)));I()?0!==Array.from(d.pending).length&&(clearInterval(b.responseCheckIntervalId),O().send(G(a,{topics:Array.from(d.pending)})),b.requestCompleted=!1,b.responseCheckIntervalId=setInterval(function(){b.requestCompleted||(++b.consecutiveNoResponseRequest,n())},1e3)):J(e.warn("Ignoring subscribePendingTopics call since Default WebSocket is not open"))},D=function(n,t){w(n,WebSocket.CONNECTING)||w(n,WebSocket.OPEN)?n.close(1e3,t):J(e.warn("Ignoring WebSocket Close request, WebSocket State: "+k(n)))},M=function(e){D(t.primary,"[Primary] WebSocket "+e),D(t.secondary,"[Secondary] WebSocket "+e)},P=function(){r.connectWebSocketRetryCount++;var n=y.addJitter(o.exponentialBackOffTime,.3);Date.now()+n<=s.connConfig.urlConnValidTime?(J(e.debug("Scheduling WebSocket reinitialization, after delay "+n+" ms")),o.exponentialTimeoutHandle=setTimeout(function(){return q()},n),o.exponentialBackOffTime*=2):(J(e.warn("WebSocket URL cannot be used to establish connection")),U())},H=function(n){N(),_(),J(e.error("WebSocket Initialization failed")),o.websocketInitFailed=!0,M("Terminating WebSocket Manager"),clearInterval(S),h(c.initFailure,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,reason:n}),F()},G=function(e,n){return JSON.stringify({topic:e,content:n})},z=function(n){return!!(y.isObject(n)&&y.isObject(n.webSocketTransport)&&y.isNonEmptyString(n.webSocketTransport.url)&&y.validWSUrl(n.webSocketTransport.url)&&1e3*n.webSocketTransport.transportLifeTimeInSeconds>=3e5)||(J(e.error("Invalid WebSocket Connection Configuration",n)),!1)},U=function(){if(y.isNetworkOnline())if(o.websocketInitFailed)J(e.debug("WebSocket Init had failed, ignoring this getWebSocketConnConfig request"));else{if(s.promiseCompleted)return N(),J(e.info("Fetching new WebSocket connection configuration")),r.connectionAttemptStartTime=r.connectionAttemptStartTime||Date.now(),s.promiseCompleted=!1,s.promiseHandle=c.getWebSocketTransport(),s.promiseHandle.then(function(n){return s.promiseCompleted=!0,J(e.debug("Successfully fetched webSocket connection configuration",n)),z(n)?(s.connConfig=n,s.connConfig.urlConnValidTime=Date.now()+85e3,g.connected(),q()):(H("Invalid WebSocket connection configuration: "+n),{webSocketConnectionFailed:!0})},function(n){return s.promiseCompleted=!0,J(e.error("Failed to fetch webSocket connection configuration",n)),y.isNetworkFailure(n)?(J(e.info("Retrying fetching new WebSocket connection configuration")),g.retry()):H("Failed to fetch webSocket connection configuration: "+JSON.stringify(n)),{webSocketConnectionFailed:!0}});J(e.debug("There is an ongoing getWebSocketConnConfig request, this request will be ignored"))}else J(e.info("Network offline, ignoring this getWebSocketConnConfig request"))},q=function(){if(o.websocketInitFailed)return J(e.info("web-socket initializing had failed, aborting re-init")),{webSocketConnectionFailed:!0};if(!y.isNetworkOnline())return J(e.warn("System is offline aborting web-socket init")),{webSocketConnectionFailed:!0};J(e.info("Initializing Websocket Manager")),v("initWebSocket");try{if(z(s.connConfig)){var n=null;return C(t.primary)?(J(e.debug("Primary Socket connection is already open")),w(t.secondary,WebSocket.CONNECTING)||(J(e.debug("Establishing a secondary web-socket connection")),t.secondary=B()),n=t.secondary):(w(t.primary,WebSocket.CONNECTING)||(J(e.debug("Establishing a primary web-socket connection")),t.primary=B()),n=t.primary),o.webSocketInitCheckerTimeoutId=setTimeout(function(){C(n)||P()},1e3),{webSocketConnectionFailed:!1}}}catch(n){return J(e.error("Error Initializing web-socket-manager",n)),H("Failed to initialize new WebSocket: "+n.message),{webSocketConnectionFailed:!0}}},B=function(){var n=new WebSocket(s.connConfig.webSocketTransport.url);return n.addEventListener("open",x),n.addEventListener("message",j),n.addEventListener("error",R),n.addEventListener("close",function(i){return function(n,i){J(e.info("Socket connection is closed",JSON.stringify(n))),v("webSocketOnClose before-cleanup"),h(c.connectionClose,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),T(t.primary)&&(t.primary=null),T(t.secondary)&&(t.secondary=null),o.reconnectWebSocket&&(C(t.primary)||C(t.secondary)?T(t.primary)&&C(t.secondary)&&(J(e.info("[Primary] WebSocket Cleanly Closed")),t.primary=t.secondary,t.secondary=null):(J(e.warn("Neither primary websocket and nor secondary websocket have open connections, attempting to re-establish connection")),o.connState===p?J(e.info("Ignoring connectionLost callback invocation")):(h(c.connectionLost,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),r.noOpenConnectionsTimestamp=Date.now()),o.connState=p,U()),v("webSocketOnClose after-cleanup"))}(i,n)}),n},J=function(e){return e&&"function"==typeof e.sendInternalLogToServer&&e.sendInternalLogToServer(),e};this.init=function(n){if(y.assertTrue(y.isFunction(n),"transportHandle must be a function"),null===c.getWebSocketTransport)return c.getWebSocketTransport=n,U();J(e.warn("Web Socket Manager was already initialized"))},this.onInitFailure=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.initFailure.add(e),o.websocketInitFailed&&e(),function(){return c.initFailure.delete(e)}},this.onConnectionOpen=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionOpen.add(e),function(){return c.connectionOpen.delete(e)}},this.onConnectionClose=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionClose.add(e),function(){return c.connectionClose.delete(e)}},this.onConnectionGain=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionGain.add(e),I()&&e(),function(){return c.connectionGain.delete(e)}},this.onConnectionLost=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionLost.add(e),o.connState===p&&e(),function(){return c.connectionLost.delete(e)}},this.onSubscriptionUpdate=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.subscriptionUpdate.add(e),function(){return c.subscriptionUpdate.delete(e)}},this.onSubscriptionFailure=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.subscriptionFailure.add(e),function(){return c.subscriptionFailure.delete(e)}},this.onMessage=function(e,n){return y.assertNotNull(e,"topicName"),y.assertTrue(y.isFunction(n),"cb must be a function"),c.topic.has(e)?c.topic.get(e).add(n):c.topic.set(e,new Set([n])),function(){return c.topic.get(e).delete(n)}},this.onAllMessage=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.allMessage.add(e),function(){return c.allMessage.delete(e)}},this.subscribeTopics=function(e){y.assertNotNull(e,"topics"),y.assertIsList(e),e.forEach(function(e){d.subscribed.has(e)||d.pending.add(e)}),b.consecutiveNoResponseRequest=0,A()},this.sendMessage=function(n){if(y.assertIsObject(n,"payload"),void 0===n.topic||m.has(n.topic))J(e.warn("Cannot send message, Invalid topic",n));else{try{n=JSON.stringify(n)}catch(t){return void J(e.warn("Error stringify message",n))}I()?O().send(n):J(e.warn("Cannot send message, web socket connection is not open"))}},this.closeWebSocket=function(){N(),_(),o.reconnectWebSocket=!1,clearInterval(S),M("User request to close WebSocket")},this.terminateWebSocketManager=H},R={create:function(){return new x},setGlobalConfig:function(e){var n=e.loggerConfig;E.updateLoggerConfig(n)},LogLevel:O,Logger:T}},function(e,n,t){var o;!function(){"use strict";var r={not_string:/[^s]/,not_bool:/[^t]/,not_type:/[^T]/,not_primitive:/[^v]/,number:/[diefg]/,numeric_arg:/[bcdiefguxX]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijostTuvxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[+-]/};function i(e){return function(e,n){var t,o,c,s,a,u,l,f,p,d=1,b=e.length,g="";for(o=0;o<b;o++)if("string"==typeof e[o])g+=e[o];else if("object"==typeof e[o]){if((s=e[o]).keys)for(t=n[d],c=0;c<s.keys.length;c++){if(null==t)throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"',s.keys[c],s.keys[c-1]));t=t[s.keys[c]]}else t=s.param_no?n[s.param_no]:n[d++];if(r.not_type.test(s.type)&&r.not_primitive.test(s.type)&&t instanceof Function&&(t=t()),r.numeric_arg.test(s.type)&&"number"!=typeof t&&isNaN(t))throw new TypeError(i("[sprintf] expecting number but found %T",t));switch(r.number.test(s.type)&&(f=t>=0),s.type){case"b":t=parseInt(t,10).toString(2);break;case"c":t=String.fromCharCode(parseInt(t,10));break;case"d":case"i":t=parseInt(t,10);break;case"j":t=JSON.stringify(t,null,s.width?parseInt(s.width):0);break;case"e":t=s.precision?parseFloat(t).toExponential(s.precision):parseFloat(t).toExponential();break;case"f":t=s.precision?parseFloat(t).toFixed(s.precision):parseFloat(t);break;case"g":t=s.precision?String(Number(t.toPrecision(s.precision))):parseFloat(t);break;case"o":t=(parseInt(t,10)>>>0).toString(8);break;case"s":t=String(t),t=s.precision?t.substring(0,s.precision):t;break;case"t":t=String(!!t),t=s.precision?t.substring(0,s.precision):t;break;case"T":t=Object.prototype.toString.call(t).slice(8,-1).toLowerCase(),t=s.precision?t.substring(0,s.precision):t;break;case"u":t=parseInt(t,10)>>>0;break;case"v":t=t.valueOf(),t=s.precision?t.substring(0,s.precision):t;break;case"x":t=(parseInt(t,10)>>>0).toString(16);break;case"X":t=(parseInt(t,10)>>>0).toString(16).toUpperCase()}r.json.test(s.type)?g+=t:(!r.number.test(s.type)||f&&!s.sign?p="":(p=f?"+":"-",t=t.toString().replace(r.sign,"")),u=s.pad_char?"0"===s.pad_char?"0":s.pad_char.charAt(1):" ",l=s.width-(p+t).length,a=s.width&&l>0?u.repeat(l):"",g+=s.align?p+t+a:"0"===u?p+a+t:a+p+t)}return g}(function(e){if(s[e])return s[e];var n,t=e,o=[],i=0;for(;t;){if(null!==(n=r.text.exec(t)))o.push(n[0]);else if(null!==(n=r.modulo.exec(t)))o.push("%");else{if(null===(n=r.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(n[2]){i|=1;var c=[],a=n[2],u=[];if(null===(u=r.key.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(c.push(u[1]);""!==(a=a.substring(u[0].length));)if(null!==(u=r.key_access.exec(a)))c.push(u[1]);else{if(null===(u=r.index_access.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");c.push(u[1])}n[2]=c}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");o.push({placeholder:n[0],param_no:n[1],keys:n[2],sign:n[3],pad_char:n[4],align:n[5],width:n[6],precision:n[7],type:n[8]})}t=t.substring(n[0].length)}return s[e]=o}(e),arguments)}function c(e,n){return i.apply(null,[e].concat(n||[]))}var s=Object.create(null);n.sprintf=i,n.vsprintf=c,"undefined"!=typeof window&&(window.sprintf=i,window.vsprintf=c,void 0===(o=function(){return{sprintf:i,vsprintf:c}}.call(n,t,n,e))||(e.exports=o))}()},function(e,n,t){"use strict";t.r(n),function(e){t.d(n,"WebSocketManager",function(){return r});var o=t(0);e.connect=e.connect||{},connect.WebSocketManager=o.a;var r=o.a}.call(this,t(3))},function(e,n){var t;t=function(){return this}();try{t=t||new Function("return this")()}catch(e){"object"==typeof window&&(t=window)}e.exports=t}]);
 //# sourceMappingURL=amazon-connect-websocket-manager.js.map
 
 
@@ -26165,7 +26476,18 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   var LoggedException = function (e) {
     this.type = (e instanceof Error) ? e.name : e.code || Object.prototype.toString.call(e);
     this.message = e.message;
-    this.stack = e.stack ? e.stack.split('\n') : [];
+    this.stack = [];
+    if (e.stack){
+      try {
+          if (Array.isArray(e.stack)) {
+              this.stack = e.stack;
+          } else if (typeof e.stack === 'object') {
+              this.stack = [JSON.stringify(e.stack)];
+          } else if (typeof e.stack === 'string') {
+              this.stack = e.stack.split('\n');
+          }
+      } catch {}
+    }
   };
 
   /**
@@ -26489,7 +26811,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   Logger.prototype.scheduleUpstreamLogPush = function (conduit) {
     if (!connect.upstreamLogPushScheduled) {
       connect.upstreamLogPushScheduled = true;
-      /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to LARS*/
+      /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to the CTI backend*/
       global.setInterval(connect.hitch(this, this.reportMasterLogsUpStream, conduit), SOFTPHONE_LOG_REPORT_INTERVAL_MILLIS);
     }
   };
@@ -27323,7 +27645,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }
     var gumPromise = fetchUserMedia({
       success: function (stream) {
-        connect.core.setSoftphoneUserMediaStream(stream);
         publishTelemetryEvent("ConnectivityCheckResult", null, 
         {
           connectivityCheckType: "MicrophonePermission",
@@ -29211,6 +29532,19 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     bus.trigger(connect.EventType.CLIENT_SIDE_LOGS, logs);
   };
 
+  connect.addNamespaceToLogs = function(namespace) {
+    const methods = ['log', 'error', 'warn', 'info', 'debug'];
+
+    methods.forEach((method) => {
+      const consoleMethod = window.console[method];
+      window.console[method] = function () {
+        const args = Array.from(arguments);
+        args.unshift(`[${namespace}]`);
+        consoleMethod.apply(window.console, args);
+      };
+    });
+  };
+
   /**
    * A wrapper around Window.open() for managing single instance popups.
    */
@@ -29393,6 +29727,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var conduit = connect.core.getUpstream();
     return conduit.name === 'ConnectSharedWorkerConduit';
   }
+
 })();
 
 
@@ -29476,6 +29811,17 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           callbacks.failure(error);
         }
       })
+    } else if(connect.containsValue(connect.TaskTemplatesClientMethods, method)) {
+      connect.core.getTaskTemplatesClient()._callImpl(method, params, {
+        success: function (data) {
+          self._recordAPILatency(method, request_start);
+          callbacks.success(data);
+        },
+        failure: function (error) {
+          self._recordAPILatency(method, request_start, error);
+          callbacks.failure(error);
+        }
+      })
     } else {
       connect.core.getClient()._callImpl(method, params, {
         success: function (data) {
@@ -29533,10 +29879,15 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     this.nextToken = null;
     this.initData = {};
     this.portConduitMap = {};
+    this.streamMapByTabId = {};
     this.masterCoord = new MasterTopicCoordinator();
     this.logsBuffer = [];
     this.suppress = false;
     this.forceOffline = false;
+    this.longPollingOptions = {
+      allowLongPollingShadowMode: false, 
+      allowLongPollingWebsocketOnlyMode: false,
+    }
 
     var webSocketManager = null;
 
@@ -29557,6 +29908,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       if (data.authToken && data.authToken !== self.initData.authToken) {
         self.initData = data;
         connect.core.init(data);
+        if (data.longPollingOptions) {
+          if (typeof data.longPollingOptions.allowLongPollingShadowMode == "boolean") {
+            self.longPollingOptions.allowLongPollingShadowMode = data.longPollingOptions.allowLongPollingShadowMode;
+          }
+          if (typeof data.longPollingOptions.allowLongPollingWebsocketOnlyMode == "boolean") {
+            self.longPollingOptions.allowLongPollingWebsocketOnlyMode = data.longPollingOptions.allowLongPollingWebsocketOnlyMode;
+          }
+        }
         // init only once.
         if (!webSocketManager) {
 
@@ -29685,12 +30044,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         connect.hitch(self, self.handleMasterRequest, portConduit, stream.getId()));
       portConduit.onDownstream(connect.EventType.RELOAD_AGENT_CONFIGURATION,
         connect.hitch(self, self.pollForAgentConfiguration));
-      portConduit.onDownstream(connect.EventType.CLOSE, function () {
-        self.multiplexer.removeStream(stream);
-        delete self.portConduitMap[stream.getId()];
-        self.masterCoord.removeMaster(stream.getId());
-        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, { length: Object.keys(self.portConduitMap).length });
-      });
+      portConduit.onDownstream(connect.EventType.TAB_ID,
+        connect.hitch(self, self.handleTabIdEvent, stream));
+      portConduit.onDownstream(connect.EventType.CLOSE, 
+        connect.hitch(self, self.handleCloseEvent, stream));
     };
   };
 
@@ -29942,7 +30299,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           .withException(err)
           .sendInternalLogToServer();
       },
-      authFailure: connect.hitch(self, self.handleAuthFail)
+      authFailure: connect.hitch(self, self.handleAuthFail, {authorize: true})
     });
   };
 
@@ -29986,6 +30343,57 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }
 
     portConduit.sendDownstream(response.event, response);
+  };
+
+  ClientEngine.prototype.handleTabIdEvent = function (stream, data) {
+    var self = this;
+    try {
+      let tabId = data.tabId;
+      let streamsInThisTab = self.streamMapByTabId[tabId];
+      let currentStreamId = stream.getId();
+      let tabIds = Object.keys(self.streamMapByTabId);
+      let streamsTabsAcrossBrowser = tabIds.filter(tabId => self.streamMapByTabId[tabId].length > 0).length;
+      if (streamsInThisTab && streamsInThisTab.length > 0){
+        if (!streamsInThisTab.includes(currentStreamId)) {
+          self.streamMapByTabId[tabId].push(currentStreamId);
+          let updateObject = { length: Object.keys(self.portConduitMap).length, tabId, streamsTabsAcrossBrowser };
+          updateObject[tabId] = { length: streamsInThisTab.length };
+          self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
+        }
+      }
+      else {
+        self.streamMapByTabId[tabId] = [stream.getId()];
+        let updateObject = { length: Object.keys(self.portConduitMap).length, tabId, streamsTabsAcrossBrowser: streamsTabsAcrossBrowser + 1 };
+        updateObject[tabId] = { length: self.streamMapByTabId[tabId].length };
+        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
+      }
+    } catch(e) {
+      connect.getLog().error("[Tab Ids] Issue updating connected CCPs within the same tab").withException(e).sendInternalLogToServer();
+    }
+  };
+
+  ClientEngine.prototype.handleCloseEvent = function(stream) {
+    var self = this;
+    self.multiplexer.removeStream(stream);
+    delete self.portConduitMap[stream.getId()];
+    self.masterCoord.removeMaster(stream.getId());
+    let updateObject = { length: Object.keys(self.portConduitMap).length };
+    let tabIds = Object.keys(self.streamMapByTabId);
+    try {
+      let tabId = tabIds.find(key => self.streamMapByTabId[key].includes(stream.getId()));
+      if (tabId) {
+        let streamIndexInMap = self.streamMapByTabId[tabId].findIndex((value) => stream.getId() === value);
+        self.streamMapByTabId[tabId].splice(streamIndexInMap, 1);
+        let tabLength = self.streamMapByTabId[tabId] ? self.streamMapByTabId[tabId].length : 0;
+        updateObject[tabId] = { length: tabLength };
+        updateObject.tabId = tabId;
+      }
+      let streamsTabsAcrossBrowser = tabIds.filter(tabId => self.streamMapByTabId[tabId].length > 0).length;
+      updateObject.streamsTabsAcrossBrowser = streamsTabsAcrossBrowser;
+    } catch(e) {
+      connect.getLog().error("[Tab Ids] Issue updating tabId-specific stream data").withException(e).sendInternalLogToServer();
+    }
+    self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
   };
 
   ClientEngine.prototype.updateAgentConfiguration = function (configuration) {
@@ -30125,9 +30533,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     });
   };
 
-  ClientEngine.prototype.handleAuthFail = function () {
+  ClientEngine.prototype.handleAuthFail = function (data) {
     var self = this;
-    self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+    if (data) {
+      self.conduit.sendDownstream(connect.EventType.AUTH_FAIL, data);
+    }
+    else {
+      self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+    }
   };
 
   ClientEngine.prototype.handleAccessDenied = function () {
