@@ -35,6 +35,7 @@
   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
   var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
   var MULTIPLE_SESSIONS_EVENT = "MultiSessions";
+  var gumLatencies = {};
 
   var localMediaStream = {};
 
@@ -84,19 +85,25 @@
     }
     var gumPromise = fetchUserMedia({
       success: function (stream) {
-        publishTelemetryEvent("ConnectivityCheckResult", null, 
+        publishTelemetryEvent("ConnectivityCheckResult", null,
         {
           connectivityCheckType: "MicrophonePermission",
           status: "granted"
         });
+        publishTelemetryEvent("GumSucceeded", null, {
+          context: "Initializing Softphone Manager"
+        }, true);
       },
       failure: function (err) {
         publishError(err, "Your microphone is not enabled in your browser. ", "");
-        publishTelemetryEvent("ConnectivityCheckResult", null, 
+        publishTelemetryEvent("ConnectivityCheckResult", null,
         {
           connectivityCheckType: "MicrophonePermission",
           status: "denied"
         });
+        publishTelemetryEvent("GumFailed", null, {
+          context: "Initializing Softphone Manager"
+        }, true);
       }
     });
     
@@ -194,6 +201,9 @@
 
       if (userMediaStream) {
         logger.info('[Softphone Manager] Setting custom user media stream').withObject(userMediaStream).sendInternalLogToServer();
+        publishTelemetryEvent("CreatingRTCSession", contact.getContactId(), {
+          mediaStreamActive: userMediaStream.active
+        }, true);
         session.mediaStream = userMediaStream;
       }
 
@@ -254,8 +264,14 @@
       session.remoteAudioElement = document.getElementById('remote-audio');
       if (rtcPeerConnectionFactory) {
         session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
+        publishTelemetryEvent("session.connect called", contact.getContactId(), {
+          context: "PeerConnectionFactory"
+        }, true);
       } else {
         session.connect();
+        publishTelemetryEvent("session.connect called", contact.getContactId(), {
+          context: "No PeerConnectionFactory"
+        }, true);
       }
     }
 
@@ -268,6 +284,9 @@
     var onInitContact = function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
       logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
+      gumLatencies['ContactDetected'] = getPerformanceTime();
+      gumLatencies['previousStep'] = "ContactDetected";
+      gumLatencies['contactId'] = contact.getContactId();
 
       contact.onRefresh(function () {
         onRefreshContact(contact, agentConnectionId);
@@ -528,11 +547,16 @@
 
     if (typeof navigator.mediaDevices === "object" && typeof navigator.mediaDevices.getUserMedia === "function") {
       promise = navigator.mediaDevices.getUserMedia(CONSTRAINT);
-
+      publishTelemetryEvent("GumCalled", null, {
+        isWebkit: false
+      }, true);
     } else if (typeof navigator.webkitGetUserMedia === "function") {
       promise = new Promise(function (resolve, reject) {
         navigator.webkitGetUserMedia(CONSTRAINT, resolve, reject);
       });
+      publishTelemetryEvent("GumCalled", null, {
+        isWebkit: true
+      }, true);
 
     } else {
       callbacks.failure(SoftphoneErrorTypes.UNSUPPORTED_BROWSER);
@@ -568,12 +592,35 @@
     });
   };
 
-  var publishTelemetryEvent = function (eventName, contactId, data) {
-    connect.publishMetric({
-      name: eventName,
-      contactId: contactId,
-      data: data
-    });
+  var getPerformanceTime = function () {
+    try {
+      return performance.now();
+    } catch(e) {
+      logger.error(e.message);
+      return 0;
+    }
+  }
+
+  var publishTelemetryEvent = function (eventName, contactId, data, isGum=false) {
+    try {
+      if(isGum) {
+        data = data || {}
+        const currentPerformanceTime = getPerformanceTime();
+        data['tabId'] = connect.core.tabId || '';
+        data['previousStep'] = gumLatencies['previousStep'];
+        if(gumLatencies['previousStep'] && gumLatencies[gumLatencies['previousStep']]) data['latency'] = currentPerformanceTime - gumLatencies[gumLatencies['previousStep']];
+        gumLatencies['previousStep'] = eventName;
+        gumLatencies[eventName] = currentPerformanceTime;
+        contactId = gumLatencies['contactId'] || null;
+      }
+      connect.publishMetric({
+        name: eventName,
+        contactId: contactId,
+        data: data
+      });
+    } catch(e) {
+      connect.getLog().error("Error Creating Metric: " + e.message).sendInternalLogToServer();
+    }
   };
 
   // Publish the contact and agent information in a multiple sessions scenarios
@@ -828,7 +875,10 @@
   
       const onInitContact = function (contact) {
         const agentConnectionId = contact.getAgentConnection().connectionId;
-  
+        gumLatencies['ContactDetected'] = getPerformanceTime();
+        gumLatencies['previousStep'] = "ContactDetected";
+        gumLatencies['contactId'] = contact.getContactId();
+
         if (!self.callsDetected[agentConnectionId]) {
           contact.onRefresh(() => onRefreshContact(contact, agentConnectionId));
         }
@@ -851,6 +901,7 @@
     }
     setUserMediaStream(stream) {
       connect.assertNotNull(stream, 'UserMediaStream');
+      publishTelemetryEvent("GumSucceeded", this.targetContact, {}, true);
       this.userMediaStream = stream;
     }
     setTargetContact(contact) {
@@ -894,6 +945,9 @@
 
       const constraint = { audio: true };
       const gumPromise = navigator.mediaDevices.getUserMedia(constraint);
+      publishTelemetryEvent("GumCalled", this.targetContact, {
+        isWebkit: false
+      }, true);
       return Promise.race([gumTimeoutPromise, self.checkIfContactIsInConnectingState(self.targetContact), gumPromise]);
     }
     // TODO:
@@ -932,6 +986,7 @@
     becomeNextSoftphoneMasterIfNone() {
       return new Promise((resolve, reject) => {
         connect.ifMaster(connect.MasterTopics.NEXT_SOFTPHONE, () => {
+          publishTelemetryEvent("Became NEXT_SOFTPHONE master", null, {}, true);
           resolve();
         }, () => {
           reject(Error(SoftphoneMasterCoordinator.errorTypes.NEXT_SOFTPHONE_MASTER_ALREADY_EXISTS));
@@ -946,6 +1001,7 @@
             if (!agent.isSoftphoneEnabled()) {
               reject(Error(SoftphoneMasterCoordinator.errorTypes.SOFTPHONE_NOT_ENABLED));
             } else {
+              publishTelemetryEvent("BecameSoftphoneMaster", this.targetContact, {}, true);
               try { self.createSoftphoneManager() } catch (e) { reject(e) }
               resolve(); 
             }
@@ -979,6 +1035,7 @@
       return mediaStream && mediaStream.active;
     }
     handleErrorInCompeteForNextSoftphoneMaster(error = {}) {
+      var validError = false;
       switch(error.message) {
         case SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT:
         case SoftphoneMasterCoordinator.errorTypes.TAB_FOCUS_TIMEOUT:
@@ -1001,29 +1058,45 @@
           break;
         case SoftphoneMasterCoordinator.errorTypes.NO_SOFTPHONE_MANAGER:
           // Invalid case. There is no softphone manager instantiated.
+          validError = true;
           connect.getLog().error('[SoftphoneMasterCoordinator] No softphone manager found').sendInternalLogToServer();
           break;
         case SoftphoneMasterCoordinator.errorTypes.INVALID_MEDIA_STREAM:
           // Invalid case. The captured userMediaStream was somehow inactive.
+          validError = true;
           connect.getLog().error('[SoftphoneMasterCoordinator] userMediaStream is invalid').sendInternalLogToServer();
           break;
         case SoftphoneMasterCoordinator.errorTypes.START_SESSION_FAILED:
           // Invalid case. Something went wrong while calling SoftphoneManager.startSession().
+          validError = true;
           connect.getLog().error('[SoftphoneMasterCoordinator] startSoftphoneSession failed').sendInternalLogToServer();
           break;
         case SoftphoneMasterCoordinator.errorTypes.CREATE_SOFTPHONE_MANAGER_FAILED:
           // Invalid case. Something went wrong while instantiating SoftphoneManager.
+          validError = true;
           connect.getLog().error('[SoftphoneMasterCoordinator] createSoftphoneManager failed').sendInternalLogToServer();
           break;
         default:
+          validError = true;
           connect.getLog().error('[SoftphoneMasterCoordinator] Unknown error').withObject({ error }).sendInternalLogToServer();
       }
+      // If we don't see GumSucceeded, and it is none of the other GUM failure error messages, then we know the actual GUM API failed.
+      if (gumLatencies['GumCalled'] && !gumLatencies['GumSucceeded'] 
+          && !(error.message === SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT 
+              || error.message === SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING)) {
+        publishTelemetryEvent("GumFailed", null, {}, true);
+      }
+      publishTelemetryEvent("CompeteForSoftphoneMasterError", null, {
+        errorMessage: error.message || "No error Message",
+        isValidError: validError
+      }, true);
     }
     cleanup() {
       if (this.targetContact) {
         const agentConnectionId = this.targetContact.getAgentConnection().connectionId;
         this.removeDetectedCall(agentConnectionId);
       }
+      gumLatencies = {};
       clearTimeout(this.gumTimeoutId);
       clearInterval(this.tabFocusIntervalId);
       clearTimeout(this.tabFocusTimeoutId);
