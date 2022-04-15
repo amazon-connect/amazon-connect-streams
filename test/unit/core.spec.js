@@ -993,6 +993,15 @@ describe('Core', function () {
             sandbox.assert.calledWith(global.document.createElement, 'iframe');
             expect(returnedIframe).to.be.deep.equal(expectedIframe);
         });
+        it('creates CCP with style attribute in ccpParams', function() {
+            const style = "width:200px; height:200px;";
+            const initCCPParams = { ...params, style };
+            const expected = { ...expectedIframe, style };
+            const returnedIframe = connect.core._createCCPIframe(containerDiv, initCCPParams);
+            expect(appendChildSpy.calledOnce).to.be.true;
+            sandbox.assert.calledWith(appendChildSpy, expected);
+            expect(returnedIframe).to.be.deep.equal(expected);
+        });
     });
 
     describe('_sendIframeStyleDataUpstreamAfterReasonableWaitTime', function () {
