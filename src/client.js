@@ -79,7 +79,7 @@
       'listTaskTemplates',
       'getTaskTemplate',
       'createTemplatedTask',
-      'updateTemplatedTask'
+      'updateContact'
    ]);
 
    /**---------------------------------------------------------------
@@ -447,7 +447,7 @@
          }
       };
       var instanceId = params.instanceId;
-      var url = `${self.baseUrl}/task-templates/api`;
+      var url = `${self.baseUrl}/task-templates/api/ccp`;
       var methods = connect.TaskTemplatesClientMethods;
       switch (method) {
          case methods.LIST_TASK_TEMPLATES: 
@@ -469,12 +469,12 @@
             }
             break;
          case methods.CREATE_TEMPLATED_TASK: 
-            url += `/ccp/${method}`;
+            url += `/${method}`;
             options.body = JSON.stringify(params);
             options.method = 'PUT';
             break;
-         case methods.UPDATE_TEMPLATED_TASK: 
-            url += `/ccp/${method}`;
+         case methods.UPDATE_CONTACT: 
+            url += `/${method}`;
             options.body = JSON.stringify(params);
             options.method = 'POST';
       }
