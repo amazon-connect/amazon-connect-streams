@@ -23961,7 +23961,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "STREAMS_VERSION";
+  connect.version = "2.1.1";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
