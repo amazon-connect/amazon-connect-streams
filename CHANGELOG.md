@@ -4,6 +4,10 @@
 Added functions:
 * `connect.core.onAuthorizationSuccess`. See Documentation.md for more details
 * `connect.core.onAuthorizeRetriesExhausted` and `connect.core.onCTIAuthorizeRetriesExhausted` methods, along with some backoff logic to the retries / page reloads for the CTI and authorize apis. Please see these methods' entries in Documentation.md for more information.
+* `connect.VoiceConnection.startContactRecording` added new apis to connect.VoiceConnection object for softphone contact recording functionality, see Documentation.md for details
+* `connect.VoiceConnection.stopContactRecording` See Documentation.md for details
+* `connect.VoiceConnection.resumeContactRecording` See Documentation.md for details
+* `connect.VoiceConnection.suspendContactRecording` See Documentation.md for details
 
 ## 2.0.0
 Removed Functions:

@@ -1896,3 +1896,75 @@ voiceConnection.deleteVoiceIdSpeaker()
     console.error(err);
   });
 ```
+
+## Contact Recording APIs
+Amazon Connect Contact Recording api are action methods that can be called to control Voice Contact Recording for Softphone Contacts. 
+Contact Recording Streams APIs require that the 'Contact Recording" security profile permission is enabled.
+These APIs are exposed as Voice Connection methods and are currently not compatible with multiparty calls.
+You can get the agent voice connection object by calling `contact.getAgentConnection()` when there's a voice contact.
+Contact recording apis are not yet available for multi conference calls.
+
+Contact Recording APIs can be tested after the `Contact Recording` Security Profile is enabled for the user.
+
+### `voiceConnection.startContactRecording()`
+```js
+voiceConnection.startContactRecording(trackConfig = 'ALL')
+  .then((data) => { 
+    // Successful response returns an empty body
+  })
+  .catch((err) => {
+    console.error(err);
+});
+
+connect.ContactRecordingVoiceTrackConfig = connect.makeEnum([
+  'ALL',
+  'TO_AGENT',
+  'FROM_AGENT'
+]);
+```
+Begins collecting Audio from Voice Connection Contact. On successful calls it resolves with an empty 200 response.
+An optional track input can be provided to choose selective recording of tracks (found in `api.js`).
+You can provide a `trackConfig` input to control which audio track will be recorded from the contact. 
+If a trackConfig is not provided, it will record both ('ALL') by default.
+[link](https://docs.aws.amazon.com/connect/latest/APIReference/API_StartContactRecording.html)
+
+
+### `voiceConnection.stopContactRecording()`
+```js
+voiceConnection.stopContactRecording()
+  .then(() => {
+    // Successful response returns an empty body
+  })
+  .catch((err) => {
+    console.error(err);
+  });
+```
+Ends the recording and sends the track to the instance's S3 bucket shortly after the contact is disconnected. 
+After the contact has been cleared (agent.getContacts() does not include the contact), the recording is also placed in the customer's contact record.
+[link](https://docs.aws.amazon.com/connect/latest/APIReference/API_StopContactRecording.html)
+
+### `voiceConnection.suspendContactRecording()`
+```js
+voiceConnection.suspendContactRecording()
+  .then(() => {
+    // Successful response returns an empty body
+  })
+  .catch((err) => {
+    console.error(err);
+  });
+```
+Suspends information collection from all tracks. This will be reflected in the contact recording file as blank periods.
+[link](https://docs.aws.amazon.com/connect/latest/APIReference/API_SuspendContactRecording.html)
+
+
+### `voiceConnection.resumeContactRecording()`
+```js
+voiceConnection.resumeContactRecording()
+  .then(() => {
+    // Successful response returns an empty body
+  .catch((err) => {
+    console.error(err);
+  });
+```
+Resumes collecting audio data from all tracks specified in the initial `startContactRecording` request
+[link](https://docs.aws.amazon.com/connect/latest/APIReference/API_ResumeContactRecording.html)

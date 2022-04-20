@@ -61,7 +61,11 @@
       DESCRIBE_SESSION: "AgentAppService.VoiceId.describeSession",
       UPDATE_SESSION: "AgentAppService.VoiceId.updateSession",
       START_VOICE_ID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
-      LIST_INTEGRATION_ASSOCIATIONS: "AgentAppService.Acs.listIntegrationAssociations"
+      LIST_INTEGRATION_ASSOCIATIONS: "AgentAppService.Acs.listIntegrationAssociations",
+      START_CONTACT_RECORDING: "AgentAppService.Acs.StartContactRecording",
+      STOP_CONTACT_RECORDING: "AgentAppService.Acs.StopContactRecording",
+      SUSPEND_CONTACT_RECORDING: "AgentAppService.Acs.SuspendContactRecording",
+      RESUME_CONTACT_RECORDING: "AgentAppService.Acs.ResumeContactRecording"
    };
 
    /**---------------------------------------------------------------
