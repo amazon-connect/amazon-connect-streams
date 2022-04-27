@@ -49,6 +49,8 @@
     'authorize_success',
     'authorize_retries_exhausted',
     'cti_authorize_retries_exhausted',
+    'tab_focused_while_softphone_contact_connecting',
+    'report_missed_call_info'
   ]);
 
   /**---------------------------------------------------------------

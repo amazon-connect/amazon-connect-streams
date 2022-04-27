@@ -379,7 +379,8 @@
     'user_busy_error',
     'webrtc_error',
     'realtime_communication_error',
-    'other'
+    'other',
+    'no_ccp_tabs_focused'
   ]);
 
   /*----------------------------------------------------------------
@@ -26136,6 +26137,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     'authorize_success',
     'authorize_retries_exhausted',
     'cti_authorize_retries_exhausted',
+    'tab_focused_while_softphone_contact_connecting',
+    'report_missed_call_info'
   ]);
 
   /**---------------------------------------------------------------
@@ -28665,8 +28668,36 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       this.userMediaStream = stream;
     }
     setTargetContact(contact) {
+      const self = this;
       connect.assertNotNull(contact, 'Contact');
-      this.targetContact = contact;
+      if (!contact) return;
+      if (self.targetContact && self.targetContact.contactId === contact.contactId) {
+        // For an edge case where setTargetContact is called twice for an contact (i.e. gum failed due to mic permission),
+        // avoid duplicately add event listeners to the same contact
+        return;
+      }
+      self.targetContact = contact;
+      self.targetContact._hasBeenAccepted = false;
+
+      contact.onAccepted((_contact) => {
+        self.targetContact._hasBeenAccepted = true;
+      });
+
+      contact.onMissed((_contact) => {
+        connect.ifMaster(connect.MasterTopics.SEND_LOGS, () => {
+          const softphoneMediaInfo = _contact.getAgentConnection().getSoftphoneMediaInfo();
+          connect.core.getUpstream().sendUpstream(connect.EventType.REPORT_MISSED_CALL_INFO, {
+            contactId: self.targetContact.contactId,
+            autoAcceptEnabled: softphoneMediaInfo && softphoneMediaInfo.autoAccept,
+            contactHasBeenAccepted: self.targetContact._hasBeenAccepted
+          });
+        });
+      });
+
+      contact.onDestroy((_contact) => {
+        // reset targetContact here, not in cleanup() because we want to use them in contact.onMissed()
+        self.targetContact = null;
+      });
     }
     competeForNextSoftphoneMaster() {
       const self = this;
@@ -28679,6 +28710,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           .then(self.startSoftphoneSession)
           .catch(self.handleErrorInCompeteForNextSoftphoneMaster)
           .finally(self.cleanup)
+
+        // For troubleshooting/metrics purpose, check if this master tab has got a focus.
+        self.pollForTabFocus()
+          .then(() => {})
+          .catch(() => {});
       }, () => {
         // If this is not the master tab, pending calling getUserMedia until the tab gets focused
         // in order to avoid unnecessary master tab switch between tabs in case UserMediaCaptureOnFocus is NOT enabled
@@ -28710,17 +28746,18 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       }, true);
       return Promise.race([gumTimeoutPromise, self.checkIfContactIsInConnectingState(self.targetContact), gumPromise]);
     }
-    // TODO:
-    // - address the question
     pollForTabFocus() {
       const self = this;
       
       const tabFocusPromise = new Promise((resolve, reject) => {
-        // QUESTION: should we add an initial delay to avoid unnecessary take over when UserMediaCaptureOnFocus is disabled?
         self.tabFocusIntervalId = setInterval(() => {
           if (document.hasFocus()) {
             clearInterval(self.tabFocusIntervalId);
             clearTimeout(self.tabFocusTimeoutId);
+            
+            connect.core.getUpstream().sendUpstream(connect.EventType.TAB_FOCUSED_WHILE_SOFTPHONE_CONTACT_CONNECTING, {
+              tabId: connect.core.tabId
+            });
             resolve();
           }
         }, SoftphoneMasterCoordinator.TAB_FOCUS_POLLING_INTERVAL);
@@ -28838,13 +28875,18 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           break;
         default:
           validError = true;
-          connect.getLog().error('[SoftphoneMasterCoordinator] Unknown error').withObject({ error }).sendInternalLogToServer();
+          if (error instanceof DOMException) {
+            // GUM failed because microphone permission was denied. Do nothing here
+          } else {
+            connect.getLog().error('[SoftphoneMasterCoordinator] Unknown error:', error.message).withObject({ error }).sendInternalLogToServer();
+          }
       }
-      // If we don't see GumSucceeded, and it is none of the other error messages, then we know the actual GUM API failed.
+      // If we don't see GumSucceeded, and it is none of the other GUM failure error messages, then we know the actual GUM API failed.
       if (gumLatencies['GumCalled'] && !gumLatencies['GumSucceeded'] 
           && !(error.message === SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT 
               || error.message === SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING)) {
         publishTelemetryEvent("GumFailed", null, {}, true);
+        publishError(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED, "Your microphone is not enabled in your browser.", "");
       }
       publishTelemetryEvent("CompeteForSoftphoneMasterError", null, {
         errorMessage: error.message || "No error Message",
@@ -28867,7 +28909,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         this.userMediaStream.getTracks().forEach((track) => track.stop());
       }
       this.userMediaStream = null;
-      this.targetContact = null;
     }
     createSoftphoneManager() {
       connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
@@ -30286,7 +30327,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 /***/ 736:
 /***/ (() => {
 
-/*
+/* 
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -30438,6 +30479,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     this.initData = {};
     this.portConduitMap = {};
     this.streamMapByTabId = {};
+    this.focusedTabMap = {};
     this.masterCoord = new MasterTopicCoordinator();
     this.logsBuffer = [];
     this.suppress = false;
@@ -30624,6 +30666,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         connect.hitch(self, self.handleTabIdEvent, stream));
       portConduit.onDownstream(connect.EventType.CLOSE, 
         connect.hitch(self, self.handleCloseEvent, stream));
+      portConduit.onDownstream(connect.EventType.TAB_FOCUSED_WHILE_SOFTPHONE_CONTACT_CONNECTING,
+        connect.hitch(self, self.handleTabFocusEvent, stream));
+      portConduit.onDownstream(connect.EventType.REPORT_MISSED_CALL_INFO,
+        connect.hitch(self, self.handleMissedCallInfoEvent, portConduit));
     };
   };
 
@@ -30972,6 +31018,35 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
   };
 
+  ClientEngine.prototype.handleTabFocusEvent = function (stream, data) {
+    const tabId = data.tabId || 'streamId-' + stream.getId();
+    this.focusedTabMap[tabId] = true;
+  };
+
+  ClientEngine.prototype.handleMissedCallInfoEvent = function (portConduit, data) {
+    const numberOfCCPTabsFocusedInTime = Object.keys(this.focusedTabMap).length;
+    const obj = {
+      contactId: data.contactId,
+      autoAcceptEnabled: data.autoAcceptEnabled,
+      contactHasBeenAccepted: data.contactHasBeenAccepted,
+      numberOfCCPTabsFocusedInTime,
+      streamMapByTabId: this.streamMapByTabId,
+      focusedTabMap: this.focusedTabMap,
+      numberOfConnectedCCPs: Object.keys(this.portConduitMap).length,
+      softphoneMaster: this.masterCoord.getMaster(connect.MasterTopics.SOFTPHONE),
+      nextSoftphoneMaster: this.masterCoord.getMaster(connect.MasterTopics.NEXT_SOFTPHONE)
+    };
+
+    if (data.autoAcceptEnabled || data.contactHasBeenAccepted) {
+      if (numberOfCCPTabsFocusedInTime === 0) {
+        const errorType = connect.SoftphoneErrorTypes.NO_CCP_TABS_FOCUSED;
+        const message = 'Contact accepted but missed because no CCP tabs have got focus in time to access microphone';
+        connect.getLog().error(`Softphone error occurred: ${errorType},  ${message}`).withObject(obj).sendInternalLogToServer();
+        portConduit.sendDownstream(connect.AgentEvents.SOFTPHONE_ERROR, new connect.SoftphoneError(errorType, message, ''));
+      }
+    }
+  }
+
   ClientEngine.prototype.updateAgentConfiguration = function (configuration) {
     if (configuration.permissions &&
       configuration.dialableCountries &&
@@ -31047,6 +31122,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         if (this.detectNewVoiceContactInSync(this.prevSnapshot, this.agent.snapshot)) {
           connect.getLog().info('New voice contact detected in the shared worker. Clearing NEXT_SOFTPHONE master').sendInternalLogToServer();
           this.masterCoord.removeMasterWithTopic(connect.MasterTopics.NEXT_SOFTPHONE);
+          this.focusedTabMap = {};
         }
       } catch(err) {
         connect.getLog().error("detectNewVoiceContactInSync failed").sendInternalLogToServer().withObject({ err });

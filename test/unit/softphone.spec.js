@@ -309,18 +309,39 @@ describe('SoftphoneMasterCoordinator', () => {
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'setUpListenerForNewSoftphoneContact');
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'setUpListenerForTakeOverEvent');
             sandbox.stub(connect, 'assertNotNull');
+            sandbox.stub(connect.Contact.prototype, 'getAgentConnection').returns({
+                getSoftphoneMediaInfo: () => ({ autoAccept: false })
+            });
+            sandbox.stub(connect, 'ifMaster').callsFake((topic, f_true, f_else) => {
+                f_true();
+            });
+            sandbox.stub(connect.core, 'getUpstream').returns({
+                sendUpstream: sandbox.stub()
+            });
+            connect.core.eventBus = new connect.EventBus();
         });
         afterEach(() => {
             sandbox.resetHistory();
         });
         after(() => {
             sandbox.restore();
+            connect.core.eventBus = null;
         });
-        it('should set the given contact object to this.targetContact', () => {
+        it('should set the given contact object to this.targetContact and add event listeners. Update the states along the contact events', () => {
+            const sampleContact = new connect.Contact('contact-id-123');
             const softphoneMasterCoordinator = new connect.SoftphoneMasterCoordinator();
-            const contact = { contactId: 'dummy' };
-            softphoneMasterCoordinator.setTargetContact(contact);
-            expect(softphoneMasterCoordinator.targetContact).to.equal(contact);
+            softphoneMasterCoordinator.setTargetContact(sampleContact);
+
+            expect(softphoneMasterCoordinator.targetContact).to.equal(sampleContact);
+
+            connect.core.getEventBus().trigger(connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, sampleContact.contactId), new connect.Contact(sampleContact.contactId));
+            expect(softphoneMasterCoordinator.targetContact._hasBeenAccepted).to.be.true;
+
+            connect.core.getEventBus().trigger(connect.core.getContactEventName(connect.ContactEvents.MISSED, sampleContact.contactId), new connect.Contact(sampleContact.contactId));
+            sinon.assert.calledOnce(connect.core.getUpstream().sendUpstream);
+
+            connect.core.getEventBus().trigger(connect.core.getContactEventName(connect.ContactEvents.DESTROYED, sampleContact.contactId), new connect.Contact(sampleContact.contactId));
+            expect(softphoneMasterCoordinator.targetContact).to.be.null;
         });
         it('should assert if no contact object is passed in', () => {
             const softphoneMasterCoordinator = new connect.SoftphoneMasterCoordinator();
@@ -536,6 +557,9 @@ describe('SoftphoneMasterCoordinator', () => {
             stubbedThenHandler = sandbox.stub();
             stubbedCatchHandler = sandbox.stub();
             sandbox.stub(connect, 'publishMetric');
+            sandbox.stub(connect.core, 'getUpstream').returns({
+                sendUpstream: () => {}
+            });
         });
         afterEach(() => {
             sandbox.resetHistory();
@@ -917,10 +941,11 @@ describe('SoftphoneMasterCoordinator', () => {
                 id: 'dummy',
                 getTracks: sinon.stub().returns([])
             };
-            softphoneMasterCoordinator.targetContact = {
+            const dummyContact = {
                 contactId: 'dummy',
                 getAgentConnection: sinon.stub().returns({ connectionId: 'abc' })
             };
+            softphoneMasterCoordinator.targetContact = dummyContact;
 
             softphoneMasterCoordinator.cleanup();
 
@@ -928,7 +953,7 @@ describe('SoftphoneMasterCoordinator', () => {
             expect(softphoneMasterCoordinator.tabFocusIntervalId).to.be.null;
             expect(softphoneMasterCoordinator.tabFocusTimeoutId).to.be.null;
             expect(softphoneMasterCoordinator.userMediaStream).to.be.null;
-            expect(softphoneMasterCoordinator.targetContact).to.be.null;
+            expect(softphoneMasterCoordinator.targetContact).to.equal(dummyContact);
             sinon.assert.calledWith(global.clearTimeout, 1);
             sinon.assert.calledWith(global.clearInterval, 2);
             sinon.assert.calledWith(global.clearTimeout, 3);
