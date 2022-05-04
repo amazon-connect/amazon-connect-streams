@@ -269,12 +269,14 @@ describe('SoftphoneMasterCoordinator', () => {
     });
 
     describe('setUserMediaStream', () => {
+        jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
         let stubbedAssertNotNull;
         before(() => {
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'setUpListenerForNewSoftphoneContact');
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'setUpListenerForTakeOverEvent');
             stubbedAssertNotNull = sandbox.stub(connect, 'assertNotNull');
             sandbox.stub(connect, 'publishMetric');
+            sandbox.stub(document, 'hasFocus');
         });
         afterEach(() => {
             sandbox.resetHistory();
@@ -462,6 +464,7 @@ describe('SoftphoneMasterCoordinator', () => {
     });
 
     describe('getUserMedia', () => {
+        jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
         let clock;
         let stubbedThenHandler, stubbedCatchHandler;
         let stubbedCheckIfContactIsInConnectingState, stubbedGetUserMedia;
@@ -474,6 +477,7 @@ describe('SoftphoneMasterCoordinator', () => {
             stubbedThenHandler = sandbox.stub();
             stubbedCatchHandler = sandbox.stub();
             sandbox.stub(connect, 'publishMetric');
+            sandbox.stub(document, 'hasFocus');
         });
         afterEach(() => {
             sandbox.resetHistory();
@@ -681,6 +685,7 @@ describe('SoftphoneMasterCoordinator', () => {
     });
 
     describe('becomeNextSoftphoneMasterIfNone', () => {
+        jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
         let stubbedThenHandler, stubbedCatchHandler;
         let stubbedIfMaster;
         before(() => {
@@ -689,6 +694,7 @@ describe('SoftphoneMasterCoordinator', () => {
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'setUpListenerForTakeOverEvent');
             stubbedIfMaster = sandbox.stub(connect, 'ifMaster');
             sandbox.stub(connect, 'publishMetric');
+            sandbox.stub(document, 'hasFocus');
             stubbedThenHandler = sandbox.stub();
             stubbedCatchHandler = sandbox.stub();
         });
@@ -730,6 +736,7 @@ describe('SoftphoneMasterCoordinator', () => {
     });
 
     describe('takeOverSoftphoneMaster', () => {
+        jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
         let stubbedThenHandler, stubbedCatchHandler;
         let stubbedBecomeMaster, stubbedConnectAgent, stubbedCreateSoftphoneManager;
         before(() => {
@@ -739,6 +746,7 @@ describe('SoftphoneMasterCoordinator', () => {
             stubbedBecomeMaster = sandbox.stub(connect, 'becomeMaster');
             stubbedConnectAgent = sandbox.stub(connect, 'agent');
             sandbox.stub(connect, "publishMetric");
+            sandbox.stub(document, 'hasFocus');
             stubbedCreateSoftphoneManager = sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'createSoftphoneManager');
             stubbedThenHandler = sandbox.stub();
             stubbedCatchHandler = sandbox.stub();

@@ -386,7 +386,7 @@ describe('Worker', function () {
         };
         connect.worker.clientEngine.focusedTabMap['tab-A'] = true;
         connect.worker.clientEngine.handleMissedCallInfoEvent(portConduit, data);
-        sinon.assert.notCalled(portConduit.sendDownstream);
+        sinon.assert.calledOnceWithMatch(portConduit.sendDownstream, connect.EventType.CLIENT_METRIC);
       });
       it('should NOT send SOFTPHONE_ERROR event to downstream if contact has not been accepted', () => {
         const data = {
@@ -396,7 +396,7 @@ describe('Worker', function () {
         };
         connect.worker.clientEngine.focusedTabMap['tab-A'] = true;
         connect.worker.clientEngine.handleMissedCallInfoEvent(portConduit, data);
-        sinon.assert.notCalled(portConduit.sendDownstream);
+        sinon.assert.calledOnceWithMatch(portConduit.sendDownstream, connect.EventType.CLIENT_METRIC);
       });
     });
 
