@@ -421,17 +421,9 @@
    * class TaskTemplatesClient extends ClientBase
    */
    var TaskTemplatesClient = function(endpoint) {
+      connect.assertNotNull(endpoint, 'endpoint');
       ClientBase.call(this);
-      this.baseUrl = connect.getBaseUrl();
-      if (endpoint) {
-         try {
-            var AWSEndpoint = new AWS.Endpoint(endpoint);
-            this.baseUrl = AWSEndpoint.protocol + '//' + AWSEndpoint.hostname;
-         } catch (e) {
-            connect.getLog().error("Failed to build an endpoint")
-            .withException(e).sendInternalLogToServer();
-         }
-      } 
+      this.endpointUrl = connect.getUrlWithProtocol(endpoint);
    };
 
    TaskTemplatesClient.prototype = Object.create(ClientBase.prototype);
@@ -440,7 +432,6 @@
    TaskTemplatesClient.prototype._callImpl = function(method, params, callbacks) {
       connect.assertNotNull(method, 'method');
       connect.assertNotNull(params, 'params');
-      var self = this;
       var options = {
          credentials: 'include',
          method: 'GET',
@@ -451,7 +442,7 @@
          }
       };
       var instanceId = params.instanceId;
-      var url = `${self.baseUrl}/task-templates/api/ccp`;
+      var url = this.endpointUrl;
       var methods = connect.TaskTemplatesClientMethods;
       switch (method) {
          case methods.LIST_TASK_TEMPLATES: 

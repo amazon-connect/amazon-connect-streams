@@ -24157,17 +24157,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    * class TaskTemplatesClient extends ClientBase
    */
    var TaskTemplatesClient = function(endpoint) {
+      connect.assertNotNull(endpoint, 'endpoint');
       ClientBase.call(this);
-      this.baseUrl = connect.getBaseUrl();
-      if (endpoint) {
-         try {
-            var AWSEndpoint = new AWS.Endpoint(endpoint);
-            this.baseUrl = AWSEndpoint.protocol + '//' + AWSEndpoint.hostname;
-         } catch (e) {
-            connect.getLog().error("Failed to build an endpoint")
-            .withException(e).sendInternalLogToServer();
-         }
-      } 
+      this.endpointUrl = connect.getUrlWithProtocol(endpoint);
    };
 
    TaskTemplatesClient.prototype = Object.create(ClientBase.prototype);
@@ -24176,7 +24168,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    TaskTemplatesClient.prototype._callImpl = function(method, params, callbacks) {
       connect.assertNotNull(method, 'method');
       connect.assertNotNull(params, 'params');
-      var self = this;
       var options = {
          credentials: 'include',
          method: 'GET',
@@ -24187,7 +24178,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
          }
       };
       var instanceId = params.instanceId;
-      var url = `${self.baseUrl}/task-templates/api/ccp`;
+      var url = this.endpointUrl;
       var methods = connect.TaskTemplatesClientMethods;
       switch (method) {
          case methods.LIST_TASK_TEMPLATES: 
@@ -24535,7 +24526,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    */
   connect.core.initTaskTemplatesClient = function (params) {
     connect.assertNotNull(params, 'params');
-    var endpoint = params.endpoint || null;
+    var endpoint = connect.assertNotNull(params.taskTemplatesEndpoint, 'params.taskTemplatesEndpoint');
     connect.core.taskTemplatesClient = new connect.TaskTemplatesClient(endpoint);
   };
  
@@ -24903,6 +24894,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         : AUTHORIZE_ENDPOINT;
     }
     var agentAppEndpoint = params.agentAppEndpoint || null;
+    var taskTemplatesEndpoint = params.taskTemplatesEndpoint || null;
     var authCookieName = params.authCookieName || null;
  
     try {
@@ -24950,6 +24942,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         region: region,
         authorizeEndpoint: authorizeEndpoint,
         agentAppEndpoint: agentAppEndpoint,
+        taskTemplatesEndpoint: taskTemplatesEndpoint,
         authCookieName: authCookieName,
         longPollingOptions: params.longPollingOptions || undefined
       });
