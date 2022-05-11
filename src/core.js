@@ -280,7 +280,7 @@
    */
   connect.core.initTaskTemplatesClient = function (params) {
     connect.assertNotNull(params, 'params');
-    var endpoint = params.endpoint || null;
+    var endpoint = connect.assertNotNull(params.taskTemplatesEndpoint, 'params.taskTemplatesEndpoint');
     connect.core.taskTemplatesClient = new connect.TaskTemplatesClient(endpoint);
   };
  
@@ -757,6 +757,7 @@
         : AUTHORIZE_ENDPOINT;
     }
     var agentAppEndpoint = params.agentAppEndpoint || null;
+    var taskTemplatesEndpoint = params.taskTemplatesEndpoint || null;
     var authCookieName = params.authCookieName || null;
  
     try {
@@ -804,6 +805,7 @@
         region: region,
         authorizeEndpoint: authorizeEndpoint,
         agentAppEndpoint: agentAppEndpoint,
+        taskTemplatesEndpoint: taskTemplatesEndpoint,
         authCookieName: authCookieName,
         longPollingOptions: params.longPollingOptions || undefined
       });
