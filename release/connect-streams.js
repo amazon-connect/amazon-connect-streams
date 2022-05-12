@@ -24169,7 +24169,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    var TaskTemplatesClient = function(endpoint) {
       connect.assertNotNull(endpoint, 'endpoint');
       ClientBase.call(this);
-      this.endpointUrl = connect.getUrlWithProtocol(endpoint);
+      if (endpoint.includes('/task-templates')) {
+         this.endpointUrl = connect.getUrlWithProtocol(endpoint);
+      } else {
+         var AWSEndpoint = new AWS.Endpoint(endpoint);
+         var CFPrefix = endpoint.includes('.awsapps.com') ? '/connect' : '';
+         this.endpointUrl = connect.getUrlWithProtocol(`${AWSEndpoint.host}${CFPrefix}/task-templates/api/ccp`);
+      }
    };
 
    TaskTemplatesClient.prototype = Object.create(ClientBase.prototype);
@@ -24536,7 +24542,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    */
   connect.core.initTaskTemplatesClient = function (params) {
     connect.assertNotNull(params, 'params');
-    var endpoint = connect.assertNotNull(params.taskTemplatesEndpoint, 'params.taskTemplatesEndpoint');
+    var endpoint = params.taskTemplatesEndpoint || params.endpoint;
+    connect.assertNotNull(endpoint, 'taskTemplatesEndpoint');
     connect.core.taskTemplatesClient = new connect.TaskTemplatesClient(endpoint);
   };
  

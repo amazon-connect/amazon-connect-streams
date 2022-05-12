@@ -280,7 +280,8 @@
    */
   connect.core.initTaskTemplatesClient = function (params) {
     connect.assertNotNull(params, 'params');
-    var endpoint = connect.assertNotNull(params.taskTemplatesEndpoint, 'params.taskTemplatesEndpoint');
+    var endpoint = params.taskTemplatesEndpoint || params.endpoint;
+    connect.assertNotNull(endpoint, 'taskTemplatesEndpoint');
     connect.core.taskTemplatesClient = new connect.TaskTemplatesClient(endpoint);
   };
  
