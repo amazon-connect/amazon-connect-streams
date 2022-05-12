@@ -423,7 +423,13 @@
    var TaskTemplatesClient = function(endpoint) {
       connect.assertNotNull(endpoint, 'endpoint');
       ClientBase.call(this);
-      this.endpointUrl = connect.getUrlWithProtocol(endpoint);
+      if (endpoint.includes('/task-templates')) {
+         this.endpointUrl = connect.getUrlWithProtocol(endpoint);
+      } else {
+         var AWSEndpoint = new AWS.Endpoint(endpoint);
+         var CFPrefix = endpoint.includes('.awsapps.com') ? '/connect' : '';
+         this.endpointUrl = connect.getUrlWithProtocol(`${AWSEndpoint.host}${CFPrefix}/task-templates/api/ccp`);
+      }
    };
 
    TaskTemplatesClient.prototype = Object.create(ClientBase.prototype);

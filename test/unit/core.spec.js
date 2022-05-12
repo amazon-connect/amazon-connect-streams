@@ -1258,4 +1258,36 @@ describe('Core', function () {
         });
     });
 
+    describe('Task Templates Client initialization', function () {
+        before(() => {
+            AWS.Endpoint = function Endpoint(endpoint) {
+                this.host = endpoint;
+            }
+            sandbox.stub(connect, 'getUrlWithProtocol').callsFake(endpoint => `https://${endpoint}`);
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        it('initTaskTemplatesClient should throw an error if endpoint is not added to params', () => {
+            expect( function () {
+                connect.core.initTaskTemplatesClient(params);
+            } ).to.throw( Error );
+        });
+        it('TaskTemplatesClient constructor should build Task Templates API endpoint based on endpoint param if taskTemplatesEndpoint is not provided', () => {
+            params.endpoint = 'xyz.com';
+            connect.core.initTaskTemplatesClient(params);
+            expect(connect.core.taskTemplatesClient.endpointUrl).to.equal("https://xyz.com/task-templates/api/ccp");
+        });
+        it('TaskTemplatesClient constructor should add "/connect" prefix to Task Templates API endpoint if endpoint param looks like a CF domain', () => {
+            params.endpoint = 'xyz.awsapps.com';
+            connect.core.initTaskTemplatesClient(params);
+            expect(connect.core.taskTemplatesClient.endpointUrl).to.equal("https://xyz.awsapps.com/connect/task-templates/api/ccp");
+        });
+        it('TaskTemplatesClient constructor should build Task Templates API endpoint based on taskTemplatesEndpoint param if it is provided', () => {
+            params.endpoint = 'xyz.com';
+            params.taskTemplatesEndpoint = 'abc.com/task-templates/api/ccp';
+            connect.core.initTaskTemplatesClient(params);
+            expect(connect.core.taskTemplatesClient.endpointUrl).to.equal("https://abc.com/task-templates/api/ccp");
+        });
+    });
 });
