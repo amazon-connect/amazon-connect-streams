@@ -219,6 +219,7 @@ declare namespace connect {
     AUTHORIZE_SUCCESS = 'authorize_success',
     AUTHORIZE_RETRIES_EXHAUSTED = 'authorize_retries_exhausted',
     CTI_AUTHORIZE_RETRIES_EXHAUSTED = 'cti_authorize_retries_exhausted',
+    CLICK_STREAM_DATA = 'click_stream_data'
   }
 
   const core: Core;
@@ -638,6 +639,12 @@ declare namespace connect {
     WEBRTC_ERROR = "webrtc_error",
     REALTIME_COMMUNICATION_ERROR = "realtime_communication_error",
     OTHER = "other",
+  }
+
+  enum ClickType {
+    ACCEPT = "Accept",
+    REJECT = "Reject",
+    HANGUP = "Hangup",
   }
 
   enum CTIExceptions {

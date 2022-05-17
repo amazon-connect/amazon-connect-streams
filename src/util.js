@@ -500,6 +500,13 @@
     });
   };
 
+  connect.publishClickStreamData = function(report) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.CLICK_STREAM_DATA,
+      data: report
+    });
+  };
+
   connect.publishClientSideLogs = function(logs) {
     var bus = connect.core.getEventBus();
     bus.trigger(connect.EventType.CLIENT_SIDE_LOGS, logs);

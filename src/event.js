@@ -49,6 +49,7 @@
     'authorize_success',
     'authorize_retries_exhausted',
     'cti_authorize_retries_exhausted',
+    'click_stream_data'
   ]);
 
   /**---------------------------------------------------------------

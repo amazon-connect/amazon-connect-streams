@@ -190,6 +190,15 @@
   ]);
 
   /*----------------------------------------------------------------
+   * enum for ClickType
+   */
+  connect.ClickType = connect.makeEnum([
+    'Accept',
+    'Reject',
+    'Hangup'
+  ]);
+
+  /*----------------------------------------------------------------
    * enum for VoiceIdErrorTypes
    */
   connect.VoiceIdErrorTypes = connect.makeEnum([
@@ -892,6 +901,13 @@
     var client = connect.core.getClient();
     var self = this;
     var contactId = this.getContactId();
+
+    connect.publishClickStreamData({
+      contactId: this.getContactId(),
+      clickType: connect.ClickType.ACCEPT,
+      clickTime: new Date().toISOString()
+    });
+
     client.call(connect.ClientMethods.ACCEPT_CONTACT, {
       contactId: contactId
     }, {
@@ -931,6 +947,13 @@
 
   Contact.prototype.reject = function (callbacks) {
     var client = connect.core.getClient();
+
+    connect.publishClickStreamData({
+      contactId: this.getContactId(),
+      clickType: connect.ClickType.REJECT,
+      clickTime: new Date().toISOString()
+    });
+
     client.call(connect.ClientMethods.REJECT_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
@@ -1138,6 +1161,12 @@
   };
 
   Connection.prototype.destroy = function (callbacks) {
+    connect.publishClickStreamData({
+      contactId: this.getContactId(),
+      clickType: connect.ClickType.HANGUP,
+      clickTime: new Date().toISOString()
+    });
+
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.DESTROY_CONNECTION, {
       contactId: this.getContactId(),
