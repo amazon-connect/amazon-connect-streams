@@ -1165,7 +1165,7 @@
     terminateSoftphoneManager() {
       if (connect.core.softphoneManager) {
         connect.core.softphoneManager.terminate();
-        delete connect.core.softphoneManager;
+        connect.core.softphoneManager = null;
       }
     }
     addDetectedCall(agentConnectionId) {

@@ -1030,7 +1030,7 @@ describe('SoftphoneMasterCoordinator', () => {
             const softphoneMasterCoordinator = new connect.SoftphoneMasterCoordinator();
             softphoneMasterCoordinator.terminateSoftphoneManager();
             sinon.assert.calledOnce(stubbedTerminate);
-            expect(connect.core.softphoneManager).to.be.undefined;
+            expect(connect.core.softphoneManager).to.be.null;
         });
     });
 
