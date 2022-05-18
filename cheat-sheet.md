@@ -158,7 +158,7 @@ Transfer to a quick connect
         console.log("valid_queue_phone_agent_endpoints", data.endpoints, "You can transfer the call to any of these endpoints");
         agent.getContacts(lily.ContactType.VOICE)[0].addConnection(data.endpoints[6], {
           success: function(data) {
-          alert("transfer success");
+            alert("transfer success");
           },
           failure: function(data) {
             alert("transfer failed");
