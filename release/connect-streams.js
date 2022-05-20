@@ -693,6 +693,17 @@
     return this.getConfiguration().routingProfile;
   };
 
+  
+  Agent.prototype.barge = function (callbacks) {
+    console.log("\n\n\n INITIATING BARGE IN STREAMS \n\n\n ^^^^^^^");
+    callbacks.success("Successfully mocked barge api");
+  }
+
+  Agent.prototype.monitor = function (callbacks) {
+    console.log("\n\n\n INITIATING MONITOR IN STREAMS \n\n\n ^^^^^^^")
+    callbacks.success("Successfully mocked monitor api");
+  }
+
   Agent.prototype.getChannelConcurrency = function (channel) {
     var channelConcurrencyMap = this.getRoutingProfile().channelConcurrencyMap;
     if (!channelConcurrencyMap) {
@@ -23819,7 +23830,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
          'getNewAuthToken',
          'createTransport',
          'muteParticipant',
-         'unmuteParticipant'
+         'unmuteParticipant',
+         'barge',
+         'monitor'
    ]);
 
    /**---------------------------------------------------------------
@@ -28719,6 +28732,370 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   SoftphoneLogger.prototype.error = function () {
     return this._tee(5, this._originalLogger.error)(arguments);
   };
+
+  // TODO:
+  // - integrate competeForMasterOnAgentUpdate logic defined in core.js into this class
+  // - add error handling and ensure the error handling to be consistent with how RtcJS handles them
+  // - add CSM
+  class SoftphoneMasterCoordinator {
+    constructor(softphoneParams = {}) {
+      this.canCompeteForMaster = connect.isFramed() ? softphoneParams.allowFramedSoftphone : true;
+      this.softphoneParams = softphoneParams;
+      this.userMediaStream = null;
+      this.targetContact = null;
+      this.gumTimeoutId = null;
+      this.tabFocusIntervalId = null;
+      this.tabFocusTimeoutId = null;
+      this.callsDetected = {};
+
+      this.bindMethods();
+      if (this.canCompeteForMaster) {
+        this.setUpListenerForNewSoftphoneContact();
+        this.setUpListenerForTakeOverEvent();
+      }
+    }
+    bindMethods() {
+      this.setUserMediaStream = this.setUserMediaStream.bind(this);
+      this.startSoftphoneSession = this.startSoftphoneSession.bind(this);
+      this.getUserMedia = this.getUserMedia.bind(this);
+      this.takeOverSoftphoneMaster = this.takeOverSoftphoneMaster.bind(this);
+      this.cleanup = this.cleanup.bind(this);
+    }
+    setUpListenerForNewSoftphoneContact() {
+      // The reason why we need to use contact.onRefresh to detect a new softphone call is 
+      // to support QCB contacts. A QCB contact is first routed as incoming state without 
+      // softphoneMediaInfo populated (which makes isSoftphoneCall() to return false), 
+      // and it's populated only after the contact state turns to connecting state.
+      const self = this;
+
+      const onRefreshContact = function (contact, agentConnectionId) {
+        if (contact.isSoftphoneCall() && !self.callsDetected[agentConnectionId] && (
+          contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
+          contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+            self.addDetectedCall(agentConnectionId);
+            self.setTargetContact(contact);
+            self.competeForNextSoftphoneMaster();
+        }
+      };
+  
+      const onInitContact = function (contact) {
+        const agentConnectionId = contact.getAgentConnection().connectionId;
+        gumLatencies['ContactDetected'] = getPerformanceTime();
+        gumLatencies['previousStep'] = "ContactDetected";
+        gumLatencies['contactId'] = contact.getContactId();
+
+        if (!self.callsDetected[agentConnectionId]) {
+          contact.onRefresh(() => onRefreshContact(contact, agentConnectionId));
+        }
+      };
+
+      connect.contact(onInitContact);
+    }
+    setUpListenerForTakeOverEvent() {
+      const self = this;
+      connect.core.getUpstream().onUpstream(connect.EventType.MASTER_RESPONSE, (res) => {
+        const data = res ? res.data : null;
+        if (!data) return;
+        const { topic, takeOver, masterId } = data;
+        const isTakenOverByOthers = takeOver && (masterId !== connect.core.portStreamId);
+        
+        if (topic === connect.MasterTopics.SOFTPHONE && isTakenOverByOthers) {
+          self.terminateSoftphoneManager();
+        }
+      });
+    }
+    setUserMediaStream(stream) {
+      connect.assertNotNull(stream, 'UserMediaStream');
+      publishTelemetryEvent("GumSucceeded", this.targetContact, {}, true);
+      this.userMediaStream = stream;
+    }
+    setTargetContact(contact) {
+      const self = this;
+      connect.assertNotNull(contact, 'Contact');
+      if (!contact) return;
+      if (self.targetContact && self.targetContact.contactId === contact.contactId) {
+        // For an edge case where setTargetContact is called twice for an contact (i.e. gum failed due to mic permission),
+        // avoid duplicately add event listeners to the same contact
+        return;
+      }
+      self.targetContact = contact;
+      self.targetContact._hasBeenAccepted = false;
+
+      contact.onAccepted((_contact) => {
+        self.targetContact._hasBeenAccepted = true;
+      });
+
+      contact.onMissed((_contact) => {
+        connect.ifMaster(connect.MasterTopics.SEND_LOGS, () => {
+          const softphoneMediaInfo = _contact.getAgentConnection().getSoftphoneMediaInfo();
+          connect.core.getUpstream().sendUpstream(connect.EventType.REPORT_MISSED_CALL_INFO, {
+            contactId: self.targetContact.contactId,
+            autoAcceptEnabled: softphoneMediaInfo && softphoneMediaInfo.autoAccept,
+            contactHasBeenAccepted: self.targetContact._hasBeenAccepted
+          });
+        });
+      });
+
+      contact.onDestroy((_contact) => {
+        // reset targetContact here, not in cleanup() because we want to use them in contact.onMissed()
+        self.targetContact = null;
+      });
+    }
+    competeForNextSoftphoneMaster() {
+      const self = this;
+      connect.ifMaster(connect.MasterTopics.SOFTPHONE, () => {
+        gumLatencies["AlreadyMaster"] = true;
+        // If this is the master tab, immediately call getUserMedia to accomodate the case where UserMediaCaptureOnFocus is NOT enabled.
+        // It could happen either when Google hasn't rolled out the feature or customer manually disables it with a feature flag)
+        self.getUserMedia()
+          .then(self.setUserMediaStream)
+          .then(self.becomeNextSoftphoneMasterIfNone)
+          .then(self.startSoftphoneSession)
+          .catch(self.handleErrorInCompeteForNextSoftphoneMaster)
+          .finally(self.cleanup)
+
+        // For troubleshooting/metrics purpose, check if this master tab has got a focus.
+        self.pollForTabFocus()
+          .then(() => {})
+          .catch(() => {});
+      }, () => {
+        // If this is not the master tab, pending calling getUserMedia until the tab gets focused
+        // in order to avoid unnecessary master tab switch between tabs in case UserMediaCaptureOnFocus is NOT enabled
+        self.pollForTabFocus()
+          .then(self.getUserMedia)
+          .then(self.setUserMediaStream)
+          .then(self.becomeNextSoftphoneMasterIfNone)
+          .then(self.takeOverSoftphoneMaster)
+          .then(self.startSoftphoneSession)
+          .catch(self.handleErrorInCompeteForNextSoftphoneMaster)
+          .finally(self.cleanup)
+      }, true);
+    }
+    // TODO:
+    // - integrate with the existing fetchUserMedia and refactor (follow-up task)
+    // - device configuration (follow-up task)
+    getUserMedia() {
+      const self = this;
+      const gumTimeoutPromise = new Promise((resolve, reject) => {
+        self.gumTimeoutId = setTimeout(() => {
+          reject(Error(SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT));
+        }, SoftphoneMasterCoordinator.GUM_TIMEOUT);
+      });
+
+      const constraint = { audio: true };
+      const gumPromise = navigator.mediaDevices.getUserMedia(constraint);
+      publishTelemetryEvent("GumCalled", this.targetContact, {
+        isWebkit: false
+      }, true);
+      return Promise.race([gumTimeoutPromise, self.checkIfContactIsInConnectingState(self.targetContact), gumPromise]);
+    }
+    pollForTabFocus() {
+      const self = this;
+      
+      const tabFocusPromise = new Promise((resolve, reject) => {
+        self.tabFocusIntervalId = setInterval(() => {
+          gumLatencies['TabInFocus'] = false;
+          if (document.hasFocus()) {
+            clearInterval(self.tabFocusIntervalId);
+            clearTimeout(self.tabFocusTimeoutId);
+            gumLatencies['TabInFocus'] = true;
+            
+            connect.core.getUpstream().sendUpstream(connect.EventType.TAB_FOCUSED_WHILE_SOFTPHONE_CONTACT_CONNECTING, {
+              tabId: connect.core.tabId
+            });
+            resolve();
+          }
+        }, SoftphoneMasterCoordinator.TAB_FOCUS_POLLING_INTERVAL);
+
+        self.tabFocusTimeoutId = setTimeout(() => {
+          reject(Error(SoftphoneMasterCoordinator.errorTypes.TAB_FOCUS_TIMEOUT));
+        }, SoftphoneMasterCoordinator.TAB_FOCUS_TIMEOUT);
+      });
+
+      return Promise.race([self.checkIfContactIsInConnectingState(self.targetContact), tabFocusPromise]);
+    }
+    checkIfContactIsInConnectingState(contact) {
+      return new Promise((resolve, reject) => {
+        rejectIfContactIsNoLongerInConnectingState(contact);
+        contact.onRefresh(rejectIfContactIsNoLongerInConnectingState);
+        function rejectIfContactIsNoLongerInConnectingState(_c) {
+          if (_c.getStatus().type !== connect.ContactStatusType.CONNECTING) {
+            reject(Error(SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING));
+          }
+        }
+      });
+    }
+    becomeNextSoftphoneMasterIfNone() {
+      return new Promise((resolve, reject) => {
+        connect.ifMaster(connect.MasterTopics.NEXT_SOFTPHONE, () => {
+          publishTelemetryEvent("Became NEXT_SOFTPHONE master", null, {}, true);
+          resolve();
+        }, () => {
+          reject(Error(SoftphoneMasterCoordinator.errorTypes.NEXT_SOFTPHONE_MASTER_ALREADY_EXISTS));
+        });
+      });
+    }
+    takeOverSoftphoneMaster() {
+      const self = this;
+      return new Promise((resolve, reject) => {
+        connect.becomeMaster(connect.MasterTopics.SOFTPHONE, () => {
+          connect.agent((agent) => {
+            if (!agent.isSoftphoneEnabled()) {
+              reject(Error(SoftphoneMasterCoordinator.errorTypes.SOFTPHONE_NOT_ENABLED));
+            } else {
+              publishTelemetryEvent("BecameSoftphoneMaster", this.targetContact, {}, true);
+              try { self.createSoftphoneManager() } catch (e) { reject(e) }
+              resolve(); 
+            }
+          });
+        });
+      });
+    }
+    startSoftphoneSession() {
+      const self = this;
+      
+      return new Promise((resolve, reject) => {
+        if (connect.core.softphoneManager) {
+          if (self.isMediaStreamValid(self.userMediaStream)) {
+            try {
+              const agentConnectionId = self.targetContact.getAgentConnection().connectionId;
+              const onSessionFailed = () => resolve();
+              const onSessionCompleted = () => resolve();
+              connect.core.softphoneManager.startSession(self.targetContact, agentConnectionId, self.userMediaStream, { onSessionFailed, onSessionCompleted });
+            } catch (e) {
+              reject(Error(SoftphoneMasterCoordinator.errorTypes.START_SESSION_FAILED));
+            }
+          } else {
+            reject(Error(SoftphoneMasterCoordinator.errorTypes.INVALID_MEDIA_STREAM));
+          }
+        } else {
+          reject(Error(SoftphoneMasterCoordinator.errorTypes.NO_SOFTPHONE_MANAGER));
+        }
+      });
+    }
+    isMediaStreamValid(mediaStream) {
+      return mediaStream && mediaStream.active;
+    }
+    handleErrorInCompeteForNextSoftphoneMaster(error = {}) {
+      var validError = false;
+      switch(error.message) {
+        case SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT:
+        case SoftphoneMasterCoordinator.errorTypes.TAB_FOCUS_TIMEOUT:
+          // Valid case.
+          // There shouldn't be major scenarios to get these errors because 
+          // the contact state turns to missed state before these errors are triggered.
+          // One possible scenario is when agent fails to focus the page within 20 seconds
+          // for a manager-listen-in contact whose limit is longer than turning to missed state.
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING:
+          // Valid case. No longer need to compete for NextSoftphoneMaster
+          // because contact has already been ended/missed or connected by a different tab.
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.NEXT_SOFTPHONE_MASTER_ALREADY_EXISTS:
+          // Valid case. A different tab has already successfully grabbed user media
+          // and has become the NextSoftphoneMaster.
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.SOFTPHONE_NOT_ENABLED:
+          // Valid case. The agent is configured to use desk phone to handle voice contacts.
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.NO_SOFTPHONE_MANAGER:
+          // Invalid case. There is no softphone manager instantiated.
+          validError = true;
+          connect.getLog().error('[SoftphoneMasterCoordinator] No softphone manager found').sendInternalLogToServer();
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.INVALID_MEDIA_STREAM:
+          // Invalid case. The captured userMediaStream was somehow inactive.
+          validError = true;
+          connect.getLog().error('[SoftphoneMasterCoordinator] userMediaStream is invalid').sendInternalLogToServer();
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.START_SESSION_FAILED:
+          // Invalid case. Something went wrong while calling SoftphoneManager.startSession().
+          validError = true;
+          connect.getLog().error('[SoftphoneMasterCoordinator] startSoftphoneSession failed').sendInternalLogToServer();
+          break;
+        case SoftphoneMasterCoordinator.errorTypes.CREATE_SOFTPHONE_MANAGER_FAILED:
+          // Invalid case. Something went wrong while instantiating SoftphoneManager.
+          validError = true;
+          connect.getLog().error('[SoftphoneMasterCoordinator] createSoftphoneManager failed').sendInternalLogToServer();
+          break;
+        default:
+          validError = true;
+          if (error instanceof DOMException) {
+            // GUM failed because microphone permission was denied. Do nothing here
+          } else {
+            connect.getLog().error('[SoftphoneMasterCoordinator] Unknown error:', error.message).withObject({ error }).sendInternalLogToServer();
+          }
+      }
+      // If we don't see GumSucceeded, and it is none of the other GUM failure error messages, then we know the actual GUM API failed.
+      if (gumLatencies['GumCalled'] && !gumLatencies['GumSucceeded'] 
+          && !(error.message === SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT 
+              || error.message === SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING)) {
+        publishTelemetryEvent("GumFailed", null, {}, true);
+        publishError(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED, "Your microphone is not enabled in your browser.", "");
+      }
+      publishTelemetryEvent("CompeteForSoftphoneMasterError", null, {
+        errorMessage: error.message || "No error Message",
+        isValidError: validError
+      }, true);
+    }
+    cleanup() {
+      if (this.targetContact) {
+        const agentConnectionId = this.targetContact.getAgentConnection().connectionId;
+        this.removeDetectedCall(agentConnectionId);
+      }
+      gumLatencies = {};
+      clearTimeout(this.gumTimeoutId);
+      clearInterval(this.tabFocusIntervalId);
+      clearTimeout(this.tabFocusTimeoutId);
+      this.gumTimeoutId = null;
+      this.tabFocusIntervalId = null;
+      this.tabFocusTimeoutId = null;
+      if (this.userMediaStream) {
+        this.userMediaStream.getTracks().forEach((track) => track.stop());
+      }
+      this.userMediaStream = null;
+    }
+    createSoftphoneManager() {
+      connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
+      if (connect.core.softphoneManager) {
+        connect.getLog().warn('Existing SoftphoneManger detected when creating a new one. Replacing with the new one').sendInternalLogToServer();
+        this.terminateSoftphoneManager();
+      }
+      try {
+        connect.core.softphoneManager = new connect.SoftphoneManager(this.softphoneParams);
+      } catch (e) {
+        throw Error(SoftphoneMasterCoordinator.errorTypes.CREATE_SOFTPHONE_MANAGER_FAILED);
+      }
+    }
+    terminateSoftphoneManager() {
+      if (connect.core.softphoneManager) {
+        connect.core.softphoneManager.terminate();
+        delete connect.core.softphoneManager;
+      }
+    }
+    addDetectedCall(agentConnectionId) {
+      connect.assertNotNull(agentConnectionId, 'agentConnectionId');
+      this.callsDetected[agentConnectionId] = true;
+    }
+    removeDetectedCall(agentConnectionId) {
+      connect.assertNotNull(agentConnectionId, 'agentConnectionId');
+      delete this.callsDetected[agentConnectionId];
+    }
+  }
+  SoftphoneMasterCoordinator.errorTypes = connect.makeEnum([
+    'gum_timeout',
+    'contact_not_connecting',
+    'next_softphone_master_already_exists',
+    'tab_focus_timeout',
+    'softphone_not_enabled',
+    'no_softphone_manager',
+    'invalid_media_stream',
+    'start_session_failed',
+    'create_softphone_manager_failed'
+  ]);
+  SoftphoneMasterCoordinator.GUM_TIMEOUT = 20 * 1000;
+  SoftphoneMasterCoordinator.TAB_FOCUS_TIMEOUT = 20 * 1000;
+  SoftphoneMasterCoordinator.TAB_FOCUS_POLLING_INTERVAL = 100;
 
   connect.SoftphoneManager = SoftphoneManager;
 })();

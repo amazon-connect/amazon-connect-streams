@@ -500,6 +500,17 @@
     return this.getConfiguration().routingProfile;
   };
 
+  
+  Agent.prototype.barge = function (callbacks) {
+    console.log("\n\n\n INITIATING BARGE IN STREAMS \n\n\n ^^^^^^^");
+    callbacks.success("Successfully mocked barge api");
+  }
+
+  Agent.prototype.monitor = function (callbacks) {
+    console.log("\n\n\n INITIATING MONITOR IN STREAMS \n\n\n ^^^^^^^")
+    callbacks.success("Successfully mocked monitor api");
+  }
+
   Agent.prototype.getChannelConcurrency = function (channel) {
     var channelConcurrencyMap = this.getRoutingProfile().channelConcurrencyMap;
     if (!channelConcurrencyMap) {
