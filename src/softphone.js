@@ -1176,21 +1176,22 @@
       connect.assertNotNull(agentConnectionId, 'agentConnectionId');
       delete this.callsDetected[agentConnectionId];
     }
+
+    static errorTypes = connect.makeEnum([
+      'gum_timeout',
+      'contact_not_connecting',
+      'next_softphone_master_already_exists',
+      'tab_focus_timeout',
+      'softphone_not_enabled',
+      'no_softphone_manager',
+      'invalid_media_stream',
+      'start_session_failed',
+      'create_softphone_manager_failed'
+    ]);
+    static GUM_TIMEOUT = 20 * 1000;
+    static TAB_FOCUS_TIMEOUT = 20 * 1000;
+    static TAB_FOCUS_POLLING_INTERVAL = 100;
   }
-  SoftphoneMasterCoordinator.errorTypes = connect.makeEnum([
-    'gum_timeout',
-    'contact_not_connecting',
-    'next_softphone_master_already_exists',
-    'tab_focus_timeout',
-    'softphone_not_enabled',
-    'no_softphone_manager',
-    'invalid_media_stream',
-    'start_session_failed',
-    'create_softphone_manager_failed'
-  ]);
-  SoftphoneMasterCoordinator.GUM_TIMEOUT = 20 * 1000;
-  SoftphoneMasterCoordinator.TAB_FOCUS_TIMEOUT = 20 * 1000;
-  SoftphoneMasterCoordinator.TAB_FOCUS_POLLING_INTERVAL = 100;
 
   connect.SoftphoneManager = SoftphoneManager;
   connect.SoftphoneMasterCoordinator = SoftphoneMasterCoordinator;
