@@ -38,14 +38,7 @@
     this.topicMasterMap[topic] = id;
   };
 
-  MasterTopicCoordinator.prototype.removeMasterWithTopic = function (topic) {
-    connect.assertNotNull(topic, 'topic');
-    if (this.topicMasterMap[topic]) {
-      delete this.topicMasterMap[topic];
-    }
-  };
-
-  MasterTopicCoordinator.prototype.removeMasterWithId = function (id) {
+  MasterTopicCoordinator.prototype.removeMaster = function (id) {
     connect.assertNotNull(id, 'id');
     var self = this;
 
@@ -665,7 +658,7 @@
     var self = this;
     self.multiplexer.removeStream(stream);
     delete self.portConduitMap[stream.getId()];
-    self.masterCoord.removeMasterWithId(stream.getId());
+    self.masterCoord.removeMaster(stream.getId());
     let updateObject = { length: Object.keys(self.portConduitMap).length };
     let tabIds = Object.keys(self.streamMapByTabId);
     try {
@@ -759,7 +752,7 @@
       try {
         if (this.detectNewSoftphoneCallInSync(this.prevSnapshot, this.agent.snapshot)) {
           connect.getLog().info('New softphone call detected in the shared worker. Clearing NEXT_SOFTPHONE master').sendInternalLogToServer();
-          this.masterCoord.removeMasterWithTopic(connect.MasterTopics.NEXT_SOFTPHONE);
+          // clear nextSoftphone master
         }
       } catch(err) {
         connect.getLog().error("detectNewSoftphoneCallInSync failed").sendInternalLogToServer().withObject({ err });
