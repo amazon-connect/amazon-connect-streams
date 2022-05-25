@@ -905,36 +905,8 @@
       this.userMediaStream = stream;
     }
     setTargetContact(contact) {
-      const self = this;
       connect.assertNotNull(contact, 'Contact');
-      if (!contact) return;
-      if (self.targetContact && self.targetContact.contactId === contact.contactId) {
-        // For an edge case where setTargetContact is called twice for an contact (i.e. gum failed due to mic permission),
-        // avoid duplicately add event listeners to the same contact
-        return;
-      }
-      self.targetContact = contact;
-      self.targetContact._hasBeenAccepted = false;
-
-      contact.onAccepted((_contact) => {
-        self.targetContact._hasBeenAccepted = true;
-      });
-
-      contact.onMissed((_contact) => {
-        connect.ifMaster(connect.MasterTopics.SEND_LOGS, () => {
-          const softphoneMediaInfo = _contact.getAgentConnection().getSoftphoneMediaInfo();
-          connect.core.getUpstream().sendUpstream(connect.EventType.REPORT_MISSED_CALL_INFO, {
-            contactId: self.targetContact.contactId,
-            autoAcceptEnabled: softphoneMediaInfo && softphoneMediaInfo.autoAccept,
-            contactHasBeenAccepted: self.targetContact._hasBeenAccepted
-          });
-        });
-      });
-
-      contact.onDestroy((_contact) => {
-        // reset targetContact here, not in cleanup() because we want to use them in contact.onMissed()
-        self.targetContact = null;
-      });
+      this.targetContact = contact;
     }
     competeForNextSoftphoneMaster() {
       const self = this;
@@ -947,11 +919,6 @@
           .then(self.startSoftphoneSession)
           .catch(self.handleErrorInCompeteForNextSoftphoneMaster)
           .finally(self.cleanup)
-
-        // For troubleshooting/metrics purpose, check if this master tab has got a focus.
-        self.pollForTabFocus()
-          .then(() => {})
-          .catch(() => {});
       }, () => {
         // If this is not the master tab, pending calling getUserMedia until the tab gets focused
         // in order to avoid unnecessary master tab switch between tabs in case UserMediaCaptureOnFocus is NOT enabled
@@ -983,18 +950,17 @@
       }, true);
       return Promise.race([gumTimeoutPromise, self.checkIfContactIsInConnectingState(self.targetContact), gumPromise]);
     }
+    // TODO:
+    // - address the question
     pollForTabFocus() {
       const self = this;
       
       const tabFocusPromise = new Promise((resolve, reject) => {
+        // QUESTION: should we add an initial delay to avoid unnecessary take over when UserMediaCaptureOnFocus is disabled?
         self.tabFocusIntervalId = setInterval(() => {
           if (document.hasFocus()) {
             clearInterval(self.tabFocusIntervalId);
             clearTimeout(self.tabFocusTimeoutId);
-            
-            connect.core.getUpstream().sendUpstream(connect.EventType.TAB_FOCUSED_WHILE_SOFTPHONE_CONTACT_CONNECTING, {
-              tabId: connect.core.tabId
-            });
             resolve();
           }
         }, SoftphoneMasterCoordinator.TAB_FOCUS_POLLING_INTERVAL);
@@ -1112,18 +1078,13 @@
           break;
         default:
           validError = true;
-          if (error instanceof DOMException) {
-            // GUM failed because microphone permission was denied. Do nothing here
-          } else {
-            connect.getLog().error('[SoftphoneMasterCoordinator] Unknown error:', error.message).withObject({ error }).sendInternalLogToServer();
-          }
+          connect.getLog().error('[SoftphoneMasterCoordinator] Unknown error').withObject({ error }).sendInternalLogToServer();
       }
       // If we don't see GumSucceeded, and it is none of the other GUM failure error messages, then we know the actual GUM API failed.
       if (gumLatencies['GumCalled'] && !gumLatencies['GumSucceeded'] 
           && !(error.message === SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT 
               || error.message === SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING)) {
         publishTelemetryEvent("GumFailed", null, {}, true);
-        publishError(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED, "Your microphone is not enabled in your browser.", "");
       }
       publishTelemetryEvent("CompeteForSoftphoneMasterError", null, {
         errorMessage: error.message || "No error Message",
@@ -1146,6 +1107,7 @@
         this.userMediaStream.getTracks().forEach((track) => track.stop());
       }
       this.userMediaStream = null;
+      this.targetContact = null;
     }
     createSoftphoneManager() {
       connect.becomeMaster(connect.MasterTopics.SEND_LOGS);

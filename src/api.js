@@ -186,8 +186,7 @@
     'user_busy_error',
     'webrtc_error',
     'realtime_communication_error',
-    'other',
-    'no_ccp_tabs_focused'
+    'other'
   ]);
 
   /*----------------------------------------------------------------

@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -150,7 +150,6 @@
     this.initData = {};
     this.portConduitMap = {};
     this.streamMapByTabId = {};
-    this.focusedTabMap = {};
     this.masterCoord = new MasterTopicCoordinator();
     this.logsBuffer = [];
     this.suppress = false;
@@ -337,10 +336,6 @@
         connect.hitch(self, self.handleTabIdEvent, stream));
       portConduit.onDownstream(connect.EventType.CLOSE, 
         connect.hitch(self, self.handleCloseEvent, stream));
-      portConduit.onDownstream(connect.EventType.TAB_FOCUSED_WHILE_SOFTPHONE_CONTACT_CONNECTING,
-        connect.hitch(self, self.handleTabFocusEvent, stream));
-      portConduit.onDownstream(connect.EventType.REPORT_MISSED_CALL_INFO,
-        connect.hitch(self, self.handleMissedCallInfoEvent, portConduit));
     };
   };
 
@@ -689,35 +684,6 @@
     self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
   };
 
-  ClientEngine.prototype.handleTabFocusEvent = function (stream, data) {
-    const tabId = data.tabId || 'streamId-' + stream.getId();
-    this.focusedTabMap[tabId] = true;
-  };
-
-  ClientEngine.prototype.handleMissedCallInfoEvent = function (portConduit, data) {
-    const numberOfCCPTabsFocusedInTime = Object.keys(this.focusedTabMap).length;
-    const obj = {
-      contactId: data.contactId,
-      autoAcceptEnabled: data.autoAcceptEnabled,
-      contactHasBeenAccepted: data.contactHasBeenAccepted,
-      numberOfCCPTabsFocusedInTime,
-      streamMapByTabId: this.streamMapByTabId,
-      focusedTabMap: this.focusedTabMap,
-      numberOfConnectedCCPs: Object.keys(this.portConduitMap).length,
-      softphoneMaster: this.masterCoord.getMaster(connect.MasterTopics.SOFTPHONE),
-      nextSoftphoneMaster: this.masterCoord.getMaster(connect.MasterTopics.NEXT_SOFTPHONE)
-    };
-
-    if (data.autoAcceptEnabled || data.contactHasBeenAccepted) {
-      if (numberOfCCPTabsFocusedInTime === 0) {
-        const errorType = connect.SoftphoneErrorTypes.NO_CCP_TABS_FOCUSED;
-        const message = 'Contact accepted but missed because no CCP tabs have got focus in time to access microphone';
-        connect.getLog().error(`Softphone error occurred: ${errorType},  ${message}`).withObject(obj).sendInternalLogToServer();
-        portConduit.sendDownstream(connect.AgentEvents.SOFTPHONE_ERROR, new connect.SoftphoneError(errorType, message, ''));
-      }
-    }
-  }
-
   ClientEngine.prototype.updateAgentConfiguration = function (configuration) {
     if (configuration.permissions &&
       configuration.dialableCountries &&
@@ -793,7 +759,6 @@
         if (this.detectNewVoiceContactInSync(this.prevSnapshot, this.agent.snapshot)) {
           connect.getLog().info('New voice contact detected in the shared worker. Clearing NEXT_SOFTPHONE master').sendInternalLogToServer();
           this.masterCoord.removeMasterWithTopic(connect.MasterTopics.NEXT_SOFTPHONE);
-          this.focusedTabMap = {};
         }
       } catch(err) {
         connect.getLog().error("detectNewVoiceContactInSync failed").sendInternalLogToServer().withObject({ err });
