@@ -1099,6 +1099,17 @@
             data: new connect.Contact(contactId)
           });
 
+          // In Firefox, there's a browser restriction that an unfocused browser tab is not allowed to access the user's microphone.
+          // The problem is that the restriction could cause a webrtc session creation timeout error when you get an incoming call while you are not on the primary tab.
+          // It was hard to workaround the issue especially when you have multiple tabs open because you needed to find the right tab and accept the contact before the timeout.
+          // To avoid the error, when multiple tabs are open in Firefox, a webrtc session is not immediately created as an incoming softphone contact is detected.
+          // Instead, it waits until contact.accept() is called on a tab and lets the tab become the new primary tab and start the web rtc session there
+          // because the tab should be focused at the moment and have access to the user's microphone.
+          var contact = new connect.Contact(contactId);
+          if (connect.isFirefoxBrowser() && contact.isSoftphoneCall()) {
+            connect.core.triggerReadyToStartSessionEvent();
+          }
+
           if (callbacks && callbacks.success) {
             callbacks.success(data);
           }
@@ -24555,6 +24566,20 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     connect.core.initialized = false;
   };
  
+  /**-------------------------------------------------------------------------
+   * Setup the SoftphoneManager to be initialized when the agent
+   * is determined to have softphone enabled.
+   */
+  connect.core.softphoneUserMediaStream = null;
+ 
+  connect.core.getSoftphoneUserMediaStream = function () {
+    return connect.core.softphoneUserMediaStream;
+  };
+ 
+  connect.core.setSoftphoneUserMediaStream = function (stream) {
+    connect.core.softphoneUserMediaStream = stream;
+  };
+ 
   connect.core.initRingtoneEngines = function (params) {
     connect.assertNotNull(params, "params");
  
@@ -24693,7 +24718,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
         }
-        connect.core.softphoneMasterCoordinator = new connect.SoftphoneMasterCoordinator(softphoneParams);
         agent.onRefresh(function () {
           var sub = this;
           connect.getLog().info("[Softphone Manager] agent refresh handler executed").sendInternalLogToServer();
@@ -24722,10 +24746,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         if (data.softphone && data.softphone.allowFramedSoftphone) {
           this.unsubscribe();
           competeForMasterOnAgentUpdate(data.softphone);
+          
         }
+        setupEventListenersForMultiTabUseInFirefox(data.softphone);
       });
     } else {
       competeForMasterOnAgentUpdate(params);
+      setupEventListenersForMultiTabUseInFirefox(params);
     }
  
     connect.agent(function (agent) {
@@ -24737,6 +24764,99 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           });
       }
     });
+
+    function setupEventListenersForMultiTabUseInFirefox(softphoneParamsIn) {
+      var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
+
+      // keep the softphone params for external use
+      connect.core.softphoneParams = softphoneParams;
+
+      if (connect.isFirefoxBrowser()) {
+        // In Firefox, when a tab takes over another tab's softphone primary,
+        // the previous primary tab should delete sofphone manager and stop microphone
+        connect.core.getUpstream().onUpstream(connect.EventType.MASTER_RESPONSE, function (res) {
+          if (res.data && res.data.topic === connect.MasterTopics.SOFTPHONE && res.data.takeOver && (res.data.masterId !== connect.core.portStreamId)) {
+            if (connect.core.softphoneManager) {
+              connect.core.softphoneManager.onInitContactSub.unsubscribe();
+              delete connect.core.softphoneManager;
+            }
+            var userMediaStream = connect.core.getSoftphoneUserMediaStream();
+            if (userMediaStream) {
+              userMediaStream.getTracks().forEach(function(track) { track.stop(); });
+              connect.core.setSoftphoneUserMediaStream(null);
+            }
+          }
+        });
+
+        // In Firefox, when multiple tabs are open,
+        // webrtc session is not started until READY_TO_START_SESSION event is triggered
+        connect.core.getEventBus().subscribe(connect.ConnectionEvents.READY_TO_START_SESSION, function () {
+          connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
+            if (connect.core.softphoneManager) {
+              connect.core.softphoneManager.startSession();
+            }
+          }, function () {
+            connect.becomeMaster(connect.MasterTopics.SOFTPHONE, function () {
+              connect.agent(function (agent) {
+                if (!connect.core.softphoneManager && agent.isSoftphoneEnabled()) {
+                  connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
+                  connect.core.softphoneManager = new connect.SoftphoneManager(softphoneParams);
+                  connect.core.softphoneManager.startSession();
+                }
+              });
+            });
+          });
+        });
+
+        // handling outbound-call and auto-accept cases for pending session
+        connect.contact(function (c) {
+          connect.agent(function (agent) {
+            c.onRefresh(function (contact) {
+              if (
+                connect.hasOtherConnectedCCPs() &&
+                document.visibilityState === 'visible' &&
+                (contact.getStatus().type === connect.ContactStatusType.CONNECTING || contact.getStatus().type === connect.ContactStatusType.INCOMING)
+              ) {
+                var isOutBoundCall = contact.isSoftphoneCall() && !contact.isInbound();
+                var isAutoAcceptEnabled = contact.isSoftphoneCall() && agent.getConfiguration().softphoneAutoAccept;
+                var isQueuedCallback = contact.getType() === connect.ContactType.QUEUE_CALLBACK;
+                if (isOutBoundCall || isAutoAcceptEnabled || isQueuedCallback) {
+                  connect.core.triggerReadyToStartSessionEvent();
+                }
+              }
+            });
+          });
+        });
+      }
+    }
+  };
+
+  // trigger READY_TO_START_SESSION event in a context with Softphone Manager
+  // internal use only
+  connect.core.triggerReadyToStartSessionEvent = function () {
+    var allowFramedSoftphone = connect.core.softphoneParams && connect.core.softphoneParams.allowFramedSoftphone;
+    if (connect.isCCP()) {
+      if (allowFramedSoftphone) {
+        // the event is triggered in this iframed CCP context
+        connect.core.getEventBus().trigger(connect.ConnectionEvents.READY_TO_START_SESSION);
+      } else {
+        if (connect.isFramed()) {
+          // if this is an iframed CCP, the event is send to downstream (CRM)
+          connect.core.getUpstream().sendDownstream(connect.ConnectionEvents.READY_TO_START_SESSION);
+        } else {
+          // if this is a standalone CCP, trigger this event in this CCP context
+          connect.core.getEventBus().trigger(connect.ConnectionEvents.READY_TO_START_SESSION);
+        }
+      }
+    } else {
+      if (allowFramedSoftphone) {
+        // the event is send to the upstream (iframed CCP)
+        connect.core.getUpstream().sendUpstream(connect.ConnectionEvents.READY_TO_START_SESSION);
+      } else {
+        // the event is triggered in this CRM context
+        connect.core.getEventBus().trigger(connect.ConnectionEvents.READY_TO_START_SESSION);
+      }
+    }
   };
 
   connect.core.initPageOptions = function (params) {
@@ -25295,6 +25415,9 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         initStartTime = null;
       }
     });
+
+    // keep the softphone params for external use
+    connect.core.softphoneParams = params.softphone;
   };
 
   connect.core.onIframeRetriesExhausted = function(f) {
@@ -26146,8 +26269,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     'sendLogs',
     'softphone',
     'ringtone',
-    'metrics',
-    'nextSoftphone'
+    'metrics'
   ]);
 
   /**---------------------------------------------------------------
@@ -26222,7 +26344,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   * enum ConnectionEvents
   */
   var ConnectionEvents = connect.makeNamespacedEnum('connection', [
-    'session_init'
+    'session_init',
+    'ready_to_start_session'
   ]);
 
   /**---------------------------------------------------------------
@@ -27795,7 +27918,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
   var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
   var MULTIPLE_SESSIONS_EVENT = "MultiSessions";
-  var gumLatencies = {};
 
   var localMediaStream = {};
 
@@ -27850,20 +27972,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           connectivityCheckType: "MicrophonePermission",
           status: "granted"
         });
-        publishTelemetryEvent("GumSucceeded", null, {
-          context: "Initializing Softphone Manager"
-        }, true);
       },
       failure: function (err) {
         publishError(err, "Your microphone is not enabled in your browser. ", "");
-        publishTelemetryEvent("ConnectivityCheckResult", null,
+        publishTelemetryEvent("ConnectivityCheckResult", null, 
         {
           connectivityCheckType: "MicrophonePermission",
           status: "denied"
         });
-        publishTelemetryEvent("GumFailed", null, {
-          context: "Initializing Softphone Manager"
-        }, true);
       }
     });
     
@@ -27874,7 +27990,26 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
     this.ringtoneEngine = null;
     var rtcSessions = {};
-    
+    // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
+    var callsDetected = {};
+    this.onInitContactSub = {};
+    this.onInitContactSub.unsubscribe = function() {};
+
+    // variables for firefox multitab
+    var isSessionPending = false;
+    var pendingContact = null;
+    var pendingAgentConnectionId = null;
+    var postponeStartingSession = function (contact, agentConnectionId) {
+      isSessionPending = true;
+      pendingContact = contact;
+      pendingAgentConnectionId = agentConnectionId;
+    }
+    var cancelPendingSession = function () {
+      isSessionPending = false;
+      pendingContact = null;
+      pendingAgentConnectionId = null;
+    }
+
     // helper method to provide access to rtc sessions
     this.getSession = function (connectionId) {
       return rtcSessions[connectionId];
@@ -27904,6 +28039,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         // TODO: Update once the hangup API does not throw exceptions
         new Promise(function (resolve, reject) {
           delete rtcSessions[agentConnectionId];
+          delete callsDetected[agentConnectionId];
           session.hangup();
         }).catch(function (err) {
           lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message).sendInternalLogToServer();
@@ -27927,11 +28063,16 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       }
     };
 
-    this.startSession = function (contact, agentConnectionId, userMediaStream, callbacks) {
+    this.startSession = function (_contact, _agentConnectionId) {
+      var contact = isSessionPending ? pendingContact : _contact;
+      var agentConnectionId = isSessionPending ? pendingAgentConnectionId : _agentConnectionId;
       if (!contact || !agentConnectionId) {
-        throw Error('Missing contact or agentConnectionId');
+        return;
       }
+      cancelPendingSession();
       
+      // Set to true, this will block subsequent invokes from entering.
+      callsDetected[agentConnectionId] = true;
       logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
       // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
@@ -27959,12 +28100,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
       rtcSessions[agentConnectionId] = session;
 
-      if (userMediaStream) {
-        logger.info('[Softphone Manager] Setting custom user media stream').withObject(userMediaStream).sendInternalLogToServer();
-        publishTelemetryEvent("CreatingRTCSession", contact.getContactId(), {
-          mediaStreamActive: userMediaStream.active
-        }, true);
-        session.mediaStream = userMediaStream;
+      if (connect.core.getSoftphoneUserMediaStream()) {
+        session.mediaStream = connect.core.getSoftphoneUserMediaStream();
       }
 
       // Custom Event to indicate the session init operations
@@ -27976,10 +28113,8 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       });
 
       session.onSessionFailed = function (rtcSession, reason) {
-        if (callbacks && callbacks.onSessionFailed) {
-          callbacks.onSessionFailed();
-        }
         delete rtcSessions[agentConnectionId];
+        delete callsDetected[agentConnectionId];
         publishSoftphoneFailureLogs(rtcSession, reason);
         publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
         stopJobsAndReport(contact, rtcSession.sessionReport);
@@ -27995,12 +28130,10 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       };
 
       session.onSessionCompleted = function (rtcSession) {
-        if (callbacks && callbacks.onSessionCompleted) {
-          callbacks.onSessionCompleted();
-        }
         publishTelemetryEvent("Softphone Session Completed", contact.getContactId());
 
         delete rtcSessions[agentConnectionId];
+        delete callsDetected[agentConnectionId];
         // Stop all jobs and perform one last job.
         stopJobsAndReport(contact, rtcSession.sessionReport);
 
@@ -28024,36 +28157,39 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       session.remoteAudioElement = document.getElementById('remote-audio');
       if (rtcPeerConnectionFactory) {
         session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
-        publishTelemetryEvent("session.connect called", contact.getContactId(), {
-          context: "PeerConnectionFactory"
-        }, true);
       } else {
         session.connect();
-        publishTelemetryEvent("session.connect called", contact.getContactId(), {
-          context: "No PeerConnectionFactory"
-        }, true);
       }
     }
 
     var onRefreshContact = function (contact, agentConnectionId) {
       if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
         destroySession(agentConnectionId);
+        cancelPendingSession();
+      }
+      if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
+        contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
+        contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+          if (connect.isFirefoxBrowser() && connect.hasOtherConnectedCCPs()) {
+            postponeStartingSession(contact, agentConnectionId);
+          } else {
+            self.startSession(contact, agentConnectionId);
+          }
       }
     };
 
     var onInitContact = function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
       logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
-      gumLatencies['ContactDetected'] = getPerformanceTime();
-      gumLatencies['previousStep'] = "ContactDetected";
-      gumLatencies['contactId'] = contact.getContactId();
 
-      contact.onRefresh(function () {
-        onRefreshContact(contact, agentConnectionId);
-      });
+      if (!callsDetected[agentConnectionId]) {
+        contact.onRefresh(function () {
+          onRefreshContact(contact, agentConnectionId);
+        });
+      }
     };
 
-    const onInitContactSub = connect.contact(onInitContact);
+    self.onInitContactSub = connect.contact(onInitContact);
 
     // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed. 
     new connect.Agent().getContacts().forEach(function (contact) {
@@ -28063,17 +28199,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       onInitContact(contact);
       onRefreshContact(contact, agentConnectionId);
     });
-
-    this.terminate = () => {
-      onInitContactSub.unsubscribe();
-      if (rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId) {
-        // This method needs to be called when destroying the softphone manager instance. 
-        // Otherwise the refresh loop in rtcPeerConnectionFactory will keep spawning WebRTCConnections every 60 seconds
-        // and you will eventually get SoftphoneConnectionLimitBreachedException later.
-        rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
-      }
-      delete rtcPeerConnectionFactory;
-    };
   };
 
   var fireContactAcceptedEvent = function (contact) {
@@ -28307,16 +28432,11 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 
     if (typeof navigator.mediaDevices === "object" && typeof navigator.mediaDevices.getUserMedia === "function") {
       promise = navigator.mediaDevices.getUserMedia(CONSTRAINT);
-      publishTelemetryEvent("GumCalled", null, {
-        isWebkit: false
-      }, true);
+
     } else if (typeof navigator.webkitGetUserMedia === "function") {
       promise = new Promise(function (resolve, reject) {
         navigator.webkitGetUserMedia(CONSTRAINT, resolve, reject);
       });
-      publishTelemetryEvent("GumCalled", null, {
-        isWebkit: true
-      }, true);
 
     } else {
       callbacks.failure(SoftphoneErrorTypes.UNSUPPORTED_BROWSER);
@@ -28352,35 +28472,12 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     });
   };
 
-  var getPerformanceTime = function () {
-    try {
-      return performance.now();
-    } catch(e) {
-      logger.error(e.message);
-      return 0;
-    }
-  }
-
-  var publishTelemetryEvent = function (eventName, contactId, data, isGum=false) {
-    try {
-      if(isGum) {
-        data = data || {}
-        const currentPerformanceTime = getPerformanceTime();
-        data['tabId'] = connect.core.tabId || '';
-        data['previousStep'] = gumLatencies['previousStep'];
-        if(gumLatencies['previousStep'] && gumLatencies[gumLatencies['previousStep']]) data['latency'] = currentPerformanceTime - gumLatencies[gumLatencies['previousStep']];
-        gumLatencies['previousStep'] = eventName;
-        gumLatencies[eventName] = currentPerformanceTime;
-        contactId = gumLatencies['contactId'] || null;
-      }
-      connect.publishMetric({
-        name: eventName,
-        contactId: contactId,
-        data: data
-      });
-    } catch(e) {
-      connect.getLog().error("Error Creating Metric: " + e.message).sendInternalLogToServer();
-    }
+  var publishTelemetryEvent = function (eventName, contactId, data) {
+    connect.publishMetric({
+      name: eventName,
+      contactId: contactId,
+      data: data
+    });
   };
 
   // Publish the contact and agent information in a multiple sessions scenarios
@@ -28588,332 +28685,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return this._tee(5, this._originalLogger.error)(arguments);
   };
 
-  // TODO:
-  // - integrate competeForMasterOnAgentUpdate logic defined in core.js into this class
-  // - add error handling and ensure the error handling to be consistent with how RtcJS handles them
-  // - add CSM
-  class SoftphoneMasterCoordinator {
-    constructor(softphoneParams = {}) {
-      this.canCompeteForMaster = connect.isFramed() ? softphoneParams.allowFramedSoftphone : true;
-      this.softphoneParams = softphoneParams;
-      this.userMediaStream = null;
-      this.targetContact = null;
-      this.gumTimeoutId = null;
-      this.tabFocusIntervalId = null;
-      this.tabFocusTimeoutId = null;
-      this.callsDetected = {};
-
-      this.bindMethods();
-      if (this.canCompeteForMaster) {
-        this.setUpListenerForNewSoftphoneContact();
-        this.setUpListenerForTakeOverEvent();
-      }
-    }
-    bindMethods() {
-      this.setUserMediaStream = this.setUserMediaStream.bind(this);
-      this.startSoftphoneSession = this.startSoftphoneSession.bind(this);
-      this.getUserMedia = this.getUserMedia.bind(this);
-      this.takeOverSoftphoneMaster = this.takeOverSoftphoneMaster.bind(this);
-      this.cleanup = this.cleanup.bind(this);
-    }
-    setUpListenerForNewSoftphoneContact() {
-      // The reason why we need to use contact.onRefresh to detect a new softphone call is 
-      // to support QCB contacts. A QCB contact is first routed as incoming state without 
-      // softphoneMediaInfo populated (which makes isSoftphoneCall() to return false), 
-      // and it's populated only after the contact state turns to connecting state.
-      const self = this;
-
-      const onRefreshContact = function (contact, agentConnectionId) {
-        if (contact.isSoftphoneCall() && !self.callsDetected[agentConnectionId] && (
-          contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
-          contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
-            self.addDetectedCall(agentConnectionId);
-            self.setTargetContact(contact);
-            self.competeForNextSoftphoneMaster();
-        }
-      };
-  
-      const onInitContact = function (contact) {
-        const agentConnectionId = contact.getAgentConnection().connectionId;
-        gumLatencies['ContactDetected'] = getPerformanceTime();
-        gumLatencies['previousStep'] = "ContactDetected";
-        gumLatencies['contactId'] = contact.getContactId();
-
-        if (!self.callsDetected[agentConnectionId]) {
-          contact.onRefresh(() => onRefreshContact(contact, agentConnectionId));
-        }
-      };
-
-      connect.contact(onInitContact);
-    }
-    setUpListenerForTakeOverEvent() {
-      const self = this;
-      connect.core.getUpstream().onUpstream(connect.EventType.MASTER_RESPONSE, (res) => {
-        const data = res ? res.data : null;
-        if (!data) return;
-        const { topic, takeOver, masterId } = data;
-        const isTakenOverByOthers = takeOver && (masterId !== connect.core.portStreamId);
-        
-        if (topic === connect.MasterTopics.SOFTPHONE && isTakenOverByOthers) {
-          self.terminateSoftphoneManager();
-        }
-      });
-    }
-    setUserMediaStream(stream) {
-      connect.assertNotNull(stream, 'UserMediaStream');
-      publishTelemetryEvent("GumSucceeded", this.targetContact, {}, true);
-      this.userMediaStream = stream;
-    }
-    setTargetContact(contact) {
-      connect.assertNotNull(contact, 'Contact');
-      this.targetContact = contact;
-    }
-    competeForNextSoftphoneMaster() {
-      const self = this;
-      connect.ifMaster(connect.MasterTopics.SOFTPHONE, () => {
-        // If this is the master tab, immediately call getUserMedia to accomodate the case where UserMediaCaptureOnFocus is NOT enabled.
-        // It could happen either when Google hasn't rolled out the feature or customer manually disables it with a feature flag)
-        self.getUserMedia()
-          .then(self.setUserMediaStream)
-          .then(self.becomeNextSoftphoneMasterIfNone)
-          .then(self.startSoftphoneSession)
-          .catch(self.handleErrorInCompeteForNextSoftphoneMaster)
-          .finally(self.cleanup)
-      }, () => {
-        // If this is not the master tab, pending calling getUserMedia until the tab gets focused
-        // in order to avoid unnecessary master tab switch between tabs in case UserMediaCaptureOnFocus is NOT enabled
-        self.pollForTabFocus()
-          .then(self.getUserMedia)
-          .then(self.setUserMediaStream)
-          .then(self.becomeNextSoftphoneMasterIfNone)
-          .then(self.takeOverSoftphoneMaster)
-          .then(self.startSoftphoneSession)
-          .catch(self.handleErrorInCompeteForNextSoftphoneMaster)
-          .finally(self.cleanup)
-      }, true);
-    }
-    // TODO:
-    // - integrate with the existing fetchUserMedia and refactor (follow-up task)
-    // - device configuration (follow-up task)
-    getUserMedia() {
-      const self = this;
-      const gumTimeoutPromise = new Promise((resolve, reject) => {
-        self.gumTimeoutId = setTimeout(() => {
-          reject(Error(SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT));
-        }, SoftphoneMasterCoordinator.GUM_TIMEOUT);
-      });
-
-      const constraint = { audio: true };
-      const gumPromise = navigator.mediaDevices.getUserMedia(constraint);
-      publishTelemetryEvent("GumCalled", this.targetContact, {
-        isWebkit: false
-      }, true);
-      return Promise.race([gumTimeoutPromise, self.checkIfContactIsInConnectingState(self.targetContact), gumPromise]);
-    }
-    // TODO:
-    // - address the question
-    pollForTabFocus() {
-      const self = this;
-      
-      const tabFocusPromise = new Promise((resolve, reject) => {
-        // QUESTION: should we add an initial delay to avoid unnecessary take over when UserMediaCaptureOnFocus is disabled?
-        self.tabFocusIntervalId = setInterval(() => {
-          if (document.hasFocus()) {
-            clearInterval(self.tabFocusIntervalId);
-            clearTimeout(self.tabFocusTimeoutId);
-            resolve();
-          }
-        }, SoftphoneMasterCoordinator.TAB_FOCUS_POLLING_INTERVAL);
-
-        self.tabFocusTimeoutId = setTimeout(() => {
-          reject(Error(SoftphoneMasterCoordinator.errorTypes.TAB_FOCUS_TIMEOUT));
-        }, SoftphoneMasterCoordinator.TAB_FOCUS_TIMEOUT);
-      });
-
-      return Promise.race([self.checkIfContactIsInConnectingState(self.targetContact), tabFocusPromise]);
-    }
-    checkIfContactIsInConnectingState(contact) {
-      return new Promise((resolve, reject) => {
-        rejectIfContactIsNoLongerInConnectingState(contact);
-        contact.onRefresh(rejectIfContactIsNoLongerInConnectingState);
-        function rejectIfContactIsNoLongerInConnectingState(_c) {
-          if (_c.getStatus().type !== connect.ContactStatusType.CONNECTING) {
-            reject(Error(SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING));
-          }
-        }
-      });
-    }
-    becomeNextSoftphoneMasterIfNone() {
-      return new Promise((resolve, reject) => {
-        connect.ifMaster(connect.MasterTopics.NEXT_SOFTPHONE, () => {
-          publishTelemetryEvent("Became NEXT_SOFTPHONE master", null, {}, true);
-          resolve();
-        }, () => {
-          reject(Error(SoftphoneMasterCoordinator.errorTypes.NEXT_SOFTPHONE_MASTER_ALREADY_EXISTS));
-        });
-      });
-    }
-    takeOverSoftphoneMaster() {
-      const self = this;
-      return new Promise((resolve, reject) => {
-        connect.becomeMaster(connect.MasterTopics.SOFTPHONE, () => {
-          connect.agent((agent) => {
-            if (!agent.isSoftphoneEnabled()) {
-              reject(Error(SoftphoneMasterCoordinator.errorTypes.SOFTPHONE_NOT_ENABLED));
-            } else {
-              publishTelemetryEvent("BecameSoftphoneMaster", this.targetContact, {}, true);
-              try { self.createSoftphoneManager() } catch (e) { reject(e) }
-              resolve(); 
-            }
-          });
-        });
-      });
-    }
-    startSoftphoneSession() {
-      const self = this;
-      
-      return new Promise((resolve, reject) => {
-        if (connect.core.softphoneManager) {
-          if (self.isMediaStreamValid(self.userMediaStream)) {
-            try {
-              const agentConnectionId = self.targetContact.getAgentConnection().connectionId;
-              const onSessionFailed = () => resolve();
-              const onSessionCompleted = () => resolve();
-              connect.core.softphoneManager.startSession(self.targetContact, agentConnectionId, self.userMediaStream, { onSessionFailed, onSessionCompleted });
-            } catch (e) {
-              reject(Error(SoftphoneMasterCoordinator.errorTypes.START_SESSION_FAILED));
-            }
-          } else {
-            reject(Error(SoftphoneMasterCoordinator.errorTypes.INVALID_MEDIA_STREAM));
-          }
-        } else {
-          reject(Error(SoftphoneMasterCoordinator.errorTypes.NO_SOFTPHONE_MANAGER));
-        }
-      });
-    }
-    isMediaStreamValid(mediaStream) {
-      return mediaStream && mediaStream.active;
-    }
-    handleErrorInCompeteForNextSoftphoneMaster(error = {}) {
-      var validError = false;
-      switch(error.message) {
-        case SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT:
-        case SoftphoneMasterCoordinator.errorTypes.TAB_FOCUS_TIMEOUT:
-          // Valid case.
-          // There shouldn't be major scenarios to get these errors because 
-          // the contact state turns to missed state before these errors are triggered.
-          // One possible scenario is when agent fails to focus the page within 20 seconds
-          // for a manager-listen-in contact whose limit is longer than turning to missed state.
-          break;
-        case SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING:
-          // Valid case. No longer need to compete for NextSoftphoneMaster
-          // because contact has already been ended/missed or connected by a different tab.
-          break;
-        case SoftphoneMasterCoordinator.errorTypes.NEXT_SOFTPHONE_MASTER_ALREADY_EXISTS:
-          // Valid case. A different tab has already successfully grabbed user media
-          // and has become the NextSoftphoneMaster.
-          break;
-        case SoftphoneMasterCoordinator.errorTypes.SOFTPHONE_NOT_ENABLED:
-          // Valid case. The agent is configured to use desk phone to handle voice contacts.
-          break;
-        case SoftphoneMasterCoordinator.errorTypes.NO_SOFTPHONE_MANAGER:
-          // Invalid case. There is no softphone manager instantiated.
-          validError = true;
-          connect.getLog().error('[SoftphoneMasterCoordinator] No softphone manager found').sendInternalLogToServer();
-          break;
-        case SoftphoneMasterCoordinator.errorTypes.INVALID_MEDIA_STREAM:
-          // Invalid case. The captured userMediaStream was somehow inactive.
-          validError = true;
-          connect.getLog().error('[SoftphoneMasterCoordinator] userMediaStream is invalid').sendInternalLogToServer();
-          break;
-        case SoftphoneMasterCoordinator.errorTypes.START_SESSION_FAILED:
-          // Invalid case. Something went wrong while calling SoftphoneManager.startSession().
-          validError = true;
-          connect.getLog().error('[SoftphoneMasterCoordinator] startSoftphoneSession failed').sendInternalLogToServer();
-          break;
-        case SoftphoneMasterCoordinator.errorTypes.CREATE_SOFTPHONE_MANAGER_FAILED:
-          // Invalid case. Something went wrong while instantiating SoftphoneManager.
-          validError = true;
-          connect.getLog().error('[SoftphoneMasterCoordinator] createSoftphoneManager failed').sendInternalLogToServer();
-          break;
-        default:
-          validError = true;
-          connect.getLog().error('[SoftphoneMasterCoordinator] Unknown error').withObject({ error }).sendInternalLogToServer();
-      }
-      // If we don't see GumSucceeded, and it is none of the other error messages, then we know the actual GUM API failed.
-      if (gumLatencies['GumCalled'] && !gumLatencies['GumSucceeded'] 
-          && !(error.message === SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT 
-              || error.message === SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING)) {
-        publishTelemetryEvent("GumFailed", null, {}, true);
-      }
-      publishTelemetryEvent("CompeteForSoftphoneMasterError", null, {
-        errorMessage: error.message || "No error Message",
-        isValidError: validError
-      }, true);
-    }
-    cleanup() {
-      if (this.targetContact) {
-        const agentConnectionId = this.targetContact.getAgentConnection().connectionId;
-        this.removeDetectedCall(agentConnectionId);
-      }
-      gumLatencies = {};
-      clearTimeout(this.gumTimeoutId);
-      clearInterval(this.tabFocusIntervalId);
-      clearTimeout(this.tabFocusTimeoutId);
-      this.gumTimeoutId = null;
-      this.tabFocusIntervalId = null;
-      this.tabFocusTimeoutId = null;
-      if (this.userMediaStream) {
-        this.userMediaStream.getTracks().forEach((track) => track.stop());
-      }
-      this.userMediaStream = null;
-      this.targetContact = null;
-    }
-    createSoftphoneManager() {
-      connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
-      if (connect.core.softphoneManager) {
-        connect.getLog().warn('Existing SoftphoneManger detected when creating a new one. Replacing with the new one').sendInternalLogToServer();
-        this.terminateSoftphoneManager();
-      }
-      try {
-        connect.core.softphoneManager = new connect.SoftphoneManager(this.softphoneParams);
-      } catch (e) {
-        throw Error(SoftphoneMasterCoordinator.errorTypes.CREATE_SOFTPHONE_MANAGER_FAILED);
-      }
-    }
-    terminateSoftphoneManager() {
-      if (connect.core.softphoneManager) {
-        connect.core.softphoneManager.terminate();
-        delete connect.core.softphoneManager;
-      }
-    }
-    addDetectedCall(agentConnectionId) {
-      connect.assertNotNull(agentConnectionId, 'agentConnectionId');
-      this.callsDetected[agentConnectionId] = true;
-    }
-    removeDetectedCall(agentConnectionId) {
-      connect.assertNotNull(agentConnectionId, 'agentConnectionId');
-      delete this.callsDetected[agentConnectionId];
-    }
-
-    static errorTypes = connect.makeEnum([
-      'gum_timeout',
-      'contact_not_connecting',
-      'next_softphone_master_already_exists',
-      'tab_focus_timeout',
-      'softphone_not_enabled',
-      'no_softphone_manager',
-      'invalid_media_stream',
-      'start_session_failed',
-      'create_softphone_manager_failed'
-    ]);
-    static GUM_TIMEOUT = 20 * 1000;
-    static TAB_FOCUS_TIMEOUT = 20 * 1000;
-    static TAB_FOCUS_POLLING_INTERVAL = 100;
-  }
-
   connect.SoftphoneManager = SoftphoneManager;
-  connect.SoftphoneMasterCoordinator = SoftphoneMasterCoordinator;
 })();
 
 
@@ -30326,14 +30098,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     this.topicMasterMap[topic] = id;
   };
 
-  MasterTopicCoordinator.prototype.removeMasterWithTopic = function (topic) {
-    connect.assertNotNull(topic, 'topic');
-    if (this.topicMasterMap[topic]) {
-      delete this.topicMasterMap[topic];
-    }
-  };
-
-  MasterTopicCoordinator.prototype.removeMasterWithId = function (id) {
+  MasterTopicCoordinator.prototype.removeMaster = function (id) {
     connect.assertNotNull(id, 'id');
     var self = this;
 
@@ -30433,7 +30198,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     this.client = new WorkerClient(this.conduit);
     this.timeout = null;
     this.agent = null;
-    this.prevSnapshot = null;
     this.nextToken = null;
     this.initData = {};
     this.portConduitMap = {};
@@ -30952,7 +30716,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     var self = this;
     self.multiplexer.removeStream(stream);
     delete self.portConduitMap[stream.getId()];
-    self.masterCoord.removeMasterWithId(stream.getId());
+    self.masterCoord.removeMaster(stream.getId());
     let updateObject = { length: Object.keys(self.portConduitMap).length };
     let tabIds = Object.keys(self.streamMapByTabId);
     try {
@@ -31042,17 +30806,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
           this.conduit.sendDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE);
         }
       } 
-
-      try {
-        if (this.detectNewVoiceContactInSync(this.prevSnapshot, this.agent.snapshot)) {
-          connect.getLog().info('New voice contact detected in the shared worker. Clearing NEXT_SOFTPHONE master').sendInternalLogToServer();
-          this.masterCoord.removeMasterWithTopic(connect.MasterTopics.NEXT_SOFTPHONE);
-        }
-      } catch(err) {
-        connect.getLog().error("detectNewVoiceContactInSync failed").sendInternalLogToServer().withObject({ err });
-      }
-
-      this.prevSnapshot = this.agent.snapshot;
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
   };
@@ -31202,26 +30955,6 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }
 
     return new_request;
-  };
-
-  ClientEngine.prototype.detectNewVoiceContactInSync = function (oldSnapshot, newSnapshot) {
-    let newContacts = [];
-
-    if (!oldSnapshot) {
-      newContacts = newSnapshot.contacts;
-    } else {
-      newSnapshot.contacts.forEach(contactData => {
-        if (!oldSnapshot.contacts.find(c => contactData.contactId === c.contactId)) {
-          newContacts.push(contactData);
-        }
-      });
-    }
-
-    return Boolean(newContacts.find(contactData => {
-      if (contactData.type === connect.ContactType.VOICE || contactData.type === connect.ContactType.QUEUE_CALLBACK) {
-        return true;
-      }
-    }));
   };
 
   /**-----------------------------------------------------------------------*/

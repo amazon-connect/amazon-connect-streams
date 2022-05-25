@@ -1,4 +1,3 @@
-const { expect } = require("chai");
 const mochaJsdom = require("mocha-jsdom");
 
 require("../unit/test-setup.js");
@@ -168,6 +167,7 @@ describe('SoftphoneMasterCoordinator', () => {
             sandbox.stub(connect, 'isFramed').returns(false);
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'setUpListenerForTakeOverEvent');
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'competeForNextSoftphoneMaster');
+
             softphoneMasterCoordinator = new connect.SoftphoneMasterCoordinator();
         });
         after(() => {
@@ -269,12 +269,10 @@ describe('SoftphoneMasterCoordinator', () => {
     });
 
     describe('setUserMediaStream', () => {
-        let stubbedAssertNotNull;
         before(() => {
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'setUpListenerForNewSoftphoneContact');
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'setUpListenerForTakeOverEvent');
-            stubbedAssertNotNull = sandbox.stub(connect, 'assertNotNull');
-            sandbox.stub(connect, 'publishMetric');
+            sandbox.stub(connect, 'assertNotNull');
         });
         afterEach(() => {
             sandbox.resetHistory();
@@ -287,20 +285,11 @@ describe('SoftphoneMasterCoordinator', () => {
             const userMediaStream = { id: 'dummy' };
             softphoneMasterCoordinator.setUserMediaStream(userMediaStream);
             expect(softphoneMasterCoordinator.userMediaStream).to.equal(userMediaStream);
-            sinon.assert.calledOnce(connect.publishMetric);
         });
         it('should assert if no stream object is passed in', () => {
             const softphoneMasterCoordinator = new connect.SoftphoneMasterCoordinator();
-            stubbedAssertNotNull.throws(Error('UserMediaStream must be provided'));
-            let error;
-            try {
-                softphoneMasterCoordinator.setUserMediaStream();
-            } catch (e) {
-                error = e;
-            }
-            expect(error.message).to.equal("UserMediaStream must be provided");
+            softphoneMasterCoordinator.setUserMediaStream();
             sinon.assert.calledOnce(connect.assertNotNull);
-            sinon.assert.notCalled(connect.publishMetric);
         });
     });
 
@@ -452,7 +441,6 @@ describe('SoftphoneMasterCoordinator', () => {
             stubbedGetUserMedia = sandbox.stub(navigator.mediaDevices, 'getUserMedia');
             stubbedThenHandler = sandbox.stub();
             stubbedCatchHandler = sandbox.stub();
-            sandbox.stub(connect, 'publishMetric');
         });
         afterEach(() => {
             sandbox.resetHistory();
@@ -475,7 +463,6 @@ describe('SoftphoneMasterCoordinator', () => {
             await clock.tickAsync(connect.SoftphoneMasterCoordinator.GUM_TIMEOUT);
             sinon.assert.calledWith(stubbedCatchHandler, connect.SoftphoneMasterCoordinator.errorTypes.GUM_TIMEOUT);
             sinon.assert.notCalled(stubbedThenHandler);
-            sinon.assert.calledOnce(connect.publishMetric);
         });
         it('should reject promise when the contact is no longer in connecting state', async () => {
             stubbedCheckIfContactIsInConnectingState.rejects(Error(connect.SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING));
@@ -489,7 +476,6 @@ describe('SoftphoneMasterCoordinator', () => {
             await clock.tickAsync(0); // allow registered callbacks to promise.then/catch to be invoked
             sinon.assert.calledWith(stubbedCatchHandler, connect.SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING);
             sinon.assert.notCalled(stubbedThenHandler);
-            sinon.assert.calledOnce(connect.publishMetric);
         });
         it('should reject promise when getUserMedia fails', async () => {
             stubbedCheckIfContactIsInConnectingState.returns(new Promise(() => {}));
@@ -503,7 +489,6 @@ describe('SoftphoneMasterCoordinator', () => {
             await clock.tickAsync(0); // allow registered callbacks to promise.then/catch to be invoked
             sinon.assert.calledWith(stubbedCatchHandler, 'UNKONWN_ERROR');
             sinon.assert.notCalled(stubbedThenHandler);
-            sinon.assert.calledOnce(connect.publishMetric);
         });
         it('should resolve promise with the grabbed stream when getUserMedia succeeds in time', async () => {
             stubbedCheckIfContactIsInConnectingState.returns(new Promise(() => {}));
@@ -518,7 +503,6 @@ describe('SoftphoneMasterCoordinator', () => {
             await clock.tickAsync(0); // allow registered callbacks to promise.then/catch to be invoked
             sinon.assert.notCalled(stubbedCatchHandler);
             sinon.assert.calledWith(stubbedThenHandler, dummyUserMediaStream);
-            sinon.assert.calledOnce(connect.publishMetric);
         });
     });
 
@@ -535,7 +519,6 @@ describe('SoftphoneMasterCoordinator', () => {
             stubbedDocumentHasFocus = sandbox.stub(document, 'hasFocus');
             stubbedThenHandler = sandbox.stub();
             stubbedCatchHandler = sandbox.stub();
-            sandbox.stub(connect, 'publishMetric');
         });
         afterEach(() => {
             sandbox.resetHistory();
@@ -558,7 +541,6 @@ describe('SoftphoneMasterCoordinator', () => {
             await clock.tickAsync(connect.SoftphoneMasterCoordinator.TAB_FOCUS_TIMEOUT);
             sinon.assert.calledWith(stubbedCatchHandler, connect.SoftphoneMasterCoordinator.errorTypes.TAB_FOCUS_TIMEOUT);
             sinon.assert.notCalled(stubbedThenHandler);
-            sinon.assert.notCalled(connect.publishMetric);
         });
         it('should reject promise when the contact is no longer in connecting state', async () => {
             stubbedCheckIfContactIsInConnectingState.rejects(Error(connect.SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING));
@@ -572,7 +554,6 @@ describe('SoftphoneMasterCoordinator', () => {
             await clock.tickAsync(0); // allow registered callbacks to promise.then/catch to be invoked
             sinon.assert.calledWith(stubbedCatchHandler, connect.SoftphoneMasterCoordinator.errorTypes.CONTACT_NOT_CONNECTING);
             sinon.assert.notCalled(stubbedThenHandler);
-            sinon.assert.calledOnce(connect.publishMetric);
         });
         it('should resolve promise when document is focused at interval loop', async () => {
             stubbedCheckIfContactIsInConnectingState.returns(new Promise(() => {}));
@@ -588,7 +569,6 @@ describe('SoftphoneMasterCoordinator', () => {
             await clock.tickAsync(connect.SoftphoneMasterCoordinator.TAB_FOCUS_POLLING_INTERVAL);
             sinon.assert.notCalled(stubbedCatchHandler);
             sinon.assert.calledOnce(stubbedThenHandler);
-            sinon.assert.notCalled(connect.publishMetric);
         });
     });
 
@@ -664,7 +644,6 @@ describe('SoftphoneMasterCoordinator', () => {
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'setUpListenerForNewSoftphoneContact');
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'setUpListenerForTakeOverEvent');
             stubbedIfMaster = sandbox.stub(connect, 'ifMaster');
-            sandbox.stub(connect, 'publishMetric');
             stubbedThenHandler = sandbox.stub();
             stubbedCatchHandler = sandbox.stub();
         });
@@ -687,7 +666,6 @@ describe('SoftphoneMasterCoordinator', () => {
             await clock.tickAsync(0); // allow registered callbacks to promise.then/catch to be invoked
             sinon.assert.notCalled(stubbedCatchHandler);
             sinon.assert.calledOnce(stubbedThenHandler);
-            sinon.assert.calledOnce(connect.publishMetric);
         });
         it('should reject promise when the tab does NOT become the master of NEXT_SOFTPHONE topic', async () => {
             stubbedIfMaster.callsFake((topic, f_true, f_else) => {
@@ -701,7 +679,6 @@ describe('SoftphoneMasterCoordinator', () => {
             await clock.tickAsync(0); // allow registered callbacks to promise.then/catch to be invoked
             sinon.assert.calledWith(stubbedCatchHandler, connect.SoftphoneMasterCoordinator.errorTypes.NEXT_SOFTPHONE_MASTER_ALREADY_EXISTS);
             sinon.assert.notCalled(stubbedThenHandler);
-            sinon.assert.notCalled(connect.publishMetric);
         });
     });
 
@@ -714,7 +691,6 @@ describe('SoftphoneMasterCoordinator', () => {
             sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'setUpListenerForTakeOverEvent');
             stubbedBecomeMaster = sandbox.stub(connect, 'becomeMaster');
             stubbedConnectAgent = sandbox.stub(connect, 'agent');
-            sandbox.stub(connect, "publishMetric");
             stubbedCreateSoftphoneManager = sandbox.stub(connect.SoftphoneMasterCoordinator.prototype, 'createSoftphoneManager');
             stubbedThenHandler = sandbox.stub();
             stubbedCatchHandler = sandbox.stub();
@@ -759,7 +735,6 @@ describe('SoftphoneMasterCoordinator', () => {
             await clock.tickAsync(0); // allow registered callbacks to promise.then/catch to be invoked
             sinon.assert.calledOnce(stubbedThenHandler);
             sinon.assert.notCalled(stubbedCatchHandler);
-            sinon.assert.calledOnce(connect.publishMetric);
             sinon.assert.calledOnce(stubbedCreateSoftphoneManager);
         });
         it('should reject promise if this.createSoftphoneManager() fails', async () => {
