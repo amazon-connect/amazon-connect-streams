@@ -27,14 +27,12 @@ describe('VoiceId', () => {
     sandbox.stub(connect.core, "getUpstream").returns({
       sendUpstream: sandbox.stub(),
     });
-    connect.agent.initialized = true;
   });
 
   after(() => {
     initMediaController.resetHistory();
     connect.core.getAgentDataProvider.resetBehavior();
     sandbox.restore();
-    connect.agent.initialized = false;
   });
 
   describe('getDomainId', () => {

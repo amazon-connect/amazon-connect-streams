@@ -304,6 +304,20 @@
     connect.core.initialized = false;
   };
  
+  /**-------------------------------------------------------------------------
+   * Setup the SoftphoneManager to be initialized when the agent
+   * is determined to have softphone enabled.
+   */
+  connect.core.softphoneUserMediaStream = null;
+ 
+  connect.core.getSoftphoneUserMediaStream = function () {
+    return connect.core.softphoneUserMediaStream;
+  };
+ 
+  connect.core.setSoftphoneUserMediaStream = function (stream) {
+    connect.core.softphoneUserMediaStream = stream;
+  };
+ 
   connect.core.initRingtoneEngines = function (params) {
     connect.assertNotNull(params, "params");
  
@@ -442,7 +456,6 @@
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
         }
-        connect.core.softphoneMasterCoordinator = new connect.SoftphoneMasterCoordinator(softphoneParams);
         agent.onRefresh(function () {
           var sub = this;
           connect.getLog().info("[Softphone Manager] agent refresh handler executed").sendInternalLogToServer();

@@ -7,11 +7,7 @@ global.expect = chai.expect;
 global.should = chai.should;
 global.sinon = sinon;
 global.navigator = {
-    userAgent: 'browser',
-    mediaDevices: {
-      getUserMedia: () => {},
-      enumerateDevices: () => {}
-    }
+    userAgent: 'browser'
 };
 
 global.jsdom = jsdom;

@@ -59,8 +59,7 @@
     'sendLogs',
     'softphone',
     'ringtone',
-    'metrics',
-    'nextSoftphone'
+    'metrics'
   ]);
 
   /**---------------------------------------------------------------
