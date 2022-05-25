@@ -138,7 +138,6 @@
     this.client = new WorkerClient(this.conduit);
     this.timeout = null;
     this.agent = null;
-    this.prevSnapshot = null;
     this.nextToken = null;
     this.initData = {};
     this.portConduitMap = {};
@@ -343,7 +342,6 @@
         success: function (data) {
           try {
             self.agent = self.agent || {};
-            self.prevSnapshot = self.agent.snapshot;
             self.agent.snapshot = data.snapshot;
             self.agent.snapshot.localTimestamp = connect.now();
             self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
@@ -748,15 +746,6 @@
           this.conduit.sendDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE);
         }
       } 
-
-      try {
-        if (this.detectNewSoftphoneCallInSync(this.prevSnapshot, this.agent.snapshot)) {
-          connect.getLog().info('New softphone call detected in the shared worker. Clearing NEXT_SOFTPHONE master').sendInternalLogToServer();
-          // clear nextSoftphone master
-        }
-      } catch(err) {
-        connect.getLog().error("detectNewSoftphoneCallInSync failed").sendInternalLogToServer().withObject({ err });
-      }
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
   };
@@ -906,27 +895,6 @@
     }
 
     return new_request;
-  };
-
-  ClientEngine.prototype.detectNewSoftphoneCallInSync = function (oldSnapshot, newSnapshot) {
-    let newContacts = [];
-
-    if (!oldSnapshot) {
-      newContacts = newSnapshot.contacts;
-    } else {
-      newSnapshot.contacts.forEach(contactData => {
-        if (!oldSnapshot.contacts.find(c => contactData.contactId === c.contactId)) {
-          newContacts.push(contactData);
-        }
-      });
-    }
-
-    return Boolean(newContacts.find(contactData => {
-      // equivalent to contact.isSoftphoneCall()
-      if (contactData.connections.find((connData) => connData.softphoneMediaInfo)) {
-        return true;
-      }
-    }));
   };
 
   /**-----------------------------------------------------------------------*/

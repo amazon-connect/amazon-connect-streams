@@ -1,5 +1,4 @@
 require("../unit/test-setup.js");
-const SAMPLE_SNAPSHOTS = require("./sample-snapshots.js");
 
 describe('Worker', function () {
   var LOG_BUFFER_CAP_SIZE = 400;
@@ -264,64 +263,6 @@ describe('Worker', function () {
       it('sends ACK event to the downstream with the port id', function () {
         global.onconnect(dummyEvent);
         expect(connect.worker.clientEngine.conduit.sendDownstream.calledWithMatch(connect.EventType.ACKNOWLEDGE, sinon.match.string));
-      });
-    });
-
-    describe('detectNewSoftphoneCallInSync', () => {
-      it('should return true if there is a new inbound voice contact via softphone', () => {
-        const prevSnapshot = SAMPLE_SNAPSHOTS.noContacts;
-        const newSnapshot = SAMPLE_SNAPSHOTS.inboundVoiceContactSoftphone;
-        const result = connect.worker.clientEngine.detectNewSoftphoneCallInSync(prevSnapshot, newSnapshot);
-        expect(result).to.be.true;
-      });
-
-      it('should return false if there is a new inbound voice contact via deskphone', () => {
-        const prevSnapshot = SAMPLE_SNAPSHOTS.noContacts;
-        const newSnapshot = SAMPLE_SNAPSHOTS.inboundVoiceContactDeskphone;
-        const result = connect.worker.clientEngine.detectNewSoftphoneCallInSync(prevSnapshot, newSnapshot);
-        expect(result).to.be.false;
-      });
-
-      it('should return true if there is a voice contact for monitoring', () => {
-        const prevSnapshot = SAMPLE_SNAPSHOTS.noContacts;
-        const newSnapshot = SAMPLE_SNAPSHOTS.monitoringVoiceContact;
-        const result = connect.worker.clientEngine.detectNewSoftphoneCallInSync(prevSnapshot, newSnapshot);
-        expect(result).to.be.true;
-      });
-
-      it('should return true if there is a new outbound voice contact', () => {
-        const prevSnapshot = SAMPLE_SNAPSHOTS.noContacts;
-        const newSnapshot = SAMPLE_SNAPSHOTS.outboundVoiceContact;
-        const result = connect.worker.clientEngine.detectNewSoftphoneCallInSync(prevSnapshot, newSnapshot);
-        expect(result).to.be.true;
-      });
-
-      it('should return true if there is a new incoming queued callback contact', () => {
-        const prevSnapshot = SAMPLE_SNAPSHOTS.noContacts;
-        const newSnapshot = SAMPLE_SNAPSHOTS.queuedCallbackContactConnecting;
-        const result = connect.worker.clientEngine.detectNewSoftphoneCallInSync(prevSnapshot, newSnapshot);
-        expect(result).to.be.true;
-      });
-
-      it('should return false if there is a new chat contact', () => {
-        const prevSnapshot = SAMPLE_SNAPSHOTS.noContacts;
-        const newSnapshot = SAMPLE_SNAPSHOTS.chatContact;
-        const result = connect.worker.clientEngine.detectNewSoftphoneCallInSync(prevSnapshot, newSnapshot);
-        expect(result).to.be.false;
-      });
-
-      it('should return false if there is a new task contact', () => {
-        const prevSnapshot = SAMPLE_SNAPSHOTS.noContacts;
-        const newSnapshot = SAMPLE_SNAPSHOTS.taskContact;
-        const result = connect.worker.clientEngine.detectNewSoftphoneCallInSync(prevSnapshot, newSnapshot);
-        expect(result).to.be.false;
-      });
-
-      it('should return false if there is a voice contact but not a new one', () => {
-        const prevSnapshot = SAMPLE_SNAPSHOTS.inboundVoiceContactSoftphone;
-        const newSnapshot = SAMPLE_SNAPSHOTS.inboundVoiceContactSoftphone;
-        const result = connect.worker.clientEngine.detectNewSoftphoneCallInSync(prevSnapshot, newSnapshot);
-        expect(result).to.be.false;
       });
     });
   });
