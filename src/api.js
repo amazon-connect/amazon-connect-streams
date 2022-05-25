@@ -906,6 +906,17 @@
             data: new connect.Contact(contactId)
           });
 
+          // In Firefox, there's a browser restriction that an unfocused browser tab is not allowed to access the user's microphone.
+          // The problem is that the restriction could cause a webrtc session creation timeout error when you get an incoming call while you are not on the primary tab.
+          // It was hard to workaround the issue especially when you have multiple tabs open because you needed to find the right tab and accept the contact before the timeout.
+          // To avoid the error, when multiple tabs are open in Firefox, a webrtc session is not immediately created as an incoming softphone contact is detected.
+          // Instead, it waits until contact.accept() is called on a tab and lets the tab become the new primary tab and start the web rtc session there
+          // because the tab should be focused at the moment and have access to the user's microphone.
+          var contact = new connect.Contact(contactId);
+          if (connect.isFirefoxBrowser() && contact.isSoftphoneCall()) {
+            connect.core.triggerReadyToStartSessionEvent();
+          }
+
           if (callbacks && callbacks.success) {
             callbacks.success(data);
           }

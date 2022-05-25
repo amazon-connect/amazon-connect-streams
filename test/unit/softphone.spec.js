@@ -154,7 +154,7 @@ describe('SoftphoneManager', function () {
                 assert.isTrue(connect.RTCSession.calledOnce);
             });
         });
-        describe.skip('RTC session is not created for an incoming contact', function () {
+        describe('RTC session is not created for an incoming contact', function () {
             it('when multiple CCP tabs are opened', function () {
                 sandbox.stub(contact, "getStatus").returns({
                     type: connect.ContactStatusType.CONNECTING

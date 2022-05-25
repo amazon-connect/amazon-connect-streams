@@ -112,6 +112,7 @@
     this.onInitContactSub = {};
     this.onInitContactSub.unsubscribe = function() {};
 
+    // variables for firefox multitab
     var isSessionPending = false;
     var pendingContact = null;
     var pendingAgentConnectionId = null;
@@ -286,7 +287,11 @@
       if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
         contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
         contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
-          self.startSession(contact, agentConnectionId);
+          if (connect.isFirefoxBrowser() && connect.hasOtherConnectedCCPs()) {
+            postponeStartingSession(contact, agentConnectionId);
+          } else {
+            self.startSession(contact, agentConnectionId);
+          }
       }
     };
 
