@@ -27848,7 +27848,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     }
     var gumPromise = fetchUserMedia({
       success: function (stream) {
-        publishTelemetryEvent("ConnectivityCheckResult", null,
+        publishTelemetryEvent("ConnectivityCheckResult", null, 
         {
           connectivityCheckType: "MicrophonePermission",
           status: "granted"
