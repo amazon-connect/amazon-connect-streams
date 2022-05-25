@@ -312,7 +312,7 @@
         // and you will eventually get SoftphoneConnectionLimitBreachedException later.
         rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
       }
-      rtcPeerConnectionFactory = null;
+      delete rtcPeerConnectionFactory;
     };
   };
 
