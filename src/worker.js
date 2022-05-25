@@ -716,22 +716,6 @@
         portConduit.sendDownstream(connect.AgentEvents.SOFTPHONE_ERROR, new connect.SoftphoneError(errorType, message, ''));
       }
     }
-    try {
-      portConduit.sendDownstream(connect.EventType.CLIENT_METRIC, {
-        name: 'MissedCallTabInfo',
-        contactId: obj.contactId,
-        data: {
-          numberOfCCPTabsFocusedInTime: numberOfCCPTabsFocusedInTime,
-          autoAcceptEnabled: obj.autoAcceptEnabled,
-          contactHasBeenAccepted: obj.contactHasBeenAccepted,
-          numberOfConnectedCCPs: obj.numberOfConnectedCCPs,
-          softphoneMaster: obj.softphoneMaster,
-          nextSoftphoneMaster: obj.nextSoftphoneMaster
-        }
-      });
-    } catch(e) {
-      connect.getLog().error("Error Creating Metric:").withException(e).sendInternalLogToServer();
-    }
   }
 
   ClientEngine.prototype.updateAgentConfiguration = function (configuration) {

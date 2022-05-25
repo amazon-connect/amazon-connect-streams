@@ -604,10 +604,10 @@
   var publishTelemetryEvent = function (eventName, contactId, data, isGum=false) {
     try {
       if(isGum) {
+        data = data || {}
         const currentPerformanceTime = getPerformanceTime();
         data['tabId'] = connect.core.tabId || '';
-        data['previousStep'] = gumLatencies['previousStep'] || '';
-        data['tabInFocus'] = gumLatencies['AlreadyMaster'] ? document.hasFocus() : gumLatencies['TabInFocus'];
+        data['previousStep'] = gumLatencies['previousStep'];
         if(gumLatencies['previousStep'] && gumLatencies[gumLatencies['previousStep']]) data['latency'] = currentPerformanceTime - gumLatencies[gumLatencies['previousStep']];
         gumLatencies['previousStep'] = eventName;
         gumLatencies[eventName] = currentPerformanceTime;
@@ -939,7 +939,6 @@
     competeForNextSoftphoneMaster() {
       const self = this;
       connect.ifMaster(connect.MasterTopics.SOFTPHONE, () => {
-        gumLatencies["AlreadyMaster"] = true;
         // If this is the master tab, immediately call getUserMedia to accomodate the case where UserMediaCaptureOnFocus is NOT enabled.
         // It could happen either when Google hasn't rolled out the feature or customer manually disables it with a feature flag)
         self.getUserMedia()
@@ -989,11 +988,9 @@
       
       const tabFocusPromise = new Promise((resolve, reject) => {
         self.tabFocusIntervalId = setInterval(() => {
-          gumLatencies['TabInFocus'] = false;
           if (document.hasFocus()) {
             clearInterval(self.tabFocusIntervalId);
             clearTimeout(self.tabFocusTimeoutId);
-            gumLatencies['TabInFocus'] = true;
             
             connect.core.getUpstream().sendUpstream(connect.EventType.TAB_FOCUSED_WHILE_SOFTPHONE_CONTACT_CONNECTING, {
               tabId: connect.core.tabId
