@@ -61,7 +61,11 @@
       DESCRIBE_SESSION: "AgentAppService.VoiceId.describeSession",
       UPDATE_SESSION: "AgentAppService.VoiceId.updateSession",
       START_VOICE_ID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
-      LIST_INTEGRATION_ASSOCIATIONS: "AgentAppService.Acs.listIntegrationAssociations"
+      LIST_INTEGRATION_ASSOCIATIONS: "AgentAppService.Acs.listIntegrationAssociations",
+      START_CONTACT_RECORDING: "AgentAppService.Acs.StartContactRecording",
+      STOP_CONTACT_RECORDING: "AgentAppService.Acs.StopContactRecording",
+      SUSPEND_CONTACT_RECORDING: "AgentAppService.Acs.SuspendContactRecording",
+      RESUME_CONTACT_RECORDING: "AgentAppService.Acs.ResumeContactRecording"
    };
 
    /**---------------------------------------------------------------
@@ -70,6 +74,16 @@
    connect.MasterMethods = connect.makeEnum([
          'becomeMaster',
          'checkMaster'
+   ]);
+
+   /**---------------------------------------------------------------
+    * enum TaskTemplatesClientMethods
+    */
+   connect.TaskTemplatesClientMethods = connect.makeEnum([
+      'listTaskTemplates',
+      'getTaskTemplate',
+      'createTemplatedTask',
+      'updateContact'
    ]);
 
    /**---------------------------------------------------------------
@@ -243,6 +257,7 @@
    AWSClient.prototype.constructor = AWSClient;
 
    AWSClient.prototype._callImpl = function(method, params, callbacks) {
+
       var self = this;
       var log = connect.getLog();
 
@@ -273,7 +288,19 @@
                         var error = {};
                         error.type = err.code;
                         error.message = err.message;
-                        error.stack = err.stack ? err.stack.split('\n') : [];
+                        error.stack = [];
+                        if (err.stack){
+                           try {
+                               if (Array.isArray(err.stack)) {
+                                   error.stack = err.stack;
+                               } else if (typeof err.stack === 'object') {
+                                   error.stack = [JSON.stringify(err.stack)];
+                               } else if (typeof err.stack === 'string') {
+                                   error.stack = err.stack.split('\n');
+                               }
+                           } catch {}
+                        }
+                        
                         callbacks.failure(error, data);
                      }
 
@@ -390,11 +417,93 @@
       return report;
    };
 
+   /**---------------------------------------------------------------
+   * class TaskTemplatesClient extends ClientBase
+   */
+   var TaskTemplatesClient = function(endpoint) {
+      connect.assertNotNull(endpoint, 'endpoint');
+      ClientBase.call(this);
+      if (endpoint.includes('/task-templates')) {
+         this.endpointUrl = connect.getUrlWithProtocol(endpoint);
+      } else {
+         var AWSEndpoint = new AWS.Endpoint(endpoint);
+         var CFPrefix = endpoint.includes('.awsapps.com') ? '/connect' : '';
+         this.endpointUrl = connect.getUrlWithProtocol(`${AWSEndpoint.host}${CFPrefix}/task-templates/api/ccp`);
+      }
+   };
+
+   TaskTemplatesClient.prototype = Object.create(ClientBase.prototype);
+   TaskTemplatesClient.prototype.constructor = TaskTemplatesClient;
+
+   TaskTemplatesClient.prototype._callImpl = function(method, params, callbacks) {
+      connect.assertNotNull(method, 'method');
+      connect.assertNotNull(params, 'params');
+      var options = {
+         credentials: 'include',
+         method: 'GET',
+         headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'x-csrf-token': 'csrf'         
+         }
+      };
+      var instanceId = params.instanceId;
+      var url = this.endpointUrl;
+      var methods = connect.TaskTemplatesClientMethods;
+      switch (method) {
+         case methods.LIST_TASK_TEMPLATES: 
+            url += `/proxy/instance/${instanceId}/task/template`;
+            if (params.queryParams) {
+               const queryString = new URLSearchParams(params.queryParams).toString();
+               if (queryString) {
+                  url += `?${queryString}`;
+               }
+            }
+            break;
+         case methods.GET_TASK_TEMPLATE: 
+            connect.assertNotNull(params.templateParams, 'params.templateParams');
+            const id = connect.assertNotNull(params.templateParams.id, 'params.templateParams.id');
+            const version = params.templateParams.version;
+            url += `/proxy/instance/${instanceId}/task/template/${id}`;
+            if (version) {
+               url += `?snapshotVersion=${version}`;
+            }
+            break;
+         case methods.CREATE_TEMPLATED_TASK: 
+            url += `/${method}`;
+            options.body = JSON.stringify(params);
+            options.method = 'PUT';
+            break;
+         case methods.UPDATE_CONTACT: 
+            url += `/${method}`;
+            options.body = JSON.stringify(params);
+            options.method = 'POST';
+      }
+      connect.fetch(url, options)
+      .then(function(res){
+         callbacks.success(res);
+      }).catch(function(err){
+         const reader = err.body.getReader();
+         let body = '';
+         const decoder = new TextDecoder();
+         reader.read().then(function processText({ done, value }) {
+            if (done) {
+               var error = JSON.parse(body);
+               error.status = err.status;
+               callbacks.failure(error);
+               return;
+            }
+            body += decoder.decode(value);
+            return reader.read().then(processText);
+         });
+      })
+   };
+
    connect.ClientBase = ClientBase;
    connect.NullClient = NullClient;
    connect.UpstreamConduitClient = UpstreamConduitClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
    connect.AgentAppClient = AgentAppClient;
-
+   connect.TaskTemplatesClient = TaskTemplatesClient;
 })();

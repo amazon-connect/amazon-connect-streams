@@ -973,6 +973,32 @@ describe('VoiceId', () => {
       expect(error.type).to.equal(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_TIMEOUT);
       expect(voiceId.describeSession.callCount).to.equal(connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES - 1);
     });
+
+    it('should invoke a callback when sufficient audio has been collected', async () => {
+      const enrollmentStatus = connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS;
+      const streamingStatus = connect.VoiceIdStreamingStatus.ONGOING;
+      const response = {
+        Session: {
+          "EnrollmentRequestDetails": {
+            Status: enrollmentStatus
+          },
+          "StreamingStatus": streamingStatus
+        }
+      };
+      const voiceId = new connect.VoiceId(contactId);
+      voiceId.describeSession = sinon.stub().callsFake(() => Promise.resolve(response));
+
+      const callback = sinon.stub();
+      let error;
+      voiceId.checkEnrollmentStatus(callback).then(() => {}).catch((err) => { error = err });
+      await clock.nextAsync();
+
+      expect(error).to.be.a('undefined');
+      sinon.assert.calledOnce(callback);
+
+      await clock.nextAsync();
+      sinon.assert.calledOnce(callback);
+    });
   });
 
   describe('enrollSpeaker', () => {

@@ -81,7 +81,11 @@
       var containerDOM = moduleData.containerDOM;
       return {
         init: function () {
-          if (name === APP.CCP) return signInThroughinitCCP(endpoint, containerDOM, config);
+          if (name === APP.CCP) {
+            config.ccpParams = config.ccpParams ? config.ccpParams : {};
+            if (config.style) config.ccpParams.style = config.style;
+            return signInThroughinitCCP(endpoint, containerDOM, config);
+          }
           return connect.agentApp.initAppCommunication(name, endpoint);
         },
         destroy: function () {

@@ -44,7 +44,11 @@
     "update_connected_ccps",
     "outer_context_info",
     "media_device_request",
-    "media_device_response"
+    "media_device_response",
+    "tab_id",
+    'authorize_success',
+    'authorize_retries_exhausted',
+    'cti_authorize_retries_exhausted',
   ]);
 
   /**---------------------------------------------------------------
