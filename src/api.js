@@ -1882,7 +1882,6 @@
    */
   var VoiceConnection = function (contactId, connectionId) {
     this._speakerAuthenticator = new VoiceId(contactId);
-    this._contactRecorder = new ContactRecording(contactId);
     Connection.call(this, contactId, connectionId);
   };
 
