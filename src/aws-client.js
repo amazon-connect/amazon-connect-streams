@@ -1110,6 +1110,18 @@ module.exports={
                           "type": "boolean"
                         }
                       }
+                    },
+                    "channelContext": {
+                      "type": "structure",
+                      "members": {
+                        "scheduledTime": {
+                          "type": "long"
+                        },
+                        "taskTemplateId": {},
+                        "taskTemplateVersion": {
+                          "type": "integer"
+                        }
+                      }
                     }
                   }
                 }
@@ -1470,7 +1482,7 @@ module.exports={
           "contactId": {},
           "ccpVersion": {},
           "softphoneStreamStatistics": {
-            "shape": "S3r"
+            "shape": "S3t"
           }
         }
       },
@@ -1503,7 +1515,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S3r"
+                "shape": "S3t"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -1739,7 +1751,7 @@ module.exports={
         }
       }
     },
-    "S3r": {
+    "S3t": {
       "type": "list",
       "member": {
         "type": "structure",

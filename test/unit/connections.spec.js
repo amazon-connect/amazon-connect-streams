@@ -1,6 +1,7 @@
 require("../unit/test-setup.js");
 
 describe('Connections API', function () {
+  const sandbox = sinon.createSandbox();
 
   describe('#Chat Connection API', function () {
 
@@ -24,7 +25,7 @@ describe('Connections API', function () {
 
     before(function () {
 
-      connect.core.getAgentDataProvider = sinon.stub().returns({
+      sandbox.stub(connect.core, 'getAgentDataProvider').returns({
         getContactData: () => { return {} },
         _initMediaController: initMediaController,
         getConnectionData: () => {
@@ -40,7 +41,7 @@ describe('Connections API', function () {
 
     after(function () {
       initMediaController.resetHistory();
-      connect.core.getAgentDataProvider.resetBehavior();
+      sandbox.restore();
     });
 
     it('Should create new Chat connection Object given the chat Contact and Connection Id ', function () {
@@ -78,7 +79,7 @@ describe('Connections API', function () {
  
     before(function () {
       sinon.stub(connect.core, 'getClient');
-      connect.core.getAgentDataProvider = sinon.stub().returns({
+      sandbox.stub(connect.core, 'getAgentDataProvider').returns({
         getContactData: () => { return {connections:[{state:{type:"connected"}}]} },
         _initMediaController: initMediaController,
         getConnectionData: () => {
@@ -95,7 +96,7 @@ describe('Connections API', function () {
     after(function () {
       connect.core.getClient.restore();
       initMediaController.resetHistory();
-      connect.core.getAgentDataProvider.resetBehavior();
+      sandbox.restore();
     });
 
     it('Should create new Voice connection Object given the Voice Contact and Connection Id with Speaker Authenticator ', function () {
@@ -104,7 +105,7 @@ describe('Connections API', function () {
       assert.equal(voiceConnection.contactId, contactId);
       assert.equal(voiceConnection.getMediaType(), connect.MediaType.SOFTPHONE);
       assert.equal(typeof(voiceConnection.getVoiceIdSpeakerId), 'function');
-      assert.equal(typeof(voiceConnection.getVoiceIdSpeakerStatus), 'function')
+      assert.equal(typeof(voiceConnection.getVoiceIdSpeakerStatus), 'function');
     });
 
     describe('getVoiceIdSpeakerId', function() {
@@ -182,7 +183,7 @@ describe('Connections API', function () {
 
     before(function () {
 
-      connect.core.getAgentDataProvider = sinon.stub().returns({
+      sandbox.stub(connect.core, 'getAgentDataProvider').returns({
         getContactData: () => { return {
           initialContactId: taskMediaInfo.initialContactId
         } },
@@ -205,7 +206,7 @@ describe('Connections API', function () {
     });
 
     after(function() {
-      connect.core.getAgentDataProvider.resetBehavior();
+      sandbox.restore();
     });
 
     it('Should create new Task connection Object given the task Contact and Connection Id ', function () {

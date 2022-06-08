@@ -199,6 +199,7 @@ everything set up correctly and that you are able to listen for events.
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
             enablePhoneTypeSettings: true //optional, defaults to 'true' 
           },
+          shouldAddNamespaceToLogs: false, //optional, defaults to 'false'
           ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
           ccpSynTimeout: 3000, //optional, defaults to 1000 (ms)
           ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms)
@@ -251,6 +252,7 @@ and made available to your JS client code.
       displayed.
   * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
       and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
+* `shouldAddNamespaceToLogs`: prepends `[CCP]` to all logs logged by the CCP. Important note: there are a few logs made by the CCP before the namespace is prepended.
 * `ccpAckTimeout`: A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its `SYNCHRONIZE` event emissions. These happen continuously from the first time `initCCP` is called. They should only appear when there is a problem that requires a refresh or a re-login.
 * `ccpSynTimeout`: A timeout in ms that indicates how long streams will wait to send a new `SYNCHRONIZE` event to the iframed CCP. These happens continuously from the first time `initCCP` is called. 
 * `ccpLoadTimeout`: A timeout in ms that indicates how long streams will wait for the initial `ACKNOWLEDGE` event from the shared worker while the CCP is still standing itself up.
@@ -293,6 +295,30 @@ connect.core.onIframeRetriesExhausted(() => {
 ```
 Subscribes a callback function to be called when the iframe failed to load, after attempting all retries. An Iframe Retry (refresh of the iframe page) is scheduled whenever there is a `connect.EventType.ACK_TIMEOUT`. If a `connect.EventType.ACKNOWLEDGE` event happens before the scheduled retry, the retry is cancelled. We allow for 6 scheduled retries. Once these are exhausted, `connect.EventType.ACK_TIMEOUT` events do not trigger scheduled retries.
 
+### `connect.core.onAuthorizeSuccess()`
+```js
+connect.core.onAuthorizeSuccess(() => {
+  console.log("authorization succeeded! Hooray");
+});
+```
+Subscribes a callback function to be called when the agent authorization api succeeds.
+
+### `connect.core.onCTIAuthorizeRetriesExhausted()`
+```js
+connect.core.onCTIAuthorizeRetriesExhausted(() => {
+  console.log("We have failed CTI API authorization multiple times and we are out of retries");
+});
+```
+Subscribes a callback function to be called when multiple authorization-type CTI API failures have happened. After this event occurs, streams will not try to re-authenticate the user when more CTI API authorization-type (401) failures happen. Note that CTI APIs are the agent, contact, and connection apis (specifically, those listed under the `connect.ClientMethods` enum). Therefore, it may be prudent to indicate to the agent that there is a problem related to authorization.
+
+### `connect.core.onAuthorizeRetriesExhausted()`
+```js
+connect.core.onAuthorizeRetriesExhausted(() => {
+  console.log("We have failed the agent authorization api multiple times and we are out of retries");
+});
+```
+Subscribes a callback function to be called when multiple agent authorization api failures have happened. After this event occurs, streams will not try to redirect the user to login when more agent authorization api failures happen. Therefore, it may be prudent to indicate to the agent that there is a problem related to authorization.
+
 ### `connect.core.terminate()`
 ```js
 var containerDiv = document.getElementById("containerDiv");
@@ -324,6 +350,21 @@ connect.core.onViewContact(function(event) {
 ```
 Subscribes a callback that starts whenever the currently selected contact on the CCP changes.
 The callback is called when the contact changes in the UI (i.e. via `click` events) or via `connect.core.viewContact()`.
+
+More precisely, `onViewContact` is called in the below scenarios:
+
+1. There is a new incoming contact, and there are no other contacts currently open in CCP. This includes both outbound contacts and contacts that are accepted using auto-accept
+2. A contact is closed and there is at least one other open contact
+    1. CCP will call `onViewContact` with the next contact in the list of contacts
+3. A contact has been selected as the active contact in CCP. This can happen in multiple ways
+    1. An agent clicks on that contact’s tab in native or embedded CCP
+    2. CCP will trigger `onViewContact` when the close contact button is clicked in native or embedded CCP. CCP will call `onViewContact` with the next contact in the list of contacts. Note that this is redundant with scenario 2 and will result in `onViewContact` being called twice. 
+4. A new contact has been accepted using the accept contact button in native or embedded CCP
+5. `connect.core.viewContact` is called in your custom implementation
+6. There are some cases when `onViewContact` is called with an empty string. This denotes that the active contact has been unset. That happens in the following scenarios:
+    1. The close contact button is clicked and there are no other active contacts
+    2. An agent clicks on a new channel in CCP
+        1. Note: in this case `onViewContact` will be called with a contact from the newly selected channel shortly after
 
 ### `connect.core.onAuthFail()`
 ```js
@@ -806,7 +847,7 @@ Subscribe a method to be invoked when the contact is connecting. This event happ
 ```js
 contact.onAccepted(function(contact) { /* ... */ });
 ```
-Subscribe a method to be invoked whenever the contact is accepted.
+Subscribe a method to be invoked whenever the contact is accepted. Please note that event doesn't fire for contacts that are auto-accepted.
 
 ### `contact.onMissed()`
 ```js
@@ -1127,6 +1168,21 @@ Gets references for the contact. A sample reference looks like the following:
     value: "https://link.com"
 }
 ```
+
+### `contact.getChannelContext()`
+```js
+var channelContext = contact.getChannelContext();
+```
+Gets the channel context for the contact. For task contacts the channel context contains `scheduledTime`,  `taskTemplateId`, `taskTemplateVersion` properties. It might look like the following:
+
+```js
+{
+  scheduledTime: 1646609220
+  taskTemplateId: "ba6db758-d31e-4c6c-bd51-14d8b4686ece"
+  taskTemplateVersion: 1
+}
+```
+
 
 
 ## Connection API
@@ -1474,12 +1530,24 @@ This enumeration lists all of the contact types supported by Connect Streams.
 This is a list of some of the special event types which are published into the low-level
 `EventBus`.
 
-* `EventType.ACKNOWLEDGE`: Event received when the backend API shared worker acknowledges the current tab.
+* `EventType.ACKNOWLEDGE`: Event received when the backend API shared worker acknowledges the current tab. More specifically, it is sent to Streams in the following scenarios:
+  - a consumer port connects to the shared worker
+  - when Streams sends the `EventType.SYNCHRONIZE` to the shared worker, the shared worker sends the `ACKNOWLEDGE` event back. This happens every few seconds so that Streams and the shared worker are synchronized.
 * `EventType.ACK_TIMEOUT`: Event which is published if the backend API shared worker fails to respond to an `EventType.SYNCHRONIZE` event in a timely manner, meaning that the tab or window has been disconnected from the shared worker.
 * `EventType.IFRAME_RETRIES_EXHAUSTED`: Event which is published once the hard limit of 6 CCP retries are all exhausted. These retries are tiggered by the `ACK_TIMEOUT` event above.
 * `EventType.AUTH_FAIL`: Event published indicating that the most recent API call returned a status header indicating that the current user authentication is no longer valid. This usually requires the user to log in again for the CCP to continue to function. See `connect.core.initCCP()` under **Initialization** for more information about automatic login popups which can be used to give the user the chance to log in again when this happens.
 * `EventType.LOG`: An event published whenever the CCP or the API shared worker creates a log entry.
-* `EventType.TERMINATED`: Event published when the agent logged out from ccp.
+* `EventType.TERMINATED`: When the `EventType.TERMINATE` (not `TERMINATED`) event is sent to Streams, it is forwarded to the shared worker, which on successful termination then sends `EventType.TERMINATED` event back to Streams.  The `EventType.TERMINATE` event is sent to Streams in the following scenarios:
+  - The CCP is initialized as an agent app (via `connect.agentApp.initApp`), and `connect.agentApp.stopApp` is invoked
+  - The user manually logs out of the CCP
+
+### `AgentEvents`
+Event types that affect the agent's state.
+
+* `AgentEvents.UPDATE`: this event is sent to Streams in the following scenarios:
+  - a consumer port connects to the shared worker
+  - when the shared worker or ccp is first initialized, then again repeated every few seconds
+  - when the `EventType.RELOAD_AGENT_CONFIGURATION` event is sent to the shared worker. This happens in the `Agent.prototype.setConfiguration` method (which is invoked when the ccp settings are saved in the UI)
 
 #### Note
 The `EventBus` is used by the high-level subscription APIs to manage subscriptions
@@ -1705,19 +1773,29 @@ voiceConnection.getVoiceIdSpeakerStatus()
 ```
 
 
-### `voiceConnection.enrollSpeakerInVoiceId()`
-Enrolls a customer in Voice ID. The enrollment process completes once the backend has collected enough speech data (30 seconds of net customer's audio). If after 10 minutes the process hasn't completed, the method will throw a timeout error. If you call this API for a customer who is already enrolled, it will re-enroll the customer by collecting new speech data and registering a new digital voiceprint. Enrollment can happen only once in a voice contact.
+### `voiceConnection.enrollSpeakerInVoiceId(callbackOnAudioCollectionComplete)`
+Enrolls a customer in Voice ID. The enrollment process completes once the backend has collected enough speech data (30 seconds of net customer's audio). If after 10 minutes the process hasn't completed, the method will throw a timeout error. If you call this API for a customer who is already enrolled, it will re-enroll the customer by collecting new speech data and registering a new digital voiceprint. Enrollment can happen only once in a voice contact.   
+You can pass in a callback (optional) that will be invoked when our backend has collected sufficient audio for our backend service to create the new voiceprint.
 
 ```js
-voiceConnection.enrollSpeakerInVoiceId()
+const callbackOnAudioCollectionComplete = (data) => {
+  console.log(
+    `Now sufficient audio has been collected and
+    the customer no longer needs to keep talking.
+    The backend service is creating the voiceprint with the audio collected`
+  ); 
+};
+
+voiceConnection.enrollSpeakerInVoiceId(callbackOnAudioCollectionComplete)
   .then((data) => {
-    // it returns session data but no additional actions needed
+    console.log(
+      `The enrollment process is complete and the customer has been enrolled into Voice ID`
+    );
   })
   .catch((err) => {
     console.error(err);
   });
 ```
-
 
 ### `voiceConnection.evaluateSpeakerWithVoiceId(boolean)`
 Checks the customer's Voice ID verification status. The evaluation process completes once the backend has collected enough speech data (10 seconds of net customer's audio). If after 2 minutes the process hasn't completed, the method will throw a timeout error. If you pass in false, it uses the existing audio stream, which is typically started in the contact flow, and immediately returns the result if enough audio has already been collected. If you pass in true, it starts a new audio stream and returns the result when enough audio has been collected. The default value is false.

@@ -1,5 +1,13 @@
 # CHANGELOG.md
 
+## 2.2.0
+Added functions:
+* `contact.getChannelContext` method to get the channel context for the contact. See Documentation.md for more details
+* `connect.core.onAuthorizationSuccess`. See Documentation.md for more details
+* `connect.core.onAuthorizeRetriesExhausted` and `connect.core.onCTIAuthorizeRetriesExhausted` methods, along with some backoff logic to the retries / page reloads for the CTI and authorize apis. Please see these methods' entries in Documentation.md for more information.
+
+Added support for Task templates APIs.
+
 ## 2.1.0
 Added functions:
 * `contact.isMultiPartyConferenceEnabled` method to determine whether this contact is a softphone call and multiparty conference feature is turned on. See Documentation.md for more details
