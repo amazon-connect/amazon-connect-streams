@@ -719,7 +719,7 @@ agent.connect(endpoint, {
   }
 });
 ```
-Creates an outbound contact to the given endpoint. You can optionally provide a `queueARN` to associate the contact with a queue.
+Creates an outbound contact to the given endpoint. Only phone number endpoints are supported. You can optionally provide a `queueARN` to associate the contact with a queue.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
