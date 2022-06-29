@@ -1299,4 +1299,48 @@ describe('Core', function () {
             expect(connect.core.taskTemplatesClient.endpointUrl).to.equal("https://abc.com/task-templates/api/ccp");
         });
     });
+
+    describe('connect.core.activateChannelWithViewType', function () {
+        jsdom({ url: "http://localhost" });
+        const viewType = "create_task", mediaType = "task";
+        let sendUpstream;
+        before(() => {
+            connect.core.upstream = { sendUpstream: () => {} };
+            sendUpstream = sandbox.stub(connect.core.upstream, "sendUpstream");
+        })
+        beforeEach(() => {
+            sandbox.reset();
+        });
+        after(() => {
+            sandbox.restore();
+            connect.core.upstream = null;
+        });
+        it('call activateChannelWithViewType with base parameters "viewType", "mediaType"', function () {
+            connect.core.activateChannelWithViewType(viewType, mediaType);
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST, 
+                {
+                    event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+                    data: { viewType, mediaType }
+                }
+            );
+        });
+        it('call activateChannelWithViewType with an optional parameter "source"', function () {
+            connect.core.activateChannelWithViewType(viewType, mediaType, "agentapp");
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST, 
+                {
+                    event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+                    data: { viewType, mediaType, source: "agentapp" }
+                }
+            );
+        });
+        it('call activateChannelWithViewType with optional parameters "source", "caseId"', function () {
+            connect.core.activateChannelWithViewType(viewType, mediaType, "keystone", "1234567890");
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST, 
+                {
+                    event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+                    data: { viewType, mediaType, source: "keystone", caseId:  "1234567890" }
+                }
+            );
+        });
+    });
 });
