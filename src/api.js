@@ -147,6 +147,21 @@
   ]);
 
   /*----------------------------------------------------------------
+   * enum for MonitoringMode
+   */
+  connect.MonitoringMode = connect.makeEnum([
+    'SILENT_MONITOR',
+    'BARGE'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for MonitoringErrorTypes
+   */
+  connect.MonitoringErrorTypes = connect.makeEnum([
+    'invalid_target_state'
+  ]);
+
+  /*----------------------------------------------------------------
   * enum ChannelType
   */
   connect.ChannelType = connect.makeEnum([
@@ -499,17 +514,6 @@
   Agent.prototype.getRoutingProfile = function () {
     return this.getConfiguration().routingProfile;
   };
-
-  
-  Agent.prototype.barge = function (callbacks) {
-    console.log("\n\n\n INITIATING BARGE IN STREAMS \n\n\n ^^^^^^^");
-    callbacks.success("Successfully mocked barge api");
-  }
-
-  Agent.prototype.monitor = function (callbacks) {
-    console.log("\n\n\n INITIATING MONITOR IN STREAMS \n\n\n ^^^^^^^")
-    callbacks.success("Successfully mocked monitor api");
-  }
 
   Agent.prototype.getChannelConcurrency = function (channel) {
     var channelConcurrencyMap = this.getRoutingProfile().channelConcurrencyMap;
@@ -1075,6 +1079,21 @@
   Contact.prototype.isMultiPartyConferenceEnabled = function () {
     var contactFeatures = this.getContactFeatures();
     return !!(contactFeatures && contactFeatures.multiPartyConferenceEnabled);
+  }
+
+  Contact.prototype.updateMonitorParticipantState = function (targetState, callbacks) {
+    if(!targetState || !Object.values(connect.MonitoringMode).includes(targetState)) {
+      connect.getLog().error(`Invalid target state was provided: ${targetState}`).sendInternalLogToServer();
+      if (callbacks && callbacks.failure) {
+        callbacks.failure(connect.MonitoringErrorTypes.INVALID_TARGET_STATE);
+      }
+    } else {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.UPDATE_MONITOR_PARTICIPANT_STATE, {
+        contactId: this.getContactId(),
+        targetMonitorMode: targetState
+      }, callbacks);
+    }
   }
 
   /*----------------------------------------------------------------
@@ -2119,8 +2138,20 @@
     return this._getData().quickConnectName;
   };
 
+  VoiceConnection.prototype.getMonitorState = function () {
+    return this._getData().monitorState;
+  };
+
+  VoiceConnection.prototype.getMonitorCapabilities = function () {
+    return this._getData().monitorCapabilities;
+  };
+
   VoiceConnection.prototype.isMute = function () {
     return this._getData().mute;
+  };
+
+  VoiceConnection.prototype.isForcedMute = function () {
+    return this._getData().forcedMute;
   };
 
   VoiceConnection.prototype.muteParticipant = function (callbacks) {
