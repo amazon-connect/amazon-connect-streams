@@ -30047,35 +30047,40 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return notification;
   };
 
-  connect.BaseError = function (format, args) {
-    global.Error.call(this, connect.vsprintf(format, args));
-  };
-  connect.BaseError.prototype = Object.create(Error.prototype);
-  connect.BaseError.prototype.constructor = connect.BaseError;
-
   connect.ValueError = function () {
     var args = Array.prototype.slice.call(arguments, 0);
     var format = args.shift();
-    connect.BaseError.call(this, format, args);
+    var instance = new Error(connect.vsprintf(format, args));
+    Object.setPrototypeOf(instance, connect.ValueError.prototype);
+    return instance; 
   };
-  connect.ValueError.prototype = Object.create(connect.BaseError.prototype);
-  connect.ValueError.prototype.constructor = connect.ValueError;
+  Object.setPrototypeOf(connect.ValueError.prototype, Error.prototype);
+  Object.setPrototypeOf(connect.ValueError, Error);
+  connect.ValueError.prototype.name = 'ValueError';
 
   connect.NotImplementedError = function () {
     var args = Array.prototype.slice.call(arguments, 0);
     var format = args.shift();
-    connect.BaseError.call(this, format, args);
+    var instance = new Error(connect.vsprintf(format, args));
+    Object.setPrototypeOf(instance, connect.NotImplementedError.prototype);
+    return instance; 
   };
-  connect.NotImplementedError.prototype = Object.create(connect.BaseError.prototype);
-  connect.NotImplementedError.prototype.constructor = connect.NotImplementedError;
+  Object.setPrototypeOf(connect.NotImplementedError.prototype, Error.prototype);
+  Object.setPrototypeOf(connect.NotImplementedError, Error);
+  connect.NotImplementedError.prototype.name = 'NotImplementedError';
 
   connect.StateError = function () {
     var args = Array.prototype.slice.call(arguments, 0);
     var format = args.shift();
-    connect.BaseError.call(this, format, args);
-  };
-  connect.StateError.prototype = Object.create(connect.BaseError.prototype);
-  connect.StateError.prototype.constructor = connect.StateError;
+    var instance = new Error(connect.vsprintf(format, args));
+    Object.setPrototypeOf(instance, connect.StateError.prototype);
+    return instance; 
+  }
+  Object.setPrototypeOf(connect.StateError.prototype, Error.prototype);
+  Object.setPrototypeOf(connect.StateError, Error);
+  connect.StateError.prototype.name = 'StateError';
+
+
 
   connect.VoiceIdError = function(type, message, err){
     var error = {};
