@@ -5,8 +5,8 @@
  */
  
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || globalThis;
+  var connect = global.connect || {};
   global.connect = connect;
   global.globalConnect = {}
   global.lily = connect;

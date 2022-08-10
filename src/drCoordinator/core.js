@@ -7,9 +7,9 @@
  */
 
 (function () {
-  var global = this;
-  connect = global.connect || {};
-  globalConnect = global.globalConnect || {};
+  var global = this || globalThis;
+  var connect = global.connect || {};
+  var globalConnect = global.globalConnect || {};
   global.connect = connect;
   global.globalConnect = globalConnect;
   global.lily = connect;
