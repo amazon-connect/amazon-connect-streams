@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
@@ -136,7 +136,6 @@
     'api',
     'disconnect'
   ]);
-  
 
   /*----------------------------------------------------------------
   * enum ChannelType
@@ -179,6 +178,15 @@
     'webrtc_error',
     'realtime_communication_error',
     'other'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for ClickType
+   */
+  connect.ClickType = connect.makeEnum([
+    'Accept',
+    'Reject',
+    'Hangup'
   ]);
 
   /*----------------------------------------------------------------
@@ -254,7 +262,7 @@
   ]);
 
   /*----------------------------------------------------------------
-   * enum for contact flow authentication decision 
+   * enum for contact flow authentication decision
    */
   connect.ContactFlowAuthenticationDecision = connect.makeEnum([
     "Authenticated",
@@ -278,7 +286,7 @@
   ]);
 
   /*----------------------------------------------------------------
-   * enum for VoiceId EnrollmentRequest Status 
+   * enum for VoiceId EnrollmentRequest Status
    */
   connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
     "NOT_ENOUGH_SPEECH",
@@ -630,7 +638,7 @@
     var queueArns = this.getAllQueueARNs();
     for (let queueArn of queueArns) {
       const agentIdMatch = queueArn.match(/\/agent\/([^/]+)/);
-      
+
       if (agentIdMatch) {
         return agentIdMatch[1];
       }
@@ -883,6 +891,13 @@
     var client = connect.core.getClient();
     var self = this;
     var contactId = this.getContactId();
+
+    connect.publishClickStreamData({
+      contactId: this.getContactId(),
+      clickType: connect.ClickType.ACCEPT,
+      clickTime: new Date().toISOString()
+    });
+
     client.call(connect.ClientMethods.ACCEPT_CONTACT, {
       contactId: contactId
     }, {
@@ -922,6 +937,13 @@
 
   Contact.prototype.reject = function (callbacks) {
     var client = connect.core.getClient();
+
+    connect.publishClickStreamData({
+      contactId: this.getContactId(),
+      clickType: connect.ClickType.REJECT,
+      clickTime: new Date().toISOString()
+    });
+
     client.call(connect.ClientMethods.REJECT_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
@@ -1129,6 +1151,12 @@
   };
 
   Connection.prototype.destroy = function (callbacks) {
+    connect.publishClickStreamData({
+      contactId: this.getContactId(),
+      clickType: connect.ClickType.HANGUP,
+      clickTime: new Date().toISOString()
+    });
+
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.DESTROY_CONNECTION, {
       contactId: this.getContactId(),
@@ -1171,29 +1199,29 @@
     }
   }
 
-  // Method for checking whether this connection is an agent-side connection 
+  // Method for checking whether this connection is an agent-side connection
   // (type AGENT or MONITORING)
   Connection.prototype._isAgentConnectionType = function () {
     var connectionType = this.getType();
-    return connectionType === connect.ConnectionType.AGENT 
+    return connectionType === connect.ConnectionType.AGENT
       || connectionType === connect.ConnectionType.MONITORING;
   }
 
   /**
-   * Utility method for checking whether this connection is an agent-side connection 
+   * Utility method for checking whether this connection is an agent-side connection
    * (type AGENT or MONITORING)
    * @return {boolean} True if this connection is an agent-side connection. False otherwise.
    */
   Connection.prototype._isAgentConnectionType = function () {
     var connectionType = this.getType();
-    return connectionType === connect.ConnectionType.AGENT 
+    return connectionType === connect.ConnectionType.AGENT
       || connectionType === connect.ConnectionType.MONITORING;
   }
   
   /*----------------------------------------------------------------
   * Voice authenticator VoiceId
   */
- 
+
   var VoiceId = function (contactId) {
     this.contactId = contactId;
   };
@@ -1219,7 +1247,7 @@
               var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call");
               reject(error);
             }
-            
+
           },
           failure: function (err) {
             connect.getLog().error("Get SpeakerId failed")
@@ -1279,7 +1307,7 @@
   };
 
   // internal only
-  VoiceId.prototype._optOutSpeakerInLcms = function (speakerId) {
+  VoiceId.prototype._optOutSpeakerInLcms = function (speakerId, generatedSpeakerId) {
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
@@ -1289,7 +1317,8 @@
         "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
         "CustomerId": connect.assertNotNull(speakerId, 'speakerId'),
         "VoiceIdResult": {
-          "SpeakerOptedOut": true
+          "SpeakerOptedOut": true,
+          "generatedSpeakerId": generatedSpeakerId
         }
         }, {
           success: function (data) {
@@ -1321,7 +1350,7 @@
             "DomainId" : domainId
             }, {
               success: function (data) {
-                self._optOutSpeakerInLcms(speakerId).catch(function(){});
+                self._optOutSpeakerInLcms(speakerId, data.generatedSpeakerId).catch(function(){});
                 connect.getLog().info("optOutSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               },
@@ -1421,7 +1450,7 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-    var pollTimes = 0; 
+    var pollTimes = 0;
     return new Promise(function (resolve, reject) {
       function evaluate() {
         self.getDomainId().then(function(domainId) {
@@ -1445,7 +1474,7 @@
                   }
 
                   // Resolve if both authentication and fraud detection are not enabled.
-                  if(!self.isAuthEnabled(data.AuthenticationResult.Decision) && 
+                  if(!self.isAuthEnabled(data.AuthenticationResult.Decision) &&
                     !self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
                       connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
                       resolve(data);
@@ -1468,7 +1497,7 @@
                       return;
                   }
 
-                  if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) && 
+                  if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) &&
                     self.isAuthEnabled(data.AuthenticationResult.Decision)) {
                     switch (data.AuthenticationResult.Decision) {
                       case connect.VoiceIdAuthenticationDecision.ACCEPT:
@@ -1488,7 +1517,7 @@
                     }
                   }
 
-                  if(!self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision) && 
+                  if(!self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision) &&
                     self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
                     switch (data.FraudDetectionResult.Decision) {
                       case connect.VoiceIdFraudDetectionDecision.HIGH_RISK:
@@ -1529,7 +1558,7 @@
                   break;
                 default:
                   error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
-                  connect.getLog().error("evaluateSpeaker failed").withObject({ err: err }).sendInternalLogToServer();    
+                  connect.getLog().error("evaluateSpeaker failed").withObject({ err: err }).sendInternalLogToServer();
               }
               reject(error);
             }
@@ -1538,7 +1567,7 @@
           reject(err);
         });
       }
-      
+
       if(!startNew) {
         self.syncSpeakerId().then(function () {
           evaluate();
@@ -1547,7 +1576,7 @@
                 .withObject({err: err}).sendInternalLogToServer();
           reject(err);
         })
-      } else { 
+      } else {
         self.startSession().then(function(data) {
           self.syncSpeakerId().then(function(data) {
             setTimeout(evaluate, connect.VoiceIdConstants.EVALUATE_SESSION_DELAY);
@@ -1704,7 +1733,7 @@
   };
 
   // internal only
-  VoiceId.prototype._updateSpeakerIdInLcms = function (speakerId) {
+  VoiceId.prototype._updateSpeakerIdInLcms = function (speakerId, generatedSpeakerId) {
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
@@ -1714,7 +1743,7 @@
         "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
         "CustomerId": connect.assertNotNull(speakerId, 'speakerId'),
         "VoiceIdResult": {
-          "generatedSpeakerId": speakerId
+          "generatedSpeakerId": generatedSpeakerId
         }
       }, {
         success: function (data) {
@@ -1747,7 +1776,7 @@
           }, {
             success: function (data) {
               connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
-              self._updateSpeakerIdInLcms(speakerId)
+              self._updateSpeakerIdInLcms(speakerId, data.generatedSpeakerId)
                 .then(function() {
                   resolve(data);
                 })
@@ -1766,7 +1795,7 @@
                   break;
                 default:
                   error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
-                  connect.getLog().error("updateSpeakerIdInVoiceId failed").withObject({ err: err }).sendInternalLogToServer();    
+                  connect.getLog().error("updateSpeakerIdInVoiceId failed").withObject({ err: err }).sendInternalLogToServer();
               }
               reject(error);
             }
@@ -1876,8 +1905,8 @@
 
   /**
    * @class VoiceConnection
-   * @param {number} contactId 
-   * @param {number} connectionId 
+   * @param {number} contactId
+   * @param {number} connectionId
    * @description - Provides voice media specific operations
    */
   var VoiceConnection = function (contactId, connectionId) {
@@ -1890,7 +1919,7 @@
 
   /**
   * @deprecated
-  * Please use getMediaInfo 
+  * Please use getMediaInfo
   */
   VoiceConnection.prototype.getSoftphoneMediaInfo = function () {
     return this._getData().softphoneMediaInfo;
@@ -1917,7 +1946,7 @@
   }
 
   VoiceConnection.prototype.optOutVoiceIdSpeaker = function() {
-    
+
     return this._speakerAuthenticator.optOutSpeaker();
   }
 
@@ -1961,10 +1990,11 @@
     }, callbacks);
   };
 
+
   /**
    * @class ChatConnection
-   * @param {*} contactId 
-   * @param {*} connectionId 
+   * @param {*} contactId
+   * @param {*} connectionId
    * @description adds the chat media specific functionality
    */
   var ChatConnection = function (contactId, connectionId) {
@@ -2005,7 +2035,7 @@
   };
 
   /**
-  * Provides the chat connectionToken through the create_transport API for a specific contact and participant Id. 
+  * Provides the chat connectionToken through the create_transport API for a specific contact and participant Id.
   * @returns a promise which, upon success, returns the response from the createTransport API.
   * Usage:
   * connection.getConnectionToken()
@@ -2055,8 +2085,8 @@
 
   /**
    * @class TaskConnection
-   * @param {*} contactId 
-   * @param {*} connectionId 
+   * @param {*} contactId
+   * @param {*} connectionId
    * @description adds the task media specific functionality
    */
   var TaskConnection = function (contactId, connectionId) {

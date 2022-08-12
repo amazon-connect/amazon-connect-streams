@@ -1,5 +1,5 @@
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;

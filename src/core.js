@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
@@ -363,7 +363,7 @@
         });
       });
     };
-
+ 
     /**
      * If the window is framed, we need to wait for a CONFIGURE message from
      * downstream before we try to initialize, unless params.allowFramedSoftphone is true.
@@ -1494,11 +1494,16 @@
    * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
    *
    * The 'source' is an optional parameter which indicates the requester. For example, if invoked with ("create_task", "task", "agentapp") we would know agentapp requested open task view.
+   * 
+   * "caseId" is an optional parameter which is passed when a task is created from a Kesytone case
    */
-  connect.core.activateChannelWithViewType = function (viewType, mediaType, source) {
+   connect.core.activateChannelWithViewType = function (viewType, mediaType, source, caseId) {
     const data = { viewType, mediaType };
     if (source) {
       data.source = source;
+    }
+    if (caseId) {
+      data.caseId = caseId;
     }
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,

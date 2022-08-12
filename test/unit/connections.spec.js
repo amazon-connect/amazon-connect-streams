@@ -105,7 +105,7 @@ describe('Connections API', function () {
       assert.equal(voiceConnection.contactId, contactId);
       assert.equal(voiceConnection.getMediaType(), connect.MediaType.SOFTPHONE);
       assert.equal(typeof(voiceConnection.getVoiceIdSpeakerId), 'function');
-      assert.equal(typeof(voiceConnection.getVoiceIdSpeakerStatus), 'function');
+      assert.equal(typeof(voiceConnection.getVoiceIdSpeakerStatus), 'function')
     });
 
     describe('getVoiceIdSpeakerId', function() {

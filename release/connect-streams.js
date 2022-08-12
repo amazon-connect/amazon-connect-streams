@@ -5,7 +5,7 @@
 /***/ (() => {
 
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
@@ -114,7 +114,7 @@
 /***/ (() => {
 
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
 
@@ -197,7 +197,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
@@ -329,15 +329,6 @@
     'api',
     'disconnect'
   ]);
-  
-  /*----------------------------------------------------------------
-   * enum for ContactRecording Voice Track config
-   */
-  connect.ContactRecordingVoiceTrackConfig = connect.makeEnum([
-    'ALL',
-    'TO_AGENT',
-    'FROM_AGENT'
-  ]);
 
   /*----------------------------------------------------------------
   * enum ChannelType
@@ -380,6 +371,15 @@
     'webrtc_error',
     'realtime_communication_error',
     'other'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for ClickType
+   */
+  connect.ClickType = connect.makeEnum([
+    'Accept',
+    'Reject',
+    'Hangup'
   ]);
 
   /*----------------------------------------------------------------
@@ -455,7 +455,7 @@
   ]);
 
   /*----------------------------------------------------------------
-   * enum for contact flow authentication decision 
+   * enum for contact flow authentication decision
    */
   connect.ContactFlowAuthenticationDecision = connect.makeEnum([
     "Authenticated",
@@ -479,7 +479,7 @@
   ]);
 
   /*----------------------------------------------------------------
-   * enum for VoiceId EnrollmentRequest Status 
+   * enum for VoiceId EnrollmentRequest Status
    */
   connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
     "NOT_ENOUGH_SPEECH",
@@ -511,8 +511,7 @@
    */
   connect.AgentPermissions = {
     OUTBOUND_CALL: 'outboundCall',
-    VOICE_ID: 'voiceId',
-    CONTACT_RECORDING: 'contactRecording'
+    VOICE_ID: 'voiceId'
   };
 
   /*----------------------------------------------------------------
@@ -832,7 +831,7 @@
     var queueArns = this.getAllQueueARNs();
     for (let queueArn of queueArns) {
       const agentIdMatch = queueArn.match(/\/agent\/([^/]+)/);
-      
+
       if (agentIdMatch) {
         return agentIdMatch[1];
       }
@@ -1085,6 +1084,13 @@
     var client = connect.core.getClient();
     var self = this;
     var contactId = this.getContactId();
+
+    connect.publishClickStreamData({
+      contactId: this.getContactId(),
+      clickType: connect.ClickType.ACCEPT,
+      clickTime: new Date().toISOString()
+    });
+
     client.call(connect.ClientMethods.ACCEPT_CONTACT, {
       contactId: contactId
     }, {
@@ -1124,6 +1130,13 @@
 
   Contact.prototype.reject = function (callbacks) {
     var client = connect.core.getClient();
+
+    connect.publishClickStreamData({
+      contactId: this.getContactId(),
+      clickType: connect.ClickType.REJECT,
+      clickTime: new Date().toISOString()
+    });
+
     client.call(connect.ClientMethods.REJECT_CONTACT, {
       contactId: this.getContactId()
     }, callbacks);
@@ -1331,6 +1344,12 @@
   };
 
   Connection.prototype.destroy = function (callbacks) {
+    connect.publishClickStreamData({
+      contactId: this.getContactId(),
+      clickType: connect.ClickType.HANGUP,
+      clickTime: new Date().toISOString()
+    });
+
     var client = connect.core.getClient();
     client.call(connect.ClientMethods.DESTROY_CONNECTION, {
       contactId: this.getContactId(),
@@ -1373,157 +1392,29 @@
     }
   }
 
-  // Method for checking whether this connection is an agent-side connection 
+  // Method for checking whether this connection is an agent-side connection
   // (type AGENT or MONITORING)
   Connection.prototype._isAgentConnectionType = function () {
     var connectionType = this.getType();
-    return connectionType === connect.ConnectionType.AGENT 
+    return connectionType === connect.ConnectionType.AGENT
       || connectionType === connect.ConnectionType.MONITORING;
   }
 
   /**
-   * Utility method for checking whether this connection is an agent-side connection 
+   * Utility method for checking whether this connection is an agent-side connection
    * (type AGENT or MONITORING)
    * @return {boolean} True if this connection is an agent-side connection. False otherwise.
    */
   Connection.prototype._isAgentConnectionType = function () {
     var connectionType = this.getType();
-    return connectionType === connect.ConnectionType.AGENT 
+    return connectionType === connect.ConnectionType.AGENT
       || connectionType === connect.ConnectionType.MONITORING;
   }
-
-  /*----------------------------------------------------------------
-  * Contact recording
-  */
-  
-  var ContactRecording = function (contactId) {
-    this.contactId = connect.core.getAgentDataProvider().getContactData(contactId) ? contactId : null;
-  }
-
-  ContactRecording.prototype.startContactRecording = function(trackConfig) {
-    var self = this;
-    var client, contactData;
-
-    client = connect.core.getClient();
-    contactData = connect.core.getAgentDataProvider().getContactData(self.contactId);
-    var recordingTrack = (trackConfig && Object.values(connect.ContactRecordingVoiceTrackConfig).includes(trackConfig)) ? trackConfig : connect.ContactRecordingVoiceTrackConfig.ALL;
-    return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.START_CONTACT_RECORDING, {
-        "initialContactId": contactData.initialContactId || self.contactId,
-        "contactId": self.contactId,
-        "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
-        "voiceRecordingConfiguration": {
-          "voiceRecordingTrack": recordingTrack
-        }
-      }, {
-        success: function (data) {
-          connect.getLog().info("startContactRecording succeeded")
-            .withObject(data).sendInternalLogToServer();
-          resolve(data);
-        },
-        failure: function (err, data) {
-          connect.getLog().error("startContactRecording failed").sendInternalLogToServer()
-            .withObject({
-              err,
-              data
-            });
-          reject(Error("startContactRecording failed", { cause: err }));
-        }
-      })
-    })
-  };
-
-  ContactRecording.prototype.stopContactRecording = function() {
-    var self = this;
-    var client, contactData;
-
-    client = connect.core.getClient();
-    contactData = connect.core.getAgentDataProvider().getContactData(self.contactId);
-    return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.STOP_CONTACT_RECORDING, {
-        "initialContactId": contactData.initialContactId || self.contactId,
-        "contactId": self.contactId,
-        "instanceId": connect.core.getAgentDataProvider().getInstanceId()
-      }, {
-        success: function (data) {
-          connect.getLog().info("stopContactRecording succeeded")
-            .withObject(data).sendInternalLogToServer();
-          resolve(data);
-        },
-        failure: function (err, data) {
-          connect.getLog().error("stopContactRecording failed").sendInternalLogToServer()
-            .withObject({
-              err,
-              data
-            });
-          reject(Error("stopContactRecording failed", { cause: err }));
-        }
-      })
-    })
-  };
-
-  ContactRecording.prototype.suspendContactRecording = function() {
-    var self = this;
-    var client, contactData;
-
-    client = connect.core.getClient();
-    contactData = connect.core.getAgentDataProvider().getContactData(self.contactId);
-    return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.SUSPEND_CONTACT_RECORDING, {
-        "initialContactId": contactData.initialContactId || self.contactId,
-        "contactId": self.contactId,
-        "instanceId": connect.core.getAgentDataProvider().getInstanceId()
-      }, {
-        success: function (data) {
-          connect.getLog().info("suspendContactRecording succeeded")
-            .withObject(data).sendInternalLogToServer();
-          resolve(data);
-        },
-        failure: function (err, data) {
-          connect.getLog().error("suspendContactRecording failed").sendInternalLogToServer()
-            .withObject({
-              err,
-              data
-            });
-          reject(Error("suspendContactRecording failed", { cause: err }));
-        }
-      })
-    })
-  };
-
-  ContactRecording.prototype.resumeContactRecording = function() {
-    var self = this;
-    var client, contactData;
-
-    client = connect.core.getClient();
-    contactData = connect.core.getAgentDataProvider().getContactData(self.contactId);
-    return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.RESUME_CONTACT_RECORDING, {
-        "initialContactId": contactData.initialContactId || self.contactId,
-        "contactId": self.contactId,
-        "instanceId": connect.core.getAgentDataProvider().getInstanceId()
-      }, {
-        success: function (data) {
-          connect.getLog().info("resumeContactRecording succeeded")
-            .withObject(data).sendInternalLogToServer();
-          resolve(data);
-        },
-        failure: function (err, data) {
-          connect.getLog().error("resumeContactRecording failed").sendInternalLogToServer()
-            .withObject({
-              err,
-              data
-            });
-          reject(Error("resumeContactRecording failed"), { cause: err });
-        }
-      })
-    })
-  };
   
   /*----------------------------------------------------------------
   * Voice authenticator VoiceId
   */
- 
+
   var VoiceId = function (contactId) {
     this.contactId = contactId;
   };
@@ -1549,7 +1440,7 @@
               var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call");
               reject(error);
             }
-            
+
           },
           failure: function (err) {
             connect.getLog().error("Get SpeakerId failed")
@@ -1609,7 +1500,7 @@
   };
 
   // internal only
-  VoiceId.prototype._optOutSpeakerInLcms = function (speakerId) {
+  VoiceId.prototype._optOutSpeakerInLcms = function (speakerId, generatedSpeakerId) {
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
@@ -1619,7 +1510,8 @@
         "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
         "CustomerId": connect.assertNotNull(speakerId, 'speakerId'),
         "VoiceIdResult": {
-          "SpeakerOptedOut": true
+          "SpeakerOptedOut": true,
+          "generatedSpeakerId": generatedSpeakerId
         }
         }, {
           success: function (data) {
@@ -1651,7 +1543,7 @@
             "DomainId" : domainId
             }, {
               success: function (data) {
-                self._optOutSpeakerInLcms(speakerId).catch(function(){});
+                self._optOutSpeakerInLcms(speakerId, data.generatedSpeakerId).catch(function(){});
                 connect.getLog().info("optOutSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
               },
@@ -1751,7 +1643,7 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-    var pollTimes = 0; 
+    var pollTimes = 0;
     return new Promise(function (resolve, reject) {
       function evaluate() {
         self.getDomainId().then(function(domainId) {
@@ -1775,7 +1667,7 @@
                   }
 
                   // Resolve if both authentication and fraud detection are not enabled.
-                  if(!self.isAuthEnabled(data.AuthenticationResult.Decision) && 
+                  if(!self.isAuthEnabled(data.AuthenticationResult.Decision) &&
                     !self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
                       connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
                       resolve(data);
@@ -1798,7 +1690,7 @@
                       return;
                   }
 
-                  if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) && 
+                  if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) &&
                     self.isAuthEnabled(data.AuthenticationResult.Decision)) {
                     switch (data.AuthenticationResult.Decision) {
                       case connect.VoiceIdAuthenticationDecision.ACCEPT:
@@ -1818,7 +1710,7 @@
                     }
                   }
 
-                  if(!self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision) && 
+                  if(!self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision) &&
                     self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
                     switch (data.FraudDetectionResult.Decision) {
                       case connect.VoiceIdFraudDetectionDecision.HIGH_RISK:
@@ -1859,7 +1751,7 @@
                   break;
                 default:
                   error = connect.VoiceIdError(connect.VoiceIdErrorTypes.EVALUATE_SPEAKER_FAILED, "evaluateSpeaker failed", err);
-                  connect.getLog().error("evaluateSpeaker failed").withObject({ err: err }).sendInternalLogToServer();    
+                  connect.getLog().error("evaluateSpeaker failed").withObject({ err: err }).sendInternalLogToServer();
               }
               reject(error);
             }
@@ -1868,7 +1760,7 @@
           reject(err);
         });
       }
-      
+
       if(!startNew) {
         self.syncSpeakerId().then(function () {
           evaluate();
@@ -1877,7 +1769,7 @@
                 .withObject({err: err}).sendInternalLogToServer();
           reject(err);
         })
-      } else { 
+      } else {
         self.startSession().then(function(data) {
           self.syncSpeakerId().then(function(data) {
             setTimeout(evaluate, connect.VoiceIdConstants.EVALUATE_SESSION_DELAY);
@@ -2034,7 +1926,7 @@
   };
 
   // internal only
-  VoiceId.prototype._updateSpeakerIdInLcms = function (speakerId) {
+  VoiceId.prototype._updateSpeakerIdInLcms = function (speakerId, generatedSpeakerId) {
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
@@ -2044,7 +1936,7 @@
         "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
         "CustomerId": connect.assertNotNull(speakerId, 'speakerId'),
         "VoiceIdResult": {
-          "generatedSpeakerId": speakerId
+          "generatedSpeakerId": generatedSpeakerId
         }
       }, {
         success: function (data) {
@@ -2077,7 +1969,7 @@
           }, {
             success: function (data) {
               connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
-              self._updateSpeakerIdInLcms(speakerId)
+              self._updateSpeakerIdInLcms(speakerId, data.generatedSpeakerId)
                 .then(function() {
                   resolve(data);
                 })
@@ -2096,7 +1988,7 @@
                   break;
                 default:
                   error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
-                  connect.getLog().error("updateSpeakerIdInVoiceId failed").withObject({ err: err }).sendInternalLogToServer();    
+                  connect.getLog().error("updateSpeakerIdInVoiceId failed").withObject({ err: err }).sendInternalLogToServer();
               }
               reject(error);
             }
@@ -2206,13 +2098,12 @@
 
   /**
    * @class VoiceConnection
-   * @param {number} contactId 
-   * @param {number} connectionId 
+   * @param {number} contactId
+   * @param {number} connectionId
    * @description - Provides voice media specific operations
    */
   var VoiceConnection = function (contactId, connectionId) {
     this._speakerAuthenticator = new VoiceId(contactId);
-    this._contactRecorder = new ContactRecording(contactId);
     Connection.call(this, contactId, connectionId);
   };
 
@@ -2221,7 +2112,7 @@
 
   /**
   * @deprecated
-  * Please use getMediaInfo 
+  * Please use getMediaInfo
   */
   VoiceConnection.prototype.getSoftphoneMediaInfo = function () {
     return this._getData().softphoneMediaInfo;
@@ -2248,7 +2139,7 @@
   }
 
   VoiceConnection.prototype.optOutVoiceIdSpeaker = function() {
-    
+
     return this._speakerAuthenticator.optOutSpeaker();
   }
 
@@ -2292,44 +2183,11 @@
     }, callbacks);
   };
 
-  VoiceConnection.prototype.startContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.startContactRecording();
-  }
-
-  VoiceConnection.prototype.stopContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.stopContactRecording();
-  }
-
-  VoiceConnection.prototype.suspendContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.suspendContactRecording();
-  }
-
-  VoiceConnection.prototype.resumeContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.resumeContactRecording();
-  }
-
-  VoiceConnection.prototype.checkConferenceCall = function(){
-    var self = this;
-    var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.filter(function (conn) {
-      return connect.contains(connect.CONNECTION_ACTIVE_STATES, conn.state.type);
-    }).length > 2;
-    if(isConferenceCall){
-      throw new connect.NotImplementedError("VoiceId and Contact Recording are not supported for conference calls");
-    }
-  }
 
   /**
    * @class ChatConnection
-   * @param {*} contactId 
-   * @param {*} connectionId 
+   * @param {*} contactId
+   * @param {*} connectionId
    * @description adds the chat media specific functionality
    */
   var ChatConnection = function (contactId, connectionId) {
@@ -2370,7 +2228,7 @@
   };
 
   /**
-  * Provides the chat connectionToken through the create_transport API for a specific contact and participant Id. 
+  * Provides the chat connectionToken through the create_transport API for a specific contact and participant Id.
   * @returns a promise which, upon success, returns the response from the createTransport API.
   * Usage:
   * connection.getConnectionToken()
@@ -2420,8 +2278,8 @@
 
   /**
    * @class TaskConnection
-   * @param {*} contactId 
-   * @param {*} connectionId 
+   * @param {*} contactId
+   * @param {*} connectionId
    * @description adds the task media specific functionality
    */
   var TaskConnection = function (contactId, connectionId) {
@@ -2618,7 +2476,6 @@
   connect.Address = Endpoint;
   connect.SoftphoneError = SoftphoneError;
   connect.VoiceId = VoiceId;
-  connect.ContactRecording = ContactRecording;
 })();
 
 
@@ -2628,7 +2485,7 @@
 /***/ 827:
 /***/ ((module, exports, __webpack_require__) => {
 
-var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.553.0
+var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1189.0
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // License at https://sdk.amazonaws.com/js/BUNDLE_LICENSE.txt
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c=undefined;if(!f&&c)return require(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u=undefined,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
@@ -2658,26 +2515,29 @@ module.exports={
           "AllowUnauthenticatedIdentities": {
             "type": "boolean"
           },
+          "AllowClassicFlow": {
+            "type": "boolean"
+          },
           "SupportedLoginProviders": {
-            "shape": "S4"
+            "shape": "S5"
           },
           "DeveloperProviderName": {},
           "OpenIdConnectProviderARNs": {
-            "shape": "S8"
+            "shape": "S9"
           },
           "CognitoIdentityProviders": {
-            "shape": "Sa"
+            "shape": "Sb"
           },
           "SamlProviderARNs": {
-            "shape": "Sf"
+            "shape": "Sg"
           },
           "IdentityPoolTags": {
-            "shape": "Sg"
+            "shape": "Sh"
           }
         }
       },
       "output": {
-        "shape": "Sj"
+        "shape": "Sk"
       }
     },
     "DeleteIdentities": {
@@ -2731,7 +2591,7 @@ module.exports={
         }
       },
       "output": {
-        "shape": "Su"
+        "shape": "Sv"
       }
     },
     "DescribeIdentityPool": {
@@ -2745,7 +2605,7 @@ module.exports={
         }
       },
       "output": {
-        "shape": "Sj"
+        "shape": "Sk"
       }
     },
     "GetCredentialsForIdentity": {
@@ -2757,7 +2617,7 @@ module.exports={
         "members": {
           "IdentityId": {},
           "Logins": {
-            "shape": "Sz"
+            "shape": "S10"
           },
           "CustomRoleArn": {}
         }
@@ -2778,7 +2638,8 @@ module.exports={
             }
           }
         }
-      }
+      },
+      "authtype": "none"
     },
     "GetId": {
       "input": {
@@ -2790,7 +2651,7 @@ module.exports={
           "AccountId": {},
           "IdentityPoolId": {},
           "Logins": {
-            "shape": "Sz"
+            "shape": "S10"
           }
         }
       },
@@ -2799,7 +2660,8 @@ module.exports={
         "members": {
           "IdentityId": {}
         }
-      }
+      },
+      "authtype": "none"
     },
     "GetIdentityPoolRoles": {
       "input": {
@@ -2816,10 +2678,10 @@ module.exports={
         "members": {
           "IdentityPoolId": {},
           "Roles": {
-            "shape": "S1b"
+            "shape": "S1c"
           },
           "RoleMappings": {
-            "shape": "S1d"
+            "shape": "S1e"
           }
         }
       }
@@ -2833,7 +2695,7 @@ module.exports={
         "members": {
           "IdentityId": {},
           "Logins": {
-            "shape": "Sz"
+            "shape": "S10"
           }
         }
       },
@@ -2843,7 +2705,8 @@ module.exports={
           "IdentityId": {},
           "Token": {}
         }
-      }
+      },
+      "authtype": "none"
     },
     "GetOpenIdTokenForDeveloperIdentity": {
       "input": {
@@ -2856,7 +2719,10 @@ module.exports={
           "IdentityPoolId": {},
           "IdentityId": {},
           "Logins": {
-            "shape": "Sz"
+            "shape": "S10"
+          },
+          "PrincipalTags": {
+            "shape": "S1s"
           },
           "TokenDuration": {
             "type": "long"
@@ -2868,6 +2734,32 @@ module.exports={
         "members": {
           "IdentityId": {},
           "Token": {}
+        }
+      }
+    },
+    "GetPrincipalTagAttributeMap": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "IdentityPoolId",
+          "IdentityProviderName"
+        ],
+        "members": {
+          "IdentityPoolId": {},
+          "IdentityProviderName": {}
+        }
+      },
+      "output": {
+        "type": "structure",
+        "members": {
+          "IdentityPoolId": {},
+          "IdentityProviderName": {},
+          "UseDefaults": {
+            "type": "boolean"
+          },
+          "PrincipalTags": {
+            "shape": "S1s"
+          }
         }
       }
     },
@@ -2896,7 +2788,7 @@ module.exports={
           "Identities": {
             "type": "list",
             "member": {
-              "shape": "Su"
+              "shape": "Sv"
             }
           },
           "NextToken": {}
@@ -2947,7 +2839,7 @@ module.exports={
         "type": "structure",
         "members": {
           "Tags": {
-            "shape": "Sg"
+            "shape": "Sh"
           }
         }
       }
@@ -3013,10 +2905,42 @@ module.exports={
         "members": {
           "IdentityPoolId": {},
           "Roles": {
-            "shape": "S1b"
+            "shape": "S1c"
           },
           "RoleMappings": {
-            "shape": "S1d"
+            "shape": "S1e"
+          }
+        }
+      }
+    },
+    "SetPrincipalTagAttributeMap": {
+      "input": {
+        "type": "structure",
+        "required": [
+          "IdentityPoolId",
+          "IdentityProviderName"
+        ],
+        "members": {
+          "IdentityPoolId": {},
+          "IdentityProviderName": {},
+          "UseDefaults": {
+            "type": "boolean"
+          },
+          "PrincipalTags": {
+            "shape": "S1s"
+          }
+        }
+      },
+      "output": {
+        "type": "structure",
+        "members": {
+          "IdentityPoolId": {},
+          "IdentityProviderName": {},
+          "UseDefaults": {
+            "type": "boolean"
+          },
+          "PrincipalTags": {
+            "shape": "S1s"
           }
         }
       }
@@ -3025,12 +2949,13 @@ module.exports={
       "input": {
         "type": "structure",
         "required": [
-          "ResourceArn"
+          "ResourceArn",
+          "Tags"
         ],
         "members": {
           "ResourceArn": {},
           "Tags": {
-            "shape": "Sg"
+            "shape": "Sh"
           }
         }
       },
@@ -3067,19 +2992,21 @@ module.exports={
         "members": {
           "IdentityId": {},
           "Logins": {
-            "shape": "Sz"
+            "shape": "S10"
           },
           "LoginsToRemove": {
-            "shape": "Sv"
+            "shape": "Sw"
           }
         }
-      }
+      },
+      "authtype": "none"
     },
     "UntagResource": {
       "input": {
         "type": "structure",
         "required": [
-          "ResourceArn"
+          "ResourceArn",
+          "TagKeys"
         ],
         "members": {
           "ResourceArn": {},
@@ -3096,24 +3023,24 @@ module.exports={
     },
     "UpdateIdentityPool": {
       "input": {
-        "shape": "Sj"
+        "shape": "Sk"
       },
       "output": {
-        "shape": "Sj"
+        "shape": "Sk"
       }
     }
   },
   "shapes": {
-    "S4": {
+    "S5": {
       "type": "map",
       "key": {},
       "value": {}
     },
-    "S8": {
+    "S9": {
       "type": "list",
       "member": {}
     },
-    "Sa": {
+    "Sb": {
       "type": "list",
       "member": {
         "type": "structure",
@@ -3126,16 +3053,16 @@ module.exports={
         }
       }
     },
-    "Sf": {
+    "Sg": {
       "type": "list",
       "member": {}
     },
-    "Sg": {
+    "Sh": {
       "type": "map",
       "key": {},
       "value": {}
     },
-    "Sj": {
+    "Sk": {
       "type": "structure",
       "required": [
         "IdentityPoolId",
@@ -3148,30 +3075,33 @@ module.exports={
         "AllowUnauthenticatedIdentities": {
           "type": "boolean"
         },
+        "AllowClassicFlow": {
+          "type": "boolean"
+        },
         "SupportedLoginProviders": {
-          "shape": "S4"
+          "shape": "S5"
         },
         "DeveloperProviderName": {},
         "OpenIdConnectProviderARNs": {
-          "shape": "S8"
+          "shape": "S9"
         },
         "CognitoIdentityProviders": {
-          "shape": "Sa"
+          "shape": "Sb"
         },
         "SamlProviderARNs": {
-          "shape": "Sf"
+          "shape": "Sg"
         },
         "IdentityPoolTags": {
-          "shape": "Sg"
+          "shape": "Sh"
         }
       }
     },
-    "Su": {
+    "Sv": {
       "type": "structure",
       "members": {
         "IdentityId": {},
         "Logins": {
-          "shape": "Sv"
+          "shape": "Sw"
         },
         "CreationDate": {
           "type": "timestamp"
@@ -3181,21 +3111,21 @@ module.exports={
         }
       }
     },
-    "Sv": {
+    "Sw": {
       "type": "list",
       "member": {}
     },
-    "Sz": {
+    "S10": {
       "type": "map",
       "key": {},
       "value": {}
     },
-    "S1b": {
+    "S1c": {
       "type": "map",
       "key": {},
       "value": {}
     },
-    "S1d": {
+    "S1e": {
       "type": "map",
       "key": {},
       "value": {
@@ -3234,15 +3164,25 @@ module.exports={
           }
         }
       }
+    },
+    "S1s": {
+      "type": "map",
+      "key": {},
+      "value": {}
     }
   }
 }
 },{}],2:[function(require,module,exports){
 module.exports={
   "pagination": {
+    "ListIdentityPools": {
+      "input_token": "NextToken",
+      "limit_key": "MaxResults",
+      "output_token": "NextToken",
+      "result_key": "IdentityPools"
+    }
   }
 }
-
 },{}],3:[function(require,module,exports){
 module.exports={
   "version": "2.0",
@@ -3702,7 +3642,15 @@ module.exports={
                           "mute": {
                             "type": "boolean"
                           },
-                          "quickConnectName": {}
+                          "forcedMute": {
+                            "type": "boolean"
+                          },
+                          "quickConnectName": {},
+                          "monitorCapabilities": {
+                            "type": "list",
+                            "member": {}
+                          },
+                          "monitorState": {}
                         }
                       }
                     },
@@ -4112,7 +4060,7 @@ module.exports={
           "contactId": {},
           "ccpVersion": {},
           "softphoneStreamStatistics": {
-            "shape": "S3t"
+            "shape": "S3v"
           }
         }
       },
@@ -4145,7 +4093,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S3t"
+                "shape": "S3v"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -4381,7 +4329,7 @@ module.exports={
         }
       }
     },
-    "S3t": {
+    "S3v": {
       "type": "list",
       "member": {
         "type": "structure",
@@ -4469,7 +4417,8 @@ module.exports={
       "2017-03-25*",
       "2017-10-30*",
       "2018-06-18*",
-      "2018-11-05*"
+      "2018-11-05*",
+      "2019-03-26*"
     ],
     "cors": true
   },
@@ -4542,8 +4491,8 @@ module.exports={
     "cors": true
   },
   "connect": {
-      "name": "Connect",
-      "cors": true
+    "name": "Connect",
+    "cors": true
   },
   "cur": {
     "name": "CUR",
@@ -4777,7 +4726,8 @@ module.exports={
   },
   "s3control": {
     "name": "S3Control",
-    "dualstackAvailable": true
+    "dualstackAvailable": true,
+    "xmlNoDefaultLists": true
   },
   "servicecatalog": {
     "name": "ServiceCatalog",
@@ -4863,7 +4813,8 @@ module.exports={
     "name": "MarketplaceEntitlementService"
   },
   "athena": {
-    "name": "Athena"
+    "name": "Athena",
+    "cors": true
   },
   "greengrass": {
     "name": "Greengrass"
@@ -4876,7 +4827,8 @@ module.exports={
     "name": "MigrationHub"
   },
   "cloudhsmv2": {
-    "name": "CloudHSMV2"
+    "name": "CloudHSMV2",
+    "cors": true
   },
   "glue": {
     "name": "Glue"
@@ -4981,6 +4933,10 @@ module.exports={
     "prefix": "transcribe",
     "name": "TranscribeService"
   },
+  "connect": {
+    "name": "Connect",
+    "cors": true
+  },
   "acmpca": {
     "prefix": "acm-pca",
     "name": "ACMPCA"
@@ -4994,7 +4950,7 @@ module.exports={
   },
   "iotanalytics": {
     "name": "IoTAnalytics",
-    "cors": true	
+    "cors": true
   },
   "iot1clickdevicesservice": {
     "prefix": "iot1click-devices",
@@ -5182,6 +5138,413 @@ module.exports={
   },
   "workmailmessageflow": {
     "name": "WorkMailMessageFlow"
+  },
+  "codestarnotifications": {
+    "prefix": "codestar-notifications",
+    "name": "CodeStarNotifications"
+  },
+  "savingsplans": {
+    "name": "SavingsPlans"
+  },
+  "sso": {
+    "name": "SSO"
+  },
+  "ssooidc": {
+    "prefix": "sso-oidc",
+    "name": "SSOOIDC"
+  },
+  "marketplacecatalog": {
+    "prefix": "marketplace-catalog",
+    "name": "MarketplaceCatalog"
+  },
+  "dataexchange": {
+    "name": "DataExchange"
+  },
+  "sesv2": {
+    "name": "SESV2"
+  },
+  "migrationhubconfig": {
+    "prefix": "migrationhub-config",
+    "name": "MigrationHubConfig"
+  },
+  "connectparticipant": {
+    "name": "ConnectParticipant"
+  },
+  "appconfig": {
+    "name": "AppConfig"
+  },
+  "iotsecuretunneling": {
+    "name": "IoTSecureTunneling"
+  },
+  "wafv2": {
+    "name": "WAFV2"
+  },
+  "elasticinference": {
+    "prefix": "elastic-inference",
+    "name": "ElasticInference"
+  },
+  "imagebuilder": {
+    "name": "Imagebuilder"
+  },
+  "schemas": {
+    "name": "Schemas"
+  },
+  "accessanalyzer": {
+    "name": "AccessAnalyzer"
+  },
+  "codegurureviewer": {
+    "prefix": "codeguru-reviewer",
+    "name": "CodeGuruReviewer"
+  },
+  "codeguruprofiler": {
+    "name": "CodeGuruProfiler"
+  },
+  "computeoptimizer": {
+    "prefix": "compute-optimizer",
+    "name": "ComputeOptimizer"
+  },
+  "frauddetector": {
+    "name": "FraudDetector"
+  },
+  "kendra": {
+    "name": "Kendra"
+  },
+  "networkmanager": {
+    "name": "NetworkManager"
+  },
+  "outposts": {
+    "name": "Outposts"
+  },
+  "augmentedairuntime": {
+    "prefix": "sagemaker-a2i-runtime",
+    "name": "AugmentedAIRuntime"
+  },
+  "ebs": {
+    "name": "EBS"
+  },
+  "kinesisvideosignalingchannels": {
+    "prefix": "kinesis-video-signaling",
+    "name": "KinesisVideoSignalingChannels",
+    "cors": true
+  },
+  "detective": {
+    "name": "Detective"
+  },
+  "codestarconnections": {
+    "prefix": "codestar-connections",
+    "name": "CodeStarconnections"
+  },
+  "synthetics": {
+    "name": "Synthetics"
+  },
+  "iotsitewise": {
+    "name": "IoTSiteWise"
+  },
+  "macie2": {
+    "name": "Macie2"
+  },
+  "codeartifact": {
+    "name": "CodeArtifact"
+  },
+  "honeycode": {
+    "name": "Honeycode"
+  },
+  "ivs": {
+    "name": "IVS"
+  },
+  "braket": {
+    "name": "Braket"
+  },
+  "identitystore": {
+    "name": "IdentityStore"
+  },
+  "appflow": {
+    "name": "Appflow"
+  },
+  "redshiftdata": {
+    "prefix": "redshift-data",
+    "name": "RedshiftData"
+  },
+  "ssoadmin": {
+    "prefix": "sso-admin",
+    "name": "SSOAdmin"
+  },
+  "timestreamquery": {
+    "prefix": "timestream-query",
+    "name": "TimestreamQuery"
+  },
+  "timestreamwrite": {
+    "prefix": "timestream-write",
+    "name": "TimestreamWrite"
+  },
+  "s3outposts": {
+    "name": "S3Outposts"
+  },
+  "databrew": {
+    "name": "DataBrew"
+  },
+  "servicecatalogappregistry": {
+    "prefix": "servicecatalog-appregistry",
+    "name": "ServiceCatalogAppRegistry"
+  },
+  "networkfirewall": {
+    "prefix": "network-firewall",
+    "name": "NetworkFirewall"
+  },
+  "mwaa": {
+    "name": "MWAA"
+  },
+  "amplifybackend": {
+    "name": "AmplifyBackend"
+  },
+  "appintegrations": {
+    "name": "AppIntegrations"
+  },
+  "connectcontactlens": {
+    "prefix": "connect-contact-lens",
+    "name": "ConnectContactLens"
+  },
+  "devopsguru": {
+    "prefix": "devops-guru",
+    "name": "DevOpsGuru"
+  },
+  "ecrpublic": {
+    "prefix": "ecr-public",
+    "name": "ECRPUBLIC"
+  },
+  "lookoutvision": {
+    "name": "LookoutVision"
+  },
+  "sagemakerfeaturestoreruntime": {
+    "prefix": "sagemaker-featurestore-runtime",
+    "name": "SageMakerFeatureStoreRuntime"
+  },
+  "customerprofiles": {
+    "prefix": "customer-profiles",
+    "name": "CustomerProfiles"
+  },
+  "auditmanager": {
+    "name": "AuditManager"
+  },
+  "emrcontainers": {
+    "prefix": "emr-containers",
+    "name": "EMRcontainers"
+  },
+  "healthlake": {
+    "name": "HealthLake"
+  },
+  "sagemakeredge": {
+    "prefix": "sagemaker-edge",
+    "name": "SagemakerEdge"
+  },
+  "amp": {
+    "name": "Amp"
+  },
+  "greengrassv2": {
+    "name": "GreengrassV2"
+  },
+  "iotdeviceadvisor": {
+    "name": "IotDeviceAdvisor"
+  },
+  "iotfleethub": {
+    "name": "IoTFleetHub"
+  },
+  "iotwireless": {
+    "name": "IoTWireless"
+  },
+  "location": {
+    "name": "Location",
+    "cors": true
+  },
+  "wellarchitected": {
+    "name": "WellArchitected"
+  },
+  "lexmodelsv2": {
+    "prefix": "models.lex.v2",
+    "name": "LexModelsV2"
+  },
+  "lexruntimev2": {
+    "prefix": "runtime.lex.v2",
+    "name": "LexRuntimeV2",
+    "cors": true
+  },
+  "fis": {
+    "name": "Fis"
+  },
+  "lookoutmetrics": {
+    "name": "LookoutMetrics"
+  },
+  "mgn": {
+    "name": "Mgn"
+  },
+  "lookoutequipment": {
+    "name": "LookoutEquipment"
+  },
+  "nimble": {
+    "name": "Nimble"
+  },
+  "finspace": {
+    "name": "Finspace"
+  },
+  "finspacedata": {
+    "prefix": "finspace-data",
+    "name": "Finspacedata"
+  },
+  "ssmcontacts": {
+    "prefix": "ssm-contacts",
+    "name": "SSMContacts"
+  },
+  "ssmincidents": {
+    "prefix": "ssm-incidents",
+    "name": "SSMIncidents"
+  },
+  "applicationcostprofiler": {
+    "name": "ApplicationCostProfiler"
+  },
+  "apprunner": {
+    "name": "AppRunner"
+  },
+  "proton": {
+    "name": "Proton"
+  },
+  "route53recoverycluster": {
+    "prefix": "route53-recovery-cluster",
+    "name": "Route53RecoveryCluster"
+  },
+  "route53recoverycontrolconfig": {
+    "prefix": "route53-recovery-control-config",
+    "name": "Route53RecoveryControlConfig"
+  },
+  "route53recoveryreadiness": {
+    "prefix": "route53-recovery-readiness",
+    "name": "Route53RecoveryReadiness"
+  },
+  "chimesdkidentity": {
+    "prefix": "chime-sdk-identity",
+    "name": "ChimeSDKIdentity"
+  },
+  "chimesdkmessaging": {
+    "prefix": "chime-sdk-messaging",
+    "name": "ChimeSDKMessaging"
+  },
+  "snowdevicemanagement": {
+    "prefix": "snow-device-management",
+    "name": "SnowDeviceManagement"
+  },
+  "memorydb": {
+    "name": "MemoryDB"
+  },
+  "opensearch": {
+    "name": "OpenSearch"
+  },
+  "kafkaconnect": {
+    "name": "KafkaConnect"
+  },
+  "voiceid": {
+    "prefix": "voice-id",
+    "name": "VoiceID"
+  },
+  "wisdom": {
+    "name": "Wisdom"
+  },
+  "account": {
+    "name": "Account"
+  },
+  "cloudcontrol": {
+    "name": "CloudControl"
+  },
+  "grafana": {
+    "name": "Grafana"
+  },
+  "panorama": {
+    "name": "Panorama"
+  },
+  "chimesdkmeetings": {
+    "prefix": "chime-sdk-meetings",
+    "name": "ChimeSDKMeetings"
+  },
+  "resiliencehub": {
+    "name": "Resiliencehub"
+  },
+  "migrationhubstrategy": {
+    "name": "MigrationHubStrategy"
+  },
+  "appconfigdata": {
+    "name": "AppConfigData"
+  },
+  "drs": {
+    "name": "Drs"
+  },
+  "migrationhubrefactorspaces": {
+    "prefix": "migration-hub-refactor-spaces",
+    "name": "MigrationHubRefactorSpaces"
+  },
+  "evidently": {
+    "name": "Evidently"
+  },
+  "inspector2": {
+    "name": "Inspector2"
+  },
+  "rbin": {
+    "name": "Rbin"
+  },
+  "rum": {
+    "name": "RUM"
+  },
+  "backupgateway": {
+    "prefix": "backup-gateway",
+    "name": "BackupGateway"
+  },
+  "iottwinmaker": {
+    "name": "IoTTwinMaker"
+  },
+  "workspacesweb": {
+    "prefix": "workspaces-web",
+    "name": "WorkSpacesWeb"
+  },
+  "amplifyuibuilder": {
+    "name": "AmplifyUIBuilder"
+  },
+  "keyspaces": {
+    "name": "Keyspaces"
+  },
+  "billingconductor": {
+    "name": "Billingconductor"
+  },
+  "gamesparks": {
+    "name": "GameSparks"
+  },
+  "pinpointsmsvoicev2": {
+    "prefix": "pinpoint-sms-voice-v2",
+    "name": "PinpointSMSVoiceV2"
+  },
+  "ivschat": {
+    "name": "Ivschat"
+  },
+  "chimesdkmediapipelines": {
+    "prefix": "chime-sdk-media-pipelines",
+    "name": "ChimeSDKMediaPipelines"
+  },
+  "emrserverless": {
+    "prefix": "emr-serverless",
+    "name": "EMRServerless"
+  },
+  "m2": {
+    "name": "M2"
+  },
+  "connectcampaigns": {
+    "name": "ConnectCampaigns"
+  },
+  "redshiftserverless": {
+    "prefix": "redshift-serverless",
+    "name": "RedshiftServerless"
+  },
+  "rolesanywhere": {
+    "name": "RolesAnywhere"
+  },
+  "licensemanagerusersubscriptions": {
+    "prefix": "license-manager-user-subscriptions",
+    "name": "LicenseManagerUserSubscriptions"
   }
 }
 
@@ -5218,9 +5581,17 @@ module.exports={
           "DurationSeconds": {
             "type": "integer"
           },
+          "Tags": {
+            "shape": "S8"
+          },
+          "TransitiveTagKeys": {
+            "type": "list",
+            "member": {}
+          },
           "ExternalId": {},
           "SerialNumber": {},
-          "TokenCode": {}
+          "TokenCode": {},
+          "SourceIdentity": {}
         }
       },
       "output": {
@@ -5228,14 +5599,15 @@ module.exports={
         "type": "structure",
         "members": {
           "Credentials": {
-            "shape": "Sc"
+            "shape": "Si"
           },
           "AssumedRoleUser": {
-            "shape": "Sh"
+            "shape": "Sn"
           },
           "PackedPolicySize": {
             "type": "integer"
-          }
+          },
+          "SourceIdentity": {}
         }
       }
     },
@@ -5265,10 +5637,10 @@ module.exports={
         "type": "structure",
         "members": {
           "Credentials": {
-            "shape": "Sc"
+            "shape": "Si"
           },
           "AssumedRoleUser": {
-            "shape": "Sh"
+            "shape": "Sn"
           },
           "PackedPolicySize": {
             "type": "integer"
@@ -5277,7 +5649,8 @@ module.exports={
           "SubjectType": {},
           "Issuer": {},
           "Audience": {},
-          "NameQualifier": {}
+          "NameQualifier": {},
+          "SourceIdentity": {}
         }
       }
     },
@@ -5308,17 +5681,18 @@ module.exports={
         "type": "structure",
         "members": {
           "Credentials": {
-            "shape": "Sc"
+            "shape": "Si"
           },
           "SubjectFromWebIdentityToken": {},
           "AssumedRoleUser": {
-            "shape": "Sh"
+            "shape": "Sn"
           },
           "PackedPolicySize": {
             "type": "integer"
           },
           "Provider": {},
-          "Audience": {}
+          "Audience": {},
+          "SourceIdentity": {}
         }
       }
     },
@@ -5387,6 +5761,9 @@ module.exports={
           },
           "DurationSeconds": {
             "type": "integer"
+          },
+          "Tags": {
+            "shape": "S8"
           }
         }
       },
@@ -5395,7 +5772,7 @@ module.exports={
         "type": "structure",
         "members": {
           "Credentials": {
-            "shape": "Sc"
+            "shape": "Si"
           },
           "FederatedUser": {
             "type": "structure",
@@ -5430,7 +5807,7 @@ module.exports={
         "type": "structure",
         "members": {
           "Credentials": {
-            "shape": "Sc"
+            "shape": "Si"
           }
         }
       }
@@ -5446,7 +5823,21 @@ module.exports={
         }
       }
     },
-    "Sc": {
+    "S8": {
+      "type": "list",
+      "member": {
+        "type": "structure",
+        "required": [
+          "Key",
+          "Value"
+        ],
+        "members": {
+          "Key": {},
+          "Value": {}
+        }
+      }
+    },
+    "Si": {
       "type": "structure",
       "required": [
         "AccessKeyId",
@@ -5463,7 +5854,7 @@ module.exports={
         }
       }
     },
-    "Sh": {
+    "Sn": {
       "type": "structure",
       "required": [
         "AssumedRoleId",
@@ -5477,8 +5868,12 @@ module.exports={
   }
 }
 },{}],6:[function(require,module,exports){
-arguments[4][2][0].apply(exports,arguments)
-},{"dup":2}],7:[function(require,module,exports){
+module.exports={
+  "pagination": {
+  }
+}
+
+},{}],7:[function(require,module,exports){
 require('../lib/node_loader');
 var AWS = require('../lib/core');
 var Service = AWS.Service;
@@ -5486,7 +5881,6 @@ var apiLoader = AWS.apiLoader;
 
 apiLoader.services['cognitoidentity'] = {};
 AWS.CognitoIdentity = Service.defineService('cognitoidentity', ['2014-06-30']);
-require('../lib/services/cognitoidentity');
 Object.defineProperty(apiLoader.services['cognitoidentity'], '2014-06-30', {
   get: function get() {
     var model = require('../apis/cognito-identity-2014-06-30.min.json');
@@ -5499,7 +5893,7 @@ Object.defineProperty(apiLoader.services['cognitoidentity'], '2014-06-30', {
 
 module.exports = AWS.CognitoIdentity;
 
-},{"../apis/cognito-identity-2014-06-30.min.json":1,"../apis/cognito-identity-2014-06-30.paginators.json":2,"../lib/core":18,"../lib/node_loader":16,"../lib/services/cognitoidentity":60}],8:[function(require,module,exports){
+},{"../apis/cognito-identity-2014-06-30.min.json":1,"../apis/cognito-identity-2014-06-30.paginators.json":2,"../lib/core":19,"../lib/node_loader":16}],8:[function(require,module,exports){
 require('../lib/node_loader');
 var AWS = require('../lib/core');
 var Service = AWS.Service;
@@ -5520,7 +5914,7 @@ Object.defineProperty(apiLoader.services['sts'], '2011-06-15', {
 
 module.exports = AWS.STS;
 
-},{"../apis/sts-2011-06-15.min.json":5,"../apis/sts-2011-06-15.paginators.json":6,"../lib/core":18,"../lib/node_loader":16,"../lib/services/sts":61}],9:[function(require,module,exports){
+},{"../apis/sts-2011-06-15.min.json":5,"../apis/sts-2011-06-15.paginators.json":6,"../lib/core":19,"../lib/node_loader":16,"../lib/services/sts":62}],9:[function(require,module,exports){
 function apiLoader(svc, version) {
   if (!apiLoader.services.hasOwnProperty(svc)) {
     throw new Error('InvalidService: Failed to load api for ' + svc);
@@ -5647,7 +6041,7 @@ module.exports = exports = {
     convertToBuffer: convertToBuffer,
 };
 
-},{"buffer/":81}],12:[function(require,module,exports){
+},{"buffer/":85}],12:[function(require,module,exports){
 var hashUtils = require('./browserHashUtils');
 
 /**
@@ -5898,7 +6292,7 @@ function ii(a, b, c, d, x, s, t) {
     return cmn(c ^ (b | (~d)), a, b, x, s, t);
 }
 
-},{"./browserHashUtils":11,"buffer/":81}],14:[function(require,module,exports){
+},{"./browserHashUtils":11,"buffer/":85}],14:[function(require,module,exports){
 var Buffer = require('buffer/').Buffer;
 var hashUtils = require('./browserHashUtils');
 
@@ -6066,7 +6460,7 @@ Sha1.prototype.processBlock = function processBlock() {
     }
 };
 
-},{"./browserHashUtils":11,"buffer/":81}],15:[function(require,module,exports){
+},{"./browserHashUtils":11,"buffer/":85}],15:[function(require,module,exports){
 var Buffer = require('buffer/').Buffer;
 var hashUtils = require('./browserHashUtils');
 
@@ -6307,7 +6701,7 @@ Sha256.prototype.hashBuffer = function () {
     state[7] += state7;
 };
 
-},{"./browserHashUtils":11,"buffer/":81}],16:[function(require,module,exports){
+},{"./browserHashUtils":11,"buffer/":85}],16:[function(require,module,exports){
 (function (process){(function (){
 var util = require('./util');
 
@@ -6350,7 +6744,7 @@ if (typeof process === 'undefined') {
 }
 
 }).call(this)}).call(this,require('_process'))
-},{"./browserCryptoLib":10,"./core":18,"./credentials":19,"./credentials/chainable_temporary_credentials":20,"./credentials/cognito_identity_credentials":21,"./credentials/credential_provider_chain":22,"./credentials/saml_credentials":23,"./credentials/temporary_credentials":24,"./credentials/web_identity_credentials":25,"./event-stream/buffered-create-event-stream":27,"./http/xhr":35,"./realclock/browserClock":52,"./util":71,"./xml/browser_parser":72,"_process":86,"buffer/":81,"querystring/":92,"url/":94}],17:[function(require,module,exports){
+},{"./browserCryptoLib":10,"./core":19,"./credentials":20,"./credentials/chainable_temporary_credentials":21,"./credentials/cognito_identity_credentials":22,"./credentials/credential_provider_chain":23,"./credentials/saml_credentials":24,"./credentials/temporary_credentials":25,"./credentials/web_identity_credentials":26,"./event-stream/buffered-create-event-stream":28,"./http/xhr":36,"./realclock/browserClock":53,"./util":72,"./xml/browser_parser":73,"_process":90,"buffer/":85,"querystring/":96,"url/":98}],17:[function(require,module,exports){
 var AWS = require('./core');
 require('./credentials');
 require('./credentials/credential_provider_chain');
@@ -6407,7 +6801,7 @@ var PromisesDependency;
  *
  * @!attribute computeChecksums
  *   @return [Boolean] whether to compute checksums for payload bodies when
- *     the service accepts it (currently supported in S3 only).
+ *     the service accepts it (currently supported in S3 and SQS only).
  *
  * @!attribute convertResponseTypes
  *   @return [Boolean] whether types are converted when parsing response data.
@@ -6435,6 +6829,16 @@ var PromisesDependency;
  *   @return [Boolean] whether to disable S3 body signing when using signature version `v4`.
  *     Body signing can only be disabled when using https. Defaults to `true`.
  *
+ * @!attribute s3UsEast1RegionalEndpoint
+ *   @return ['legacy'|'regional'] when region is set to 'us-east-1', whether to send s3
+ *     request to global endpoints or 'us-east-1' regional endpoints. This config is only
+ *     applicable to S3 client;
+ *     Defaults to 'legacy'
+ * @!attribute s3UseArnRegion
+ *   @return [Boolean] whether to override the request region with the region inferred
+ *     from requested resource's ARN. Only available for S3 buckets
+ *     Defaults to `true`
+ *
  * @!attribute useAccelerateEndpoint
  *   @note This configuration option is only compatible with S3 while accessing
  *     dns-compatible buckets.
@@ -6446,7 +6850,7 @@ var PromisesDependency;
  *     AWS.config.update({retryDelayOptions: {base: 300}});
  *     // Delays with maxRetries = 3: 300, 600, 1200
  *   @example Set a custom backoff function to provide delay values on retries
- *     AWS.config.update({retryDelayOptions: {customBackoff: function(retryCount) {
+ *     AWS.config.update({retryDelayOptions: {customBackoff: function(retryCount, err) {
  *       // returns delay in ms
  *     }}});
  *   @return [map] A set of options to configure the retry delay on retryable errors.
@@ -6455,9 +6859,12 @@ var PromisesDependency;
  *     * **base** [Integer] &mdash; The base number of milliseconds to use in the
  *       exponential backoff for operation retries. Defaults to 100 ms for all services except
  *       DynamoDB, where it defaults to 50ms.
- *     * **customBackoff ** [function] &mdash; A custom function that accepts a retry count
- *       and returns the amount of time to delay in milliseconds. The `base` option will be
- *       ignored if this option is supplied.
+ *
+ *     * **customBackoff ** [function] &mdash; A custom function that accepts a
+ *       retry count and error and returns the amount of time to delay in
+ *       milliseconds. If the result is a non-zero negative value, no further
+ *       retry attempts will be made. The `base` option will be ignored if this
+ *       option is supplied. The function is only called for retryable errors.
  *
  * @!attribute httpOptions
  *   @return [map] A set of options to pass to the low-level HTTP request.
@@ -6473,9 +6880,9 @@ var PromisesDependency;
  *       failing to establish a connection with the server after
  *       `connectTimeout` milliseconds. This timeout has no effect once a socket
  *       connection has been established.
- *     * **timeout** [Integer] &mdash; Sets the socket to timeout after timeout
- *       milliseconds of inactivity on the socket. Defaults to two minutes
- *       (120000)
+ *     * **timeout** [Integer] &mdash; The number of milliseconds a request can
+ *       take before automatically being terminated.
+ *       Defaults to two minutes (120000).
  *     * **xhrAsync** [Boolean] &mdash; Whether the SDK will send asynchronous
  *       HTTP requests. Used in the browser environment only. Set to false to
  *       send requests synchronously. Defaults to true (async on).
@@ -6504,9 +6911,13 @@ var PromisesDependency;
  *     Defaults to `true`.
  *
  * @!attribute endpointDiscoveryEnabled
- *   @return [Boolean] whether to enable endpoint discovery for operations that
- *     allow optionally using an endpoint returned by the service.
- *     Defaults to 'false'
+ *   @return [Boolean|undefined] whether to call operations with endpoints
+ *     given by service dynamically. Setting this config to `true` will enable
+ *     endpoint discovery for all applicable operations. Setting it to `false`
+ *     will explicitly disable endpoint discovery even though operations that
+ *     require endpoint discovery will presumably fail. Leaving it to
+ *     `undefined` means SDK only do endpoint discovery when it's required.
+ *     Defaults to `undefined`
  *
  * @!attribute endpointCacheSize
  *   @return [Number] the size of the global cache storing endpoints from endpoint
@@ -6521,7 +6932,13 @@ var PromisesDependency;
  * @!attribute stsRegionalEndpoints
  *   @return ['legacy'|'regional'] whether to send sts request to global endpoints or
  *     regional endpoints.
- *     Defaults to 'legacy'
+ *     Defaults to 'legacy'.
+ *
+ * @!attribute useFipsEndpoint
+ *   @return [Boolean] Enables FIPS compatible endpoints. Defaults to `false`.
+ *
+ * @!attribute useDualstackEndpoint
+ *   @return [Boolean] Enables IPv6 dualstack endpoint. Defaults to `false`.
  */
 AWS.Config = AWS.util.inherit({
   /**
@@ -6588,6 +7005,13 @@ AWS.Config = AWS.util.inherit({
    * @option options s3DisableBodySigning [Boolean] whether S3 body signing
    *   should be disabled when using signature version `v4`. Body signing
    *   can only be disabled when using https. Defaults to `true`.
+   * @option options s3UsEast1RegionalEndpoint ['legacy'|'regional'] when region
+   *   is set to 'us-east-1', whether to send s3 request to global endpoints or
+   *   'us-east-1' regional endpoints. This config is only applicable to S3 client.
+   *   Defaults to `legacy`
+   * @option options s3UseArnRegion [Boolean] whether to override the request region
+   *   with the region inferred from requested resource's ARN. Only available for S3 buckets
+   *   Defaults to `true`
    *
    * @option options retryDelayOptions [map] A set of options to configure
    *   the retry delay on retryable errors. Currently supported options are:
@@ -6595,9 +7019,11 @@ AWS.Config = AWS.util.inherit({
    *   * **base** [Integer] &mdash; The base number of milliseconds to use in the
    *     exponential backoff for operation retries. Defaults to 100 ms for all
    *     services except DynamoDB, where it defaults to 50ms.
-   *   * **customBackoff ** [function] &mdash; A custom function that accepts a retry count
-   *     and returns the amount of time to delay in milliseconds. The `base` option will be
-   *     ignored if this option is supplied.
+   *   * **customBackoff ** [function] &mdash; A custom function that accepts a
+   *     retry count and error and returns the amount of time to delay in
+   *     milliseconds. If the result is a non-zero negative value, no further
+   *     retry attempts will be made. The `base` option will be ignored if this
+   *     option is supplied. The function is only called for retryable errors.
    * @option options httpOptions [map] A set of options to pass to the low-level
    *   HTTP request. Currently supported options are:
    *
@@ -6650,10 +7076,13 @@ AWS.Config = AWS.util.inherit({
    *   S3 Transfer Acceleration endpoint with the S3 service. Default: `false`.
    * @option options clientSideMonitoring [Boolean] whether to collect and
    *   publish this client's performance metrics of all its API requests.
-   * @option options endpointDiscoveryEnabled [Boolean] whether to enable endpoint
-   *   discovery for operations that allow optionally using an endpoint returned by
-   *   the service.
-   *   Defaults to 'false'
+   * @option options endpointDiscoveryEnabled [Boolean|undefined] whether to
+   *   call operations with endpoints given by service dynamically. Setting this
+   * config to `true` will enable endpoint discovery for all applicable operations.
+   *   Setting it to `false` will explicitly disable endpoint discovery even though
+   *   operations that require endpoint discovery will presumably fail. Leaving it
+   *   to `undefined` means SDK will only do endpoint discovery when it's required.
+   *   Defaults to `undefined`
    * @option options endpointCacheSize [Number] the size of the global cache storing
    *   endpoints from endpoint discovery operations. Once endpoint cache is created,
    *   updating this setting cannot change existing cache size.
@@ -6664,6 +7093,10 @@ AWS.Config = AWS.util.inherit({
    * @option options stsRegionalEndpoints ['legacy'|'regional'] whether to send sts request
    *   to global endpoints or regional endpoints.
    *   Defaults to 'legacy'.
+   * @option options useFipsEndpoint [Boolean] Enables FIPS compatible endpoints.
+   *   Defaults to `false`.
+   * @option options useDualstackEndpoint [Boolean] Enables IPv6 dualstack endpoint.
+   *   Defaults to `false`.
    */
   constructor: function Config(options) {
     if (options === undefined) options = {};
@@ -6871,6 +7304,8 @@ AWS.Config = AWS.util.inherit({
     s3ForcePathStyle: false,
     s3BucketEndpoint: false,
     s3DisableBodySigning: true,
+    s3UsEast1RegionalEndpoint: 'legacy',
+    s3UseArnRegion: undefined,
     computeChecksums: true,
     convertResponseTypes: true,
     correctClockSkew: false,
@@ -6882,10 +7317,12 @@ AWS.Config = AWS.util.inherit({
     retryDelayOptions: {},
     useAccelerateEndpoint: false,
     clientSideMonitoring: false,
-    endpointDiscoveryEnabled: false,
+    endpointDiscoveryEnabled: undefined,
     endpointCacheSize: 1000,
     hostPrefixEnabled: true,
-    stsRegionalEndpoints: null
+    stsRegionalEndpoints: 'legacy',
+    useFipsEndpoint: false,
+    useDualstackEndpoint: false
   },
 
   /**
@@ -6939,7 +7376,78 @@ AWS.Config = AWS.util.inherit({
  */
 AWS.config = new AWS.Config();
 
-},{"./core":18,"./credentials":19,"./credentials/credential_provider_chain":22}],18:[function(require,module,exports){
+},{"./core":19,"./credentials":20,"./credentials/credential_provider_chain":23}],18:[function(require,module,exports){
+(function (process){(function (){
+var AWS = require('./core');
+/**
+ * @api private
+ */
+function validateRegionalEndpointsFlagValue(configValue, errorOptions) {
+  if (typeof configValue !== 'string') return undefined;
+  else if (['legacy', 'regional'].indexOf(configValue.toLowerCase()) >= 0) {
+    return configValue.toLowerCase();
+  } else {
+    throw AWS.util.error(new Error(), errorOptions);
+  }
+}
+
+/**
+ * Resolve the configuration value for regional endpoint from difference sources: client
+ * config, environmental variable, shared config file. Value can be case-insensitive
+ * 'legacy' or 'reginal'.
+ * @param originalConfig user-supplied config object to resolve
+ * @param options a map of config property names from individual configuration source
+ *  - env: name of environmental variable that refers to the config
+ *  - sharedConfig: name of shared configuration file property that refers to the config
+ *  - clientConfig: name of client configuration property that refers to the config
+ *
+ * @api private
+ */
+function resolveRegionalEndpointsFlag(originalConfig, options) {
+  originalConfig = originalConfig || {};
+  //validate config value
+  var resolved;
+  if (originalConfig[options.clientConfig]) {
+    resolved = validateRegionalEndpointsFlagValue(originalConfig[options.clientConfig], {
+      code: 'InvalidConfiguration',
+      message: 'invalid "' + options.clientConfig + '" configuration. Expect "legacy" ' +
+      ' or "regional". Got "' + originalConfig[options.clientConfig] + '".'
+    });
+    if (resolved) return resolved;
+  }
+  if (!AWS.util.isNode()) return resolved;
+  //validate environmental variable
+  if (Object.prototype.hasOwnProperty.call(process.env, options.env)) {
+    var envFlag = process.env[options.env];
+    resolved = validateRegionalEndpointsFlagValue(envFlag, {
+      code: 'InvalidEnvironmentalVariable',
+      message: 'invalid ' + options.env + ' environmental variable. Expect "legacy" ' +
+      ' or "regional". Got "' + process.env[options.env] + '".'
+    });
+    if (resolved) return resolved;
+  }
+  //validate shared config file
+  var profile = {};
+  try {
+    var profiles = AWS.util.getProfilesFromSharedConfig(AWS.util.iniLoader);
+    profile = profiles[process.env.AWS_PROFILE || AWS.util.defaultProfile];
+  } catch (e) {};
+  if (profile && Object.prototype.hasOwnProperty.call(profile, options.sharedConfig)) {
+    var fileFlag = profile[options.sharedConfig];
+    resolved = validateRegionalEndpointsFlagValue(fileFlag, {
+      code: 'InvalidConfiguration',
+      message: 'invalid ' + options.sharedConfig + ' profile config. Expect "legacy" ' +
+      ' or "regional". Got "' + profile[options.sharedConfig] + '".'
+    });
+    if (resolved) return resolved;
+  }
+  return resolved;
+}
+
+module.exports = resolveRegionalEndpointsFlag;
+
+}).call(this)}).call(this,require('_process'))
+},{"./core":19,"_process":90}],19:[function(require,module,exports){
 /**
  * The main AWS namespace
  */
@@ -6962,7 +7470,7 @@ AWS.util.update(AWS, {
   /**
    * @constant
    */
-  VERSION: '2.553.0',
+  VERSION: '2.1189.0',
 
   /**
    * @api private
@@ -7050,7 +7558,7 @@ AWS.util.memoizedProperty(AWS, 'endpointCache', function() {
   return new AWS.EndpointCache(AWS.config.endpointCacheSize);
 }, true);
 
-},{"../vendor/endpoint-cache":103,"./api_loader":9,"./config":17,"./event_listeners":33,"./http":34,"./json/builder":36,"./json/parser":37,"./model/api":38,"./model/operation":40,"./model/paginator":41,"./model/resource_waiter":42,"./model/shape":43,"./param_validator":44,"./protocol/json":46,"./protocol/query":47,"./protocol/rest":48,"./protocol/rest_json":49,"./protocol/rest_xml":50,"./request":55,"./resource_waiter":56,"./response":57,"./sequential_executor":58,"./service":59,"./signers/request_signer":63,"./util":71,"./xml/builder":73}],19:[function(require,module,exports){
+},{"../vendor/endpoint-cache":109,"./api_loader":9,"./config":17,"./event_listeners":34,"./http":35,"./json/builder":37,"./json/parser":38,"./model/api":39,"./model/operation":41,"./model/paginator":42,"./model/resource_waiter":43,"./model/shape":44,"./param_validator":45,"./protocol/json":47,"./protocol/query":48,"./protocol/rest":49,"./protocol/rest_json":50,"./protocol/rest_xml":51,"./request":57,"./resource_waiter":58,"./response":59,"./sequential_executor":60,"./service":61,"./signers/request_signer":64,"./util":72,"./xml/builder":74}],20:[function(require,module,exports){
 var AWS = require('./core');
 
 /**
@@ -7298,7 +7806,7 @@ AWS.Credentials.deletePromisesFromClass = function deletePromisesFromClass() {
 
 AWS.util.addPromises(AWS.Credentials);
 
-},{"./core":18}],20:[function(require,module,exports){
+},{"./core":19}],21:[function(require,module,exports){
 var AWS = require('../core');
 var STS = require('../../clients/sts');
 
@@ -7500,7 +8008,7 @@ AWS.ChainableTemporaryCredentials = AWS.util.inherit(AWS.Credentials, {
   }
 });
 
-},{"../../clients/sts":8,"../core":18}],21:[function(require,module,exports){
+},{"../../clients/sts":8,"../core":19}],22:[function(require,module,exports){
 var AWS = require('../core');
 var CognitoIdentity = require('../../clients/cognitoidentity');
 var STS = require('../../clients/sts');
@@ -7887,7 +8395,7 @@ AWS.CognitoIdentityCredentials = AWS.util.inherit(AWS.Credentials, {
   })()
 });
 
-},{"../../clients/cognitoidentity":7,"../../clients/sts":8,"../core":18}],22:[function(require,module,exports){
+},{"../../clients/cognitoidentity":7,"../../clients/sts":8,"../core":19}],23:[function(require,module,exports){
 var AWS = require('../core');
 
 /**
@@ -8042,6 +8550,7 @@ AWS.CredentialProviderChain = AWS.util.inherit(AWS.Credentials, {
  * AWS.CredentialProviderChain.defaultProviders = [
  *   function () { return new AWS.EnvironmentCredentials('AWS'); },
  *   function () { return new AWS.EnvironmentCredentials('AMAZON'); },
+ *   function () { return new AWS.SsoCredentials(); },
  *   function () { return new AWS.SharedIniFileCredentials(); },
  *   function () { return new AWS.ECSCredentials(); },
  *   function () { return new AWS.ProcessCredentials(); },
@@ -8068,7 +8577,7 @@ AWS.CredentialProviderChain.deletePromisesFromClass = function deletePromisesFro
 
 AWS.util.addPromises(AWS.CredentialProviderChain);
 
-},{"../core":18}],23:[function(require,module,exports){
+},{"../core":19}],24:[function(require,module,exports){
 var AWS = require('../core');
 var STS = require('../../clients/sts');
 
@@ -8164,7 +8673,7 @@ AWS.SAMLCredentials = AWS.util.inherit(AWS.Credentials, {
 
 });
 
-},{"../../clients/sts":8,"../core":18}],24:[function(require,module,exports){
+},{"../../clients/sts":8,"../core":19}],25:[function(require,module,exports){
 var AWS = require('../core');
 var STS = require('../../clients/sts');
 
@@ -8295,7 +8804,7 @@ AWS.TemporaryCredentials = AWS.util.inherit(AWS.Credentials, {
 
 });
 
-},{"../../clients/sts":8,"../core":18}],25:[function(require,module,exports){
+},{"../../clients/sts":8,"../core":19}],26:[function(require,module,exports){
 var AWS = require('../core');
 var STS = require('../../clients/sts');
 
@@ -8412,7 +8921,7 @@ AWS.WebIdentityCredentials = AWS.util.inherit(AWS.Credentials, {
 
 });
 
-},{"../../clients/sts":8,"../core":18}],26:[function(require,module,exports){
+},{"../../clients/sts":8,"../core":19}],27:[function(require,module,exports){
 (function (process){(function (){
 var AWS = require('./core');
 var util = require('./util');
@@ -8583,19 +9092,14 @@ function requiredDiscoverEndpoint(request, done) {
     }]);
     endpointRequest.send(function(err, data) {
       if (err) {
-        var errorParams = {
-          code: 'EndpointDiscoveryException',
-          message: 'Request cannot be fulfilled without specifying an endpoint',
-          retryable: false
-        };
-        request.response.error = util.error(err, errorParams);
+        request.response.error = util.error(err, { retryable: false });
         AWS.endpointCache.remove(cacheKey);
 
         //fail all the pending requests in batch
         if (requestQueue[cacheKeyStr]) {
           var pendingRequests = requestQueue[cacheKeyStr];
           util.arrayEach(pendingRequests, function(requestContext) {
-            requestContext.request.response.error = util.error(err, errorParams);
+            requestContext.request.response.error = util.error(err, { retryable: false });
             requestContext.callback();
           });
           delete requestQueue[cacheKeyStr];
@@ -8680,23 +9184,28 @@ function isFalsy(value) {
 }
 
 /**
- * If endpoint discovery should perform for this request when endpoint discovery is optional.
+ * If endpoint discovery should perform for this request when no operation requires endpoint
+ * discovery for the given service.
  * SDK performs config resolution in order like below:
- * 1. If turned on client configuration(default to off) then turn on endpoint discovery.
- * 2. If turned on in env AWS_ENABLE_ENDPOINT_DISCOVERY then turn on endpoint discovery.
- * 3. If turned on in shared ini config file with key 'endpoint_discovery_enabled', then
- *   turn on endpoint discovery.
+ * 1. If set in client configuration.
+ * 2. If set in env AWS_ENABLE_ENDPOINT_DISCOVERY.
+ * 3. If set in shared ini config file with key 'endpoint_discovery_enabled'.
  * @param [object] request request object.
+ * @returns [boolean|undefined] if endpoint discovery config is not set in any source, this
+ *  function returns undefined
  * @api private
  */
-function isEndpointDiscoveryApplicable(request) {
+function resolveEndpointDiscoveryConfig(request) {
   var service = request.service || {};
-  if (service.config.endpointDiscoveryEnabled === true) return true;
+  if (service.config.endpointDiscoveryEnabled !== undefined) {
+    return service.config.endpointDiscoveryEnabled;
+  }
 
   //shared ini file is only available in Node
   //not to check env in browser
-  if (util.isBrowser()) return false;
+  if (util.isBrowser()) return undefined;
 
+  // If any of recognized endpoint discovery config env is set
   for (var i = 0; i < endpointDiscoveryEnabledEnvs.length; i++) {
     var env = endpointDiscoveryEnabledEnvs[i];
     if (Object.prototype.hasOwnProperty.call(process.env, env)) {
@@ -8706,7 +9215,7 @@ function isEndpointDiscoveryApplicable(request) {
           message: 'environmental variable ' + env + ' cannot be set to nothing'
         });
       }
-      if (!isFalsy(process.env[env])) return true;
+      return !isFalsy(process.env[env]);
     }
   }
 
@@ -8727,9 +9236,9 @@ function isEndpointDiscoveryApplicable(request) {
         message: 'config file entry \'endpoint_discovery_enabled\' cannot be set to nothing'
       });
     }
-    if (!isFalsy(sharedFileConfig.endpoint_discovery_enabled)) return true;
+    return !isFalsy(sharedFileConfig.endpoint_discovery_enabled);
   }
-  return false;
+  return undefined;
 }
 
 /**
@@ -8741,20 +9250,38 @@ function discoverEndpoint(request, done) {
   var service = request.service || {};
   if (hasCustomEndpoint(service) || request.isPresigned()) return done();
 
-  if (!isEndpointDiscoveryApplicable(request)) return done();
-
-  request.httpRequest.appendToUserAgent('endpoint-discovery');
-
   var operations = service.api.operations || {};
   var operationModel = operations[request.operation];
   var isEndpointDiscoveryRequired = operationModel ? operationModel.endpointDiscoveryRequired : 'NULL';
+  var isEnabled = resolveEndpointDiscoveryConfig(request);
+  var hasRequiredEndpointDiscovery = service.api.hasRequiredEndpointDiscovery;
+  if (isEnabled || hasRequiredEndpointDiscovery) {
+    // Once a customer enables endpoint discovery, the SDK should start appending
+    // the string endpoint-discovery to the user-agent on all requests.
+    request.httpRequest.appendToUserAgent('endpoint-discovery');
+  }
   switch (isEndpointDiscoveryRequired) {
     case 'OPTIONAL':
-      optionalDiscoverEndpoint(request);
-      request.addNamedListener('INVALIDATE_CACHED_ENDPOINTS', 'extractError', invalidateCachedEndpoints);
+      if (isEnabled || hasRequiredEndpointDiscovery) {
+        // For a given service; if at least one operation requires endpoint discovery then the SDK must enable endpoint discovery
+        // by default for all operations of that service, including operations where endpoint discovery is optional.
+        optionalDiscoverEndpoint(request);
+        request.addNamedListener('INVALIDATE_CACHED_ENDPOINTS', 'extractError', invalidateCachedEndpoints);
+      }
       done();
       break;
     case 'REQUIRED':
+      if (isEnabled === false) {
+        // For a given operation; if endpoint discovery is required and it has been disabled on the SDK client,
+        // then the SDK must return a clear and actionable exception.
+        request.response.error = util.error(new Error(), {
+          code: 'ConfigurationException',
+          message: 'Endpoint Discovery is disabled but ' + service.api.className + '.' + request.operation +
+                    '() requires it. Please check your configurations.'
+        });
+        done();
+        break;
+      }
       request.addNamedListener('INVALIDATE_CACHED_ENDPOINTS', 'extractError', invalidateCachedEndpoints);
       requiredDiscoverEndpoint(request, done);
       break;
@@ -8775,7 +9302,7 @@ module.exports = {
 };
 
 }).call(this)}).call(this,require('_process'))
-},{"./core":18,"./util":71,"_process":86}],27:[function(require,module,exports){
+},{"./core":19,"./util":72,"_process":90}],28:[function(require,module,exports){
 var eventMessageChunker = require('../event-stream/event-message-chunker').eventMessageChunker;
 var parseEvent = require('./parse-event').parseEvent;
 
@@ -8798,7 +9325,7 @@ module.exports = {
     createEventStream: createEventStream
 };
 
-},{"../event-stream/event-message-chunker":28,"./parse-event":30}],28:[function(require,module,exports){
+},{"../event-stream/event-message-chunker":29,"./parse-event":31}],29:[function(require,module,exports){
 /**
  * Takes in a buffer of event messages and splits them into individual messages.
  * @param {Buffer} buffer
@@ -8830,7 +9357,7 @@ module.exports = {
     eventMessageChunker: eventMessageChunker
 };
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 var util = require('../core').util;
 var toBuffer = util.buffer.toBuffer;
 
@@ -8925,7 +9452,7 @@ module.exports = {
     Int64: Int64
 };
 
-},{"../core":18}],30:[function(require,module,exports){
+},{"../core":19}],31:[function(require,module,exports){
 var parseMessage = require('./parse-message').parseMessage;
 
 /**
@@ -9000,7 +9527,7 @@ module.exports = {
     parseEvent: parseEvent
 };
 
-},{"./parse-message":31}],31:[function(require,module,exports){
+},{"./parse-message":32}],32:[function(require,module,exports){
 var Int64 = require('./int64').Int64;
 
 var splitMessage = require('./split-message').splitMessage;
@@ -9130,7 +9657,7 @@ module.exports = {
     parseMessage: parseMessage
 };
 
-},{"./int64":29,"./split-message":32}],32:[function(require,module,exports){
+},{"./int64":30,"./split-message":33}],33:[function(require,module,exports){
 var util = require('../core').util;
 var toBuffer = util.buffer.toBuffer;
 
@@ -9202,7 +9729,8 @@ module.exports = {
     splitMessage: splitMessage
 };
 
-},{"../core":18}],33:[function(require,module,exports){
+},{"../core":19}],34:[function(require,module,exports){
+(function (process){(function (){
 var AWS = require('./core');
 var SequentialExecutor = require('./sequential_executor');
 var DISCOVER_ENDPOINT = require('./discover_endpoint').discoverEndpoint;
@@ -9286,16 +9814,22 @@ AWS.EventListeners = {
       req.service.config.getCredentials(function(err) {
         if (err) {
           req.response.error = AWS.util.error(err,
-            {code: 'CredentialsError', message: 'Missing credentials in config'});
+            {code: 'CredentialsError', message: 'Missing credentials in config, if using AWS_CONFIG_FILE, set AWS_SDK_LOAD_CONFIG=1'});
         }
         done();
       });
     });
 
     add('VALIDATE_REGION', 'validate', function VALIDATE_REGION(req) {
-      if (!req.service.config.region && !req.service.isGlobalEndpoint) {
-        req.response.error = AWS.util.error(new Error(),
-          {code: 'ConfigError', message: 'Missing region in config'});
+      if (!req.service.isGlobalEndpoint) {
+        var dnsHostRegex = new RegExp(/^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])$/);
+        if (!req.service.config.region) {
+          req.response.error = AWS.util.error(new Error(),
+            {code: 'ConfigError', message: 'Missing region in config'});
+        } else if (!dnsHostRegex.test(req.service.config.region)) {
+          req.response.error = AWS.util.error(new Error(),
+            {code: 'ConfigError', message: 'Invalid region in config'});
+        }
       }
     });
 
@@ -9329,6 +9863,28 @@ AWS.EventListeners = {
       var rules = req.service.api.operations[req.operation].input;
       var validation = req.service.config.paramValidation;
       new AWS.ParamValidator(validation).validate(rules, req.params);
+    });
+
+    add('COMPUTE_CHECKSUM', 'afterBuild', function COMPUTE_CHECKSUM(req) {
+      if (!req.service.api.operations) {
+        return;
+      }
+      var operation = req.service.api.operations[req.operation];
+      if (!operation) {
+        return;
+      }
+      var body = req.httpRequest.body;
+      var isNonStreamingPayload = body && (AWS.util.Buffer.isBuffer(body) || typeof body === 'string');
+      var headers = req.httpRequest.headers;
+      if (
+        operation.httpChecksumRequired &&
+        req.service.config.computeChecksums &&
+        isNonStreamingPayload &&
+        !headers['Content-MD5']
+      ) {
+        var md5 = AWS.util.crypto.md5(body, 'base64');
+        headers['Content-MD5'] = md5;
+      }
     });
 
     addAsync('COMPUTE_SHA256', 'afterBuild', function COMPUTE_SHA256(req, done) {
@@ -9388,6 +9944,24 @@ AWS.EventListeners = {
       req.httpRequest.headers['Host'] = req.httpRequest.endpoint.host;
     });
 
+    add('SET_TRACE_ID', 'afterBuild', function SET_TRACE_ID(req) {
+      var traceIdHeaderName = 'X-Amzn-Trace-Id';
+      if (AWS.util.isNode() && !Object.hasOwnProperty.call(req.httpRequest.headers, traceIdHeaderName)) {
+        var ENV_LAMBDA_FUNCTION_NAME = 'AWS_LAMBDA_FUNCTION_NAME';
+        var ENV_TRACE_ID = '_X_AMZN_TRACE_ID';
+        var functionName = process.env[ENV_LAMBDA_FUNCTION_NAME];
+        var traceId = process.env[ENV_TRACE_ID];
+        if (
+          typeof functionName === 'string' &&
+          functionName.length > 0 &&
+          typeof traceId === 'string' &&
+          traceId.length > 0
+        ) {
+          req.httpRequest.headers[traceIdHeaderName] = traceId;
+        }
+      }
+    });
+
     add('RESTART', 'restart', function RESTART() {
       var err = this.response.error;
       if (!err || !err.retryable) return;
@@ -9424,7 +9998,7 @@ AWS.EventListeners = {
           var date = service.getSkewCorrectedDate();
           var SignerClass = service.getSignerClass(req);
           var signer = new SignerClass(req.httpRequest,
-            service.api.signingName || service.api.endpointPrefix,
+            service.getSigningName(req),
             {
               signatureCache: service.config.signatureCache,
               operation: operation,
@@ -9457,6 +10031,16 @@ AWS.EventListeners = {
           {code: 'UnknownError', message: 'An unknown error occurred.'});
       }
     });
+
+    add('ERROR', 'error', function ERROR(err, resp) {
+      var errorCodeMapping = resp.request.service.api.errorCodeMapping;
+      if (errorCodeMapping && err && err.code) {
+        var mapping = errorCodeMapping[err.code];
+        if (mapping) {
+          resp.error.code = mapping.code;
+        }
+      }
+    }, true);
 
     addAsync('SEND', 'send', function SEND(resp, done) {
       resp.httpResponse._abortCallback = done;
@@ -9659,7 +10243,7 @@ AWS.EventListeners = {
         if (resp.error.redirect && resp.redirectCount < resp.maxRedirects) {
           resp.error.retryDelay = 0;
         } else if (resp.retryCount < resp.maxRetries) {
-          resp.error.retryDelay = this.service.retryDelays(resp.retryCount) || 0;
+          resp.error.retryDelay = this.service.retryDelays(resp.retryCount, resp.error) || 0;
         }
       }
     });
@@ -9678,7 +10262,8 @@ AWS.EventListeners = {
         }
       }
 
-      if (willRetry) {
+      // delay < 0 is a signal from customBackoff to skip retries
+      if (willRetry && delay >= 0) {
         resp.error = null;
         setTimeout(done, delay);
       } else {
@@ -9692,8 +10277,14 @@ AWS.EventListeners = {
     add('EXTRACT_REQUEST_ID', 'extractError', AWS.util.extractRequestId);
 
     add('ENOTFOUND_ERROR', 'httpError', function ENOTFOUND_ERROR(err) {
-      if (err.code === 'NetworkingError' && err.errno === 'ENOTFOUND') {
-        var message = 'Inaccessible host: `' + err.hostname +
+      function isDNSError(err) {
+        return err.errno === 'ENOTFOUND' ||
+          typeof err.errno === 'number' &&
+          typeof AWS.util.getSystemErrorName === 'function' &&
+          ['EAI_NONAME', 'EAI_NODATA'].indexOf(AWS.util.getSystemErrorName(err.errno) >= 0);
+      }
+      if (err.code === 'NetworkingError' && isDNSError(err)) {
+        var message = 'Inaccessible host: `' + err.hostname + '\' at port `' + err.port +
           '\'. This service may not be available in the `' + err.region +
           '\' region.';
         this.response.error = AWS.util.error(new Error(message), {
@@ -9715,6 +10306,9 @@ AWS.EventListeners = {
       function filterSensitiveLog(inputShape, shape) {
         if (!shape) {
           return shape;
+        }
+        if (inputShape.isSensitive) {
+          return '***SensitiveInformation***';
         }
         switch (inputShape.type) {
           case 'structure':
@@ -9740,11 +10334,7 @@ AWS.EventListeners = {
             });
             return map;
           default:
-            if (inputShape.isSensitive) {
-              return '***SensitiveInformation***';
-            } else {
-              return shape;
-            }
+            return shape;
         }
       }
 
@@ -9819,7 +10409,8 @@ AWS.EventListeners = {
   })
 };
 
-},{"./core":18,"./discover_endpoint":26,"./protocol/json":46,"./protocol/query":47,"./protocol/rest":48,"./protocol/rest_json":49,"./protocol/rest_xml":50,"./sequential_executor":58,"util":97}],34:[function(require,module,exports){
+}).call(this)}).call(this,require('_process'))
+},{"./core":19,"./discover_endpoint":27,"./protocol/json":47,"./protocol/query":48,"./protocol/rest":49,"./protocol/rest_json":50,"./protocol/rest_xml":51,"./sequential_executor":60,"_process":90,"util":84}],35:[function(require,module,exports){
 var AWS = require('./core');
 var inherit = AWS.util.inherit;
 
@@ -9983,6 +10574,9 @@ AWS.HttpRequest = inherit({
     var newEndpoint = new AWS.Endpoint(endpointStr);
     this.endpoint = newEndpoint;
     this.path = newEndpoint.path || '/';
+    if (this.headers['Host']) {
+      this.headers['Host'] = newEndpoint.host;
+    }
   }
 });
 
@@ -10056,7 +10650,7 @@ AWS.HttpClient.getInstance = function getInstance() {
   return this.singleton;
 };
 
-},{"./core":18}],35:[function(require,module,exports){
+},{"./core":19}],36:[function(require,module,exports){
 var AWS = require('../core');
 var EventEmitter = require('events').EventEmitter;
 require('../http');
@@ -10194,7 +10788,7 @@ AWS.HttpClient.prototype = AWS.XHRClient.prototype;
  */
 AWS.HttpClient.streamsApiVersion = 1;
 
-},{"../core":18,"../http":34,"events":82}],36:[function(require,module,exports){
+},{"../core":19,"../http":35,"events":86}],37:[function(require,module,exports){
 var util = require('../util');
 
 function JsonBuilder() { }
@@ -10215,6 +10809,9 @@ function translate(value, shape) {
 }
 
 function translateStructure(structure, shape) {
+  if (shape.isDocument) {
+    return structure;
+  }
   var struct = {};
   util.each(structure, function(name, value) {
     var memberShape = shape.members[name];
@@ -10255,7 +10852,7 @@ function translateScalar(value, shape) {
  */
 module.exports = JsonBuilder;
 
-},{"../util":71}],37:[function(require,module,exports){
+},{"../util":72}],38:[function(require,module,exports){
 var util = require('../util');
 
 function JsonParser() { }
@@ -10277,6 +10874,7 @@ function translate(value, shape) {
 
 function translateStructure(structure, shape) {
   if (structure == null) return undefined;
+  if (shape.isDocument) return structure;
 
   var struct = {};
   var shapeMembers = shape.members;
@@ -10324,12 +10922,13 @@ function translateScalar(value, shape) {
  */
 module.exports = JsonParser;
 
-},{"../util":71}],38:[function(require,module,exports){
+},{"../util":72}],39:[function(require,module,exports){
 var Collection = require('./collection');
 var Operation = require('./operation');
 var Shape = require('./shape');
 var Paginator = require('./paginator');
 var ResourceWaiter = require('./resource_waiter');
+var metadata = require('../../apis/metadata.json');
 
 var util = require('../util');
 var property = util.property;
@@ -10342,6 +10941,9 @@ function Api(api, options) {
   options.api = this;
 
   api.metadata = api.metadata || {};
+
+  var serviceIdentifier = options.serviceIdentifier;
+  delete options.serviceIdentifier;
 
   property(this, 'isApi', true, false);
   property(this, 'apiVersion', api.metadata.apiVersion);
@@ -10357,6 +10959,9 @@ function Api(api, options) {
   property(this, 'abbreviation', api.metadata.serviceAbbreviation);
   property(this, 'fullName', api.metadata.serviceFullName);
   property(this, 'serviceId', api.metadata.serviceId);
+  if (serviceIdentifier && metadata[serviceIdentifier]) {
+      property(this, 'xmlNoDefaultLists', metadata[serviceIdentifier].xmlNoDefaultLists, false);
+  }
 
   memoizedProperty(this, 'className', function() {
     var name = api.metadata.serviceAbbreviation || api.metadata.serviceFullName;
@@ -10370,6 +10975,13 @@ function Api(api, options) {
   function addEndpointOperation(name, operation) {
     if (operation.endpointoperation === true) {
       property(self, 'endpointOperation', util.string.lowerFirst(name));
+    }
+    if (operation.endpointdiscovery && !self.hasRequiredEndpointDiscovery) {
+      property(
+        self,
+        'hasRequiredEndpointDiscovery',
+        operation.endpointdiscovery.required === true
+      );
     }
   }
 
@@ -10393,6 +11005,7 @@ function Api(api, options) {
     property(this, 'documentation', api.documentation);
     property(this, 'documentationUrl', api.documentationUrl);
   }
+  property(this, 'errorCodeMapping', api.awsQueryCompatible);
 }
 
 /**
@@ -10400,7 +11013,7 @@ function Api(api, options) {
  */
 module.exports = Api;
 
-},{"../util":71,"./collection":39,"./operation":40,"./paginator":41,"./resource_waiter":42,"./shape":43}],39:[function(require,module,exports){
+},{"../../apis/metadata.json":4,"../util":72,"./collection":40,"./operation":41,"./paginator":42,"./resource_waiter":43,"./shape":44}],40:[function(require,module,exports){
 var memoizedProperty = require('../util').memoizedProperty;
 
 function memoize(name, value, factory, nameTr) {
@@ -10426,7 +11039,7 @@ function Collection(iterable, options, factory, nameTr, callback) {
  */
 module.exports = Collection;
 
-},{"../util":71}],40:[function(require,module,exports){
+},{"../util":72}],41:[function(require,module,exports){
 var Shape = require('./shape');
 
 var util = require('../util');
@@ -10452,6 +11065,12 @@ function Operation(name, operation, options) {
       (operation.endpointdiscovery.required ? 'REQUIRED' : 'OPTIONAL') :
     'NULL'
   );
+
+  // httpChecksum replaces usage of httpChecksumRequired, but some APIs
+  // (s3control) still uses old trait.
+  var httpChecksumRequired = operation.httpChecksumRequired
+    || (operation.httpChecksum && operation.httpChecksum.requestChecksumRequired);
+  property(this, 'httpChecksumRequired', httpChecksumRequired, false);
 
   memoizedProperty(this, 'input', function() {
     if (!operation.input) {
@@ -10541,7 +11160,7 @@ function hasEventStream(topLevelShape) {
  */
 module.exports = Operation;
 
-},{"../util":71,"./shape":43}],41:[function(require,module,exports){
+},{"../util":72,"./shape":44}],42:[function(require,module,exports){
 var property = require('../util').property;
 
 function Paginator(name, paginator) {
@@ -10557,7 +11176,7 @@ function Paginator(name, paginator) {
  */
 module.exports = Paginator;
 
-},{"../util":71}],42:[function(require,module,exports){
+},{"../util":72}],43:[function(require,module,exports){
 var util = require('../util');
 var property = util.property;
 
@@ -10592,7 +11211,7 @@ function ResourceWaiter(name, waiter, options) {
  */
 module.exports = ResourceWaiter;
 
-},{"../util":71}],43:[function(require,module,exports){
+},{"../util":72}],44:[function(require,module,exports){
 var Collection = require('./collection');
 
 var util = require('../util');
@@ -10761,6 +11380,7 @@ function StructureShape(shape, options) {
     property(this, 'memberNames', []);
     property(this, 'required', []);
     property(this, 'isRequired', function() { return false; });
+    property(this, 'isDocument', Boolean(shape.document));
   }
 
   if (shape.members) {
@@ -11000,7 +11620,7 @@ Shape.shapes = {
  */
 module.exports = Shape;
 
-},{"../util":71,"./collection":39}],44:[function(require,module,exports){
+},{"../util":72,"./collection":40}],45:[function(require,module,exports){
 var AWS = require('./core');
 
 /**
@@ -11054,8 +11674,9 @@ AWS.ParamValidator = AWS.util.inherit({
   },
 
   validateStructure: function validateStructure(shape, params, context) {
-    this.validateType(params, context, ['object'], 'structure');
+    if (shape.isDocument) return true;
 
+    this.validateType(params, context, ['object'], 'structure');
     var paramName;
     for (var i = 0; shape.required && i < shape.required.length; i++) {
       paramName = shape.required[i];
@@ -11076,7 +11697,7 @@ AWS.ParamValidator = AWS.util.inherit({
       if (memberShape !== undefined) {
         var memberContext = [context, paramName].join('.');
         this.validateMember(memberShape, paramValue, memberContext);
-      } else {
+      } else if (paramValue !== undefined && paramValue !== null) {
         this.fail('UnexpectedParameter',
           'Unexpected key \'' + paramName + '\' found in ' + context);
       }
@@ -11272,7 +11893,7 @@ AWS.ParamValidator = AWS.util.inherit({
   }
 });
 
-},{"./core":18}],45:[function(require,module,exports){
+},{"./core":19}],46:[function(require,module,exports){
 var util =  require('../util');
 var AWS = require('../core');
 
@@ -11363,7 +11984,7 @@ module.exports = {
   populateHostPrefix: populateHostPrefix
 };
 
-},{"../core":18,"../util":71}],46:[function(require,module,exports){
+},{"../core":19,"../util":72}],47:[function(require,module,exports){
 var util = require('../util');
 var JsonBuilder = require('../json/builder');
 var JsonParser = require('../json/parser');
@@ -11397,8 +12018,9 @@ function extractError(resp) {
   if (httpResponse.body.length > 0) {
     try {
       var e = JSON.parse(httpResponse.body.toString());
-      if (e.__type || e.code) {
-        error.code = (e.__type || e.code).split('#').pop();
+      var code = e.__type || e.code || e.Code;
+      if (code) {
+        error.code = code.split('#').pop();
       }
       if (error.code === 'RequestEntityTooLarge') {
         error.message = 'Request body must be less than 1 MB';
@@ -11438,7 +12060,7 @@ module.exports = {
   extractData: extractData
 };
 
-},{"../json/builder":36,"../json/parser":37,"../util":71,"./helpers":45}],47:[function(require,module,exports){
+},{"../json/builder":37,"../json/parser":38,"../util":72,"./helpers":46}],48:[function(require,module,exports){
 var AWS = require('../core');
 var util = require('../util');
 var QueryParamSerializer = require('../query/query_param_serializer');
@@ -11550,7 +12172,7 @@ module.exports = {
   extractData: extractData
 };
 
-},{"../core":18,"../model/shape":43,"../query/query_param_serializer":51,"../util":71,"./helpers":45}],48:[function(require,module,exports){
+},{"../core":19,"../model/shape":44,"../query/query_param_serializer":52,"../util":72,"./helpers":46}],49:[function(require,module,exports){
 var util = require('../util');
 var populateHostPrefix = require('./helpers').populateHostPrefix;
 
@@ -11700,7 +12322,7 @@ module.exports = {
   generateURI: generateURI
 };
 
-},{"../util":71,"./helpers":45}],49:[function(require,module,exports){
+},{"../util":72,"./helpers":46}],50:[function(require,module,exports){
 var util = require('../util');
 var Rest = require('./rest');
 var Json = require('./json');
@@ -11715,30 +12337,24 @@ function populateBody(req) {
     var params = {};
     var payloadShape = input.members[input.payload];
     params = req.params[input.payload];
-    if (params === undefined) return;
 
     if (payloadShape.type === 'structure') {
-      req.httpRequest.body = builder.build(params, payloadShape);
+      req.httpRequest.body = builder.build(params || {}, payloadShape);
       applyContentTypeHeader(req);
-    } else { // non-JSON payload
+    } else if (params !== undefined) {
+      // non-JSON payload
       req.httpRequest.body = params;
       if (payloadShape.type === 'binary' || payloadShape.isStreaming) {
         applyContentTypeHeader(req, true);
       }
     }
   } else {
-    var body = builder.build(req.params, input);
-    if (body !== '{}' || req.httpRequest.method !== 'GET') { //don't send empty body for GET method
-      req.httpRequest.body = body;
-    }
+    req.httpRequest.body = builder.build(req.params, input);
     applyContentTypeHeader(req);
   }
 }
 
 function applyContentTypeHeader(req, isBinary) {
-  var operation = req.service.api.operations[req.operation];
-  var input = operation.input;
-
   if (!req.httpRequest.headers['Content-Type']) {
     var type = isBinary ? 'binary/octet-stream' : 'application/json';
     req.httpRequest.headers['Content-Type'] = type;
@@ -11748,8 +12364,8 @@ function applyContentTypeHeader(req, isBinary) {
 function buildRequest(req) {
   Rest.buildRequest(req);
 
-  // never send body payload on HEAD/DELETE
-  if (['HEAD', 'DELETE'].indexOf(req.httpRequest.method) < 0) {
+  // never send body payload on GET/HEAD/DELETE
+  if (['GET', 'HEAD', 'DELETE'].indexOf(req.httpRequest.method) < 0) {
     populateBody(req);
   }
 }
@@ -11801,7 +12417,7 @@ module.exports = {
   extractData: extractData
 };
 
-},{"../json/builder":36,"../json/parser":37,"../util":71,"./json":46,"./rest":48}],50:[function(require,module,exports){
+},{"../json/builder":37,"../json/parser":38,"../util":72,"./json":47,"./rest":49}],51:[function(require,module,exports){
 var AWS = require('../core');
 var util = require('../util');
 var Rest = require('./rest');
@@ -11911,7 +12527,7 @@ module.exports = {
   extractData: extractData
 };
 
-},{"../core":18,"../util":71,"./rest":48}],51:[function(require,module,exports){
+},{"../core":19,"../util":72,"./rest":49}],52:[function(require,module,exports){
 var util = require('../util');
 
 function QueryParamSerializer() {
@@ -11997,7 +12613,7 @@ function serializeMember(name, value, rules, fn) {
  */
 module.exports = QueryParamSerializer;
 
-},{"../util":71}],52:[function(require,module,exports){
+},{"../util":72}],53:[function(require,module,exports){
 module.exports = {
   //provide realtime clock for performance measurement
   now: function now() {
@@ -12008,13 +12624,35 @@ module.exports = {
   }
 };
 
-},{}],53:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
+function isFipsRegion(region) {
+  return typeof region === 'string' && (region.startsWith('fips-') || region.endsWith('-fips'));
+}
+
+function isGlobalRegion(region) {
+  return typeof region === 'string' && ['aws-global', 'aws-us-gov-global'].includes(region);
+}
+
+function getRealRegion(region) {
+  return ['fips-aws-global', 'aws-fips', 'aws-global'].includes(region)
+      ? 'us-east-1'
+      : ['fips-aws-us-gov-global', 'aws-us-gov-global'].includes(region)
+      ? 'us-gov-west-1'
+      : region.replace(/fips-(dkr-|prod-)?|-fips/, '');
+}
+
+module.exports = {
+  isFipsRegion: isFipsRegion,
+  isGlobalRegion: isGlobalRegion,
+  getRealRegion: getRealRegion
+};
+
+},{}],55:[function(require,module,exports){
 var util = require('./util');
 var regionConfig = require('./region_config_data.json');
 
 function generateRegionPrefix(region) {
   if (!region) return null;
-
   var parts = region.split('-');
   if (parts.length < 3) return null;
   return parts.slice(0, parts.length - 2).join('-') + '-*';
@@ -12048,24 +12686,31 @@ function applyConfig(service, config) {
 
 function configureEndpoint(service) {
   var keys = derivedKeys(service);
+  var useFipsEndpoint = service.config.useFipsEndpoint;
+  var useDualstackEndpoint = service.config.useDualstackEndpoint;
   for (var i = 0; i < keys.length; i++) {
     var key = keys[i];
     if (!key) continue;
 
-    if (Object.prototype.hasOwnProperty.call(regionConfig.rules, key)) {
-      var config = regionConfig.rules[key];
+    var rules = useFipsEndpoint
+      ? useDualstackEndpoint
+        ? regionConfig.dualstackFipsRules
+        : regionConfig.fipsRules
+      : useDualstackEndpoint
+      ? regionConfig.dualstackRules
+      : regionConfig.rules;
+
+    if (Object.prototype.hasOwnProperty.call(rules, key)) {
+      var config = rules[key];
       if (typeof config === 'string') {
         config = regionConfig.patterns[config];
       }
 
-      // set dualstack endpoint
-      if (service.config.useDualstack && util.isDualstackAvailable(service)) {
-        config = util.copy(config);
-        config.endpoint = '{service}.dualstack.{region}.amazonaws.com';
-      }
-
       // set global endpoint
       service.isGlobalEndpoint = !!config.globalEndpoint;
+      if (config.signingRegion) {
+        service.signingRegion = config.signingRegion;
+      }
 
       // signature version
       if (!config.signatureVersion) config.signatureVersion = 'v4';
@@ -12077,12 +12722,33 @@ function configureEndpoint(service) {
   }
 }
 
+function getEndpointSuffix(region) {
+  var regionRegexes = {
+    '^(us|eu|ap|sa|ca|me)\\-\\w+\\-\\d+$': 'amazonaws.com',
+    '^cn\\-\\w+\\-\\d+$': 'amazonaws.com.cn',
+    '^us\\-gov\\-\\w+\\-\\d+$': 'amazonaws.com',
+    '^us\\-iso\\-\\w+\\-\\d+$': 'c2s.ic.gov',
+    '^us\\-isob\\-\\w+\\-\\d+$': 'sc2s.sgov.gov'
+  };
+  var defaultSuffix = 'amazonaws.com';
+  var regexes = Object.keys(regionRegexes);
+  for (var i = 0; i < regexes.length; i++) {
+    var regionPattern = RegExp(regexes[i]);
+    var dnsSuffix = regionRegexes[regexes[i]];
+    if (regionPattern.test(region)) return dnsSuffix;
+  }
+  return defaultSuffix;
+}
+
 /**
  * @api private
  */
-module.exports = configureEndpoint;
+module.exports = {
+  configureEndpoint: configureEndpoint,
+  getEndpointSuffix: getEndpointSuffix,
+};
 
-},{"./region_config_data.json":54,"./util":71}],54:[function(require,module,exports){
+},{"./region_config_data.json":56,"./util":72}],56:[function(require,module,exports){
 module.exports={
   "rules": {
     "*/*": {
@@ -12091,22 +12757,45 @@ module.exports={
     "cn-*/*": {
       "endpoint": "{service}.{region}.amazonaws.com.cn"
     },
+    "us-iso-*/*": "usIso",
+    "us-isob-*/*": "usIsob",
     "*/budgets": "globalSSL",
     "*/cloudfront": "globalSSL",
-    "*/iam": "globalSSL",
     "*/sts": "globalSSL",
     "*/importexport": {
       "endpoint": "{service}.amazonaws.com",
       "signatureVersion": "v2",
       "globalEndpoint": true
     },
-    "*/route53": {
-      "endpoint": "https://{service}.amazonaws.com",
-      "signatureVersion": "v3https",
-      "globalEndpoint": true
+
+    "*/route53": "globalSSL",
+    "cn-*/route53": {
+      "endpoint": "{service}.amazonaws.com.cn",
+      "globalEndpoint": true,
+      "signingRegion": "cn-northwest-1"
     },
+    "us-gov-*/route53": "globalGovCloud",
+    "us-iso-*/route53": {
+      "endpoint": "{service}.c2s.ic.gov",
+      "globalEndpoint": true,
+      "signingRegion": "us-iso-east-1"
+    },
+    "us-isob-*/route53": {
+      "endpoint": "{service}.sc2s.sgov.gov",
+      "globalEndpoint": true,
+      "signingRegion": "us-isob-east-1"
+    },
+
     "*/waf": "globalSSL",
+
+    "*/iam": "globalSSL",
+    "cn-*/iam": {
+      "endpoint": "{service}.cn-north-1.amazonaws.com.cn",
+      "globalEndpoint": true,
+      "signingRegion": "cn-north-1"
+    },
     "us-gov-*/iam": "globalGovCloud",
+
     "us-gov-*/sts": {
       "endpoint": "{service}.{region}.amazonaws.com"
     },
@@ -12132,22 +12821,164 @@ module.exports={
     }
   },
 
+  "fipsRules": {
+    "*/*": "fipsStandard",
+    "us-gov-*/*": "fipsStandard",
+    "us-iso-*/*": {
+      "endpoint": "{service}-fips.{region}.c2s.ic.gov"
+    },
+    "us-iso-*/dms": "usIso",
+    "us-isob-*/*": {
+      "endpoint": "{service}-fips.{region}.sc2s.sgov.gov"
+    },
+    "us-isob-*/dms": "usIsob",
+    "cn-*/*": {
+      "endpoint": "{service}-fips.{region}.amazonaws.com.cn"
+    },
+    "*/api.ecr": "fips.api.ecr",
+    "*/api.sagemaker": "fips.api.sagemaker",
+    "*/batch": "fipsDotPrefix",
+    "*/eks": "fipsDotPrefix",
+    "*/models.lex": "fips.models.lex",
+    "*/runtime.lex": "fips.runtime.lex",
+    "*/runtime.sagemaker": {
+      "endpoint": "runtime-fips.sagemaker.{region}.amazonaws.com"
+    },
+    "*/iam": "fipsWithoutRegion",
+    "*/route53": "fipsWithoutRegion",
+    "*/transcribe": "fipsDotPrefix",
+    "*/waf": "fipsWithoutRegion",
+
+    "us-gov-*/transcribe": "fipsDotPrefix",
+    "us-gov-*/api.ecr": "fips.api.ecr",
+    "us-gov-*/api.sagemaker": "fips.api.sagemaker",
+    "us-gov-*/models.lex": "fips.models.lex",
+    "us-gov-*/runtime.lex": "fips.runtime.lex",
+    "us-gov-*/acm-pca": "fipsWithServiceOnly",
+    "us-gov-*/batch": "fipsWithServiceOnly",
+    "us-gov-*/config": "fipsWithServiceOnly",
+    "us-gov-*/eks": "fipsWithServiceOnly",
+    "us-gov-*/elasticmapreduce": "fipsWithServiceOnly",
+    "us-gov-*/identitystore": "fipsWithServiceOnly",
+    "us-gov-*/dynamodb": "fipsWithServiceOnly",
+    "us-gov-*/elasticloadbalancing": "fipsWithServiceOnly",
+    "us-gov-*/guardduty": "fipsWithServiceOnly",
+    "us-gov-*/monitoring": "fipsWithServiceOnly",
+    "us-gov-*/resource-groups": "fipsWithServiceOnly",
+    "us-gov-*/runtime.sagemaker": "fipsWithServiceOnly",
+    "us-gov-*/servicecatalog-appregistry": "fipsWithServiceOnly",
+    "us-gov-*/servicequotas": "fipsWithServiceOnly",
+    "us-gov-*/ssm": "fipsWithServiceOnly",
+    "us-gov-*/sts": "fipsWithServiceOnly",
+    "us-gov-*/support": "fipsWithServiceOnly",
+    "us-gov-west-1/states": "fipsWithServiceOnly",
+    "us-iso-east-1/elasticfilesystem": {
+      "endpoint": "elasticfilesystem-fips.{region}.c2s.ic.gov"
+    },
+    "us-gov-west-1/organizations": "fipsWithServiceOnly",
+    "us-gov-west-1/route53": {
+      "endpoint": "route53.us-gov.amazonaws.com"
+    }
+  },
+
+  "dualstackRules": {
+    "*/*": {
+      "endpoint": "{service}.{region}.api.aws"
+    },
+    "cn-*/*": {
+      "endpoint": "{service}.{region}.api.amazonwebservices.com.cn"
+    },
+
+    "*/s3": "dualstackLegacy",
+    "cn-*/s3": "dualstackLegacyCn",
+    "*/s3-control": "dualstackLegacy",
+    "cn-*/s3-control": "dualstackLegacyCn",
+
+    "ap-south-1/ec2": "dualstackLegacyEc2",
+    "eu-west-1/ec2": "dualstackLegacyEc2",
+    "sa-east-1/ec2": "dualstackLegacyEc2",
+    "us-east-1/ec2": "dualstackLegacyEc2",
+    "us-east-2/ec2": "dualstackLegacyEc2",
+    "us-west-2/ec2": "dualstackLegacyEc2"
+  },
+
+  "dualstackFipsRules": {
+    "*/*": {
+      "endpoint": "{service}-fips.{region}.api.aws"
+    },
+    "cn-*/*": {
+      "endpoint": "{service}-fips.{region}.api.amazonwebservices.com.cn"
+    },
+    "*/s3": "dualstackFipsLegacy",
+    "cn-*/s3": "dualstackFipsLegacyCn",
+    "*/s3-control": "dualstackFipsLegacy",
+    "cn-*/s3-control": "dualstackFipsLegacyCn"
+  },
+
   "patterns": {
     "globalSSL": {
       "endpoint": "https://{service}.amazonaws.com",
-      "globalEndpoint": true
+      "globalEndpoint": true,
+      "signingRegion": "us-east-1"
     },
     "globalGovCloud": {
-      "endpoint": "{service}.us-gov.amazonaws.com"
+      "endpoint": "{service}.us-gov.amazonaws.com",
+      "globalEndpoint": true,
+      "signingRegion": "us-gov-west-1"
     },
     "s3signature": {
       "endpoint": "{service}.{region}.amazonaws.com",
       "signatureVersion": "s3"
+    },
+    "usIso": {
+      "endpoint": "{service}.{region}.c2s.ic.gov"
+    },
+    "usIsob": {
+      "endpoint": "{service}.{region}.sc2s.sgov.gov"
+    },
+    "fipsStandard": {
+      "endpoint": "{service}-fips.{region}.amazonaws.com"
+    },
+    "fipsDotPrefix": {
+      "endpoint": "fips.{service}.{region}.amazonaws.com"
+    },
+    "fipsWithoutRegion": {
+      "endpoint": "{service}-fips.amazonaws.com"
+    },
+    "fips.api.ecr": {
+      "endpoint": "ecr-fips.{region}.amazonaws.com"
+    },
+    "fips.api.sagemaker": {
+      "endpoint": "api-fips.sagemaker.{region}.amazonaws.com"
+    },
+    "fips.models.lex": {
+      "endpoint": "models-fips.lex.{region}.amazonaws.com"
+    },
+    "fips.runtime.lex": {
+      "endpoint": "runtime-fips.lex.{region}.amazonaws.com"
+    },
+    "fipsWithServiceOnly": {
+      "endpoint": "{service}.{region}.amazonaws.com"
+    },
+    "dualstackLegacy": {
+      "endpoint": "{service}.dualstack.{region}.amazonaws.com"
+    },
+    "dualstackLegacyCn": {
+      "endpoint": "{service}.dualstack.{region}.amazonaws.com.cn"
+    },
+    "dualstackFipsLegacy": {
+      "endpoint": "{service}-fips.dualstack.{region}.amazonaws.com"
+    },
+    "dualstackFipsLegacyCn": {
+      "endpoint": "{service}-fips.dualstack.{region}.amazonaws.com.cn"
+    },
+    "dualstackLegacyEc2": {
+      "endpoint": "api.ec2.{region}.aws"
     }
   }
 }
 
-},{}],55:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 (function (process){(function (){
 var AWS = require('./core');
 var AcceptorStateMachine = require('./state_machine');
@@ -12464,8 +13295,11 @@ AWS.Request = inherit({
     var region = service.config.region;
     var customUserAgent = service.config.customUserAgent;
 
-    // global endpoints sign as us-east-1
-    if (service.isGlobalEndpoint) region = 'us-east-1';
+    if (service.signingRegion) {
+      region = service.signingRegion;
+    } else if (service.isGlobalEndpoint) {
+      region = 'us-east-1';
+    }
 
     this.domain = domain && domain.active;
     this.service = service;
@@ -12931,7 +13765,7 @@ AWS.Request.addPromisesToClass = function addPromisesToClass(PromiseDependency) 
         if (resp.error) {
           reject(resp.error);
         } else {
-          // define $response property so that it is not enumberable
+          // define $response property so that it is not enumerable
           // this prevents circular reference errors when stringifying the JSON object
           resolve(Object.defineProperty(
             resp.data || {},
@@ -12957,7 +13791,7 @@ AWS.util.addPromises(AWS.Request);
 AWS.util.mixin(AWS.Request, AWS.SequentialExecutor);
 
 }).call(this)}).call(this,require('_process'))
-},{"./core":18,"./state_machine":70,"_process":86,"jmespath":85}],56:[function(require,module,exports){
+},{"./core":19,"./state_machine":71,"_process":90,"jmespath":89}],58:[function(require,module,exports){
 /**
  * Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -13163,7 +13997,7 @@ AWS.ResourceWaiter = inherit({
   }
 });
 
-},{"./core":18,"jmespath":85}],57:[function(require,module,exports){
+},{"./core":19,"jmespath":89}],59:[function(require,module,exports){
 var AWS = require('./core');
 var inherit = AWS.util.inherit;
 var jmespath = require('jmespath');
@@ -13366,7 +14200,7 @@ AWS.Response = inherit({
 
 });
 
-},{"./core":18,"jmespath":85}],58:[function(require,module,exports){
+},{"./core":19,"jmespath":89}],60:[function(require,module,exports){
 var AWS = require('./core');
 
 /**
@@ -13603,7 +14437,7 @@ AWS.SequentialExecutor.prototype.addListener = AWS.SequentialExecutor.prototype.
  */
 module.exports = AWS.SequentialExecutor;
 
-},{"./core":18}],59:[function(require,module,exports){
+},{"./core":19}],61:[function(require,module,exports){
 (function (process){(function (){
 var AWS = require('./core');
 var Api = require('./model/api');
@@ -13611,6 +14445,7 @@ var regionConfig = require('./region_config');
 
 var inherit = AWS.util.inherit;
 var clientCount = 0;
+var region_utils = require('./region/utils');
 
 /**
  * The service class representing an AWS service.
@@ -13632,6 +14467,24 @@ AWS.Service = inherit({
       throw AWS.util.error(new Error(),
         'Service must be constructed with `new\' operator');
     }
+
+    if (config) {
+      if (config.region) {
+        var region = config.region;
+        if (region_utils.isFipsRegion(region)) {
+          config.region = region_utils.getRealRegion(region);
+          config.useFipsEndpoint = true;
+        }
+        if (region_utils.isGlobalRegion(region)) {
+          config.region = region_utils.getRealRegion(region);
+        }
+      }
+      if (typeof config.useDualstack === 'boolean'
+        && typeof config.useDualstackEndpoint !== 'boolean') {
+        config.useDualstackEndpoint = config.useDualstack;
+      }
+    }
+
     var ServiceClass = this.loadServiceClass(config || {});
     if (ServiceClass) {
       var originalConfig = AWS.util.copy(config);
@@ -13657,7 +14510,7 @@ AWS.Service = inherit({
     if (config) this.config.update(config, true);
 
     this.validateService();
-    if (!this.config.endpoint) regionConfig(this);
+    if (!this.config.endpoint) regionConfig.configureEndpoint(this);
 
     this.config.endpoint = this.endpointFromTemplate(this.config.endpoint);
     this.setEndpoint(this.config.endpoint);
@@ -14040,6 +14893,8 @@ AWS.Service = inherit({
       apiCallEvent.Latency = latency >= 0 ? latency : 0;
       var response = request.response;
       if (
+        response.error &&
+        response.error.retryable &&
         typeof response.retryCount === 'number' &&
         typeof response.maxRetries === 'number' &&
         (response.retryCount >= response.maxRetries)
@@ -14057,6 +14912,14 @@ AWS.Service = inherit({
    * @method_abstract This is an abstract method.
    */
   setupRequestListeners: function setupRequestListeners(request) {
+  },
+
+  /**
+   * Gets the signing name for a given request
+   * @api private
+   */
+  getSigningName: function getSigningName() {
+    return this.api.signingName || this.api.endpointPrefix;
   },
 
   /**
@@ -14124,8 +14987,8 @@ AWS.Service = inherit({
   /**
    * @api private
    */
-  retryDelays: function retryDelays(retryCount) {
-    return AWS.util.calculateRetryDelay(retryCount, this.config.retryDelayOptions);
+  retryDelays: function retryDelays(retryCount, err) {
+    return AWS.util.calculateRetryDelay(retryCount, this.config.retryDelayOptions, err);
   },
 
   /**
@@ -14199,7 +15062,7 @@ AWS.Service = inherit({
    */
   isClockSkewed: function isClockSkewed(newServerTime) {
     if (newServerTime) {
-      return Math.abs(this.getSkewCorrectedDate().getTime() - newServerTime) >= 30000;
+      return Math.abs(this.getSkewCorrectedDate().getTime() - newServerTime) >= 300000;
     }
   },
 
@@ -14218,6 +15081,7 @@ AWS.Service = inherit({
       case 'RequestThrottledException':
       case 'TooManyRequestsException':
       case 'TransactionInProgressException': //dynamodb
+      case 'EC2ThrottledException':
         return true;
       default:
         return false;
@@ -14358,7 +15222,9 @@ AWS.util.update(AWS.Service, {
       if (api.isApi) {
         svc.prototype.api = api;
       } else {
-        svc.prototype.api = new Api(api);
+        svc.prototype.api = new Api(api, {
+          serviceIdentifier: superclass.serviceIdentifier
+        });
       }
     }
 
@@ -14427,27 +15293,9 @@ AWS.util.mixin(AWS.Service, AWS.SequentialExecutor);
 module.exports = AWS.Service;
 
 }).call(this)}).call(this,require('_process'))
-},{"./core":18,"./model/api":38,"./region_config":53,"_process":86}],60:[function(require,module,exports){
+},{"./core":19,"./model/api":39,"./region/utils":54,"./region_config":55,"_process":90}],62:[function(require,module,exports){
 var AWS = require('../core');
-
-AWS.util.update(AWS.CognitoIdentity.prototype, {
-  getOpenIdToken: function getOpenIdToken(params, callback) {
-    return this.makeUnauthenticatedRequest('getOpenIdToken', params, callback);
-  },
-
-  getId: function getId(params, callback) {
-    return this.makeUnauthenticatedRequest('getId', params, callback);
-  },
-
-  getCredentialsForIdentity: function getCredentialsForIdentity(params, callback) {
-    return this.makeUnauthenticatedRequest('getCredentialsForIdentity', params, callback);
-  }
-});
-
-},{"../core":18}],61:[function(require,module,exports){
-(function (process){(function (){
-var AWS = require('../core');
-var regionConfig = require('../region_config');
+var resolveRegionalEndpointsFlag = require('../config_regional_endpoint');
 var ENV_REGIONAL_ENDPOINT_ENABLED = 'AWS_STS_REGIONAL_ENDPOINTS';
 var CONFIG_REGIONAL_ENDPOINT_ENABLED = 'sts_regional_endpoints';
 
@@ -14499,83 +15347,41 @@ AWS.util.update(AWS.STS.prototype, {
   /**
    * @api private
    */
-  validateRegionalEndpointsFlagValue: function validateRegionalEndpointsFlagValue(configValue, errorOptions) {
-    if (typeof configValue === 'string' && ['legacy', 'regional'].indexOf(configValue.toLowerCase()) >= 0) {
-      this.config.stsRegionalEndpoints = configValue.toLowerCase();
-      return;
-    } else {
-      throw AWS.util.error(new Error(), errorOptions);
-    }
+  setupRequestListeners: function setupRequestListeners(request) {
+    request.addListener('validate', this.optInRegionalEndpoint, true);
   },
 
   /**
    * @api private
    */
-  validateRegionalEndpointsFlag: function validateRegionalEndpointsFlag() {
-    //validate config value
-    var config = this.config;
-    if (config.stsRegionalEndpoints) {
-      this.validateRegionalEndpointsFlagValue(config.stsRegionalEndpoints, {
-        code: 'InvalidConfiguration',
-        message: 'invalid "stsRegionalEndpoints" configuration. Expect "legacy" ' +
-        ' or "regional". Got "' + config.stsRegionalEndpoints + '".'
-      });
-    }
-    if (!AWS.util.isNode()) return;
-    //validate environmental variable
-    if (Object.prototype.hasOwnProperty.call(process.env, ENV_REGIONAL_ENDPOINT_ENABLED)) {
-      var envFlag = process.env[ENV_REGIONAL_ENDPOINT_ENABLED];
-      this.validateRegionalEndpointsFlagValue(envFlag, {
-        code: 'InvalidEnvironmentalVariable',
-        message: 'invalid ' + ENV_REGIONAL_ENDPOINT_ENABLED + ' environmental variable. Expect "legacy" ' +
-        ' or "regional". Got "' + process.env[ENV_REGIONAL_ENDPOINT_ENABLED] + '".'
-      });
-    }
-    //validate shared config file
-    var profile = {};
-    try {
-      var profiles = AWS.util.getProfilesFromSharedConfig(AWS.util.iniLoader);
-      profile = profiles[process.env.AWS_PROFILE || AWS.util.defaultProfile];
-    } catch (e) {};
-    if (profile && Object.prototype.hasOwnProperty.call(profile, CONFIG_REGIONAL_ENDPOINT_ENABLED)) {
-      var fileFlag = profile[CONFIG_REGIONAL_ENDPOINT_ENABLED];
-      this.validateRegionalEndpointsFlagValue(fileFlag, {
-        code: 'InvalidConfiguration',
-        message: 'invalid '+CONFIG_REGIONAL_ENDPOINT_ENABLED+' profile config. Expect "legacy" ' +
-        ' or "regional". Got "' + profile[CONFIG_REGIONAL_ENDPOINT_ENABLED] + '".'
-      });
-    }
-  },
-
-  /**
-   * @api private
-   */
-  optInRegionalEndpoint: function optInRegionalEndpoint() {
-    this.validateRegionalEndpointsFlag();
-    var config = this.config;
-    if (config.stsRegionalEndpoints === 'regional') {
-      regionConfig(this);
-      if (!this.isGlobalEndpoint) return;
-      this.isGlobalEndpoint = false;
+  optInRegionalEndpoint: function optInRegionalEndpoint(req) {
+    var service = req.service;
+    var config = service.config;
+    config.stsRegionalEndpoints = resolveRegionalEndpointsFlag(service._originalConfig, {
+      env: ENV_REGIONAL_ENDPOINT_ENABLED,
+      sharedConfig: CONFIG_REGIONAL_ENDPOINT_ENABLED,
+      clientConfig: 'stsRegionalEndpoints'
+    });
+    if (
+      config.stsRegionalEndpoints === 'regional' &&
+      service.isGlobalEndpoint
+    ) {
       //client will throw if region is not supplied; request will be signed with specified region
       if (!config.region) {
         throw AWS.util.error(new Error(),
           {code: 'ConfigError', message: 'Missing region in config'});
       }
       var insertPoint = config.endpoint.indexOf('.amazonaws.com');
-      config.endpoint = config.endpoint.substring(0, insertPoint) +
+      var regionalEndpoint = config.endpoint.substring(0, insertPoint) +
         '.' + config.region + config.endpoint.substring(insertPoint);
+      req.httpRequest.updateEndpoint(regionalEndpoint);
+      req.httpRequest.region = config.region;
     }
-  },
-
-  validateService: function validateService() {
-    this.optInRegionalEndpoint();
   }
 
 });
 
-}).call(this)}).call(this,require('_process'))
-},{"../core":18,"../region_config":53,"_process":86}],62:[function(require,module,exports){
+},{"../config_regional_endpoint":18,"../core":19}],63:[function(require,module,exports){
 var AWS = require('../core');
 var inherit = AWS.util.inherit;
 
@@ -14630,8 +15436,8 @@ function signedUrlSigner(request) {
   var auth = request.httpRequest.headers['Authorization'].split(' ');
   if (auth[0] === 'AWS') {
     auth = auth[1].split(':');
-    queryParams['AWSAccessKeyId'] = auth[0];
-    queryParams['Signature'] = auth[1];
+    queryParams['Signature'] = auth.pop();
+    queryParams['AWSAccessKeyId'] = auth.join(':');
 
     AWS.util.each(request.httpRequest.headers, function (key, value) {
       if (key === expiresHeader) key = 'Expires';
@@ -14696,7 +15502,7 @@ AWS.Signers.Presign = inherit({
  */
 module.exports = AWS.Signers.Presign;
 
-},{"../core":18}],63:[function(require,module,exports){
+},{"../core":19}],64:[function(require,module,exports){
 var AWS = require('../core');
 
 var inherit = AWS.util.inherit;
@@ -14737,7 +15543,7 @@ require('./v4');
 require('./s3');
 require('./presign');
 
-},{"../core":18,"./presign":62,"./s3":64,"./v2":65,"./v3":66,"./v3https":67,"./v4":68}],64:[function(require,module,exports){
+},{"../core":19,"./presign":63,"./s3":65,"./v2":66,"./v3":67,"./v3https":68,"./v4":69}],65:[function(require,module,exports){
 var AWS = require('../core');
 var inherit = AWS.util.inherit;
 
@@ -14914,7 +15720,7 @@ AWS.Signers.S3 = inherit(AWS.Signers.RequestSigner, {
  */
 module.exports = AWS.Signers.S3;
 
-},{"../core":18}],65:[function(require,module,exports){
+},{"../core":19}],66:[function(require,module,exports){
 var AWS = require('../core');
 var inherit = AWS.util.inherit;
 
@@ -14964,7 +15770,7 @@ AWS.Signers.V2 = inherit(AWS.Signers.RequestSigner, {
  */
 module.exports = AWS.Signers.V2;
 
-},{"../core":18}],66:[function(require,module,exports){
+},{"../core":19}],67:[function(require,module,exports){
 var AWS = require('../core');
 var inherit = AWS.util.inherit;
 
@@ -15043,7 +15849,7 @@ AWS.Signers.V3 = inherit(AWS.Signers.RequestSigner, {
  */
 module.exports = AWS.Signers.V3;
 
-},{"../core":18}],67:[function(require,module,exports){
+},{"../core":19}],68:[function(require,module,exports){
 var AWS = require('../core');
 var inherit = AWS.util.inherit;
 
@@ -15070,7 +15876,7 @@ AWS.Signers.V3Https = inherit(AWS.Signers.V3, {
  */
 module.exports = AWS.Signers.V3Https;
 
-},{"../core":18,"./v3":66}],68:[function(require,module,exports){
+},{"../core":19,"./v3":67}],69:[function(require,module,exports){
 var AWS = require('../core');
 var v4Credentials = require('./v4_credentials');
 var inherit = AWS.util.inherit;
@@ -15252,7 +16058,7 @@ AWS.Signers.V4 = inherit(AWS.Signers.RequestSigner, {
 
   hexEncodedBodyHash: function hexEncodedBodyHash() {
     var request = this.request;
-    if (this.isPresigned() && this.serviceName === 's3' && !request.body) {
+    if (this.isPresigned() && (['s3', 's3-object-lambda'].indexOf(this.serviceName) > -1) && !request.body) {
       return 'UNSIGNED-PAYLOAD';
     } else if (request.headers['X-Amz-Content-Sha256']) {
       return request.headers['X-Amz-Content-Sha256'];
@@ -15287,7 +16093,7 @@ AWS.Signers.V4 = inherit(AWS.Signers.RequestSigner, {
  */
 module.exports = AWS.Signers.V4;
 
-},{"../core":18,"./v4_credentials":69}],69:[function(require,module,exports){
+},{"../core":19,"./v4_credentials":70}],70:[function(require,module,exports){
 var AWS = require('../core');
 
 /**
@@ -15389,7 +16195,7 @@ module.exports = {
   }
 };
 
-},{"../core":18}],70:[function(require,module,exports){
+},{"../core":19}],71:[function(require,module,exports){
 function AcceptorStateMachine(states, state) {
   this.currentState = state || null;
   this.states = states || {};
@@ -15436,7 +16242,7 @@ AcceptorStateMachine.prototype.addState = function addState(name, acceptState, f
  */
 module.exports = AcceptorStateMachine;
 
-},{}],71:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 (function (process,setImmediate){(function (){
 /* eslint guard-for-in:0 */
 var AWS;
@@ -15655,15 +16461,28 @@ var util = {
     parse: function string(ini) {
       var currentSection, map = {};
       util.arrayEach(ini.split(/\r?\n/), function(line) {
-        line = line.split(/(^|\s)[;#]/)[0]; // remove comments
-        var section = line.match(/^\s*\[([^\[\]]+)\]\s*$/);
-        if (section) {
-          currentSection = section[1];
+        line = line.split(/(^|\s)[;#]/)[0].trim(); // remove comments and trim
+        var isSection = line[0] === '[' && line[line.length - 1] === ']';
+        if (isSection) {
+          currentSection = line.substring(1, line.length - 1);
+          if (currentSection === '__proto__' || currentSection.split(/\s/)[1] === '__proto__') {
+            throw util.error(
+              new Error('Cannot load profile name \'' + currentSection + '\' from shared ini file.')
+            );
+          }
         } else if (currentSection) {
-          var item = line.match(/^\s*(.+?)\s*=\s*(.+?)\s*$/);
-          if (item) {
+          var indexOfEqualsSign = line.indexOf('=');
+          var start = 0;
+          var end = line.length - 1;
+          var isAssignment =
+            indexOfEqualsSign !== -1 && indexOfEqualsSign !== start && indexOfEqualsSign !== end;
+
+          if (isAssignment) {
+            var name = line.substring(0, indexOfEqualsSign).trim();
+            var value = line.substring(indexOfEqualsSign + 1).trim();
+
             map[currentSection] = map[currentSection] || {};
-            map[currentSection][item[1]] = item[2];
+            map[currentSection][name] = value;
           }
         }
       });
@@ -16034,7 +16853,7 @@ var util = {
       Object.defineProperty(err, 'message', {enumerable: true});
     }
 
-    err.name = options && options.name || err.name || err.code || 'Error';
+    err.name = String(options && options.name || err.name || err.code || 'Error');
     err.time = new Date();
 
     if (originalError) err.originalError = originalError;
@@ -16290,11 +17109,11 @@ var util = {
   /**
    * @api private
    */
-  calculateRetryDelay: function calculateRetryDelay(retryCount, retryDelayOptions) {
+  calculateRetryDelay: function calculateRetryDelay(retryCount, retryDelayOptions, err) {
     if (!retryDelayOptions) retryDelayOptions = {};
     var customBackoff = retryDelayOptions.customBackoff || null;
     if (typeof customBackoff === 'function') {
-      return customBackoff(retryCount);
+      return customBackoff(retryCount, err);
     }
     var base = typeof retryDelayOptions.base === 'number' ? retryDelayOptions.base : 100;
     var delay = Math.random() * (Math.pow(2, retryCount) * base);
@@ -16313,13 +17132,17 @@ var util = {
     var errCallback = function(err) {
       var maxRetries = options.maxRetries || 0;
       if (err && err.code === 'TimeoutError') err.retryable = true;
+
+      // Call `calculateRetryDelay()` only when relevant, see #3401
       if (err && err.retryable && retryCount < maxRetries) {
-        retryCount++;
-        var delay = util.calculateRetryDelay(retryCount, options.retryDelayOptions);
-        setTimeout(sendRequest, delay + (err.retryAfter || 0));
-      } else {
-        cb(err);
+        var delay = util.calculateRetryDelay(retryCount, options.retryDelayOptions, err);
+        if (delay >= 0) {
+          retryCount++;
+          setTimeout(sendRequest, delay + (err.retryAfter || 0));
+          return;
+        }
       }
+      cb(err);
     };
 
     var sendRequest = function() {
@@ -16333,7 +17156,10 @@ var util = {
           } else {
             var retryAfter = parseInt(httpResponse.headers['retry-after'], 10) * 1000 || 0;
             var err = util.error(new Error(),
-              { retryable: statusCode >= 500 || statusCode === 429 }
+              {
+                statusCode: statusCode,
+                retryable: statusCode >= 500 || statusCode === 429
+              }
             );
             if (retryAfter && err.retryable) err.retryAfter = retryAfter;
             errCallback(err);
@@ -16399,17 +17225,62 @@ var util = {
         filename: process.env[util.sharedConfigFileEnv]
       });
     }
-    var profilesFromCreds = iniLoader.loadFrom({
-      filename: filename ||
-        (process.env[util.configOptInEnv] && process.env[util.sharedCredentialsFileEnv])
-    });
+    var profilesFromCreds= {};
+    try {
+      var profilesFromCreds = iniLoader.loadFrom({
+        filename: filename ||
+          (process.env[util.configOptInEnv] && process.env[util.sharedCredentialsFileEnv])
+      });
+    } catch (error) {
+      // if using config, assume it is fully descriptive without a credentials file:
+      if (!process.env[util.configOptInEnv]) throw error;
+    }
     for (var i = 0, profileNames = Object.keys(profilesFromConfig); i < profileNames.length; i++) {
-      profiles[profileNames[i]] = profilesFromConfig[profileNames[i]];
+      profiles[profileNames[i]] = objectAssign(profiles[profileNames[i]] || {}, profilesFromConfig[profileNames[i]]);
     }
     for (var i = 0, profileNames = Object.keys(profilesFromCreds); i < profileNames.length; i++) {
-      profiles[profileNames[i]] = profilesFromCreds[profileNames[i]];
+      profiles[profileNames[i]] = objectAssign(profiles[profileNames[i]] || {}, profilesFromCreds[profileNames[i]]);
     }
     return profiles;
+
+    /**
+     * Roughly the semantics of `Object.assign(target, source)`
+     */
+    function objectAssign(target, source) {
+      for (var i = 0, keys = Object.keys(source); i < keys.length; i++) {
+        target[keys[i]] = source[keys[i]];
+      }
+      return target;
+    }
+  },
+
+  /**
+   * @api private
+   */
+  ARN: {
+    validate: function validateARN(str) {
+      return str && str.indexOf('arn:') === 0 && str.split(':').length >= 6;
+    },
+    parse: function parseARN(arn) {
+      var matched = arn.split(':');
+      return {
+        partition: matched[1],
+        service: matched[2],
+        region: matched[3],
+        accountId: matched[4],
+        resource: matched.slice(5).join(':')
+      };
+    },
+    build: function buildARN(arnObject) {
+      if (
+        arnObject.service === undefined ||
+        arnObject.region === undefined ||
+        arnObject.accountId === undefined ||
+        arnObject.resource === undefined
+      ) throw util.error(new Error('Input ARN object is invalid'));
+      return 'arn:'+ (arnObject.partition || 'aws') + ':' + arnObject.service +
+        ':' + arnObject.region + ':' + arnObject.accountId + ':' + arnObject.resource;
+    }
   },
 
   /**
@@ -16444,7 +17315,7 @@ var util = {
 module.exports = util;
 
 }).call(this)}).call(this,require('_process'),require("timers").setImmediate)
-},{"../apis/metadata.json":4,"./core":18,"_process":86,"fs":79,"timers":93,"uuid":98}],72:[function(require,module,exports){
+},{"../apis/metadata.json":4,"./core":19,"_process":90,"fs":80,"timers":97,"uuid":100}],73:[function(require,module,exports){
 var util = require('../util');
 var Shape = require('../model/shape');
 
@@ -16555,7 +17426,10 @@ function parseStructure(xml, shape) {
         getElementByTagName(xml, memberShape.name);
       if (xmlChild) {
         data[memberName] = parseXml(xmlChild, memberShape);
-      } else if (!memberShape.flattened && memberShape.type === 'list') {
+      } else if (
+        !memberShape.flattened &&
+        memberShape.type === 'list' &&
+        !shape.api.xmlNoDefaultLists) {
         data[memberName] = memberShape.defaultValue;
       }
     }
@@ -16644,7 +17518,7 @@ function parseUnknown(xml) {
  */
 module.exports = DomXmlParser;
 
-},{"../model/shape":43,"../util":71}],73:[function(require,module,exports){
+},{"../model/shape":44,"../util":72}],74:[function(require,module,exports){
 var util = require('../util');
 var XmlNode = require('./xml-node').XmlNode;
 var XmlText = require('./xml-text').XmlText;
@@ -16748,7 +17622,7 @@ function applyNamespaces(xml, shape, isRoot) {
  */
 module.exports = XmlBuilder;
 
-},{"../util":71,"./xml-node":76,"./xml-text":77}],74:[function(require,module,exports){
+},{"../util":72,"./xml-node":77,"./xml-text":78}],75:[function(require,module,exports){
 /**
  * Escapes characters that can not be in an XML attribute.
  */
@@ -16763,12 +17637,18 @@ module.exports = {
     escapeAttribute: escapeAttribute
 };
 
-},{}],75:[function(require,module,exports){
+},{}],76:[function(require,module,exports){
 /**
  * Escapes characters that can not be in an XML element.
  */
 function escapeElement(value) {
-    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return value.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\r/g, '&#x0D;')
+                .replace(/\n/g, '&#x0A;')
+                .replace(/\u0085/g, '&#x85;')
+                .replace(/\u2028/, '&#x2028;');
 }
 
 /**
@@ -16778,7 +17658,7 @@ module.exports = {
     escapeElement: escapeElement
 };
 
-},{}],76:[function(require,module,exports){
+},{}],77:[function(require,module,exports){
 var escapeAttribute = require('./escape-attribute').escapeAttribute;
 
 /**
@@ -16825,7 +17705,7 @@ module.exports = {
     XmlNode: XmlNode
 };
 
-},{"./escape-attribute":74}],77:[function(require,module,exports){
+},{"./escape-attribute":75}],78:[function(require,module,exports){
 var escapeElement = require('./escape-element').escapeElement;
 
 /**
@@ -16847,7 +17727,7 @@ module.exports = {
     XmlText: XmlText
 };
 
-},{"./escape-element":75}],78:[function(require,module,exports){
+},{"./escape-element":76}],79:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -16999,9 +17879,34 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],79:[function(require,module,exports){
-
 },{}],80:[function(require,module,exports){
+
+},{}],81:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],82:[function(require,module,exports){
 (function (global){(function (){
 /*! https://mths.be/punycode v1.3.2 by @mathias */
 ;(function(root) {
@@ -17524,12 +18429,610 @@ function fromByteArray (uint8) {
 }(this));
 
 }).call(this)}).call(this,typeof __webpack_require__.g !== "undefined" ? __webpack_require__.g : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],81:[function(require,module,exports){
+},{}],83:[function(require,module,exports){
+module.exports = function isBuffer(arg) {
+  return arg && typeof arg === 'object'
+    && typeof arg.copy === 'function'
+    && typeof arg.fill === 'function'
+    && typeof arg.readUInt8 === 'function';
+}
+},{}],84:[function(require,module,exports){
+(function (process,global){(function (){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+var formatRegExp = /%[sdj%]/g;
+exports.format = function(f) {
+  if (!isString(f)) {
+    var objects = [];
+    for (var i = 0; i < arguments.length; i++) {
+      objects.push(inspect(arguments[i]));
+    }
+    return objects.join(' ');
+  }
+
+  var i = 1;
+  var args = arguments;
+  var len = args.length;
+  var str = String(f).replace(formatRegExp, function(x) {
+    if (x === '%%') return '%';
+    if (i >= len) return x;
+    switch (x) {
+      case '%s': return String(args[i++]);
+      case '%d': return Number(args[i++]);
+      case '%j':
+        try {
+          return JSON.stringify(args[i++]);
+        } catch (_) {
+          return '[Circular]';
+        }
+      default:
+        return x;
+    }
+  });
+  for (var x = args[i]; i < len; x = args[++i]) {
+    if (isNull(x) || !isObject(x)) {
+      str += ' ' + x;
+    } else {
+      str += ' ' + inspect(x);
+    }
+    that.length = length
+  }
+  return str;
+};
+
+
+// Mark that a method should not be used.
+// Returns a modified function which warns once by default.
+// If --no-deprecation is set, then it is a no-op.
+exports.deprecate = function(fn, msg) {
+  // Allow for deprecating things in the process of starting up.
+  if (isUndefined(global.process)) {
+    return function() {
+      return exports.deprecate(fn, msg).apply(this, arguments);
+    };
+  }
+
+  if (process.noDeprecation === true) {
+    return fn;
+  }
+
+  var warned = false;
+  function deprecated() {
+    if (!warned) {
+      if (process.throwDeprecation) {
+        throw new Error(msg);
+      } else if (process.traceDeprecation) {
+        console.trace(msg);
+      } else {
+        console.error(msg);
+      }
+      warned = true;
+    }
+    return fn.apply(this, arguments);
+  }
+
+  return deprecated;
+};
+
+
+var debugs = {};
+var debugEnviron;
+exports.debuglog = function(set) {
+  if (isUndefined(debugEnviron))
+    debugEnviron = process.env.NODE_DEBUG || '';
+  set = set.toUpperCase();
+  if (!debugs[set]) {
+    if (new RegExp('\\b' + set + '\\b', 'i').test(debugEnviron)) {
+      var pid = process.pid;
+      debugs[set] = function() {
+        var msg = exports.format.apply(exports, arguments);
+        console.error('%s %d: %s', set, pid, msg);
+      };
+    } else {
+      debugs[set] = function() {};
+    }
+  }
+  return debugs[set];
+};
+
+
+/**
+ * Echos the value of a value. Trys to print the value out
+ * in the best way possible given the different types.
+ *
+ * @param {Object} obj The object to print out.
+ * @param {Object} opts Optional options object that alters the output.
+ */
+/* legacy: obj, showHidden, depth, colors*/
+function inspect(obj, opts) {
+  // default options
+  var ctx = {
+    seen: [],
+    stylize: stylizeNoColor
+  };
+  // legacy...
+  if (arguments.length >= 3) ctx.depth = arguments[2];
+  if (arguments.length >= 4) ctx.colors = arguments[3];
+  if (isBoolean(opts)) {
+    // legacy...
+    ctx.showHidden = opts;
+  } else if (opts) {
+    // got an "options" object
+    exports._extend(ctx, opts);
+  }
+  // set default options
+  if (isUndefined(ctx.showHidden)) ctx.showHidden = false;
+  if (isUndefined(ctx.depth)) ctx.depth = 2;
+  if (isUndefined(ctx.colors)) ctx.colors = false;
+  if (isUndefined(ctx.customInspect)) ctx.customInspect = true;
+  if (ctx.colors) ctx.stylize = stylizeWithColor;
+  return formatValue(ctx, obj, ctx.depth);
+}
+exports.inspect = inspect;
+
+
+// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
+inspect.colors = {
+  'bold' : [1, 22],
+  'italic' : [3, 23],
+  'underline' : [4, 24],
+  'inverse' : [7, 27],
+  'white' : [37, 39],
+  'grey' : [90, 39],
+  'black' : [30, 39],
+  'blue' : [34, 39],
+  'cyan' : [36, 39],
+  'green' : [32, 39],
+  'magenta' : [35, 39],
+  'red' : [31, 39],
+  'yellow' : [33, 39]
+};
+
+// Don't use 'blue' not visible on cmd.exe
+inspect.styles = {
+  'special': 'cyan',
+  'number': 'yellow',
+  'boolean': 'yellow',
+  'undefined': 'grey',
+  'null': 'bold',
+  'string': 'green',
+  'date': 'magenta',
+  // "name": intentionally not styling
+  'regexp': 'red'
+};
+
+
+function stylizeWithColor(str, styleType) {
+  var style = inspect.styles[styleType];
+
+  if (style) {
+    return '\u001b[' + inspect.colors[style][0] + 'm' + str +
+           '\u001b[' + inspect.colors[style][1] + 'm';
+  } else {
+    return str;
+  }
+}
+
+
+function stylizeNoColor(str, styleType) {
+  return str;
+}
+
+
+function arrayToHash(array) {
+  var hash = {};
+
+  array.forEach(function(val, idx) {
+    hash[val] = true;
+  });
+
+  return hash;
+}
+
+
+function formatValue(ctx, value, recurseTimes) {
+  // Provide a hook for user-specified inspect functions.
+  // Check that value is an object with an inspect function on it
+  if (ctx.customInspect &&
+      value &&
+      isFunction(value.inspect) &&
+      // Filter out the util module, it's inspect function is special
+      value.inspect !== exports.inspect &&
+      // Also filter out any prototype objects using the circular check.
+      !(value.constructor && value.constructor.prototype === value)) {
+    var ret = value.inspect(recurseTimes, ctx);
+    if (!isString(ret)) {
+      ret = formatValue(ctx, ret, recurseTimes);
+    }
+    return ret;
+  }
+
+  // Primitive types cannot have properties
+  var primitive = formatPrimitive(ctx, value);
+  if (primitive) {
+    return primitive;
+  }
+
+  // Look up the keys of the object.
+  var keys = Object.keys(value);
+  var visibleKeys = arrayToHash(keys);
+
+  if (ctx.showHidden) {
+    keys = Object.getOwnPropertyNames(value);
+  }
+
+  // IE doesn't make error fields non-enumerable
+  // http://msdn.microsoft.com/en-us/library/ie/dww52sbt(v=vs.94).aspx
+  if (isError(value)
+      && (keys.indexOf('message') >= 0 || keys.indexOf('description') >= 0)) {
+    return formatError(value);
+  }
+
+  // Some type of object without properties can be shortcutted.
+  if (keys.length === 0) {
+    if (isFunction(value)) {
+      var name = value.name ? ': ' + value.name : '';
+      return ctx.stylize('[Function' + name + ']', 'special');
+    }
+    if (isRegExp(value)) {
+      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
+    }
+    if (isDate(value)) {
+      return ctx.stylize(Date.prototype.toString.call(value), 'date');
+    }
+    if (isError(value)) {
+      return formatError(value);
+    }
+  }
+
+  var base = '', array = false, braces = ['{', '}'];
+
+  // Make Array say that they are Array
+  if (isArray(value)) {
+    array = true;
+    braces = ['[', ']'];
+  }
+
+  // Make functions say that they are functions
+  if (isFunction(value)) {
+    var n = value.name ? ': ' + value.name : '';
+    base = ' [Function' + n + ']';
+  }
+
+  // Make RegExps say that they are RegExps
+  if (isRegExp(value)) {
+    base = ' ' + RegExp.prototype.toString.call(value);
+  }
+
+  // Make dates with properties first say the date
+  if (isDate(value)) {
+    base = ' ' + Date.prototype.toUTCString.call(value);
+  }
+
+  // Make error with message first say the error
+  if (isError(value)) {
+    base = ' ' + formatError(value);
+  }
+
+  if (keys.length === 0 && (!array || value.length == 0)) {
+    return braces[0] + base + braces[1];
+  }
+
+  if (recurseTimes < 0) {
+    if (isRegExp(value)) {
+      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
+    } else {
+      return ctx.stylize('[Object]', 'special');
+    }
+  }
+
+  ctx.seen.push(value);
+
+  var output;
+  if (array) {
+    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
+  } else {
+    output = keys.map(function(key) {
+      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
+    });
+  }
+
+  ctx.seen.pop();
+
+  return reduceToSingleString(output, base, braces);
+}
+
+
+function formatPrimitive(ctx, value) {
+  if (isUndefined(value))
+    return ctx.stylize('undefined', 'undefined');
+  if (isString(value)) {
+    var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
+                                             .replace(/'/g, "\\'")
+                                             .replace(/\\"/g, '"') + '\'';
+    return ctx.stylize(simple, 'string');
+  }
+  if (isNumber(value))
+    return ctx.stylize('' + value, 'number');
+  if (isBoolean(value))
+    return ctx.stylize('' + value, 'boolean');
+  // For some reason typeof null is "object", so special case here.
+  if (isNull(value))
+    return ctx.stylize('null', 'null');
+}
+
+
+function formatError(value) {
+  return '[' + Error.prototype.toString.call(value) + ']';
+}
+
+
+function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
+  var output = [];
+  for (var i = 0, l = value.length; i < l; ++i) {
+    if (hasOwnProperty(value, String(i))) {
+      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
+          String(i), true));
+    } else {
+      output.push('');
+    }
+  }
+  keys.forEach(function(key) {
+    if (!key.match(/^\d+$/)) {
+      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
+          key, true));
+    }
+  });
+  return output;
+}
+
+
+function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
+  var name, str, desc;
+  desc = Object.getOwnPropertyDescriptor(value, key) || { value: value[key] };
+  if (desc.get) {
+    if (desc.set) {
+      str = ctx.stylize('[Getter/Setter]', 'special');
+    } else {
+      str = ctx.stylize('[Getter]', 'special');
+    }
+  } else {
+    if (desc.set) {
+      str = ctx.stylize('[Setter]', 'special');
+    }
+  }
+  if (!hasOwnProperty(visibleKeys, key)) {
+    name = '[' + key + ']';
+  }
+  if (!str) {
+    if (ctx.seen.indexOf(desc.value) < 0) {
+      if (isNull(recurseTimes)) {
+        str = formatValue(ctx, desc.value, null);
+      } else {
+        str = formatValue(ctx, desc.value, recurseTimes - 1);
+      }
+      if (str.indexOf('\n') > -1) {
+        if (array) {
+          str = str.split('\n').map(function(line) {
+            return '  ' + line;
+          }).join('\n').substr(2);
+        } else {
+          str = '\n' + str.split('\n').map(function(line) {
+            return '   ' + line;
+          }).join('\n');
+        }
+      }
+    } else {
+      str = ctx.stylize('[Circular]', 'special');
+    }
+  }
+  if (isUndefined(name)) {
+    if (array && key.match(/^\d+$/)) {
+      return str;
+    }
+    name = JSON.stringify('' + key);
+    if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
+      name = name.substr(1, name.length - 2);
+      name = ctx.stylize(name, 'name');
+    } else {
+      name = name.replace(/'/g, "\\'")
+                 .replace(/\\"/g, '"')
+                 .replace(/(^"|"$)/g, "'");
+      name = ctx.stylize(name, 'string');
+    }
+  }
+
+  return name + ': ' + str;
+}
+
+
+function reduceToSingleString(output, base, braces) {
+  var numLinesEst = 0;
+  var length = output.reduce(function(prev, cur) {
+    numLinesEst++;
+    if (cur.indexOf('\n') >= 0) numLinesEst++;
+    return prev + cur.replace(/\u001b\[\d\d?m/g, '').length + 1;
+  }, 0);
+
+  if (length > 60) {
+    return braces[0] +
+           (base === '' ? '' : base + '\n ') +
+           ' ' +
+           output.join(',\n  ') +
+           ' ' +
+           braces[1];
+  }
+
+  return braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
+}
+
+
+// NOTE: These type checking functions intentionally don't use `instanceof`
+// because it is fragile and can be easily faked with `Object.create()`.
+function isArray(ar) {
+  return Array.isArray(ar);
+}
+exports.isArray = isArray;
+
+function isBoolean(arg) {
+  return typeof arg === 'boolean';
+}
+exports.isBoolean = isBoolean;
+
+function isNull(arg) {
+  return arg === null;
+}
+exports.isNull = isNull;
+
+function isNullOrUndefined(arg) {
+  return arg == null;
+}
+exports.isNullOrUndefined = isNullOrUndefined;
+
+function isNumber(arg) {
+  return typeof arg === 'number';
+}
+exports.isNumber = isNumber;
+
+function isString(arg) {
+  return typeof arg === 'string';
+}
+exports.isString = isString;
+
+function isSymbol(arg) {
+  return typeof arg === 'symbol';
+}
+exports.isSymbol = isSymbol;
+
+function isUndefined(arg) {
+  return arg === void 0;
+}
+exports.isUndefined = isUndefined;
+
+function isRegExp(re) {
+  return isObject(re) && objectToString(re) === '[object RegExp]';
+}
+exports.isRegExp = isRegExp;
+
+function isObject(arg) {
+  return typeof arg === 'object' && arg !== null;
+}
+exports.isObject = isObject;
+
+function isDate(d) {
+  return isObject(d) && objectToString(d) === '[object Date]';
+}
+exports.isDate = isDate;
+
+function isError(e) {
+  return isObject(e) &&
+      (objectToString(e) === '[object Error]' || e instanceof Error);
+}
+exports.isError = isError;
+
+function isFunction(arg) {
+  return typeof arg === 'function';
+}
+exports.isFunction = isFunction;
+
+function isPrimitive(arg) {
+  return arg === null ||
+         typeof arg === 'boolean' ||
+         typeof arg === 'number' ||
+         typeof arg === 'string' ||
+         typeof arg === 'symbol' ||  // ES6 symbol
+         typeof arg === 'undefined';
+}
+exports.isPrimitive = isPrimitive;
+
+exports.isBuffer = require('./support/isBuffer');
+
+function objectToString(o) {
+  return Object.prototype.toString.call(o);
+}
+
+
+function pad(n) {
+  return n < 10 ? '0' + n.toString(10) : n.toString(10);
+}
+
+
+var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+              'Oct', 'Nov', 'Dec'];
+
+// 26 Feb 16:19:34
+function timestamp() {
+  var d = new Date();
+  var time = [pad(d.getHours()),
+              pad(d.getMinutes()),
+              pad(d.getSeconds())].join(':');
+  return [d.getDate(), months[d.getMonth()], time].join(' ');
+}
+
+
+// log is just a thin wrapper to console.log that prepends a timestamp
+exports.log = function() {
+  console.log('%s - %s', timestamp(), exports.format.apply(exports, arguments));
+};
+
+
+/**
+ * Inherit the prototype methods from one constructor into another.
+ *
+ * The Function.prototype.inherits from lang.js rewritten as a standalone
+ * function (not on Function.prototype). NOTE: If this file is to be loaded
+ * during bootstrapping this function needs to be rewritten using some native
+ * functions as prototype setup using normal JavaScript does not work as
+ * expected during bootstrapping (see mirror.js in r114903).
+ *
+ * @param {function} ctor Constructor function which needs to inherit the
+ *     prototype.
+ * @param {function} superCtor Constructor function to inherit prototype from.
+ */
+exports.inherits = require('inherits');
+
+exports._extend = function(origin, add) {
+  // Don't do anything if add isn't an object
+  if (!add || !isObject(add)) return origin;
+
+  var keys = Object.keys(add);
+  var i = keys.length;
+  while (i--) {
+    origin[keys[i]] = add[keys[i]];
+  }
+  return origin;
+};
+
+function hasOwnProperty(obj, prop) {
+  return Object.prototype.hasOwnProperty.call(obj, prop);
+}
+
+}).call(this)}).call(this,require('_process'),typeof __webpack_require__.g !== "undefined" ? __webpack_require__.g : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./support/isBuffer":83,"_process":90,"inherits":81}],85:[function(require,module,exports){
 (function (global,Buffer){(function (){
 /*!
  * The buffer module from node.js, for the browser.
  *
- * @author   Feross Aboukhadijeh <feross@feross.org> <http://feross.org>
+ * @author   Feross Aboukhadijeh <http://feross.org>
  * @license  MIT
  */
 /* eslint-disable no-proto */
@@ -19317,7 +20820,7 @@ function isnan (val) {
 }
 
 }).call(this)}).call(this,typeof __webpack_require__.g !== "undefined" ? __webpack_require__.g : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"base64-js":78,"buffer":81,"ieee754":83,"isarray":84}],82:[function(require,module,exports){
+},{"base64-js":79,"buffer":85,"ieee754":87,"isarray":88}],86:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -19621,7 +21124,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],83:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -19707,14 +21210,14 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],84:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],85:[function(require,module,exports){
+},{}],89:[function(require,module,exports){
 (function(exports) {
   "use strict";
 
@@ -19857,6 +21360,18 @@ module.exports = Array.isArray || function (arr) {
   var TYPE_NULL = 7;
   var TYPE_ARRAY_NUMBER = 8;
   var TYPE_ARRAY_STRING = 9;
+  var TYPE_NAME_TABLE = {
+    0: 'number',
+    1: 'any',
+    2: 'string',
+    3: 'array',
+    4: 'object',
+    5: 'boolean',
+    6: 'expression',
+    7: 'null',
+    8: 'Array<number>',
+    9: 'Array<string>'
+  };
 
   var TOK_EOF = "EOF";
   var TOK_UNQUOTEDIDENTIFIER = "UnquotedIdentifier";
@@ -20268,10 +21783,8 @@ module.exports = Array.isArray || function (arr) {
             var node = {type: "Field", name: token.value};
             if (this._lookahead(0) === TOK_LPAREN) {
                 throw new Error("Quoted identifier not allowed for function names.");
-            } else {
-                return node;
             }
-            break;
+            return node;
           case TOK_NOT:
             right = this.expression(bindingPower.Not);
             return {type: "NotExpression", children: [right]};
@@ -20305,10 +21818,8 @@ module.exports = Array.isArray || function (arr) {
                 right = this._parseProjectionRHS(bindingPower.Star);
                 return {type: "Projection",
                         children: [{type: "Identity"}, right]};
-            } else {
-                return this._parseMultiselectList();
             }
-            break;
+            return this._parseMultiselectList();
           case TOK_CURRENT:
             return {type: TOK_CURRENT};
           case TOK_EXPREF:
@@ -20340,13 +21851,11 @@ module.exports = Array.isArray || function (arr) {
             if (this._lookahead(0) !== TOK_STAR) {
                 right = this._parseDotRHS(rbp);
                 return {type: "Subexpression", children: [left, right]};
-            } else {
-                // Creating a projection.
-                this._advance();
-                right = this._parseProjectionRHS(rbp);
-                return {type: "ValueProjection", children: [left, right]};
             }
-            break;
+            // Creating a projection.
+            this._advance();
+            right = this._parseProjectionRHS(rbp);
+            return {type: "ValueProjection", children: [left, right]};
           case TOK_PIPE:
             right = this.expression(bindingPower.Pipe);
             return {type: TOK_PIPE, children: [left, right]};
@@ -20400,13 +21909,11 @@ module.exports = Array.isArray || function (arr) {
             if (token.type === TOK_NUMBER || token.type === TOK_COLON) {
                 right = this._parseIndexExpression();
                 return this._projectIfSlice(left, right);
-            } else {
-                this._match(TOK_STAR);
-                this._match(TOK_RBRACKET);
-                right = this._parseProjectionRHS(bindingPower.Star);
-                return {type: "Projection", children: [left, right]};
             }
-            break;
+            this._match(TOK_STAR);
+            this._match(TOK_RBRACKET);
+            right = this._parseProjectionRHS(bindingPower.Star);
+            return {type: "Projection", children: [left, right]};
           default:
             this._errorToken(this._lookaheadToken(0));
         }
@@ -20583,19 +22090,15 @@ module.exports = Array.isArray || function (arr) {
           var matched, current, result, first, second, field, left, right, collected, i;
           switch (node.type) {
             case "Field":
-              if (value === null ) {
-                  return null;
-              } else if (isObject(value)) {
+              if (value !== null && isObject(value)) {
                   field = value[node.name];
                   if (field === undefined) {
                       return null;
                   } else {
                       return field;
                   }
-              } else {
-                return null;
               }
-              break;
+              return null;
             case "Subexpression":
               result = this.visit(node.children[0], value);
               for (i = 1; i < node.children.length; i++) {
@@ -20966,11 +22469,16 @@ module.exports = Array.isArray || function (arr) {
                 }
             }
             if (!typeMatched) {
+                var expected = currentSpec
+                    .map(function(typeIdentifier) {
+                        return TYPE_NAME_TABLE[typeIdentifier];
+                    })
+                    .join(',');
                 throw new Error("TypeError: " + name + "() " +
                                 "expected argument " + (i + 1) +
-                                " to be type " + currentSpec +
-                                " but received type " + actualType +
-                                " instead.");
+                                " to be type " + expected +
+                                " but received type " +
+                                TYPE_NAME_TABLE[actualType] + " instead.");
             }
         }
     },
@@ -21383,7 +22891,7 @@ module.exports = Array.isArray || function (arr) {
   exports.strictDeepEqual = strictDeepEqual;
 })(typeof exports === "undefined" ? this.jmespath = {} : exports);
 
-},{}],86:[function(require,module,exports){
+},{}],90:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -21569,7 +23077,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],87:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -21655,7 +23163,7 @@ var isArray = Array.isArray || function (xs) {
   return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
-},{}],88:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -21742,13 +23250,13 @@ var objectKeys = Object.keys || function (obj) {
   return res;
 };
 
-},{}],89:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":87,"./encode":88}],90:[function(require,module,exports){
+},{"./decode":91,"./encode":92}],94:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -21830,7 +23338,7 @@ module.exports = function(qs, sep, eq, options) {
   return obj;
 };
 
-},{}],91:[function(require,module,exports){
+},{}],95:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -21896,9 +23404,9 @@ module.exports = function(obj, sep, eq, name) {
          encodeURIComponent(stringifyPrimitive(obj));
 };
 
-},{}],92:[function(require,module,exports){
-arguments[4][89][0].apply(exports,arguments)
-},{"./decode":90,"./encode":91,"dup":89}],93:[function(require,module,exports){
+},{}],96:[function(require,module,exports){
+arguments[4][93][0].apply(exports,arguments)
+},{"./decode":94,"./encode":95,"dup":93}],97:[function(require,module,exports){
 (function (setImmediate,clearImmediate){(function (){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -21977,7 +23485,7 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this)}).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":86,"timers":93}],94:[function(require,module,exports){
+},{"process/browser.js":90,"timers":97}],98:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -22686,843 +24194,670 @@ function isNullOrUndefined(arg) {
   return  arg == null;
 }
 
-},{"punycode":80,"querystring":89}],95:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
-}
+},{"punycode":82,"querystring":93}],99:[function(require,module,exports){
+"use strict";
 
-},{}],96:[function(require,module,exports){
-module.exports = function isBuffer(arg) {
-  return arg && typeof arg === 'object'
-    && typeof arg.copy === 'function'
-    && typeof arg.fill === 'function'
-    && typeof arg.readUInt8 === 'function';
-}
-},{}],97:[function(require,module,exports){
-(function (process,global){(function (){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
 
-var formatRegExp = /%[sdj%]/g;
-exports.format = function(f) {
-  if (!isString(f)) {
-    var objects = [];
-    for (var i = 0; i < arguments.length; i++) {
-      objects.push(inspect(arguments[i]));
-    }
-    return objects.join(' ');
-  }
-
-  var i = 1;
-  var args = arguments;
-  var len = args.length;
-  var str = String(f).replace(formatRegExp, function(x) {
-    if (x === '%%') return '%';
-    if (i >= len) return x;
-    switch (x) {
-      case '%s': return String(args[i++]);
-      case '%d': return Number(args[i++]);
-      case '%j':
-        try {
-          return JSON.stringify(args[i++]);
-        } catch (_) {
-          return '[Circular]';
-        }
-      default:
-        return x;
-    }
-  });
-  for (var x = args[i]; i < len; x = args[++i]) {
-    if (isNull(x) || !isObject(x)) {
-      str += ' ' + x;
-    } else {
-      str += ' ' + inspect(x);
-    }
-  }
-  return str;
-};
-
-
-// Mark that a method should not be used.
-// Returns a modified function which warns once by default.
-// If --no-deprecation is set, then it is a no-op.
-exports.deprecate = function(fn, msg) {
-  // Allow for deprecating things in the process of starting up.
-  if (isUndefined(global.process)) {
-    return function() {
-      return exports.deprecate(fn, msg).apply(this, arguments);
-    };
-  }
-
-  if (process.noDeprecation === true) {
-    return fn;
-  }
-
-  var warned = false;
-  function deprecated() {
-    if (!warned) {
-      if (process.throwDeprecation) {
-        throw new Error(msg);
-      } else if (process.traceDeprecation) {
-        console.trace(msg);
-      } else {
-        console.error(msg);
-      }
-      warned = true;
-    }
-    return fn.apply(this, arguments);
-  }
-
-  return deprecated;
-};
-
-
-var debugs = {};
-var debugEnviron;
-exports.debuglog = function(set) {
-  if (isUndefined(debugEnviron))
-    debugEnviron = process.env.NODE_DEBUG || '';
-  set = set.toUpperCase();
-  if (!debugs[set]) {
-    if (new RegExp('\\b' + set + '\\b', 'i').test(debugEnviron)) {
-      var pid = process.pid;
-      debugs[set] = function() {
-        var msg = exports.format.apply(exports, arguments);
-        console.error('%s %d: %s', set, pid, msg);
-      };
-    } else {
-      debugs[set] = function() {};
-    }
-  }
-  return debugs[set];
-};
-
-
-/**
- * Echos the value of a value. Trys to print the value out
- * in the best way possible given the different types.
- *
- * @param {Object} obj The object to print out.
- * @param {Object} opts Optional options object that alters the output.
- */
-/* legacy: obj, showHidden, depth, colors*/
-function inspect(obj, opts) {
-  // default options
-  var ctx = {
-    seen: [],
-    stylize: stylizeNoColor
-  };
-  // legacy...
-  if (arguments.length >= 3) ctx.depth = arguments[2];
-  if (arguments.length >= 4) ctx.colors = arguments[3];
-  if (isBoolean(opts)) {
-    // legacy...
-    ctx.showHidden = opts;
-  } else if (opts) {
-    // got an "options" object
-    exports._extend(ctx, opts);
-  }
-  // set default options
-  if (isUndefined(ctx.showHidden)) ctx.showHidden = false;
-  if (isUndefined(ctx.depth)) ctx.depth = 2;
-  if (isUndefined(ctx.colors)) ctx.colors = false;
-  if (isUndefined(ctx.customInspect)) ctx.customInspect = true;
-  if (ctx.colors) ctx.stylize = stylizeWithColor;
-  return formatValue(ctx, obj, ctx.depth);
-}
-exports.inspect = inspect;
-
-
-// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
-inspect.colors = {
-  'bold' : [1, 22],
-  'italic' : [3, 23],
-  'underline' : [4, 24],
-  'inverse' : [7, 27],
-  'white' : [37, 39],
-  'grey' : [90, 39],
-  'black' : [30, 39],
-  'blue' : [34, 39],
-  'cyan' : [36, 39],
-  'green' : [32, 39],
-  'magenta' : [35, 39],
-  'red' : [31, 39],
-  'yellow' : [33, 39]
-};
-
-// Don't use 'blue' not visible on cmd.exe
-inspect.styles = {
-  'special': 'cyan',
-  'number': 'yellow',
-  'boolean': 'yellow',
-  'undefined': 'grey',
-  'null': 'bold',
-  'string': 'green',
-  'date': 'magenta',
-  // "name": intentionally not styling
-  'regexp': 'red'
-};
-
-
-function stylizeWithColor(str, styleType) {
-  var style = inspect.styles[styleType];
-
-  if (style) {
-    return '\u001b[' + inspect.colors[style][0] + 'm' + str +
-           '\u001b[' + inspect.colors[style][1] + 'm';
-  } else {
-    return str;
-  }
-}
-
-
-function stylizeNoColor(str, styleType) {
-  return str;
-}
-
-
-function arrayToHash(array) {
-  var hash = {};
-
-  array.forEach(function(val, idx) {
-    hash[val] = true;
-  });
-
-  return hash;
-}
-
-
-function formatValue(ctx, value, recurseTimes) {
-  // Provide a hook for user-specified inspect functions.
-  // Check that value is an object with an inspect function on it
-  if (ctx.customInspect &&
-      value &&
-      isFunction(value.inspect) &&
-      // Filter out the util module, it's inspect function is special
-      value.inspect !== exports.inspect &&
-      // Also filter out any prototype objects using the circular check.
-      !(value.constructor && value.constructor.prototype === value)) {
-    var ret = value.inspect(recurseTimes, ctx);
-    if (!isString(ret)) {
-      ret = formatValue(ctx, ret, recurseTimes);
-    }
-    return ret;
-  }
-
-  // Primitive types cannot have properties
-  var primitive = formatPrimitive(ctx, value);
-  if (primitive) {
-    return primitive;
-  }
-
-  // Look up the keys of the object.
-  var keys = Object.keys(value);
-  var visibleKeys = arrayToHash(keys);
-
-  if (ctx.showHidden) {
-    keys = Object.getOwnPropertyNames(value);
-  }
-
-  // IE doesn't make error fields non-enumerable
-  // http://msdn.microsoft.com/en-us/library/ie/dww52sbt(v=vs.94).aspx
-  if (isError(value)
-      && (keys.indexOf('message') >= 0 || keys.indexOf('description') >= 0)) {
-    return formatError(value);
-  }
-
-  // Some type of object without properties can be shortcutted.
-  if (keys.length === 0) {
-    if (isFunction(value)) {
-      var name = value.name ? ': ' + value.name : '';
-      return ctx.stylize('[Function' + name + ']', 'special');
-    }
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    }
-    if (isDate(value)) {
-      return ctx.stylize(Date.prototype.toString.call(value), 'date');
-    }
-    if (isError(value)) {
-      return formatError(value);
-    }
-  }
-
-  var base = '', array = false, braces = ['{', '}'];
-
-  // Make Array say that they are Array
-  if (isArray(value)) {
-    array = true;
-    braces = ['[', ']'];
-  }
-
-  // Make functions say that they are functions
-  if (isFunction(value)) {
-    var n = value.name ? ': ' + value.name : '';
-    base = ' [Function' + n + ']';
-  }
-
-  // Make RegExps say that they are RegExps
-  if (isRegExp(value)) {
-    base = ' ' + RegExp.prototype.toString.call(value);
-  }
-
-  // Make dates with properties first say the date
-  if (isDate(value)) {
-    base = ' ' + Date.prototype.toUTCString.call(value);
-  }
-
-  // Make error with message first say the error
-  if (isError(value)) {
-    base = ' ' + formatError(value);
-  }
-
-  if (keys.length === 0 && (!array || value.length == 0)) {
-    return braces[0] + base + braces[1];
-  }
-
-  if (recurseTimes < 0) {
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    } else {
-      return ctx.stylize('[Object]', 'special');
-    }
-  }
-
-  ctx.seen.push(value);
-
-  var output;
-  if (array) {
-    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
-  } else {
-    output = keys.map(function(key) {
-      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
-    });
-  }
-
-  ctx.seen.pop();
-
-  return reduceToSingleString(output, base, braces);
-}
-
-
-function formatPrimitive(ctx, value) {
-  if (isUndefined(value))
-    return ctx.stylize('undefined', 'undefined');
-  if (isString(value)) {
-    var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
-                                             .replace(/'/g, "\\'")
-                                             .replace(/\\"/g, '"') + '\'';
-    return ctx.stylize(simple, 'string');
-  }
-  if (isNumber(value))
-    return ctx.stylize('' + value, 'number');
-  if (isBoolean(value))
-    return ctx.stylize('' + value, 'boolean');
-  // For some reason typeof null is "object", so special case here.
-  if (isNull(value))
-    return ctx.stylize('null', 'null');
-}
-
-
-function formatError(value) {
-  return '[' + Error.prototype.toString.call(value) + ']';
-}
-
-
-function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
-  var output = [];
-  for (var i = 0, l = value.length; i < l; ++i) {
-    if (hasOwnProperty(value, String(i))) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          String(i), true));
-    } else {
-      output.push('');
-    }
-  }
-  keys.forEach(function(key) {
-    if (!key.match(/^\d+$/)) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          key, true));
-    }
-  });
-  return output;
-}
-
-
-function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
-  var name, str, desc;
-  desc = Object.getOwnPropertyDescriptor(value, key) || { value: value[key] };
-  if (desc.get) {
-    if (desc.set) {
-      str = ctx.stylize('[Getter/Setter]', 'special');
-    } else {
-      str = ctx.stylize('[Getter]', 'special');
-    }
-  } else {
-    if (desc.set) {
-      str = ctx.stylize('[Setter]', 'special');
-    }
-  }
-  if (!hasOwnProperty(visibleKeys, key)) {
-    name = '[' + key + ']';
-  }
-  if (!str) {
-    if (ctx.seen.indexOf(desc.value) < 0) {
-      if (isNull(recurseTimes)) {
-        str = formatValue(ctx, desc.value, null);
-      } else {
-        str = formatValue(ctx, desc.value, recurseTimes - 1);
-      }
-      if (str.indexOf('\n') > -1) {
-        if (array) {
-          str = str.split('\n').map(function(line) {
-            return '  ' + line;
-          }).join('\n').substr(2);
-        } else {
-          str = '\n' + str.split('\n').map(function(line) {
-            return '   ' + line;
-          }).join('\n');
-        }
-      }
-    } else {
-      str = ctx.stylize('[Circular]', 'special');
-    }
-  }
-  if (isUndefined(name)) {
-    if (array && key.match(/^\d+$/)) {
-      return str;
-    }
-    name = JSON.stringify('' + key);
-    if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
-      name = name.substr(1, name.length - 2);
-      name = ctx.stylize(name, 'name');
-    } else {
-      name = name.replace(/'/g, "\\'")
-                 .replace(/\\"/g, '"')
-                 .replace(/(^"|"$)/g, "'");
-      name = ctx.stylize(name, 'string');
-    }
-  }
-
-  return name + ': ' + str;
-}
-
-
-function reduceToSingleString(output, base, braces) {
-  var numLinesEst = 0;
-  var length = output.reduce(function(prev, cur) {
-    numLinesEst++;
-    if (cur.indexOf('\n') >= 0) numLinesEst++;
-    return prev + cur.replace(/\u001b\[\d\d?m/g, '').length + 1;
-  }, 0);
-
-  if (length > 60) {
-    return braces[0] +
-           (base === '' ? '' : base + '\n ') +
-           ' ' +
-           output.join(',\n  ') +
-           ' ' +
-           braces[1];
-  }
-
-  return braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
-}
-
-
-// NOTE: These type checking functions intentionally don't use `instanceof`
-// because it is fragile and can be easily faked with `Object.create()`.
-function isArray(ar) {
-  return Array.isArray(ar);
-}
-exports.isArray = isArray;
-
-function isBoolean(arg) {
-  return typeof arg === 'boolean';
-}
-exports.isBoolean = isBoolean;
-
-function isNull(arg) {
-  return arg === null;
-}
-exports.isNull = isNull;
-
-function isNullOrUndefined(arg) {
-  return arg == null;
-}
-exports.isNullOrUndefined = isNullOrUndefined;
-
-function isNumber(arg) {
-  return typeof arg === 'number';
-}
-exports.isNumber = isNumber;
-
-function isString(arg) {
-  return typeof arg === 'string';
-}
-exports.isString = isString;
-
-function isSymbol(arg) {
-  return typeof arg === 'symbol';
-}
-exports.isSymbol = isSymbol;
-
-function isUndefined(arg) {
-  return arg === void 0;
-}
-exports.isUndefined = isUndefined;
-
-function isRegExp(re) {
-  return isObject(re) && objectToString(re) === '[object RegExp]';
-}
-exports.isRegExp = isRegExp;
-
-function isObject(arg) {
-  return typeof arg === 'object' && arg !== null;
-}
-exports.isObject = isObject;
-
-function isDate(d) {
-  return isObject(d) && objectToString(d) === '[object Date]';
-}
-exports.isDate = isDate;
-
-function isError(e) {
-  return isObject(e) &&
-      (objectToString(e) === '[object Error]' || e instanceof Error);
-}
-exports.isError = isError;
-
-function isFunction(arg) {
-  return typeof arg === 'function';
-}
-exports.isFunction = isFunction;
-
-function isPrimitive(arg) {
-  return arg === null ||
-         typeof arg === 'boolean' ||
-         typeof arg === 'number' ||
-         typeof arg === 'string' ||
-         typeof arg === 'symbol' ||  // ES6 symbol
-         typeof arg === 'undefined';
-}
-exports.isPrimitive = isPrimitive;
-
-exports.isBuffer = require('./support/isBuffer');
-
-function objectToString(o) {
-  return Object.prototype.toString.call(o);
-}
-
-
-function pad(n) {
-  return n < 10 ? '0' + n.toString(10) : n.toString(10);
-}
-
-
-var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
-              'Oct', 'Nov', 'Dec'];
-
-// 26 Feb 16:19:34
-function timestamp() {
-  var d = new Date();
-  var time = [pad(d.getHours()),
-              pad(d.getMinutes()),
-              pad(d.getSeconds())].join(':');
-  return [d.getDate(), months[d.getMonth()], time].join(' ');
-}
-
-
-// log is just a thin wrapper to console.log that prepends a timestamp
-exports.log = function() {
-  console.log('%s - %s', timestamp(), exports.format.apply(exports, arguments));
-};
-
-
-/**
- * Inherit the prototype methods from one constructor into another.
- *
- * The Function.prototype.inherits from lang.js rewritten as a standalone
- * function (not on Function.prototype). NOTE: If this file is to be loaded
- * during bootstrapping this function needs to be rewritten using some native
- * functions as prototype setup using normal JavaScript does not work as
- * expected during bootstrapping (see mirror.js in r114903).
- *
- * @param {function} ctor Constructor function which needs to inherit the
- *     prototype.
- * @param {function} superCtor Constructor function to inherit prototype from.
- */
-exports.inherits = require('inherits');
-
-exports._extend = function(origin, add) {
-  // Don't do anything if add isn't an object
-  if (!add || !isObject(add)) return origin;
-
-  var keys = Object.keys(add);
-  var i = keys.length;
-  while (i--) {
-    origin[keys[i]] = add[keys[i]];
-  }
-  return origin;
-};
-
-function hasOwnProperty(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop);
-}
-
-}).call(this)}).call(this,require('_process'),typeof __webpack_require__.g !== "undefined" ? __webpack_require__.g : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":96,"_process":86,"inherits":95}],98:[function(require,module,exports){
-var v1 = require('./v1');
-var v4 = require('./v4');
-
-var uuid = v4;
-uuid.v1 = v1;
-uuid.v4 = v4;
-
-module.exports = uuid;
-
-},{"./v1":101,"./v4":102}],99:[function(require,module,exports){
 /**
  * Convert array of 16 byte values to UUID string format of the form:
  * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
  */
 var byteToHex = [];
+
 for (var i = 0; i < 256; ++i) {
   byteToHex[i] = (i + 0x100).toString(16).substr(1);
 }
 
 function bytesToUuid(buf, offset) {
   var i = offset || 0;
-  var bth = byteToHex;
-  // join used to fix memory issue caused by concatenation: https://bugs.chromium.org/p/v8/issues/detail?id=3175#c4
-  return ([bth[buf[i++]], bth[buf[i++]], 
-	bth[buf[i++]], bth[buf[i++]], '-',
-	bth[buf[i++]], bth[buf[i++]], '-',
-	bth[buf[i++]], bth[buf[i++]], '-',
-	bth[buf[i++]], bth[buf[i++]], '-',
-	bth[buf[i++]], bth[buf[i++]],
-	bth[buf[i++]], bth[buf[i++]],
-	bth[buf[i++]], bth[buf[i++]]]).join('');
+  var bth = byteToHex; // join used to fix memory issue caused by concatenation: https://bugs.chromium.org/p/v8/issues/detail?id=3175#c4
+
+  return [bth[buf[i++]], bth[buf[i++]], bth[buf[i++]], bth[buf[i++]], '-', bth[buf[i++]], bth[buf[i++]], '-', bth[buf[i++]], bth[buf[i++]], '-', bth[buf[i++]], bth[buf[i++]], '-', bth[buf[i++]], bth[buf[i++]], bth[buf[i++]], bth[buf[i++]], bth[buf[i++]], bth[buf[i++]]].join('');
 }
 
-module.exports = bytesToUuid;
-
+var _default = bytesToUuid;
+exports.default = _default;
 },{}],100:[function(require,module,exports){
-// Unique ID creation requires a high quality random # generator.  In the
-// browser this is a little complicated due to unknown quality of Math.random()
-// and inconsistent support for the `crypto` API.  We do the best we can via
-// feature-detection
+"use strict";
 
-// getRandomValues needs to be invoked in a context where "this" is a Crypto
-// implementation. Also, find the complete implementation of crypto on IE11.
-var getRandomValues = (typeof(crypto) != 'undefined' && crypto.getRandomValues && crypto.getRandomValues.bind(crypto)) ||
-                      (typeof(msCrypto) != 'undefined' && typeof window.msCrypto.getRandomValues == 'function' && msCrypto.getRandomValues.bind(msCrypto));
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+Object.defineProperty(exports, "v1", {
+  enumerable: true,
+  get: function () {
+    return _v.default;
+  }
+});
+Object.defineProperty(exports, "v3", {
+  enumerable: true,
+  get: function () {
+    return _v2.default;
+  }
+});
+Object.defineProperty(exports, "v4", {
+  enumerable: true,
+  get: function () {
+    return _v3.default;
+  }
+});
+Object.defineProperty(exports, "v5", {
+  enumerable: true,
+  get: function () {
+    return _v4.default;
+  }
+});
 
-if (getRandomValues) {
-  // WHATWG crypto RNG - http://wiki.whatwg.org/wiki/Crypto
-  var rnds8 = new Uint8Array(16); // eslint-disable-line no-undef
+var _v = _interopRequireDefault(require("./v1.js"));
 
-  module.exports = function whatwgRNG() {
-    getRandomValues(rnds8);
-    return rnds8;
-  };
-} else {
-  // Math.random()-based (RNG)
-  //
-  // If all else fails, use Math.random().  It's fast, but is of unspecified
-  // quality.
-  var rnds = new Array(16);
+var _v2 = _interopRequireDefault(require("./v3.js"));
 
-  module.exports = function mathRNG() {
-    for (var i = 0, r; i < 16; i++) {
-      if ((i & 0x03) === 0) r = Math.random() * 0x100000000;
-      rnds[i] = r >>> ((i & 0x03) << 3) & 0xff;
+var _v3 = _interopRequireDefault(require("./v4.js"));
+
+var _v4 = _interopRequireDefault(require("./v5.js"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+},{"./v1.js":104,"./v3.js":105,"./v4.js":107,"./v5.js":108}],101:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+/*
+ * Browser-compatible JavaScript MD5
+ *
+ * Modification of JavaScript MD5
+ * https://github.com/blueimp/JavaScript-MD5
+ *
+ * Copyright 2011, Sebastian Tschan
+ * https://blueimp.net
+ *
+ * Licensed under the MIT license:
+ * https://opensource.org/licenses/MIT
+ *
+ * Based on
+ * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
+ * Digest Algorithm, as defined in RFC 1321.
+ * Version 2.2 Copyright (C) Paul Johnston 1999 - 2009
+ * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
+ * Distributed under the BSD License
+ * See http://pajhome.org.uk/crypt/md5 for more info.
+ */
+function md5(bytes) {
+  if (typeof bytes == 'string') {
+    var msg = unescape(encodeURIComponent(bytes)); // UTF8 escape
+
+    bytes = new Array(msg.length);
+
+    for (var i = 0; i < msg.length; i++) bytes[i] = msg.charCodeAt(i);
+  }
+
+  return md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), bytes.length * 8));
+}
+/*
+ * Convert an array of little-endian words to an array of bytes
+ */
+
+
+function md5ToHexEncodedArray(input) {
+  var i;
+  var x;
+  var output = [];
+  var length32 = input.length * 32;
+  var hexTab = '0123456789abcdef';
+  var hex;
+
+  for (i = 0; i < length32; i += 8) {
+    x = input[i >> 5] >>> i % 32 & 0xff;
+    hex = parseInt(hexTab.charAt(x >>> 4 & 0x0f) + hexTab.charAt(x & 0x0f), 16);
+    output.push(hex);
+  }
+
+  return output;
+}
+/*
+ * Calculate the MD5 of an array of little-endian words, and a bit length.
+ */
+
+
+function wordsToMd5(x, len) {
+  /* append padding */
+  x[len >> 5] |= 0x80 << len % 32;
+  x[(len + 64 >>> 9 << 4) + 14] = len;
+  var i;
+  var olda;
+  var oldb;
+  var oldc;
+  var oldd;
+  var a = 1732584193;
+  var b = -271733879;
+  var c = -1732584194;
+  var d = 271733878;
+
+  for (i = 0; i < x.length; i += 16) {
+    olda = a;
+    oldb = b;
+    oldc = c;
+    oldd = d;
+    a = md5ff(a, b, c, d, x[i], 7, -680876936);
+    d = md5ff(d, a, b, c, x[i + 1], 12, -389564586);
+    c = md5ff(c, d, a, b, x[i + 2], 17, 606105819);
+    b = md5ff(b, c, d, a, x[i + 3], 22, -1044525330);
+    a = md5ff(a, b, c, d, x[i + 4], 7, -176418897);
+    d = md5ff(d, a, b, c, x[i + 5], 12, 1200080426);
+    c = md5ff(c, d, a, b, x[i + 6], 17, -1473231341);
+    b = md5ff(b, c, d, a, x[i + 7], 22, -45705983);
+    a = md5ff(a, b, c, d, x[i + 8], 7, 1770035416);
+    d = md5ff(d, a, b, c, x[i + 9], 12, -1958414417);
+    c = md5ff(c, d, a, b, x[i + 10], 17, -42063);
+    b = md5ff(b, c, d, a, x[i + 11], 22, -1990404162);
+    a = md5ff(a, b, c, d, x[i + 12], 7, 1804603682);
+    d = md5ff(d, a, b, c, x[i + 13], 12, -40341101);
+    c = md5ff(c, d, a, b, x[i + 14], 17, -1502002290);
+    b = md5ff(b, c, d, a, x[i + 15], 22, 1236535329);
+    a = md5gg(a, b, c, d, x[i + 1], 5, -165796510);
+    d = md5gg(d, a, b, c, x[i + 6], 9, -1069501632);
+    c = md5gg(c, d, a, b, x[i + 11], 14, 643717713);
+    b = md5gg(b, c, d, a, x[i], 20, -373897302);
+    a = md5gg(a, b, c, d, x[i + 5], 5, -701558691);
+    d = md5gg(d, a, b, c, x[i + 10], 9, 38016083);
+    c = md5gg(c, d, a, b, x[i + 15], 14, -660478335);
+    b = md5gg(b, c, d, a, x[i + 4], 20, -405537848);
+    a = md5gg(a, b, c, d, x[i + 9], 5, 568446438);
+    d = md5gg(d, a, b, c, x[i + 14], 9, -1019803690);
+    c = md5gg(c, d, a, b, x[i + 3], 14, -187363961);
+    b = md5gg(b, c, d, a, x[i + 8], 20, 1163531501);
+    a = md5gg(a, b, c, d, x[i + 13], 5, -1444681467);
+    d = md5gg(d, a, b, c, x[i + 2], 9, -51403784);
+    c = md5gg(c, d, a, b, x[i + 7], 14, 1735328473);
+    b = md5gg(b, c, d, a, x[i + 12], 20, -1926607734);
+    a = md5hh(a, b, c, d, x[i + 5], 4, -378558);
+    d = md5hh(d, a, b, c, x[i + 8], 11, -2022574463);
+    c = md5hh(c, d, a, b, x[i + 11], 16, 1839030562);
+    b = md5hh(b, c, d, a, x[i + 14], 23, -35309556);
+    a = md5hh(a, b, c, d, x[i + 1], 4, -1530992060);
+    d = md5hh(d, a, b, c, x[i + 4], 11, 1272893353);
+    c = md5hh(c, d, a, b, x[i + 7], 16, -155497632);
+    b = md5hh(b, c, d, a, x[i + 10], 23, -1094730640);
+    a = md5hh(a, b, c, d, x[i + 13], 4, 681279174);
+    d = md5hh(d, a, b, c, x[i], 11, -358537222);
+    c = md5hh(c, d, a, b, x[i + 3], 16, -722521979);
+    b = md5hh(b, c, d, a, x[i + 6], 23, 76029189);
+    a = md5hh(a, b, c, d, x[i + 9], 4, -640364487);
+    d = md5hh(d, a, b, c, x[i + 12], 11, -421815835);
+    c = md5hh(c, d, a, b, x[i + 15], 16, 530742520);
+    b = md5hh(b, c, d, a, x[i + 2], 23, -995338651);
+    a = md5ii(a, b, c, d, x[i], 6, -198630844);
+    d = md5ii(d, a, b, c, x[i + 7], 10, 1126891415);
+    c = md5ii(c, d, a, b, x[i + 14], 15, -1416354905);
+    b = md5ii(b, c, d, a, x[i + 5], 21, -57434055);
+    a = md5ii(a, b, c, d, x[i + 12], 6, 1700485571);
+    d = md5ii(d, a, b, c, x[i + 3], 10, -1894986606);
+    c = md5ii(c, d, a, b, x[i + 10], 15, -1051523);
+    b = md5ii(b, c, d, a, x[i + 1], 21, -2054922799);
+    a = md5ii(a, b, c, d, x[i + 8], 6, 1873313359);
+    d = md5ii(d, a, b, c, x[i + 15], 10, -30611744);
+    c = md5ii(c, d, a, b, x[i + 6], 15, -1560198380);
+    b = md5ii(b, c, d, a, x[i + 13], 21, 1309151649);
+    a = md5ii(a, b, c, d, x[i + 4], 6, -145523070);
+    d = md5ii(d, a, b, c, x[i + 11], 10, -1120210379);
+    c = md5ii(c, d, a, b, x[i + 2], 15, 718787259);
+    b = md5ii(b, c, d, a, x[i + 9], 21, -343485551);
+    a = safeAdd(a, olda);
+    b = safeAdd(b, oldb);
+    c = safeAdd(c, oldc);
+    d = safeAdd(d, oldd);
+  }
+
+  return [a, b, c, d];
+}
+/*
+ * Convert an array bytes to an array of little-endian words
+ * Characters >255 have their high-byte silently ignored.
+ */
+
+
+function bytesToWords(input) {
+  var i;
+  var output = [];
+  output[(input.length >> 2) - 1] = undefined;
+
+  for (i = 0; i < output.length; i += 1) {
+    output[i] = 0;
+  }
+
+  var length8 = input.length * 8;
+
+  for (i = 0; i < length8; i += 8) {
+    output[i >> 5] |= (input[i / 8] & 0xff) << i % 32;
+  }
+
+  return output;
+}
+/*
+ * Add integers, wrapping at 2^32. This uses 16-bit operations internally
+ * to work around bugs in some JS interpreters.
+ */
+
+
+function safeAdd(x, y) {
+  var lsw = (x & 0xffff) + (y & 0xffff);
+  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+  return msw << 16 | lsw & 0xffff;
+}
+/*
+ * Bitwise rotate a 32-bit number to the left.
+ */
+
+
+function bitRotateLeft(num, cnt) {
+  return num << cnt | num >>> 32 - cnt;
+}
+/*
+ * These functions implement the four basic operations the algorithm uses.
+ */
+
+
+function md5cmn(q, a, b, x, s, t) {
+  return safeAdd(bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s), b);
+}
+
+function md5ff(a, b, c, d, x, s, t) {
+  return md5cmn(b & c | ~b & d, a, b, x, s, t);
+}
+
+function md5gg(a, b, c, d, x, s, t) {
+  return md5cmn(b & d | c & ~d, a, b, x, s, t);
+}
+
+function md5hh(a, b, c, d, x, s, t) {
+  return md5cmn(b ^ c ^ d, a, b, x, s, t);
+}
+
+function md5ii(a, b, c, d, x, s, t) {
+  return md5cmn(c ^ (b | ~d), a, b, x, s, t);
+}
+
+var _default = md5;
+exports.default = _default;
+},{}],102:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = rng;
+// Unique ID creation requires a high quality random # generator. In the browser we therefore
+// require the crypto API and do not support built-in fallback to lower quality random number
+// generators (like Math.random()).
+// getRandomValues needs to be invoked in a context where "this" is a Crypto implementation. Also,
+// find the complete implementation of crypto (msCrypto) on IE11.
+var getRandomValues = typeof crypto != 'undefined' && crypto.getRandomValues && crypto.getRandomValues.bind(crypto) || typeof msCrypto != 'undefined' && typeof msCrypto.getRandomValues == 'function' && msCrypto.getRandomValues.bind(msCrypto);
+var rnds8 = new Uint8Array(16); // eslint-disable-line no-undef
+
+function rng() {
+  if (!getRandomValues) {
+    throw new Error('crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported');
+  }
+
+  return getRandomValues(rnds8);
+}
+},{}],103:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+// Adapted from Chris Veness' SHA1 code at
+// http://www.movable-type.co.uk/scripts/sha1.html
+function f(s, x, y, z) {
+  switch (s) {
+    case 0:
+      return x & y ^ ~x & z;
+
+    case 1:
+      return x ^ y ^ z;
+
+    case 2:
+      return x & y ^ x & z ^ y & z;
+
+    case 3:
+      return x ^ y ^ z;
+  }
+}
+
+function ROTL(x, n) {
+  return x << n | x >>> 32 - n;
+}
+
+function sha1(bytes) {
+  var K = [0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6];
+  var H = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0];
+
+  if (typeof bytes == 'string') {
+    var msg = unescape(encodeURIComponent(bytes)); // UTF8 escape
+
+    bytes = new Array(msg.length);
+
+    for (var i = 0; i < msg.length; i++) bytes[i] = msg.charCodeAt(i);
+  }
+
+  bytes.push(0x80);
+  var l = bytes.length / 4 + 2;
+  var N = Math.ceil(l / 16);
+  var M = new Array(N);
+
+  for (var i = 0; i < N; i++) {
+    M[i] = new Array(16);
+
+    for (var j = 0; j < 16; j++) {
+      M[i][j] = bytes[i * 64 + j * 4] << 24 | bytes[i * 64 + j * 4 + 1] << 16 | bytes[i * 64 + j * 4 + 2] << 8 | bytes[i * 64 + j * 4 + 3];
+    }
+  }
+
+  M[N - 1][14] = (bytes.length - 1) * 8 / Math.pow(2, 32);
+  M[N - 1][14] = Math.floor(M[N - 1][14]);
+  M[N - 1][15] = (bytes.length - 1) * 8 & 0xffffffff;
+
+  for (var i = 0; i < N; i++) {
+    var W = new Array(80);
+
+    for (var t = 0; t < 16; t++) W[t] = M[i][t];
+
+    for (var t = 16; t < 80; t++) {
+      W[t] = ROTL(W[t - 3] ^ W[t - 8] ^ W[t - 14] ^ W[t - 16], 1);
     }
 
-    return rnds;
-  };
+    var a = H[0];
+    var b = H[1];
+    var c = H[2];
+    var d = H[3];
+    var e = H[4];
+
+    for (var t = 0; t < 80; t++) {
+      var s = Math.floor(t / 20);
+      var T = ROTL(a, 5) + f(s, b, c, d) + e + K[s] + W[t] >>> 0;
+      e = d;
+      d = c;
+      c = ROTL(b, 30) >>> 0;
+      b = a;
+      a = T;
+    }
+
+    H[0] = H[0] + a >>> 0;
+    H[1] = H[1] + b >>> 0;
+    H[2] = H[2] + c >>> 0;
+    H[3] = H[3] + d >>> 0;
+    H[4] = H[4] + e >>> 0;
+  }
+
+  return [H[0] >> 24 & 0xff, H[0] >> 16 & 0xff, H[0] >> 8 & 0xff, H[0] & 0xff, H[1] >> 24 & 0xff, H[1] >> 16 & 0xff, H[1] >> 8 & 0xff, H[1] & 0xff, H[2] >> 24 & 0xff, H[2] >> 16 & 0xff, H[2] >> 8 & 0xff, H[2] & 0xff, H[3] >> 24 & 0xff, H[3] >> 16 & 0xff, H[3] >> 8 & 0xff, H[3] & 0xff, H[4] >> 24 & 0xff, H[4] >> 16 & 0xff, H[4] >> 8 & 0xff, H[4] & 0xff];
 }
 
-},{}],101:[function(require,module,exports){
-var rng = require('./lib/rng');
-var bytesToUuid = require('./lib/bytesToUuid');
+var _default = sha1;
+exports.default = _default;
+},{}],104:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _rng = _interopRequireDefault(require("./rng.js"));
+
+var _bytesToUuid = _interopRequireDefault(require("./bytesToUuid.js"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 // **`v1()` - Generate time-based UUID**
 //
 // Inspired by https://github.com/LiosK/UUID.js
 // and http://docs.python.org/library/uuid.html
-
 var _nodeId;
-var _clockseq;
 
-// Previous uuid creation time
+var _clockseq; // Previous uuid creation time
+
+
 var _lastMSecs = 0;
-var _lastNSecs = 0;
+var _lastNSecs = 0; // See https://github.com/uuidjs/uuid for API details
 
-// See https://github.com/broofa/node-uuid for API details
 function v1(options, buf, offset) {
   var i = buf && offset || 0;
   var b = buf || [];
-
   options = options || {};
   var node = options.node || _nodeId;
-  var clockseq = options.clockseq !== undefined ? options.clockseq : _clockseq;
-
-  // node and clockseq need to be initialized to random values if they're not
+  var clockseq = options.clockseq !== undefined ? options.clockseq : _clockseq; // node and clockseq need to be initialized to random values if they're not
   // specified.  We do this lazily to minimize issues related to insufficient
   // system entropy.  See #189
+
   if (node == null || clockseq == null) {
-    var seedBytes = rng();
+    var seedBytes = options.random || (options.rng || _rng.default)();
+
     if (node == null) {
       // Per 4.5, create and 48-bit node id, (47 random bits + multicast bit = 1)
-      node = _nodeId = [
-        seedBytes[0] | 0x01,
-        seedBytes[1], seedBytes[2], seedBytes[3], seedBytes[4], seedBytes[5]
-      ];
+      node = _nodeId = [seedBytes[0] | 0x01, seedBytes[1], seedBytes[2], seedBytes[3], seedBytes[4], seedBytes[5]];
     }
+
     if (clockseq == null) {
       // Per 4.2.2, randomize (14 bit) clockseq
       clockseq = _clockseq = (seedBytes[6] << 8 | seedBytes[7]) & 0x3fff;
     }
-  }
-
-  // UUID timestamps are 100 nano-second units since the Gregorian epoch,
+  } // UUID timestamps are 100 nano-second units since the Gregorian epoch,
   // (1582-10-15 00:00).  JSNumbers aren't precise enough for this, so
   // time is handled internally as 'msecs' (integer milliseconds) and 'nsecs'
   // (100-nanoseconds offset from msecs) since unix epoch, 1970-01-01 00:00.
-  var msecs = options.msecs !== undefined ? options.msecs : new Date().getTime();
 
-  // Per 4.2.1.2, use count of uuid's generated during the current clock
+
+  var msecs = options.msecs !== undefined ? options.msecs : new Date().getTime(); // Per 4.2.1.2, use count of uuid's generated during the current clock
   // cycle to simulate higher resolution clock
-  var nsecs = options.nsecs !== undefined ? options.nsecs : _lastNSecs + 1;
 
-  // Time since last uuid creation (in msecs)
-  var dt = (msecs - _lastMSecs) + (nsecs - _lastNSecs)/10000;
+  var nsecs = options.nsecs !== undefined ? options.nsecs : _lastNSecs + 1; // Time since last uuid creation (in msecs)
 
-  // Per 4.2.1.2, Bump clockseq on clock regression
+  var dt = msecs - _lastMSecs + (nsecs - _lastNSecs) / 10000; // Per 4.2.1.2, Bump clockseq on clock regression
+
   if (dt < 0 && options.clockseq === undefined) {
     clockseq = clockseq + 1 & 0x3fff;
-  }
-
-  // Reset nsecs if clock regresses (new clockseq) or we've moved onto a new
+  } // Reset nsecs if clock regresses (new clockseq) or we've moved onto a new
   // time interval
+
+
   if ((dt < 0 || msecs > _lastMSecs) && options.nsecs === undefined) {
     nsecs = 0;
-  }
+  } // Per 4.2.1.2 Throw error if too many uuids are requested
 
-  // Per 4.2.1.2 Throw error if too many uuids are requested
+
   if (nsecs >= 10000) {
-    throw new Error('uuid.v1(): Can\'t create more than 10M uuids/sec');
+    throw new Error("uuid.v1(): Can't create more than 10M uuids/sec");
   }
 
   _lastMSecs = msecs;
   _lastNSecs = nsecs;
-  _clockseq = clockseq;
+  _clockseq = clockseq; // Per 4.1.4 - Convert from unix epoch to Gregorian epoch
 
-  // Per 4.1.4 - Convert from unix epoch to Gregorian epoch
-  msecs += 12219292800000;
+  msecs += 12219292800000; // `time_low`
 
-  // `time_low`
   var tl = ((msecs & 0xfffffff) * 10000 + nsecs) % 0x100000000;
   b[i++] = tl >>> 24 & 0xff;
   b[i++] = tl >>> 16 & 0xff;
   b[i++] = tl >>> 8 & 0xff;
-  b[i++] = tl & 0xff;
+  b[i++] = tl & 0xff; // `time_mid`
 
-  // `time_mid`
-  var tmh = (msecs / 0x100000000 * 10000) & 0xfffffff;
+  var tmh = msecs / 0x100000000 * 10000 & 0xfffffff;
   b[i++] = tmh >>> 8 & 0xff;
-  b[i++] = tmh & 0xff;
+  b[i++] = tmh & 0xff; // `time_high_and_version`
 
-  // `time_high_and_version`
   b[i++] = tmh >>> 24 & 0xf | 0x10; // include version
-  b[i++] = tmh >>> 16 & 0xff;
 
-  // `clock_seq_hi_and_reserved` (Per 4.2.2 - include variant)
-  b[i++] = clockseq >>> 8 | 0x80;
+  b[i++] = tmh >>> 16 & 0xff; // `clock_seq_hi_and_reserved` (Per 4.2.2 - include variant)
 
-  // `clock_seq_low`
-  b[i++] = clockseq & 0xff;
+  b[i++] = clockseq >>> 8 | 0x80; // `clock_seq_low`
 
-  // `node`
+  b[i++] = clockseq & 0xff; // `node`
+
   for (var n = 0; n < 6; ++n) {
     b[i + n] = node[n];
   }
 
-  return buf ? buf : bytesToUuid(b);
+  return buf ? buf : (0, _bytesToUuid.default)(b);
 }
 
-module.exports = v1;
+var _default = v1;
+exports.default = _default;
+},{"./bytesToUuid.js":99,"./rng.js":102}],105:[function(require,module,exports){
+"use strict";
 
-},{"./lib/bytesToUuid":99,"./lib/rng":100}],102:[function(require,module,exports){
-var rng = require('./lib/rng');
-var bytesToUuid = require('./lib/bytesToUuid');
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _v = _interopRequireDefault(require("./v35.js"));
+
+var _md = _interopRequireDefault(require("./md5.js"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const v3 = (0, _v.default)('v3', 0x30, _md.default);
+var _default = v3;
+exports.default = _default;
+},{"./md5.js":101,"./v35.js":106}],106:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = _default;
+exports.URL = exports.DNS = void 0;
+
+var _bytesToUuid = _interopRequireDefault(require("./bytesToUuid.js"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function uuidToBytes(uuid) {
+  // Note: We assume we're being passed a valid uuid string
+  var bytes = [];
+  uuid.replace(/[a-fA-F0-9]{2}/g, function (hex) {
+    bytes.push(parseInt(hex, 16));
+  });
+  return bytes;
+}
+
+function stringToBytes(str) {
+  str = unescape(encodeURIComponent(str)); // UTF8 escape
+
+  var bytes = new Array(str.length);
+
+  for (var i = 0; i < str.length; i++) {
+    bytes[i] = str.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+const DNS = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+exports.DNS = DNS;
+const URL = '6ba7b811-9dad-11d1-80b4-00c04fd430c8';
+exports.URL = URL;
+
+function _default(name, version, hashfunc) {
+  var generateUUID = function (value, namespace, buf, offset) {
+    var off = buf && offset || 0;
+    if (typeof value == 'string') value = stringToBytes(value);
+    if (typeof namespace == 'string') namespace = uuidToBytes(namespace);
+    if (!Array.isArray(value)) throw TypeError('value must be an array of bytes');
+    if (!Array.isArray(namespace) || namespace.length !== 16) throw TypeError('namespace must be uuid string or an Array of 16 byte values'); // Per 4.3
+
+    var bytes = hashfunc(namespace.concat(value));
+    bytes[6] = bytes[6] & 0x0f | version;
+    bytes[8] = bytes[8] & 0x3f | 0x80;
+
+    if (buf) {
+      for (var idx = 0; idx < 16; ++idx) {
+        buf[off + idx] = bytes[idx];
+      }
+    }
+
+    return buf || (0, _bytesToUuid.default)(bytes);
+  }; // Function#name is not settable on some platforms (#270)
+
+
+  try {
+    generateUUID.name = name;
+  } catch (err) {} // For CommonJS default export support
+
+
+  generateUUID.DNS = DNS;
+  generateUUID.URL = URL;
+  return generateUUID;
+}
+},{"./bytesToUuid.js":99}],107:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _rng = _interopRequireDefault(require("./rng.js"));
+
+var _bytesToUuid = _interopRequireDefault(require("./bytesToUuid.js"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function v4(options, buf, offset) {
   var i = buf && offset || 0;
 
-  if (typeof(options) == 'string') {
+  if (typeof options == 'string') {
     buf = options === 'binary' ? new Array(16) : null;
     options = null;
   }
+
   options = options || {};
 
-  var rnds = options.random || (options.rng || rng)();
+  var rnds = options.random || (options.rng || _rng.default)(); // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
 
-  // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
-  rnds[6] = (rnds[6] & 0x0f) | 0x40;
-  rnds[8] = (rnds[8] & 0x3f) | 0x80;
 
-  // Copy bytes to buffer, if provided
+  rnds[6] = rnds[6] & 0x0f | 0x40;
+  rnds[8] = rnds[8] & 0x3f | 0x80; // Copy bytes to buffer, if provided
+
   if (buf) {
     for (var ii = 0; ii < 16; ++ii) {
       buf[i + ii] = rnds[ii];
     }
   }
 
-  return buf || bytesToUuid(rnds);
+  return buf || (0, _bytesToUuid.default)(rnds);
 }
 
-module.exports = v4;
+var _default = v4;
+exports.default = _default;
+},{"./bytesToUuid.js":99,"./rng.js":102}],108:[function(require,module,exports){
+"use strict";
 
-},{"./lib/bytesToUuid":99,"./lib/rng":100}],103:[function(require,module,exports){
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _v = _interopRequireDefault(require("./v35.js"));
+
+var _sha = _interopRequireDefault(require("./sha1.js"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const v5 = (0, _v.default)('v5', 0x50, _sha.default);
+var _default = v5;
+exports.default = _default;
+},{"./sha1.js":103,"./v35.js":106}],109:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var LRU_1 = require("./utils/LRU");
@@ -23554,12 +24889,15 @@ var EndpointCache = /** @class */ (function () {
         var now = Date.now();
         var records = this.cache.get(keyString);
         if (records) {
-            for (var i = 0; i < records.length; i++) {
+            for (var i = records.length-1; i >= 0; i--) {
                 var record = records[i];
                 if (record.Expire < now) {
-                    this.cache.remove(keyString);
-                    return undefined;
+                    records.splice(i, 1);
                 }
+            }
+            if (records.length === 0) {
+                this.cache.remove(keyString);
+                return undefined;
             }
         }
         return records;
@@ -23592,7 +24930,7 @@ var EndpointCache = /** @class */ (function () {
     return EndpointCache;
 }());
 exports.EndpointCache = EndpointCache;
-},{"./utils/LRU":104}],104:[function(require,module,exports){
+},{"./utils/LRU":110}],110:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var LinkedListNode = /** @class */ (function () {
@@ -23700,8 +25038,8 @@ var LRUCache = /** @class */ (function () {
     return LRUCache;
 }());
 exports.LRUCache = LRUCache;
-},{}],105:[function(require,module,exports){
-// AWS SDK for JavaScript v2.553.0
+},{}],111:[function(require,module,exports){
+// AWS SDK for JavaScript v2.1189.0
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // License at https://sdk.amazonaws.com/js/BUNDLE_LICENSE.txt
 require('./browser_loader');
@@ -23727,15 +25065,8 @@ if (typeof self !== 'undefined') self.AWS = AWS;
 }
 AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-02-15.min');
 
-if (!Object.prototype.hasOwnProperty.call(AWS, 'STS')) {
-  AWS.apiLoader.services['sts'] = {};
-  AWS.STS = AWS.Service.defineService('sts', [ '2011-06-15' ]);
-  require('./services/sts');
-}
-AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.min');
 
-
-},{"../apis/connect-2017-02-15.min":3,"../apis/sts-2011-06-15.min":5,"./browser_loader":16,"./core":18,"./services/sts":61}]},{},[105]);
+},{"../apis/connect-2017-02-15.min":3,"./browser_loader":16,"./core":19}]},{},[111]);
 
 
 
@@ -23750,7 +25081,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function() {
-   var global = this || window;
+   var global = this || globalThis;
    var connect = global.connect || {};
    global.connect = connect;
    global.lily = connect;
@@ -23807,11 +25138,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
       DESCRIBE_SESSION: "AgentAppService.VoiceId.describeSession",
       UPDATE_SESSION: "AgentAppService.VoiceId.updateSession",
       START_VOICE_ID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
-      LIST_INTEGRATION_ASSOCIATIONS: "AgentAppService.Acs.listIntegrationAssociations",
-      START_CONTACT_RECORDING: "AgentAppService.Acs.StartContactRecording",
-      STOP_CONTACT_RECORDING: "AgentAppService.Acs.StopContactRecording",
-      SUSPEND_CONTACT_RECORDING: "AgentAppService.Acs.SuspendContactRecording",
-      RESUME_CONTACT_RECORDING: "AgentAppService.Acs.ResumeContactRecording"
+      LIST_INTEGRATION_ASSOCIATIONS: "AgentAppService.Acs.listIntegrationAssociations"
    };
 
    /**---------------------------------------------------------------
@@ -24266,14 +25593,14 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.2.0";
+  connect.version = "2.3.0";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -24625,7 +25952,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
         });
       });
     };
-
+ 
     /**
      * If the window is framed, we need to wait for a CONFIGURE message from
      * downstream before we try to initialize, unless params.allowFramedSoftphone is true.
@@ -25756,11 +27083,16 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
    * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
    *
    * The 'source' is an optional parameter which indicates the requester. For example, if invoked with ("create_task", "task", "agentapp") we would know agentapp requested open task view.
+   * 
+   * "caseId" is an optional parameter which is passed when a task is created from a Kesytone case
    */
-  connect.core.activateChannelWithViewType = function (viewType, mediaType, source) {
+   connect.core.activateChannelWithViewType = function (viewType, mediaType, source, caseId) {
     const data = { viewType, mediaType };
     if (source) {
       data.source = source;
+    }
+    if (caseId) {
+      data.caseId = caseId;
     }
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
@@ -26091,7 +27423,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
 
@@ -26136,6 +27468,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     'authorize_success',
     'authorize_retries_exhausted',
     'cti_authorize_retries_exhausted',
+    'click_stream_data'
   ]);
 
   /**---------------------------------------------------------------
@@ -26461,7 +27794,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 /***/ 286:
 /***/ (() => {
 
-!function(e){var n={};function t(o){if(n[o])return n[o].exports;var r=n[o]={i:o,l:!1,exports:{}};return e[o].call(r.exports,r,r.exports,t),r.l=!0,r.exports}t.m=e,t.c=n,t.d=function(e,n,o){t.o(e,n)||Object.defineProperty(e,n,{enumerable:!0,get:o})},t.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},t.t=function(e,n){if(1&n&&(e=t(e)),8&n)return e;if(4&n&&"object"==typeof e&&e&&e.__esModule)return e;var o=Object.create(null);if(t.r(o),Object.defineProperty(o,"default",{enumerable:!0,value:e}),2&n&&"string"!=typeof e)for(var r in e)t.d(o,r,function(n){return e[n]}.bind(null,r));return o},t.n=function(e){var n=e&&e.__esModule?function(){return e.default}:function(){return e};return t.d(n,"a",n),n},t.o=function(e,n){return Object.prototype.hasOwnProperty.call(e,n)},t.p="",t(t.s=2)}([function(e,n,t){"use strict";var o=t(1),r="NULL",i="CLIENT_LOGGER",c="DEBUG",s=2e3,a="aws/subscribe",u="aws/unsubscribe",l="aws/heartbeat",f="connected",p="disconnected";function d(e){return(d="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var b={assertTrue:function(e,n){if(!e)throw new Error(n)},assertNotNull:function(e,n){return b.assertTrue(null!==e&&void 0!==d(e),Object(o.sprintf)("%s must be provided",n||"A value")),e},isNonEmptyString:function(e){return"string"==typeof e&&e.length>0},assertIsList:function(e,n){if(!Array.isArray(e))throw new Error(n+" is not an array")},isFunction:function(e){return!!(e&&e.constructor&&e.call&&e.apply)},isObject:function(e){return!("object"!==d(e)||null===e)},isString:function(e){return"string"==typeof e},isNumber:function(e){return"number"==typeof e}},g=new RegExp("^(wss://)\\w*");b.validWSUrl=function(e){return g.test(e)},b.getSubscriptionResponse=function(e,n,t){return{topic:e,content:{status:n?"success":"failure",topics:t}}},b.assertIsObject=function(e,n){if(!b.isObject(e))throw new Error(n+" is not an object!")},b.addJitter=function(e){var n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:1;n=Math.min(n,1);var t=Math.random()>.5?1:-1;return Math.floor(e+t*e*Math.random()*n)},b.isNetworkOnline=function(){return navigator.onLine},b.isNetworkFailure=function(e){return!(!e._debug||!e._debug.type)&&"NetworkingError"===e._debug.type};var y=b;function m(e){return(m="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function S(e,n){return!n||"object"!==m(n)&&"function"!=typeof n?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):n}function h(e){return(h=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}function k(e,n){return(k=Object.setPrototypeOf||function(e,n){return e.__proto__=n,e})(e,n)}function v(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}function w(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}function C(e,n,t){return n&&w(e.prototype,n),t&&w(e,t),e}var T=function(){function e(){v(this,e)}return C(e,[{key:"debug",value:function(e){}},{key:"info",value:function(e){}},{key:"warn",value:function(e){}},{key:"error",value:function(e){}}]),e}(),O={DEBUG:10,INFO:20,WARN:30,ERROR:40},I=function(){function e(){v(this,e),this.updateLoggerConfig(),this.consoleLoggerWrapper=_()}return C(e,[{key:"writeToClientLogger",value:function(e,n){if(this.hasClientLogger())switch(e){case O.DEBUG:return this._clientLogger.debug(n);case O.INFO:return this._clientLogger.info(n);case O.WARN:return this._clientLogger.warn(n);case O.ERROR:return this._clientLogger.error(n)}}},{key:"isLevelEnabled",value:function(e){return e>=this._level}},{key:"hasClientLogger",value:function(){return null!==this._clientLogger}},{key:"getLogger",value:function(e){var n=e.prefix||"";return this._logsDestination===c?this.consoleLoggerWrapper:new N(n)}},{key:"updateLoggerConfig",value:function(e){var n=e||{};this._level=n.level||O.DEBUG,this._clientLogger=n.logger||null,this._logsDestination=r,n.debug&&(this._logsDestination=c),n.logger&&(this._logsDestination=i)}}]),e}(),W=function(){function e(){v(this,e)}return C(e,[{key:"debug",value:function(){}},{key:"info",value:function(){}},{key:"warn",value:function(){}},{key:"error",value:function(){}}]),e}(),N=function(e){function n(e){var t;return v(this,n),(t=S(this,h(n).call(this))).prefix=e||"",t}return function(e,n){if("function"!=typeof n&&null!==n)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(n&&n.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),n&&k(e,n)}(n,W),C(n,[{key:"debug",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.DEBUG,n)}},{key:"info",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.INFO,n)}},{key:"warn",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.WARN,n)}},{key:"error",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(O.ERROR,n)}},{key:"_shouldLog",value:function(e){return E.hasClientLogger()&&E.isLevelEnabled(e)}},{key:"_writeToClientLogger",value:function(e,n){return E.writeToClientLogger(e,n)}},{key:"_log",value:function(e,n){if(this._shouldLog(e)){var t=this._convertToSingleStatement(n);return this._writeToClientLogger(e,t)}}},{key:"_convertToSingleStatement",value:function(e){var n="";this.prefix&&(n+=this.prefix+" ");for(var t=0;t<e.length;t++){var o=e[t];n+=this._convertToString(o)+" "}return n}},{key:"_convertToString",value:function(e){try{if(!e)return"";if(y.isString(e))return e;if(y.isObject(e)&&y.isFunction(e.toString)){var n=e.toString();if("[object Object]"!==n)return n}return JSON.stringify(e)}catch(n){return console.error("Error while converting argument to string",e,n),""}}}]),n}(),_=function(){var e=new W;return e.debug=console.debug,e.info=console.info,e.warn=console.warn,e.error=console.error,e},E=new I;function F(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}var L=function(){function e(n){var t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:s;!function(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}(this,e),this.numAttempts=0,this.executor=n,this.hasActiveReconnection=!1,this.defaultRetry=t}var n,t,o;return n=e,(t=[{key:"retry",value:function(){var e=this;this.hasActiveReconnection||(this.hasActiveReconnection=!0,setTimeout(function(){e._execute()},this._getDelay()))}},{key:"_execute",value:function(){this.hasActiveReconnection=!1,this.executor(),this.numAttempts++}},{key:"connected",value:function(){this.numAttempts=0}},{key:"_getDelay",value:function(){var e=Math.pow(2,this.numAttempts)*this.defaultRetry;return e<=3e4?e:3e4}}])&&F(n.prototype,t),o&&F(n,o),e}();t.d(n,"a",function(){return R});var x=function(){var e=E.getLogger({}),n=y.isNetworkOnline(),t={primary:null,secondary:null},o={reconnectWebSocket:!0,websocketInitFailed:!1,exponentialBackOffTime:1e3,exponentialTimeoutHandle:null,lifeTimeTimeoutHandle:null,webSocketInitCheckerTimeoutId:null,connState:null},r={connectWebSocketRetryCount:0,connectionAttemptStartTime:null,noOpenConnectionsTimestamp:null},i={pendingResponse:!1,intervalHandle:null},c={initFailure:new Set,getWebSocketTransport:null,subscriptionUpdate:new Set,subscriptionFailure:new Set,topic:new Map,allMessage:new Set,connectionGain:new Set,connectionLost:new Set,connectionOpen:new Set,connectionClose:new Set},s={connConfig:null,promiseHandle:null,promiseCompleted:!0},d={subscribed:new Set,pending:new Set,subscriptionHistory:new Set},b={responseCheckIntervalId:null,requestCompleted:!0,reSubscribeIntervalId:null,consecutiveFailedSubscribeAttempts:0,consecutiveNoResponseRequest:0},g=new L(function(){U()}),m=new Set([a,u,l]),S=setInterval(function(){if(n!==y.isNetworkOnline()){if(!(n=y.isNetworkOnline()))return void J(e.info("Network offline"));var t=O();n&&(!t||w(t,WebSocket.CLOSING)||w(t,WebSocket.CLOSED))&&(J(e.info("Network online, connecting to WebSocket server")),U())}},250),h=function(n,t){n.forEach(function(n){try{n(t)}catch(n){J(e.error("Error executing callback",n))}})},k=function(e){if(null===e)return"NULL";switch(e.readyState){case WebSocket.CONNECTING:return"CONNECTING";case WebSocket.OPEN:return"OPEN";case WebSocket.CLOSING:return"CLOSING";case WebSocket.CLOSED:return"CLOSED";default:return"UNDEFINED"}},v=function(){var n=arguments.length>0&&void 0!==arguments[0]?arguments[0]:"";J(e.debug("["+n+"] Primary WebSocket: "+k(t.primary)+" | Secondary WebSocket: "+k(t.secondary)))},w=function(e,n){return e&&e.readyState===n},C=function(e){return w(e,WebSocket.OPEN)},T=function(e){return null===e||void 0===e.readyState||w(e,WebSocket.CLOSED)},O=function(){return null!==t.secondary?t.secondary:t.primary},I=function(){return C(O())},W=function(){if(i.pendingResponse)return J(e.warn("Heartbeat response not received")),clearInterval(i.intervalHandle),i.pendingResponse=!1,void U();I()?(J(e.debug("Sending heartbeat")),O().send(G(l)),i.pendingResponse=!0):(J(e.warn("Failed to send heartbeat since WebSocket is not open")),v("sendHeartBeat"),U())},N=function(){o.exponentialBackOffTime=1e3,i.pendingResponse=!1,o.reconnectWebSocket=!0,clearTimeout(o.lifeTimeTimeoutHandle),clearInterval(i.intervalHandle),clearTimeout(o.exponentialTimeoutHandle),clearTimeout(o.webSocketInitCheckerTimeoutId)},_=function(){b.consecutiveFailedSubscribeAttempts=0,b.consecutiveNoResponseRequest=0,clearInterval(b.responseCheckIntervalId),clearInterval(b.reSubscribeIntervalId)},F=function(){r.connectWebSocketRetryCount=0,r.connectionAttemptStartTime=null,r.noOpenConnectionsTimestamp=null},x=function(){try{J(e.info("WebSocket connection established!")),v("webSocketOnOpen"),null!==o.connState&&o.connState!==p||h(c.connectionGain),o.connState=f;var n=Date.now();h(c.connectionOpen,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,noOpenConnectionsTimestamp:r.noOpenConnectionsTimestamp,connectionEstablishedTime:n,timeToConnect:n-r.connectionAttemptStartTime,timeWithoutConnection:r.noOpenConnectionsTimestamp?n-r.noOpenConnectionsTimestamp:null}),F(),N(),O().openTimestamp=Date.now(),0===d.subscribed.size&&C(t.secondary)&&D(t.primary,"[Primary WebSocket] Closing WebSocket"),(d.subscribed.size>0||d.pending.size>0)&&(C(t.secondary)&&J(e.info("Subscribing secondary websocket to topics of primary websocket")),d.subscribed.forEach(function(e){d.subscriptionHistory.add(e),d.pending.add(e)}),d.subscribed.clear(),A()),W(),i.intervalHandle=setInterval(W,1e4);var a=1e3*s.connConfig.webSocketTransport.transportLifeTimeInSeconds;J(e.debug("Scheduling WebSocket manager reconnection, after delay "+a+" ms")),o.lifeTimeTimeoutHandle=setTimeout(function(){J(e.debug("Starting scheduled WebSocket manager reconnection")),U()},a)}catch(n){J(e.error("Error after establishing WebSocket connection",n))}},R=function(n){v("webSocketOnError"),J(e.error("WebSocketManager Error, error_event: ",JSON.stringify(n))),U()},j=function(n){var o=JSON.parse(n.data);switch(o.topic){case a:if(J(e.debug("Subscription Message received from webSocket server",n.data)),b.requestCompleted=!0,b.consecutiveNoResponseRequest=0,"success"===o.content.status)b.consecutiveFailedSubscribeAttempts=0,o.content.topics.forEach(function(e){d.subscriptionHistory.delete(e),d.pending.delete(e),d.subscribed.add(e)}),0===d.subscriptionHistory.size?C(t.secondary)&&(J(e.info("Successfully subscribed secondary websocket to all topics of primary websocket")),D(t.primary,"[Primary WebSocket] Closing WebSocket")):A(),h(c.subscriptionUpdate,o);else{if(clearInterval(b.reSubscribeIntervalId),++b.consecutiveFailedSubscribeAttempts,5===b.consecutiveFailedSubscribeAttempts)return h(c.subscriptionFailure,o),void(b.consecutiveFailedSubscribeAttempts=0);b.reSubscribeIntervalId=setInterval(function(){A()},500)}break;case l:J(e.debug("Heartbeat response received")),i.pendingResponse=!1;break;default:if(o.topic){if(J(e.debug("Message received for topic "+o.topic)),C(t.primary)&&C(t.secondary)&&0===d.subscriptionHistory.size&&this===t.primary)return void J(e.warn("Ignoring Message for Topic "+o.topic+", to avoid duplicates"));if(0===c.allMessage.size&&0===c.topic.size)return void J(e.warn("No registered callback listener for Topic",o.topic));h(c.allMessage,o),c.topic.has(o.topic)&&h(c.topic.get(o.topic),o)}else o.message?J(e.warn("WebSocketManager Message Error",o)):J(e.warn("Invalid incoming message",o))}},A=function n(){if(b.consecutiveNoResponseRequest>3)return J(e.warn("Ignoring subscribePendingTopics since we have exhausted max subscription retries with no response")),void h(c.subscriptionFailure,y.getSubscriptionResponse(a,!1,Array.from(d.pending)));I()?0!==Array.from(d.pending).length&&(clearInterval(b.responseCheckIntervalId),O().send(G(a,{topics:Array.from(d.pending)})),b.requestCompleted=!1,b.responseCheckIntervalId=setInterval(function(){b.requestCompleted||(++b.consecutiveNoResponseRequest,n())},1e3)):J(e.warn("Ignoring subscribePendingTopics call since Default WebSocket is not open"))},D=function(n,t){w(n,WebSocket.CONNECTING)||w(n,WebSocket.OPEN)?n.close(1e3,t):J(e.warn("Ignoring WebSocket Close request, WebSocket State: "+k(n)))},M=function(e){D(t.primary,"[Primary] WebSocket "+e),D(t.secondary,"[Secondary] WebSocket "+e)},P=function(){r.connectWebSocketRetryCount++;var n=y.addJitter(o.exponentialBackOffTime,.3);Date.now()+n<=s.connConfig.urlConnValidTime?(J(e.debug("Scheduling WebSocket reinitialization, after delay "+n+" ms")),o.exponentialTimeoutHandle=setTimeout(function(){return q()},n),o.exponentialBackOffTime*=2):(J(e.warn("WebSocket URL cannot be used to establish connection")),U())},H=function(n){N(),_(),J(e.error("WebSocket Initialization failed")),o.websocketInitFailed=!0,M("Terminating WebSocket Manager"),clearInterval(S),h(c.initFailure,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,reason:n}),F()},G=function(e,n){return JSON.stringify({topic:e,content:n})},z=function(n){return!!(y.isObject(n)&&y.isObject(n.webSocketTransport)&&y.isNonEmptyString(n.webSocketTransport.url)&&y.validWSUrl(n.webSocketTransport.url)&&1e3*n.webSocketTransport.transportLifeTimeInSeconds>=3e5)||(J(e.error("Invalid WebSocket Connection Configuration",n)),!1)},U=function(){if(y.isNetworkOnline())if(o.websocketInitFailed)J(e.debug("WebSocket Init had failed, ignoring this getWebSocketConnConfig request"));else{if(s.promiseCompleted)return N(),J(e.info("Fetching new WebSocket connection configuration")),r.connectionAttemptStartTime=r.connectionAttemptStartTime||Date.now(),s.promiseCompleted=!1,s.promiseHandle=c.getWebSocketTransport(),s.promiseHandle.then(function(n){return s.promiseCompleted=!0,J(e.debug("Successfully fetched webSocket connection configuration",n)),z(n)?(s.connConfig=n,s.connConfig.urlConnValidTime=Date.now()+85e3,g.connected(),q()):(H("Invalid WebSocket connection configuration: "+n),{webSocketConnectionFailed:!0})},function(n){return s.promiseCompleted=!0,J(e.error("Failed to fetch webSocket connection configuration",n)),y.isNetworkFailure(n)?(J(e.info("Retrying fetching new WebSocket connection configuration")),g.retry()):H("Failed to fetch webSocket connection configuration: "+JSON.stringify(n)),{webSocketConnectionFailed:!0}});J(e.debug("There is an ongoing getWebSocketConnConfig request, this request will be ignored"))}else J(e.info("Network offline, ignoring this getWebSocketConnConfig request"))},q=function(){if(o.websocketInitFailed)return J(e.info("web-socket initializing had failed, aborting re-init")),{webSocketConnectionFailed:!0};if(!y.isNetworkOnline())return J(e.warn("System is offline aborting web-socket init")),{webSocketConnectionFailed:!0};J(e.info("Initializing Websocket Manager")),v("initWebSocket");try{if(z(s.connConfig)){var n=null;return C(t.primary)?(J(e.debug("Primary Socket connection is already open")),w(t.secondary,WebSocket.CONNECTING)||(J(e.debug("Establishing a secondary web-socket connection")),t.secondary=B()),n=t.secondary):(w(t.primary,WebSocket.CONNECTING)||(J(e.debug("Establishing a primary web-socket connection")),t.primary=B()),n=t.primary),o.webSocketInitCheckerTimeoutId=setTimeout(function(){C(n)||P()},1e3),{webSocketConnectionFailed:!1}}}catch(n){return J(e.error("Error Initializing web-socket-manager",n)),H("Failed to initialize new WebSocket: "+n.message),{webSocketConnectionFailed:!0}}},B=function(){var n=new WebSocket(s.connConfig.webSocketTransport.url);return n.addEventListener("open",x),n.addEventListener("message",j),n.addEventListener("error",R),n.addEventListener("close",function(i){return function(n,i){J(e.info("Socket connection is closed",JSON.stringify(n))),v("webSocketOnClose before-cleanup"),h(c.connectionClose,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),T(t.primary)&&(t.primary=null),T(t.secondary)&&(t.secondary=null),o.reconnectWebSocket&&(C(t.primary)||C(t.secondary)?T(t.primary)&&C(t.secondary)&&(J(e.info("[Primary] WebSocket Cleanly Closed")),t.primary=t.secondary,t.secondary=null):(J(e.warn("Neither primary websocket and nor secondary websocket have open connections, attempting to re-establish connection")),o.connState===p?J(e.info("Ignoring connectionLost callback invocation")):(h(c.connectionLost,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),r.noOpenConnectionsTimestamp=Date.now()),o.connState=p,U()),v("webSocketOnClose after-cleanup"))}(i,n)}),n},J=function(e){return e&&"function"==typeof e.sendInternalLogToServer&&e.sendInternalLogToServer(),e};this.init=function(n){if(y.assertTrue(y.isFunction(n),"transportHandle must be a function"),null===c.getWebSocketTransport)return c.getWebSocketTransport=n,U();J(e.warn("Web Socket Manager was already initialized"))},this.onInitFailure=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.initFailure.add(e),o.websocketInitFailed&&e(),function(){return c.initFailure.delete(e)}},this.onConnectionOpen=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionOpen.add(e),function(){return c.connectionOpen.delete(e)}},this.onConnectionClose=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionClose.add(e),function(){return c.connectionClose.delete(e)}},this.onConnectionGain=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionGain.add(e),I()&&e(),function(){return c.connectionGain.delete(e)}},this.onConnectionLost=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.connectionLost.add(e),o.connState===p&&e(),function(){return c.connectionLost.delete(e)}},this.onSubscriptionUpdate=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.subscriptionUpdate.add(e),function(){return c.subscriptionUpdate.delete(e)}},this.onSubscriptionFailure=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.subscriptionFailure.add(e),function(){return c.subscriptionFailure.delete(e)}},this.onMessage=function(e,n){return y.assertNotNull(e,"topicName"),y.assertTrue(y.isFunction(n),"cb must be a function"),c.topic.has(e)?c.topic.get(e).add(n):c.topic.set(e,new Set([n])),function(){return c.topic.get(e).delete(n)}},this.onAllMessage=function(e){return y.assertTrue(y.isFunction(e),"cb must be a function"),c.allMessage.add(e),function(){return c.allMessage.delete(e)}},this.subscribeTopics=function(e){y.assertNotNull(e,"topics"),y.assertIsList(e),e.forEach(function(e){d.subscribed.has(e)||d.pending.add(e)}),b.consecutiveNoResponseRequest=0,A()},this.sendMessage=function(n){if(y.assertIsObject(n,"payload"),void 0===n.topic||m.has(n.topic))J(e.warn("Cannot send message, Invalid topic",n));else{try{n=JSON.stringify(n)}catch(t){return void J(e.warn("Error stringify message",n))}I()?O().send(n):J(e.warn("Cannot send message, web socket connection is not open"))}},this.closeWebSocket=function(){N(),_(),o.reconnectWebSocket=!1,clearInterval(S),M("User request to close WebSocket")},this.terminateWebSocketManager=H},R={create:function(){return new x},setGlobalConfig:function(e){var n=e.loggerConfig;E.updateLoggerConfig(n)},LogLevel:O,Logger:T}},function(e,n,t){var o;!function(){"use strict";var r={not_string:/[^s]/,not_bool:/[^t]/,not_type:/[^T]/,not_primitive:/[^v]/,number:/[diefg]/,numeric_arg:/[bcdiefguxX]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijostTuvxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[+-]/};function i(e){return function(e,n){var t,o,c,s,a,u,l,f,p,d=1,b=e.length,g="";for(o=0;o<b;o++)if("string"==typeof e[o])g+=e[o];else if("object"==typeof e[o]){if((s=e[o]).keys)for(t=n[d],c=0;c<s.keys.length;c++){if(null==t)throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"',s.keys[c],s.keys[c-1]));t=t[s.keys[c]]}else t=s.param_no?n[s.param_no]:n[d++];if(r.not_type.test(s.type)&&r.not_primitive.test(s.type)&&t instanceof Function&&(t=t()),r.numeric_arg.test(s.type)&&"number"!=typeof t&&isNaN(t))throw new TypeError(i("[sprintf] expecting number but found %T",t));switch(r.number.test(s.type)&&(f=t>=0),s.type){case"b":t=parseInt(t,10).toString(2);break;case"c":t=String.fromCharCode(parseInt(t,10));break;case"d":case"i":t=parseInt(t,10);break;case"j":t=JSON.stringify(t,null,s.width?parseInt(s.width):0);break;case"e":t=s.precision?parseFloat(t).toExponential(s.precision):parseFloat(t).toExponential();break;case"f":t=s.precision?parseFloat(t).toFixed(s.precision):parseFloat(t);break;case"g":t=s.precision?String(Number(t.toPrecision(s.precision))):parseFloat(t);break;case"o":t=(parseInt(t,10)>>>0).toString(8);break;case"s":t=String(t),t=s.precision?t.substring(0,s.precision):t;break;case"t":t=String(!!t),t=s.precision?t.substring(0,s.precision):t;break;case"T":t=Object.prototype.toString.call(t).slice(8,-1).toLowerCase(),t=s.precision?t.substring(0,s.precision):t;break;case"u":t=parseInt(t,10)>>>0;break;case"v":t=t.valueOf(),t=s.precision?t.substring(0,s.precision):t;break;case"x":t=(parseInt(t,10)>>>0).toString(16);break;case"X":t=(parseInt(t,10)>>>0).toString(16).toUpperCase()}r.json.test(s.type)?g+=t:(!r.number.test(s.type)||f&&!s.sign?p="":(p=f?"+":"-",t=t.toString().replace(r.sign,"")),u=s.pad_char?"0"===s.pad_char?"0":s.pad_char.charAt(1):" ",l=s.width-(p+t).length,a=s.width&&l>0?u.repeat(l):"",g+=s.align?p+t+a:"0"===u?p+a+t:a+p+t)}return g}(function(e){if(s[e])return s[e];var n,t=e,o=[],i=0;for(;t;){if(null!==(n=r.text.exec(t)))o.push(n[0]);else if(null!==(n=r.modulo.exec(t)))o.push("%");else{if(null===(n=r.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(n[2]){i|=1;var c=[],a=n[2],u=[];if(null===(u=r.key.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(c.push(u[1]);""!==(a=a.substring(u[0].length));)if(null!==(u=r.key_access.exec(a)))c.push(u[1]);else{if(null===(u=r.index_access.exec(a)))throw new SyntaxError("[sprintf] failed to parse named argument key");c.push(u[1])}n[2]=c}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");o.push({placeholder:n[0],param_no:n[1],keys:n[2],sign:n[3],pad_char:n[4],align:n[5],width:n[6],precision:n[7],type:n[8]})}t=t.substring(n[0].length)}return s[e]=o}(e),arguments)}function c(e,n){return i.apply(null,[e].concat(n||[]))}var s=Object.create(null);n.sprintf=i,n.vsprintf=c,"undefined"!=typeof window&&(window.sprintf=i,window.vsprintf=c,void 0===(o=function(){return{sprintf:i,vsprintf:c}}.call(n,t,n,e))||(e.exports=o))}()},function(e,n,t){"use strict";t.r(n),function(e){t.d(n,"WebSocketManager",function(){return r});var o=t(0);e.connect=e.connect||{},connect.WebSocketManager=o.a;var r=o.a}.call(this,t(3))},function(e,n){var t;t=function(){return this}();try{t=t||new Function("return this")()}catch(e){"object"==typeof window&&(t=window)}e.exports=t}]);
+!function(e){var n={};function t(o){if(n[o])return n[o].exports;var r=n[o]={i:o,l:!1,exports:{}};return e[o].call(r.exports,r,r.exports,t),r.l=!0,r.exports}t.m=e,t.c=n,t.d=function(e,n,o){t.o(e,n)||Object.defineProperty(e,n,{enumerable:!0,get:o})},t.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},t.t=function(e,n){if(1&n&&(e=t(e)),8&n)return e;if(4&n&&"object"==typeof e&&e&&e.__esModule)return e;var o=Object.create(null);if(t.r(o),Object.defineProperty(o,"default",{enumerable:!0,value:e}),2&n&&"string"!=typeof e)for(var r in e)t.d(o,r,function(n){return e[n]}.bind(null,r));return o},t.n=function(e){var n=e&&e.__esModule?function(){return e.default}:function(){return e};return t.d(n,"a",n),n},t.o=function(e,n){return Object.prototype.hasOwnProperty.call(e,n)},t.p="",t(t.s=2)}([function(e,n,t){"use strict";var o=t(1),r="NULL",i="CLIENT_LOGGER",c="DEBUG",a=2e3,s="AMZ_WEB_SOCKET_MANAGER:",u="Network offline",l="Network online, connecting to WebSocket server",f="Network offline, ignoring this getWebSocketConnConfig request",d="Heartbeat response not received",p="Heartbeat response received",g="Sending heartbeat",b="Failed to send heartbeat since WebSocket is not open",y="WebSocket connection established!",m="WebSocket connection is closed",v="WebSocketManager Error, error_event: ",S="Scheduling WebSocket reinitialization, after delay ",h="WebSocket URL cannot be used to establish connection",k="WebSocket Initialization failed - Terminating and cleaning subscriptions",w="Terminating WebSocket Manager",C="Fetching new WebSocket connection configuration",L="Successfully fetched webSocket connection configuration",T="Failed to fetch webSocket connection configuration",O="Retrying fetching new WebSocket connection configuration",W="Initializing Websocket Manager",I="Initializing Websocket Manager Failed!",N="Websocket connection open",_="Websocket connection close",E="Websocket connection gain",F="Websocket connection lost",A="Websocket subscription failure",R="Reset Websocket state",x="WebSocketManager Message Error",D="Message received for topic ",j="Invalid incoming message",M="WebsocketManager invoke callbacks for topic success ",G="aws/subscribe",z="aws/unsubscribe",P="aws/heartbeat",H="connected",U="disconnected";function q(e){return(q="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}var J={assertTrue:function(e,n){if(!e)throw new Error(n)},assertNotNull:function(e,n){return J.assertTrue(null!==e&&void 0!==q(e),Object(o.sprintf)("%s must be provided",n||"A value")),e},isNonEmptyString:function(e){return"string"==typeof e&&e.length>0},assertIsList:function(e,n){if(!Array.isArray(e))throw new Error(n+" is not an array")},isFunction:function(e){return!!(e&&e.constructor&&e.call&&e.apply)},isObject:function(e){return!("object"!==q(e)||null===e)},isString:function(e){return"string"==typeof e},isNumber:function(e){return"number"==typeof e}},B=new RegExp("^(wss://)\\w*");J.validWSUrl=function(e){return B.test(e)},J.getSubscriptionResponse=function(e,n,t){return{topic:e,content:{status:n?"success":"failure",topics:t}}},J.assertIsObject=function(e,n){if(!J.isObject(e))throw new Error(n+" is not an object!")},J.addJitter=function(e){var n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:1;n=Math.min(n,1);var t=Math.random()>.5?1:-1;return Math.floor(e+t*e*Math.random()*n)},J.isNetworkOnline=function(){return navigator.onLine},J.isNetworkFailure=function(e){return!(!e._debug||!e._debug.type)&&"NetworkingError"===e._debug.type};var V=J;function X(e,n){return!n||"object"!==Z(n)&&"function"!=typeof n?function(e){if(void 0===e)throw new ReferenceError("this hasn't been initialised - super() hasn't been called");return e}(e):n}function $(e){return($=Object.setPrototypeOf?Object.getPrototypeOf:function(e){return e.__proto__||Object.getPrototypeOf(e)})(e)}function K(e,n){return(K=Object.setPrototypeOf||function(e,n){return e.__proto__=n,e})(e,n)}function Z(e){return(Z="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e})(e)}function Q(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}function Y(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}function ee(e,n,t){return n&&Y(e.prototype,n),t&&Y(e,t),e}var ne=function(){function e(){Q(this,e)}return ee(e,[{key:"debug",value:function(e){}},{key:"info",value:function(e){}},{key:"warn",value:function(e){}},{key:"error",value:function(e){}},{key:"advancedLog",value:function(e){}}]),e}(),te=s,oe={DEBUG:10,INFO:20,WARN:30,ERROR:40,ADVANCED_LOG:50},re=function(){function e(){Q(this,e),this.updateLoggerConfig(),this.consoleLoggerWrapper=ae()}return ee(e,[{key:"writeToClientLogger",value:function(e,n){if(this.hasClientLogger())switch(e){case oe.DEBUG:return this._clientLogger.debug(n)||n;case oe.INFO:return this._clientLogger.info(n)||n;case oe.WARN:return this._clientLogger.warn(n)||n;case oe.ERROR:return this._clientLogger.error(n)||n;case oe.ADVANCED_LOG:return this._advancedLogWriter?this._clientLogger[this._advancedLogWriter](n)||n:""}}},{key:"isLevelEnabled",value:function(e){return e>=this._level}},{key:"hasClientLogger",value:function(){return null!==this._clientLogger}},{key:"getLogger",value:function(e){var n=e.prefix||te;return this._logsDestination===c?this.consoleLoggerWrapper:new ce(n)}},{key:"updateLoggerConfig",value:function(e){var n=e||{};this._level=n.level||oe.INFO,this._advancedLogWriter="warn",n.advancedLogWriter&&(this._advancedLogWriter=n.advancedLogWriter),n.customizedLogger&&"object"===Z(n.customizedLogger)&&(this.useClientLogger=!0),this._clientLogger=n.logger||this.selectLogger(n),this._logsDestination=r,n.debug&&(this._logsDestination=c),n.logger&&(this._logsDestination=i)}},{key:"selectLogger",value:function(e){return e.customizedLogger&&"object"===Z(e.customizedLogger)?e.customizedLogger:e.useDefaultLogger?(this.consoleLoggerWrapper=ae(),this.consoleLoggerWrapper):null}}]),e}(),ie=function(){function e(){Q(this,e)}return ee(e,[{key:"debug",value:function(){}},{key:"info",value:function(){}},{key:"warn",value:function(){}},{key:"error",value:function(){}},{key:"advancedLog",value:function(){}}]),e}(),ce=function(e){function n(e){var t;return Q(this,n),(t=X(this,$(n).call(this))).prefix=e||te,t}return function(e,n){if("function"!=typeof n&&null!==n)throw new TypeError("Super expression must either be null or a function");e.prototype=Object.create(n&&n.prototype,{constructor:{value:e,writable:!0,configurable:!0}}),n&&K(e,n)}(n,ie),ee(n,[{key:"debug",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(oe.DEBUG,n)}},{key:"info",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(oe.INFO,n)}},{key:"warn",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(oe.WARN,n)}},{key:"error",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(oe.ERROR,n)}},{key:"advancedLog",value:function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return this._log(oe.ADVANCED_LOG,n)}},{key:"_shouldLog",value:function(e){return se.hasClientLogger()&&se.isLevelEnabled(e)}},{key:"_writeToClientLogger",value:function(e,n){return se.writeToClientLogger(e,n)}},{key:"_log",value:function(e,n){if(this._shouldLog(e)){var t=se.useClientLogger?n:this._convertToSingleStatement(n,e);return this._writeToClientLogger(e,t)}}},{key:"_convertToSingleStatement",value:function(e,n){var t=new Date(Date.now()).toISOString(),o=this._getLogLevelByValue(n),r="[".concat(t,"][").concat(o,"]");this.prefix&&(r+=this.prefix+" "),this.options&&(this.options.prefix?r+=" "+this.options.prefix+":":r+="",this.options.logMetaData?r+=" Meta data: "+JSON.stringify(this.options.logMetaData):r+="");for(var i=0;i<e.length;i++){var c=e[i];r+=this._convertToString(c)+" "}return r}},{key:"_getLogLevelByValue",value:function(e){switch(e){case 10:return"DEBUG";case 20:return"INFO";case 30:return"WARN";case 40:return"ERROR";case 50:return"ADVANCED_LOG"}}},{key:"_convertToString",value:function(e){try{if(!e)return"";if(V.isString(e))return e;if(V.isObject(e)&&V.isFunction(e.toString)){var n=e.toString();if("[object Object]"!==n)return n}return JSON.stringify(e)}catch(n){return console.error("Error while converting argument to string",e,n),""}}}]),n}(),ae=function(){var e=new ie;return e.debug=function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return console.debug.apply(window.console,[].concat(n))},e.info=function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return console.info.apply(window.console,[].concat(n))},e.warn=function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return console.warn.apply(window.console,[].concat(n))},e.error=function(){for(var e=arguments.length,n=new Array(e),t=0;t<e;t++)n[t]=arguments[t];return console.error.apply(window.console,[].concat(n))},e},se=new re;function ue(e,n){for(var t=0;t<n.length;t++){var o=n[t];o.enumerable=o.enumerable||!1,o.configurable=!0,"value"in o&&(o.writable=!0),Object.defineProperty(e,o.key,o)}}var le=function(){function e(n){var t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:a;!function(e,n){if(!(e instanceof n))throw new TypeError("Cannot call a class as a function")}(this,e),this.numAttempts=0,this.executor=n,this.hasActiveReconnection=!1,this.defaultRetry=t}var n,t,o;return n=e,(t=[{key:"retry",value:function(){var e=this;this.hasActiveReconnection||(this.hasActiveReconnection=!0,setTimeout(function(){e._execute()},this._getDelay()))}},{key:"_execute",value:function(){this.hasActiveReconnection=!1,this.executor(),this.numAttempts++}},{key:"connected",value:function(){this.numAttempts=0}},{key:"_getDelay",value:function(){var e=Math.pow(2,this.numAttempts)*this.defaultRetry;return e<=3e4?e:3e4}},{key:"getIsConnected",value:function(){return!this.numAttempts}}])&&ue(n.prototype,t),o&&ue(n,o),e}();t.d(n,"a",function(){return de});var fe=function(){var e=se.getLogger({prefix:s}),n=V.isNetworkOnline(),t={primary:null,secondary:null},o={reconnectWebSocket:!0,websocketInitFailed:!1,exponentialBackOffTime:1e3,exponentialTimeoutHandle:null,lifeTimeTimeoutHandle:null,webSocketInitCheckerTimeoutId:null,connState:null},r={connectWebSocketRetryCount:0,connectionAttemptStartTime:null,noOpenConnectionsTimestamp:null},i={pendingResponse:!1,intervalHandle:null},c={initFailure:new Set,getWebSocketTransport:null,subscriptionUpdate:new Set,subscriptionFailure:new Set,topic:new Map,allMessage:new Set,connectionGain:new Set,connectionLost:new Set,connectionOpen:new Set,connectionClose:new Set},a={connConfig:null,promiseHandle:null,promiseCompleted:!0},q={subscribed:new Set,pending:new Set,subscriptionHistory:new Set},J={responseCheckIntervalId:null,requestCompleted:!0,reSubscribeIntervalId:null,consecutiveFailedSubscribeAttempts:0,consecutiveNoResponseRequest:0},B=new le(function(){he()}),X=new Set([G,z,P]),$=setInterval(function(){if(n!==V.isNetworkOnline()){if(!(n=V.isNetworkOnline()))return e.advancedLog(u),void Ce(e.info(u));var t=te();n&&(!t||Y(t,WebSocket.CLOSING)||Y(t,WebSocket.CLOSED))&&(e.advancedLog(l),Ce(e.info(l)),he())}},250),K=function(n,t){n.forEach(function(n){try{n(t)}catch(n){Ce(e.error("Error executing callback",n))}})},Z=function(e){if(null===e)return"NULL";switch(e.readyState){case WebSocket.CONNECTING:return"CONNECTING";case WebSocket.OPEN:return"OPEN";case WebSocket.CLOSING:return"CLOSING";case WebSocket.CLOSED:return"CLOSED";default:return"UNDEFINED"}},Q=function(){var n=arguments.length>0&&void 0!==arguments[0]?arguments[0]:"";Ce(e.debug("["+n+"] Primary WebSocket: "+Z(t.primary)+" | Secondary WebSocket: "+Z(t.secondary)))},Y=function(e,n){return e&&e.readyState===n},ee=function(e){return Y(e,WebSocket.OPEN)},ne=function(e){return null===e||void 0===e.readyState||Y(e,WebSocket.CLOSED)},te=function(){return null!==t.secondary?t.secondary:t.primary},oe=function(){return ee(te())},re=function(){if(i.pendingResponse)return e.advancedLog(d),Ce(e.warn(d)),clearInterval(i.intervalHandle),i.pendingResponse=!1,void he();oe()?(Ce(e.debug(g)),te().send(ve(P)),i.pendingResponse=!0):(e.advancedLog(b),Ce(e.warn(b)),Q("sendHeartBeat"),he())},ie=function(){e.advancedLog(R),o.exponentialBackOffTime=1e3,i.pendingResponse=!1,o.reconnectWebSocket=!0,clearTimeout(o.lifeTimeTimeoutHandle),clearInterval(i.intervalHandle),clearTimeout(o.exponentialTimeoutHandle),clearTimeout(o.webSocketInitCheckerTimeoutId)},ce=function(){J.consecutiveFailedSubscribeAttempts=0,J.consecutiveNoResponseRequest=0,clearInterval(J.responseCheckIntervalId),clearInterval(J.reSubscribeIntervalId)},ae=function(){r.connectWebSocketRetryCount=0,r.connectionAttemptStartTime=null,r.noOpenConnectionsTimestamp=null},ue=function(){B.connected();try{e.advancedLog(y),Ce(e.info(y)),Q("webSocketOnOpen"),null!==o.connState&&o.connState!==U||K(c.connectionGain),o.connState=H;var n=Date.now();K(c.connectionOpen,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,noOpenConnectionsTimestamp:r.noOpenConnectionsTimestamp,connectionEstablishedTime:n,timeToConnect:n-r.connectionAttemptStartTime,timeWithoutConnection:r.noOpenConnectionsTimestamp?n-r.noOpenConnectionsTimestamp:null}),ae(),ie(),te().openTimestamp=Date.now(),0===q.subscribed.size&&ee(t.secondary)&&ge(t.primary,"[Primary WebSocket] Closing WebSocket"),(q.subscribed.size>0||q.pending.size>0)&&(ee(t.secondary)&&Ce(e.info("Subscribing secondary websocket to topics of primary websocket")),q.subscribed.forEach(function(e){q.subscriptionHistory.add(e),q.pending.add(e)}),q.subscribed.clear(),pe()),re(),i.intervalHandle=setInterval(re,1e4);var s=1e3*a.connConfig.webSocketTransport.transportLifeTimeInSeconds;Ce(e.debug("Scheduling WebSocket manager reconnection, after delay "+s+" ms")),o.lifeTimeTimeoutHandle=setTimeout(function(){Ce(e.debug("Starting scheduled WebSocket manager reconnection")),he()},s)}catch(n){Ce(e.error("Error after establishing WebSocket connection",n))}},fe=function(n){Q("webSocketOnError"),e.advancedLog(v,JSON.stringify(n)),Ce(e.error(v,JSON.stringify(n))),B.getIsConnected()?he():B.retry()},de=function(n){var o=JSON.parse(n.data);switch(o.topic){case G:if(Ce(e.debug("Subscription Message received from webSocket server",n.data)),J.requestCompleted=!0,J.consecutiveNoResponseRequest=0,"success"===o.content.status)J.consecutiveFailedSubscribeAttempts=0,o.content.topics.forEach(function(e){q.subscriptionHistory.delete(e),q.pending.delete(e),q.subscribed.add(e)}),0===q.subscriptionHistory.size?ee(t.secondary)&&(Ce(e.info("Successfully subscribed secondary websocket to all topics of primary websocket")),ge(t.primary,"[Primary WebSocket] Closing WebSocket")):pe(),K(c.subscriptionUpdate,o);else{if(clearInterval(J.reSubscribeIntervalId),++J.consecutiveFailedSubscribeAttempts,5===J.consecutiveFailedSubscribeAttempts)return K(c.subscriptionFailure,o),void(J.consecutiveFailedSubscribeAttempts=0);J.reSubscribeIntervalId=setInterval(function(){pe()},500)}break;case P:Ce(e.debug(p)),i.pendingResponse=!1;break;default:if(o.topic){if(e.advancedLog(D,o.topic),Ce(e.debug(D+o.topic)),ee(t.primary)&&ee(t.secondary)&&0===q.subscriptionHistory.size&&this===t.primary)return void Ce(e.warn("Ignoring Message for Topic "+o.topic+", to avoid duplicates"));if(0===c.allMessage.size&&0===c.topic.size)return void Ce(e.warn("No registered callback listener for Topic",o.topic));e.advancedLog(M,o.topic),K(c.allMessage,o),c.topic.has(o.topic)&&K(c.topic.get(o.topic),o)}else o.message?(e.advancedLog(x,o),Ce(e.warn(x,o))):(e.advancedLog(j,o),Ce(e.warn(j,o)))}},pe=function n(){if(J.consecutiveNoResponseRequest>3)return Ce(e.warn("Ignoring subscribePendingTopics since we have exhausted max subscription retries with no response")),void K(c.subscriptionFailure,V.getSubscriptionResponse(G,!1,Array.from(q.pending)));oe()?0!==Array.from(q.pending).length&&(clearInterval(J.responseCheckIntervalId),te().send(ve(G,{topics:Array.from(q.pending)})),J.requestCompleted=!1,J.responseCheckIntervalId=setInterval(function(){J.requestCompleted||(++J.consecutiveNoResponseRequest,n())},1e3)):Ce(e.warn("Ignoring subscribePendingTopics call since Default WebSocket is not open"))},ge=function(n,t){Y(n,WebSocket.CONNECTING)||Y(n,WebSocket.OPEN)?n.close(1e3,t):Ce(e.warn("Ignoring WebSocket Close request, WebSocket State: "+Z(n)))},be=function(e){ge(t.primary,"[Primary] WebSocket "+e),ge(t.secondary,"[Secondary] WebSocket "+e)},ye=function(){r.connectWebSocketRetryCount++;var n=V.addJitter(o.exponentialBackOffTime,.3);Date.now()+n<=a.connConfig.urlConnValidTime?(e.advancedLog(S),Ce(e.debug(S+n+" ms")),o.exponentialTimeoutHandle=setTimeout(function(){return ke()},n),o.exponentialBackOffTime*=2):(e.advancedLog(h),Ce(e.warn(h)),he())},me=function(n){ie(),ce(),e.advancedLog(k,n),Ce(e.error(k)),o.websocketInitFailed=!0,be(w),clearInterval($),K(c.initFailure,{connectWebSocketRetryCount:r.connectWebSocketRetryCount,connectionAttemptStartTime:r.connectionAttemptStartTime,reason:n}),ae()},ve=function(e,n){return JSON.stringify({topic:e,content:n})},Se=function(n){return!!(V.isObject(n)&&V.isObject(n.webSocketTransport)&&V.isNonEmptyString(n.webSocketTransport.url)&&V.validWSUrl(n.webSocketTransport.url)&&1e3*n.webSocketTransport.transportLifeTimeInSeconds>=3e5)||(Ce(e.error("Invalid WebSocket Connection Configuration",n)),!1)},he=function(){if(!V.isNetworkOnline())return e.advancedLog(f),void Ce(e.info(f));if(o.websocketInitFailed)Ce(e.debug("WebSocket Init had failed, ignoring this getWebSocketConnConfig request"));else{if(a.promiseCompleted)return ie(),e.advancedLog(C),Ce(e.info(C)),r.connectionAttemptStartTime=r.connectionAttemptStartTime||Date.now(),a.promiseCompleted=!1,a.promiseHandle=c.getWebSocketTransport(),a.promiseHandle.then(function(n){return a.promiseCompleted=!0,e.advancedLog(L),Ce(e.debug(L,n)),Se(n)?(a.connConfig=n,a.connConfig.urlConnValidTime=Date.now()+85e3,ke()):(me("Invalid WebSocket connection configuration: "+n),{webSocketConnectionFailed:!0})},function(n){return a.promiseCompleted=!0,e.advancedLog(T),Ce(e.error(T,n)),V.isNetworkFailure(n)?(e.advancedLog(O+JSON.stringify(n)),Ce(e.info(O+JSON.stringify(n))),B.retry()):me("Failed to fetch webSocket connection configuration: "+JSON.stringify(n)),{webSocketConnectionFailed:!0}});Ce(e.debug("There is an ongoing getWebSocketConnConfig request, this request will be ignored"))}},ke=function(){if(o.websocketInitFailed)return Ce(e.info("web-socket initializing had failed, aborting re-init")),{webSocketConnectionFailed:!0};if(!V.isNetworkOnline())return Ce(e.warn("System is offline aborting web-socket init")),{webSocketConnectionFailed:!0};e.advancedLog(W),Ce(e.info(W)),Q("initWebSocket");try{if(Se(a.connConfig)){var n=null;return ee(t.primary)?(Ce(e.debug("Primary Socket connection is already open")),Y(t.secondary,WebSocket.CONNECTING)||(Ce(e.debug("Establishing a secondary web-socket connection")),B.numAttempts=0,t.secondary=we()),n=t.secondary):(Y(t.primary,WebSocket.CONNECTING)||(Ce(e.debug("Establishing a primary web-socket connection")),t.primary=we()),n=t.primary),o.webSocketInitCheckerTimeoutId=setTimeout(function(){ee(n)||ye()},1e3),{webSocketConnectionFailed:!1}}}catch(n){return Ce(e.error("Error Initializing web-socket-manager",n)),me("Failed to initialize new WebSocket: "+n.message),{webSocketConnectionFailed:!0}}},we=function(){var n=new WebSocket(a.connConfig.webSocketTransport.url);return n.addEventListener("open",ue),n.addEventListener("message",de),n.addEventListener("error",fe),n.addEventListener("close",function(i){return function(n,i){e.advancedLog(m,JSON.stringify(n)),Ce(e.info(m,JSON.stringify(n))),Q("webSocketOnClose before-cleanup"),K(c.connectionClose,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),ne(t.primary)&&(t.primary=null),ne(t.secondary)&&(t.secondary=null),o.reconnectWebSocket&&(ee(t.primary)||ee(t.secondary)?ne(t.primary)&&ee(t.secondary)&&(Ce(e.info("[Primary] WebSocket Cleanly Closed")),t.primary=t.secondary,t.secondary=null):(Ce(e.warn("Neither primary websocket and nor secondary websocket have open connections, attempting to re-establish connection")),o.connState===U?Ce(e.info("Ignoring connectionLost callback invocation")):(K(c.connectionLost,{openTimestamp:i.openTimestamp,closeTimestamp:Date.now(),connectionDuration:Date.now()-i.openTimestamp,code:n.code,reason:n.reason}),r.noOpenConnectionsTimestamp=Date.now()),o.connState=U,he()),Q("webSocketOnClose after-cleanup"))}(i,n)}),n},Ce=function(e){return e&&"function"==typeof e.sendInternalLogToServer&&e.sendInternalLogToServer(),e};this.init=function(n){if(V.assertTrue(V.isFunction(n),"transportHandle must be a function"),null===c.getWebSocketTransport)return c.getWebSocketTransport=n,he();Ce(e.warn("Web Socket Manager was already initialized"))},this.onInitFailure=function(n){return e.advancedLog(I),V.assertTrue(V.isFunction(n),"cb must be a function"),c.initFailure.add(n),o.websocketInitFailed&&n(),function(){return c.initFailure.delete(n)}},this.onConnectionOpen=function(n){return e.advancedLog(N),V.assertTrue(V.isFunction(n),"cb must be a function"),c.connectionOpen.add(n),function(){return c.connectionOpen.delete(n)}},this.onConnectionClose=function(n){return e.advancedLog(_),V.assertTrue(V.isFunction(n),"cb must be a function"),c.connectionClose.add(n),function(){return c.connectionClose.delete(n)}},this.onConnectionGain=function(n){return e.advancedLog(E),V.assertTrue(V.isFunction(n),"cb must be a function"),c.connectionGain.add(n),oe()&&n(),function(){return c.connectionGain.delete(n)}},this.onConnectionLost=function(n){return e.advancedLog(F),V.assertTrue(V.isFunction(n),"cb must be a function"),c.connectionLost.add(n),o.connState===U&&n(),function(){return c.connectionLost.delete(n)}},this.onSubscriptionUpdate=function(e){return V.assertTrue(V.isFunction(e),"cb must be a function"),c.subscriptionUpdate.add(e),function(){return c.subscriptionUpdate.delete(e)}},this.onSubscriptionFailure=function(n){return e.advancedLog(A),V.assertTrue(V.isFunction(n),"cb must be a function"),c.subscriptionFailure.add(n),function(){return c.subscriptionFailure.delete(n)}},this.onMessage=function(e,n){return V.assertNotNull(e,"topicName"),V.assertTrue(V.isFunction(n),"cb must be a function"),c.topic.has(e)?c.topic.get(e).add(n):c.topic.set(e,new Set([n])),function(){return c.topic.get(e).delete(n)}},this.onAllMessage=function(e){return V.assertTrue(V.isFunction(e),"cb must be a function"),c.allMessage.add(e),function(){return c.allMessage.delete(e)}},this.subscribeTopics=function(e){V.assertNotNull(e,"topics"),V.assertIsList(e),e.forEach(function(e){q.subscribed.has(e)||q.pending.add(e)}),J.consecutiveNoResponseRequest=0,pe()},this.sendMessage=function(n){if(V.assertIsObject(n,"payload"),void 0===n.topic||X.has(n.topic))Ce(e.warn("Cannot send message, Invalid topic",n));else{try{n=JSON.stringify(n)}catch(t){return void Ce(e.warn("Error stringify message",n))}oe()?te().send(n):Ce(e.warn("Cannot send message, web socket connection is not open"))}},this.closeWebSocket=function(){ie(),ce(),o.reconnectWebSocket=!1,clearInterval($),be("User request to close WebSocket")},this.terminateWebSocketManager=me},de={create:function(){return new fe},setGlobalConfig:function(e){var n=e&&e.loggerConfig;se.updateLoggerConfig(n)},LogLevel:oe,Logger:ne}},function(e,n,t){var o;!function(){"use strict";var r={not_string:/[^s]/,not_bool:/[^t]/,not_type:/[^T]/,not_primitive:/[^v]/,number:/[diefg]/,numeric_arg:/[bcdiefguxX]/,json:/[j]/,not_json:/[^j]/,text:/^[^\x25]+/,modulo:/^\x25{2}/,placeholder:/^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-gijostTuvxX])/,key:/^([a-z_][a-z_\d]*)/i,key_access:/^\.([a-z_][a-z_\d]*)/i,index_access:/^\[(\d+)\]/,sign:/^[+-]/};function i(e){return function(e,n){var t,o,c,a,s,u,l,f,d,p=1,g=e.length,b="";for(o=0;o<g;o++)if("string"==typeof e[o])b+=e[o];else if("object"==typeof e[o]){if((a=e[o]).keys)for(t=n[p],c=0;c<a.keys.length;c++){if(null==t)throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"',a.keys[c],a.keys[c-1]));t=t[a.keys[c]]}else t=a.param_no?n[a.param_no]:n[p++];if(r.not_type.test(a.type)&&r.not_primitive.test(a.type)&&t instanceof Function&&(t=t()),r.numeric_arg.test(a.type)&&"number"!=typeof t&&isNaN(t))throw new TypeError(i("[sprintf] expecting number but found %T",t));switch(r.number.test(a.type)&&(f=t>=0),a.type){case"b":t=parseInt(t,10).toString(2);break;case"c":t=String.fromCharCode(parseInt(t,10));break;case"d":case"i":t=parseInt(t,10);break;case"j":t=JSON.stringify(t,null,a.width?parseInt(a.width):0);break;case"e":t=a.precision?parseFloat(t).toExponential(a.precision):parseFloat(t).toExponential();break;case"f":t=a.precision?parseFloat(t).toFixed(a.precision):parseFloat(t);break;case"g":t=a.precision?String(Number(t.toPrecision(a.precision))):parseFloat(t);break;case"o":t=(parseInt(t,10)>>>0).toString(8);break;case"s":t=String(t),t=a.precision?t.substring(0,a.precision):t;break;case"t":t=String(!!t),t=a.precision?t.substring(0,a.precision):t;break;case"T":t=Object.prototype.toString.call(t).slice(8,-1).toLowerCase(),t=a.precision?t.substring(0,a.precision):t;break;case"u":t=parseInt(t,10)>>>0;break;case"v":t=t.valueOf(),t=a.precision?t.substring(0,a.precision):t;break;case"x":t=(parseInt(t,10)>>>0).toString(16);break;case"X":t=(parseInt(t,10)>>>0).toString(16).toUpperCase()}r.json.test(a.type)?b+=t:(!r.number.test(a.type)||f&&!a.sign?d="":(d=f?"+":"-",t=t.toString().replace(r.sign,"")),u=a.pad_char?"0"===a.pad_char?"0":a.pad_char.charAt(1):" ",l=a.width-(d+t).length,s=a.width&&l>0?u.repeat(l):"",b+=a.align?d+t+s:"0"===u?d+s+t:s+d+t)}return b}(function(e){if(a[e])return a[e];var n,t=e,o=[],i=0;for(;t;){if(null!==(n=r.text.exec(t)))o.push(n[0]);else if(null!==(n=r.modulo.exec(t)))o.push("%");else{if(null===(n=r.placeholder.exec(t)))throw new SyntaxError("[sprintf] unexpected placeholder");if(n[2]){i|=1;var c=[],s=n[2],u=[];if(null===(u=r.key.exec(s)))throw new SyntaxError("[sprintf] failed to parse named argument key");for(c.push(u[1]);""!==(s=s.substring(u[0].length));)if(null!==(u=r.key_access.exec(s)))c.push(u[1]);else{if(null===(u=r.index_access.exec(s)))throw new SyntaxError("[sprintf] failed to parse named argument key");c.push(u[1])}n[2]=c}else i|=2;if(3===i)throw new Error("[sprintf] mixing positional and named placeholders is not (yet) supported");o.push({placeholder:n[0],param_no:n[1],keys:n[2],sign:n[3],pad_char:n[4],align:n[5],width:n[6],precision:n[7],type:n[8]})}t=t.substring(n[0].length)}return a[e]=o}(e),arguments)}function c(e,n){return i.apply(null,[e].concat(n||[]))}var a=Object.create(null);n.sprintf=i,n.vsprintf=c,"undefined"!=typeof window&&(window.sprintf=i,window.vsprintf=c,void 0===(o=function(){return{sprintf:i,vsprintf:c}}.call(n,t,n,e))||(e.exports=o))}()},function(e,n,t){"use strict";t.r(n),function(e){t.d(n,"WebSocketManager",function(){return r});var o=t(0);e.connect=e.connect||{},connect.WebSocketManager=o.a;var r=o.a}.call(this,t(3))},function(e,n){var t;t=function(){return this}();try{t=t||new Function("return this")()}catch(e){"object"==typeof window&&(t=window)}e.exports=t}]);
 //# sourceMappingURL=amazon-connect-websocket-manager.js.map
 
 
@@ -26476,7 +27809,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
@@ -27165,7 +28498,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  */
 
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
 
@@ -27261,7 +28594,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  */
 
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
 
@@ -27370,7 +28703,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  */
 
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
 
@@ -27406,7 +28739,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  */
 
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
 
@@ -27503,7 +28836,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
@@ -27742,7 +29075,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
@@ -28552,7 +29885,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
 /*! @license sprintf.js | Copyright (c) 2007-2013 Alexandru Marasteanu <hello at alexei dot ro> | 3 clause BSD license */
 
 (function() {
-   var ctx = this || window;
+   var ctx = this || globalThis;
 
 	var sprintf = function() {
 		if (!sprintf.cache.hasOwnProperty(arguments[0])) {
@@ -28699,7 +30032,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function() {
-   var global = this || window;
+   var global = this || globalThis;
    var connect = global.connect || {};
    global.connect = connect;
    global.lily = connect;
@@ -29035,7 +30368,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function() {
-   var global = this || window;
+   var global = this || globalThis;
    var connect = global.connect || {};
    global.connect = connect;
    global.lily = connect;
@@ -29208,7 +30541,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
@@ -29704,6 +31037,13 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     });
   };
 
+  connect.publishClickStreamData = function(report) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.EventType.CLICK_STREAM_DATA,
+      data: report
+    });
+  };
+
   connect.publishClientSideLogs = function(logs) {
     var bus = connect.core.getEventBus();
     bus.trigger(connect.EventType.CLIENT_SIDE_LOGS, logs);
@@ -29860,35 +31200,40 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
     return notification;
   };
 
-  connect.BaseError = function (format, args) {
-    global.Error.call(this, connect.vsprintf(format, args));
-  };
-  connect.BaseError.prototype = Object.create(Error.prototype);
-  connect.BaseError.prototype.constructor = connect.BaseError;
-
   connect.ValueError = function () {
     var args = Array.prototype.slice.call(arguments, 0);
     var format = args.shift();
-    connect.BaseError.call(this, format, args);
+    var instance = new Error(connect.vsprintf(format, args));
+    Object.setPrototypeOf(instance, connect.ValueError.prototype);
+    return instance; 
   };
-  connect.ValueError.prototype = Object.create(connect.BaseError.prototype);
-  connect.ValueError.prototype.constructor = connect.ValueError;
+  Object.setPrototypeOf(connect.ValueError.prototype, Error.prototype);
+  Object.setPrototypeOf(connect.ValueError, Error);
+  connect.ValueError.prototype.name = 'ValueError';
 
   connect.NotImplementedError = function () {
     var args = Array.prototype.slice.call(arguments, 0);
     var format = args.shift();
-    connect.BaseError.call(this, format, args);
+    var instance = new Error(connect.vsprintf(format, args));
+    Object.setPrototypeOf(instance, connect.NotImplementedError.prototype);
+    return instance; 
   };
-  connect.NotImplementedError.prototype = Object.create(connect.BaseError.prototype);
-  connect.NotImplementedError.prototype.constructor = connect.NotImplementedError;
+  Object.setPrototypeOf(connect.NotImplementedError.prototype, Error.prototype);
+  Object.setPrototypeOf(connect.NotImplementedError, Error);
+  connect.NotImplementedError.prototype.name = 'NotImplementedError';
 
   connect.StateError = function () {
     var args = Array.prototype.slice.call(arguments, 0);
     var format = args.shift();
-    connect.BaseError.call(this, format, args);
-  };
-  connect.StateError.prototype = Object.create(connect.BaseError.prototype);
-  connect.StateError.prototype.constructor = connect.StateError;
+    var instance = new Error(connect.vsprintf(format, args));
+    Object.setPrototypeOf(instance, connect.StateError.prototype);
+    return instance; 
+  }
+  Object.setPrototypeOf(connect.StateError.prototype, Error.prototype);
+  Object.setPrototypeOf(connect.StateError, Error);
+  connect.StateError.prototype.name = 'StateError';
+
+
 
   connect.VoiceIdError = function(type, message, err){
     var error = {};
@@ -29919,7 +31264,7 @@ AWS.apiLoader.services['sts']['2011-06-15'] = require('../apis/sts-2011-06-15.mi
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this || window;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
