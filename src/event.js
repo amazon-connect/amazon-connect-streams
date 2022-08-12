@@ -161,19 +161,6 @@
   ]);
 
   /**---------------------------------------------------------------
-   * enum Configuration Events
-   */
-  var ConfigurationEvents = connect.makeNamespacedEnum('configuration', [
-    'configure',
-    'set_speaker_device',
-    'set_microphone_device',
-    'set_ringer_device',
-    'speaker_device_changed',
-    'microphone_device_changed',
-    'ringer_device_changed'
-  ]);
-
-  /**---------------------------------------------------------------
    * enum VoiceId Events
    */
    var VoiceIdEvents = connect.makeNamespacedEnum('voiceId', [

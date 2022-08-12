@@ -158,13 +158,12 @@
       log.warn("Connect core already initialized, only needs to be initialized once.").sendInternalLogToServer();
     }
   };
- 
- 
+
   /**-------------------------------------------------------------------------
   * DISASTER RECOVERY 
   */
   
-  var makeAgentOffline = function(agent, callbacks) {
+   var makeAgentOffline = function(agent, callbacks) {
     var offlineState = agent.getAgentStates().find(function (state) {
       return state.type === connect.AgentStateType.OFFLINE;
     });
@@ -713,7 +712,7 @@
 
   /**-------------------------------------------------------------------------
    * Get the list of media devices from iframed CCP
-   * Timeout for the request is passed an an optional argument
+   * Timeout for the request is passed on an optional argument
    * The default timeout is 1000ms
    */
   connect.core.getFrameMediaDevices = function (timeoutIn) {
@@ -995,7 +994,7 @@
       // Attempt to get permission to show notifications.
       var nm = connect.core.getNotificationManager();
       nm.requestPermission();
- 
+
       conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, function(params) {
         connect.core.initDisasterRecovery(params);
       })
@@ -1113,7 +1112,7 @@
           shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
         });
       }
- 
+
       // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
       if (params.disasterRecoveryOn) {
         connect.core.region = params.region;
@@ -1180,7 +1179,6 @@
             connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
           }
           connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
- 
         } catch (e) {
           connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
         }
@@ -1338,7 +1336,7 @@
       self._deferStart();
     }, this.ackTimeout);
   };
-
+ 
   //Fixes the keepalivemanager.
   KeepaliveManager.prototype._deferStart = function () {
     this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
@@ -1676,7 +1674,7 @@
  
   /**
    * Used of agent interface control. 
-   * connect.core.viewContact("contactId") ->  this is curently programmed to get the contact into view.
+   * connect.core.viewContact("contactId") ->  this is currently programmed to get the contact into view.
    */
   connect.core.viewContact = function (contactId) {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
@@ -1695,7 +1693,7 @@
  
   /**
    * Used of agent interface control. 
-   * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad, quick connects, or create task into view.
+   * connect.core.activateChannelWithViewType() ->  this is currently programmed to get either the number pad, quick connects, or create task into view.
    * the valid combinations are ("create_task", "task"), ("number_pad", "softphone"), ("create_task", "softphone"), ("quick_connects", "softphone")
    * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
    *

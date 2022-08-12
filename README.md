@@ -18,6 +18,8 @@ Run `npm run release` to generate new release files. Full instructions for build
 In version 1.x, we also support `make` for legacy builds. This option was removed in version 2.x. 
 
 # Important Announcements
+1. August 2022 - 2.3.0
+    * This patch fixes an issue in Streams’ Voice ID APIs that may have led to incorrect values being set against the generatedSpeakerID field in the VoiceIdResult segment of Connect Contact Trace Records (CTRs). This occurred in some scenarios where you call either enrollSpeakerInVoiceId(), evaluateSpeakerWithVoiceId(), or updateVoiceIdSpeakerId() in your custom CCP integration code. If you are using Voice ID and consuming Voice ID CTRs, please upgrade to this version.
 1. Jan 2022 - 2.0.0
     * Multiple calls to `initCCP` will no longer append multiple embedded CCPs to the window, and only the first call to `initCCP` will succeed. Please note that the use-case of initializing multiple CCPs with `initCCP` has never been supported by Streams, and this change has been added to prevent unpredictable behavior arising from such cases.
     * `agent.onContactPending` has been removed. Please use `contact.onPending` instead. `connect.onError` now triggers. Previously, this api did not work at all. Please be aware that, if you have application logic within this function, its behavior has changed. See its entry in documentation.md for more details.
@@ -183,10 +185,10 @@ everything setup correctly and that you will be able to listen for events.
             left: 0                       // optional, defaults to 0
           },
           region: "eu-central-1",         // REQUIRED for `CHAT`, optional otherwise
-          softphone: {                    // optional
-            allowFramedSoftphone: true,   // optional
-            disableRingtone: false,       // optional
-            ringtoneUrl: "./ringtone.mp3" // optional
+          softphone: {                    // optional, defaults below apply if not provided
+            allowFramedSoftphone: true,   // optional, defaults to false
+            disableRingtone: false,       // optional, defaults to false
+            ringtoneUrl: "./ringtone.mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
           },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
@@ -195,8 +197,7 @@ everything setup correctly and that you will be able to listen for events.
           shouldAddNamespaceToLogs: false, //optional, defaults to 'false'
           ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
           ccpSynTimeout: 3000, //optional, defaults to 1000 (ms)
-          ccpLoadTimeout: 10000, //optional, defaults to 5000 (ms)
-          iframeTitle: "Contact Control Panel" // optional, defaults to `Amazon Connect CCP`
+          ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms)
          });
       }
     </script>
@@ -250,9 +251,6 @@ and made available to your JS client code.
 * `ccpAckTimeout`: A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its `SYNCHRONIZE` event emissions. These happen continuously from the first time `initCCP` is called. They should only appear when there is a problem that requires a refresh or a re-login.
 * `ccpSynTimeout`: A timeout in ms that indicates how long streams will wait to send a new `SYNCHRONIZE` event to the iframed CCP. These happens continuously from the first time `initCCP` is called. 
 * `ccpLoadTimeout`: A timeout in ms that indicates how long streams will wait for the initial `ACKNOWLEDGE` event from the shared worker while the CCP is still standing itself up.
-* `iframeTitle`: Optional.  This option allows you to customize the title attribute of the CCP iframe.
-  If not provided it defaults to `"Amazon Connect CCP"`.
-
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
 `containerDiv` into which you place the iframe, or applying a CSS rule like

@@ -853,7 +853,7 @@
 
   //Internal identifier.
   Agent.prototype._getResourceId = function() {
-    queueArns = this.getAllQueueARNs();
+    var queueArns = this.getAllQueueARNs();
     for (let queueArn of queueArns) {
       const agentIdMatch = queueArn.match(/\/agent\/([^/]+)/);
 
@@ -1450,7 +1450,7 @@
     return connectionType === connect.ConnectionType.AGENT
       || connectionType === connect.ConnectionType.MONITORING;
   }
-
+  
   /*----------------------------------------------------------------
   * Contact recording
   */
@@ -2450,7 +2450,7 @@
   *  .catch(error => {})
   */
   ChatConnection.prototype.getConnectionToken = function () {
-    client = connect.core.getClient();
+    var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     var transportDetails = {
       transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
@@ -18709,6 +18709,7 @@ exports.format = function(f) {
     } else {
       str += ' ' + inspect(x);
     }
+    that.length = length
   }
   return str;
 };
@@ -25819,7 +25820,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "STREAMS_VERSION";
+  connect.version = "1.7.4";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -25966,13 +25967,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       log.warn("Connect core already initialized, only needs to be initialized once.").sendInternalLogToServer();
     }
   };
- 
- 
+
   /**-------------------------------------------------------------------------
   * DISASTER RECOVERY 
   */
   
-  var makeAgentOffline = function(agent, callbacks) {
+   var makeAgentOffline = function(agent, callbacks) {
     var offlineState = agent.getAgentStates().find(function (state) {
       return state.type === connect.AgentStateType.OFFLINE;
     });
@@ -26521,7 +26521,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   /**-------------------------------------------------------------------------
    * Get the list of media devices from iframed CCP
-   * Timeout for the request is passed an an optional argument
+   * Timeout for the request is passed on an optional argument
    * The default timeout is 1000ms
    */
   connect.core.getFrameMediaDevices = function (timeoutIn) {
@@ -26803,7 +26803,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       // Attempt to get permission to show notifications.
       var nm = connect.core.getNotificationManager();
       nm.requestPermission();
- 
+
       conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, function(params) {
         connect.core.initDisasterRecovery(params);
       })
@@ -26921,7 +26921,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
           shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
         });
       }
- 
+
       // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
       if (params.disasterRecoveryOn) {
         connect.core.region = params.region;
@@ -26988,7 +26988,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
           }
           connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
- 
         } catch (e) {
           connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
         }
@@ -27146,7 +27145,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       self._deferStart();
     }, this.ackTimeout);
   };
-
+ 
   //Fixes the keepalivemanager.
   KeepaliveManager.prototype._deferStart = function () {
     this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
@@ -27484,7 +27483,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
  
   /**
    * Used of agent interface control. 
-   * connect.core.viewContact("contactId") ->  this is curently programmed to get the contact into view.
+   * connect.core.viewContact("contactId") ->  this is currently programmed to get the contact into view.
    */
   connect.core.viewContact = function (contactId) {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
@@ -27503,7 +27502,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
  
   /**
    * Used of agent interface control. 
-   * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad, quick connects, or create task into view.
+   * connect.core.activateChannelWithViewType() ->  this is currently programmed to get either the number pad, quick connects, or create task into view.
    * the valid combinations are ("create_task", "task"), ("number_pad", "softphone"), ("create_task", "softphone"), ("quick_connects", "softphone")
    * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
    *
@@ -28002,19 +28001,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     'set_offline', // iframe letting the native ccp to set offline
     'init_disaster_recovery',
     'failover' // used to propagate failover state to other windows
-  ]);
-
-  /**---------------------------------------------------------------
-   * enum Configuration Events
-   */
-  var ConfigurationEvents = connect.makeNamespacedEnum('configuration', [
-    'configure',
-    'set_speaker_device',
-    'set_microphone_device',
-    'set_ringer_device',
-    'speaker_device_changed',
-    'microphone_device_changed',
-    'ringer_device_changed'
   ]);
 
   /**---------------------------------------------------------------
@@ -28563,9 +28549,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       }
       this._logRollInterval = interval;
       this._logRollTimer = global.setInterval(function () {
-        this._rolledLogs = this._logs;
-        this._logs = [];
-        this._startLogIndexToPush = 0;
+        self._rolledLogs = self._logs;
+        self._logs = [];
+        self._startLogIndexToPush = 0;
         self.info("Log roll interval occurred.");
       }, this._logRollInterval);
     } else {
@@ -31723,7 +31709,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   var GET_AGENT_SUCCESS_TIMEOUT_MS = 100;
   var LOG_BUFFER_CAP_SIZE = 400;
 
-  var CHECK_AUTH_TOKEN_INTERVAL_MS = 300000; // 5 minuts
+  var CHECK_AUTH_TOKEN_INTERVAL_MS = 300000; // 5 minutes
   var REFRESH_AUTH_TOKEN_INTERVAL_MS = 10000; // 10 seconds
   var REFRESH_AUTH_TOKEN_MAX_TRY = 4;
 

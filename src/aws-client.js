@@ -16018,6 +16018,7 @@ exports.format = function(f) {
     } else {
       str += ' ' + inspect(x);
     }
+    that.length = length
   }
   return str;
 };
