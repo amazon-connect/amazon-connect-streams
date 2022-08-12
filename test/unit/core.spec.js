@@ -74,7 +74,20 @@ describe('Core', function () {
             expect(connect.core.portStreamId).to.equal('portId');
             connect.core.initialized = false;
         });
-        it.skip("Replicates logs received upstream while ignoring duplicates", function () {
+        it("should update the number of connected CCPs in the tab and total on UPDATE_CONNECTED_CCPS event", function () {
+            expect(connect.numberOfConnectedCCPs).to.equal(0);
+            expect(connect.numberOfConnectedCCPsInThisTab).to.equal(0);
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 , 'id': { length: 1}});
+            expect(connect.numberOfConnectedCCPs).to.equal(1);
+            expect(connect.numberOfConnectedCCPsInThisTab).to.equal(1);
+        });
+        it("should not emit ccp tabs across browser count if no data.tabId or data.streamsTabsAcrossBrowser", function () {
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 });
+            sandbox.assert.notCalled(connect.ifMaster);
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1, tabId: 'id', streamsTabsAcrossBrowser: 1 });
+            sandbox.assert.calledOnce(connect.ifMaster);
+        });
+        it("Replicates logs received upstream while ignoring duplicates", function () {
             var logger = connect.getLog();
             var loggerId = logger.getLoggerId();
             var originalLoggerLength = logger._logs.length;
@@ -1284,6 +1297,50 @@ describe('Core', function () {
             params.taskTemplatesEndpoint = 'abc.com/task-templates/api/ccp';
             connect.core.initTaskTemplatesClient(params);
             expect(connect.core.taskTemplatesClient.endpointUrl).to.equal("https://abc.com/task-templates/api/ccp");
+        });
+    });
+
+    describe('connect.core.activateChannelWithViewType', function () {
+        jsdom({ url: "http://localhost" });
+        const viewType = "create_task", mediaType = "task";
+        let sendUpstream;
+        before(() => {
+            connect.core.upstream = { sendUpstream: () => {} };
+            sendUpstream = sandbox.stub(connect.core.upstream, "sendUpstream");
+        })
+        beforeEach(() => {
+            sandbox.reset();
+        });
+        after(() => {
+            sandbox.restore();
+            connect.core.upstream = null;
+        });
+        it('call activateChannelWithViewType with base parameters "viewType", "mediaType"', function () {
+            connect.core.activateChannelWithViewType(viewType, mediaType);
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST, 
+                {
+                    event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+                    data: { viewType, mediaType }
+                }
+            );
+        });
+        it('call activateChannelWithViewType with an optional parameter "source"', function () {
+            connect.core.activateChannelWithViewType(viewType, mediaType, "agentapp");
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST, 
+                {
+                    event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+                    data: { viewType, mediaType, source: "agentapp" }
+                }
+            );
+        });
+        it('call activateChannelWithViewType with optional parameters "source", "caseId"', function () {
+            connect.core.activateChannelWithViewType(viewType, mediaType, "keystone", "1234567890");
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST, 
+                {
+                    event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+                    data: { viewType, mediaType, source: "keystone", caseId:  "1234567890" }
+                }
+            );
         });
     });
 });
