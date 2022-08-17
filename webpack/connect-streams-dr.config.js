@@ -8,6 +8,7 @@ const { commonConfig } = require('./common');
 const disasterRecoveryConfig = Object.assign({}, commonConfig, {
   entry: [
     "./src/sprintf.js",
+    "./src/md5.js",
     "./src/util.js",
     "./src/drCoordinator/container",
     "./src/drCoordinator/core"

@@ -7,8 +7,9 @@ const { commonConfig } = require('./common');
 const config = Object.assign({}, commonConfig, {
   entry: [
     "./src/aws-client.js",
+    "./src/md5.js",
     "./src/sprintf.js",
-    "./src/log.js", 
+    "./src/log.js",
     "./src/util.js",
     "./src/event.js",
     "./src/streams.js",
@@ -29,7 +30,7 @@ const config = Object.assign({}, commonConfig, {
   ],
   output: {
     path: path.resolve(__dirname, '../release'),
-    filename: 'connect-streams.js'	
+    filename: 'connect-streams.js'
   },
   optimization: {
     minimize: false

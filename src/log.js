@@ -166,8 +166,10 @@
         } else if(typeof data[key] === 'string') {
           if (key === "url" || key === "text") {
             data[key] = data[key].replace(authTokenRegex, "[redacted]");
-          } else if (["quickConnectName", "SpeakerId"].includes(key)) {
+          } else if (["quickConnectName"].includes(key)) {
             data[key] = "[redacted]";
+          } else if (["customerId", "CustomerId", "SpeakerId", "CustomerSpeakerId"].includes(key)) {
+            data[key] = md5(data[key]);
           }
         }
       });
