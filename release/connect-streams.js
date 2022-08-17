@@ -26898,6 +26898,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
       connect.core.ccpLoadTimeoutInstance = null;
       connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
+      connect.getLog().info("CCP LoadTimeout triggered").sendInternalLogToServer();
     }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
 
     connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
@@ -27056,8 +27057,10 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     connect.assertNotNull(initCCPParams, 'initCCPParams');
     connect.assertNotNull(containerDiv, 'containerDiv');
     var ccpIframeRefreshInterval = (initCCPParams.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL : CCP_IFRAME_REFRESH_INTERVAL;
-    var retryDelay = AWS.util.calculateRetryDelay(connect.core.iframeRefreshAttempt || 0, { base: 2000 });
-    var timeout = ccpIframeRefreshInterval + retryDelay;
+    var retryDelay = AWS.util.calculateRetryDelay((connect.core.iframeRefreshAttempt - 1 || 0), { base: 2000 });
+    // Evaluates to 0 for 0th attempt and 1 for rest (>0) of the refresh attempts
+    var timeoutFactor = Math.ceil((connect.core.iframeRefreshAttempt || 0) / CCP_IFRAME_REFRESH_LIMIT);
+    var timeout = (ccpIframeRefreshInterval + retryDelay) * timeoutFactor;
     global.clearTimeout(connect.core.iframeRefreshTimeout);
     connect.core.iframeRefreshTimeout = global.setTimeout(function() {
       connect.core.iframeRefreshAttempt = (connect.core.iframeRefreshAttempt || 0) + 1;
