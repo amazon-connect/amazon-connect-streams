@@ -51,6 +51,18 @@ describe('Logger', function() {
             var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);
             assert.deepEqual(loggedObject.objects, expectedObj);
         });
+        it('Log should not contain VoiceID speaker ID', function(){
+            var obj = {
+                "SpeakerId":"1c58b4c5-6dff-4182-9eab-479aa2e78a3c",
+                "DomainId":"XKkbTGuCuCnYgOD1iPHzPv"
+            };
+            var expectedObj = [{
+                "SpeakerId":"[redacted]",
+                "DomainId":"XKkbTGuCuCnYgOD1iPHzPv"
+            }];
+            var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);
+            assert.deepEqual(loggedObject.objects, expectedObj);
+        });
         it('Log should not break if the value of url or text is not a string', function(){
             var obj =  {
                 "webSocketTransport": {

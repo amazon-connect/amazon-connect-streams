@@ -28396,19 +28396,19 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    * Private method to remove sensitive info from client log
    */
   var redactSensitiveInfo = function(data) {
-    var regex = /AuthToken.*\=/g;
+    var authTokenRegex = /AuthToken.*\=/g;
     if(data && typeof data === 'object') {
       Object.keys(data).forEach(function(key) {
         if (typeof data[key] === 'object') {
           redactSensitiveInfo(data[key])
         } else if(typeof data[key] === 'string') {
           if (key === "url" || key === "text") {
-            data[key] = data[key].replace(regex, "[redacted]");
-          } else if (key === "quickConnectName") {
+            data[key] = data[key].replace(authTokenRegex, "[redacted]");
+          } else if (["quickConnectName", "SpeakerId"].includes(key)) {
             data[key] = "[redacted]";
           }
         }
-      }); 
+      });
     }
   }
 
