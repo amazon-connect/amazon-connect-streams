@@ -54,8 +54,5 @@
     "webpack": "^5.64.4",
     "webpack-cli": "^4.9.1",
     "webpack-plugin-replace": "^1.2.0"
-  },
-  "dependencies": {
-    "crypto-js": "^4.1.1"
   }
 }

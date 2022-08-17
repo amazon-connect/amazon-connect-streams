@@ -51,7 +51,7 @@ describe('Logger', function() {
             var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);
             assert.deepEqual(loggedObject.objects, expectedObj);
         });
-        it('Log should not contain VoiceID customerId, CustomerId, SpeakerId, or CustomerSpeakerId', function(){
+        it('Log should have VoiceID customerId, CustomerId, SpeakerId, or CustomerSpeakerId values as MD5 digest', function(){
             var obj = {
                 "customerId":"69b39df2-a06a-4f66-a9a9-ad699004d245",
                 "CustomerId":"52d67abc-9aa8-4276-9de0-8dbe48220a1c",
