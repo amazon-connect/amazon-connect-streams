@@ -275,14 +275,24 @@
     'connecting',
     'connected',
     'hold',
-    'disconnected'
+    'disconnected',
+    'silent_monitor',
+    'barge'
   ]);
   connect.ConnectionStatusType = connect.ConnectionStateType;
 
   connect.CONNECTION_ACTIVE_STATES = connect.set([
     connect.ConnectionStateType.CONNECTING,
     connect.ConnectionStateType.CONNECTED,
-    connect.ConnectionStateType.HOLD
+    connect.ConnectionStateType.HOLD,
+    connect.ConnectionStateType.SILENT_MONITOR,
+    connect.ConnectionStateType.BARGE
+  ]);
+
+  connect.CONNECTION_CONNECTED_STATES = connect.set([
+    connect.ConnectionStateType.CONNECTED,
+    connect.ConnectionStateType.SILENT_MONITOR,
+    connect.ConnectionStateType.BARGE
   ]);
 
   /*----------------------------------------------------------------
@@ -343,8 +353,8 @@
    * enum for MonitoringMode
    */
   connect.MonitoringMode = connect.makeEnum([
-    'SILENT_MONITOR',
-    'BARGE'
+    'silent_monitor',
+    'barge'
   ]);
 
   /*----------------------------------------------------------------
@@ -1284,9 +1294,15 @@
       var client = connect.core.getClient();
       client.call(connect.ClientMethods.UPDATE_MONITOR_PARTICIPANT_STATE, {
         contactId: this.getContactId(),
-        targetMonitorMode: targetState
+        targetMonitorMode: targetState.toUpperCase()
       }, callbacks);
     }
+  }
+
+  Contact.prototype.isUnderSupervision = function () {
+    var nonAgentConnections = this.getConnections().filter((conn) => conn.getType() !== connect.ConnectionType.AGENT);
+    var supervisorConnection = nonAgentConnections && nonAgentConnections.find(conn => conn.getState().type === connect.MonitoringMode.BARGE);
+    return supervisorConnection !== undefined;
   }
 
   /*----------------------------------------------------------------
@@ -1360,7 +1376,7 @@
   };
 
   Connection.prototype.isConnected = function () {
-    return this.getStatus().type === connect.ConnectionStateType.CONNECTED;
+    return connect.contains(connect.CONNECTION_CONNECTED_STATES, this.getStatus().type);
   };
 
   Connection.prototype.isConnecting = function () {
@@ -2332,8 +2348,12 @@
     return this._getData().quickConnectName;
   };
 
-  VoiceConnection.prototype.getMonitorState = function () {
-    return this._getData().monitorState;
+  VoiceConnection.prototype.isSilentMonitor = function () {
+    return this.getStatus().type === connect.ConnectionStateType.SILENT_MONITOR;
+  };
+
+  VoiceConnection.prototype.isBarge = function () {
+    return this.getStatus().type === connect.ConnectionStateType.BARGE;
   };
 
   VoiceConnection.prototype.getMonitorCapabilities = function () {
@@ -25640,7 +25660,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       return method !== connect.ClientMethods.COMPLETE_CONTACT &&
          method !== connect.ClientMethods.CLEAR_CONTACT &&
          method !== connect.ClientMethods.REJECT_CONTACT &&
-         method !== connect.ClientMethods.CREATE_TASK_CONTACT;
+         method !== connect.ClientMethods.CREATE_TASK_CONTACT &&
+         method !== connect.ClientMethods.UPDATE_MONITOR_PARTICIPANT_STATE;
    };
 
    AWSClient.prototype._translateParams = function(method, params) {

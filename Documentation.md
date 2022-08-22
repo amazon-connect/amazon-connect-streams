@@ -1152,6 +1152,12 @@ contact.updateMonitorParticipantState(targetState, {
 ```
 Updates the monitor participant state to switch between different monitoring modes. The targetState value is a `MonitoringMode` enum member.
 
+### `contact.isUnderSupervision()`
+```js
+if (contact.isUnderSupervision()) { /* ... */ }
+```
+Determines if the contact is under manager's supervision
+
 ### Task Contact APIs
 The following contact methods are currently only available for task contacts.
 
@@ -1267,7 +1273,7 @@ Determine if the contact is active. The connection is active it is incoming, con
 ```js
 if (conn.isConnected()) { /* ... */ }
 ```
-Determine if the connection is connected, meaning that the agent is live in a conversation through this connection.
+Determine if the connection is connected, meaning that the agent is live in a conversation through this connection. Please note that `ConnectionStateType.SILENT_MONITOR` and `ConnectionStateType.BARGE` are considered connected as well.
    
 Note that, in the case of Agent A transferring a contact to Agent B, the new (third party) agent connection will be marked as `connected` (`connection.isConnected` will return true) as soon as the contact is routed to Agent B's queue, not when Agent B actually is "live" and able to communicate in the conversation.
 
@@ -1367,11 +1373,17 @@ var agentName = conn.getQuickConnectName();
 ```
 Returns the quick connect name of the third-party call participant with which the connection is associated.
 
-### `voiceConnection.getMonitorState()`
+### `voiceConnection.isSilentMonitor()`
 ```js
-var monitorState = conn.getMonitorState();
+var monitorState = conn.isSilentMonitor();
 ```
-Returns the monitor state of this connection. Monitor state represents the manager listen-in state and its value is a `MonitoringMode` enum member.
+Returns true if agent's connection has `silent_monitor` state type. Monitor state represents the manager listen-in state and its value is a `MonitoringMode` enum member.
+
+### `voiceConnection.isBarge()`
+```js
+var monitorState = conn.isBarge();
+```
+Returns true if agent's connection has `barge` state type. Monitor state represents the manager listen-in state and its value is a `MonitoringMode` enum member.
 
 ### `voiceConnection.getMonitorCapabilities()`
 ```js
@@ -1556,6 +1568,8 @@ An enumeration listing the different states that a connection can have.
 * `ConnectionStateType.CONNECTED`: The connection is connected to the contact.
 * `ConnectionStateType.HOLD`: The connection is connected but on hold.
 * `ConnectionStateType.DISCONNECTED`: The connection is no longer connected to the contact.
+* `ConnectionStateType.SILENT_MONITOR`: An enhanced listen-in manager session, this state is used instead of `ContactStateType.CONNECTED` for manager
+* `ContactStateType.BARGE`: A special manager session mode with full control over contact actions, this state is used instead of `ContactStateType.CONNECTED` for manager
 
 ### `ContactType`
 This enumeration lists all of the contact types supported by Connect Streams.
