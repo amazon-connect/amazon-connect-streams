@@ -45,7 +45,8 @@
          'createTransport',
          'muteParticipant',
          'unmuteParticipant',
-         'updateMonitorParticipantState'
+         'barge',
+         'monitor'
    ]);
 
    /**---------------------------------------------------------------
