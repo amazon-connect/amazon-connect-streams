@@ -331,15 +331,6 @@
   ]);
 
   /*----------------------------------------------------------------
-   * enum for ContactRecording Voice Track config
-   */
-  connect.ContactRecordingVoiceTrackConfig = connect.makeEnum([
-    'ALL',
-    'TO_AGENT',
-    'FROM_AGENT'
-  ]);
-
-  /*----------------------------------------------------------------
   * enum ChannelType
   */
   connect.ChannelType = connect.makeEnum([
@@ -520,8 +511,7 @@
    */
   connect.AgentPermissions = {
     OUTBOUND_CALL: 'outboundCall',
-    VOICE_ID: 'voiceId',
-    CONTACT_RECORDING: 'contactRecording'
+    VOICE_ID: 'voiceId'
   };
 
   /*----------------------------------------------------------------
@@ -1422,6 +1412,7 @@
   }
   
   /*----------------------------------------------------------------
+<<<<<<< HEAD
   * Contact recording
   */
 
@@ -1550,6 +1541,8 @@
   };
 
   /*----------------------------------------------------------------
+=======
+>>>>>>> parent of 4dd5af1 (add Contact recording apis to Voice Connection)
   * Voice authenticator VoiceId
   */
 
@@ -2242,7 +2235,6 @@
    */
   var VoiceConnection = function (contactId, connectionId) {
     this._speakerAuthenticator = new VoiceId(contactId);
-    this._contactRecorder = new ContactRecording(contactId);
     Connection.call(this, contactId, connectionId);
   };
 
@@ -2322,39 +2314,6 @@
     }, callbacks);
   };
 
-  VoiceConnection.prototype.startContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.startContactRecording();
-  }
-
-  VoiceConnection.prototype.stopContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.stopContactRecording();
-  }
-
-  VoiceConnection.prototype.suspendContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.suspendContactRecording();
-  }
-
-  VoiceConnection.prototype.resumeContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.resumeContactRecording();
-  }
-
-  VoiceConnection.prototype.checkConferenceCall = function(){
-    var self = this;
-    var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.filter(function (conn) {
-      return connect.contains(connect.CONNECTION_ACTIVE_STATES, conn.state.type);
-    }).length > 2;
-    if(isConferenceCall){
-      throw new connect.NotImplementedError("VoiceId and Contact Recording are not supported for conference calls");
-    }
-  }
 
   /**
    * @class ChatConnection
@@ -2648,7 +2607,6 @@
   connect.Address = Endpoint;
   connect.SoftphoneError = SoftphoneError;
   connect.VoiceId = VoiceId;
-  connect.ContactRecording = ContactRecording;
 })();
 
 
@@ -25311,11 +25269,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       DESCRIBE_SESSION: "AgentAppService.VoiceId.describeSession",
       UPDATE_SESSION: "AgentAppService.VoiceId.updateSession",
       START_VOICE_ID_SESSION: "AgentAppService.Nasa.startVoiceIdSession",
-      LIST_INTEGRATION_ASSOCIATIONS: "AgentAppService.Acs.listIntegrationAssociations",
-      START_CONTACT_RECORDING: "AgentAppService.Acs.StartContactRecording",
-      STOP_CONTACT_RECORDING: "AgentAppService.Acs.StopContactRecording",
-      SUSPEND_CONTACT_RECORDING: "AgentAppService.Acs.SuspendContactRecording",
-      RESUME_CONTACT_RECORDING: "AgentAppService.Acs.ResumeContactRecording"
+      LIST_INTEGRATION_ASSOCIATIONS: "AgentAppService.Acs.listIntegrationAssociations"
    };
 
    /**---------------------------------------------------------------
