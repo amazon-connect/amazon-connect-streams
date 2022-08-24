@@ -170,103 +170,6 @@
     agent.setState(offlineState, callbacks);   
   }
  
-  // Suppress Contacts function 
-  // This is used by Disaster Recovery as a safeguard to not surface incoming calls/chats to UI
-  // 
-  var suppressContacts = function (isSuppressed) {
-    connect.getLog().info("[Disaster Recovery] Signal sharedworker to set contacts suppressor to %s for instance %s.", 
-      isSuppressed, connect.core.region
-    ).sendInternalLogToServer();
-    connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.SUPPRESS, {
-      suppress: isSuppressed
-    });
-  }
- 
-  var setForceOfflineUpstream = function(offline) {
-    connect.getLog().info("[DISASTER RECOVERY] Signal sharedworker to set forceOffline to %s for instance %s.", 
-      offline, connect.core.region
-    ).sendInternalLogToServer();
-    connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, {
-      offline: offline
-    });
-  }
- 
-  // Force the instance to be offline. 
-  // This tries to disconnect all contacts (Hard stop)
-  // if due to a failure (the backend is not reachable), signal the shared worker to force_offline when it wakes up again
-  // This function should only be ran from native CCP for disconnecting chats.
-  var forceOffline = function() {
-    var log = connect.getLog();
-    log.info("[Disaster Recovery] Attempting to force instance %s offline", connect.core.region).sendInternalLogToServer();
-    connect.agent(function(agent) {
-      var contactClosed = 0;
-      var contacts = agent.getContacts();
-      if (contacts.length) {
-        contacts.forEach(function(contact) 
-          {
-            contact.getAgentConnection().destroy({
-              success: function() {
-                // check if all active contacts are closed
-                if (++contactClosed === contacts.length) {
-                  setForceOfflineUpstream(false);
-                  // It's ok if we're not able to put the agent offline. 
-                  // since we're suppressing the agents contacts already. 
-                  makeAgentOffline(agent);
-                  log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
-                }
-              },
-              failure: function(err) {
-                log.warn("[Disaster Recovery] An error occured while attempting to force this instance to offline in region %s", connect.core.region).sendInternalLogToServer();
-                log.warn(err).sendInternalLogToServer();
-                // signal the sharedworker to call forceOffline again when network connection 
-                // has been re-established (this happens in case of network or backend failures)
-                setForceOfflineUpstream(true);
-            }});
-          }
-        )        
-      } else {
-        setForceOfflineUpstream(false);
-        makeAgentOffline(agent);
-        log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
-      }
-    });
-  }
- 
-  //Initiate Disaster Recovery (This should only be called from customCCP that are DR enabled)
-  connect.core.initDisasterRecovery = function(params) {
-    var log = connect.getLog();
-    connect.core.region = params.region;
-    connect.core.suppressContacts = suppressContacts;  
-    connect.core.forceOffline = forceOffline;
-
-    //Register iframe listner to set native CCP offline
-    connect.core.getUpstream().onDownstream(connect.DisasterRecoveryEvents.SET_OFFLINE, function() {
-      connect.core.forceOffline();
-    });
- 
-    // Register Event listner to Force the Agent to be offline when shared worker recovers from network failure
-    connect.core.getUpstream().onUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, function() {
-      connect.core.forceOffline();
-    });
-
-    connect.ifMaster(connect.MasterTopics.SOFTPHONE, 
-      function() {
-        log.info("[Disaster Recovery] Initializing region %s as part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
-      }, 
-      function() {
-        log.info("[Disaster Recovery] %s already part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
-      });
-
-    if (!params.isPrimary) {
-      connect.core.suppressContacts(true);
-      connect.core.forceOffline();
-      log.info("[Disaster Recovery] %s instance is set to stand-by", connect.core.region).sendInternalLogToServer();
-    } else {
-      connect.core.suppressContacts(false);
-      log.info("[Disaster Recovery] %s instance is set to primary", connect.core.region).sendInternalLogToServer();
-    }
-  }
- 
   /**-------------------------------------------------------------------------
    * Basic Connect client initialization.
    * Should be used only by the API Shared Worker.
@@ -994,10 +897,6 @@
       // Attempt to get permission to show notifications.
       var nm = connect.core.getNotificationManager();
       nm.requestPermission();
-
-      conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, function(params) {
-        connect.core.initDisasterRecovery(params);
-      })
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
         .withException(e).sendInternalLogToServer();
@@ -1112,16 +1011,6 @@
           pageOptions: params.pageOptions,
           shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
         });
-      }
-
-      // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
-      if (params.disasterRecoveryOn) {
-        connect.core.region = params.region;
-        connect.core.suppressContacts = suppressContacts;
-        connect.core.forceOffline = function() {
-          conduit.sendUpstream(connect.DisasterRecoveryEvents.SET_OFFLINE);
-        }       
-        conduit.sendUpstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, params);
       }
  
       if (connect.core.ccpLoadTimeoutInstance) {
