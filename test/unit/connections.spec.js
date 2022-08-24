@@ -106,39 +106,6 @@ describe('Connections API', function () {
       assert.equal(voiceConnection.getMediaType(), connect.MediaType.SOFTPHONE);
       assert.equal(typeof(voiceConnection.getVoiceIdSpeakerId), 'function');
       assert.equal(typeof(voiceConnection.getVoiceIdSpeakerStatus), 'function')
-      assert.equal(typeof(voiceConnection.startContactRecording), 'function');
-      assert.equal(typeof(voiceConnection.stopContactRecording), 'function');
-      assert.equal(typeof(voiceConnection.resumeContactRecording), 'function');
-      assert.equal(typeof(voiceConnection.suspendContactRecording), 'function');
-    });
-
-    describe('startContactRecording', function() {
-      it('Should return StartContactRecording promise with All tracks recording by default on empty or invalid input.', function () {
-        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-        var startContactRecording = voiceConnection.startContactRecording('invalid_input');
-        assert.equal(Promise.resolve(startContactRecording), startContactRecording);
-      });
-    });
-    describe('stopContactRecording', function() {
-      it('Should return StopContactRecording promise.', function () {
-        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-        var stopContactRecording = voiceConnection.stopContactRecording();
-        assert.equal(Promise.resolve(stopContactRecording), stopContactRecording);
-      });
-    });
-    describe('suspendContactRecording', function() {
-      it('Should return SuspendContactRecording promise.', function () {
-        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-        var suspencContactRecording = voiceConnection.suspendContactRecording();
-        assert.equal(Promise.resolve(suspencContactRecording), suspencContactRecording);
-      });
-    });
-    describe('resumeContactRecording', function() {
-      it('Should return ResumeContactRecording promise.', function () {
-        const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
-        var resumeContactRecording = voiceConnection.resumeContactRecording();
-        assert.equal(Promise.resolve(resumeContactRecording), resumeContactRecording);
-      });
     });
 
     describe('getVoiceIdSpeakerId', function() {
