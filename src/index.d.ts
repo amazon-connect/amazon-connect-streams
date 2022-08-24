@@ -524,12 +524,6 @@ declare namespace connect {
 
     /** The connection is no longer connected to the contact. */
     DISCONNECTED = "disconnected",
-
-    /** The connection is in silent monitor mode */
-    SILENT_MONITOR = "silent_monitor",
-
-    /** The connection is in barge mode */
-    BARGE = "barge"
   }
 
   enum ContactEvents {

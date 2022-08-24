@@ -10,7 +10,7 @@ describe('BargeIn', () => {
   let mockedClientCall;
   let voiceContact;
   let voiceConnection;
-  let connectionState;
+
   const callbacks = {
     success: stubbedSuccessCallback,
     failure: stubbedFailureCallback
@@ -24,8 +24,9 @@ describe('BargeIn', () => {
       getContactData: () => ({ connections: [{ state: { type: "connected" }}]}),
       getConnectionData: () => ({
         forcedMute: true,
+        monitorState: connect.MonitoringMode.BARGE,
         monitorCapabilities: monitorCapabilities,
-        state: { type: connectionState },
+        state: {},
         getMediaController: () => {}
       })
     });
@@ -55,14 +56,8 @@ describe('BargeIn', () => {
       assert.equal(voiceConnection.isForcedMute(), true);
     });
 
-    it('should return true for isBarge when the connection state type is barge', () => {
-      connectionState = connect.MonitoringMode.BARGE;
-      assert.equal(voiceConnection.isBarge(), true);
-    });
-
-    it('should return true for isSilentMonitor when the connection state type is silent_monitor', () => {
-      connectionState = connect.MonitoringMode.SILENT_MONITOR;
-      assert.equal(voiceConnection.isSilentMonitor(), true);
+    it('should return value of the monitorState field', () => {
+      assert.equal(voiceConnection.getMonitorState(), connect.MonitoringMode.BARGE);
     });
 
     it('should return value of the monitorCapabilities field', () => {
@@ -97,7 +92,7 @@ describe('BargeIn', () => {
       voiceContact.updateMonitorParticipantState(connect.MonitoringMode.BARGE, callbacks);
       const expectedParameters = {
         contactId: contactId,
-        targetMonitorMode: (connect.MonitoringMode.BARGE).toUpperCase()
+        targetMonitorMode: connect.MonitoringMode.BARGE
       };
       expect(mockedClientCall.firstCall.args[0]).to.equal(connect.ClientMethods.UPDATE_MONITOR_PARTICIPANT_STATE);
       expect(mockedClientCall.firstCall.args[1]).to.deep.equal(expectedParameters);
