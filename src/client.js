@@ -44,9 +44,7 @@
          'getNewAuthToken',
          'createTransport',
          'muteParticipant',
-         'unmuteParticipant',
-         'barge',
-         'monitor'
+         'unmuteParticipant'
    ]);
 
    /**---------------------------------------------------------------
