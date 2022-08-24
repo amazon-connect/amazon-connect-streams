@@ -353,8 +353,8 @@
    * enum for MonitoringMode
    */
   connect.MonitoringMode = connect.makeEnum([
-    'silent_monitor',
-    'barge'
+    'SILENT_MONITOR',
+    'BARGE'
   ]);
 
   /*----------------------------------------------------------------
@@ -1285,7 +1285,7 @@
   }
 
   Contact.prototype.updateMonitorParticipantState = function (targetState, callbacks) {
-    if(!targetState || !Object.values(connect.MonitoringMode).includes(targetState)) {
+    if(!targetState || !Object.values(connect.MonitoringMode).includes(targetState.toUpperCase())) {
       connect.getLog().error(`Invalid target state was provided: ${targetState}`).sendInternalLogToServer();
       if (callbacks && callbacks.failure) {
         callbacks.failure(connect.MonitoringErrorTypes.INVALID_TARGET_STATE);
@@ -2354,6 +2354,16 @@
 
   VoiceConnection.prototype.isBarge = function () {
     return this.getStatus().type === connect.ConnectionStateType.BARGE;
+  };
+
+  VoiceConnection.prototype.isBargeEnabled = function () {
+    var monitoringCapabilities = this.getMonitorCapabilities();
+    return monitoringCapabilities && monitoringCapabilities.includes(connect.MonitoringMode.BARGE);
+  };
+
+  VoiceConnection.prototype.isSilentMonitorEnabled = function () {
+    var monitoringCapabilities = this.getMonitorCapabilities();
+    return monitoringCapabilities && monitoringCapabilities.includes(connect.MonitoringMode.SILENT_MONITOR);
   };
 
   VoiceConnection.prototype.getMonitorCapabilities = function () {

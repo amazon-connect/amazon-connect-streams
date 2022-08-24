@@ -56,13 +56,21 @@ describe('BargeIn', () => {
     });
 
     it('should return true for isBarge when the connection state type is barge', () => {
-      connectionState = connect.MonitoringMode.BARGE;
+      connectionState = connect.ConnectionStateType.BARGE;
       assert.equal(voiceConnection.isBarge(), true);
     });
 
     it('should return true for isSilentMonitor when the connection state type is silent_monitor', () => {
-      connectionState = connect.MonitoringMode.SILENT_MONITOR;
+      connectionState = connect.ConnectionStateType.SILENT_MONITOR;
       assert.equal(voiceConnection.isSilentMonitor(), true);
+    });
+
+    it('should return true for isSilentMonitorEnabled', () => {
+      assert.equal(voiceConnection.isSilentMonitorEnabled(), true);
+    });
+
+    it('should return true for isBargeEnabled', () => {
+      assert.equal(voiceConnection.isBargeEnabled(), true);
     });
 
     it('should return value of the monitorCapabilities field', () => {
