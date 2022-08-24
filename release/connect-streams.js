@@ -25939,42 +25939,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       return params.ccpUrl;
     }
   };
-
-  /**
-   * softphoneParamsStorage module to store necessary softphone params in local storage
-   * Used mainly for cases where embedded CCP gets refreshed.
-   * @returns {Object}
-   */
-
-  var softphoneParamsStorage = (function () {
-    let key = `SoftphoneParamsStorage::${global.location.origin}`;
-    return {
-      set: function (value) {
-        try {
-          value && global.localStorage.setItem(key, JSON.stringify(value));
-        } catch (e) {
-          connect.getLog().error("SoftphoneParamsStorage:: Failed to set softphone params to local storage!")
-            .withException(e).sendInternalLogToServer();
-        }
-      },
-
-      get: function () {
-        try {
-          let item = global.localStorage.getItem(key);
-          return item && JSON.parse(item);
-        } catch (e) {
-          connect.getLog().error("SoftphoneParamsStorage:: Failed to get softphone params from local storage!")
-            .withException(e).sendInternalLogToServer();
-        }
-        return null;
-      },
-
-      clean: function () {
-        global.localStorage.removeItem(key);
-      }
-    }
-  })();
-
+ 
   /**-------------------------------------------------------------------------
   * Returns scheme://host:port for a given url
   */
@@ -26206,9 +26171,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   }
 
   connect.core.initSoftphoneManager = function (paramsIn) {
-    var params = paramsIn || {};
     connect.getLog().info("[Softphone Manager] initSoftphoneManager started").sendInternalLogToServer();
-
+    var params = paramsIn || {};
+ 
     var competeForMasterOnAgentUpdate = function (softphoneParamsIn) {
       var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
       connect.getLog().info("[Softphone Manager] competeForMasterOnAgentUpdate executed").sendInternalLogToServer();
@@ -26232,50 +26197,27 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         });
       });
     };
-
+ 
     /**
-      * If the window is framed and if it's the CCP app then we need to wait for a CONFIGURE message from downstream before we initialize softphone manager.
-      * All medialess softphone initialization cases goes to else check and doesn't wait for CONFIGURE message
+     * If the window is framed, we need to wait for a CONFIGURE message from
+     * downstream before we try to initialize, unless params.allowFramedSoftphone is true.
      */
-    
-    if (connect.isFramed() && connect.isCCP()) {
+    if (connect.isFramed() && !params.allowFramedSoftphone) {
       var bus = connect.core.getEventBus();
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
         connect.getLog().info("[Softphone Manager] Configure event handler executed").sendInternalLogToServer();
-        // always overwrite/store the softphone params value if there is a configure event
-        softphoneParamsStorage.set(data.softphone);
         if (data.softphone && data.softphone.allowFramedSoftphone) {
           this.unsubscribe();
           competeForMasterOnAgentUpdate(data.softphone);
+          
         }
         setupEventListenersForMultiTabUseInFirefox(data.softphone);
       });
-
-      /**
-       * This is the case where CCP is just refreshed after it gets initilaized via initCCP
-       * This snippet needs atleast one initCCP invocation which sets the params to the store
-       */
-      if (!connect.core.softphoneManager) {
-        let softphoneParamsFromLocalStorage = softphoneParamsStorage.get(); 
-        if(softphoneParamsFromLocalStorage){
-          connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed without initCCP call and so picking allowFramedSoftphone value from localStorage which is set to  " + softphoneParamsFromLocalStorage.allowFramedSoftphone).sendInternalLogToServer();
-          connect.publishMetric({
-            name: "EmbeddedCCPRefreshedWithoutInitCCP",
-            data: { count: 1 }
-          });
-        } 
-        if (softphoneParamsFromLocalStorage && softphoneParamsFromLocalStorage.allowFramedSoftphone) {
-          connect.getLog().info("[Softphone Manager] Init competeForMasterOnAgentUpdate from localStorage softphone params").sendInternalLogToServer();
-          competeForMasterOnAgentUpdate(softphoneParamsFromLocalStorage);
-        } else if (softphoneParamsFromLocalStorage) {
-          setupEventListenersForMultiTabUseInFirefox(softphoneParamsFromLocalStorage);
-        }
-      }
     } else {
       competeForMasterOnAgentUpdate(params);
       setupEventListenersForMultiTabUseInFirefox(params);
     }
-
+ 
     connect.agent(function (agent) {
       // Sync mute across all tabs 
       if (agent.isSoftphoneEnabled() && agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
@@ -26749,9 +26691,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
  
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
-
-    // Clean up the Softphone params store to make sure we always pull the latest params
-    softphoneParamsStorage.clean();
  
     // Create the CCP iframe and append it to the container div.
     var iframe = connect.core._createCCPIframe(containerDiv, params);
