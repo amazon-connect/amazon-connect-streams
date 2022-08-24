@@ -26025,103 +26025,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     agent.setState(offlineState, callbacks);   
   }
  
-  // Suppress Contacts function 
-  // This is used by Disaster Recovery as a safeguard to not surface incoming calls/chats to UI
-  // 
-  var suppressContacts = function (isSuppressed) {
-    connect.getLog().info("[Disaster Recovery] Signal sharedworker to set contacts suppressor to %s for instance %s.", 
-      isSuppressed, connect.core.region
-    ).sendInternalLogToServer();
-    connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.SUPPRESS, {
-      suppress: isSuppressed
-    });
-  }
- 
-  var setForceOfflineUpstream = function(offline) {
-    connect.getLog().info("[DISASTER RECOVERY] Signal sharedworker to set forceOffline to %s for instance %s.", 
-      offline, connect.core.region
-    ).sendInternalLogToServer();
-    connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, {
-      offline: offline
-    });
-  }
- 
-  // Force the instance to be offline. 
-  // This tries to disconnect all contacts (Hard stop)
-  // if due to a failure (the backend is not reachable), signal the shared worker to force_offline when it wakes up again
-  // This function should only be ran from native CCP for disconnecting chats.
-  var forceOffline = function() {
-    var log = connect.getLog();
-    log.info("[Disaster Recovery] Attempting to force instance %s offline", connect.core.region).sendInternalLogToServer();
-    connect.agent(function(agent) {
-      var contactClosed = 0;
-      var contacts = agent.getContacts();
-      if (contacts.length) {
-        contacts.forEach(function(contact) 
-          {
-            contact.getAgentConnection().destroy({
-              success: function() {
-                // check if all active contacts are closed
-                if (++contactClosed === contacts.length) {
-                  setForceOfflineUpstream(false);
-                  // It's ok if we're not able to put the agent offline. 
-                  // since we're suppressing the agents contacts already. 
-                  makeAgentOffline(agent);
-                  log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
-                }
-              },
-              failure: function(err) {
-                log.warn("[Disaster Recovery] An error occured while attempting to force this instance to offline in region %s", connect.core.region).sendInternalLogToServer();
-                log.warn(err).sendInternalLogToServer();
-                // signal the sharedworker to call forceOffline again when network connection 
-                // has been re-established (this happens in case of network or backend failures)
-                setForceOfflineUpstream(true);
-            }});
-          }
-        )        
-      } else {
-        setForceOfflineUpstream(false);
-        makeAgentOffline(agent);
-        log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
-      }
-    });
-  }
- 
-  //Initiate Disaster Recovery (This should only be called from customCCP that are DR enabled)
-  connect.core.initDisasterRecovery = function(params) {
-    var log = connect.getLog();
-    connect.core.region = params.region;
-    connect.core.suppressContacts = suppressContacts;  
-    connect.core.forceOffline = forceOffline;
-
-    //Register iframe listner to set native CCP offline
-    connect.core.getUpstream().onDownstream(connect.DisasterRecoveryEvents.SET_OFFLINE, function() {
-      connect.core.forceOffline();
-    });
- 
-    // Register Event listner to Force the Agent to be offline when shared worker recovers from network failure
-    connect.core.getUpstream().onUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, function() {
-      connect.core.forceOffline();
-    });
-
-    connect.ifMaster(connect.MasterTopics.SOFTPHONE, 
-      function() {
-        log.info("[Disaster Recovery] Initializing region %s as part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
-      }, 
-      function() {
-        log.info("[Disaster Recovery] %s already part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
-      });
-
-    if (!params.isPrimary) {
-      connect.core.suppressContacts(true);
-      connect.core.forceOffline();
-      log.info("[Disaster Recovery] %s instance is set to stand-by", connect.core.region).sendInternalLogToServer();
-    } else {
-      connect.core.suppressContacts(false);
-      log.info("[Disaster Recovery] %s instance is set to primary", connect.core.region).sendInternalLogToServer();
-    }
-  }
- 
   /**-------------------------------------------------------------------------
    * Basic Connect client initialization.
    * Should be used only by the API Shared Worker.
@@ -26366,17 +26269,10 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       * If the window is framed and if it's the CCP app then we need to wait for a CONFIGURE message from downstream before we initialize softphone manager.
       * All medialess softphone initialization cases goes to else check and doesn't wait for CONFIGURE message
      */
-
-
+    
     if (connect.isFramed() && connect.isCCP()) {
-
-      let configureMessageTimer;  // used for re-initing the softphone manager
       var bus = connect.core.getEventBus();
-
-      // Configure handler triggers the softphone manager initiation.
-      // This event is propagted by initCCP call from the end customers 
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
-        global.clearTimeout(configureMessageTimer); // we don't need to re-init softphone manager as we recieved configure event
         connect.getLog().info("[Softphone Manager] Configure event handler executed").sendInternalLogToServer();
         // always overwrite/store the softphone params value if there is a configure event
         softphoneParamsStorage.set(data.softphone);
@@ -26390,37 +26286,22 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       /**
        * This is the case where CCP is just refreshed after it gets initilaized via initCCP
        * This snippet needs atleast one initCCP invocation which sets the params to the store
-       * and waits for CCP to load successfully to apply the same to init Softphone manager
        */
-
-      let softphoneParamsFromLocalStorage = softphoneParamsStorage.get();
-
-      if (softphoneParamsFromLocalStorage) {
-        connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function (args) {
-          // only care about shared worker ACK which indicates CCP successfull load
-          let ackFromSharedWorker =  args && args.id;
-          if (ackFromSharedWorker) {
-            connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed successfully and waiting for configure Message handler to execute").sendInternalLogToServer();
-            this.unsubscribe();
-            configureMessageTimer = global.setTimeout(() => {
-              connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed without configure message handler execution").sendInternalLogToServer();
-              connect.publishMetric({
-                name: "EmbeddedCCPRefreshedWithoutInitCCP",
-                data: { count: 1 }
-              });
-
-              setupEventListenersForMultiTabUseInFirefox(softphoneParamsFromLocalStorage);
-
-              if (softphoneParamsFromLocalStorage.allowFramedSoftphone) {
-                connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed & Initializing competeForMasterOnAgentUpdate (Softphone manager) from localStorage softphone params").sendInternalLogToServer();
-                competeForMasterOnAgentUpdate(softphoneParamsFromLocalStorage);
-              }
-              // 100 ms is from the time it takes to execute few lines of JS code to trigger the configure event (this is done in initCCP) 
-              // which is in fraction of milisecond.  so to be on the safer side we are keeping it to be 100
-              // this number is pulled from performance.now() calculations.
-            }, 100);
-          }
-        });
+      if (!connect.core.softphoneManager) {
+        let softphoneParamsFromLocalStorage = softphoneParamsStorage.get(); 
+        if(softphoneParamsFromLocalStorage){
+          connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed without initCCP call and so picking allowFramedSoftphone value from localStorage which is set to  " + softphoneParamsFromLocalStorage.allowFramedSoftphone).sendInternalLogToServer();
+          connect.publishMetric({
+            name: "EmbeddedCCPRefreshedWithoutInitCCP",
+            data: { count: 1 }
+          });
+        } 
+        if (softphoneParamsFromLocalStorage && softphoneParamsFromLocalStorage.allowFramedSoftphone) {
+          connect.getLog().info("[Softphone Manager] Init competeForMasterOnAgentUpdate from localStorage softphone params").sendInternalLogToServer();
+          competeForMasterOnAgentUpdate(softphoneParamsFromLocalStorage);
+        } else if (softphoneParamsFromLocalStorage) {
+          setupEventListenersForMultiTabUseInFirefox(softphoneParamsFromLocalStorage);
+        }
       }
     } else {
       competeForMasterOnAgentUpdate(params);
@@ -26849,10 +26730,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       // Attempt to get permission to show notifications.
       var nm = connect.core.getNotificationManager();
       nm.requestPermission();
-
-      conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, function(params) {
-        connect.core.initDisasterRecovery(params);
-      })
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
         .withException(e).sendInternalLogToServer();
@@ -26967,16 +26844,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
           pageOptions: params.pageOptions,
           shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
         });
-      }
-
-      // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
-      if (params.disasterRecoveryOn) {
-        connect.core.region = params.region;
-        connect.core.suppressContacts = suppressContacts;
-        connect.core.forceOffline = function() {
-          conduit.sendUpstream(connect.DisasterRecoveryEvents.SET_OFFLINE);
-        }       
-        conduit.sendUpstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, params);
       }
  
       if (connect.core.ccpLoadTimeoutInstance) {
@@ -28044,14 +27911,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     'ringer_device_changed'
   ]);
 
-  var DisasterRecoveryEvents = connect.makeNamespacedEnum('disasterRecovery', [
-    'suppress',
-    'force_offline', // letting the sharedworker know to force offline 
-    'set_offline', // iframe letting the native ccp to set offline
-    'init_disaster_recovery',
-    'failover' // used to propagate failover state to other windows
-  ]);
-
   /**---------------------------------------------------------------
    * enum VoiceId Events
    */
@@ -28267,7 +28126,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   connect.VoiceIdEvents = VoiceIdEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
-  connect.DisasterRecoveryEvents = DisasterRecoveryEvents;
 })();
 
 
@@ -32311,24 +32169,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       }
     });
 
-    this.conduit.onDownstream(connect.DisasterRecoveryEvents.SUPPRESS, function (data){
-      connect.getLog().debug("[Disaster Recovery] Setting Suppress to %s", data.suppress)
-        .sendInternalLogToServer();
-      self.suppress = data.suppress || false;
-      //signal other windows that a failover happened
-      if (self.masterCoord.getMaster(connect.MasterTopics.SOFTPHONE)) {
-        self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
-          isPrimary: !self.suppress
-        });      
-      }
-    });
-
-    this.conduit.onDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, function (data) {
-      connect.getLog().debug("[Disaster Recovery] Setting FORCE_OFFLINE to %s", data.offline)
-        .sendInternalLogToServer();
-      self.forceOffline = data.offline || false;
-    });
-
     this.conduit.onDownstream(connect.EventType.CONFIGURE, function (data) {
       if (data.authToken && data.authToken !== self.initData.authToken) {
         self.initData = data;
@@ -32887,9 +32727,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         this.agent.snapshot.contacts = this.agent.snapshot.contacts.filter(function(contact){
           return (contact.state.type == connect.ConnectionStateType.HOLD || contact.state.type == connect.ConnectionStateType.CONNECTED);
         });
-        if (this.forceOffline) {
-          this.conduit.sendDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE);
-        }
       } 
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
