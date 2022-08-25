@@ -1,6 +1,6 @@
 {
   "name": "amazon-connect-streams",
-  "version": "1.7.5",
+  "version": "2.3.1",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
@@ -27,7 +27,7 @@
   "scripts": {
     "release": "npm run build-streams && npm run test-mocha",
     "build-streams": "webpack --config ./webpack/connect-streams.config.js && webpack --config ./webpack/connect-streams-min.config.js",
-    "test-mocha": "nyc mocha \"test/unit/**/*.spec.js\" --ignore \"test/unit/drCoordinator/**\" --exit",
+    "test-mocha": "nyc mocha \"test/unit/**/*.spec.js\" --exit",
     "clean": "rm -rf build/ node_modules build package-lock.json"
   },
   "author": "Amazon Web Services",
