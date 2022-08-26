@@ -887,11 +887,11 @@ describe('Core', function () {
 
             connect.core._refreshIframeOnTimeout(params, {});
             expect(setTimeoutSpy.calledOnce).to.be.true;
-            expect(setTimeoutSpy.calledWith(sinon.match.any, sinon.match.number.and(sinon.match((timeout) => timeout <= 7000 && timeout >= 5000)))).to.be.true;
-            expect(connect.core.iframeRefreshAttempt).not.to.equal(0);
+            expect(setTimeoutSpy.calledWith(sinon.match.any, sinon.match.number.and(sinon.match((timeout) => timeout === 0)))).to.be.true;
+            expect(connect.core.iframeRefreshAttempt).to.equal(undefined);
             expect(clearTimeoutSpy.calledOnce).to.be.true;
 
-            clock.tick(7001); //the initial retry timeout.
+            clock.tick(5001); //the initial retry timeout.
             expect(connect.core.iframeRefreshAttempt).to.equal(1);
             expect(getCCPIframeSpy.calledOnce).to.be.true;
             expect(fakeRemoveChildSpy.calledOnce).to.be.true;
@@ -900,19 +900,19 @@ describe('Core', function () {
             expect(connect.core.upstream.upstream.output === fakeContentWindow).to.be.true;
             expect(setTimeoutSpy.calledTwice).to.be.true;
 
-            clock.tick(9001); //the 2nd retry timeout
+            clock.tick(7001); //the 2nd retry timeout
             expect(connect.core.iframeRefreshAttempt).to.equal(2);
 
-            clock.tick(13001); //the 3rd retry timeout
+            clock.tick(9001); //the 3rd retry timeout
             expect(connect.core.iframeRefreshAttempt).to.equal(3);
 
-            clock.tick(21001); //the 4th retry timeout
+            clock.tick(12001); //the 4th retry timeout
             expect(connect.core.iframeRefreshAttempt).to.equal(4);
 
-            clock.tick(37001); //the 5th retry timeout
+            clock.tick(21001); //the 5th retry timeout
             expect(connect.core.iframeRefreshAttempt).to.equal(5);
 
-            clock.tick(69001); //the 6th, final retry timeout
+            clock.tick(37001); //the 6th, final retry timeout
             expect(connect.core.iframeRefreshAttempt).to.equal(6);
             expect(getCCPIframeSpy.callCount).to.equal(6);
             expect(fakeRemoveChildSpy.callCount).to.equal(6);

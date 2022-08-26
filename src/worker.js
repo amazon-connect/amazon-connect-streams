@@ -719,7 +719,6 @@
       });
       this.agent.configuration.routingProfile.routingProfileId =
         this.agent.configuration.routingProfile.routingProfileARN;
-      
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
   };

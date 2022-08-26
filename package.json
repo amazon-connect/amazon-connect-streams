@@ -1,6 +1,6 @@
 {
   "name": "amazon-connect-streams",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
@@ -33,9 +33,9 @@
   "author": "Amazon Web Services",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/aws/amazon-connect-streams/issues"
+    "url": "https://github.com/amazon-connect/amazon-connect-streams/issues"
   },
-  "homepage": "https://github.com/aws/amazon-connect-streams#readme",
+  "homepage": "https://github.com/amazon-connect/amazon-connect-streams#readme",
   "devDependencies": {
     "chai": "^4.1.2",
     "jshint": "^2.9.7",
