@@ -1608,11 +1608,13 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.GET_CONTACT, {
+      const params = {
         "contactId": self.contactId,
         "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "awsAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
-        }, {
+      };
+      connect.getLog().info("getSpeakerId called").withObject(params).sendInternalLogToServer();
+      client.call(connect.AgentAppClientMethods.GET_CONTACT, params, {
           success: function (data) {
             if(data.contactData.customerId) {
               var obj = {
@@ -1645,10 +1647,12 @@
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
         self.getDomainId().then(function(domainId) {
-          client.call(connect.AgentAppClientMethods.DESCRIBE_SPEAKER, {
+          const params = {
             "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
             "DomainId" : domainId
-            }, {
+          };
+          connect.getLog().info("getSpeakerStatus called").withObject(params).sendInternalLogToServer();
+          client.call(connect.AgentAppClientMethods.DESCRIBE_SPEAKER, params, {
               success: function (data) {
                 connect.getLog().info("getSpeakerStatus succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
@@ -1688,7 +1692,7 @@
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, {
+      const params = {
         "ContactId": self.contactId,
         "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
@@ -1697,7 +1701,9 @@
           "SpeakerOptedOut": true,
           "generatedSpeakerId": generatedSpeakerId
         }
-        }, {
+      };
+      connect.getLog().info("_optOutSpeakerInLcms called").withObject(params).sendInternalLogToServer();
+      client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, params, {
           success: function (data) {
             connect.getLog().info("optOutSpeakerInLcms succeeded").withObject(data).sendInternalLogToServer();
             resolve(data);
@@ -1722,10 +1728,12 @@
       self.getSpeakerId().then(function(data){
         self.getDomainId().then(function(domainId) {
           var speakerId = data.speakerId;
-          client.call(connect.AgentAppClientMethods.OPT_OUT_SPEAKER, {
+          const params = {
             "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
             "DomainId" : domainId
-            }, {
+          };
+          connect.getLog().info("optOutSpeaker called").withObject(params).sendInternalLogToServer();
+          client.call(connect.AgentAppClientMethods.OPT_OUT_SPEAKER, params, {
               success: function (data) {
                 self._optOutSpeakerInLcms(speakerId, data.generatedSpeakerId).catch(function(){});
                 connect.getLog().info("optOutSpeaker succeeded").withObject(data).sendInternalLogToServer();
@@ -1756,10 +1764,12 @@
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
         self.getDomainId().then(function(domainId) {
-          client.call(connect.AgentAppClientMethods.DELETE_SPEAKER, {
+          const params = {
             "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
             "DomainId" : domainId
-            }, {
+          };
+          connect.getLog().info("deleteSpeaker called").withObject(params).sendInternalLogToServer();
+          client.call(connect.AgentAppClientMethods.DELETE_SPEAKER, params, {
               success: function (data) {
                 connect.getLog().info("deleteSpeaker succeeded").withObject(data).sendInternalLogToServer();
                 resolve(data);
@@ -1788,13 +1798,15 @@
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function(domainId) {
-        client.call(connect.AgentAppClientMethods.START_VOICE_ID_SESSION, {
+        const params = {
           "contactId": self.contactId,
           "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
           "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
           "clientToken": AWS.util.uuid.v4(),
           "domainId" : domainId
-          }, {
+        };
+        connect.getLog().info("startSession called").withObject(params).sendInternalLogToServer();
+        client.call(connect.AgentAppClientMethods.START_VOICE_ID_SESSION, params, {
             success: function (data) {
               if(data.sessionId) {
                 resolve(data);
@@ -1831,10 +1843,12 @@
     return new Promise(function (resolve, reject) {
       function evaluate() {
         self.getDomainId().then(function(domainId) {
-          client.call(connect.AgentAppClientMethods.EVALUATE_SESSION, {
+          const params = {
             "SessionNameOrId": contactData.initialContactId || this.contactId,
             "DomainId" : domainId
-          }, {
+          };
+          connect.getLog().info("evaluateSpeaker called").withObject(params).sendInternalLogToServer();
+          client.call(connect.AgentAppClientMethods.EVALUATE_SESSION, params, {
             success: function (data) {
               if(++pollTimes < connect.VoiceIdConstants.EVALUATION_MAX_POLL_TIMES) {
                 if(data.StreamingStatus === connect.VoiceIdStreamingStatus.PENDING_CONFIGURATION) {
@@ -1977,10 +1991,12 @@
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function(domainId) {
-        client.call(connect.AgentAppClientMethods.DESCRIBE_SESSION, {
+        const params = {
           "SessionNameOrId": contactData.initialContactId || this.contactId,
           "DomainId" : domainId
-        }, {
+        };
+        connect.getLog().info("describeSession called").withObject(params).sendInternalLogToServer();
+        client.call(connect.AgentAppClientMethods.DESCRIBE_SESSION, params, {
           success: function (data) {
             resolve(data)
           },
@@ -2000,6 +2016,7 @@
   };
 
   VoiceId.prototype.checkEnrollmentStatus = function (callbackOnAudioCollectionComplete) {
+    connect.getLog().info("checkEnrollmentStatus called").sendInternalLogToServer();
     var self = this;
     var pollingTimes = 0;
     var callbackOnAudioCollectionCompleteHasBeenInvoked = false;
@@ -2050,6 +2067,7 @@
   };
 
   VoiceId.prototype.enrollSpeaker = function (callbackOnAudioCollectionComplete) {
+    connect.getLog().info("enrollSpeaker called").sendInternalLogToServer();
     var self = this;
     self.checkConferenceCall();
     return new Promise(function(resolve, reject) {
@@ -2078,10 +2096,12 @@
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     self.getDomainId().then(function(domainId) {
-      client.call(connect.AgentAppClientMethods.ENROLL_BY_SESSION, {
+      const params = {
         "SessionNameOrId": contactData.initialContactId || this.contactId,
         "DomainId" : domainId
-        }, {
+      };
+      connect.getLog().info("enrollSpeakerHelper called").withObject(params).sendInternalLogToServer();
+      client.call(connect.AgentAppClientMethods.ENROLL_BY_SESSION, params, {
           success: function (data) {
             if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
               connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
@@ -2114,7 +2134,7 @@
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, {
+      const params = {
         "ContactId": self.contactId,
         "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
@@ -2122,7 +2142,9 @@
         "VoiceIdResult": {
           "generatedSpeakerId": generatedSpeakerId
         }
-      }, {
+      };
+      connect.getLog().info("_updateSpeakerIdInLcms called").withObject(params).sendInternalLogToServer();
+      client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, params, {
         success: function (data) {
           connect.getLog().info("updateSpeakerIdInLcms succeeded").withObject(data).sendInternalLogToServer();
           resolve(data);
@@ -2146,11 +2168,13 @@
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function(domainId) {
-        client.call(connect.AgentAppClientMethods.UPDATE_SESSION, {
+        const params = {
           "SessionNameOrId": contactData.initialContactId || this.contactId,
           "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
           "DomainId" : domainId
-          }, {
+        };
+        connect.getLog().info("updateSpeakerIdInVoiceId called").withObject(params).sendInternalLogToServer();
+        client.call(connect.AgentAppClientMethods.UPDATE_SESSION, params, {
             success: function (data) {
               connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
               self._updateSpeakerIdInLcms(speakerId, data.generatedSpeakerId)
@@ -2184,6 +2208,7 @@
   };
 
   VoiceId.prototype.syncSpeakerId = function () {
+    connect.getLog().info("syncSpeakerId called").sendInternalLogToServer();
     var self = this;
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function(data){
@@ -2207,10 +2232,12 @@
         resolve(connect.core.voiceIdDomainId);
       } else {
         var client = connect.core.getClient();
-        client.call(connect.AgentAppClientMethods.LIST_INTEGRATION_ASSOCIATIONS, {
+        const params = {
           "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
           "IntegrationType": "VOICE_ID"
-        }, {
+        };
+        connect.getLog().info("getDomainId called").withObject(params).sendInternalLogToServer();
+        client.call(connect.AgentAppClientMethods.LIST_INTEGRATION_ASSOCIATIONS, params, {
           success: function (data) {
             try {
               var domainId;
