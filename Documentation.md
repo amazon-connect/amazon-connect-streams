@@ -1143,15 +1143,6 @@ if (contact.isMultiPartyConferenceEnabled()) { /* ... */ }
 ```
 Determine whether this contact is a softphone call and multiparty conference feature is turned on.
 
-### `contact.updateMonitorParticipantState()`
-```js
-contact.updateMonitorParticipantState(targetState, {
-   success: function() { /* ... */ },
-   failure: function(err) { /* ... */ }
-});
-```
-Updates the monitor participant state to switch between different monitoring modes. The targetState value is a `MonitoringMode` enum member.
-
 ### Task Contact APIs
 The following contact methods are currently only available for task contacts.
 
@@ -1367,29 +1358,11 @@ var agentName = conn.getQuickConnectName();
 ```
 Returns the quick connect name of the third-party call participant with which the connection is associated.
 
-### `voiceConnection.getMonitorState()`
-```js
-var monitorState = conn.getMonitorState();
-```
-Returns the monitor state of this connection. Monitor state represents the manager listen-in state and its value is a `MonitoringMode` enum member.
-
-### `voiceConnection.getMonitorCapabilities()`
-```js
-var monitorState = conn.getMonitorCapabilities();
-```
-Returns the array of enabled monitor states of this connection. The array will consist of MonitoringMode enum values.
-
 ### `voiceConnection.isMute()`
 ```js
 if (conn.isMute()) { /* ... */ }
 ```
 Determine whether the connection is mute server side.
-
-### `voiceConnection.isForcedMute()`
-```js
-if (conn.isForcedMute()) { /* ... */ }
-```
-Determine whether the connection was forced muted by the manager.
 
 ### `voiceConnection.muteParticipant()`
 ```js
@@ -1525,16 +1498,6 @@ Lists the different types of connections.
 * `ConnectionType.INBOUND`: An inbound connection, usually representing an inbound call.
 * `ConnectionType.OUTBOUND`: An outbound connection, representing either an outbound call or additional connection added to the contact.
 * `ConnectionType.MONITORING`: A special connection type representing a manager listen-in session.
-
-###  `MonitoringMode`
-Lists the different monitoring modes representing a manager listen-in session.
-
-* `MonitoringMode.SILENT_MONITOR`: An enhanced listen-in manager session
-* `MonitoringMode.BARGE`: A special manager session mode with full control over contact actions
-
-### `MonitoringErrorTypes`
-Lists the different monitoring error states.
-* `MonitoringErrorTypes.INVALID_TARGET_STATE`: Indicates that invalid target state has been passed
 
 ### `ContactStateType`
 An enumeration listing the different high-level states that a contact can have.
