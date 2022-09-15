@@ -1108,7 +1108,7 @@
 
   Contact.prototype.isUnderSupervision = function () {
     var nonAgentConnections = this.getConnections().filter((conn) => conn.getType() !== connect.ConnectionType.AGENT);
-    var supervisorConnection = nonAgentConnections && nonAgentConnections.find(conn => conn.getState().type === connect.ConnectionStateType.BARGE);
+    var supervisorConnection = nonAgentConnections && nonAgentConnections.find(conn => conn.getState().type === connect.MonitoringMode.BARGE);
     return supervisorConnection !== undefined;
   }
 
