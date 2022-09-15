@@ -1375,33 +1375,21 @@ Returns the quick connect name of the third-party call participant with which th
 
 ### `voiceConnection.isSilentMonitor()`
 ```js
-if (conn.isSilentMonitor()) { /* ... */ }
+var monitorState = conn.isSilentMonitor();
 ```
-Returns true if agent's connection has `silent_monitor` state type. `ConnectionStateType.SILENT_MONITOR` represents the manager listen-in state.
+Returns true if agent's connection has `silent_monitor` state type. Monitor state represents the manager listen-in state and its value is a `MonitoringMode` enum member.
 
 ### `voiceConnection.isBarge()`
 ```js
-if (conn.isBarge()) { /* ... */ }
+var monitorState = conn.isBarge();
 ```
-Returns true if agent's connection has `barge` state type. `ConnectionStateType.BARGE` represents the manager barge-in state.
-
-### `voiceConnection.isSilentMonitorEnabled()`
-```js
-if (conn.isSilentMonitorEnabled()) { /* ... */ }
-```
-Returns true if agent's monitoringCapabilities contain `MonitoringMode.SILENT_MONITOR` type. 
-
-### `voiceConnection.isBargeEnabled()`
-```js
-if (conn.isBargeEnabled()) { /* ... */ }
-```
-Returns true if agent's monitoringCapabilities contain `MonitoringMode.BARGE` state type.
+Returns true if agent's connection has `barge` state type. Monitor state represents the manager listen-in state and its value is a `MonitoringMode` enum member.
 
 ### `voiceConnection.getMonitorCapabilities()`
 ```js
 var monitorState = conn.getMonitorCapabilities();
 ```
-Returns the array of enabled monitor states of this connection. The array will consist of `MonitoringMode` enum values.
+Returns the array of enabled monitor states of this connection. The array will consist of MonitoringMode enum values.
 
 ### `voiceConnection.isMute()`
 ```js
