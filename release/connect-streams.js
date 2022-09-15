@@ -32436,12 +32436,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       });
       this.agent.configuration.routingProfile.routingProfileId =
         this.agent.configuration.routingProfile.routingProfileARN;
-      
-      if (this.suppress) {
-        this.agent.snapshot.contacts = this.agent.snapshot.contacts.filter(function(contact){
-          return (contact.state.type == connect.ConnectionStateType.HOLD || contact.state.type == connect.ConnectionStateType.CONNECTED);
-        });
-      } 
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
   };
