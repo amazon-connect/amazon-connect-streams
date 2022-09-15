@@ -138,15 +138,6 @@
   ]);
 
   /*----------------------------------------------------------------
-   * enum for ContactRecording Voice Track config
-   */
-  connect.ContactRecordingVoiceTrackConfig = connect.makeEnum([
-    'ALL',
-    'TO_AGENT',
-    'FROM_AGENT'
-  ]);
-
-  /*----------------------------------------------------------------
   * enum ChannelType
   */
   connect.ChannelType = connect.makeEnum([
@@ -327,8 +318,7 @@
    */
   connect.AgentPermissions = {
     OUTBOUND_CALL: 'outboundCall',
-    VOICE_ID: 'voiceId',
-    CONTACT_RECORDING: 'contactRecording'
+    VOICE_ID: 'voiceId'
   };
 
   /*----------------------------------------------------------------
@@ -1229,134 +1219,6 @@
   }
   
   /*----------------------------------------------------------------
-  * Contact recording
-  */
-
-  var ContactRecording = function (contactId) {
-    this.contactId = connect.core.getAgentDataProvider().getContactData(contactId) ? contactId : null;
-  }
-
-  ContactRecording.prototype.startContactRecording = function(trackConfig) {
-    var self = this;
-    var client, contactData;
-
-    client = connect.core.getClient();
-    contactData = connect.core.getAgentDataProvider().getContactData(self.contactId);
-    var recordingTrack = (trackConfig && Object.values(connect.ContactRecordingVoiceTrackConfig).includes(trackConfig)) ? trackConfig : connect.ContactRecordingVoiceTrackConfig.ALL;
-    return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.START_CONTACT_RECORDING, {
-        "initialContactId": contactData.initialContactId || self.contactId,
-        "contactId": self.contactId,
-        "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
-        "voiceRecordingConfiguration": {
-          "voiceRecordingTrack": recordingTrack
-        }
-      }, {
-        success: function (data) {
-          connect.getLog().info("startContactRecording succeeded")
-            .withObject(data).sendInternalLogToServer();
-          resolve(data);
-        },
-        failure: function (err, data) {
-          connect.getLog().error("startContactRecording failed").sendInternalLogToServer()
-            .withObject({
-              err,
-              data
-            });
-          reject(Error("startContactRecording failed", { cause: err }));
-        }
-      })
-    })
-  };
-
-  ContactRecording.prototype.stopContactRecording = function() {
-    var self = this;
-    var client, contactData;
-
-    client = connect.core.getClient();
-    contactData = connect.core.getAgentDataProvider().getContactData(self.contactId);
-    return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.STOP_CONTACT_RECORDING, {
-        "initialContactId": contactData.initialContactId || self.contactId,
-        "contactId": self.contactId,
-        "instanceId": connect.core.getAgentDataProvider().getInstanceId()
-      }, {
-        success: function (data) {
-          connect.getLog().info("stopContactRecording succeeded")
-            .withObject(data).sendInternalLogToServer();
-          resolve(data);
-        },
-        failure: function (err, data) {
-          connect.getLog().error("stopContactRecording failed").sendInternalLogToServer()
-            .withObject({
-              err,
-              data
-            });
-          reject(Error("stopContactRecording failed", { cause: err }));
-        }
-      })
-    })
-  };
-
-  ContactRecording.prototype.suspendContactRecording = function() {
-    var self = this;
-    var client, contactData;
-
-    client = connect.core.getClient();
-    contactData = connect.core.getAgentDataProvider().getContactData(self.contactId);
-    return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.SUSPEND_CONTACT_RECORDING, {
-        "initialContactId": contactData.initialContactId || self.contactId,
-        "contactId": self.contactId,
-        "instanceId": connect.core.getAgentDataProvider().getInstanceId()
-      }, {
-        success: function (data) {
-          connect.getLog().info("suspendContactRecording succeeded")
-            .withObject(data).sendInternalLogToServer();
-          resolve(data);
-        },
-        failure: function (err, data) {
-          connect.getLog().error("suspendContactRecording failed").sendInternalLogToServer()
-            .withObject({
-              err,
-              data
-            });
-          reject(Error("suspendContactRecording failed", { cause: err }));
-        }
-      })
-    })
-  };
-
-  ContactRecording.prototype.resumeContactRecording = function() {
-    var self = this;
-    var client, contactData;
-
-    client = connect.core.getClient();
-    contactData = connect.core.getAgentDataProvider().getContactData(self.contactId);
-    return new Promise(function (resolve, reject) {
-      client.call(connect.AgentAppClientMethods.RESUME_CONTACT_RECORDING, {
-        "initialContactId": contactData.initialContactId || self.contactId,
-        "contactId": self.contactId,
-        "instanceId": connect.core.getAgentDataProvider().getInstanceId()
-      }, {
-        success: function (data) {
-          connect.getLog().info("resumeContactRecording succeeded")
-            .withObject(data).sendInternalLogToServer();
-          resolve(data);
-        },
-        failure: function (err, data) {
-          connect.getLog().error("resumeContactRecording failed").sendInternalLogToServer()
-            .withObject({
-              err,
-              data
-            });
-          reject(Error("resumeContactRecording failed"), { cause: err });
-        }
-      })
-    })
-  };
-
-  /*----------------------------------------------------------------
   * Voice authenticator VoiceId
   */
 
@@ -2076,7 +1938,6 @@
    */
   var VoiceConnection = function (contactId, connectionId) {
     this._speakerAuthenticator = new VoiceId(contactId);
-    this._contactRecorder = new ContactRecording(contactId);
     Connection.call(this, contactId, connectionId);
   };
 
@@ -2156,39 +2017,6 @@
     }, callbacks);
   };
 
-  VoiceConnection.prototype.startContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.startContactRecording();
-  }
-
-  VoiceConnection.prototype.stopContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.stopContactRecording();
-  }
-
-  VoiceConnection.prototype.suspendContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.suspendContactRecording();
-  }
-
-  VoiceConnection.prototype.resumeContactRecording = function() {
-    var self = this;
-    self.checkConferenceCall();
-    return this._contactRecorder.resumeContactRecording();
-  }
-
-  VoiceConnection.prototype.checkConferenceCall = function(){
-    var self = this;
-    var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.filter(function (conn) {
-      return connect.contains(connect.CONNECTION_ACTIVE_STATES, conn.state.type);
-    }).length > 2;
-    if(isConferenceCall){
-      throw new connect.NotImplementedError("VoiceId and Contact Recording are not supported for conference calls");
-    }
-  }
 
   /**
    * @class ChatConnection
@@ -2482,6 +2310,5 @@
   connect.Address = Endpoint;
   connect.SoftphoneError = SoftphoneError;
   connect.VoiceId = VoiceId;
-  connect.ContactRecording = ContactRecording;
 })();
 

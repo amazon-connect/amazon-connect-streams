@@ -1597,18 +1597,6 @@ declare namespace connect {
     /** Determine whether the connection is mute server side. */
     isMute(): boolean;
 
-    /** Start contact recording */
-    startContactRecording(): Promise<any>;
-
-    /** Stop contact recording */
-    stopContactRecording(): Promise<any>;
-
-    /** Resume contact recording */
-    suspendContactRecording(): Promise<any>;
-
-    /** Suspend contact recording */
-    resumeContactRecording(): Promise<any>;
-
     /**
      * Mute the connection server side
      *
