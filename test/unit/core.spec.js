@@ -484,117 +484,61 @@ describe('Core', function () {
             connect.agent.initialized = false;
         });
 
-        describe("Softphone manager - Embedded CCP initialization", () => {
-            let softphoneParams, softphoneParamskey;
-
+        describe("Framed CCP softphone initialization", () => {
+            let softphoneParams, softphoneParamskey, mediaLessCCPParams;
+            
             before(() => {
                 softphoneParams = {
                     allowFramedSoftphone: true,
                     ringtoneUrl: defaultRingtoneUrl
                 }
 
-                softphoneParamskey = `SoftphoneParamsStorage::${global.location.origin}`;
+                softphoneParamskey  = `SoftphoneParamsStorage::${global.location.origin}`;
             });
 
             beforeEach(() => {
                 sandbox.stub(connect, "isFramed").returns(true);
-                sandbox.stub(connect, "publishMetric");
+                sandbox.stub(connect, "publishMetric"); 
             });
 
-            afterEach(() => {
+            afterEach(() => { 
                 connect.isFramed.restore();
                 connect.publishMetric.restore();
             });
 
-            describe("Softphone manager - Embedded CCP is refreshed", () => {
-
-                let clock = sinon.useFakeTimers();
-
-                before(() => {
-                    connect.core.getUpstream.restore();
-
-                    sandbox.stub(connect.core, "getUpstream").returns({
-                        onUpstream: (event, fn) => {
-                            connect.core.eventBus.subscribe(event, fn);
-                        },
-                        upstreamBus: connect.core.eventBus,
-                        sendUpstream: sinon.stub()
-                    });
-                })
-
-                beforeEach(() => {
-                    sandbox.stub(global.localStorage, "getItem").returns(JSON.stringify(softphoneParams));
-                    sandbox.stub(global.localStorage, "setItem");
-                    sandbox.stub(connect, "isCCP").returns(true);
-                    connect.core.initSoftphoneManager({ ringtoneUrl: defaultRingtoneUrl });
-                });
-
-                afterEach(() => {
-                    global.localStorage.getItem.restore();
-                    global.localStorage.setItem.restore();
-                    connect.isCCP.restore();
-                    clock.restore();
-                });
-
-                it("we should use stored softphone params for initilization in case if the configure message is not delivered", () => {
-                    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
-                    clock.tick(110);
-                    connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-                    connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-                    connect.ifMaster.callArg(1);
-                    sandbox.assert.calledWithExactly(global.localStorage.getItem, softphoneParamskey);
-                    // this indicates that we are using stored params
-                    sandbox.assert.calledWithExactly(connect.publishMetric, {
-                        name: "EmbeddedCCPRefreshedWithoutInitCCP",
-                        data: { count: 1 }
-                    });
-                    assert.isTrue(connect.SoftphoneManager.calledWithNew());
-                });
-
-
-                it("we should not use stored softphone params for initilization if configure message is delivered", () => {
-
-                    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
-                    clock.tick(99); // set to below 100 to not to execute the setimeout handler
-                    // trigger configure
-                    connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, { softphone: softphoneParams });
-                    connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-                    connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-                    connect.ifMaster.callArg(1);
-                    sandbox.assert.calledWithExactly(global.localStorage.getItem, softphoneParamskey);
-                    // see that the publishMetric is not invoked
-                    sandbox.assert.notCalled(connect.publishMetric);
-                    assert.isTrue(connect.SoftphoneManager.calledWithNew());
-                });
-
-                it("we should only listen for shared worker ACK message to re-init the softphone manager", () => {
-                    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE);
-                    // trigger configure
-                    connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, { softphone: softphoneParams });
-                    connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-                    connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-                    connect.ifMaster.callArg(1);
-                    sandbox.assert.calledWithExactly(global.localStorage.getItem, softphoneParamskey);
-                    // see that the publishMetric is not invoked
-                    sandbox.assert.notCalled(connect.publishMetric);
-                    assert.isTrue(connect.SoftphoneManager.calledWithNew())
-                });
-
-            });
-
-            it("Softphone params should get pushed to localstorage for the first time for the embedded case", function () {
-                sandbox.stub(global.localStorage, "getItem").returns(null);
-                sandbox.stub(global.localStorage, "setItem");
-
+            it("Softphone manager should be initilzed by reusing the stored params in case of reload or configure event miss", () => {  
+                sinon.stub(global.localStorage, "getItem").returns(JSON.stringify(softphoneParams));
+                sinon.stub(global.localStorage, "setItem");
                 sinon.stub(connect, "isCCP").returns(true);
-                connect.core.initSoftphoneManager({ ringtoneUrl: defaultRingtoneUrl });
-                connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, { softphone: softphoneParams });
+
+                connect.core.initSoftphoneManager({ringtoneUrl: defaultRingtoneUrl});
+                // Configure event miss indicates that the embedded CCP has refreshed
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                sandbox.assert.calledWithExactly(global.localStorage.getItem, softphoneParamskey);
+                sandbox.assert.calledWithExactly(connect.publishMetric, {
+                    name: "EmbeddedCCPRefreshedWithoutInitCCP",
+                    data: { count: 1 }
+                });
+                assert.isTrue(connect.SoftphoneManager.calledWithNew());
+                global.localStorage.getItem.restore();
+                global.localStorage.setItem.restore();
+                connect.isCCP.restore();
+            });
+            
+            it("Softphone params should get pushed to localstorage for the first time for the embedded case", function () {
+                sinon.stub(global.localStorage, "getItem").returns({});
+                sandbox.stub(global.localStorage, "setItem");
+                sinon.stub(connect, "isCCP").returns(true);
+                connect.core.initSoftphoneManager({ringtoneUrl: defaultRingtoneUrl});
+                connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, {softphone:softphoneParams});
                 connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
                 connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
                 connect.ifMaster.callArg(1);
                 sandbox.assert.calledWithExactly(global.localStorage.setItem, softphoneParamskey, JSON.stringify(softphoneParams));
                 // TODO fix this test  - for some reason localstorage getItem is not getting reset  and always points at previous value
-                sandbox.assert.notCalled(connect.publishMetric);
+                // sandbox.assert.notCalled(connect.publishMetric);
                 assert.isTrue(connect.SoftphoneManager.calledWithNew());
                 global.localStorage.getItem.restore();
                 global.localStorage.setItem.restore();
@@ -602,9 +546,9 @@ describe('Core', function () {
             });
 
             // specifically where Custom app itself is embedded which in turn embeds CCP
-            it("Medialess CCP with embedded outer context app - should successfully able to init the softphone manager", function () {
+            it("Medialess CCP with embedded outer context app - should successfully able to init the softphone manager", function () {   
                 mediaLessCCPParams = {
-                    allowFramedSoftphone: true
+                    allowFramedSoftphone: true 
                 };
                 // Calling this from outer context
                 connect.core.initSoftphoneManager(mediaLessCCPParams);
@@ -619,7 +563,7 @@ describe('Core', function () {
                 sandbox.stub(connect, "isFramed").returns(false);
 
                 mediaLessCCPParams = {
-                    allowFramedSoftphone: true
+                    allowFramedSoftphone: true 
                 };
                 // Calling this from outer context
                 connect.core.initSoftphoneManager(mediaLessCCPParams);
@@ -643,7 +587,7 @@ describe('Core', function () {
             });
         });
 
-        describe('in Chrome', function () {
+        describe('in Chrome', function() {
             before(function () {
                 sandbox.stub(connect, 'isChromeBrowser').returns(true);
                 sandbox.stub(connect, 'getChromeBrowserVersion').returns(79);
@@ -661,7 +605,7 @@ describe('Core', function () {
             });
         });
 
-        describe('in Firefox', function () {
+        describe('in Firefox', function() {
             before(function () {
                 sandbox.stub(connect, 'isChromeBrowser').returns(false);
                 sandbox.stub(connect, 'isFirefoxBrowser').returns(true);
@@ -679,7 +623,7 @@ describe('Core', function () {
                 connect.ifMaster.callArg(1);
                 assert.isTrue(connect.SoftphoneManager.calledWithNew());
             });
-
+    
             it("should set connect.core.softphoneParams", function () {
                 expect(connect.core.softphoneParams).to.include({ ringtoneUrl: defaultRingtoneUrl });
             });
