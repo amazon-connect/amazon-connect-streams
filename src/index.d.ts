@@ -477,6 +477,26 @@ declare namespace connect {
     REALTIME_COMMUNICATION_ERROR = "RealtimeCommunicationError",
   }
 
+  enum AgentEvents {
+    INIT = 'init',
+    UPDATE = 'update',
+    REFRESH = 'refresh',
+    ROUTABLE = 'routable',
+    NOT_ROUTABLE = 'not_routable',
+    PENDING = 'pending',
+    CONTACT_PENDING = 'contact_pending',
+    OFFLINE = 'offline',
+    ERROR = 'error',
+    SOFTPHONE_ERROR = 'softphone_error',
+    WEBSOCKET_CONNECTION_LOST = 'websocket_connection_lost',
+    WEBSOCKET_CONNECTION_GAINED = 'websocket_connection_gained',
+    STATE_CHANGE = 'state_change',
+    ACW = 'acw',
+    MUTE_TOGGLE = 'mute_toggle',
+    LOCAL_MEDIA_STREAM_CREATED = 'local_media_stream_created',
+    ENQUEUED_NEXT_STATE = 'enqueued_next_state',
+  }
+
   /** This enumeration lists the different types of endpoints. */
   enum EndpointType {
     /** An endpoint pointing to a phone number. */
