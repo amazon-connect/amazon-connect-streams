@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || globalThis;
+  var connect = global.connect || {};
   global.connect = connect;
 
   var ALL_EVENTS = '<<all>>';
@@ -40,10 +40,16 @@
     'server_bound_internal_log',
     'mute',
     "iframe_style",
+    "iframe_retries_exhausted",
     "update_connected_ccps",
     "outer_context_info",
     "media_device_request",
-    "media_device_response"
+    "media_device_response",
+    "tab_id",
+    'authorize_success',
+    'authorize_retries_exhausted',
+    'cti_authorize_retries_exhausted',
+    'click_stream_data'
   ]);
 
   /**---------------------------------------------------------------

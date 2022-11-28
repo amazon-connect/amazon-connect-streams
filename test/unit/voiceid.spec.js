@@ -973,6 +973,32 @@ describe('VoiceId', () => {
       expect(error.type).to.equal(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_TIMEOUT);
       expect(voiceId.describeSession.callCount).to.equal(connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES - 1);
     });
+
+    it('should invoke a callback when sufficient audio has been collected', async () => {
+      const enrollmentStatus = connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS;
+      const streamingStatus = connect.VoiceIdStreamingStatus.ONGOING;
+      const response = {
+        Session: {
+          "EnrollmentRequestDetails": {
+            Status: enrollmentStatus
+          },
+          "StreamingStatus": streamingStatus
+        }
+      };
+      const voiceId = new connect.VoiceId(contactId);
+      voiceId.describeSession = sinon.stub().callsFake(() => Promise.resolve(response));
+
+      const callback = sinon.stub();
+      let error;
+      voiceId.checkEnrollmentStatus(callback).then(() => {}).catch((err) => { error = err });
+      await clock.nextAsync();
+
+      expect(error).to.be.a('undefined');
+      sinon.assert.calledOnce(callback);
+
+      await clock.nextAsync();
+      sinon.assert.calledOnce(callback);
+    });
   });
 
   describe('enrollSpeaker', () => {
@@ -1153,7 +1179,7 @@ describe('VoiceId', () => {
       connect.core.getClient.restore();
     });
 
-    it('should get rejected when no speakerId without calling backend', async () => {
+    it('should get rejected without calling backend when no speakerId is passed in', async () => {
       const response = {
         data: 'fakeData'
       };
@@ -1196,6 +1222,29 @@ describe('VoiceId', () => {
       }
       expect(obj).to.be.a('undefined');
       expect(error.type).to.equal(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED);
+      connect.core.getClient.restore();
+    });
+
+    it('should get rejected when _updateSpeakerIdInLcms api call fails', async () => {
+      const response = 'fakeData';
+      sinon.stub(connect.core, 'getClient').callsFake(() => ({
+        call: (endpoint, params, callbacks) => {
+          callbacks.success(response);
+        }
+      }));
+      const voiceId = new connect.VoiceId(contactId);
+      voiceId.checkConferenceCall = sinon.stub();
+      voiceId.getDomainId = sinon.stub().callsFake(() => Promise.resolve(domainId));
+      voiceId._updateSpeakerIdInLcms = sinon.stub().callsFake(() => Promise.reject({ type: connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_IN_LCMS_FAILED }));
+
+      let obj, error;
+      try {
+        obj = await voiceId.updateSpeakerIdInVoiceId(speakerId);
+      } catch (e) {
+        error = e;
+      }
+      expect(obj).to.be.a('undefined');
+      expect(error.type).to.equal(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_IN_LCMS_FAILED);
       connect.core.getClient.restore();
     });
   });

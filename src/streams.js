@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 (function() {
-   var global = this;
-   connect = global.connect || {};
+   var global = this || globalThis;
+   var connect = global.connect || {};
    global.connect = connect;
    global.lily = connect;
 
@@ -97,9 +97,6 @@
       this.input.addEventListener("message", (message) => {
          if (message.source === this.output) {
             f(message);
-         }
-         else {
-            connect.getLog().warn("[Window IO Stream] message event came from somewhere other than the CCP iFrame").withCrossOriginEventObject(message).sendInternalLogToServer();
          }
       });
    };

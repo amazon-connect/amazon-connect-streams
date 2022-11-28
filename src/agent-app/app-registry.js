@@ -1,6 +1,6 @@
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || globalThis;
+  var connect = global.connect || {};
   global.connect = connect;
 
   var APP = {
@@ -9,12 +9,13 @@
 
   function AppRegistry() {
     var moduleData = {};
-    var makeAppIframe = function (appName, endpoint, style) {
+    var makeAppIframe = function (appName, endpoint, style, onLoad) {
       var iframe = document.createElement('iframe');
       iframe.src = endpoint;
       iframe.style = style || 'width: 100%; height:100%;';
       iframe.id = appName;
       iframe['aria-label'] = appName;
+      iframe.onload = onLoad;
       iframe.setAttribute(
         "sandbox",
         "allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
@@ -31,6 +32,7 @@
           endpoint: config.endpoint,
           style: config.style,
           instance: undefined,
+          onLoad: config.onLoad,
         };
       },
       start: function (appName, creator) {
@@ -38,8 +40,9 @@
         var containerDOM = moduleData[appName].containerDOM;
         var endpoint = moduleData[appName].endpoint;
         var style = moduleData[appName].style;
+        var onLoad = moduleData[appName].onLoad;
         if (appName !== APP.CCP) {
-          var app = makeAppIframe(appName, endpoint, style);
+          var app = makeAppIframe(appName, endpoint, style, onLoad);
           containerDOM.appendChild(app);
         }
 

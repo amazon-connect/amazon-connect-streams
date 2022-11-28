@@ -33,6 +33,8 @@ describe('agent-app', function () {
   });
 
   afterEach(function () {
+    domCon.remove();
+    domCon = null;
     sandbox.restore();
   });
 
@@ -102,6 +104,42 @@ describe('agent-app', function () {
       expect(connect.core.getEventBus().subscribe.called).to.be.true;
     });
 
+    it('start CCP with style in ccpParams', function () {
+      var style = 'width:200px; height:200px;';
+      var expectedParams = {
+        ccpUrl: 'https://www.amazon.com/ccp-v2/',
+        ccpLoadTimeout: 10000,
+        loginPopup: true,
+        loginUrl: 'https://www.amazon.com/login',
+        softphone: {
+          allowFramedSoftphone: true,
+          disableRingtone: false,
+        },
+        style
+      };
+      connect.agentApp.initApp('ccp', 'agent-app-dom', endpoint, { ccpParams: { style } });
+      expect(connect.core.initCCP.calledWith(domCon, expectedParams)).to.be.true;
+      expect(connect.core.getEventBus().subscribe.called).to.be.true;
+    });
+
+    it('start CCP with style in agentapp config', function () {
+      var style = 'width:200px; height:200px;';
+      var expectedParams = {
+        ccpUrl: 'https://www.amazon.com/ccp-v2/',
+        ccpLoadTimeout: 10000,
+        loginPopup: true,
+        loginUrl: 'https://www.amazon.com/login',
+        softphone: {
+          allowFramedSoftphone: true,
+          disableRingtone: false,
+        },
+        style
+      };
+      connect.agentApp.initApp('ccp', 'agent-app-dom', endpoint, { style });
+      expect(connect.core.initCCP.calledWith(domCon, expectedParams)).to.be.true;
+      expect(connect.core.getEventBus().subscribe.called).to.be.true;
+    });
+
     it('adds a trailing slash to the url', function () {
       connect.agentApp.initApp('customer-profiles', 'agent-app-dom', endpoint);
       expect(connect.agentApp.initAppCommunication.calledWith('customer-profiles', endpoint + '/')).to.be.true;
@@ -131,6 +169,22 @@ describe('agent-app', function () {
       connect.agentApp.initApp('ccp', 'agent-app-dom', ccpEndpoint, {});
       connect.agentApp.stopApp('ccp');
       expect(connect.fetch.calledWith('https://amazon.my.connect.aws/logout')).to.be.true;
+    });
+
+    it('adds onload function', function () {
+      var divElement = document.createElement('div');
+      divElement.setAttribute('id', 'agent-app-onload');
+      document.body.appendChild(divElement);
+      var onLoad = sandbox.spy();
+      connect.agentApp.initApp('agentApp', 'agent-app-onload', endpoint, { onLoad: onLoad });
+
+      var iframe = document.querySelector('#agent-app-onload iframe');
+      iframe.onload()
+
+      expect(iframe.onload).to.equal(onLoad);
+      expect(connect.agentApp.AppRegistry.register.called).to.be.true;
+      expect(connect.agentApp.AppRegistry.start.called).to.be.true;
+      expect(onLoad.called).to.be.true;
     });
   });
 

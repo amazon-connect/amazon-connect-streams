@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || globalThis;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
@@ -158,19 +158,22 @@
    * Private method to remove sensitive info from client log
    */
   var redactSensitiveInfo = function(data) {
-    var regex = /AuthToken.*\=/g;
+    var authTokenRegex = /AuthToken.*\=/g;
     if(data && typeof data === 'object') {
       Object.keys(data).forEach(function(key) {
         if (typeof data[key] === 'object') {
           redactSensitiveInfo(data[key])
+        } else if(typeof data[key] === 'string') {
+          if (key === "url" || key === "text") {
+            data[key] = data[key].replace(authTokenRegex, "[redacted]");
+          } else if (["quickConnectName"].includes(key)) {
+            data[key] = "[redacted]";
+          } else if (["customerId", "CustomerId", "SpeakerId", "CustomerSpeakerId"].includes(key)) {
+            data[key] = md5(data[key]);
+          }
         }
-        
-        if(typeof data[key] === 'string' && (key === "url" || key === "text")) {
-          data[key] = data[key].replace(regex, "[redacted]");
-        }
-      }); 
+      });
     }
-    
   }
 
   /**
@@ -180,7 +183,18 @@
   var LoggedException = function (e) {
     this.type = (e instanceof Error) ? e.name : e.code || Object.prototype.toString.call(e);
     this.message = e.message;
-    this.stack = e.stack ? e.stack.split('\n') : [];
+    this.stack = [];
+    if (e.stack){
+      try {
+          if (Array.isArray(e.stack)) {
+              this.stack = e.stack;
+          } else if (typeof e.stack === 'object') {
+              this.stack = [JSON.stringify(e.stack)];
+          } else if (typeof e.stack === 'string') {
+              this.stack = e.stack.split('\n');
+          }
+      } catch {}
+    }
   };
 
   /**
@@ -299,9 +313,9 @@
       }
       this._logRollInterval = interval;
       this._logRollTimer = global.setInterval(function () {
-        this._rolledLogs = this._logs;
-        this._logs = [];
-        this._startLogIndexToPush = 0;
+        self._rolledLogs = self._logs;
+        self._logs = [];
+        self._startLogIndexToPush = 0;
         self.info("Log roll interval occurred.");
       }, this._logRollInterval);
     } else {
@@ -504,7 +518,7 @@
   Logger.prototype.scheduleUpstreamLogPush = function (conduit) {
     if (!connect.upstreamLogPushScheduled) {
       connect.upstreamLogPushScheduled = true;
-      /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to LARS*/
+      /** Schedule pushing logs frequently to sharedworker upstream, sharedworker will report to the CTI backend*/
       global.setInterval(connect.hitch(this, this.reportMasterLogsUpStream, conduit), SOFTPHONE_LOG_REPORT_INTERVAL_MILLIS);
     }
   };

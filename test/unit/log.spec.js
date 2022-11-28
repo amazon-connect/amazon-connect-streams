@@ -51,6 +51,24 @@ describe('Logger', function() {
             var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);
             assert.deepEqual(loggedObject.objects, expectedObj);
         });
+        it('Log should have VoiceID customerId, CustomerId, SpeakerId, or CustomerSpeakerId values as MD5 digest', function(){
+            var obj = {
+                "customerId":"69b39df2-a06a-4f66-a9a9-ad699004d245",
+                "CustomerId":"52d67abc-9aa8-4276-9de0-8dbe48220a1c",
+                "SpeakerId":"1c58b4c5-6dff-4182-9eab-479aa2e78a3c",
+                "CustomerSpeakerId":"89376e97-9370-481f-ba55-afdca7854c09",
+                "DomainId":"XKkbTGuCuCnYgOD1iPHzPv"
+            };
+            var expectedObj = [{
+                "customerId":"86afb5d2f86f0ddbe298a8dd895bf5aa",
+                "CustomerId":"a80f842e82ba7031ae6e22d939b179cf",
+                "SpeakerId":"7e7d858bbf580fdaba583bfb0bf4a118",
+                "CustomerSpeakerId":"82d1d42ff66faf8403e8eda577bb9e10",
+                "DomainId":"XKkbTGuCuCnYgOD1iPHzPv"
+            }];
+            var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);
+            assert.deepEqual(loggedObject.objects, expectedObj);
+        });
         it('Log should not break if the value of url or text is not a string', function(){
             var obj =  {
                 "webSocketTransport": {

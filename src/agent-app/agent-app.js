@@ -1,6 +1,6 @@
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || globalThis;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
@@ -73,14 +73,19 @@
   connect.agentApp.initApp = function (name, containerId, appUrl, config) {
     config = config ? config : {};
     var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
-    var registerConfig = { endpoint: endpoint, style: config.style };
+    var onLoad = config.onLoad ? config.onLoad : null;
+    var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
     connect.agentApp.AppRegistry.register(name, registerConfig, document.getElementById(containerId));
     connect.agentApp.AppRegistry.start(name, function (moduleData) {
       var endpoint = moduleData.endpoint;
       var containerDOM = moduleData.containerDOM;
       return {
         init: function () {
-          if (name === APP.CCP) return signInThroughinitCCP(endpoint, containerDOM, config);
+          if (name === APP.CCP) {
+            config.ccpParams = config.ccpParams ? config.ccpParams : {};
+            if (config.style) config.ccpParams.style = config.style;
+            return signInThroughinitCCP(endpoint, containerDOM, config);
+          }
           return connect.agentApp.initAppCommunication(name, endpoint);
         },
         destroy: function () {

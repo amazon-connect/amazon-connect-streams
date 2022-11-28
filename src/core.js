@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || globalThis;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
@@ -18,6 +18,9 @@
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
   var CCP_LOAD_TIMEOUT = 5000; // 5 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
+  var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
+  var CCP_IFRAME_REFRESH_LIMIT = 6; // 6 attempts
+  var CCP_IFRAME_NAME = 'Amazon Connect CCP';
  
   var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
   var CLIENT_ID_MAP = {
@@ -34,7 +37,29 @@
   var WHITELISTED_ORIGINS_RETRY_INTERVAL = 2000;
   var WHITELISTED_ORIGINS_MAX_RETRY = 5;
 
+  var CSM_IFRAME_REFRESH_ATTEMPTS = 'IframeRefreshAttempts';
+  var CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
+  var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
+
+  var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
+  var CCP_TABS_ACROSS_BROWSER_COUNT = 'CCPTabsAcrossBrowserCount';
+
   connect.numberOfConnectedCCPs = 0;
+  connect.numberOfConnectedCCPsInThisTab = 0;
+
+  connect.core.MAX_AUTHORIZE_RETRY_COUNT_FOR_SESSION = 3;
+  connect.core.MAX_CTI_AUTH_RETRY_COUNT = 10;
+  connect.core.ctiAuthRetryCount = 0;
+  connect.core.authorizeTimeoutId = null;
+  connect.core.ctiTimeoutId = null;
+
+  /*----------------------------------------------------------------
+   * enum SessionStorageKeys
+   */
+  connect.SessionStorageKeys = connect.makeEnum([
+    'tab_id',
+    'authorize_retry_count',
+  ]);
 
   /**
    * @deprecated
@@ -108,6 +133,7 @@
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.initClient(params);
     connect.core.initAgentAppClient(params);
+    connect.core.initTaskTemplatesClient(params);
     connect.core.initialized = true;
   };
  
@@ -139,6 +165,16 @@
     
     connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
   };
+
+  /**-------------------------------------------------------------------------
+   * Initialized TaskTemplates client
+   */
+  connect.core.initTaskTemplatesClient = function (params) {
+    connect.assertNotNull(params, 'params');
+    var endpoint = params.taskTemplatesEndpoint || params.endpoint;
+    connect.assertNotNull(endpoint, 'taskTemplatesEndpoint');
+    connect.core.taskTemplatesClient = new connect.TaskTemplatesClient(endpoint);
+  };
  
   /**-------------------------------------------------------------------------
    * Uninitialize Connect.
@@ -146,6 +182,7 @@
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
     connect.core.agentAppClient = new connect.NullClient();
+    connect.core.taskTemplatesClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -326,7 +363,7 @@
         });
       });
     };
-
+ 
     /**
      * If the window is framed, we need to wait for a CONFIGURE message from
      * downstream before we try to initialize, unless params.allowFramedSoftphone is true.
@@ -487,7 +524,7 @@
 
   /**-------------------------------------------------------------------------
    * Get the list of media devices from iframed CCP
-   * Timeout for the request is passed an an optional argument
+   * Timeout for the request is passed on an optional argument
    * The default timeout is 1000ms
    */
   connect.core.getFrameMediaDevices = function (timeoutIn) {
@@ -612,6 +649,7 @@
         : AUTHORIZE_ENDPOINT;
     }
     var agentAppEndpoint = params.agentAppEndpoint || null;
+    var taskTemplatesEndpoint = params.taskTemplatesEndpoint || null;
     var authCookieName = params.authCookieName || null;
  
     try {
@@ -649,6 +687,7 @@
         // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
         conduit.onAllDownstream(conduit.passUpstream());
       }
+
       // Send configuration up to the shared worker.
       conduit.sendUpstream(connect.EventType.CONFIGURE, {
         authToken: authToken,
@@ -658,12 +697,15 @@
         region: region,
         authorizeEndpoint: authorizeEndpoint,
         agentAppEndpoint: agentAppEndpoint,
-        authCookieName: authCookieName
+        taskTemplatesEndpoint: taskTemplatesEndpoint,
+        authCookieName: authCookieName,
+        longPollingOptions: params.longPollingOptions || undefined
       });
  
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
         connect.getLog().info("Acknowledged by the ConnectSharedWorker!").sendInternalLogToServer();
         connect.core.initialized = true;
+        connect.core._setTabId();
         connect.core.portStreamId = data.id;
         this.unsubscribe();
       });
@@ -691,10 +733,9 @@
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(log));
         }
       });
-      // Reload the page if the shared worker detects an API auth failure.
-      conduit.onUpstream(connect.EventType.AUTH_FAIL, function (logEntry) {
-        location.reload();
-      });
+
+      connect.core.onAuthFail(connect.hitch(connect.core, connect.core._handleAuthFail, params.loginEndpoint || null, authorizeEndpoint)); // For auth retry logic on 401s.
+      connect.core.onAuthorizeSuccess(connect.hitch(connect.core, connect.core._handleAuthorizeSuccess)); // For auth retry logic on 401s.
 
       connect.getLog().info("User Agent: " + navigator.userAgent).sendInternalLogToServer();
       connect.getLog().info("isCCPv2: " + true).sendInternalLogToServer();
@@ -707,6 +748,26 @@
       conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
         connect.getLog().info("Number of connected CCPs updated: " + data.length).sendInternalLogToServer();
         connect.numberOfConnectedCCPs = data.length;
+        if (data[connect.core.tabId] && !isNaN(data[connect.core.tabId].length)){
+          if (connect.numberOfConnectedCCPsInThisTab !== data[connect.core.tabId].length) {
+            connect.numberOfConnectedCCPsInThisTab = data[connect.core.tabId].length;
+            if (connect.numberOfConnectedCCPsInThisTab > 1) {
+              connect.getLog().warn("There are " + connect.numberOfConnectedCCPsInThisTab + " connected CCPs in this tab. Please adjust your implementation to avoid complications. If you are embedding CCP, please do so exclusively with initCCP. InitCCP will not let you embed more than one CCP.").sendInternalLogToServer();
+            }
+            connect.publishMetric({
+              name: CONNECTED_CCPS_SINGLE_TAB,
+              data: { count: connect.numberOfConnectedCCPsInThisTab}
+            });
+          }
+        }
+        if (data.tabId && data.streamsTabsAcrossBrowser) {
+          connect.ifMaster(connect.MasterTopics.METRICS, () =>
+            connect.agent(() => connect.publishMetric({
+              name: CCP_TABS_ACROSS_BROWSER_COUNT,
+              data: { tabId: data.tabId, count: data.streamsTabsAcrossBrowser }
+            }))
+          );
+        }
       });
 
       connect.core.client = new connect.UpstreamConduitClient(conduit);
@@ -745,12 +806,24 @@
       // Attempt to get permission to show notifications.
       var nm = connect.core.getNotificationManager();
       nm.requestPermission();
- 
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
         .withException(e).sendInternalLogToServer();
     }
   };
+
+  connect.core._setTabId = function() {
+    try {
+      connect.core.tabId = window.sessionStorage.getItem(connect.SessionStorageKeys.TAB_ID);
+      if (!connect.core.tabId){
+        connect.core.tabId = connect.randomId();
+        window.sessionStorage.setItem(connect.SessionStorageKeys.TAB_ID, connect.core.tabId);
+      }
+      connect.core.upstream.sendUpstream(connect.EventType.TAB_ID, {tabId: connect.core.tabId});
+    } catch(e) {
+      connect.getLog().error("[Tab Id] There was an issue setting the tab Id").withException(e).sendInternalLogToServer();
+    }
+  }
  
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
@@ -760,6 +833,17 @@
     connect.core.checkNotInitialized();
     if (connect.core.initialized) {
       return;
+    }
+    connect.getLog().info("Iframe initialization started").sendInternalLogToServer();
+    var initStartTime = Date.now();
+    // Check if CCP iframe has already been initialized through initCCP
+    try {
+      if (connect.core._getCCPIframe()) {
+          connect.getLog().error('Attempted to call initCCP when an iframe generated by initCCP already exists').sendInternalLogToServer();
+          return;
+        }
+    } catch(e) {
+      connect.getLog().error('Error while checking if initCCP has already been called').withException(e).sendInternalLogToServer();
     }
  
     // For backwards compatibility, when instead of taking a params object
@@ -775,12 +859,7 @@
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
  
     // Create the CCP iframe and append it to the container div.
-    var iframe = document.createElement('iframe');
-    iframe.src = params.ccpUrl;
-    iframe.allow = "microphone; autoplay";
-    iframe.style = "width: 100%; height: 100%";
-    iframe.title = 'Amazon Connect CCP';
-    containerDiv.appendChild(iframe);
+    var iframe = connect.core._createCCPIframe(containerDiv, params);
 
     // Initialize the event bus and agent data providers.
     // NOTE: Setting logEvents here to FALSE in order to avoid duplicating
@@ -793,16 +872,7 @@
     var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
  
     // Let CCP know if iframe is visible
-    iframe.onload = setTimeout(function() {
-      var style = window.getComputedStyle(iframe, null);
-      var data = {
-        display: style.display,
-        offsetWidth: iframe.offsetWidth,
-        offsetHeight: iframe.offsetHeight,
-        clientRectsLength: iframe.getClientRects().length
-      };
-      conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
-    }, 10000);
+    connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(iframe, conduit);
  
     // Set the global upstream conduit for external use.
     connect.core.upstream = conduit;
@@ -818,12 +888,13 @@
       params.ccpSynTimeout || CCP_SYN_TIMEOUT,
       params.ccpAckTimeout || CCP_ACK_TIMEOUT)
       ;
-    connect.core.iframeRefreshInterval = null;
+    connect.core.iframeRefreshTimeout = null;
  
-    // Allow 10 sec (default) before receiving the first ACK from the CCP.
+    // Allow 5 sec (default) before receiving the first ACK from the CCP.
     connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
       connect.core.ccpLoadTimeoutInstance = null;
       connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
+      connect.getLog().info("CCP LoadTimeout triggered").sendInternalLogToServer();
     }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
 
     connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
@@ -837,13 +908,14 @@
       connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
       connect.core.portStreamId = data.id;
 
-      if (params.softphone || params.chat || params.pageOptions) {
+      if (params.softphone || params.chat || params.pageOptions || params.shouldAddNamespaceToLogs) {
         // Send configuration up to the CCP.
         //set it to false if secondary
         conduit.sendUpstream(connect.EventType.CONFIGURE, {
           softphone: params.softphone,
           chat: params.chat,
-          pageOptions: params.pageOptions
+          pageOptions: params.pageOptions,
+          shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
         });
       }
  
@@ -859,6 +931,29 @@
 
       connect.core.initialized = true;
       connect.core.getEventBus().trigger(connect.EventType.INIT);
+      if (initStartTime) {
+        var initTime = Date.now() - initStartTime;
+        var refreshAttempts = connect.core.iframeRefreshAttempt || 0;
+        connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
+        connect.getLog().info(`Iframe initialization time ${initTime}`).sendInternalLogToServer();
+        connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
+        setTimeout(() => {
+          connect.publishMetric({
+            name: CSM_IFRAME_REFRESH_ATTEMPTS,
+            data: { count: refreshAttempts} 
+          });
+          connect.publishMetric({
+            name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+            data: { count: 1} 
+          });
+          connect.publishMetric({
+            name: CSM_IFRAME_INITIALIZATION_TIME,
+            data: { count: initTime} 
+          });
+          //to avoid metric emission after initialization
+          initStartTime = null;
+        },1000)
+      }
     });
  
     // Add any logs from the upstream to our own logger.
@@ -877,31 +972,30 @@
           connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
           // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
           if (params.loginUrl) {
-             connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+            connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
           }
           connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
-
         } catch (e) {
           connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
         }
       }
- 
-      if (connect.core.iframeRefreshInterval == null) {
-        connect.core.iframeRefreshInterval = window.setInterval(function () {
-          iframe.src = params.ccpUrl;
-        }, CCP_IFRAME_REFRESH_INTERVAL);
- 
-        conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-          this.unsubscribe();
-          global.clearInterval(connect.core.iframeRefreshInterval);
-          connect.core.iframeRefreshInterval = null;
-          connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-        if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && 
-              connect.core.loginWindow) {
-            connect.core.loginWindow.close();
-            connect.core.loginWindow = null;
-          }
-        });
+
+      if (connect.core.iframeRefreshTimeout == null) {
+        try {
+          conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+            this.unsubscribe();
+            global.clearTimeout(connect.core.iframeRefreshTimeout);
+            connect.core.iframeRefreshTimeout = null;
+            connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+            if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
+              connect.core.loginWindow.close();
+              connect.core.loginWindow = null;
+            }
+          });
+          connect.core._refreshIframeOnTimeout(params, containerDiv);
+        } catch (e) {
+          connect.getLog().error("Error occurred while refreshing iframe").withException(e).sendInternalLogToServer();
+        }
       }
     });
  
@@ -919,9 +1013,100 @@
       }
     });
 
+    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, function () {
+      if (initStartTime) {
+        var refreshAttempts = connect.core.iframeRefreshAttempt - 1;
+        connect.getLog().info('Iframe initialization failed').sendInternalLogToServer();
+        connect.getLog().info(`Time after iframe initialization started ${Date.now() - initStartTime}`).sendInternalLogToServer();
+        connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
+        connect.publishMetric({
+          name: CSM_IFRAME_REFRESH_ATTEMPTS,
+          data: { count: refreshAttempts}
+        });
+        connect.publishMetric({
+          name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+          data: { count: 0}
+        });
+        initStartTime = null;
+      }
+    });
+
     // keep the softphone params for external use
     connect.core.softphoneParams = params.softphone;
   };
+
+  connect.core.onIframeRetriesExhausted = function(f) {
+    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, f);
+  }
+
+  connect.core._refreshIframeOnTimeout = function(initCCPParams, containerDiv) {
+    connect.assertNotNull(initCCPParams, 'initCCPParams');
+    connect.assertNotNull(containerDiv, 'containerDiv');
+    var ccpIframeRefreshInterval = (initCCPParams.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL : CCP_IFRAME_REFRESH_INTERVAL;
+    var retryDelay = AWS.util.calculateRetryDelay((connect.core.iframeRefreshAttempt - 1 || 0), { base: 2000 });
+    // Evaluates to 0 for 0th attempt and 1 for rest (>0) of the refresh attempts
+    var timeoutFactor = Math.ceil((connect.core.iframeRefreshAttempt || 0) / CCP_IFRAME_REFRESH_LIMIT);
+    var timeout = (ccpIframeRefreshInterval + retryDelay) * timeoutFactor;
+    global.clearTimeout(connect.core.iframeRefreshTimeout);
+    connect.core.iframeRefreshTimeout = global.setTimeout(function() {
+      connect.core.iframeRefreshAttempt = (connect.core.iframeRefreshAttempt || 0) + 1;
+      if (connect.core.iframeRefreshAttempt <= CCP_IFRAME_REFRESH_LIMIT) {
+        try {
+          var iframe = connect.core._getCCPIframe();
+          if (iframe) {
+            iframe.parentNode.removeChild(iframe); // The only way to force a synchronous reload of the iframe without the old iframe continuing to function is to remove the old iframe entirely.
+          }
+          var newIframe = connect.core._createCCPIframe(containerDiv, initCCPParams);
+          connect.core.upstream.upstream.output = newIframe.contentWindow; //replaces the output window (old iframe's contentWindow) of the WindowIOStream (within the IFrameConduit) with the new iframe's contentWindow.
+          connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(newIframe, connect.core.upstream);
+        } catch(e) {
+          connect.getLog().error('Error while checking for, and recreating, the CCP IFrame').withException(e).sendInternalLogToServer();
+        }
+        connect.core._refreshIframeOnTimeout(initCCPParams, containerDiv);
+      } else {
+        connect.core.getEventBus().trigger(connect.EventType.IFRAME_RETRIES_EXHAUSTED);
+        global.clearTimeout(connect.core.iframeRefreshTimeout);
+      }
+    }, timeout);
+  }
+
+
+  connect.core._getCCPIframe = function() {
+    for (var iframe of window.document.getElementsByTagName('iframe')) {
+      if (iframe.name === CCP_IFRAME_NAME) {
+        return iframe;
+      }
+    }
+    return null;
+  }
+
+  connect.core._createCCPIframe = function(containerDiv, initCCPParams) {
+    connect.assertNotNull(initCCPParams, 'initCCPParams');
+    connect.assertNotNull(containerDiv, 'containerDiv');
+    var iframe = document.createElement('iframe');
+    iframe.src = initCCPParams.ccpUrl;
+    iframe.allow = "microphone; autoplay";
+    iframe.style = initCCPParams.style || "width: 100%; height: 100%";
+    iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
+    iframe.name = CCP_IFRAME_NAME;
+    containerDiv.appendChild(iframe);
+    return iframe;
+  }
+
+  connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime = function(iframe, conduit) {
+    connect.assertNotNull(iframe, 'iframe');
+    connect.assertNotNull(conduit, 'conduit');
+    setTimeout(function() {
+      var style = window.getComputedStyle(iframe, null);
+      var data = {
+        display: style.display,
+        offsetWidth: iframe.offsetWidth,
+        offsetHeight: iframe.offsetHeight,
+        clientRectsLength: iframe.getClientRects().length
+      };
+      conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
+    }, 10000);
+  }
  
   /**-----------------------------------------------------------------------*/
   var KeepaliveManager = function (conduit, eventBus, synTimeout, ackTimeout) {
@@ -1287,7 +1472,7 @@
  
   /**
    * Used of agent interface control. 
-   * connect.core.viewContact("contactId") ->  this is curently programmed to get the contact into view.
+   * connect.core.viewContact("contactId") ->  this is currently programmed to get the contact into view.
    */
   connect.core.viewContact = function (contactId) {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
@@ -1306,17 +1491,25 @@
  
   /**
    * Used of agent interface control. 
-   * connect.core.activateChannelWithViewType() ->  this is curently programmed to get either the number pad, quick connects, or create task into view.
+   * connect.core.activateChannelWithViewType() ->  this is currently programmed to get either the number pad, quick connects, or create task into view.
    * the valid combinations are ("create_task", "task"), ("number_pad", "softphone"), ("create_task", "softphone"), ("quick_connects", "softphone")
    * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
+   *
+   * The 'source' is an optional parameter which indicates the requester. For example, if invoked with ("create_task", "task", "agentapp") we would know agentapp requested open task view.
+   * 
+   * "caseId" is an optional parameter which is passed when a task is created from a Kesytone case
    */
-  connect.core.activateChannelWithViewType = function (viewType, mediaType) {
+   connect.core.activateChannelWithViewType = function (viewType, mediaType, source, caseId) {
+    const data = { viewType, mediaType };
+    if (source) {
+      data.source = source;
+    }
+    if (caseId) {
+      data.caseId = caseId;
+    }
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
-      data: {
-        viewType: viewType,
-        mediaType: mediaType 
-      }
+      data
     });
   };
 
@@ -1343,6 +1536,99 @@
   connect.core.onAuthFail = function (f) {
     connect.core.getUpstream().onUpstream(connect.EventType.AUTH_FAIL, f);
   };
+
+  connect.core.onAuthorizeSuccess = function (f) {
+    connect.core.getUpstream().onUpstream(connect.EventType.AUTHORIZE_SUCCESS, f);
+  }
+
+  connect.core._handleAuthorizeSuccess = function() {
+    window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0);
+  }
+
+  connect.core._handleAuthFail = function(loginUrl, authorizeEndpoint, authFailData) {
+    if (authFailData && authFailData.authorize) {
+      connect.core._handleAuthorizeFail(loginUrl);
+    }
+    else {
+      connect.core._handleCTIAuthFail(authorizeEndpoint);
+    }
+  }
+
+  connect.core._handleAuthorizeFail = function(loginUrl) {
+    let authRetryCount = connect.core._getAuthRetryCount()
+    if (!connect.core.authorizeTimeoutId) {
+      if (authRetryCount < connect.core.MAX_AUTHORIZE_RETRY_COUNT_FOR_SESSION) {
+        connect.core._incrementAuthRetryCount();
+        let retryDelay = AWS.util.calculateRetryDelay(authRetryCount + 1 || 0, { base: 2000 });
+        connect.core.authorizeTimeoutId = setTimeout(() => {
+          connect.core._redirectToLogin(loginUrl);
+        }, retryDelay); //We don't have to clear the timeoutId because we are redirecting away from this origin once the timeout completes.
+      }
+      else  {
+        connect.getLog().warn("We have exhausted our authorization retries due to 401s from the authorize api. No more retries will be attempted in this session until the authorize api returns 200.").sendInternalLogToServer();
+        connect.core.getEventBus().trigger(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED);
+      }
+    }
+  }
+
+  connect.core._redirectToLogin = function(loginUrl) {
+    if (typeof(loginUrl) === 'string') {
+      location.assign(loginUrl);
+    } else {
+      location.reload();
+    }
+  }
+
+  connect.core._handleCTIAuthFail = function(authorizeEndpoint) {
+    if (!connect.core.ctiTimeoutId) {
+      if (connect.core.ctiAuthRetryCount < connect.core.MAX_CTI_AUTH_RETRY_COUNT) {
+        connect.core.ctiAuthRetryCount++;
+        let retryDelay = AWS.util.calculateRetryDelay(connect.core.ctiAuthRetryCount || 0, { base: 500 });
+        connect.core.ctiTimeoutId = setTimeout(() => {
+          connect.core.authorize(authorizeEndpoint).then(connect.core._triggerAuthorizeSuccess.bind(connect.core)).catch(connect.core._triggerAuthFail.bind(connect.core, {authorize: true}));
+          connect.core.ctiTimeoutId = null;
+        }, retryDelay);
+      }
+      else {
+        connect.getLog().warn("We have exhausted our authorization retries due to 401s from the CTI service. No more retries will be attempted until the page is refreshed.").sendInternalLogToServer();
+        connect.core.getEventBus().trigger(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED);
+      }
+    }
+  }
+
+  connect.core._triggerAuthorizeSuccess = function() {
+    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.AUTHORIZE_SUCCESS);
+  }
+
+  connect.core._triggerAuthFail = function(data) {
+    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.AUTH_FAIL, data);
+  }
+
+  connect.core._getAuthRetryCount = function() {
+    let item = window.sessionStorage.getItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT);
+    if (item !== null) {
+      if (!isNaN(parseInt(item))) {
+        return parseInt(item);
+      } else {
+        throw new connect.StateError("The session storage value for auth retry count was NaN");
+      }
+    } else {
+      window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0);
+      return 0;
+    } 
+  }
+
+  connect.core._incrementAuthRetryCount = function() {
+    window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, (connect.core._getAuthRetryCount()+1).toString());
+  }
+
+  connect.core.onAuthorizeRetriesExhausted = function(f) {
+    connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
+  }
+
+  connect.core.onCTIAuthorizeRetriesExhausted = function(f) {
+    connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
+  }
  
   /** ------------------------------------------------- */
  
@@ -1462,7 +1748,7 @@
       connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
       connect.ContactEvents.ENDED)
     .assoc(connect.EventGraph.ANY,
-      connect.values(connect.AgentErrorStates),
+      connect.ContactStateType.ERROR,
       connect.ContactEvents.ERROR)
     .assoc(connect.ContactStateType.CONNECTING,
       connect.ContactStateType.MISSED,
@@ -1486,6 +1772,15 @@
   };
   connect.core.agentAppClient = null;
  
+  /**-----------------------------------------------------------------------*/
+  connect.core.getTaskTemplatesClient = function () {
+    if (!connect.core.taskTemplatesClient) {
+      throw new connect.StateError('The connect TaskTemplates Client has not been initialized!');
+    }
+    return connect.core.taskTemplatesClient;
+  };
+  connect.core.taskTemplatesClient = null;
+
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {
     if (!connect.core.masterClient) {

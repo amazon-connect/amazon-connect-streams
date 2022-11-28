@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
+  var global = this || globalThis;
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
@@ -41,13 +41,14 @@
   };
 
   RingtoneEngineBase.prototype._startRingtone = function (contact) {
+    var self = this;
     if (this._audio) {
       this._audio.play()
         .catch(function(e) {
-          this._publishTelemetryEvent("Ringtone Playback Failure", contact);
-          connect.getLog().error("Ringtone Playback Failure").sendInternalLogToServer();
+          self._publishTelemetryEvent("Ringtone Playback Failure", contact);
+          connect.getLog().error("Ringtone Playback Failure").withException(e).withObject({currentSrc: self._audio.currentSrc, sinkId: self._audio.sinkId, volume: self._audio.volume}).sendInternalLogToServer();
         });
-      this._publishTelemetryEvent("Ringtone Start", contact);
+      self._publishTelemetryEvent("Ringtone Start", contact);
       connect.getLog().info("Ringtone Start").sendInternalLogToServer();
     }
   };

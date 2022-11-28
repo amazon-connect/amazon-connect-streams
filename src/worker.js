@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || globalThis;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
 
@@ -16,7 +16,7 @@
   var GET_AGENT_SUCCESS_TIMEOUT_MS = 100;
   var LOG_BUFFER_CAP_SIZE = 400;
 
-  var CHECK_AUTH_TOKEN_INTERVAL_MS = 300000; // 5 minuts
+  var CHECK_AUTH_TOKEN_INTERVAL_MS = 300000; // 5 minutes
   var REFRESH_AUTH_TOKEN_INTERVAL_MS = 10000; // 10 seconds
   var REFRESH_AUTH_TOKEN_MAX_TRY = 4;
 
@@ -64,6 +64,17 @@
     var request_start = new Date().getTime();
     if(connect.containsValue(connect.AgentAppClientMethods, method)) {
       connect.core.getAgentAppClient()._callImpl(method, params, {
+        success: function (data) {
+          self._recordAPILatency(method, request_start);
+          callbacks.success(data);
+        },
+        failure: function (error) {
+          self._recordAPILatency(method, request_start, error);
+          callbacks.failure(error);
+        }
+      })
+    } else if(connect.containsValue(connect.TaskTemplatesClientMethods, method)) {
+      connect.core.getTaskTemplatesClient()._callImpl(method, params, {
         success: function (data) {
           self._recordAPILatency(method, request_start);
           callbacks.success(data);
@@ -130,10 +141,15 @@
     this.nextToken = null;
     this.initData = {};
     this.portConduitMap = {};
+    this.streamMapByTabId = {};
     this.masterCoord = new MasterTopicCoordinator();
     this.logsBuffer = [];
     this.suppress = false;
     this.forceOffline = false;
+    this.longPollingOptions = {
+      allowLongPollingShadowMode: false, 
+      allowLongPollingWebsocketOnlyMode: false,
+    }
 
     var webSocketManager = null;
 
@@ -154,6 +170,14 @@
       if (data.authToken && data.authToken !== self.initData.authToken) {
         self.initData = data;
         connect.core.init(data);
+        if (data.longPollingOptions) {
+          if (typeof data.longPollingOptions.allowLongPollingShadowMode == "boolean") {
+            self.longPollingOptions.allowLongPollingShadowMode = data.longPollingOptions.allowLongPollingShadowMode;
+          }
+          if (typeof data.longPollingOptions.allowLongPollingWebsocketOnlyMode == "boolean") {
+            self.longPollingOptions.allowLongPollingWebsocketOnlyMode = data.longPollingOptions.allowLongPollingWebsocketOnlyMode;
+          }
+        }
         // init only once.
         if (!webSocketManager) {
 
@@ -209,24 +233,32 @@
           });
 
           webSocketManager.init(connect.hitch(self, self.getWebSocketUrl)).then(function(response) {
-            if (response && !response.webSocketConnectionFailed) {
-              // Start polling for agent data.
-              connect.getLog().info("Kicking off agent polling")
-                .sendInternalLogToServer();
-              self.pollForAgent();
-
-              connect.getLog().info("Kicking off config polling")
-                .sendInternalLogToServer();
-              self.pollForAgentConfiguration({ repeatForever: true });
-
-              connect.getLog().info("Kicking off auth token polling")
-                .sendInternalLogToServer();
-              global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
-            } else {
-              if (!connect.webSocketInitFailed) {
-                self.conduit.sendDownstream(connect.WebSocketEvents.INIT_FAILURE);
-                connect.webSocketInitFailed = true;
+            try {
+              if (response && !response.webSocketConnectionFailed) {
+                // Start polling for agent data.
+                connect.getLog().info("Kicking off agent polling")
+                  .sendInternalLogToServer();
+                self.pollForAgent();
+  
+                connect.getLog().info("Kicking off config polling")
+                  .sendInternalLogToServer();
+                self.pollForAgentConfiguration({ repeatForever: true });
+  
+                connect.getLog().info("Kicking off auth token polling")
+                  .sendInternalLogToServer();
+                global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
+              } else {
+                if (!connect.webSocketInitFailed) {
+                  const event = connect.WebSocketEvents.INIT_FAILURE;
+                  self.conduit.sendDownstream(event);
+                  connect.webSocketInitFailed = true;
+                  throw new Error(event);
+                }
               }
+            } catch (e) {
+              connect.getLog().error("WebSocket failed to initialize")
+                .withException(e)
+                .sendInternalLogToServer();
             }
           });
         } else {
@@ -274,12 +306,10 @@
         connect.hitch(self, self.handleMasterRequest, portConduit, stream.getId()));
       portConduit.onDownstream(connect.EventType.RELOAD_AGENT_CONFIGURATION,
         connect.hitch(self, self.pollForAgentConfiguration));
-      portConduit.onDownstream(connect.EventType.CLOSE, function () {
-        self.multiplexer.removeStream(stream);
-        delete self.portConduitMap[stream.getId()];
-        self.masterCoord.removeMaster(stream.getId());
-        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, { length: Object.keys(self.portConduitMap).length });
-      });
+      portConduit.onDownstream(connect.EventType.TAB_ID,
+        connect.hitch(self, self.handleTabIdEvent, stream));
+      portConduit.onDownstream(connect.EventType.CLOSE, 
+        connect.hitch(self, self.handleCloseEvent, stream));
     };
   };
 
@@ -531,7 +561,7 @@
           .withException(err)
           .sendInternalLogToServer();
       },
-      authFailure: connect.hitch(self, self.handleAuthFail)
+      authFailure: connect.hitch(self, self.handleAuthFail, {authorize: true})
     });
   };
 
@@ -575,6 +605,57 @@
     }
 
     portConduit.sendDownstream(response.event, response);
+  };
+
+  ClientEngine.prototype.handleTabIdEvent = function (stream, data) {
+    var self = this;
+    try {
+      let tabId = data.tabId;
+      let streamsInThisTab = self.streamMapByTabId[tabId];
+      let currentStreamId = stream.getId();
+      let tabIds = Object.keys(self.streamMapByTabId);
+      let streamsTabsAcrossBrowser = tabIds.filter(tabId => self.streamMapByTabId[tabId].length > 0).length;
+      if (streamsInThisTab && streamsInThisTab.length > 0){
+        if (!streamsInThisTab.includes(currentStreamId)) {
+          self.streamMapByTabId[tabId].push(currentStreamId);
+          let updateObject = { length: Object.keys(self.portConduitMap).length, tabId, streamsTabsAcrossBrowser };
+          updateObject[tabId] = { length: streamsInThisTab.length };
+          self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
+        }
+      }
+      else {
+        self.streamMapByTabId[tabId] = [stream.getId()];
+        let updateObject = { length: Object.keys(self.portConduitMap).length, tabId, streamsTabsAcrossBrowser: streamsTabsAcrossBrowser + 1 };
+        updateObject[tabId] = { length: self.streamMapByTabId[tabId].length };
+        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
+      }
+    } catch(e) {
+      connect.getLog().error("[Tab Ids] Issue updating connected CCPs within the same tab").withException(e).sendInternalLogToServer();
+    }
+  };
+
+  ClientEngine.prototype.handleCloseEvent = function(stream) {
+    var self = this;
+    self.multiplexer.removeStream(stream);
+    delete self.portConduitMap[stream.getId()];
+    self.masterCoord.removeMaster(stream.getId());
+    let updateObject = { length: Object.keys(self.portConduitMap).length };
+    let tabIds = Object.keys(self.streamMapByTabId);
+    try {
+      let tabId = tabIds.find(key => self.streamMapByTabId[key].includes(stream.getId()));
+      if (tabId) {
+        let streamIndexInMap = self.streamMapByTabId[tabId].findIndex((value) => stream.getId() === value);
+        self.streamMapByTabId[tabId].splice(streamIndexInMap, 1);
+        let tabLength = self.streamMapByTabId[tabId] ? self.streamMapByTabId[tabId].length : 0;
+        updateObject[tabId] = { length: tabLength };
+        updateObject.tabId = tabId;
+      }
+      let streamsTabsAcrossBrowser = tabIds.filter(tabId => self.streamMapByTabId[tabId].length > 0).length;
+      updateObject.streamsTabsAcrossBrowser = streamsTabsAcrossBrowser;
+    } catch(e) {
+      connect.getLog().error("[Tab Ids] Issue updating tabId-specific stream data").withException(e).sendInternalLogToServer();
+    }
+    self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
   };
 
   ClientEngine.prototype.updateAgentConfiguration = function (configuration) {
@@ -638,7 +719,6 @@
       });
       this.agent.configuration.routingProfile.routingProfileId =
         this.agent.configuration.routingProfile.routingProfileARN;
-      
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
   };
@@ -714,9 +794,14 @@
     });
   };
 
-  ClientEngine.prototype.handleAuthFail = function () {
+  ClientEngine.prototype.handleAuthFail = function (data) {
     var self = this;
-    self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+    if (data) {
+      self.conduit.sendDownstream(connect.EventType.AUTH_FAIL, data);
+    }
+    else {
+      self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
+    }
   };
 
   ClientEngine.prototype.handleAccessDenied = function () {

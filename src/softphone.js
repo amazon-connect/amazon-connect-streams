@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this;
-  connect = global.connect || {};
+  var global = this || globalThis;
+  var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
   global.ccpVersion = "V2";
@@ -84,15 +84,26 @@
     }
     var gumPromise = fetchUserMedia({
       success: function (stream) {
-        connect.core.setSoftphoneUserMediaStream(stream);
+        publishTelemetryEvent("ConnectivityCheckResult", null, 
+        {
+          connectivityCheckType: "MicrophonePermission",
+          status: "granted"
+        });
       },
       failure: function (err) {
         publishError(err, "Your microphone is not enabled in your browser. ", "");
+        publishTelemetryEvent("ConnectivityCheckResult", null, 
+        {
+          connectivityCheckType: "MicrophonePermission",
+          status: "denied"
+        });
       }
     });
+    
     handleSoftPhoneMuteToggle();
     handleSpeakerDeviceChange();
     handleMicrophoneDeviceChange();
+    monitorMicrophonePermission();
 
     this.ringtoneEngine = null;
     var rtcSessions = {};
@@ -350,6 +361,31 @@
     bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, setMicrophoneDevice);
   }
 
+  var monitorMicrophonePermission = function () {
+    try {
+      if (connect.isChromeBrowser() && connect.getChromeBrowserVersion() > 43){
+        navigator.permissions.query({name: 'microphone'})
+        .then(function(permissionStatus){
+          permissionStatus.onchange = function(){
+            logger.info("Microphone Permission: " + permissionStatus.state);
+            publishTelemetryEvent("ConnectivityCheckResult", null, 
+            {
+              connectivityCheckType: "MicrophonePermission",
+              status: permissionStatus.state
+            });
+            if(permissionStatus.state === 'denied'){
+              publishError(SoftphoneErrorTypes.MICROPHONE_NOT_SHARED,
+                "Your microphone is not enabled in your browser. ",
+                "");
+            }
+          }
+        })
+      }
+    } catch (e) {
+      logger.error("Failed in detecting microphone permission status: " + e);
+    }
+  }
+
   // Make sure once we disconnected we get the mute state back to normal
   var deleteLocalMediaStream = function (connectionId) {
     delete localMediaStream[connectionId];
@@ -554,13 +590,11 @@
   };
 
   var publishTelemetryEvent = function (eventName, contactId, data) {
-    if (contactId) {
-      connect.publishMetric({
-        name: eventName,
-        contactId: contactId,
-        data: data
-      });
-    }
+    connect.publishMetric({
+      name: eventName,
+      contactId: contactId,
+      data: data
+    });
   };
 
   // Publish the contact and agent information in a multiple sessions scenarios
