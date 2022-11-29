@@ -1,5 +1,8 @@
 # CHANGELOG.md
 
+## 2.4.0
+- Introduce Amazon Connect Step-by-step guides embedding support via `connect.agentApp.initApp`.
+
 ## 2.3.0
 - Fix an issue in Streams’ Voice ID APIs that may have led to incorrect values being set against the generatedSpeakerID field in the VoiceIdResult segment of Connect Contact Trace Records (CTRs).
 - Make StreamsJS compatible with strict mode
