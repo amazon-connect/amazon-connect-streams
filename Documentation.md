@@ -1731,7 +1731,12 @@ To get latest streams file and allowlist required urls follow [these instruction
             connectUrl + "/stargate/app",
             { style: "width:400px; height:600px;" }
         );
-
+        /**
+        * Stargate will not load any view without a contact flow Id which includes
+        * showView block. You can extract the ongoing contactflow with the contact attribute, DefaultFlowForAgentUI. 
+        * For more information, visit the AWS website: https://aws.amazon.com/connect/agent-workspace/
+        *
+        **/
         connect.contact((contact)=>{
             contact.onConnected((contact)=>{
                 const contactAttributes = contact.getAttributes();
