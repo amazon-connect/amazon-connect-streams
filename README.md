@@ -41,7 +41,10 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
     * `FailedConnectAgent` and `FailedConnectCustomer` -- We are now using the `contact.clear()` API to auto-clear these states. As a result, the agent will be returned to their previous visible agent state (e.g. `Available`). Previously, the agent had always been set to `Available` as a result of this "auto-clearing" behavior. Note that even custom CCPs will behave differently with this update for `FailedConnectAgent` and `FailedConnectCustomer`.
     * `AfterCallWork` -- As part of the new `contact.clear()` behavior, clicking "Clear Contact" while in `AfterCallWork` will return the agent to their previous visible agent state (e.g. `Available`, etc.). Note that custom CCPs that implement their own After Call Work behavior will not be affected by this change.
         * We are putting `contact.complete()` on a deprecation path. Therefore, you should start using `contact.clear()` in its place. If you want to emulate CCP's After Call Work behavior in your customer CCP, then make sure you use `contact.clear()` when clearing voice contacts. 
-        
+1. December 2022 - In addition to the CCP, customers can now embed the Step-by-step guides application using the connect.agentApp. See the [updated documentation](https://github.com/amazon-connect/amazon-connect-streams/blob/master/Documentation.md#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. 
+    * ### About Amazon Connect Step-by-step guides 
+      + With Amazon Connect you can now create guides that walk agents through tailored views that focus on what must be seen or done by the agent at a given moment during an interaction. You can design workflows for various types of customer interactions and present agents with different step-by-step guides based on context, such as call queue, customer information, and interactive voice response (IVR). This feature is available in the Connect agent workspace as well as an embeddable application that can be embedded into another website via the Streams API. For more information, visit the AWS website: https://aws.amazon.com/connect/agent-workspace/
+
 ## Getting Started
 
 ### Upgrading to the OmniChannel CCP (AKA CCPv2)?

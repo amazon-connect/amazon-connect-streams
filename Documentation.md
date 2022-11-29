@@ -1679,7 +1679,7 @@ fetch("https://<your-instance-domain>/connect/logout", { credentials: 'include',
   });
 ```
 In addition, it is recommended to remove the auth token cookies (`lily-auth-*`) after logging out, otherwise you’ll see AuthFail errors. ([Browser API Reference](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/cookies/remove)).
-## Initialization for CCP, Customer Profiles, and Wisdom
+## Initialization for CCP, Customer Profiles, Wisdom, and Step-by-step guides
 
 *Note that if you are only using CCP, please follow [these directions](#initialization)*
 
@@ -1701,6 +1701,7 @@ To get latest streams file and allowlist required urls follow [these instruction
       <div id="ccp-container"></div>
       <div id="customerprofiles-container"></div>
       <div id="wisdom-container"></div>
+      <div id="stargate-container"></div>
     </main>
     <script type="text/javascript">
       function init() {
@@ -1723,6 +1724,25 @@ To get latest streams file and allowlist required urls follow [these instruction
             connectUrl + "/wisdom-v2/",
             { style: "width:400px; height:600px;" }
         );
+
+        connect.agentApp.initApp(
+            "stargate", 
+            "stargate-container", 
+            connectUrl + "/stargate/app",
+            { style: "width:400px; height:600px;" }
+        );
+
+        connect.contact((contact)=>{
+            contact.onConnected((contact)=>{
+                const contactAttributes = contact.getAttributes();
+                if(contactAttributes["DefaultFlowForAgentUI"]) {
+                    const contactflowId = contactAttributes["DefaultFlowForAgentUI"].value;
+                    const stargateIframe = document.querySelector('#stargate-container > iframe');
+                    
+                    stargateIframe.setAttribute('src', `${connectUrl}/stargate/app?contactFlowId=${contactflowId}`);
+                }
+            });
+        })
       }
     </script>
   </body>
