@@ -103,7 +103,7 @@
         }
       });
     }
-    
+
   };
 
   WorkerClient.prototype._recordAPILatency = function (method, request_start, err) {
@@ -147,7 +147,7 @@
     this.suppress = false;
     this.forceOffline = false;
     this.longPollingOptions = {
-      allowLongPollingShadowMode: false, 
+      allowLongPollingShadowMode: false,
       allowLongPollingWebsocketOnlyMode: false,
     }
 
@@ -167,6 +167,8 @@
     });
 
     this.conduit.onDownstream(connect.EventType.CONFIGURE, function (data) {
+      console.log('@@@ configure event handler', data);
+      try {
       if (data.authToken && data.authToken !== self.initData.authToken) {
         self.initData = data;
         connect.core.init(data);
@@ -180,7 +182,7 @@
         }
         // init only once.
         if (!webSocketManager) {
-
+          
           connect.getLog().info("Creating a new Websocket connection for CCP")
             .sendInternalLogToServer();
 
@@ -239,11 +241,11 @@
                 connect.getLog().info("Kicking off agent polling")
                   .sendInternalLogToServer();
                 self.pollForAgent();
-  
+
                 connect.getLog().info("Kicking off config polling")
                   .sendInternalLogToServer();
                 self.pollForAgentConfiguration({ repeatForever: true });
-  
+
                 connect.getLog().info("Kicking off auth token polling")
                   .sendInternalLogToServer();
                 global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
@@ -265,6 +267,9 @@
           connect.getLog().info("Not Initializing a new WebsocketManager instance, since one already exists")
             .sendInternalLogToServer();
         }
+      }
+      } catch (e) {
+        console.error('@@@ error', e);
       }
     });
     this.conduit.onDownstream(connect.EventType.TERMINATE, function () {
@@ -308,7 +313,7 @@
         connect.hitch(self, self.pollForAgentConfiguration));
       portConduit.onDownstream(connect.EventType.TAB_ID,
         connect.hitch(self, self.handleTabIdEvent, stream));
-      portConduit.onDownstream(connect.EventType.CLOSE, 
+      portConduit.onDownstream(connect.EventType.CLOSE,
         connect.hitch(self, self.handleCloseEvent, stream));
     };
   };
@@ -350,16 +355,16 @@
                 data: data
               });
 
-          } finally {
-            global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_RECOVERY_TIMEOUT_MS);
-          }
-        },
-        authFailure: function () {
-          onAuthFail();
-        },
-        accessDenied: connect.hitch(self, self.handleAccessDenied)
+        } finally {
+          global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_RECOVERY_TIMEOUT_MS);
+        }
+      },
+      authFailure: function () {
+        onAuthFail();
+      },
+      accessDenied: connect.hitch(self, self.handleAccessDenied)
 
-      });
+    });
 
   };
 
@@ -412,30 +417,30 @@
       maxResults: params.maxResults
 
     }, {
-        success: function (data) {
-          if (data.nextToken) {
-            self.pollForAgentStates(configuration, {
-              states: (params.states || []).concat(data.states),
-              nextToken: data.nextToken,
-              maxResults: params.maxResults
-            });
+      success: function (data) {
+        if (data.nextToken) {
+          self.pollForAgentStates(configuration, {
+            states: (params.states || []).concat(data.states),
+            nextToken: data.nextToken,
+            maxResults: params.maxResults
+          });
 
-          } else {
-            configuration.agentStates = (params.states || []).concat(data.states);
-            self.updateAgentConfiguration(configuration);
-          }
-        },
-        failure: function (err, data) {
-          connect.getLog().error("Failed to fetch agent states list.")
-            .sendInternalLogToServer()
-            .withObject({
-              err: err,
-              data: data
-            });
-        },
-        authFailure: connect.hitch(self, self.handleAuthFail),
-        accessDenied: connect.hitch(self, self.handleAccessDenied)
-      });
+        } else {
+          configuration.agentStates = (params.states || []).concat(data.states);
+          self.updateAgentConfiguration(configuration);
+        }
+      },
+      failure: function (err, data) {
+        connect.getLog().error("Failed to fetch agent states list.")
+          .sendInternalLogToServer()
+          .withObject({
+            err: err,
+            data: data
+          });
+      },
+      authFailure: connect.hitch(self, self.handleAuthFail),
+      accessDenied: connect.hitch(self, self.handleAccessDenied)
+    });
   };
 
   ClientEngine.prototype.pollForAgentPermissions = function (configuration, paramsIn) {
@@ -448,30 +453,30 @@
       maxResults: params.maxResults
 
     }, {
-        success: function (data) {
-          if (data.nextToken) {
-            self.pollForAgentPermissions(configuration, {
-              permissions: (params.permissions || []).concat(data.permissions),
-              nextToken: data.nextToken,
-              maxResults: params.maxResults
-            });
+      success: function (data) {
+        if (data.nextToken) {
+          self.pollForAgentPermissions(configuration, {
+            permissions: (params.permissions || []).concat(data.permissions),
+            nextToken: data.nextToken,
+            maxResults: params.maxResults
+          });
 
-          } else {
-            configuration.permissions = (params.permissions || []).concat(data.permissions);
-            self.updateAgentConfiguration(configuration);
-          }
-        },
-        failure: function (err, data) {
-          connect.getLog().error("Failed to fetch agent permissions list.")
-            .sendInternalLogToServer()
-            .withObject({
-              err: err,
-              data: data
-            });
-        },
-        authFailure: connect.hitch(self, self.handleAuthFail),
-        accessDenied: connect.hitch(self, self.handleAccessDenied)
-      });
+        } else {
+          configuration.permissions = (params.permissions || []).concat(data.permissions);
+          self.updateAgentConfiguration(configuration);
+        }
+      },
+      failure: function (err, data) {
+        connect.getLog().error("Failed to fetch agent permissions list.")
+          .sendInternalLogToServer()
+          .withObject({
+            err: err,
+            data: data
+          });
+      },
+      authFailure: connect.hitch(self, self.handleAuthFail),
+      accessDenied: connect.hitch(self, self.handleAccessDenied)
+    });
   };
 
   ClientEngine.prototype.pollForDialableCountryCodes = function (configuration, paramsIn) {
@@ -483,30 +488,30 @@
       nextToken: params.nextToken || null,
       maxResults: params.maxResults
     }, {
-        success: function (data) {
-          if (data.nextToken) {
-            self.pollForDialableCountryCodes(configuration, {
-              countryCodes: (params.countryCodes || []).concat(data.countryCodes),
-              nextToken: data.nextToken,
-              maxResults: params.maxResults
-            });
+      success: function (data) {
+        if (data.nextToken) {
+          self.pollForDialableCountryCodes(configuration, {
+            countryCodes: (params.countryCodes || []).concat(data.countryCodes),
+            nextToken: data.nextToken,
+            maxResults: params.maxResults
+          });
 
-          } else {
-            configuration.dialableCountries = (params.countryCodes || []).concat(data.countryCodes);
-            self.updateAgentConfiguration(configuration);
-          }
-        },
-        failure: function (err, data) {
-          connect.getLog().error("Failed to fetch dialable country codes list.")
-            .sendInternalLogToServer()
-            .withObject({
-              err: err,
-              data: data
-            });
-        },
-        authFailure: connect.hitch(self, self.handleAuthFail),
-        accessDenied: connect.hitch(self, self.handleAccessDenied)
-      });
+        } else {
+          configuration.dialableCountries = (params.countryCodes || []).concat(data.countryCodes);
+          self.updateAgentConfiguration(configuration);
+        }
+      },
+      failure: function (err, data) {
+        connect.getLog().error("Failed to fetch dialable country codes list.")
+          .sendInternalLogToServer()
+          .withObject({
+            err: err,
+            data: data
+          });
+      },
+      authFailure: connect.hitch(self, self.handleAuthFail),
+      accessDenied: connect.hitch(self, self.handleAccessDenied)
+    });
   };
 
   ClientEngine.prototype.pollForRoutingProfileQueues = function (configuration, paramsIn) {
@@ -519,30 +524,30 @@
       nextToken: params.nextToken || null,
       maxResults: params.maxResults
     }, {
-        success: function (data) {
-          if (data.nextToken) {
-            self.pollForRoutingProfileQueues(configuration, {
-              countryCodes: (params.queues || []).concat(data.queues),
-              nextToken: data.nextToken,
-              maxResults: params.maxResults
-            });
+      success: function (data) {
+        if (data.nextToken) {
+          self.pollForRoutingProfileQueues(configuration, {
+            countryCodes: (params.queues || []).concat(data.queues),
+            nextToken: data.nextToken,
+            maxResults: params.maxResults
+          });
 
-          } else {
-            configuration.routingProfile.queues = (params.queues || []).concat(data.queues);
-            self.updateAgentConfiguration(configuration);
-          }
-        },
-        failure: function (err, data) {
-          connect.getLog().error("Failed to fetch routing profile queues list.")
-            .sendInternalLogToServer()
-            .withObject({
-              err: err,
-              data: data
-            });
-        },
-        authFailure: connect.hitch(self, self.handleAuthFail),
-        accessDenied: connect.hitch(self, self.handleAccessDenied)
-      });
+        } else {
+          configuration.routingProfile.queues = (params.queues || []).concat(data.queues);
+          self.updateAgentConfiguration(configuration);
+        }
+      },
+      failure: function (err, data) {
+        connect.getLog().error("Failed to fetch routing profile queues list.")
+          .sendInternalLogToServer()
+          .withObject({
+            err: err,
+            data: data
+          });
+      },
+      authFailure: connect.hitch(self, self.handleAuthFail),
+      accessDenied: connect.hitch(self, self.handleAccessDenied)
+    });
   };
 
   ClientEngine.prototype.handleAPIRequest = function (portConduit, request) {
@@ -723,10 +728,10 @@
     }
   };
 
-/**
- * Provides a websocket url through the create_transport API.
- * @returns a promise which, upon success, returns the response from the createTransport API.
- */
+  /**
+   * Provides a websocket url through the create_transport API.
+   * @returns a promise which, upon success, returns the response from the createTransport API.
+   */
   ClientEngine.prototype.getWebSocketUrl = function () {
     var self = this;
     var client = connect.core.getClient();
@@ -746,7 +751,7 @@
               data: data
             });
           reject({
-            reason: 'getWebSocketUrl failed', 
+            reason: 'getWebSocketUrl failed',
             _debug: err
           });
         },

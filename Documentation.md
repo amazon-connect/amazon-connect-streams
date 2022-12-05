@@ -15,6 +15,8 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
 1. December 2022 - In addition to the CCP, customers can now embed the Step-by-step guides application using the connect.agentApp. See the [updated documentation](https://github.com/amazon-connect/amazon-connect-streams/blob/master/Documentation.md#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. 
     * ### About Amazon Connect Step-by-step guides 
       + With Amazon Connect you can now create guides that walk agents through tailored views that focus on what must be seen or done by the agent at a given moment during an interaction. You can design workflows for various types of customer interactions and present agents with different step-by-step guides based on context, such as call queue, customer information, and interactive voice response (IVR). This feature is available in the Connect agent workspace as well as an embeddable application that can be embedded into another website via the Streams API. For more information, visit the AWS website: https://aws.amazon.com/connect/agent-workspace/
+1. December 2022 - 2.4.1
+    * This version brings in updates that will provide enhanced monitoring experience to agents and supervisors, allowing to silently monitor multiparty calls, and if needed to barge in the call and take over control, mute agents, or drop them from the call. New APIs introduced with this feature are `isSilentMonitor`, `isBarge`, `isSilentMonitorEnabled`, `isBargeEnabled`, `isUnderSupervision`, `updateMonitorParticipantState`, `getMonitorCapabilities`, `getMonitorStatus`, `isForcedMute`.
 1. August 2022 - 2.3.0
     * This patch fixes an issue in Streams’ Voice ID APIs that may have led to incorrect values being set against the generatedSpeakerID field in the VoiceIdResult segment of Connect Contact Trace Records (CTRs). This occurred in some scenarios where you call either enrollSpeakerInVoiceId(), evaluateSpeakerWithVoiceId(), or updateVoiceIdSpeakerId() in your custom CCP integration code. If you are using Voice ID and consuming Voice ID CTRs, please upgrade to this version.
 1. Jan 2022 - 2.0.0
@@ -288,7 +290,58 @@ this:
 * If you are using task functionalities you must include [TaskJS](https://github.com/amazon-connect/amazon-connect-taskjs). TaskJS should be imported after Streams.
 * If you'd like access to the WebRTC session to further customize the softphone experience
   you can use [connect-rtc-js](https://github.com/aws/connect-rtc-js). Please refer to the connect-rtc-js readme for detailed instructions on integrating connect-rtc-js with Streams.
-* `initCCP` **should not be used to embed multiple CCPs** as this causes unpredictable behavior. In version 2.0 a check has been added to automatically prevent subsequent invocations of `initCCP` from embedding additional CCPs.
+* `initCCP` **should not be used to embed multiple CCPs in the same browser context** as this causes unpredictable behavior. In version 2.0 a check has been added to automatically prevent subsequent invocations of `initCCP` from embedding additional CCPs.
+  * It is possible to embed multiple CCPs in the same page if they are associated with different Connect instances and are being embedded in different browser contexts, such that their Window objects are different (e.g. in different iframes). You won't be able to embed multiple CCPs under the same Window object or invoke `initCCP` multiple times in the same browser context.
+  * Instead of loading Streams once for the whole page, you'll need to load Streams separately in each iframe, and invoke `initCCP` separately in each.
+  * Once the iframes finish loading, you can then use the `contentWindow.connect` property on each iframe to access its Streams object and make API calls to the specific CCP embedded inside. As an example of embedding CCPs twice on the same page for two Connect instances, A and B:
+
+```js
+var frameA = document.createElement('iframe');
+var frameB = document.createElement('iframe');
+var contentDocumentA = [
+       "<!DOCTYPE html>",
+       "<meta charset='UTF-8'>",
+       "<html>",
+         "<head>",
+           "<script type='text/javascript' src='https://cdn.jsdelivr.net/npm/amazon-connect-streams/release/connect-streams-min.js'>",
+           "</script>",
+         "</head>",
+         "<body onload='init()' style='width:400px;height:800px'>",
+           "<div id=containerDiv style='width:100%;height:100%'></div>",
+           "<script type='text/javascript'>",
+             "function init() {",
+               "connect.core.initCCP(containerDiv, <initCCP parameters for instance A>);",
+            "}",
+           "</script>",
+         "</body>",
+       "</html>"
+     ].join('');
+var contentDocumentB = ...; // same as above, but with initCCP parameters for instance B
+frameA.srcdoc = contentDocumentA;
+frameB.srcdoc = contentDocumentB;
+[frameA, frameB].forEach((frame) => {
+  frame.allow = "microphone; autoplay; clipboard-write";
+  frame.style = "width:400px;height:800px;margin:0;border:0;padding:0px;";
+  frame.scrolling = "no";
+  document.documentElement.append(frame); // You can append the frames wherever you need each CCP to appear.
+});
+
+// Wait for iframes to load, then contentWindow.connect will be set to each frame's Streams object.
+// Until the iframes have finished loading Streams, contentWindow.connect will be undefined
+var connectA = frameA.contentWindow.connect;
+var connectB = frameB.contentWindow.connect;
+
+connectA.contact(function(contact) { /* ... */ });
+```
+
+### How can I determine that the agent is logged out or that their session has expired?
+* You can use `connect.core.onAuthFail()` to subscribe a callback function that will be called if the agent was unable to authenticate to Connect using the credentials set in their browser (if any), so you can present a button or popup for the agent to log back in or start a new session.
+```js
+connect.core.onAuthFail(function(){
+  // agent logged out or session expired.  needs login
+  // show button for login or popup a login screen. 
+});
+```
 
 ## `connect.core`
 
@@ -852,7 +905,7 @@ Subscribe a method to be invoked when the contact is connecting. This event happ
 ```js
 contact.onAccepted(function(contact) { /* ... */ });
 ```
-Subscribe a method to be invoked whenever the contact is accepted. Please note that event doesn't fire for contacts that are auto-accepted.
+Subscribe a method to be invoked whenever the contact is accepted. Please note that event doesn't fire for contacts that are auto-accepted, or for agents using a deskphone.
 
 ### `contact.onMissed()`
 ```js
@@ -1009,6 +1062,8 @@ participation in the contact.
 var attributeMap = contact.getAttributes(); // e.g. { "foo": { "name": "foo", "value": "bar" } }
 ```
 Gets a map of the attributes associated with the contact. Each value in the map has the following shape: `{ name: string, value: string }`.
+
+Please note that this api method will return null when the current user is monitoring the contact, rather than being an active participant in the contact.
 
 ### `contact.isSoftphoneCall()`
 ```js
@@ -1261,7 +1316,7 @@ Determine if the contact is active. The connection is active it is incoming, con
 ```js
 if (conn.isConnected()) { /* ... */ }
 ```
-Determine if the connection is connected, meaning that the agent is live in a conversation through this connection.
+Determine if the connection is connected, meaning that the agent is live in a conversation through this connection. Please note that `ConnectionStateType.SILENT_MONITOR` and `ConnectionStateType.BARGE` are considered connected as well.
    
 Note that, in the case of Agent A transferring a contact to Agent B, the new (third party) agent connection will be marked as `connected` (`connection.isConnected` will return true) as soon as the contact is routed to Agent B's queue, not when Agent B actually is "live" and able to communicate in the conversation.
 
@@ -1502,6 +1557,16 @@ Lists the different types of connections.
 * `ConnectionType.OUTBOUND`: An outbound connection, representing either an outbound call or additional connection added to the contact.
 * `ConnectionType.MONITORING`: A special connection type representing a manager listen-in session.
 
+###  `MonitoringMode`
+Lists the different monitoring modes representing a manager listen-in session.
+
+* `MonitoringMode.SILENT_MONITOR`: An enhanced listen-in manager session
+* `MonitoringMode.BARGE`: A special manager session mode with full control over contact actions
+
+### `MonitoringErrorTypes`
+Lists the different monitoring error states.
+* `MonitoringErrorTypes.INVALID_TARGET_STATE`: Indicates that invalid target state has been passed
+
 ### `ContactStateType`
 An enumeration listing the different high-level states that a contact can have.
 
@@ -1522,6 +1587,8 @@ An enumeration listing the different states that a connection can have.
 * `ConnectionStateType.CONNECTED`: The connection is connected to the contact.
 * `ConnectionStateType.HOLD`: The connection is connected but on hold.
 * `ConnectionStateType.DISCONNECTED`: The connection is no longer connected to the contact.
+* `ConnectionStateType.SILENT_MONITOR`: An enhanced listen-in manager session, this state is used instead of `ContactStateType.CONNECTED` for manager
+* `ContactStateType.BARGE`: A special manager session mode with full control over contact actions, this state is used instead of `ContactStateType.CONNECTED` for manager
 
 ### `ContactType`
 This enumeration lists all of the contact types supported by Connect Streams.
@@ -1869,7 +1936,6 @@ voiceConnection.evaluateSpeakerWithVoiceId()
     console.error(err);
   });
 ```
-
 
 ### `voiceConnection.optOutVoiceIdSpeaker()`
 Opts-out a customer from Voice ID. This API can work for the customer who hasn’t enrolled in Voice ID.

@@ -41,6 +41,9 @@ const config = Object.assign({}, commonConfig, {
       values: {
         'STREAMS_VERSION': process.env.npm_package_version
       }
+    }),
+    new webpack.ProvidePlugin({
+      _cloneDeep: 'lodash.clonedeep',
     })
   ]
 });

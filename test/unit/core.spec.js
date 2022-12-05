@@ -1,5 +1,6 @@
 const { assert, expect } = require("chai");
 require("../unit/test-setup.js");
+const SAMPLE_CONFIGURATION = require("./sample-configuration.js");
 
 describe('Core', function () {
     var sandbox = sinon.createSandbox();
@@ -484,7 +485,166 @@ describe('Core', function () {
             connect.agent.initialized = false;
         });
 
-        describe('in Chrome', function() {
+        describe("Softphone manager - Embedded CCP initialization", () => {
+            let softphoneParams, softphoneParamskey;
+
+            before(() => {
+                softphoneParams = {
+                    allowFramedSoftphone: true,
+                    ringtoneUrl: defaultRingtoneUrl
+                }
+
+                softphoneParamskey = `SoftphoneParamsStorage::${global.location.origin}`;
+            });
+
+            beforeEach(() => {
+                sandbox.stub(connect, "isFramed").returns(true);
+                sandbox.stub(connect, "publishMetric");
+            });
+
+            afterEach(() => {
+                connect.isFramed.restore();
+                connect.publishMetric.restore();
+            });
+
+            describe("Softphone manager - Embedded CCP is refreshed", () => {
+
+                let clock = sinon.useFakeTimers();
+
+                before(() => {
+                    connect.core.getUpstream.restore();
+
+                    sandbox.stub(connect.core, "getUpstream").returns({
+                        onUpstream: (event, fn) => {
+                            connect.core.eventBus.subscribe(event, fn);
+                        },
+                        upstreamBus: connect.core.eventBus,
+                        sendUpstream: sinon.stub()
+                    });
+                })
+
+                beforeEach(() => {
+                    sandbox.stub(global.localStorage, "getItem").returns(JSON.stringify(softphoneParams));
+                    sandbox.stub(global.localStorage, "setItem");
+                    sandbox.stub(connect, "isCCP").returns(true);
+                    connect.core.initSoftphoneManager({ ringtoneUrl: defaultRingtoneUrl });
+                });
+
+                afterEach(() => {
+                    global.localStorage.getItem.restore();
+                    global.localStorage.setItem.restore();
+                    connect.isCCP.restore();
+                    clock.restore();
+                });
+
+                it("we should use stored softphone params for initilization in case if the configure message is not delivered", () => {
+                    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+                    clock.tick(110);
+                    connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                    connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                    connect.ifMaster.callArg(1);
+                    sandbox.assert.calledWithExactly(global.localStorage.getItem, softphoneParamskey);
+                    // this indicates that we are using stored params
+                    sandbox.assert.calledWithExactly(connect.publishMetric, {
+                        name: "EmbeddedCCPRefreshedWithoutInitCCP",
+                        data: { count: 1 }
+                    });
+                    assert.isTrue(connect.SoftphoneManager.calledWithNew());
+                });
+
+
+                it("we should not use stored softphone params for initilization if configure message is delivered", () => {
+
+                    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+                    clock.tick(99); // set to below 100 to not to execute the setimeout handler
+                    // trigger configure
+                    connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, { softphone: softphoneParams });
+                    connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                    connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                    connect.ifMaster.callArg(1);
+                    sandbox.assert.calledWithExactly(global.localStorage.getItem, softphoneParamskey);
+                    // see that the publishMetric is not invoked
+                    sandbox.assert.notCalled(connect.publishMetric);
+                    assert.isTrue(connect.SoftphoneManager.calledWithNew());
+                });
+
+                it("we should only listen for shared worker ACK message to re-init the softphone manager", () => {
+                    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE);
+                    // trigger configure
+                    connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, { softphone: softphoneParams });
+                    connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                    connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                    connect.ifMaster.callArg(1);
+                    sandbox.assert.calledWithExactly(global.localStorage.getItem, softphoneParamskey);
+                    // see that the publishMetric is not invoked
+                    sandbox.assert.notCalled(connect.publishMetric);
+                    assert.isTrue(connect.SoftphoneManager.calledWithNew())
+                });
+
+            });
+
+            it("Softphone params should get pushed to localstorage for the first time for the embedded case", function () {
+                sandbox.stub(global.localStorage, "getItem").returns(null);
+                sandbox.stub(global.localStorage, "setItem");
+
+                sinon.stub(connect, "isCCP").returns(true);
+                connect.core.initSoftphoneManager({ ringtoneUrl: defaultRingtoneUrl });
+                connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, { softphone: softphoneParams });
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                sandbox.assert.calledWithExactly(global.localStorage.setItem, softphoneParamskey, JSON.stringify(softphoneParams));
+                // TODO fix this test  - for some reason localstorage getItem is not getting reset  and always points at previous value
+                sandbox.assert.notCalled(connect.publishMetric);
+                assert.isTrue(connect.SoftphoneManager.calledWithNew());
+                global.localStorage.getItem.restore();
+                global.localStorage.setItem.restore();
+                connect.isCCP.restore();
+            });
+
+            // specifically where Custom app itself is embedded which in turn embeds CCP
+            it("Medialess CCP with embedded outer context app - should successfully able to init the softphone manager", function () {
+                mediaLessCCPParams = {
+                    allowFramedSoftphone: true
+                };
+                // Calling this from outer context
+                connect.core.initSoftphoneManager(mediaLessCCPParams);
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.SoftphoneManager.calledWithNew());
+            });
+
+            it("Medialess CCP with standalone outer context  - should successfully able to init the softphone manager", function () {
+                connect.isFramed.restore();
+                sandbox.stub(connect, "isFramed").returns(false);
+
+                mediaLessCCPParams = {
+                    allowFramedSoftphone: true
+                };
+                // Calling this from outer context
+                connect.core.initSoftphoneManager(mediaLessCCPParams);
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.SoftphoneManager.calledWithNew());
+            });
+
+            it("softphone params should get cleaned up on every initCCP call", () => {
+                sandbox.stub(global.localStorage, "removeItem");
+                connect.core.checkNotInitialized.restore();
+                sandbox.stub(connect.core, "checkNotInitialized").returns(false);
+                let container = { appendChild: sandbox.spy() };
+                connect.core.initCCP(container, {
+                    ccpUrl: "ccpURL"
+                });
+                sandbox.assert.calledWithExactly(global.localStorage.removeItem, softphoneParamskey);
+                global.localStorage.removeItem.restore();
+                connect.core.checkNotInitialized.restore();
+            });
+        });
+
+        describe('in Chrome', function () {
             before(function () {
                 sandbox.stub(connect, 'isChromeBrowser').returns(true);
                 sandbox.stub(connect, 'getChromeBrowserVersion').returns(79);
@@ -502,7 +662,7 @@ describe('Core', function () {
             });
         });
 
-        describe('in Firefox', function() {
+        describe('in Firefox', function () {
             before(function () {
                 sandbox.stub(connect, 'isChromeBrowser').returns(false);
                 sandbox.stub(connect, 'isFirefoxBrowser').returns(true);
@@ -520,7 +680,7 @@ describe('Core', function () {
                 connect.ifMaster.callArg(1);
                 assert.isTrue(connect.SoftphoneManager.calledWithNew());
             });
-    
+
             it("should set connect.core.softphoneParams", function () {
                 expect(connect.core.softphoneParams).to.include({ ringtoneUrl: defaultRingtoneUrl });
             });
@@ -691,6 +851,11 @@ describe('Core', function () {
             });
             connect.core.eventBus = new connect.EventBus({ logEvents: true });
             connect.core.initCCP(containerDiv, params);
+            sandbox.spy(connect, "EventBus");
+            sandbox.stub(connect, "MediaFactory");
+            sandbox.spy(connect, "IFrameConduit");
+            connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());
+            sandbox.spy(connect.core.AgentDataProvider.prototype, "_fireAgentUpdateEvents");
         });
 
         after(function () {
@@ -768,10 +933,18 @@ describe('Core', function () {
 
         it("Multiple calls to initCCP does not append multiple CCP iframes", function() {
             sandbox.stub(window.document, "getElementsByTagName").returns([{ name: 'Amazon Connect CCP' }]);
+            sandbox.resetHistory();
             connect.core.initCCP(containerDiv, params);
             connect.core.initCCP(containerDiv, params);
             connect.core.initCCP(containerDiv, params);
-            assert.isTrue(containerDiv.appendChild.calledOnce);
+            sandbox.assert.notCalled(containerDiv.appendChild);
+            sandbox.assert.notCalled(connect.core.getAgentDataProvider);
+            sandbox.assert.notCalled(connect.EventBus);
+            sandbox.assert.notCalled(connect.core.AgentDataProvider.prototype._fireAgentUpdateEvents);
+            sandbox.assert.notCalled(connect.MediaFactory);
+            sandbox.assert.notCalled(connect.IFrameConduit);
+            sandbox.assert.notCalled(connect.UpstreamConduitClient);
+            sandbox.assert.notCalled(connect.core._refreshIframeOnTimeout);
         })
 
         describe("on ACK", function () {
@@ -958,7 +1131,7 @@ describe('Core', function () {
         let expectedIframe = {
             ...iframe,
             src: params.ccpUrl,
-            allow: "microphone; autoplay",
+            allow: "microphone; autoplay; clipboard-write",
             style: "width: 100%; height: 100%",
             title: "Amazon Connect CCP",
             name: "Amazon Connect CCP",
@@ -1137,7 +1310,8 @@ describe('Core', function () {
         }
         function createAgentSnapshotState(type, name) {
             return {
-                snapshot: { state: createState(type, name) }
+                snapshot: { state: createState(type, name) },
+                configuration: SAMPLE_CONFIGURATION.baseConfig
             }; 
         }
 
@@ -1197,6 +1371,12 @@ describe('Core', function () {
             connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, agentSnapshotWithNextState);
             assert.isTrue(enqueuedNextState);
             assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.ENQUEUED_NEXT_STATE));
+        });
+
+        it('should provide the deep copy of agent data to consumers, which prevents the original data from being mutated', () => {
+            const expectedStateName = connect.core.agentDataProvider.getAgentData().configuration.agentStates[0].name; // the name before overwriting
+            connect.core.agentDataProvider.getAgentData().configuration.agentStates[0].name = 'overwritten'; // overwrite with an invalid value
+            expect(connect.core.agentDataProvider.getAgentData().configuration.agentStates[0].name).to.equal(expectedStateName);
         });
     });
 
@@ -1343,4 +1523,79 @@ describe('Core', function () {
             );
         });
     });
+
+    describe('#connect.core.terminate()', function () {
+        jsdom({ url: "http://localhost" });
+        function isCCPInitialized(containerDiv, params) {
+            try {
+                expect(params.ccpUrl).not.to.be.a("null");
+                expect(containerDiv).not.to.be.a("null");
+                assert.isTrue(document.createElement.calledOnce);
+                assert.isTrue(containerDiv.appendChild.calledOnce);
+                return true;
+            } catch(e) {
+                console.log("InitCCP initialization failed: ",e);
+                return false;
+            }
+        }
+        function isCCPTerminated() {
+            try {
+                assert.isEmpty(connect.core.client);
+                assert.isEmpty(connect.core.agentAppClient);
+                assert.isEmpty(connect.core.taskTemplatesClient);
+                assert.isEmpty(connect.core.masterClient);
+                assert.isNull(connect.core.agentDataProvider);
+                assert.isNull(connect.core.softphoneManager);
+                assert.isNull(connect.core.upstream);
+                assert.isNull(connect.core.keepaliveManager);
+                assert.isFalse(connect.agent.initialized);
+                assert.isFalse(connect.core.initialized);
+                assert.isFalse(connect.core.eventBus.logEvents);
+                return true;
+            } catch(e) {
+                console.log("InitCCP Terminated failed: ",e);
+                return false;
+            }
+        }
+        let containerDiv;
+        const softphoneParams = { allowFramedSoftphone: true };
+            
+        before(function () {
+            containerDiv = { appendChild: sandbox.spy() };
+            params = {
+                ccpUrl: "url.com",
+                softphone: softphoneParams,
+                loginOptions: { autoClose: true }
+            };
+
+            sandbox.spy(document, "createElement");
+            connect.core.initialized = false;
+        });
+
+        afterEach(function () {
+            sandbox.resetHistory();
+        });
+
+        it("Checking if Connect is uninitialized", function () {
+            connect.core.initCCP(containerDiv, params);
+            expect(isCCPInitialized(containerDiv, params)).to.be.true;
+            connect.core.terminate();
+            expect(isCCPTerminated()).to.be.true;
+        });
+
+        it("Check if CCP is initialized after calling terminate function and re-calling initCCP", function () {
+            expect(params.ccpUrl).not.to.be.a("null");
+            expect(containerDiv).not.to.be.a("null");
+            connect.core.initCCP(containerDiv, params);
+            expect(isCCPInitialized(containerDiv, params)).to.be.true;
+            connect.core.terminate();
+            connect.core.terminate();
+            expect(isCCPTerminated()).to.be.true;
+            sandbox.resetHistory();
+            connect.core.initCCP(containerDiv, params);
+            expect(isCCPInitialized(containerDiv, params)).to.be.true;
+        });
+         
+    });
+        
 });

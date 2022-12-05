@@ -59,6 +59,7 @@ describe('SoftphoneManager', function () {
                 connectionId: '0987654321'
             });
             sandbox.stub(connect.Agent.prototype, 'getContacts').returns([]);
+            connect.agent.initialized = true;
         });
 
         after(function () {

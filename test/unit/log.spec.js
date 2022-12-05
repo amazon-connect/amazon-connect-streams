@@ -130,6 +130,12 @@ describe('Logger', function() {
     describe('LogEntry fields', () => {
         var sandbox = sinon.createSandbox();
         let agentResourceId = "id";
+        before(() => {
+            connect.agent.initialized = true;
+        });
+        after(() => {
+            connect.agent.initialized = false;
+        });
         it("provides the correct agentResourceId", () => {
             let log = connect.getLog().info("hi");
             assert.equal(log.getAgentResourceId(), agentResourceId);
