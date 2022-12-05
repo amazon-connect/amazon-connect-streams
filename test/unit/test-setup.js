@@ -9,6 +9,20 @@ global.sinon = sinon;
 global.navigator = {
     userAgent: 'browser'
 };
+// required for the core.js to initialize
+global.location = new URL("https://test-fra.awsapps.com/connect/home");
+
+Object.assign(global.location, {
+  reload: () => {},
+  assign: () => {}
+});
+
+// required for softphone manager logic
+global.localStorage = {
+  getItem: () => {},
+  setItem: () => {},
+  removeItem: () => {}
+}
 
 global.jsdom = jsdom;
 

@@ -22,7 +22,6 @@
 /* eslint-disable strict */
 
 ;(function ($) {
-  'use strict'
 	var ctx = this || globalThis;
 
   /**

@@ -105,7 +105,42 @@
       return params.ccpUrl;
     }
   };
- 
+
+  /**
+   * softphoneParamsStorage module to store necessary softphone params in local storage
+   * Used mainly for cases where embedded CCP gets refreshed.
+   * @returns {Object}
+   */
+
+  var softphoneParamsStorage = (function () {
+    let key = `SoftphoneParamsStorage::${global.location.origin}`;
+    return {
+      set: function (value) {
+        try {
+          value && global.localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+          connect.getLog().error("SoftphoneParamsStorage:: Failed to set softphone params to local storage!")
+            .withException(e).sendInternalLogToServer();
+        }
+      },
+
+      get: function () {
+        try {
+          let item = global.localStorage.getItem(key);
+          return item && JSON.parse(item);
+        } catch (e) {
+          connect.getLog().error("SoftphoneParamsStorage:: Failed to get softphone params from local storage!")
+            .withException(e).sendInternalLogToServer();
+        }
+        return null;
+      },
+
+      clean: function () {
+        global.localStorage.removeItem(key);
+      }
+    }
+  })();
+
   /**-------------------------------------------------------------------------
   * Returns scheme://host:port for a given url
   */
@@ -123,7 +158,7 @@
       log.warn("Connect core already initialized, only needs to be initialized once.").sendInternalLogToServer();
     }
   };
- 
+
   /**-------------------------------------------------------------------------
    * Basic Connect client initialization.
    * Should be used only by the API Shared Worker.
@@ -337,9 +372,9 @@
   }
 
   connect.core.initSoftphoneManager = function (paramsIn) {
-    connect.getLog().info("[Softphone Manager] initSoftphoneManager started").sendInternalLogToServer();
     var params = paramsIn || {};
- 
+    connect.getLog().info("[Softphone Manager] initSoftphoneManager started").sendInternalLogToServer();
+
     var competeForMasterOnAgentUpdate = function (softphoneParamsIn) {
       var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
       connect.getLog().info("[Softphone Manager] competeForMasterOnAgentUpdate executed").sendInternalLogToServer();
@@ -363,27 +398,72 @@
         });
       });
     };
- 
+
     /**
-     * If the window is framed, we need to wait for a CONFIGURE message from
-     * downstream before we try to initialize, unless params.allowFramedSoftphone is true.
+      * If the window is framed and if it's the CCP app then we need to wait for a CONFIGURE message from downstream before we initialize softphone manager.
+      * All medialess softphone initialization cases goes to else check and doesn't wait for CONFIGURE message
      */
-    if (connect.isFramed() && !params.allowFramedSoftphone) {
+
+
+    if (connect.isFramed() && connect.isCCP()) {
+
+      let configureMessageTimer;  // used for re-initing the softphone manager
       var bus = connect.core.getEventBus();
+
+      // Configure handler triggers the softphone manager initiation.
+      // This event is propagted by initCCP call from the end customers 
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
+        global.clearTimeout(configureMessageTimer); // we don't need to re-init softphone manager as we recieved configure event
         connect.getLog().info("[Softphone Manager] Configure event handler executed").sendInternalLogToServer();
+        // always overwrite/store the softphone params value if there is a configure event
+        softphoneParamsStorage.set(data.softphone);
         if (data.softphone && data.softphone.allowFramedSoftphone) {
           this.unsubscribe();
           competeForMasterOnAgentUpdate(data.softphone);
-          
         }
         setupEventListenersForMultiTabUseInFirefox(data.softphone);
       });
+
+      /**
+       * This is the case where CCP is just refreshed after it gets initilaized via initCCP
+       * This snippet needs atleast one initCCP invocation which sets the params to the store
+       * and waits for CCP to load successfully to apply the same to init Softphone manager
+       */
+
+      let softphoneParamsFromLocalStorage = softphoneParamsStorage.get();
+
+      if (softphoneParamsFromLocalStorage) {
+        connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function (args) {
+          // only care about shared worker ACK which indicates CCP successfull load
+          let ackFromSharedWorker =  args && args.id;
+          if (ackFromSharedWorker) {
+            connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed successfully and waiting for configure Message handler to execute").sendInternalLogToServer();
+            this.unsubscribe();
+            configureMessageTimer = global.setTimeout(() => {
+              connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed without configure message handler execution").sendInternalLogToServer();
+              connect.publishMetric({
+                name: "EmbeddedCCPRefreshedWithoutInitCCP",
+                data: { count: 1 }
+              });
+
+              setupEventListenersForMultiTabUseInFirefox(softphoneParamsFromLocalStorage);
+
+              if (softphoneParamsFromLocalStorage.allowFramedSoftphone) {
+                connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed & Initializing competeForMasterOnAgentUpdate (Softphone manager) from localStorage softphone params").sendInternalLogToServer();
+                competeForMasterOnAgentUpdate(softphoneParamsFromLocalStorage);
+              }
+              // 100 ms is from the time it takes to execute few lines of JS code to trigger the configure event (this is done in initCCP) 
+              // which is in fraction of milisecond.  so to be on the safer side we are keeping it to be 100
+              // this number is pulled from performance.now() calculations.
+            }, 100);
+          }
+        });
+      }
     } else {
       competeForMasterOnAgentUpdate(params);
       setupEventListenersForMultiTabUseInFirefox(params);
     }
- 
+
     connect.agent(function (agent) {
       // Sync mute across all tabs 
       if (agent.isSoftphoneEnabled() && agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
@@ -857,6 +937,9 @@
  
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
+
+    // Clean up the Softphone params store to make sure we always pull the latest params
+    softphoneParamsStorage.clean();
  
     // Create the CCP iframe and append it to the container div.
     var iframe = connect.core._createCCPIframe(containerDiv, params);
@@ -1085,7 +1168,7 @@
     connect.assertNotNull(containerDiv, 'containerDiv');
     var iframe = document.createElement('iframe');
     iframe.src = initCCPParams.ccpUrl;
-    iframe.allow = "microphone; autoplay";
+    iframe.allow = "microphone; autoplay; clipboard-write";
     iframe.style = initCCPParams.style || "width: 100%; height: 100%";
     iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
     iframe.name = CCP_IFRAME_NAME;
@@ -1319,7 +1402,7 @@
       throw new connect.StateError('No agent data is available yet!');
     }
  
-    return this.agentData;
+    return connect.deepcopy(this.agentData);
   };
  
   AgentDataProvider.prototype.getContactData = function (contactId) {

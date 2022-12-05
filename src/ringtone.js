@@ -23,6 +23,7 @@
         self._audio = new Audio(ringtoneConfig.ringtoneUrl);
         self._audio.loop = true;
         self._audio.addEventListener("canplay", function () {
+          connect.getLog().info("Ringtone is ready to play: ", + ringtoneConfig.ringtoneUrl).sendInternalLogToServer();
           self._audioPlayable = true;
           resolve(self._audio);
         });

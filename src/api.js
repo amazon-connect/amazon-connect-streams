@@ -82,14 +82,24 @@
     'connecting',
     'connected',
     'hold',
-    'disconnected'
+    'disconnected',
+    'silent_monitor',
+    'barge'
   ]);
   connect.ConnectionStatusType = connect.ConnectionStateType;
 
   connect.CONNECTION_ACTIVE_STATES = connect.set([
     connect.ConnectionStateType.CONNECTING,
     connect.ConnectionStateType.CONNECTED,
-    connect.ConnectionStateType.HOLD
+    connect.ConnectionStateType.HOLD,
+    connect.ConnectionStateType.SILENT_MONITOR,
+    connect.ConnectionStateType.BARGE
+  ]);
+
+  connect.CONNECTION_CONNECTED_STATES = connect.set([
+    connect.ConnectionStateType.CONNECTED,
+    connect.ConnectionStateType.SILENT_MONITOR,
+    connect.ConnectionStateType.BARGE
   ]);
 
   /*----------------------------------------------------------------
@@ -135,6 +145,21 @@
     'callback',
     'api',
     'disconnect'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for MonitoringMode
+   */
+  connect.MonitoringMode = connect.makeEnum([
+    'SILENT_MONITOR',
+    'BARGE'
+  ]);
+
+  /*----------------------------------------------------------------
+   * enum for MonitoringErrorTypes
+   */
+  connect.MonitoringErrorTypes = connect.makeEnum([
+    'invalid_target_state'
   ]);
 
   /*----------------------------------------------------------------
@@ -1056,6 +1081,27 @@
     return !!(contactFeatures && contactFeatures.multiPartyConferenceEnabled);
   }
 
+  Contact.prototype.updateMonitorParticipantState = function (targetState, callbacks) {
+    if(!targetState || !Object.values(connect.MonitoringMode).includes(targetState.toUpperCase())) {
+      connect.getLog().error(`Invalid target state was provided: ${targetState}`).sendInternalLogToServer();
+      if (callbacks && callbacks.failure) {
+        callbacks.failure(connect.MonitoringErrorTypes.INVALID_TARGET_STATE);
+      }
+    } else {
+      var client = connect.core.getClient();
+      client.call(connect.ClientMethods.UPDATE_MONITOR_PARTICIPANT_STATE, {
+        contactId: this.getContactId(),
+        targetMonitorMode: targetState.toUpperCase()
+      }, callbacks);
+    }
+  }
+
+  Contact.prototype.isUnderSupervision = function () {
+    var nonAgentConnections = this.getConnections().filter((conn) => conn.getType() !== connect.ConnectionType.AGENT);
+    var supervisorConnection = nonAgentConnections && nonAgentConnections.find(conn => conn.isBarge() && conn.isActive());
+    return supervisorConnection !== undefined;
+  }
+
   /*----------------------------------------------------------------
    * class ContactSnapshot
    */
@@ -1127,7 +1173,7 @@
   };
 
   Connection.prototype.isConnected = function () {
-    return this.getStatus().type === connect.ConnectionStateType.CONNECTED;
+    return connect.contains(connect.CONNECTION_CONNECTED_STATES, this.getStatus().type);
   };
 
   Connection.prototype.isConnecting = function () {
@@ -1997,8 +2043,38 @@
     return this._getData().quickConnectName;
   };
 
+  VoiceConnection.prototype.isSilentMonitor = function () {
+    return this.getMonitorStatus() === connect.MonitoringMode.SILENT_MONITOR;
+  };
+
+  VoiceConnection.prototype.isBarge = function () {
+    return this.getMonitorStatus() === connect.MonitoringMode.BARGE;
+  };
+
+  VoiceConnection.prototype.isBargeEnabled = function () {
+    var monitoringCapabilities = this.getMonitorCapabilities();
+    return monitoringCapabilities && monitoringCapabilities.includes(connect.MonitoringMode.BARGE);
+  };
+
+  VoiceConnection.prototype.isSilentMonitorEnabled = function () {
+    var monitoringCapabilities = this.getMonitorCapabilities();
+    return monitoringCapabilities && monitoringCapabilities.includes(connect.MonitoringMode.SILENT_MONITOR);
+  };
+
+  VoiceConnection.prototype.getMonitorCapabilities = function () {
+    return this._getData().monitorCapabilities;
+  };
+
+  VoiceConnection.prototype.getMonitorStatus = function () {
+    return this._getData().monitorStatus;
+  };
+
   VoiceConnection.prototype.isMute = function () {
     return this._getData().mute;
+  };
+
+  VoiceConnection.prototype.isForcedMute = function () {
+    return this._getData().forcedMute;
   };
 
   VoiceConnection.prototype.muteParticipant = function (callbacks) {

@@ -524,6 +524,12 @@ declare namespace connect {
 
     /** The connection is no longer connected to the contact. */
     DISCONNECTED = "disconnected",
+
+    /** The connection is in silent monitor mode */
+    SILENT_MONITOR = "silent_monitor",
+
+    /** The connection is in barge mode */
+    BARGE = "barge"
   }
 
   enum ContactEvents {
@@ -1580,13 +1586,13 @@ declare namespace connect {
     optOutVoiceIdSpeaker(): Promise<any>;
 
     /** Returns VoiceId speaker authentication status */
-    evaluateSpeakerWithVoiceId(): Promise<any>;
+    evaluateSpeakerWithVoiceId(startNewSession?: boolean): Promise<any>;
 
     /** Enroll speaker into VoiceId */
-    enrollSpeakerInVoiceId(): Promise<any>;
+    enrollSpeakerInVoiceId(callbackOnAudioCollectionComplete?: Function): Promise<any>;
 
     /** Update speaker id */
-    updateVoiceIdSpeakerId(): Promise<any>;
+    updateVoiceIdSpeakerId(speakerId: string): Promise<any>;
 
     /** Delete speaker id */
     deleteVoiceIdSpeakerId(): Promise<any>;

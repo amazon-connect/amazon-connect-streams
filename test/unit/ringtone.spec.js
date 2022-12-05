@@ -28,6 +28,7 @@ describe('RingtoneEngine', function () {
 
     describe('#connect.VoiceRingtoneEngine', function () {
         before(function () {
+            connect.agent.initialized = true;
             sandbox.stub(connect.core, "getEventBus").returns(bus);
             sandbox.stub(connect.Agent.prototype, "getContacts").returns([]);
             this.voiceRingtoneEngine = new connect.VoiceRingtoneEngine(ringtoneObj);
@@ -39,6 +40,7 @@ describe('RingtoneEngine', function () {
         });
 
         after(function () {
+            connect.agent.initialized = false;
             sandbox.restore();
         });
 
