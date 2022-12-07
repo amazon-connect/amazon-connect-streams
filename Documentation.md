@@ -1429,7 +1429,12 @@ conn.muteParticipant({
    failure: function(err) { /* ... */ }
 });
 ```
-Mute the connection server side.
+Mute the connection server side. 
+#### Multiparty call
+Any agent participant can mute another agent participant. 
+
+#### Supervisor barges into the call
+Agents can mute themselves, but cannot mute other agents or supervisor.  
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
@@ -1440,7 +1445,12 @@ conn.unmuteParticipant({
    failure: function(err) { /* ... */ }
 });
 ```
-Unmute the connection server side.
+Unmute the connection server side. 
+#### Multiparty call 
+Any agent can only unmute themselves.
+
+#### Supervisor barges into the call
+Agents can only unmute themselves up until the point they have been muted by the supervisor (isForcedMute API can help checking that). Once they have been muted by the supervisor, agent cannot unmute themselves until supervisor unmutes agent (at which point agent will regain ability to mute and unmute themselves). If supervisor has muted but not unmuted agent then drops from call, agent will be able to unmute themselves once supervisor has dropped.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
@@ -1988,4 +1998,114 @@ voiceConnection.deleteVoiceIdSpeaker()
   .catch((err) => {
     console.error(err);
   });
+```
+
+## Enhanced Monitoring APIs
+Enhanced monitoring providing real-time silent monitoring and barge capability to help managers and supervisors to listen in the agents' conversations and barge into the call if needed to take over the control and provide better customer experience. Supervisors in barge mode will be able to force mute agents and prevent them from unmuting themselves, will be able to hold, drop any connection, or directly speak with the customer. If the supervisor has muted an agent and then drops from the call, the agent will be able to unmute themselves once supervisor has dropped. Monitoring APIs are expected to be used against agent's(or supervisor's) connection. To start enhanced monitoring supervisor/manager will need to click an eye icon on the Real Time Metrics page.
+
+Streams Enhanced Monitoring APIs can be tested after all these prerequisites are met:
+1. Enable Multi-Party Calls and Enhanced Monitoring in Telephony section of the Amazon Connect Console.
+1. Enable Real-time contact monitoring and Real-time contact barge-in in Security Profiles
+
+### `voiceConnection.isSilentMonitor()`
+```js
+if (conn.isSilentMonitor()) { /* ... */ }
+```
+Returns true if monitorStatus is `MonitoringMode.SILENT_MONITOR`. This means the supervisor connection is in silent monitoring state. Regular agent will not see supervisor's connection in the snapshot while it is in silent monitor state.
+
+### `voiceConnection.isBarge()`
+```js
+if (conn.isBarge()) { /* ... */ }
+```
+Returns true if monitorStatus is `MonitoringMode.BARGE`. This means the connection is in barge-in state. Regular agent will see the supervisor's connection in the list of connections in the snapshot.
+
+### `voiceConnection.isSilentMonitorEnabled()`
+```js
+if (conn.isSilentMonitorEnabled()) { /* ... */ }
+```
+Returns true if agent's monitoringCapabilities contain `MonitoringMode.SILENT_MONITOR` type. 
+
+### `voiceConnection.isBargeEnabled()`
+```js
+if (conn.isBargeEnabled()) { /* ... */ }
+```
+Returns true if agent's monitoringCapabilities contain `MonitoringMode.BARGE` state type.
+
+### `voiceConnection.getMonitorCapabilities()`
+```js
+var allowedMonitorStates = conn.getMonitorCapabilities();
+```
+Returns the array of enabled monitor states of this connection. The array will consist of `MonitoringMode` enum values.
+
+### `voiceConnection.getMonitorStatus()`
+```js
+var monitorState = conn.getMonitorStatus();
+```
+Returns the current monitoring state of this connection. The value can be on of `MonitoringMode` enum values if the agent is supervisor, or the monitorStatus will not be present for the agent.
+
+### `voiceConnection.isForcedMute()`
+```js
+if (conn.isForcedMute()) { /* ... */ }
+```
+Determine whether the connection was forced muted by the manager.
+
+### `contact.updateMonitorParticipantState()`
+```js
+contact.updateMonitorParticipantState(targetState, {
+   success: function() { /* ... */ },
+   failure: function(err) { /* ... */ }
+});
+```
+Updates the monitor participant state to switch between different monitoring modes. The targetState value is a `MonitoringMode` enum member.
+
+### `contact.isUnderSupervision()`
+```js
+if (contact.isUnderSupervision()) { /* ... */ }
+```
+Determines if the contact is under manager's supervision
+
+#### Usage examples
+
+Check that barge is enabled before switching to the barge mode - first we need to make sure that barge is enabled for the supervisor connection, and after that initiate monitor status change on the contact.
+```js
+if(voiceConnection.isBargeEnabled()) {
+  contact.updateMonitorParticipantState(connect.MonitoringMode.BARGE, {
+   success: function() { 
+    console.log("Successfully changed the monitoring status to barge, now you can control the conversation")
+   },
+   failure: function(err) { 
+    console.log("Somenting went wrong, here is the error ", err) 
+   }
+  }); 
+}
+```
+
+Check that silent monitor is enabled before switching to the silent monitor mode - first we need to make sure that silent monitor is enabled for the supervisor connection, and after that initiate monitor status change on the contact.
+```js
+if(voiceConnection.isSilentMonitorEnabled()) {
+  contact.updateMonitorParticipantState(connect.MonitoringMode.SILENT_MONITOR, {
+   success: function() { 
+    console.log("Successfully changed the monitoring status to silent monitor")
+   },
+   failure: function(err) { 
+    console.log("Somenting went wrong, here is the error ", err) 
+   }
+  }); 
+}
+```
+
+After supervisor mutes the agent - force mute field is automatically updated on the agent side. You may want to display a banner or somehow indicate to the agent that he cannot unmute himself back anymore.
+
+```js
+if(voiceConnection.isForcedMute()) {
+  /* Some logic here to indicate forced mute to the agent */
+}
+```
+
+After supervisor barges the call - agent doesn't have control anymore. Agent can only mute or unmute himself until he was forced muted, or leave the call. It will be good to indicate that to ahent as well by hiding or disabling buttons.
+
+```js
+if(voiceConnection.isUnderSupervision()) {
+  /* Some logic here to indicate disabled call controls to the agent */
+}
 ```
