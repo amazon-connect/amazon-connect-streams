@@ -3795,7 +3795,8 @@ module.exports = cloneDeep;
         client.call(connect.AgentAppClientMethods.UPDATE_SESSION, params, {
             success: function (data) {
               connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
-              self._updateSpeakerIdInLcms(speakerId, data.generatedSpeakerId)
+              var generatedSpeakerId = data && data.Session && data.Session.GeneratedSpeakerId;
+              self._updateSpeakerIdInLcms(speakerId, generatedSpeakerId)
                 .then(function() {
                   resolve(data);
                 })
