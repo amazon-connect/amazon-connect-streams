@@ -1161,7 +1161,11 @@ describe('VoiceId', () => {
 
   describe('updateSpeakerIdInVoiceId', () => {
     it('should get resolved with data', async () => {
-      const response = 'fakeData';
+      const response = {
+        Session: {
+          GeneratedSpeakerId: 'dummy-generated-speaker-id'
+        }
+      };
       sinon.stub(connect.core, 'getClient').callsFake(() => ({
         call: (endpoint, params, callbacks) => {
           callbacks.success(response);
@@ -1175,7 +1179,7 @@ describe('VoiceId', () => {
       expect(obj).to.equal(response);
       sinon.assert.calledOnce(voiceId.checkConferenceCall);
       sinon.assert.calledOnce(voiceId.getDomainId);
-      sinon.assert.calledOnce(voiceId._updateSpeakerIdInLcms);
+      sinon.assert.calledWith(voiceId._updateSpeakerIdInLcms, speakerId, 'dummy-generated-speaker-id');
       connect.core.getClient.restore();
     });
 
