@@ -12,7 +12,7 @@ Run `npm run release` to generate new release files. Full instructions for build
 In version 1.x, we also support `make` for legacy builds. This option was removed in version 2.x. 
 
 # Important Announcements
-1. December 2022 - In addition to the CCP, customers can now embed the Step-by-step guides application using the connect.agentApp. See the [updated documentation](https://github.com/amazon-connect/amazon-connect-streams/blob/master/Documentation.md#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. 
+1. December 2022 - In addition to the CCP, customers can now embed the Step-by-step guides application using the connect.agentApp. See the [updated documentation](https://github.com/amazon-connect/amazon-connect-streams/blob/master/Documentation.md#initialization-for-ccp-customer-profiles-wisdom-and-step-by-step-guides) for details on usage. 
     * ### About Amazon Connect Step-by-step guides 
       + With Amazon Connect you can now create guides that walk agents through tailored views that focus on what must be seen or done by the agent at a given moment during an interaction. You can design workflows for various types of customer interactions and present agents with different step-by-step guides based on context, such as call queue, customer information, and interactive voice response (IVR). This feature is available in the Connect agent workspace as well as an embeddable application that can be embedded into another website via the Streams API. For more information, visit the AWS website: https://aws.amazon.com/connect/agent-workspace/
 1. December 2022 - 2.4.2
@@ -1814,19 +1814,22 @@ To get latest streams file and allowlist required urls follow [these instruction
             { style: "width:400px; height:600px;" }
         );
         /**
-        * Stargate will not load any view without a contact flow Id which includes
-        * showView block. You can extract the ongoing contactflow with the contact attribute, DefaultFlowForAgentUI. 
+         * 
+        * Step-by-step guides will not load any view without a contact flow Id. 
+        * You can get the contact flow ID from the contact attribute, DefaultFlowForAgentUI (see [here](https://docs.aws.amazon.com/connect/latest/adminguide/how-to-invoke-a-flow-sg.html) for more details on this particular attribute).
+        * If you want to use information on the current connected contact (voice, chat, or task) to provide context to the step-by-step guide flow, you should add the parameter, currentContactId, at the url.  
         * For more information, visit the AWS website: https://aws.amazon.com/connect/agent-workspace/
         *
         **/
         connect.contact((contact)=>{
             contact.onConnected((contact)=>{
+                const currentContactId = contact.contactId;
                 const contactAttributes = contact.getAttributes();
                 if(contactAttributes["DefaultFlowForAgentUI"]) {
                     const contactflowId = contactAttributes["DefaultFlowForAgentUI"].value;
                     const stargateIframe = document.querySelector('#stargate-container > iframe');
                     
-                    stargateIframe.setAttribute('src', `${connectUrl}/stargate/app?contactFlowId=${contactflowId}`);
+                    stargateIframe.setAttribute('src', `${connectUrl}/stargate/app?contactFlowId=${contactflowId}&currentContactId=${currentContactId}`);
                 }
             });
         })

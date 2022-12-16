@@ -18,7 +18,7 @@ Run `npm run release` to generate new release files. Full instructions for build
 In version 1.x, we also support `make` for legacy builds. This option was removed in version 2.x. 
 
 # Important Announcements
-1. December 2022 - In addition to the CCP, customers can now embed the Step-by-step guides application using the connect.agentApp. See the [updated documentation](https://github.com/amazon-connect/amazon-connect-streams/blob/master/Documentation.md#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. 
+1. December 2022 - In addition to the CCP, customers can now embed the Step-by-step guides application using the connect.agentApp. See the [updated documentation](https://github.com/amazon-connect/amazon-connect-streams/blob/master/Documentation.md#initialization-for-ccp-customer-profiles-wisdom-and-step-by-step-guides) for details on usage. 
     * ### About Amazon Connect Step-by-step guides 
       + With Amazon Connect you can now create guides that walk agents through tailored views that focus on what must be seen or done by the agent at a given moment during an interaction. You can design workflows for various types of customer interactions and present agents with different step-by-step guides based on context, such as call queue, customer information, and interactive voice response (IVR). This feature is available in the Connect agent workspace as well as an embeddable application that can be embedded into another website via the Streams API. For more information, visit the AWS website: https://aws.amazon.com/connect/agent-workspace/
 1. December 2022 - 2.4.2
