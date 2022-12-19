@@ -689,7 +689,7 @@ describe('Core', function () {
     describe('#connect.core.initRingtoneEngines()', function () {
         jsdom({ url: "http://localhost" });
 
-        before(() => {
+        beforeEach(() => {
             connect.agent.initialized = true;
             sandbox.stub(connect.core, 'getAgentDataProvider').returns({
                 getAgentData: () => ({})
@@ -697,7 +697,7 @@ describe('Core', function () {
             connect.core.eventBus = new connect.EventBus({ logEvents: true });
         });
 
-        after(() => {
+        afterEach(() => {
             connect.agent.initialized = false;
             sandbox.restore();
             connect.core.eventBus = null;
@@ -716,10 +716,6 @@ describe('Core', function () {
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
                 connect.core.initRingtoneEngines({ ringtone: defaultRingtone });
-            });
-
-            afterEach(function () {
-                sandbox.restore();
             });
 
             it("Ringtone init with VoiceRingtoneEngine", function () {
@@ -768,10 +764,6 @@ describe('Core', function () {
                 connect.core.initRingtoneEngines({ ringtone: extraRingtone });
             });
 
-            afterEach(function () {
-                sandbox.restore();
-            });
-
             it("Ringtone init with VoiceRingtoneEngine", function () {
                 connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
                 connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
@@ -800,6 +792,95 @@ describe('Core', function () {
                 connect.ifMaster.callArg(1);
                 assert.isTrue(connect.TaskRingtoneEngine.calledWithNew(extraRingtone.task));
             });
+        });
+
+        describe ("initRingtoneEngines with stored ringer device ID", function () {
+            const DEVICE_ID = "DEVICE_ID";
+            let setRingerDeviceMock;
+            let defaultRingtone;
+            connect.core._ringerDeviceId = null;
+
+            beforeEach(function () {
+                defaultRingtone = {
+                    voice: { ringtoneUrl: defaultRingtoneUrl },
+                    queue_callback: { ringtoneUrl: defaultRingtoneUrl },
+                    chat: { ringtoneUrl: defaultRingtoneUrl },
+                    task: { ringtoneUrl: defaultRingtoneUrl }
+                };
+                setRingerDeviceMock = sandbox.spy();
+                sandbox.stub(connect, "ifMaster");
+                sandbox.stub(connect, "VoiceRingtoneEngine");
+                sandbox.stub(connect, "QueueCallbackRingtoneEngine");
+                sandbox.stub(connect, "ChatRingtoneEngine");
+                sandbox.stub(connect, "TaskRingtoneEngine"); 
+            });
+
+            afterEach(function () {
+                connect.core._ringerDeviceId = null;
+            });
+
+            it("does not call setRingerDevice with stored device ID if there wasn't one previously stored", function() {
+                connect.core.initRingtoneEngines({ringtone: defaultRingtone}, setRingerDeviceMock);
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                sandbox.assert.notCalled(setRingerDeviceMock);
+            });
+
+            it("does call setRingerDevice with stored device ID if there was one previously stored", function() {
+                connect.core._ringerDeviceId = DEVICE_ID;
+                connect.core.initRingtoneEngines({ringtone: defaultRingtone}, setRingerDeviceMock);
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                sandbox.assert.calledWith(setRingerDeviceMock, { deviceId: DEVICE_ID });
+            });
+        });
+    });
+
+    describe('setRingerDevice', function() {
+        jsdom({ url: "http://localhost" });
+        let defaultRingtone;
+        const DEVICE_ID = "DEVICE_ID";
+
+        beforeEach(() => {
+            connect.agent.initialized = true;
+            connect.core.eventBus = new connect.EventBus({ logEvents: true });
+            sandbox.stub(connect, "publishMetric");
+            defaultRingtone = {
+                voice: { ringtoneUrl: defaultRingtoneUrl },
+                chat: { ringtoneUrl: defaultRingtoneUrl },
+            };
+        });
+ 
+        afterEach(() => {
+            connect.agent.initialized = false;
+            sandbox.restore();
+            connect.core.eventBus = null;
+            connect.core._ringerDeviceId = null;
+            connect.core.ringtoneEngines = null;
+        });
+
+        it("stores device ID if setRingerDevice is called without ringtone engines being initialized", function () {
+            connect.core.initRingtoneEngines({ ringtone: defaultRingtone });
+            connect.core.getEventBus().trigger(connect.ConfigurationEvents.SET_RINGER_DEVICE, {deviceId: DEVICE_ID});
+            assert.equal(connect.core._ringerDeviceId, DEVICE_ID);
+            sandbox.assert.calledWithExactly(connect.publishMetric, {
+                name: "SetRingerDeviceBeforeInitRingtoneEngine",
+                data: { count: 1 }
+            });
+        });
+
+        it("Doesn't store device ID if setRingerDevice is called with ringtone engines initialized", function () {
+            connect.core.initRingtoneEngines({ ringtone: defaultRingtone });
+            connect.core.ringtoneEngines = { chat: { setOutputDevice: () => {} }, voice: { setOutputDevice: () => {} }}
+            sandbox.stub(connect.core.ringtoneEngines.chat, "setOutputDevice");
+            sandbox.stub(connect.core.ringtoneEngines.voice, "setOutputDevice");
+            connect.core.getEventBus().trigger(connect.ConfigurationEvents.SET_RINGER_DEVICE, {deviceId: DEVICE_ID});
+            assert.equal(connect.core._ringerDeviceId, null);
+            sandbox.assert.notCalled(connect.publishMetric);
+            sandbox.assert.calledWithExactly(connect.core.ringtoneEngines.chat.setOutputDevice, DEVICE_ID);
+            sandbox.assert.calledWithExactly(connect.core.ringtoneEngines.voice.setOutputDevice, DEVICE_ID);
         });
     });
 

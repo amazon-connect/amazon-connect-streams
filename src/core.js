@@ -21,7 +21,6 @@
   var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
   var CCP_IFRAME_REFRESH_LIMIT = 6; // 6 attempts
   var CCP_IFRAME_NAME = 'Amazon Connect CCP';
- 
   var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
   var CLIENT_ID_MAP = {
     "us-east-1": "06919f4fd8ed324e"
@@ -40,6 +39,7 @@
   var CSM_IFRAME_REFRESH_ATTEMPTS = 'IframeRefreshAttempts';
   var CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
   var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
+  var CSM_SET_RINGER_DEVICE_BEFORE_INIT = 'SetRingerDeviceBeforeInitRingtoneEngine';
 
   var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
   var CCP_TABS_ACROSS_BROWSER_COUNT = 'CCPTabsAcrossBrowserCount';
@@ -243,10 +243,10 @@
   connect.core.setSoftphoneUserMediaStream = function (stream) {
     connect.core.softphoneUserMediaStream = stream;
   };
- 
-  connect.core.initRingtoneEngines = function (params) {
+
+  connect.core.initRingtoneEngines = function (params, _setRingerDevice) {
     connect.assertNotNull(params, "params");
- 
+    const setRingerDeviceFunc = _setRingerDevice || setRingerDevice;
     var setupRingtoneEngines = function (ringtoneSettings) {
       connect.assertNotNull(ringtoneSettings, "ringtoneSettings");
       connect.assertNotNull(ringtoneSettings.voice, "ringtoneSettings.voice");
@@ -259,28 +259,37 @@
       connect.agent(function (agent) {
         agent.onRefresh(function () {
           connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
+            let isInitializedAnyEngine = false;
             if (!ringtoneSettings.voice.disabled && !connect.core.ringtoneEngines.voice) {
               connect.core.ringtoneEngines.voice =
                 new connect.VoiceRingtoneEngine(ringtoneSettings.voice);
+                isInitializedAnyEngine = true;
               connect.getLog().info("VoiceRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
               connect.core.ringtoneEngines.chat =
                 new connect.ChatRingtoneEngine(ringtoneSettings.chat);
+                isInitializedAnyEngine = true;
               connect.getLog().info("ChatRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
               connect.core.ringtoneEngines.task =
                 new connect.TaskRingtoneEngine(ringtoneSettings.task);
-                connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
+                isInitializedAnyEngine = true;
+              connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
+                isInitializedAnyEngine = true;
               connect.getLog().info("QueueCallbackRingtoneEngine initialized.").sendInternalLogToServer();
+            }
+            // Once any of the Ringtone Engines are initialized, set ringer device with latest device id from _ringerDeviceId.
+            if (isInitializedAnyEngine && connect.core._ringerDeviceId) {
+              setRingerDeviceFunc({ deviceId: connect.core._ringerDeviceId });
             }
           });
         });
@@ -356,10 +365,20 @@
     bus.subscribe(connect.ConfigurationEvents.SET_RINGER_DEVICE, setRingerDevice);
   }
 
-  var setRingerDevice = function (data){
-    if(connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId){
+  var setRingerDevice = function (data) {
+    if (connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId) {
+      connect.getLog().info("setRingerDevice called before ringtone engine is initialized, or with untruthy device data").sendInternalLogToServer();
+      if (data && data.deviceId) {
+        connect.core._ringerDeviceId = data.deviceId;
+        connect.getLog().warn("stored device Id for later use, once ringtone engine is up.").sendInternalLogToServer();
+        connect.publishMetric({
+          name: CSM_SET_RINGER_DEVICE_BEFORE_INIT,
+          data: { count: 1 }
+        })
+        return;
+      }
       return;
-    }
+    } 
     var deviceId = data.deviceId;
     for (var ringtoneType in connect.core.ringtoneEngines) {
       connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId);
