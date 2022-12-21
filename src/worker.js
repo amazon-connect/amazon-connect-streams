@@ -94,11 +94,12 @@
           self._recordAPILatency(method, request_start, error);
           callbacks.failure(error, data);
         },
-        authFailure: function () {
-          self._recordAPILatency(method, request_start);
+        authFailure: function (error, data) {
+          self._recordAPILatency(method, request_start, error);
           callbacks.authFailure();
         },
-        accessDenied: function () {
+        accessDenied: function (error, data) {
+          self._recordAPILatency(method, request_start, error);
           callbacks.accessDenied && callbacks.accessDenied();
         }
       });
@@ -113,16 +114,23 @@
   };
 
   WorkerClient.prototype._sendAPIMetrics = function (method, time, err) {
-    this.conduit.sendDownstream(connect.EventType.API_METRIC, {
+    const eventData = {
       name: method,
-      time: time,
-      dimensions: [
-        {
-          name: "Category",
-          value: "API"
-        }
-      ],
+      time,
       error: err
+    };
+    const statusCode = err && err.statusCode || 200;
+    const retryStatus = err && err.retryStatus || connect.RetryStatus.NONE;
+    const dimensions = [
+      { name: 'Category', value: 'API' },
+      { name: 'HttpStatusCode', value: statusCode },
+      { name: 'HttpGenericStatusCode', value: `${statusCode.toString().charAt(0)}XX` },
+      { name: 'RetryStatus', value: retryStatus },
+    ];
+    
+    this.conduit.sendDownstream(connect.EventType.API_METRIC, {
+        ...eventData,
+        dimensions,
     });
   };
 
@@ -320,7 +328,8 @@
 
   ClientEngine.prototype.pollForAgent = function () {
     var self = this;
-    var onAuthFail = connect.hitch(self, self.handleAuthFail);
+    var onAuthFail = connect.hitch(self, self.handlePollingAuthFail);
+
 
     this.client.call(connect.ClientMethods.GET_AGENT_SNAPSHOT, {
       nextToken: self.nextToken,
@@ -371,7 +380,7 @@
   ClientEngine.prototype.pollForAgentConfiguration = function (paramsIn) {
     var self = this;
     var params = paramsIn || {};
-    var onAuthFail = connect.hitch(self, self.handleAuthFail);
+    var onAuthFail = connect.hitch(self, self.handlePollingAuthFail);
 
     this.client.call(connect.ClientMethods.GET_AGENT_CONFIGURATION, {}, {
       success: function (data) {
@@ -438,7 +447,7 @@
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -474,7 +483,7 @@
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -509,7 +518,7 @@
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -545,7 +554,7 @@
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -808,6 +817,11 @@
       self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
     }
   };
+
+  ClientEngine.prototype.handlePollingAuthFail = function () {
+    var self = this;
+    self.conduit.sendDownstream(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED);
+  }
 
   ClientEngine.prototype.handleAccessDenied = function () {
     var self = this;

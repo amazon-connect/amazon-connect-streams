@@ -25286,6 +25286,38 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    ]);
 
    /**---------------------------------------------------------------
+    * client methods that are retryable
+    */
+
+   connect.RetryableClientMethodsList = [
+      connect.ClientMethods.GET_AGENT_SNAPSHOT,
+      connect.ClientMethods.GET_AGENT_CONFIGURATION,
+      connect.ClientMethods.GET_AGENT_PERMISSIONS,
+      connect.ClientMethods.GET_AGENT_STATES,
+      connect.ClientMethods.GET_DIALABLE_COUNTRY_CODES,
+      connect.ClientMethods.GET_ROUTING_PROFILE_QUEUES,
+   ];
+
+    /**---------------------------------------------------------------
+    * retry error types
+    */
+
+   connect.RetryableErrors = connect.makeEnum([
+      'unauthorized',
+      'accessDenied'
+   ]);
+
+   /**---------------------------------------------------------------
+    * retryStatus
+    */
+
+       connect.RetryStatus = connect.makeEnum([
+         'retrying',
+         'exhausted',
+         'none'
+      ]);
+
+   /**---------------------------------------------------------------
     * abstract class ClientBase
     */
    var ClientBase = function() {};
@@ -25451,12 +25483,14 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       );
       var endpoint = new AWS.Endpoint(endpointUrl);
       this.client = new AWS.Connect({endpoint: endpoint});
+
+      this.unauthorizedFailCounter = 0;
+      this.accessDeniedFailCounter = 0;
    };
    AWSClient.prototype = Object.create(ClientBase.prototype);
    AWSClient.prototype.constructor = AWSClient;
 
    AWSClient.prototype._callImpl = function(method, params, callbacks) {
-
       var self = this;
       var log = connect.getLog();
 
@@ -25467,7 +25501,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       } else {
          params = this._translateParams(method, params);
 
-         log.trace("AWSClient: --> Calling operation '%s'", method).sendInternalLogToServer();
+         log.trace("AWSClient: --> Calling operation '%s'", method)
+            .sendInternalLogToServer();
 
          this.client[method](params)
             .on('build', function(request) {
@@ -25476,37 +25511,20 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             .send(function(err, data) {
                try {
                   if (err) {
-                     if (err.code === connect.CTIExceptions.UNAUTHORIZED_EXCEPTION) {
-                        callbacks.authFailure();
-                     } else if (callbacks.accessDenied && (err.code === connect.CTIExceptions.ACCESS_DENIED_EXCEPTION || err.statusCode === 403)) {
-                        callbacks.accessDenied();
+                     if (err.code === connect.CTIExceptions.UNAUTHORIZED_EXCEPTION || err.statusCode === 401) {
+                        self._retryMethod(method, callbacks, err, data, connect.RetryableErrors.UNAUTHORIZED);
+                     } else if (err.code === connect.CTIExceptions.ACCESS_DENIED_EXCEPTION || err.statusCode === 403) {
+                        self._retryMethod(method, callbacks, err, data, connect.RetryableErrors.ACCESS_DENIED);
                      } else {
-                        // Can't pass err directly to postMessage
-                        // postMessage() tries to clone the err object and failed.
-                        // Refer to https://github.com/goatslacker/alt-devtool/issues/5
-                        var error = {};
-                        error.type = err.code;
-                        error.message = err.message;
-                        error.stack = [];
-                        if (err.stack){
-                           try {
-                               if (Array.isArray(err.stack)) {
-                                   error.stack = err.stack;
-                               } else if (typeof err.stack === 'object') {
-                                   error.stack = [JSON.stringify(err.stack)];
-                               } else if (typeof err.stack === 'string') {
-                                   error.stack = err.stack.split('\n');
-                               }
-                           } catch {}
-                        }
-                        
-                        callbacks.failure(error, data);
+                        self.unauthorizedFailCounter = 0;
+                        self.accessDeniedFailCounter = 0;
+                        callbacks.failure(self._formatCallError(self._addStatusCodeToError(err)), data);
                      }
-
                      log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err)).sendInternalLogToServer();
-
                   } else {
                      log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data).sendInternalLogToServer();
+                     self.unauthorizedFailCounter = 0;
+                     self.accessDeniedFailCounter = 0;
                      callbacks.success(data);
                   }
                } catch (e) {
@@ -25516,6 +25534,126 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             });
       }
    };
+
+   AWSClient.prototype._isRetryableMethod = function(method) {
+      return connect.RetryableClientMethodsList.includes(method);
+   }
+
+   AWSClient.prototype._retryMethod = function(method, callbacks, err, data, retryableError) {      
+      var self = this;
+      var log = connect.getLog();
+      const formatRetryError = (err) => self._formatCallError(self._addStatusCodeToError(err));
+      let retryParams = {
+         maxCount: connect.core.MAX_UNAUTHORIZED_RETRY_COUNT,
+         failCounter: self.unauthorizedFailCounter,
+         increaseCounter: () => self.unauthorizedFailCounter += 1,
+         resetCounter: () => self.unauthorizedFailCounter = 0,
+         errorMessage: 'unauthorized',
+         exhaustedRetries: self.unauthorizedFailCounter >= connect.core.MAX_UNAUTHORIZED_RETRY_COUNT,
+         retryCallback: (err, data) => callbacks.failure(formatRetryError(err), data),
+         defaultCallback: (err, data) => callbacks.authFailure(formatRetryError(err), data),
+      };
+      switch(retryableError) {
+         case connect.RetryableErrors.UNAUTHORIZED:
+            break;
+         case connect.RetryableErrors.ACCESS_DENIED:
+            retryParams = {
+               ...retryParams,
+               maxCount: connect.core.MAX_ACCESS_DENIED_RETRY_COUNT,
+               failCounter: self.accessDeniedFailCounter,
+               increaseCounter: () => self.accessDeniedFailCounter += 1,
+               resetCounter: () => self.accessDeniedFailCounter = 0,
+               errorMessage: 'access denied',
+               exhaustedRetries: self.accessDeniedFailCounter >= connect.core.MAX_ACCESS_DENIED_RETRY_COUNT,
+               defaultCallback: (err, data) => callbacks.accessDenied(formatRetryError(err), data),
+            };
+            break;
+      }
+
+      let errWithRetry = { 
+         ...err,
+         retryStatus: connect.RetryStatus.NONE,
+      };
+      if(self._isRetryableMethod(method)) {
+         if(retryParams.exhaustedRetries) {
+            log.trace(`AWSClient: <-- Operation ${method} exhausted max ${retryParams.maxCount} number of retries for ${retryParams.errorMessage} error`)
+               .sendInternalLogToServer();
+
+            retryParams.resetCounter();
+
+            errWithRetry = { 
+               ...errWithRetry,
+               retryStatus: connect.RetryStatus.EXHAUSTED,
+            };             
+         } else {
+            log.trace(`AWSClient: <-- Operation ${method} failed with ${retryParams.errorMessage} error. Retrying call for a ${retryParams.failCounter + 1} time`)
+               .sendInternalLogToServer();            
+
+            retryParams.increaseCounter();
+
+            errWithRetry = { 
+               ...errWithRetry, 
+               retryStatus: connect.RetryStatus.RETRYING,
+            };            
+            retryParams.retryCallback(errWithRetry, data);
+            return;           
+         }
+      } else {
+         log.trace(`AWSClient: <-- Operation ${method} failed: ${JSON.stringify(err)}`).sendInternalLogToServer();
+      }
+
+      retryParams.defaultCallback(errWithRetry, data);
+      return;
+   }
+
+   // Can't pass err directly to postMessage
+   // postMessage() tries to clone the err object and failed.
+   // Refer to https://github.com/goatslacker/alt-devtool/issues/5
+   AWSClient.prototype._formatCallError = function(err) {
+      const error = {
+         type: err.code,
+         message: err.message,
+         stack: [],
+         retryStatus: err.retryStatus || connect.RetryStatus.NONE,
+         ...(err.statusCode && { statusCode: err.statusCode }),
+      };
+      if (err.stack) {
+         try {
+             if (Array.isArray(err.stack)) {
+                 error.stack = err.stack;
+             } else if (typeof err.stack === 'object') {
+                 error.stack = [JSON.stringify(err.stack)];
+             } else if (typeof err.stack === 'string') {
+                 error.stack = err.stack.split('\n');
+             }
+         } finally {}
+      }
+
+      return error;
+   }
+
+   AWSClient.prototype._addStatusCodeToError = function(err) {
+      if(err.statusCode) return err;
+
+      const error = {...err};
+
+      if(!err.code) {
+         error.statusCode = 400;
+      } else {
+      
+         // TODO: add more here
+         switch(error.code) {
+            case connect.CTIExceptions.UNAUTHORIZED_EXCEPTION:
+               error.statusCode = 401;
+               break;
+            case connect.CTIExceptions.ACCESS_DENIED_EXCEPTION:
+               error.statusCode = 403
+               break;
+         }
+      }
+
+      return error;
+   }
 
    AWSClient.prototype._requiresAuthenticationParam = function (method) {
       return method !== connect.ClientMethods.COMPLETE_CONTACT &&
@@ -25768,7 +25906,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   connect.core.ctiAuthRetryCount = 0;
   connect.core.authorizeTimeoutId = null;
   connect.core.ctiTimeoutId = null;
-
+  // getSnapshot retries every 5 seconds on failure
+  // this max retry value will issues retries within a 2 minute window
+  connect.core.MAX_UNAUTHORIZED_RETRY_COUNT = 20;
+  // access denied
+  connect.core.MAX_ACCESS_DENIED_RETRY_COUNT = 10;
+  
   /*----------------------------------------------------------------
    * enum SessionStorageKeys
    */
@@ -26460,7 +26603,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     var authorizeEndpoint = params.authorizeEndpoint;
     if (!authorizeEndpoint) {
       authorizeEndpoint = connect.core.isLegacyDomain()
-        ? LEGACY_AUTHORIZE_ENDPOINT
+        ? LEGACY_AUTHORIZE_ENDPOINT 
         : AUTHORIZE_ENDPOINT;
     }
     var agentAppEndpoint = params.agentAppEndpoint || null;
@@ -31988,11 +32131,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
           self._recordAPILatency(method, request_start, error);
           callbacks.failure(error, data);
         },
-        authFailure: function () {
-          self._recordAPILatency(method, request_start);
+        authFailure: function (error, data) {
+          self._recordAPILatency(method, request_start, error);
           callbacks.authFailure();
         },
-        accessDenied: function () {
+        accessDenied: function (error, data) {
+          self._recordAPILatency(method, request_start, error);
           callbacks.accessDenied && callbacks.accessDenied();
         }
       });
@@ -32007,16 +32151,23 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   };
 
   WorkerClient.prototype._sendAPIMetrics = function (method, time, err) {
-    this.conduit.sendDownstream(connect.EventType.API_METRIC, {
+    const eventData = {
       name: method,
-      time: time,
-      dimensions: [
-        {
-          name: "Category",
-          value: "API"
-        }
-      ],
+      time,
       error: err
+    };
+    const statusCode = err && err.statusCode || 200;
+    const retryStatus = err && err.retryStatus || connect.RetryStatus.NONE;
+    const dimensions = [
+      { name: 'Category', value: 'API' },
+      { name: 'HttpStatusCode', value: statusCode },
+      { name: 'HttpGenericStatusCode', value: `${statusCode.toString().charAt(0)}XX` },
+      { name: 'RetryStatus', value: retryStatus },
+    ];
+    
+    this.conduit.sendDownstream(connect.EventType.API_METRIC, {
+        ...eventData,
+        dimensions,
     });
   };
 
@@ -32214,7 +32365,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   ClientEngine.prototype.pollForAgent = function () {
     var self = this;
-    var onAuthFail = connect.hitch(self, self.handleAuthFail);
+    var onAuthFail = connect.hitch(self, self.handlePollingAuthFail);
+
 
     this.client.call(connect.ClientMethods.GET_AGENT_SNAPSHOT, {
       nextToken: self.nextToken,
@@ -32265,7 +32417,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   ClientEngine.prototype.pollForAgentConfiguration = function (paramsIn) {
     var self = this;
     var params = paramsIn || {};
-    var onAuthFail = connect.hitch(self, self.handleAuthFail);
+    var onAuthFail = connect.hitch(self, self.handlePollingAuthFail);
 
     this.client.call(connect.ClientMethods.GET_AGENT_CONFIGURATION, {}, {
       success: function (data) {
@@ -32332,7 +32484,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -32368,7 +32520,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -32403,7 +32555,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -32439,7 +32591,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -32702,6 +32854,11 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
     }
   };
+
+  ClientEngine.prototype.handlePollingAuthFail = function () {
+    var self = this;
+    self.conduit.sendDownstream(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED);
+  }
 
   ClientEngine.prototype.handleAccessDenied = function () {
     var self = this;

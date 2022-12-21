@@ -52,7 +52,12 @@
   connect.core.ctiAuthRetryCount = 0;
   connect.core.authorizeTimeoutId = null;
   connect.core.ctiTimeoutId = null;
-
+  // getSnapshot retries every 5 seconds on failure
+  // this max retry value will issues retries within a 2 minute window
+  connect.core.MAX_UNAUTHORIZED_RETRY_COUNT = 20;
+  // access denied
+  connect.core.MAX_ACCESS_DENIED_RETRY_COUNT = 10;
+  
   /*----------------------------------------------------------------
    * enum SessionStorageKeys
    */
@@ -744,7 +749,7 @@
     var authorizeEndpoint = params.authorizeEndpoint;
     if (!authorizeEndpoint) {
       authorizeEndpoint = connect.core.isLegacyDomain()
-        ? LEGACY_AUTHORIZE_ENDPOINT
+        ? LEGACY_AUTHORIZE_ENDPOINT 
         : AUTHORIZE_ENDPOINT;
     }
     var agentAppEndpoint = params.agentAppEndpoint || null;
