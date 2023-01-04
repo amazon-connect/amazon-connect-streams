@@ -60,10 +60,10 @@ describe('Logger', function() {
                 "DomainId":"XKkbTGuCuCnYgOD1iPHzPv"
             };
             var expectedObj = [{
-                "customerId":"86afb5d2f86f0ddbe298a8dd895bf5aa",
-                "CustomerId":"a80f842e82ba7031ae6e22d939b179cf",
-                "SpeakerId":"7e7d858bbf580fdaba583bfb0bf4a118",
-                "CustomerSpeakerId":"82d1d42ff66faf8403e8eda577bb9e10",
+                "customerId":"[obfuscated value] 86afb5d2f86f0ddbe298a8dd895bf5aa",
+                "CustomerId":"[obfuscated value] a80f842e82ba7031ae6e22d939b179cf",
+                "SpeakerId":"[obfuscated value] 7e7d858bbf580fdaba583bfb0bf4a118",
+                "CustomerSpeakerId":"[obfuscated value] 82d1d42ff66faf8403e8eda577bb9e10",
                 "DomainId":"XKkbTGuCuCnYgOD1iPHzPv"
             }];
             var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);

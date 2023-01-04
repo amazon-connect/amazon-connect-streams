@@ -18,6 +18,9 @@
   // The default log roll interval (30min)
   var DEFAULT_LOG_ROLL_INTERVAL = 1800000;
 
+  // Prefix to be added to values obfuscated using MD5 digest.
+  var OBFUSCATED_PREFIX = "[obfuscated value]"
+
   /**
    * An enumeration of common logging levels.
    */
@@ -169,7 +172,7 @@
           } else if (["quickConnectName"].includes(key)) {
             data[key] = "[redacted]";
           } else if (["customerId", "CustomerId", "SpeakerId", "CustomerSpeakerId"].includes(key)) {
-            data[key] = md5(data[key]);
+            data[key] = `${OBFUSCATED_PREFIX} ${md5(data[key])}`;
           }
         }
       });
