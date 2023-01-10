@@ -70,7 +70,7 @@ To allowlist your pages:
 1. Login to your AWS Account, then navigate to the Amazon Connect console.
 2. Choose the instance alias of the instance to allowlist
    pages for to load the settings Overview page for your instance.
-3. Choose "Application integration" link on the left.
+3. In the navigation pane, choose "Approved origins".
 4. Choose "+ Add Origin", then enter a domain URL, e.g.
    "https<nolink>://example.com", or "https<nolink>://example.com:9595" if your
    website is hosted on a non-standard port.
@@ -242,7 +242,7 @@ and made available to your JS client code.
    has completed. If the login page opened in a new tab, this parameter will also auto-close that
    tab. This can also be set in `loginOptions` if those options are used.
 * `loginUrl`: Optional. Allows custom URL to be used to initiate the ccp, as in
-  the case of SAML authentication.
+  the case of SAML authentication. [See more information](#saml-authentication)
 * `softphone`: This object is optional and allows you to specify some settings
   surrounding the softphone feature of Connect.
   * `allowFramedSoftphone`: Normally, the softphone microphone and speaker
@@ -477,6 +477,15 @@ Subscribes a callback that executes when the CCP initialization is completed.
 Returns a promise that is resolved with the list of media devices from iframe. 
 Timeout for the request can be passed as an optional argument. The default timeout is 1000ms.
 The API should be called after the iframe CCP initialization is complete.
+
+## SAML Authentication
+Streams support Security Assertion Markup Language (SAML) 2.0 to enable single sign-on (SSO) which will allow users to sign in through a SAML 2.0 compatible identity provider (IdP) and gain access to the instance without having to provide separate credentials.
+### Using SAML with Streams
+Going through the basic use case: Customers should be logging in through their IdP by opening a popout window/tab to start the SSO flow. Inside the [`initCCP`](#initialization) function, there are certain optional parameters to take note of which will be useful in setting up SAML. The first will be `loginUrl`, which allows users to link their IdP with Streams. Other optional parameters include `loginPopup`(by default is `true`) and `loginOptions`(only used when `loginPopup` is `true`) which handles the configuration of the popup window for login. When configured correctly, Streams should open up a new window/tab with the login URL provided when authentication is needed, and in the background, a hidden CCP iFrame (built in with streams) will refresh every five seconds until the customer's authentication credentials have been verified. For CCP to load successfully, the SAML federation must be completed successfully along with CCP's initialization execution flow.
+### SSO with a hidden iFrame
+As mentioned above, Streams is currently built with full support for those who perform the SSO flow in a pop out window/tab. For users who would like to perform SSO in an hidden iframe within the same window, please be aware that the IdP may contain a same-origin-policy which can prevent the interactions between the user's domain and IdP. Users will then have to perform the SSO flow by going through the method mentioned above, or delegating the iframe to SSO.
+
+**Note**: For users who want to remove the SSO hidden iframe, please wait until CCP's initialization and SAML flow execution are executed successfully. From the function `connect.core.onInitialized(callback)`, mentioned above, you can add a callback function after CCP initialization execution is complete, Other functions that may be helpful to help monitor the authentication flow are `connect.core.onAuthFail(callback)`(allows users to subscribe a callback function when authentication fails), and `connect.core.onAuthorizeRetriesExhausted(callback)`(subscribes a callback function when multiple agent authorization api failures have happened)
 
 ## Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
