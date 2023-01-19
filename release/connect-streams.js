@@ -32159,10 +32159,14 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       time,
       error: err
     };
-    const statusCode = err && err.statusCode || 200;
-    const retryStatus = err && err.retryStatus || connect.RetryStatus.NONE;
+
     const dimensions = [
       { name: 'Category', value: 'API' },
+    ];
+
+    const statusCode = err && err.statusCode || 200;
+    const retryStatus = err && err.retryStatus || connect.RetryStatus.NONE;
+    const optionalDimensions = [
       { name: 'HttpStatusCode', value: statusCode },
       { name: 'HttpGenericStatusCode', value: `${statusCode.toString().charAt(0)}XX` },
       { name: 'RetryStatus', value: retryStatus },
@@ -32171,6 +32175,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     this.conduit.sendDownstream(connect.EventType.API_METRIC, {
         ...eventData,
         dimensions,
+        optionalDimensions,
     });
   };
 

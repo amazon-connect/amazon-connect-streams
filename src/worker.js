@@ -119,10 +119,14 @@
       time,
       error: err
     };
-    const statusCode = err && err.statusCode || 200;
-    const retryStatus = err && err.retryStatus || connect.RetryStatus.NONE;
+
     const dimensions = [
       { name: 'Category', value: 'API' },
+    ];
+
+    const statusCode = err && err.statusCode || 200;
+    const retryStatus = err && err.retryStatus || connect.RetryStatus.NONE;
+    const optionalDimensions = [
       { name: 'HttpStatusCode', value: statusCode },
       { name: 'HttpGenericStatusCode', value: `${statusCode.toString().charAt(0)}XX` },
       { name: 'RetryStatus', value: retryStatus },
@@ -131,6 +135,7 @@
     this.conduit.sendDownstream(connect.EventType.API_METRIC, {
         ...eventData,
         dimensions,
+        optionalDimensions,
     });
   };
 

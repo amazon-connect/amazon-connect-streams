@@ -298,6 +298,8 @@ describe('Worker', function () {
               name: 'Category',
               value: 'API',
             },
+          ],
+          optionalDimensions: [
             {
               name: 'HttpStatusCode',
               value: successStatusCode,
@@ -309,8 +311,8 @@ describe('Worker', function () {
             {
               name: 'RetryStatus',
               value: connect.RetryStatus.NONE,
-            }       
-          ],
+            },
+          ]
         };
         connect.worker.clientEngine.client._sendAPIMetrics(method, time, error);
 
@@ -342,6 +344,8 @@ describe('Worker', function () {
               name: 'Category',
               value: 'API',
             },
+          ], 
+          optionalDimensions: [
             {
               name: 'HttpStatusCode',
               value: statusCode,
