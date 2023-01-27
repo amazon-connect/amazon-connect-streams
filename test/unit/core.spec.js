@@ -1,6 +1,5 @@
 const { assert, expect } = require("chai");
 require("../unit/test-setup.js");
-const SAMPLE_CONFIGURATION = require("./sample-configuration.js");
 
 describe('Core', function () {
     var sandbox = sinon.createSandbox();
@@ -1310,8 +1309,7 @@ describe('Core', function () {
         }
         function createAgentSnapshotState(type, name) {
             return {
-                snapshot: { state: createState(type, name) },
-                configuration: SAMPLE_CONFIGURATION.baseConfig
+                snapshot: { state: createState(type, name) }
             }; 
         }
 
@@ -1371,12 +1369,6 @@ describe('Core', function () {
             connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, agentSnapshotWithNextState);
             assert.isTrue(enqueuedNextState);
             assert.isTrue(connect.core.getEventBus().trigger.calledWith(connect.AgentEvents.ENQUEUED_NEXT_STATE));
-        });
-
-        it('should provide the deep copy of agent data to consumers, which prevents the original data from being mutated', () => {
-            const expectedStateName = connect.core.agentDataProvider.getAgentData().configuration.agentStates[0].name; // the name before overwriting
-            connect.core.agentDataProvider.getAgentData().configuration.agentStates[0].name = 'overwritten'; // overwrite with an invalid value
-            expect(connect.core.agentDataProvider.getAgentData().configuration.agentStates[0].name).to.equal(expectedStateName);
         });
     });
 

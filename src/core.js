@@ -1402,7 +1402,7 @@
       throw new connect.StateError('No agent data is available yet!');
     }
  
-    return connect.deepcopy(this.agentData);
+    return this.agentData;
   };
  
   AgentDataProvider.prototype.getContactData = function (contactId) {
