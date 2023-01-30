@@ -373,7 +373,7 @@
   };
 
   connect.deepcopy = function (src) {
-    return _cloneDeep(src);
+    return JSON.parse(JSON.stringify(src));
   };
 
   connect.deepcopyCrossOriginEvent = function(event) {
@@ -381,9 +381,7 @@
     const listOfAcceptableKeys = COPYABLE_EVENT_FIELDS;
     listOfAcceptableKeys.forEach((key) => {
       try {
-        if (event[key] !== undefined) {
-          obj[key] = event[key];
-        }
+        obj[key] = event[key];
       }
       catch(e) {
         connect.getLog().info("deepcopyCrossOriginEvent failed on key: ", key).sendInternalLogToServer();
