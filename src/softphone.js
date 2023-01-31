@@ -279,6 +279,13 @@
       }
     }
 
+    var onDestroyContact = function (agentConnectionId) {
+      // handle an edge case where a connecting contact gets cleared and the next agent snapshot doesn't contain the contact thus the onRefreshContact callback below can't properly clean up the stale session.
+      if (rtcSessions[agentConnectionId]) {
+        destroySession(agentConnectionId);
+      }
+    }
+
     var onRefreshContact = function (contact, agentConnectionId) {
       if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
         destroySession(agentConnectionId);
@@ -302,6 +309,9 @@
       if (!callsDetected[agentConnectionId]) {
         contact.onRefresh(function () {
           onRefreshContact(contact, agentConnectionId);
+        });
+        contact.onDestroy(function () {
+          onDestroyContact(agentConnectionId);
         });
       }
     };

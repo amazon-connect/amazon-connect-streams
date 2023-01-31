@@ -1145,7 +1145,17 @@
             callbacks.success(data);
           }
         },
-        failure: callbacks ? callbacks.failure : null
+        failure: function (err, data) {
+          connect.getLog().error("Accept Contact failed").sendInternalLogToServer()
+            .withException(err)
+            .withObject({
+              data
+            });
+          
+          if (callbacks && callbacks.failure) {
+            callbacks.failure(connect.ContactStateType.ERROR);
+          }
+        }
       });
   };
 
@@ -30130,6 +30140,13 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       }
     }
 
+    var onDestroyContact = function (agentConnectionId) {
+      // handle an edge case where a connecting contact gets cleared and the next agent snapshot doesn't contain the contact thus the onRefreshContact callback below can't properly clean up the stale session.
+      if (rtcSessions[agentConnectionId]) {
+        destroySession(agentConnectionId);
+      }
+    }
+
     var onRefreshContact = function (contact, agentConnectionId) {
       if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
         destroySession(agentConnectionId);
@@ -30153,6 +30170,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       if (!callsDetected[agentConnectionId]) {
         contact.onRefresh(function () {
           onRefreshContact(contact, agentConnectionId);
+        });
+        contact.onDestroy(function () {
+          onDestroyContact(agentConnectionId);
         });
       }
     };
