@@ -1260,12 +1260,6 @@
       ccpVersion: global.ccpVersion,
       report: report
     }, callbacks);
-
-    connect.publishSoftphoneReport({
-      contactId: this.getContactId(),
-      ccpVersion: global.ccpVersion,
-      report: report
-    });
   };
 
   Contact.prototype.conferenceConnections = function (callbacks) {
@@ -29889,6 +29883,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   var timeSeriesStreamStatsBuffer = [];
   var aggregatedUserAudioStats = {};
   var aggregatedRemoteAudioStats = {};
+  var LOW_AUDIO_LEVEL_THRESHOLD = 1;
+  var consecutiveNoAudioInputPackets = 0;
+  var consecutiveLowInputAudioLevel = 0;
+  var consecutiveNoAudioOutputPackets = 0;
+  var consecutiveLowOutputAudioLevel = 0;
+  var audioInputConnectedDurationSeconds = 0;
   var rtpStatsJob = null;
   var reportStatsJob = null;
   //Logger specific to softphone.
@@ -30540,6 +30540,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       setRemoteDescriptionFailure: report.setRemoteDescriptionFailure,
       softphoneStreamStatistics: report.streamStats
     };
+
     contact.sendSoftphoneReport(callReport, {
       success: function () {
         logger.info("sendSoftphoneReport success" + JSON.stringify(callReport))
@@ -30551,6 +30552,27 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
           .sendInternalLogToServer();
       }
     });
+
+    var telemetryCallReport = {
+      ...callReport,
+      iceConnectionsLost: report.iceConnectionsLost,
+      iceConnectionsFailed: report.iceConnectionsFailed || null,
+      connectionFailed: report.connectionFailed || null,
+      consecutiveNoAudioInputPackets: consecutiveNoAudioInputPackets,
+      consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
+      consecutiveNoAudioOutputPackets: consecutiveNoAudioOutputPackets,
+      consecutiveLowOutputAudioLevel: consecutiveLowOutputAudioLevel,
+      audioInputConnectedDurationSeconds: audioInputConnectedDurationSeconds
+    }
+
+    connect.publishSoftphoneReport({
+      contactId: contact.getContactId(),
+      ccpVersion: global.ccpVersion,
+      report: telemetryCallReport
+    });
+
+    logger.info("sent TelemetryCallReport " + JSON.stringify(telemetryCallReport))
+      .sendInternalLogToServer();
   };
 
   var startStatsCollectionJob = function (rtcSession) {
@@ -30584,12 +30606,20 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     timeSeriesStreamStatsBuffer = [];
     rtpStatsJob = null;
     reportStatsJob = null;
+    consecutiveNoAudioInputPackets = 0;
+    consecutiveLowInputAudioLevel = 0;
+    consecutiveNoAudioOutputPackets = 0;
+    consecutiveLowOutputAudioLevel = 0;
+    audioInputConnectedDurationSeconds = 0;
   };
 
   var getTimeSeriesStats = function (currentStats, previousStats, streamType) {
     if (previousStats && currentStats) {
       var packetsLost = currentStats.packetsLost > previousStats.packetsLost ? currentStats.packetsLost - previousStats.packetsLost : 0;
       var packetsCount = currentStats.packetsCount > previousStats.packetsCount ? currentStats.packetsCount - previousStats.packetsCount : 0;
+      checkConsecutiveNoPackets(packetsCount, streamType);
+      checkConsecutiveNoAudio(currentStats.audioLevel, streamType);
+
       return new RTPStreamStats(currentStats.timestamp,
         packetsLost,
         packetsCount,
@@ -30605,6 +30635,39 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         currentStats.audioLevel,
         currentStats.jbMilliseconds,
         currentStats.rttMilliseconds);
+    }
+  };
+
+  var checkConsecutiveNoPackets = function (packetsCount, streamType) {
+    if (streamType === AUDIO_INPUT) {
+      audioInputConnectedDurationSeconds++;
+      if (packetsCount <= 0){
+        consecutiveNoAudioInputPackets++;
+      } else {
+        consecutiveNoAudioInputPackets = 0;
+      }
+    } else if (streamType === AUDIO_OUTPUT){
+      if (packetsCount <= 0){
+        consecutiveNoAudioOutputPackets++;
+      } else {
+        consecutiveNoAudioOutputPackets = 0;
+      }
+    }
+  };
+
+  var checkConsecutiveNoAudio = function (audioLevel, streamType) {
+    if (streamType === AUDIO_INPUT) {
+      if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD){
+        consecutiveLowInputAudioLevel++;
+      } else{
+        consecutiveLowInputAudioLevel = 0;
+      }
+    } else if (streamType === AUDIO_OUTPUT){
+      if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD){
+        consecutiveLowOutputAudioLevel++;
+      } else{
+        consecutiveLowOutputAudioLevel = 0;
+      }
     }
   };
 
