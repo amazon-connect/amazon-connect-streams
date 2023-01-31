@@ -952,7 +952,17 @@
             callbacks.success(data);
           }
         },
-        failure: callbacks ? callbacks.failure : null
+        failure: function (err, data) {
+          connect.getLog().error("Accept Contact failed").sendInternalLogToServer()
+            .withException(err)
+            .withObject({
+              data
+            });
+          
+          if (callbacks && callbacks.failure) {
+            callbacks.failure(connect.ContactStateType.ERROR);
+          }
+        }
       });
   };
 
