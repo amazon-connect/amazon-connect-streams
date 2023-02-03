@@ -26704,7 +26704,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       connect.getLog().info("isCCPv2: " + true).sendInternalLogToServer();
       connect.getLog().info("isFramed: " + connect.isFramed()).sendInternalLogToServer();
       connect.core.upstream.onDownstream(connect.EventType.OUTER_CONTEXT_INFO, function (data) {
-        var streamsVersion = data.streamsVersion;
+        var streamsVersion = data.streamsVersion || null;
         connect.getLog().info("StreamsJS Version: " + streamsVersion).sendInternalLogToServer();
         connect.outerContextStreamsVersion = streamsVersion;
       });
