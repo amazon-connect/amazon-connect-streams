@@ -26,6 +26,12 @@
   var UNKNOWN_MEDIA_TYPE = "Unknown";
 
   var timeSeriesStreamStatsBuffer = [];
+
+  // We buffer only last 3 hours (10800 seconds) of a call's RTP stream stats.
+  var MAX_RTP_STREAM_STATS_BUFFER_SIZE = 10800;
+  var inputRTPStreamStatsBuffer = [];
+  var outputRTPStreamStatsBuffer = [];
+
   var aggregatedUserAudioStats = {};
   var aggregatedRemoteAudioStats = {};
   var LOW_AUDIO_LEVEL_THRESHOLD = 1;
@@ -698,8 +704,25 @@
       }
     });
 
+    var streamPerSecondStats = {
+      AUDIO_INPUT : {
+        packetsCount: inputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
+        packetsLost: inputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
+        audioLevel: inputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
+        jitterBufferMillis: inputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis)
+      },
+      AUDIO_OUTPUT : {
+        packetsCount: outputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
+        packetsLost: outputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
+        audioLevel: outputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
+        jitterBufferMillis: outputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis),
+        roundTripTimeMillis: outputRTPStreamStatsBuffer.map(stats => stats.roundTripTimeMillis)
+      }
+    }
+
     var telemetryCallReport = {
       ...callReport,
+      softphoneStreamPerSecondStatistics: streamPerSecondStats,
       iceConnectionsLost: report.iceConnectionsLost,
       iceConnectionsFailed: report.iceConnectionsFailed || null,
       connectionFailed: report.connectionFailed || null,
@@ -725,14 +748,18 @@
       rtcSession.getUserAudioStats().then(function (stats) {
         var previousUserStats = aggregatedUserAudioStats;
         aggregatedUserAudioStats = stats;
-        timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT));
+        var currRTPStreamStat = getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT);
+        timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
+        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat);
       }, function (error) {
         logger.debug("Failed to get user audio stats.", error).sendInternalLogToServer();
       });
       rtcSession.getRemoteAudioStats().then(function (stats) {
         var previousRemoteStats = aggregatedRemoteAudioStats;
         aggregatedRemoteAudioStats = stats;
-        timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT));
+        var currRTPStreamStat = getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT);
+        timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
+        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat);
       }, function (error) {
         logger.debug("Failed to get remote audio stats.", error).sendInternalLogToServer();
       });
@@ -749,6 +776,8 @@
     aggregatedUserAudioStats = null;
     aggregatedRemoteAudioStats = null;
     timeSeriesStreamStatsBuffer = [];
+    inputRTPStreamStatsBuffer = [];
+    outputRTPStreamStatsBuffer = [];
     rtpStatsJob = null;
     reportStatsJob = null;
     consecutiveNoAudioInputPackets = 0;
@@ -780,6 +809,20 @@
         currentStats.audioLevel,
         currentStats.jbMilliseconds,
         currentStats.rttMilliseconds);
+    }
+  };
+
+  var telemetryCallReportRTPStreamStatsBuffer = function (rtpStreamStats) {
+    if (rtpStreamStats.softphoneStreamType === AUDIO_INPUT) {
+      while (inputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
+        inputRTPStreamStatsBuffer.shift();
+      }
+      inputRTPStreamStatsBuffer.push(rtpStreamStats);
+    } else if (rtpStreamStats.softphoneStreamType === AUDIO_OUTPUT) {
+      while (outputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
+        outputRTPStreamStatsBuffer.shift();
+      }
+      outputRTPStreamStatsBuffer.push(rtpStreamStats);
     }
   };
 
