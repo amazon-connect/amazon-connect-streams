@@ -726,6 +726,7 @@
       iceConnectionsLost: report.iceConnectionsLost,
       iceConnectionsFailed: report.iceConnectionsFailed || null,
       connectionFailed: report.connectionFailed || null,
+      rtcJsVersion: report.rtcJsVersion || null,
       consecutiveNoAudioInputPackets: consecutiveNoAudioInputPackets,
       consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
       consecutiveNoAudioOutputPackets: consecutiveNoAudioOutputPackets,
