@@ -672,6 +672,17 @@ the following fields:
 * `type`: The agent state type represented as a `AgentStateType` enum value.
 * `name`: The name of the agent state to be displayed in the UI.
 
+### `agent.getAvailabilityState()`
+```js
+var agentState = agent.getAvailabilityState();
+```
+Unlike [`agent.getState()`](#agentgetstate--agentgetstatus) which could return a system defined state,
+this function will only return the agent's current user-changeable / definable state.
+The object will contain the following fields:
+
+* `state` The name of the agent state.
+* `timestamp`: A `Date` object that indicates when the agent was set to that state.
+
 ### `agent.getRoutingProfile()`
 ```js
 var routingProfile = agent.getRoutingProfile();
