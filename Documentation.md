@@ -622,6 +622,7 @@ This object contains the following fields:
 * `startTimestamp`: A `Date` object that indicates when the state was set.
 * `type`: The agent's current availability state type, as per the `AgentStateType` enumeration.
 
+This object may contain a state that was predefined by the system. Please see [`agent.getAvailabilityState()`](#agentgetavailabilitystate) to retrieve the agent's user-defined state.
 ### `agent.getStateDuration()` / `agent.getStatusDuration()`
 ```js
 var millis = agent.getStateDuration();
