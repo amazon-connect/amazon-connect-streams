@@ -678,7 +678,7 @@ the following fields:
 var agentState = agent.getAvailabilityState();
 ```
 Unlike [`agent.getState()`](#agentgetstate--agentgetstatus) which could return a system defined state,
-this function will only return the agent's current user-changeable / definable state.
+this function will only return the agent's current [user-changeable / definable state](https://docs.aws.amazon.com/connect/latest/adminguide/agent-custom.html).
 The object will contain the following fields:
 
 * `state` The name of the agent state.
