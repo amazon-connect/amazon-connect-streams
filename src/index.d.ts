@@ -583,6 +583,12 @@ declare namespace connect {
 
     /** Indicates the contact has ended. */
     ENDED = "ended",
+
+    /** Indicates the contact acw. */
+    ACW = "acw",
+
+    /** Indicates the contact has cleared. */
+    CLEARED = "cleared",
   }
 
   enum CONTACT_ACTIVE_STATES {
@@ -738,6 +744,20 @@ declare namespace connect {
      * @param callback A callback to receive the `Agent` API object instance.
      */
     onError(callback: AgentCallback): void;
+
+    /**
+     * Subscribe a method to be called when the agent is put into an error state specific to losing a WebSocket connection.
+     *
+     * @param callback A callback to receive the `Agent` API object instance.
+     */
+    onWebSocketConnectionLost(callback: AgentCallback): void;
+
+    /**
+     * Subscribe a method to be called when the agent gains a WebSocket connection.
+     *
+     * @param callback A callback to receive the `Agent` API object instance.
+     */
+    onWebSocketConnectionGained(callback: AgentCallback): void;
 
     /**
      * Subscribe a method to be called when the agent is put into an error state specific to softphone funcionality.
