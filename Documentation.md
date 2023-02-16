@@ -1997,7 +1997,7 @@ voiceConnection.deleteVoiceIdSpeaker()
 Updates the speaker ID of the customer with the provided string.
 
 ```js
-voiceConnection.deleteVoiceIdSpeaker()
+voiceConnection.updateVoiceIdSpeaker()
   .then(() => {
   })
   .catch((err) => {
