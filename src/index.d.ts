@@ -672,6 +672,14 @@ declare namespace connect {
     UNAUTHORIZED_EXCEPTION = "UnauthorizedException",
   }
 
+  enum MasterTopics {
+    LOGIN_POPUP = 'loginPopup',
+    SEND_LOGS = 'sendLogs',
+    SOFTPHONE = 'softphone',
+    RINGTONE = 'ringtone',
+    METRICS = 'metrics',
+  }
+
   /*
    * A callback to receive notifications of success or failure.
    */
