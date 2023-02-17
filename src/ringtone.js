@@ -47,13 +47,14 @@
       this._audio.play()
         .then(function() {
           self._publishTelemetryEvent("Ringtone Start", contact);
-          // Empty string as sinkId means audio gets sent to the default device
-          connect.getLog().info(`Ringtone Start: device ${this._audio.sinkId || "''"}`).sendInternalLogToServer();
+          connect.getLog().info("Ringtone Start").sendInternalLogToServer();
         })
         .catch(function(e) {
           self._publishTelemetryEvent("Ringtone Playback Failure", contact);
           connect.getLog().error("Ringtone Playback Failure").withException(e).withObject({currentSrc: self._audio.currentSrc, sinkId: self._audio.sinkId, volume: self._audio.volume}).sendInternalLogToServer();
         });
+      // Empty string as sinkId means audio gets sent to the default device
+      connect.getLog().info(`Attempting to start ringtone to device ${this._audio.sinkId || "''"}`).sendInternalLogToServer();
     }
   };
 
@@ -122,7 +123,7 @@
               return Promise.resolve(deviceId)
             }).catch(function(err) {
               // Empty string as sinkId means audio gets sent to the default device
-              return Promise.reject(`RingtoneEngineBase.setOutputDevice failed: audio.setSinkId() with deviceId ${deviceId || "''"} failed with error ${err}`)
+              return Promise.reject(`RingtoneEngineBase.setOutputDevice failed: audio.setSinkId() failed with error ${err}`)
             });
         } else {
           return Promise.reject(`RingtoneEngineBase.setOutputDevice failed: ${audio ? "audio" : "audio.setSinkId"} not found.`);

@@ -386,7 +386,7 @@
       return;
     } 
     var deviceId = data.deviceId;
-    for (var ringtoneType in connect.core.ringtoneEngines) {
+    for (let ringtoneType in connect.core.ringtoneEngines) {
       connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId)
         .then(function(res) {
           connect.getLog().info(`ringtoneType ${ringtoneType} successfully set to deviceid ${res}`).sendInternalLogToServer();
