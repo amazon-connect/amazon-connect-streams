@@ -387,7 +387,13 @@
     } 
     var deviceId = data.deviceId;
     for (var ringtoneType in connect.core.ringtoneEngines) {
-      connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId);
+      connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId)
+        .then(function(res) {
+          connect.getLog().info(`ringtoneType ${ringtoneType} successfully set to deviceid ${res}`).sendInternalLogToServer();
+        })
+        .catch(function(err) {
+          connect.getLog().error(err)
+        });
     }
 
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {

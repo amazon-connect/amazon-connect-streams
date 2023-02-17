@@ -26245,7 +26245,13 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     } 
     var deviceId = data.deviceId;
     for (var ringtoneType in connect.core.ringtoneEngines) {
-      connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId);
+      connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId)
+        .then(function(res) {
+          connect.getLog().info(`ringtoneType ${ringtoneType} successfully set to deviceid ${res}`).sendInternalLogToServer();
+        })
+        .catch(function(err) {
+          connect.getLog().error(err)
+        });
     }
 
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
@@ -29662,12 +29668,15 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     var self = this;
     if (this._audio) {
       this._audio.play()
+        .then(function() {
+          self._publishTelemetryEvent("Ringtone Start", contact);
+          // Empty string as sinkId means audio gets sent to the default device
+          connect.getLog().info(`Ringtone Start: device ${this._audio.sinkId || "''"}`).sendInternalLogToServer();
+        })
         .catch(function(e) {
           self._publishTelemetryEvent("Ringtone Playback Failure", contact);
           connect.getLog().error("Ringtone Playback Failure").withException(e).withObject({currentSrc: self._audio.currentSrc, sinkId: self._audio.sinkId, volume: self._audio.volume}).sendInternalLogToServer();
         });
-      self._publishTelemetryEvent("Ringtone Start", contact);
-      connect.getLog().info("Ringtone Start").sendInternalLogToServer();
     }
   };
 
@@ -29730,14 +29739,16 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         })
       ]);
       return playableAudioWithTimeout.then(function (audio) {
-        if (audio) {
-          if (audio.setSinkId) {
-            return Promise.resolve(audio.setSinkId(deviceId));
-          } else {
-            return Promise.reject("Not supported");
-          }
+        if (audio && audio.setSinkId) {
+          return audio.setSinkId(deviceId)
+            .then(function() {
+              return Promise.resolve(deviceId)
+            }).catch(function(err) {
+              // Empty string as sinkId means audio gets sent to the default device
+              return Promise.reject(`RingtoneEngineBase.setOutputDevice failed: audio.setSinkId() with deviceId ${deviceId || "''"} failed with error ${err}`)
+            });
         } else {
-          return Promise.reject("No audio found");
+          return Promise.reject(`RingtoneEngineBase.setOutputDevice failed: ${audio ? "audio" : "audio.setSinkId"} not found.`);
         }
       });
     }

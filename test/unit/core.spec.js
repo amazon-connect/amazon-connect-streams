@@ -874,8 +874,8 @@ describe('Core', function () {
         it("Doesn't store device ID if setRingerDevice is called with ringtone engines initialized", function () {
             connect.core.initRingtoneEngines({ ringtone: defaultRingtone });
             connect.core.ringtoneEngines = { chat: { setOutputDevice: () => {} }, voice: { setOutputDevice: () => {} }}
-            sandbox.stub(connect.core.ringtoneEngines.chat, "setOutputDevice");
-            sandbox.stub(connect.core.ringtoneEngines.voice, "setOutputDevice");
+            sandbox.stub(connect.core.ringtoneEngines.chat, "setOutputDevice").resolves(DEVICE_ID);
+            sandbox.stub(connect.core.ringtoneEngines.voice, "setOutputDevice").resolves(DEVICE_ID);
             connect.core.getEventBus().trigger(connect.ConfigurationEvents.SET_RINGER_DEVICE, {deviceId: DEVICE_ID});
             assert.equal(connect.core._ringerDeviceId, null);
             sandbox.assert.notCalled(connect.publishMetric);
