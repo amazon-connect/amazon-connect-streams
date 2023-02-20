@@ -958,6 +958,11 @@
             .withObject({
               data
             });
+
+          connect.publishMetric({
+            name: "ContactAcceptFailure",
+            data: { count: 1 }
+          })
           
           if (callbacks && callbacks.failure) {
             callbacks.failure(connect.ContactStateType.ERROR);
