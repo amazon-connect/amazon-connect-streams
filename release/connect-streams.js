@@ -1151,6 +1151,11 @@
             .withObject({
               data
             });
+
+          connect.publishMetric({
+            name: "ContactAcceptFailure",
+            data: { count: 1 }
+          })
           
           if (callbacks && callbacks.failure) {
             callbacks.failure(connect.ContactStateType.ERROR);
@@ -25970,40 +25975,69 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     }
   };
 
+
+  /**
+   * baseParamsStorage. Base class to store params of other modules in local storage
+   * Used mainly for cases where embedded CCP gets refreshed.
+   * (not appending to connect core namespace 
+   *  as we want to limit scope to use by internal functions for now)
+   * @returns {Object}
+  */
+  class BaseParamsStorage {
+    constructor(moduleName) {
+      this.key = `${moduleName}ParamsStorage::${global.location.origin}`;
+    }
+
+    get() {
+      try {
+        const item = global.localStorage.getItem(this.key);
+        return item && JSON.parse(item);
+      } catch (e) {
+        connect.getLog().error(`${this.key}:: Failed to get softphone params from local storage!`)
+          .withException(e).sendInternalLogToServer();
+      }
+      return null;
+    }
+
+    set(value) {
+      try {
+        value && global.localStorage.setItem(this.key, JSON.stringify(value));
+      } catch (e) {
+        connect.getLog().error(`${this.key}:: Failed to set softphone params to local storage!`)
+          .withException(e).sendInternalLogToServer();
+      }
+    }
+
+    clean() {
+      global.localStorage.removeItem(this.key);      
+    }
+  }
+
   /**
    * softphoneParamsStorage module to store necessary softphone params in local storage
    * Used mainly for cases where embedded CCP gets refreshed.
    * @returns {Object}
-   */
-
-  var softphoneParamsStorage = (function () {
-    let key = `SoftphoneParamsStorage::${global.location.origin}`;
-    return {
-      set: function (value) {
-        try {
-          value && global.localStorage.setItem(key, JSON.stringify(value));
-        } catch (e) {
-          connect.getLog().error("SoftphoneParamsStorage:: Failed to set softphone params to local storage!")
-            .withException(e).sendInternalLogToServer();
-        }
-      },
-
-      get: function () {
-        try {
-          let item = global.localStorage.getItem(key);
-          return item && JSON.parse(item);
-        } catch (e) {
-          connect.getLog().error("SoftphoneParamsStorage:: Failed to get softphone params from local storage!")
-            .withException(e).sendInternalLogToServer();
-        }
-        return null;
-      },
-
-      clean: function () {
-        global.localStorage.removeItem(key);
-      }
+  */
+  class SoftphoneParamsStorage extends BaseParamsStorage {
+    constructor() {
+      super('Softphone');
     }
-  })();
+  }
+
+  const softphoneParamsStorage = new SoftphoneParamsStorage();
+
+  /**
+   * ringtoneParamsStorage module to store necessary ringtone params in local storage
+   * Used mainly for cases where embedded CCP gets refreshed.
+   * @returns {Object}
+  */
+  class RingtoneParamsStorage extends BaseParamsStorage {
+    constructor() {
+      super('Ringtone');
+    }
+  }
+
+  const ringtoneParamsStorage = new RingtoneParamsStorage();
 
   /**-------------------------------------------------------------------------
   * Returns scheme://host:port for a given url
@@ -26109,6 +26143,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   };
 
   connect.core.initRingtoneEngines = function (params, _setRingerDevice) {
+    connect.getLog().info("[Ringtone Engine] initRingtoneEngine started").withObject({params}).sendInternalLogToServer();
     connect.assertNotNull(params, "params");
     const setRingerDeviceFunc = _setRingerDevice || setRingerDevice;
     var setupRingtoneEngines = function (ringtoneSettings) {
@@ -26207,18 +26242,58 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     // Merge params from params.softphone and params.chat into params.ringtone
     // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
- 
+
+    /**
+     * If the window is iFramed, then we need to wait for a CONFIGURE message
+     * from downstream, before we initialize the ringtone engine.
+     * All other use cases don't wait for the CONFIGURE message.
+     */
     if (connect.isFramed()) {
-      // If the CCP is in a frame, wait for configuration from downstream.
+      let configureMessageTimer;  // used for re-initializing the ringtone engine
       var bus = connect.core.getEventBus();
+
+      // CONFIGURE handler triggers ringtone engine initialization
+      // this event is propagated by initCCP call from the end customer
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
+        global.clearTimeout(configureMessageTimer); // we don't need to re-init ringtone engine as we recieved configure event
+        connect.getLog().info("[Ringtone Engine] Configure event handler executed").sendInternalLogToServer();
+        
         this.unsubscribe();
         // Merge all params from data into params for any overridden
         // values in either legacy "softphone" or "ringtone" settings.
         mergeParams(params, data);
+        
+        // overwrite/store ringtone params on a configure event
+        ringtoneParamsStorage.set(params.ringtone);
         setupRingtoneEngines(params.ringtone);
       });
- 
+
+      /**
+       * This is the case where CCP is just refreshed after it gets initialized via initCCP
+       * This snippet needs at least one initCCP invocation which sets the params to the store
+       * and waits for CCP to load succesfully to apply the same to setup ringtone engine
+       */
+      const ringtoneParamsFromLocalStorage = ringtoneParamsStorage.get();
+      if(ringtoneParamsFromLocalStorage) {
+        connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function(args) {
+          // only care about shared worker ACK which indicates CCP successfull load
+          const ackFromSharedWorker = args && args.id;
+          if(ackFromSharedWorker) {
+            connect.getLog().info("[RingtoneEngine] Embedded CCP is refreshed successfully and waiting for configure Message handler to execute").sendInternalLogToServer();
+            this.unsubscribe();
+            configureMessageTimer = global.setTimeout(() => {
+              connect.getLog().info("[RingtoneEngine] Embedded CCP is refreshed without configure message & Initializing setupRingtoneEngines (Ringtone Engine) from localStorage ringtone params. ")
+                .withObject({ringtone: ringtoneParamsFromLocalStorage})
+                .sendInternalLogToServer();
+              setupRingtoneEngines(ringtoneParamsFromLocalStorage);
+              
+              // 100 ms is from the time it takes to execute few lines of JS code to trigger the configure event (this is done in initCCP)
+              // which is in fraction of milisecond.  so to be on the safer side we are keeping it to be 100
+              // this number is pulled from performance.now() calculations.
+            }, 100);
+          }
+        });
+      }
     } else {
       setupRingtoneEngines(params.ringtone);
     }
@@ -26315,7 +26390,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
       /**
        * This is the case where CCP is just refreshed after it gets initilaized via initCCP
-       * This snippet needs atleast one initCCP invocation which sets the params to the store
+       * This snippet needs at least one initCCP invocation which sets the params to the store
        * and waits for CCP to load successfully to apply the same to init Softphone manager
        */
 
@@ -26828,9 +26903,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
 
-    // Clean up the Softphone params store to make sure we always pull the latest params
+    // Clean up the Softphone and Ringtone params store to make sure we always pull the latest params
     softphoneParamsStorage.clean();
- 
+    ringtoneParamsStorage.clean();
     // Create the CCP iframe and append it to the container div.
     var iframe = connect.core._createCCPIframe(containerDiv, params);
 

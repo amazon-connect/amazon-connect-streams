@@ -506,11 +506,11 @@ describe('Core', function () {
                 connect.publishMetric.restore();
             });
 
-            describe("Softphone manager - Embedded CCP is refreshed", () => {
-
-                let clock = sinon.useFakeTimers();
+            describe("A scenario where embedded CCP is refreshed", () => {
+                let clock;
 
                 before(() => {
+                    clock = sinon.useFakeTimers();
                     connect.core.getUpstream.restore();
 
                     sandbox.stub(connect.core, "getUpstream").returns({
@@ -534,6 +534,10 @@ describe('Core', function () {
                     global.localStorage.setItem.restore();
                     connect.isCCP.restore();
                     clock.restore();
+                });
+
+                after(() => {
+                    clock = undefined;
                 });
 
                 it("we should use stored softphone params for initilization in case if the configure message is not delivered", () => {
@@ -834,6 +838,119 @@ describe('Core', function () {
                 connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
                 connect.ifMaster.callArg(1);
                 sandbox.assert.calledWith(setRingerDeviceMock, { deviceId: DEVICE_ID });
+            });
+        });
+
+        describe('embedded CCP', () => {
+            let ringtoneParams;
+            let ringtoneParamsKey;
+            let stubbedGetItem;
+            let clock;
+            let defaultRingtones;
+
+            before(() => {
+                defaultRingtones = {
+                    voice: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+                    queue_callback: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+                    chat: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+                    task: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+                };
+                ringtoneParams =  { ringtone: defaultRingtones };
+                ringtoneParamsKey = `RingtoneParamsStorage::${global.location.origin}`;
+                clock = sinon.useFakeTimers();
+            });
+
+            beforeEach(() => {
+                sandbox.stub(connect.core, "getUpstream").returns({
+                    onUpstream: (event, fn) => {
+                        connect.core.eventBus.subscribe(event, fn);
+                    },
+                    upstreamBus: connect.core.eventBus,
+                    sendUpstream: sinon.stub()
+                });
+                sandbox.stub(connect, "VoiceRingtoneEngine");
+                sandbox.stub(connect, "QueueCallbackRingtoneEngine");
+                sandbox.stub(connect, "ChatRingtoneEngine");
+                sandbox.stub(connect, "TaskRingtoneEngine");                
+                sandbox.stub(connect, 'isFramed').returns(true);
+                stubbedGetItem = sandbox.stub(global.localStorage, "getItem");
+                sandbox.stub(global.localStorage, "setItem");
+                sandbox.stub(global.localStorage, "removeItem");
+                sandbox.stub(connect, 'ifMaster');
+            });
+
+            afterEach(() => {
+                sandbox.resetHistory();
+            });
+
+            after(() => {
+                clock = undefined;
+            });
+
+            it('Ringtone parameters are persisted in local storage for the first time when receiving CONFIGURE event', () => {
+                stubbedGetItem.returns(null);
+                connect.core.initRingtoneEngines(ringtoneParams);
+                connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, {});
+
+                sandbox.assert.calledWithExactly(global.localStorage.setItem, ringtoneParamsKey, JSON.stringify(defaultRingtones));
+            });
+
+            describe('when iFrame is refreshed', () => {
+                beforeEach(() => {
+                    stubbedGetItem.returns(JSON.stringify(defaultRingtones));
+                });
+
+                it('initializes ringtone engines, using stored ringtone params when CONFIGURE message is NOT delivered', () => {
+                    const notUsedRingtoneParams = { ringtone: {} };
+                    connect.core.initRingtoneEngines(notUsedRingtoneParams);
+                    connect.core.getEventBus().trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+                    clock.tick(110);
+                    connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                    connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                    connect.ifMaster.callArg(1);
+
+                    sandbox.assert.calledWithExactly(global.localStorage.getItem, ringtoneParamsKey);
+                    assert.isTrue(connect.VoiceRingtoneEngine.calledOnceWith(defaultRingtones.voice));
+                    assert.isTrue(connect.ChatRingtoneEngine.calledOnceWith(defaultRingtones.chat));
+                    assert.isTrue(connect.TaskRingtoneEngine.calledOnceWith(defaultRingtones.task));
+                    assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(defaultRingtones.queue_callback));
+                });
+
+                it('initializes ringtone engines WITHOUT using stored ringtone params when CONFIGURE message IS delivered', () => {
+                    const otherRingtoneUrl = 'some_other_ringtone_url';
+                    const usedRingtoneParams = {
+                        ringtone: {
+                            voice: { disabled: false, ringtoneUrl: otherRingtoneUrl },
+                            queue_callback: { disabled: false, ringtoneUrl: otherRingtoneUrl },
+                            chat: { disabled: false, ringtoneUrl: otherRingtoneUrl },
+                            task: { disabled: false, ringtoneUrl: otherRingtoneUrl },
+                        }
+                    }
+                    connect.core.initRingtoneEngines(usedRingtoneParams);
+                    connect.core.getEventBus().trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+                    clock.tick(99); // set to below 100 to NOT execute the setimeout handler
+                    // trigger configure
+                    connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, {});
+                    connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                    connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                    connect.ifMaster.callArg(1);
+
+                    sandbox.assert.calledWithExactly(global.localStorage.getItem, ringtoneParamsKey);
+                    assert.isTrue(connect.VoiceRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.voice));
+                    assert.isTrue(connect.ChatRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.chat));
+                    assert.isTrue(connect.TaskRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.task));
+                    assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
+                });
+            });
+            
+            it('Ringtone parameters should get cleaned up on every initCCP call', () => {
+                sandbox.stub(connect.core, "checkNotInitialized").returns(false);
+                let container = { appendChild: sandbox.spy() };
+                connect.core.initCCP(container, {
+                    ccpUrl: "ccpURL"
+                });
+                sandbox.assert.calledWithExactly(global.localStorage.removeItem, ringtoneParamsKey);
+                connect.core.checkNotInitialized.restore();
             });
         });
     });
@@ -1317,7 +1434,6 @@ describe('Core', function () {
         });
     });
 
-
     describe('verifyDomainAccess', function () {
 
         let isFramed = false;
@@ -1670,5 +1786,4 @@ describe('Core', function () {
         });
          
     });
-        
 });
