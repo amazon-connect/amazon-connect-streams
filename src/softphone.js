@@ -725,7 +725,7 @@
       softphoneStreamPerSecondStatistics: streamPerSecondStats,
       iceConnectionsLost: report.iceConnectionsLost,
       iceConnectionsFailed: report.iceConnectionsFailed || null,
-      connectionFailed: report.connectionFailed || null,
+      peerConnectionFailed: report.peerConnectionFailed || null,
       rtcJsVersion: report.rtcJsVersion || null,
       consecutiveNoAudioInputPackets: consecutiveNoAudioInputPackets,
       consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
