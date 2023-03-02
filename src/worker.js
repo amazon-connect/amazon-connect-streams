@@ -117,7 +117,8 @@
     const eventData = {
       name: method,
       time,
-      error: err
+      error: err,
+      error5xx: 0
     };
 
     const dimensions = [
@@ -131,6 +132,10 @@
       { name: 'HttpGenericStatusCode', value: `${statusCode.toString().charAt(0)}XX` },
       { name: 'RetryStatus', value: retryStatus },
     ];
+
+    if (statusCode.toString().charAt(0) === '5') {
+      eventData.error5xx = 1;
+    }
     
     this.conduit.sendDownstream(connect.EventType.API_METRIC, {
         ...eventData,

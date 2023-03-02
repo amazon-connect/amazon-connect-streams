@@ -30669,7 +30669,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       softphoneStreamPerSecondStatistics: streamPerSecondStats,
       iceConnectionsLost: report.iceConnectionsLost,
       iceConnectionsFailed: report.iceConnectionsFailed || null,
-      connectionFailed: report.connectionFailed || null,
+      peerConnectionFailed: report.peerConnectionFailed || null,
       rtcJsVersion: report.rtcJsVersion || null,
       consecutiveNoAudioInputPackets: consecutiveNoAudioInputPackets,
       consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
@@ -32373,7 +32373,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     const eventData = {
       name: method,
       time,
-      error: err
+      error: err,
+      error5xx: 0
     };
 
     const dimensions = [
@@ -32387,6 +32388,10 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       { name: 'HttpGenericStatusCode', value: `${statusCode.toString().charAt(0)}XX` },
       { name: 'RetryStatus', value: retryStatus },
     ];
+
+    if (statusCode.toString().charAt(0) === '5') {
+      eventData.error5xx = 1;
+    }
     
     this.conduit.sendDownstream(connect.EventType.API_METRIC, {
         ...eventData,
