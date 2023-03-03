@@ -405,8 +405,17 @@ declare namespace connect {
      */
     readonly iframeTitle?: string;
 
-    /** Allows you to configure which configuration sections are displayed in the settings tab.  **/
+    /** Allows you to configure which configuration sections are displayed in the settings tab. **/
     readonly pageOptions?: PageOptions;
+
+    /** A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its SYNCHRONIZE event emissions. These happen continuously from the first time initCCP is called. They should only appear when there is a problem that requires a refresh or a re-login */
+    readonly ccpAckTimeout?: number;
+
+    /** A timeout in ms that indicates how long streams will wait to send a new SYNCHRONIZE event to the iframed CCP. These happens continuously from the first time initCCP is called. */
+    readonly ccpSynTimeout?: number;
+
+    /** A timeout in ms that indicates how long streams will wait for the initial ACKNOWLEDGE event from the shared worker while the CCP is still standing itself up. */
+    readonly ccpLoadTimeout?: number;
   }
 
 
@@ -448,6 +457,15 @@ declare namespace connect {
 
     /** Allows you to configure which configuration sections are displayed in the settings tab. */
     readonly pageOptions?: PageOptions;
+
+    /** A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its SYNCHRONIZE event emissions. These happen continuously from the first time initCCP is called. They should only appear when there is a problem that requires a refresh or a re-login */
+    readonly ccpAckTimeout?: number;
+
+    /** A timeout in ms that indicates how long streams will wait to send a new SYNCHRONIZE event to the iframed CCP. These happens continuously from the first time initCCP is called. */
+    readonly ccpSynTimeout?: number;
+
+    /** A timeout in ms that indicates how long streams will wait for the initial ACKNOWLEDGE event from the shared worker while the CCP is still standing itself up. */
+    readonly ccpLoadTimeout?: number;
   }
 
   /** This enumeration lists the different types of agent states. */
