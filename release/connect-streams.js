@@ -30029,7 +30029,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     });
   };
 
-  var SoftphoneManager = function (softphoneParams) {
+  var SoftphoneManager = function (softphoneParams = {}) {
     var self = this;
     logger = new SoftphoneLogger(connect.getLog());
     logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
@@ -30070,7 +30070,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     
     const onMuteSub = handleSoftPhoneMuteToggle();
     const onSetSpeakerDeviceSub = handleSpeakerDeviceChange();
-    const onSetMicrophoneDeviceSub = handleMicrophoneDeviceChange();
+    const onSetMicrophoneDeviceSub = handleMicrophoneDeviceChange(!softphoneParams.disableEchoCancellation);
     monitorMicrophonePermission();
 
     this.ringtoneEngine = null;
@@ -30180,6 +30180,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         contact.getContactId(),
         agentConnectionId,
         webSocketProvider);
+
+      session.echoCancellation = !softphoneParams.disableEchoCancellation;
 
       rtcSessions[agentConnectionId] = session;
 
@@ -30346,9 +30348,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     return bus.subscribe(connect.ConfigurationEvents.SET_SPEAKER_DEVICE, setSpeakerDevice);
   }
 
-  var handleMicrophoneDeviceChange = function () {
+  var handleMicrophoneDeviceChange = function (enableEchoCancellation) {
     var bus = connect.core.getEventBus();
-    return bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, setMicrophoneDevice);
+    return bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, (data) => setMicrophoneDevice({ ...data, enableEchoCancellation }));
   }
 
   var monitorMicrophonePermission = function () {
@@ -30450,6 +30452,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   }
 
   var setMicrophoneDevice = function (data = {}) {
+    console.log('@@@ called!', data);
     const deviceId = data.deviceId || '';
     connect.getLog().info(`[Audio Device Settings] Attempting to set microphone device ${deviceId}`).sendInternalLogToServer();
 
@@ -30460,6 +30463,28 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     if (!deviceId) {
       connect.getLog().warn("[Audio Device Settings] Setting microphone device cancelled due to missing deviceId").sendInternalLogToServer();
       return;
+    }
+    var softphoneManager = connect.core.getSoftphoneManager();
+    var CONSTRAINT = { audio: { deviceId: { exact: deviceId } } };
+    if (!data.enableEchoCancellation) CONSTRAINT.audio.echoCancellation = false;
+    try {
+      navigator.mediaDevices.getUserMedia(CONSTRAINT)
+        .then(function (newMicrophoneStream) {
+          var newMicrophoneTrack = newMicrophoneStream.getAudioTracks()[0];
+          for (var connectionId in localMediaStream) {
+            if (localMediaStream.hasOwnProperty(connectionId)) {
+              var localMedia = localMediaStream[connectionId].stream;
+              var session = softphoneManager.getSession(connectionId);
+              //Replace the audio track in the RtcPeerConnection
+              session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
+                //Replace the audio track in the local media stream (for mute / unmute)
+                softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
+              });
+            }
+          }
+        });
+    } catch(e) {
+      logger.error("Failed to set microphone device " + deviceId);
     }
     
     var softphoneManager = connect.core.getSoftphoneManager();
