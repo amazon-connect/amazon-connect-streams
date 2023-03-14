@@ -26304,25 +26304,31 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     bus.subscribe(connect.ConfigurationEvents.SET_RINGER_DEVICE, setRingerDevice);
   }
 
-  var setRingerDevice = function (data) {
-    if (connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId) {
-      connect.getLog().info("setRingerDevice called before ringtone engine is initialized, or with untruthy device data").sendInternalLogToServer();
-      if (data && data.deviceId) {
-        connect.core._ringerDeviceId = data.deviceId;
-        connect.getLog().warn("stored device Id for later use, once ringtone engine is up.").sendInternalLogToServer();
+  var setRingerDevice = function (data = {}) {
+    const deviceId = data.deviceId || '';
+    connect.getLog().info(`[Audio Device Settings] Attempting to set ringer device ${deviceId}`).sendInternalLogToServer();
+
+    if (connect.keys(connect.core.ringtoneEngines).length === 0) {
+      connect.getLog().info("[Audio Device Settings] setRingerDevice called before ringtone engine is initialized").sendInternalLogToServer();
+      if (deviceId) {
+        connect.core._ringerDeviceId = deviceId;
+        connect.getLog().warn("[Audio Device Settings] stored device Id for later use, once ringtone engine is up.").sendInternalLogToServer();
         connect.publishMetric({
           name: CSM_SET_RINGER_DEVICE_BEFORE_INIT,
           data: { count: 1 }
-        })
-        return;
+        });
       }
       return;
-    } 
-    var deviceId = data.deviceId;
+    }
+    if (!deviceId) {
+      connect.getLog().warn("[Audio Device Settings] Setting ringer device cancelled due to missing deviceId").sendInternalLogToServer();
+      return;
+    }
+
     for (let ringtoneType in connect.core.ringtoneEngines) {
       connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId)
         .then(function(res) {
-          connect.getLog().info(`ringtoneType ${ringtoneType} successfully set to deviceid ${res}`).sendInternalLogToServer();
+          connect.getLog().info(`[Audio Device Settings] ringtoneType ${ringtoneType} successfully set to deviceid ${res}`).sendInternalLogToServer();
         })
         .catch(function(err) {
           connect.getLog().error(err)
@@ -30033,11 +30039,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         }),
         connect.hitch(self, publishError));
     }
-    if (!isBrowserSoftPhoneSupported()) {
+    if (!SoftphoneManager.isBrowserSoftPhoneSupported()) {
       publishError(SoftphoneErrorTypes.UNSUPPORTED_BROWSER,
         "Connect does not support this browser. Some functionality may not work. ",
         "");
     }
+
     var gumPromise = fetchUserMedia({
       success: function (stream) {
         publishTelemetryEvent("ConnectivityCheckResult", null, 
@@ -30056,17 +30063,15 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       }
     });
     
-    handleSoftPhoneMuteToggle();
-    handleSpeakerDeviceChange();
-    handleMicrophoneDeviceChange();
+    const onMuteSub = handleSoftPhoneMuteToggle();
+    const onSetSpeakerDeviceSub = handleSpeakerDeviceChange();
+    const onSetMicrophoneDeviceSub = handleMicrophoneDeviceChange();
     monitorMicrophonePermission();
 
     this.ringtoneEngine = null;
     var rtcSessions = {};
     // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
     var callsDetected = {};
-    this.onInitContactSub = {};
-    this.onInitContactSub.unsubscribe = function() {};
 
     // variables for firefox multitab
     var isSessionPending = false;
@@ -30282,6 +30287,20 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       onInitContact(contact);
       onRefreshContact(contact, agentConnectionId);
     });
+
+    this.terminate = () => {
+      self.onInitContactSub && self.onInitContactSub.unsubscribe && self.onInitContactSub.unsubscribe();
+      onMuteSub && onMuteSub.unsubscribe && onMuteSub.unsubscribe();
+      onSetSpeakerDeviceSub && onSetSpeakerDeviceSub.unsubscribe && onSetSpeakerDeviceSub.unsubscribe();
+      onSetMicrophoneDeviceSub && onSetMicrophoneDeviceSub.unsubscribe && onSetMicrophoneDeviceSub.unsubscribe();
+      if (rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId) {
+        // This method needs to be called when destroying the softphone manager instance. 
+        // Otherwise the refresh loop in rtcPeerConnectionFactory will keep spawning WebRTCConnections every 60 seconds
+        // and you will eventually get SoftphoneConnectionLimitBreachedException later.
+        rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
+      }
+      rtcPeerConnectionFactory = null;
+    };
   };
 
   var fireContactAcceptedEvent = function (contact) {
@@ -30314,17 +30333,17 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   // Bind events for mute
   var handleSoftPhoneMuteToggle = function () {
     var bus = connect.core.getEventBus();
-    bus.subscribe(connect.EventType.MUTE, muteToggle);
+    return bus.subscribe(connect.EventType.MUTE, muteToggle);
   };
 
   var handleSpeakerDeviceChange = function() {
     var bus = connect.core.getEventBus();
-    bus.subscribe(connect.ConfigurationEvents.SET_SPEAKER_DEVICE, setSpeakerDevice);
+    return bus.subscribe(connect.ConfigurationEvents.SET_SPEAKER_DEVICE, setSpeakerDevice);
   }
 
   var handleMicrophoneDeviceChange = function () {
     var bus = connect.core.getEventBus();
-    bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, setMicrophoneDevice);
+    return bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, setMicrophoneDevice);
   }
 
   var monitorMicrophonePermission = function () {
@@ -30401,57 +30420,70 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     });
   };
 
-  var setSpeakerDevice = function (data) {
-    if (connect.keys(localMediaStream).length === 0 || !data || !data.deviceId) {
+  var setSpeakerDevice = function (data = {}) {
+    const deviceId = data.deviceId || '';
+    connect.getLog().info(`[Audio Device Settings] Attempting to set speaker device ${deviceId}`).sendInternalLogToServer();
+
+    if (!deviceId) {
+      connect.getLog().warn("[Audio Device Settings] Setting speaker device cancelled due to missing deviceId").sendInternalLogToServer();
       return;
     }
-    var deviceId = data.deviceId;
-    var remoteAudioElement = document.getElementById('remote-audio');
-    try {
-      logger.info("Trying to set speaker to device " + deviceId);
-      if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
-        remoteAudioElement.setSinkId(deviceId);
-      }
-    } catch (e) {
-      logger.error("Failed to set speaker to device " + deviceId);
-    }
 
-    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
-      data: { deviceId: deviceId }
-    });
+    var remoteAudioElement = document.getElementById('remote-audio');
+    if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
+        remoteAudioElement.setSinkId(deviceId).then(() => {
+          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
+            data: { deviceId: deviceId }
+          });
+        }).catch((e) => {
+          connect.getLog().error("[Audio Device Settings] Failed to set speaker device " + deviceId).withException(e).sendInternalLogToServer()
+        });
+    } else {
+      connect.getLog().warn("[Audio Device Settings] Setting speaker device cancelled due to missing remoteAudioElement").sendInternalLogToServer();
+    }
   }
 
-  var setMicrophoneDevice = function (data) {
-    if (connect.keys(localMediaStream).length === 0  || !data || !data.deviceId) {
+  var setMicrophoneDevice = function (data = {}) {
+    const deviceId = data.deviceId || '';
+    connect.getLog().info(`[Audio Device Settings] Attempting to set microphone device ${deviceId}`).sendInternalLogToServer();
+
+    if (connect.keys(localMediaStream).length === 0) {
+      connect.getLog().warn("[Audio Device Settings] Setting microphone device cancelled due to missing localMediaStream").sendInternalLogToServer();
       return;
     }
-    var deviceId = data.deviceId;
-    var softphoneManager = connect.core.getSoftphoneManager();
-    try {
-      navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } })
-        .then(function (newMicrophoneStream) {
-          var newMicrophoneTrack = newMicrophoneStream.getAudioTracks()[0];
-          for (var connectionId in localMediaStream) {
-            if (localMediaStream.hasOwnProperty(connectionId)) {
-              var localMedia = localMediaStream[connectionId].stream;
-              var session = softphoneManager.getSession(connectionId);
-              //Replace the audio track in the RtcPeerConnection
-              session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
-                //Replace the audio track in the local media stream (for mute / unmute)
-                softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
-              });
-            }
-          }
-        });
-    } catch(e) {
-      logger.error("Failed to set microphone device " + deviceId);
+    if (!deviceId) {
+      connect.getLog().warn("[Audio Device Settings] Setting microphone device cancelled due to missing deviceId").sendInternalLogToServer();
+      return;
     }
-
-    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED,
-      data: { deviceId: deviceId }
-    });
+    
+    var softphoneManager = connect.core.getSoftphoneManager();
+     navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } })
+        .then((newMicrophoneStream) => {
+          try {
+            var newMicrophoneTrack = newMicrophoneStream.getAudioTracks()[0];
+            for (var connectionId in localMediaStream) {
+              if (localMediaStream.hasOwnProperty(connectionId)) {
+                var localMedia = localMediaStream[connectionId].stream;
+                var session = softphoneManager.getSession(connectionId);
+                //Replace the audio track in the RtcPeerConnection
+                session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
+                  //Replace the audio track in the local media stream (for mute / unmute)
+                  softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
+                });
+              }
+            }
+          } catch(e) {
+            connect.getLog().error("[Audio Device Settings] Failed to set microphone device " + deviceId).withException(e).sendInternalLogToServer();
+            return;
+          }
+          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED,
+            data: { deviceId: deviceId }
+          });
+        }).catch((e) => {
+          connect.getLog().error("[Audio Device Settings] Failed to set microphone device " + deviceId).withException(e).sendInternalLogToServer();
+        });
   }
 
   var publishSoftphoneFailureLogs = function (rtcSession, reason) {
@@ -30573,7 +30605,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       .sendInternalLogToServer();
   };
 
-  var isBrowserSoftPhoneSupported = function () {
+  SoftphoneManager.isBrowserSoftPhoneSupported = function () {
     // In Opera, the true version is after "Opera" or after "Version"
     if (connect.isOperaBrowser() && connect.getOperaBrowserVersion() > 17) {
       return true;

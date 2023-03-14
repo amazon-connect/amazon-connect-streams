@@ -441,25 +441,31 @@
     bus.subscribe(connect.ConfigurationEvents.SET_RINGER_DEVICE, setRingerDevice);
   }
 
-  var setRingerDevice = function (data) {
-    if (connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId) {
-      connect.getLog().info("setRingerDevice called before ringtone engine is initialized, or with untruthy device data").sendInternalLogToServer();
-      if (data && data.deviceId) {
-        connect.core._ringerDeviceId = data.deviceId;
-        connect.getLog().warn("stored device Id for later use, once ringtone engine is up.").sendInternalLogToServer();
+  var setRingerDevice = function (data = {}) {
+    const deviceId = data.deviceId || '';
+    connect.getLog().info(`[Audio Device Settings] Attempting to set ringer device ${deviceId}`).sendInternalLogToServer();
+
+    if (connect.keys(connect.core.ringtoneEngines).length === 0) {
+      connect.getLog().info("[Audio Device Settings] setRingerDevice called before ringtone engine is initialized").sendInternalLogToServer();
+      if (deviceId) {
+        connect.core._ringerDeviceId = deviceId;
+        connect.getLog().warn("[Audio Device Settings] stored device Id for later use, once ringtone engine is up.").sendInternalLogToServer();
         connect.publishMetric({
           name: CSM_SET_RINGER_DEVICE_BEFORE_INIT,
           data: { count: 1 }
-        })
-        return;
+        });
       }
       return;
-    } 
-    var deviceId = data.deviceId;
+    }
+    if (!deviceId) {
+      connect.getLog().warn("[Audio Device Settings] Setting ringer device cancelled due to missing deviceId").sendInternalLogToServer();
+      return;
+    }
+
     for (let ringtoneType in connect.core.ringtoneEngines) {
       connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId)
         .then(function(res) {
-          connect.getLog().info(`ringtoneType ${ringtoneType} successfully set to deviceid ${res}`).sendInternalLogToServer();
+          connect.getLog().info(`[Audio Device Settings] ringtoneType ${ringtoneType} successfully set to deviceid ${res}`).sendInternalLogToServer();
         })
         .catch(function(err) {
           connect.getLog().error(err)
