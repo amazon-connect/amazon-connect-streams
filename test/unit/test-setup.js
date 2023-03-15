@@ -7,7 +7,14 @@ global.expect = chai.expect;
 global.should = chai.should;
 global.sinon = sinon;
 global.navigator = {
-    userAgent: 'browser'
+    userAgent: 'browser',
+    mediaDevices: {
+      getUserMedia: () => {},
+      enumerateDevices: () => {}
+    },
+    permissions: {
+      query: () => {}
+    }
 };
 // required for the core.js to initialize
 global.location = new URL("https://test-fra.awsapps.com/connect/home");
