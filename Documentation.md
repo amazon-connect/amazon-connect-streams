@@ -202,7 +202,8 @@ everything set up correctly and that you are able to listen for events.
           softphone: {                    // optional, defaults below apply if not provided
             allowFramedSoftphone: true,   // optional, defaults to false
             disableRingtone: false,       // optional, defaults to false
-            ringtoneUrl: "./ringtone.mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
+            ringtoneUrl: "./ringtone.mp3",// optional, defaults to CCP’s default ringtone if a falsy value is set
+            disableEchoCancellation: false// optional, defaults to false
           },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
