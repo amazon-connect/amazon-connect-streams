@@ -31789,6 +31789,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   /**
   * Methods to determine browser type and versions, used for softphone initialization.
   */
+
+  /*
+    This will also return True for Edge and Opera since they
+    include Chrome in the user agent string, as they are built
+    off of Chrome.
+  */
   connect.isChromeBrowser = function () {
     return userAgent.indexOf("Chrome") !== -1;
   };
@@ -31799,6 +31805,10 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.isOperaBrowser = function () {
     return userAgent.indexOf("Opera") !== -1;
+  };
+
+  connect.isEdgeBrowser = function () {
+    return userAgent.indexOf("Edg") !== -1;
   };
 
   connect.getChromeBrowserVersion = function () {
