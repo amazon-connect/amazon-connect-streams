@@ -28397,6 +28397,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     this.level = level;
     this.text = text;
     this.time = new Date();
+    this.tabId = connect.core.tabId;
     this.exception = null;
     this.objects = [];
     this.line = 0;
@@ -28493,6 +28494,10 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   LogEntry.prototype.getAgentResourceId = function () {
     return this.agentResourceId;
+  }
+
+  LogEntry.prototype.getTabId = function() {
+    return this.tabId;
   }
 
   /**

@@ -1,4 +1,5 @@
 require("../unit/test-setup.js");
+const { expect } = require("chai");
 
 describe('Logger', function() {
     describe('LogEntry.withException()', function() {
@@ -140,6 +141,12 @@ describe('Logger', function() {
             let log = connect.getLog().info("hi");
             assert.equal(log.getAgentResourceId(), agentResourceId);
         });
+
+        it("should have the tabId property", () => {
+            let log = connect.getLog().info("hi");
+            expect(log.tabId).not.to.be.undefined;
+        });
+
         it("includes the agentResourceId when printed, and the correct log string", () => {
             let spy = sandbox.spy(connect, "sprintf");
             let log = connect.getLog().info("hello");

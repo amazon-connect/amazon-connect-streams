@@ -125,6 +125,7 @@
     this.level = level;
     this.text = text;
     this.time = new Date();
+    this.tabId = connect.core.tabId;
     this.exception = null;
     this.objects = [];
     this.line = 0;
@@ -221,6 +222,10 @@
 
   LogEntry.prototype.getAgentResourceId = function () {
     return this.agentResourceId;
+  }
+
+  LogEntry.prototype.getTabId = function() {
+    return this.tabId;
   }
 
   /**
