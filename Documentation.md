@@ -1783,7 +1783,7 @@ To get latest streams file and allowlist required urls follow [these instruction
       <div id="ccp-container"></div>
       <div id="customerprofiles-container"></div>
       <div id="wisdom-container"></div>
-      <div id="stargate-container"></div>
+      <div id="customviews-container"></div>
     </main>
     <script type="text/javascript">
       function init() {
@@ -1808,8 +1808,8 @@ To get latest streams file and allowlist required urls follow [these instruction
         );
 
         connect.agentApp.initApp(
-            "stargate", 
-            "stargate-container", 
+            "customviews", 
+            "customviews-container", 
             connectUrl + "/stargate/app",
             { style: "width:400px; height:600px;" }
         );
