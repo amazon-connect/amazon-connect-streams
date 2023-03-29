@@ -170,6 +170,19 @@
    UpstreamConduitClientBase.prototype._callImpl = function(method, params, callbacks) {
       var request = connect.EventFactory.createRequest(this.requestEvent, method, params);
       this._requestIdCallbacksMap[request.requestId] = callbacks;
+
+      const methodsToSkip = [
+         connect.ClientMethods.SEND_CLIENT_LOGS,
+         connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS,
+         connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT
+      ];
+      if (request.event === connect.EventType.API_REQUEST && !methodsToSkip.includes(request.method)) {
+         connect.getLog().trace(`Sending API_REQUEST event for ${request.method} to upstream`).withObject({
+            method: request.method,
+            params: request.params,
+            stack: (new Error()).stack
+         }).sendInternalLogToServer();
+      }
       this.conduit.sendUpstream(request.event, request);
    };
 
