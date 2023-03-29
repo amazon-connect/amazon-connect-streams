@@ -147,6 +147,58 @@ describe('Logger', function() {
             expect(log.tabId).not.to.be.undefined;
         });
 
+        it("should have the contextLayer property", () => {
+            let log = connect.getLog().info("hi");
+            expect(log.contextLayer).not.to.be.undefined;
+        });
+
+        it("LogEntry should take contextLayer input in fromObject invocation", () => {
+            let log = connect.LogEntry.fromObject({
+                contextLayer: 'contextLayer',
+                level: null,
+                text: "text",
+                loggerId: "loggerId",
+                exception: null,
+                objects: {}
+            })
+            expect(log.contextLayer).to.be.string('contextLayer');
+        })
+
+        it("LogEntry tabId should contain 'tabId' when passed in fromObject invocation", () => {
+            let log = connect.LogEntry.fromObject({
+                tabId: 'tabId',
+                level: null,
+                text: "text",
+                loggerId: "loggerId",
+                exception: null,
+                objects: {}
+            })
+            expect(log.tabId).to.be.string('tabId');
+        })
+
+        it("LogEntry tabId should contain null when passed in fromObject invocation", () => {
+            let log = connect.LogEntry.fromObject({
+                tabId: null,
+                level: null,
+                text: "text",
+                loggerId: "loggerId",
+                exception: null,
+                objects: {}
+            })
+            expect(log.tabId).to.be.null;
+        })
+
+        it("LogEntry tabId should be null when not passed in fromObject invocation", () => {
+            let log = connect.LogEntry.fromObject({
+                level: null,
+                text: "text",
+                loggerId: "loggerId",
+                exception: null,
+                objects: {}
+            })
+            expect(log.tabId).to.be.null;
+        })
+
         it("includes the agentResourceId when printed, and the correct log string", () => {
             let spy = sandbox.spy(connect, "sprintf");
             let log = connect.getLog().info("hello");

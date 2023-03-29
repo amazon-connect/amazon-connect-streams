@@ -719,8 +719,21 @@
 
   // internal use only
   connect.isCCP = function () {
+    if (!connect.core.upstream) {
+      return false;
+    }
     var conduit = connect.core.getUpstream();
     return conduit.name === 'ConnectSharedWorkerConduit';
   }
 
+  connect.isSharedWorker = function () {
+    return connect.worker && !!connect.worker.clientEngine;
+  }
+
+  connect.isCRM = function () {
+    if (!connect.core.upstream) {
+      return false;
+    }
+    return connect.core.getUpstream() instanceof connect.IFrameConduit;
+  }
 })();

@@ -28335,6 +28335,15 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   };
 
   /**
+   * An enumeration of logging context layers.
+   */
+    var LogContextLayer = {
+      CCP: "CCP",
+      SHARED_WORKER: "SharedWorker",
+      CRM: "CRM"
+    }
+
+  /**
    * A map from log level to console logger function.
    */
   var CONSOLE_LOGGER_MAP = {
@@ -28392,12 +28401,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    * Log entries are aware of their timestamp, order,
    * and can contain objects and exception stack traces.
    */
-  var LogEntry = function (component, level, text, loggerId) {
+  var LogEntry = function (component, level, text, loggerId, tabId, contextLayer) {
     this.component = component;
     this.level = level;
     this.text = text;
     this.time = new Date();
-    this.tabId = connect.core.tabId;
+    this.tabId = tabId ===  null ? null : tabId ? tabId : connect.core.tabId;
     this.exception = null;
     this.objects = [];
     this.line = 0;
@@ -28410,10 +28419,23 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       console.log("Issue finding agentResourceId: ", e); //can't use our logger here as we might infinitely attempt to log this error.
     }
     this.loggerId = loggerId;
+    if (contextLayer) {
+      this.contextLayer = contextLayer;
+    } else {
+      if (connect.isSharedWorker()) {
+        this.contextLayer = LogContextLayer.SHARED_WORKER;
+      } else if (connect.isCRM()) {
+        this.contextLayer = LogContextLayer.CRM;
+      } else if (connect.isCCP()) {
+        this.contextLayer = LogContextLayer.CCP;
+      }  
+    }
   };
 
   LogEntry.fromObject = function (obj) {
-    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text, obj.loggerId);
+    var tabId = obj.tabId || null;
+    var contextLayer = obj.contextLayer || null;
+    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text, obj.loggerId, tabId, contextLayer);
 
     // Required to check for Date objects sent across frame boundaries
     if (Object.prototype.toString.call(obj.time) === '[object Date]') {
@@ -28498,6 +28520,10 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   LogEntry.prototype.getTabId = function() {
     return this.tabId;
+  }
+
+  LogEntry.prototype.getContextLayer = function() {
+    return this.contextLayer;
   }
 
   /**
@@ -32314,10 +32340,23 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   // internal use only
   connect.isCCP = function () {
+    if (!connect.core.upstream) {
+      return false;
+    }
     var conduit = connect.core.getUpstream();
     return conduit.name === 'ConnectSharedWorkerConduit';
   }
 
+  connect.isSharedWorker = function () {
+    return connect.worker && !!connect.worker.clientEngine;
+  }
+
+  connect.isCRM = function () {
+    if (!connect.core.upstream) {
+      return false;
+    }
+    return connect.core.getUpstream() instanceof connect.IFrameConduit;
+  }
 })();
 
 
