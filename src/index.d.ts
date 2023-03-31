@@ -1508,15 +1508,15 @@ declare namespace connect {
     isMultiPartyConferenceEnabled(): boolean;
     
     /** Determines if the contact is under manager's supervision */
-  	isUnderSupervision(): boolean;
-  		  
-  	/**
-  	* Updates the monitor participant state to switch between different monitoring modes.
-  	* 
-  	* @param targetState A MonitoringMode enum member
-  	* @param callbacks Success and failure callbacks to determine whether the operation was successful
-  	*/
-  	updateMonitorParticipantState(targetState: MonitoringMode, callbacks?: SuccessFailOptions): void;
+    isUnderSupervision(): boolean;
+    
+    /**
+    * Updates the monitor participant state to switch between different monitoring modes.
+    * 
+    * @param targetState A MonitoringMode enum member
+    * @param callbacks Success and failure callbacks to determine whether the operation was successful
+    */
+    updateMonitorParticipantState(targetState: MonitoringMode, callbacks?: SuccessFailOptions): void;
   }
 
   interface ContactState {
@@ -1722,34 +1722,34 @@ declare namespace connect {
     unmuteParticipant(callbacks?: SuccessFailOptions): void;
     
     /**
-  	* Returns true if monitorStatus is MonitoringMode.SILENT_MONITOR. This means the supervisor connection is in silent monitoring state. 
-  	* Regular agent will not see supervisor's connection in the snapshot while it is in silent monitor state.
-  	*/
-  	isSilentMonitor(): boolean;
-  		  
-  	/**
-  	* Returns true if monitorStatus is MonitoringMode.BARGE. 
-  	* This means the connection is in barge-in state. Regular agent will see the supervisor's connection in the list of connections in the snapshot.
-  	*/
-  	isBarge(): boolean;
-  		  
-  	/** Returns true if agent's monitoringCapabilities contain MonitoringMode.SILENT_MONITOR type. */
-  	isSilentMonitorEnabled(): boolean;
-  		  
-  	/** Returns true if agent's monitoringCapabilities contain MonitoringMode.BARGE state type. */
-  	isBargeEnabled(): boolean;
-  		  
-  	/** Returns the array of enabled monitor states of this connection. The array will consist of MonitoringMode enum values. */
-  	getMonitorCapabilities(): MonitoringMode[];
-  		  
-  	/**
-  	* Returns the current monitoring state of this connection.
-  	* This value can be one of MonitoringMode enum values if the agent is supervisor, otherwise the monitorStatus will be undefined for the agent.
-  	*/
-  	getMonitorStatus(): MonitoringMode;
-  		  
-  	/** Returns true if the connection was forced muted by the manager. */
-  	isForcedMute(): boolean;
+    * Returns true if monitorStatus is MonitoringMode.SILENT_MONITOR. This means the supervisor connection is in silent monitoring state. 
+    * Regular agent will not see supervisor's connection in the snapshot while it is in silent monitor state.
+    */
+    isSilentMonitor(): boolean;
+    
+    /**
+    * Returns true if monitorStatus is MonitoringMode.BARGE. 
+    * This means the connection is in barge-in state. Regular agent will see the supervisor's connection in the list of connections in the snapshot.
+    */
+    isBarge(): boolean;
+    
+    /** Returns true if agent's monitoringCapabilities contain MonitoringMode.SILENT_MONITOR type. */
+    isSilentMonitorEnabled(): boolean;
+    
+    /** Returns true if agent's monitoringCapabilities contain MonitoringMode.BARGE state type. */
+    isBargeEnabled(): boolean;
+    
+    /** Returns the array of enabled monitor states of this connection. The array will consist of MonitoringMode enum values. */
+    getMonitorCapabilities(): MonitoringMode[];
+    
+    /**
+    * Returns the current monitoring state of this connection.
+    * This value can be one of MonitoringMode enum values if the agent is supervisor, otherwise the monitorStatus will be undefined for the agent.
+    */
+    getMonitorStatus(): MonitoringMode;
+    
+    /** Returns true if the connection was forced muted by the manager. */
+    isForcedMute(): boolean;
   }
 
   /**
