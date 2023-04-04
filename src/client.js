@@ -176,13 +176,19 @@
          connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS,
          connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT
       ];
-      if (request.event === connect.EventType.API_REQUEST && !methodsToSkip.includes(request.method)) {
-         connect.getLog().trace(`Sending API_REQUEST event for ${request.method} to upstream`).withObject({
-            method: request.method,
-            params: request.params,
-            stack: (new Error()).stack
-         }).sendInternalLogToServer();
+      
+      try {
+         if (request.event === connect.EventType.API_REQUEST && !methodsToSkip.includes(request.method)) {
+            connect.getLog().trace(`Sending API_REQUEST event for ${request.method} to upstream`).withObject({
+               method: request.method,
+               params: request.params,
+               stack: (new Error()).stack
+            }).sendInternalLogToServer();
+         }
+      } catch(err) {
+         connect.getLog().error("Stack trace Log Failed").withObject({ err }).sendInternalLogToServer();
       }
+
       this.conduit.sendUpstream(request.event, request);
    };
 
