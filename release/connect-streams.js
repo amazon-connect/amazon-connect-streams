@@ -25387,7 +25387,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
          connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS,
          connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT
       ];
-      
       try {
          if (request.event === connect.EventType.API_REQUEST && !methodsToSkip.includes(request.method)) {
             connect.getLog().trace(`Sending API_REQUEST event for ${request.method} to upstream`).withObject({
@@ -25396,7 +25395,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
                stack: (new Error()).stack
             }).sendInternalLogToServer();
          }
-      } catch(err) {
+      } catch (err) {
          connect.getLog().error("Stack trace Log Failed").withObject({ err }).sendInternalLogToServer();
       }
 
@@ -25444,7 +25443,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    };
    UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
-   
+
    /**---------------------------------------------------------------
    * class AgentAppClient extends ClientBase
    */
@@ -25504,7 +25503,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       AWS.config.region = region;
       this.authToken = authToken;
       var baseUrl = connect.getBaseUrl();
-      var endpointUrl = endpointIn || ( 
+      var endpointUrl = endpointIn || (
          baseUrl.includes(".awsapps.com")
             ? baseUrl + '/connect/api'
             : baseUrl + '/api'
@@ -25567,7 +25566,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       return connect.RetryableClientMethodsList.includes(method);
    }
 
-   AWSClient.prototype._retryMethod = function(method, callbacks, err, data, retryableError) {      
+   AWSClient.prototype._retryMethod = function(method, callbacks, err, data, retryableError) {
       var self = this;
       var log = connect.getLog();
       const formatRetryError = (err) => self._formatCallError(self._addStatusCodeToError(err));
@@ -25598,7 +25597,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             break;
       }
 
-      let errWithRetry = { 
+      let errWithRetry = {
          ...err,
          retryStatus: connect.RetryStatus.NONE,
       };
@@ -25609,22 +25608,22 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
             retryParams.resetCounter();
 
-            errWithRetry = { 
+            errWithRetry = {
                ...errWithRetry,
                retryStatus: connect.RetryStatus.EXHAUSTED,
-            };             
+            };
          } else {
             log.trace(`AWSClient: <-- Operation ${method} failed with ${retryParams.errorMessage} error. Retrying call for a ${retryParams.failCounter + 1} time`)
-               .sendInternalLogToServer();            
+               .sendInternalLogToServer();
 
             retryParams.increaseCounter();
 
-            errWithRetry = { 
-               ...errWithRetry, 
+            errWithRetry = {
+               ...errWithRetry,
                retryStatus: connect.RetryStatus.RETRYING,
-            };            
+            };
             retryParams.retryCallback(errWithRetry, data);
-            return;           
+            return;
          }
       } else {
          log.trace(`AWSClient: <-- Operation ${method} failed: ${JSON.stringify(err)}`).sendInternalLogToServer();
@@ -25668,7 +25667,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       if(!err.code) {
          error.statusCode = 400;
       } else {
-      
+
          // TODO: add more here
          switch(error.code) {
             case connect.CTIExceptions.UNAUTHORIZED_EXCEPTION:
@@ -25810,14 +25809,14 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
          headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
-            'x-csrf-token': 'csrf'         
+            'x-csrf-token': 'csrf'
          }
       };
       var instanceId = params.instanceId;
       var url = this.endpointUrl;
       var methods = connect.TaskTemplatesClientMethods;
       switch (method) {
-         case methods.LIST_TASK_TEMPLATES: 
+         case methods.LIST_TASK_TEMPLATES:
             url += `/proxy/instance/${instanceId}/task/template`;
             if (params.queryParams) {
                const queryString = new URLSearchParams(params.queryParams).toString();
@@ -25826,7 +25825,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
                }
             }
             break;
-         case methods.GET_TASK_TEMPLATE: 
+         case methods.GET_TASK_TEMPLATE:
             connect.assertNotNull(params.templateParams, 'params.templateParams');
             const id = connect.assertNotNull(params.templateParams.id, 'params.templateParams.id');
             const version = params.templateParams.version;
@@ -25835,12 +25834,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
                url += `?snapshotVersion=${version}`;
             }
             break;
-         case methods.CREATE_TEMPLATED_TASK: 
+         case methods.CREATE_TEMPLATED_TASK:
             url += `/${method}`;
             options.body = JSON.stringify(params);
             options.method = 'PUT';
             break;
-         case methods.UPDATE_CONTACT: 
+         case methods.UPDATE_CONTACT:
             url += `/${method}`;
             options.body = JSON.stringify(params);
             options.method = 'POST';
