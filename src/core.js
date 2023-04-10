@@ -484,7 +484,7 @@
 
     var competeForMasterOnAgentUpdate = function (softphoneParamsIn) {
       var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
-      connect.getLog().info("[Softphone Manager] competeForMasterOnAgentUpdate executed").sendInternalLogToServer();
+      connect.getLog().info("[Softphone Manager] competeForMasterOnAgentUpdate executed").withObject({ softphoneParams }).sendInternalLogToServer();
       connect.agent(function (agent) {
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
@@ -521,7 +521,7 @@
       // This event is propagted by initCCP call from the end customers 
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
         global.clearTimeout(configureMessageTimer); // we don't need to re-init softphone manager as we recieved configure event
-        connect.getLog().info("[Softphone Manager] Configure event handler executed").sendInternalLogToServer();
+        connect.getLog().info("[Softphone Manager] Configure event handler executed").withObject({ data }).sendInternalLogToServer();
         // always overwrite/store the softphone params value if there is a configure event
         softphoneParamsStorage.set(data.softphone);
         if (data.softphone && data.softphone.allowFramedSoftphone) {
@@ -547,7 +547,7 @@
             connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed successfully and waiting for configure Message handler to execute").sendInternalLogToServer();
             this.unsubscribe();
             configureMessageTimer = global.setTimeout(() => {
-              connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed without configure message handler execution").sendInternalLogToServer();
+              connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed without configure message handler execution").withObject({ softphoneParamsFromLocalStorage }).sendInternalLogToServer();
               connect.publishMetric({
                 name: "EmbeddedCCPRefreshedWithoutInitCCP",
                 data: { count: 1 }
