@@ -480,6 +480,7 @@
     var remoteAudioElement = document.getElementById('remote-audio');
     if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
         remoteAudioElement.setSinkId(deviceId).then(() => {
+          connect.getLog().info(`[Audio Device Settings] Speaker device ${deviceId} successfully set to speaker audio element`).sendInternalLogToServer();
           connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
             event: connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
             data: { deviceId: deviceId }
@@ -541,6 +542,7 @@
                 session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
                   //Replace the audio track in the local media stream (for mute / unmute)
                   softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
+                  connect.getLog().info(`[Audio Device Settings] Microphone device ${deviceId} successfully set to local media stream in RTCRtpSender`).sendInternalLogToServer();
                 });
               }
             }
