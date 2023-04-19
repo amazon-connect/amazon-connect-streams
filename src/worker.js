@@ -86,9 +86,9 @@
       })
     } else {
       connect.core.getClient()._callImpl(method, params, {
-        success: function (data) {
+        success: function (data, dataAttribute) {
           self._recordAPILatency(method, request_start);
-          callbacks.success(data);
+          callbacks.success(data, dataAttribute);
         },
         failure: function (error, data) {
           self._recordAPILatency(method, request_start, error);
@@ -345,34 +345,37 @@
       nextToken: self.nextToken,
       timeout: GET_AGENT_TIMEOUT_MS
     }, {
-        success: function (data) {
-          try {
-            self.agent = self.agent || {};
-            self.agent.snapshot = data.snapshot;
-            self.agent.snapshot.localTimestamp = connect.now();
-            self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
-            self.nextToken = data.nextToken;
-            connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.")
-              .withObject(data)
-              .sendInternalLogToServer();
-            self.updateAgent();
-          } catch (e) {
-            connect.getLog().error("Long poll failed to update agent.")
-              .withObject(data)
-              .withException(e)
-              .sendInternalLogToServer();
-          } finally {
-            global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
+      success: function (data, dataAttribute) {
+        try {
+          self.agent = self.agent || {};
+          self.agent.snapshot = data.snapshot;
+          self.agent.snapshot.localTimestamp = connect.now();
+          self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
+          self.nextToken = data.nextToken;
+          if (dataAttribute && dataAttribute.hasOwnProperty('contentLength')) {
+            self.agent.snapshot.contentLength = dataAttribute.contentLength;
           }
-        },
-        failure: function (err, data) {
-          try {
-            connect.getLog().error("Failed to get agent data.")
-              .sendInternalLogToServer()
-              .withObject({
-                err: err,
-                data: data
-              });
+          connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.")
+            .withObject(data)
+            .sendInternalLogToServer();
+          self.updateAgent();
+        } catch (e) {
+          connect.getLog().error("Long poll failed to update agent.")
+            .withObject(data)
+            .withException(e)
+            .sendInternalLogToServer();
+        } finally {
+          global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
+        }
+      },
+      failure: function (err, data) {
+        try {
+          connect.getLog().error("Failed to get agent data.")
+            .sendInternalLogToServer()
+            .withObject({
+              err: err,
+              data: data
+            });
 
         } finally {
           global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_RECOVERY_TIMEOUT_MS);

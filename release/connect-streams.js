@@ -25914,10 +25914,14 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
                      }
                      log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err)).sendInternalLogToServer();
                   } else {
+                     let dataAttribute = {};
                      log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data).sendInternalLogToServer();
                      self.unauthorizedFailCounter = 0;
                      self.accessDeniedFailCounter = 0;
-                     callbacks.success(data);
+                     if (this.httpResponse && this.httpResponse.hasOwnProperty('body')) {
+                        dataAttribute.contentLength = this.httpResponse.body.length;
+                     }
+                     callbacks.success(data, dataAttribute);
                   }
                } catch (e) {
                   connect.getLog().error("Failed to handle AWS API request for method %s", method)
@@ -26290,6 +26294,24 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
   var CCP_TABS_ACROSS_BROWSER_COUNT = 'CCPTabsAcrossBrowserCount';
+
+  var MULTIPLE_INIT_SOFTPHONE_MANAGER_CALLS = 'MultipleInitSoftphoneManagerCalls';
+
+  const SNAPSHOT_RECEIVED_BY_CLIENT = 'SnapshotReceivedByClient';
+  const SNAPSHOT_EVENT_TRIGGER_STEP_TIME = 'SnapshotEventTriggerStepTime';
+  const SNAPSHOT_TOTAL_PROCESSING_TIME = 'SnapshotTotalProcessingTime';
+  const SNAPSHOT_COMPARISON_STEP_TIME = 'SnapshotComparisonStepTime';
+
+  const sizingBucket = {
+    '0-100': [0, 100],
+    '101-500': [101, 500],
+    '501-1000': [501, 1000],
+    '1000-3000': [1001, 3000],
+    '3001-5000': [3001, 5000],
+    '5001-10000': [5001, 10_000],
+    '10001-20000': [10_001, 20_000],
+    '20000+': [20_001, Number.MAX_SAFE_INTEGER]
+  }
 
   connect.numberOfConnectedCCPs = 0;
   connect.numberOfConnectedCCPsInThisTab = 0;
@@ -27740,17 +27762,31 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   AgentDataProvider.prototype.updateAgentData = function (agentData) {
     var oldAgentData = this.agentData;
     this.agentData = agentData;
- 
+
+    try {
+      // the agentSnapshot timestamp does not change unless the snapshot has a difference
+      // timestamp is populated by backend service when snapshot is generated
+      const newAgentSnapshotTimestamp = Date.parse(agentData.snapshot.snapshotTimestamp);
+      if ((!oldAgentData) || (newAgentSnapshotTimestamp !== Date.parse(oldAgentData.snapshot.snapshotTimestamp))) {
+        const snapshotDetectedLatency = new Date().getTime() - newAgentSnapshotTimestamp;
+        publishSnapshotMetric(SNAPSHOT_RECEIVED_BY_CLIENT, snapshotDetectedLatency, {
+          ContentLengthInBytes: connect.core._calculateSnapshotSizingBucket(agentData.snapshot),
+          IsCCPLayer: connect.isCCP()
+        });
+      }
+    } catch (e) {
+      connect.getLog().error("[Metrics] Failed to send metrics.")
+          .withException(e).sendInternalLogToServer();
+    }
+
     if (oldAgentData == null) {
       connect.agent.initialized = true;
       this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
     }
- 
     this.bus.trigger(connect.AgentEvents.REFRESH, new connect.Agent());
- 
     this._fireAgentUpdateEvents(oldAgentData);
-  };
- 
+  }
+
   AgentDataProvider.prototype.getAgentData = function () {
     if (this.agentData == null) {
       throw new connect.StateError('No agent data is available yet!');
@@ -27799,7 +27835,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       removed: {},
       common: {},
       oldMap: connect.index(oldAgentData == null ? [] : oldAgentData.snapshot.contacts, function (contact) { return contact.contactId; }),
-      newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; })
+      newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
+      endTime: 0
     };
  
     connect.keys(diff.oldMap).forEach(function (contactId) {
@@ -27815,7 +27852,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         diff.added[contactId] = diff.newMap[contactId];
       }
     });
- 
+    diff.endTime = performance.now();
     return diff;
   };
  
@@ -27844,26 +27881,27 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         self.bus.trigger(event, new connect.Agent());
       });
     }
-
     var oldNextState = oldAgentData && oldAgentData.snapshot.nextState ? oldAgentData.snapshot.nextState.name : null;
     var newNextState = this.agentData.snapshot.nextState ? this.agentData.snapshot.nextState.name : null;
     if (oldNextState !== newNextState && newNextState) {
       self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
     }
 
+    const processingStart = performance.now();
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
- 
     } else {
       diff = {
         added: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
         removed: {},
         common: {},
         oldMap: {},
-        newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; })
+        newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
+        endTime: performance.now()
       };
     }
- 
+
+    const eventTriggerStart = performance.now();
     connect.values(diff.added).forEach(function (contactData) {
       self.bus.trigger(connect.ContactEvents.INIT, new connect.Contact(contactData.contactId));
       self._fireContactUpdateEvents(contactData.contactId, connect.ContactStateType.INIT, contactData.state.type);
@@ -27878,8 +27916,48 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     connect.keys(diff.common).forEach(function (contactId) {
       self._fireContactUpdateEvents(contactId, diff.oldMap[contactId].state.type, diff.newMap[contactId].state.type);
     });
-  };
- 
+
+    const processingEnd = performance.now();
+    const optionalDimensions = {
+      ContentLengthInBytes: connect.core._calculateSnapshotSizingBucket(this.agentData.snapshot),
+      IsCCPLayer: connect.isCCP()
+    };
+    try {
+      publishSnapshotMetric(SNAPSHOT_COMPARISON_STEP_TIME, (diff.endTime - processingStart), optionalDimensions);
+      publishSnapshotMetric(SNAPSHOT_EVENT_TRIGGER_STEP_TIME, (processingEnd - eventTriggerStart), optionalDimensions);
+      publishSnapshotMetric(SNAPSHOT_TOTAL_PROCESSING_TIME, (processingEnd - processingStart), optionalDimensions);
+    } catch (e) {
+      connect.getLog().error("[Metrics] Failed to send metrics.")
+          .withException(e).sendInternalLogToServer();
+    }
+  }
+
+  let publishSnapshotMetric = (metricName, value, optionalDimensions) => {
+    connect.publishMetric({
+      name: metricName,
+      data: {
+        latency: value,
+        optionalDimensions
+      }
+    })
+  }
+
+  // calculate which sizing bucket the size of the snapshot fits into
+  // INTERNAL ONLY
+  connect.core._calculateSnapshotSizingBucket = function(agentSnapshot) {
+    if (agentSnapshot && agentSnapshot.hasOwnProperty('contentLength')) {
+      const contentLength = parseInt(agentSnapshot.contentLength);
+      for (const rangeKey of Object.keys(sizingBucket)) {
+        const [min, max] = sizingBucket[rangeKey];
+        // check if the length is in range or larger than our largest bucket
+        if (contentLength >= min && contentLength <= max) {
+          return rangeKey;
+        }
+      }
+    }
+    return 'undefined';
+  }
+
   AgentDataProvider.prototype._fireContactUpdateEvents = function (contactId, oldContactState, newContactState) {
     var self = this;
     if (oldContactState !== newContactState) {
@@ -32836,9 +32914,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       })
     } else {
       connect.core.getClient()._callImpl(method, params, {
-        success: function (data) {
+        success: function (data, dataAttribute) {
           self._recordAPILatency(method, request_start);
-          callbacks.success(data);
+          callbacks.success(data, dataAttribute);
         },
         failure: function (error, data) {
           self._recordAPILatency(method, request_start, error);
@@ -33095,34 +33173,37 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       nextToken: self.nextToken,
       timeout: GET_AGENT_TIMEOUT_MS
     }, {
-        success: function (data) {
-          try {
-            self.agent = self.agent || {};
-            self.agent.snapshot = data.snapshot;
-            self.agent.snapshot.localTimestamp = connect.now();
-            self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
-            self.nextToken = data.nextToken;
-            connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.")
-              .withObject(data)
-              .sendInternalLogToServer();
-            self.updateAgent();
-          } catch (e) {
-            connect.getLog().error("Long poll failed to update agent.")
-              .withObject(data)
-              .withException(e)
-              .sendInternalLogToServer();
-          } finally {
-            global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
+      success: function (data, dataAttribute) {
+        try {
+          self.agent = self.agent || {};
+          self.agent.snapshot = data.snapshot;
+          self.agent.snapshot.localTimestamp = connect.now();
+          self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
+          self.nextToken = data.nextToken;
+          if (dataAttribute && dataAttribute.hasOwnProperty('contentLength')) {
+            self.agent.snapshot.contentLength = dataAttribute.contentLength;
           }
-        },
-        failure: function (err, data) {
-          try {
-            connect.getLog().error("Failed to get agent data.")
-              .sendInternalLogToServer()
-              .withObject({
-                err: err,
-                data: data
-              });
+          connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.")
+            .withObject(data)
+            .sendInternalLogToServer();
+          self.updateAgent();
+        } catch (e) {
+          connect.getLog().error("Long poll failed to update agent.")
+            .withObject(data)
+            .withException(e)
+            .sendInternalLogToServer();
+        } finally {
+          global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
+        }
+      },
+      failure: function (err, data) {
+        try {
+          connect.getLog().error("Failed to get agent data.")
+            .sendInternalLogToServer()
+            .withObject({
+              err: err,
+              data: data
+            });
 
         } finally {
           global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_RECOVERY_TIMEOUT_MS);

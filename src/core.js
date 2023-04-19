@@ -45,6 +45,24 @@
   var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
   var CCP_TABS_ACROSS_BROWSER_COUNT = 'CCPTabsAcrossBrowserCount';
 
+  var MULTIPLE_INIT_SOFTPHONE_MANAGER_CALLS = 'MultipleInitSoftphoneManagerCalls';
+
+  const SNAPSHOT_RECEIVED_BY_CLIENT = 'SnapshotReceivedByClient';
+  const SNAPSHOT_EVENT_TRIGGER_STEP_TIME = 'SnapshotEventTriggerStepTime';
+  const SNAPSHOT_TOTAL_PROCESSING_TIME = 'SnapshotTotalProcessingTime';
+  const SNAPSHOT_COMPARISON_STEP_TIME = 'SnapshotComparisonStepTime';
+
+  const sizingBucket = {
+    '0-100': [0, 100],
+    '101-500': [101, 500],
+    '501-1000': [501, 1000],
+    '1000-3000': [1001, 3000],
+    '3001-5000': [3001, 5000],
+    '5001-10000': [5001, 10_000],
+    '10001-20000': [10_001, 20_000],
+    '20000+': [20_001, Number.MAX_SAFE_INTEGER]
+  }
+
   connect.numberOfConnectedCCPs = 0;
   connect.numberOfConnectedCCPsInThisTab = 0;
 
@@ -1494,17 +1512,31 @@
   AgentDataProvider.prototype.updateAgentData = function (agentData) {
     var oldAgentData = this.agentData;
     this.agentData = agentData;
- 
+
+    try {
+      // the agentSnapshot timestamp does not change unless the snapshot has a difference
+      // timestamp is populated by backend service when snapshot is generated
+      const newAgentSnapshotTimestamp = Date.parse(agentData.snapshot.snapshotTimestamp);
+      if ((!oldAgentData) || (newAgentSnapshotTimestamp !== Date.parse(oldAgentData.snapshot.snapshotTimestamp))) {
+        const snapshotDetectedLatency = new Date().getTime() - newAgentSnapshotTimestamp;
+        publishSnapshotMetric(SNAPSHOT_RECEIVED_BY_CLIENT, snapshotDetectedLatency, {
+          ContentLengthInBytes: connect.core._calculateSnapshotSizingBucket(agentData.snapshot),
+          IsCCPLayer: connect.isCCP()
+        });
+      }
+    } catch (e) {
+      connect.getLog().error("[Metrics] Failed to send metrics.")
+          .withException(e).sendInternalLogToServer();
+    }
+
     if (oldAgentData == null) {
       connect.agent.initialized = true;
       this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
     }
- 
     this.bus.trigger(connect.AgentEvents.REFRESH, new connect.Agent());
- 
     this._fireAgentUpdateEvents(oldAgentData);
-  };
- 
+  }
+
   AgentDataProvider.prototype.getAgentData = function () {
     if (this.agentData == null) {
       throw new connect.StateError('No agent data is available yet!');
@@ -1553,7 +1585,8 @@
       removed: {},
       common: {},
       oldMap: connect.index(oldAgentData == null ? [] : oldAgentData.snapshot.contacts, function (contact) { return contact.contactId; }),
-      newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; })
+      newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
+      endTime: 0
     };
  
     connect.keys(diff.oldMap).forEach(function (contactId) {
@@ -1569,7 +1602,7 @@
         diff.added[contactId] = diff.newMap[contactId];
       }
     });
- 
+    diff.endTime = performance.now();
     return diff;
   };
  
@@ -1598,26 +1631,27 @@
         self.bus.trigger(event, new connect.Agent());
       });
     }
-
     var oldNextState = oldAgentData && oldAgentData.snapshot.nextState ? oldAgentData.snapshot.nextState.name : null;
     var newNextState = this.agentData.snapshot.nextState ? this.agentData.snapshot.nextState.name : null;
     if (oldNextState !== newNextState && newNextState) {
       self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
     }
 
+    const processingStart = performance.now();
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
- 
     } else {
       diff = {
         added: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
         removed: {},
         common: {},
         oldMap: {},
-        newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; })
+        newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
+        endTime: performance.now()
       };
     }
- 
+
+    const eventTriggerStart = performance.now();
     connect.values(diff.added).forEach(function (contactData) {
       self.bus.trigger(connect.ContactEvents.INIT, new connect.Contact(contactData.contactId));
       self._fireContactUpdateEvents(contactData.contactId, connect.ContactStateType.INIT, contactData.state.type);
@@ -1632,8 +1666,48 @@
     connect.keys(diff.common).forEach(function (contactId) {
       self._fireContactUpdateEvents(contactId, diff.oldMap[contactId].state.type, diff.newMap[contactId].state.type);
     });
-  };
- 
+
+    const processingEnd = performance.now();
+    const optionalDimensions = {
+      ContentLengthInBytes: connect.core._calculateSnapshotSizingBucket(this.agentData.snapshot),
+      IsCCPLayer: connect.isCCP()
+    };
+    try {
+      publishSnapshotMetric(SNAPSHOT_COMPARISON_STEP_TIME, (diff.endTime - processingStart), optionalDimensions);
+      publishSnapshotMetric(SNAPSHOT_EVENT_TRIGGER_STEP_TIME, (processingEnd - eventTriggerStart), optionalDimensions);
+      publishSnapshotMetric(SNAPSHOT_TOTAL_PROCESSING_TIME, (processingEnd - processingStart), optionalDimensions);
+    } catch (e) {
+      connect.getLog().error("[Metrics] Failed to send metrics.")
+          .withException(e).sendInternalLogToServer();
+    }
+  }
+
+  let publishSnapshotMetric = (metricName, value, optionalDimensions) => {
+    connect.publishMetric({
+      name: metricName,
+      data: {
+        latency: value,
+        optionalDimensions
+      }
+    })
+  }
+
+  // calculate which sizing bucket the size of the snapshot fits into
+  // INTERNAL ONLY
+  connect.core._calculateSnapshotSizingBucket = function(agentSnapshot) {
+    if (agentSnapshot && agentSnapshot.hasOwnProperty('contentLength')) {
+      const contentLength = parseInt(agentSnapshot.contentLength);
+      for (const rangeKey of Object.keys(sizingBucket)) {
+        const [min, max] = sizingBucket[rangeKey];
+        // check if the length is in range or larger than our largest bucket
+        if (contentLength >= min && contentLength <= max) {
+          return rangeKey;
+        }
+      }
+    }
+    return 'undefined';
+  }
+
   AgentDataProvider.prototype._fireContactUpdateEvents = function (contactId, oldContactState, newContactState) {
     var self = this;
     if (oldContactState !== newContactState) {

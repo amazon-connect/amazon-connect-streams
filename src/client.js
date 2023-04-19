@@ -338,10 +338,14 @@
                      }
                      log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err)).sendInternalLogToServer();
                   } else {
+                     let dataAttribute = {};
                      log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data).sendInternalLogToServer();
                      self.unauthorizedFailCounter = 0;
                      self.accessDeniedFailCounter = 0;
-                     callbacks.success(data);
+                     if (this.httpResponse && this.httpResponse.hasOwnProperty('body')) {
+                        dataAttribute.contentLength = this.httpResponse.body.length;
+                     }
+                     callbacks.success(data, dataAttribute);
                   }
                } catch (e) {
                   connect.getLog().error("Failed to handle AWS API request for method %s", method)

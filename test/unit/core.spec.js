@@ -1786,4 +1786,37 @@ describe('Core', function () {
         });
          
     });
+
+    describe('connect.core.calculateSnapshotSizingBucket', function () {
+
+        it('with contentLength in snapshot', () => {
+            const testCases = {
+                50: '0-100',
+                150: '101-500',
+                987: '501-1000',
+                2543: '1000-3000',
+                3001: '3001-5000',
+                10000: '5001-10000',
+                19997: '10001-20000',
+                50000: '20000+'
+            }
+            for (const testCase of Object.keys(testCases)) {
+                const snapshot = {
+                    contentLength: testCase
+                }
+                expect(connect.core._calculateSnapshotSizingBucket(snapshot)).to.equal(testCases[testCase]);
+            }
+        });
+        it('with no contentLength in snapshot', () => {
+            const snapshot = {
+                contentLength: 'data'
+            }
+            expect(connect.core._calculateSnapshotSizingBucket(snapshot)).to.equal('undefined');
+
+            const snapshot2 = {
+                data: 'data'
+            }
+            expect(connect.core._calculateSnapshotSizingBucket(snapshot2)).to.equal('undefined');
+        });
+    });
 });
