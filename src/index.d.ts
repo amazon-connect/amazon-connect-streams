@@ -192,6 +192,12 @@ declare namespace connect {
     getFrameMediaDevices(timeout: Number): Promise<any[]>;
 
     /**
+     * Gets the `EventBus` object.
+     * This method returns an `EventBus` for managing subscriptions with the high level subscription API.
+     */
+    getEventBus(): EventBus;
+
+    /**
      * Global upstream conduit for external use.
      * 
      */
@@ -1924,4 +1930,64 @@ declare namespace connect {
 
   /** Gets the global logger instance. */
   function getLog(): Logger;
+
+  /**
+   * An object representing an event subscription in an EventBus.
+   */
+  interface Subscription {
+    /**
+     * Unsubscribe the handler of this subscription from the EventBus
+     * from which it was created.
+     */
+    unsubscribe(): void;
+  }
+
+  /**
+   * An object which maintains a map of subscriptions and serves as the
+   * mechanism for triggering events to be handled by subscribers.
+   */
+  interface EventBus {
+    /**
+     * Subscribe to the named event.  Returns a new Subscription object
+     * which can be used to unsubscribe.
+     * @param eventName The subscription event name.
+     * @param f The callback function.
+     */
+    subscribe(eventName: string, f: Function): Subscription;
+
+    /**
+     * Subscribe a function to be called on all events.
+     * @param f The callback function.
+     */
+    subscribeAll(f: Function): Subscription;
+
+    /**
+     * Get a list of subscriptions for the given event name, or an empty
+     * list if there are no subscriptions.
+     * @param eventName The subscription event name.
+     */
+    getSubscriptions(eventName: string): Subscription[];
+
+    /**
+     * Trigger the given event with the given data.  All methods subscribed
+     * to this event will be called and are provided with the given arbitrary
+     * data object and the name of the event, in that order.
+     * @param eventName The event name.
+     * @param data The event data.
+     */
+    trigger(eventName: string, data: any): void;
+
+    /**
+     * Returns a closure which bridges an event from another EventBus to this bus.
+     *
+     * Usage:
+     * conduit.onUpstream("MyEvent", bus.bridge());
+     */
+    bridge(): (data: any, event: string) => void;
+
+    /**
+     * Unsubscribe all events in the event bus.
+     */
+    unsubscribeAll(): void;
+  }
 }
