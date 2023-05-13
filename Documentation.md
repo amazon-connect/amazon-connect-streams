@@ -1881,6 +1881,9 @@ Streams Voice ID APIs can be tested after all these prerequisites are met:
 
 The Voice ID APIs are exposed as Voice Connection methods and only work with two-party calls, not with conference calls at this moment. You can get the voice connection object by calling `contact.getAgentConnection()` when there's a voice connection.
 
+Notes:
+- For outbound calls and queued callbacks, these Streams Voice ID APIs can be called after contact is connected. For inbound calls, they can be called when contact is connecting.
+
 
 ### `voiceConnection.getVoiceIdSpeakerStatus()`
 Describes the enrollment status of a customer. If the customer exists in the Voice ID, it resolves with a response object that contains one of the valid statuses, ENROLLED or OPTED_OUT. If the customer does not exist in the Voice ID, it still resolves but with an error object because backend API call fails. The case needs to be taken care of in a way like the code sample below.
