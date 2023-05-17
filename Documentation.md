@@ -259,7 +259,9 @@ and made available to your JS client code.
 * `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
   * `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local
       machine. If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab. will not be
-      displayed.
+      displayed. 
+    * Important Note: If you are using Firefox as your browser, the output audio device list will be empty and CCP will use the computer's default output audio settings.
+    * To enable output devices for Audio Device Settings, please enable `media.setsinkid.enabled` in Firefox by navigating to `about:config` in Firefox. Then, search for `media.setsinkid.enabled` and toggle it to true.
   * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
       and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
 * `shouldAddNamespaceToLogs`: prepends `[CCP]` to all logs logged by the CCP. Important note: there are a few logs made by the CCP before the namespace is prepended.
