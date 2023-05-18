@@ -21,6 +21,7 @@
   var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
   var CCP_IFRAME_REFRESH_LIMIT = 6; // 6 attempts
   var CCP_IFRAME_NAME = 'Amazon Connect CCP';
+ 
   var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
   var CLIENT_ID_MAP = {
     "us-east-1": "06919f4fd8ed324e"
@@ -228,10 +229,24 @@
     connect.agent.initialized = false;
     connect.core.initialized = false;
   };
-
+ 
+  /**-------------------------------------------------------------------------
+   * Setup the SoftphoneManager to be initialized when the agent
+   * is determined to have softphone enabled.
+   */
+  connect.core.softphoneUserMediaStream = null;
+ 
+  connect.core.getSoftphoneUserMediaStream = function () {
+    return connect.core.softphoneUserMediaStream;
+  };
+ 
+  connect.core.setSoftphoneUserMediaStream = function (stream) {
+    connect.core.softphoneUserMediaStream = stream;
+  };
+ 
   connect.core.initRingtoneEngines = function (params) {
     connect.assertNotNull(params, "params");
-
+ 
     var setupRingtoneEngines = function (ringtoneSettings) {
       connect.assertNotNull(ringtoneSettings, "ringtoneSettings");
       connect.assertNotNull(ringtoneSettings.voice, "ringtoneSettings.voice");
@@ -259,7 +274,7 @@
             if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
               connect.core.ringtoneEngines.task =
                 new connect.TaskRingtoneEngine(ringtoneSettings.task);
-              connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
+                connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
@@ -341,8 +356,8 @@
     bus.subscribe(connect.ConfigurationEvents.SET_RINGER_DEVICE, setRingerDevice);
   }
 
-  var setRingerDevice = function (data) {
-    if (connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId) {
+  var setRingerDevice = function (data){
+    if(connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId){
       return;
     }
     var deviceId = data.deviceId;
