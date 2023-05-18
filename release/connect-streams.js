@@ -25727,7 +25727,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.4.5";
+  connect.version = "2.5.0";
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -25737,11 +25737,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
   var CCP_IFRAME_REFRESH_LIMIT = 6; // 6 attempts
   var CCP_IFRAME_NAME = 'Amazon Connect CCP';
-<<<<<<< HEAD
- 
-=======
-
->>>>>>> parent of 9e89918 (Make setRingerDevice persistent for Embedded + Custom CCP Use-case)
   var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
   var CLIENT_ID_MAP = {
     "us-east-1": "06919f4fd8ed324e"
@@ -25949,31 +25944,10 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     connect.agent.initialized = false;
     connect.core.initialized = false;
   };
-<<<<<<< HEAD
- 
-  /**-------------------------------------------------------------------------
-   * Setup the SoftphoneManager to be initialized when the agent
-   * is determined to have softphone enabled.
-   */
-  connect.core.softphoneUserMediaStream = null;
- 
-  connect.core.getSoftphoneUserMediaStream = function () {
-    return connect.core.softphoneUserMediaStream;
-  };
- 
-  connect.core.setSoftphoneUserMediaStream = function (stream) {
-    connect.core.softphoneUserMediaStream = stream;
-  };
- 
-  connect.core.initRingtoneEngines = function (params) {
-    connect.assertNotNull(params, "params");
- 
-=======
 
   connect.core.initRingtoneEngines = function (params) {
     connect.assertNotNull(params, "params");
 
->>>>>>> parent of 9e89918 (Make setRingerDevice persistent for Embedded + Custom CCP Use-case)
     var setupRingtoneEngines = function (ringtoneSettings) {
       connect.assertNotNull(ringtoneSettings, "ringtoneSettings");
       connect.assertNotNull(ringtoneSettings.voice, "ringtoneSettings.voice");
@@ -26001,11 +25975,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
               connect.core.ringtoneEngines.task =
                 new connect.TaskRingtoneEngine(ringtoneSettings.task);
-<<<<<<< HEAD
-                connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
-=======
               connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
->>>>>>> parent of 9e89918 (Make setRingerDevice persistent for Embedded + Custom CCP Use-case)
             }
  
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
@@ -26087,13 +26057,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     bus.subscribe(connect.ConfigurationEvents.SET_RINGER_DEVICE, setRingerDevice);
   }
 
-<<<<<<< HEAD
-  var setRingerDevice = function (data){
-    if(connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId){
-=======
   var setRingerDevice = function (data) {
     if (connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId) {
->>>>>>> parent of 9e89918 (Make setRingerDevice persistent for Embedded + Custom CCP Use-case)
       return;
     }
     var deviceId = data.deviceId;
