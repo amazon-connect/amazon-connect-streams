@@ -30583,6 +30583,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       iceConnectionsLost: report.iceConnectionsLost,
       iceConnectionsFailed: report.iceConnectionsFailed || null,
       connectionFailed: report.connectionFailed || null,
+      rtcJsVersion: report.rtcJsVersion || null,
       consecutiveNoAudioInputPackets: consecutiveNoAudioInputPackets,
       consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
       consecutiveNoAudioOutputPackets: consecutiveNoAudioOutputPackets,
