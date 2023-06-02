@@ -842,13 +842,21 @@ such as adding to a log file or posting elsewhere.
 ```js
 agent.mute();
 ```
-Sets the agent local media to mute mode.
+Sets the agent local media to mute mode. If `Enhanced monitoring & Mutiparty` is enabled, use 
+`voiceConnection.muteParticipant()` when there are more than 2 agent connections (see example 
+[here](cheat-sheet.md#mute-agent)), since `voiceConnection.muteParticipant()` 
+will mute the connection on the server side, and the server side mute value is the only one 
+accounted for when there are more than 2 connections.
 
 ### `agent.unmute()`
 ```js
 agent.unmute();
 ```
-Sets the agent localmedia to unmute mode.
+Sets the agent localmedia to unmute mode. If `Enhanced monitoring & Mutiparty` is enabled, use 
+`voiceConnection.unmuteParticipant()` when there are more than 2 agent connections (see example 
+[here](cheat-sheet.md#mute-agent)), since `voiceConnection.unmuteParticipant()` will unmute the 
+connection on the server side, and the server side mute value is the only one accounted for when 
+there are more than 2 connections.
 
 
 ### `agent.setSpeakerDevice()`
@@ -1808,6 +1816,7 @@ To get latest streams file and allowlist required urls follow [these instruction
       <div id="ccp-container"></div>
       <div id="customerprofiles-container"></div>
       <div id="wisdom-container"></div>
+      <div id="cases-container"></div>
       <div id="customviews-container"></div>
     </main>
     <script type="text/javascript">
@@ -1831,7 +1840,12 @@ To get latest streams file and allowlist required urls follow [these instruction
             connectUrl + "/wisdom-v2/",
             { style: "width:400px; height:600px;" }
         );
-
+        connect.agentApp.initApp(
+  		      "cases", 
+  		      "cases-container", 
+  		      connectUrl + "/cases/agent-app/",
+  		      { style: "width:400px; height:600px;" }
+  		  );
         connect.agentApp.initApp(
             "customviews", 
             "customviews-container", 
@@ -1865,11 +1879,11 @@ To get latest streams file and allowlist required urls follow [these instruction
 ```
 
 Integrates with Amazon Connect by loading the pre-built app located at `appUrl` into an iframe and appending it into the DOM element with id of `containerId`. Underneath the hood, `initApp` creates a `WindowIOStream` for the iframes to communicate with the main CCP iframe, which is in charge of authenticating the agent's session, managing the agent state, and contact state.
-* `name`: A string which should be one of `ccp`, `customerprofiles`, or `wisdom`.
+* `name`: A string which should be one of `ccp`, `customerprofiles`, `wisdom`, `cases`, or `customviews`.
 * `containerId`: The string id of the DOM element that will contain the app iframe.
 * `appUrl`: The string URL of the app. This is the page you would normally navigate to in order to use the app in a standalone page, it is different for each instance.
 * `config`: This object is optional and allows you to specify some settings surrounding the CCP.
-    * `ccpParams`: Optional params that mirror the configuration options for `initCCP`.
+    * `ccpParams`: Optional params that mirror the configuration options for `initCCP`. Only valid when `name` is set to `ccp`. `allowFramedSoftphone` defaults to `true`.
     * `style`: An optional string to supply inline styling for the iframe.
 
 ## Voice ID APIs
