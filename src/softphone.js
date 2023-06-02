@@ -230,10 +230,6 @@
 
       rtcSessions[agentConnectionId] = session;
 
-      if (connect.core.getSoftphoneUserMediaStream()) {
-        session.mediaStream = connect.core.getSoftphoneUserMediaStream();
-      }
-
       // Custom Event to indicate the session init operations
       connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
         event: connect.ConnectionEvents.SESSION_INIT,

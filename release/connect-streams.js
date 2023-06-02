@@ -26539,10 +26539,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    */
   connect.core.softphoneUserMediaStream = null;
  
-  connect.core.getSoftphoneUserMediaStream = function () {
-    return connect.core.softphoneUserMediaStream;
-  };
- 
   connect.core.setSoftphoneUserMediaStream = function (stream) {
     connect.core.softphoneUserMediaStream = stream;
   };
@@ -26863,11 +26859,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             if (connect.core.softphoneManager) {
               connect.core.softphoneManager.onInitContactSub.unsubscribe();
               delete connect.core.softphoneManager;
-            }
-            var userMediaStream = connect.core.getSoftphoneUserMediaStream();
-            if (userMediaStream) {
-              userMediaStream.getTracks().forEach(function(track) { track.stop(); });
-              connect.core.setSoftphoneUserMediaStream(null);
             }
           }
         });
@@ -30671,10 +30662,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       session.echoCancellation = !softphoneParams.disableEchoCancellation;
 
       rtcSessions[agentConnectionId] = session;
-
-      if (connect.core.getSoftphoneUserMediaStream()) {
-        session.mediaStream = connect.core.getSoftphoneUserMediaStream();
-      }
 
       // Custom Event to indicate the session init operations
       connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {

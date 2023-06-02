@@ -289,10 +289,6 @@
    */
   connect.core.softphoneUserMediaStream = null;
  
-  connect.core.getSoftphoneUserMediaStream = function () {
-    return connect.core.softphoneUserMediaStream;
-  };
- 
   connect.core.setSoftphoneUserMediaStream = function (stream) {
     connect.core.softphoneUserMediaStream = stream;
   };
@@ -613,11 +609,6 @@
             if (connect.core.softphoneManager) {
               connect.core.softphoneManager.onInitContactSub.unsubscribe();
               delete connect.core.softphoneManager;
-            }
-            var userMediaStream = connect.core.getSoftphoneUserMediaStream();
-            if (userMediaStream) {
-              userMediaStream.getTracks().forEach(function(track) { track.stop(); });
-              connect.core.setSoftphoneUserMediaStream(null);
             }
           }
         });
