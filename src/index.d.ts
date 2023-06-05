@@ -310,6 +310,9 @@ declare namespace connect {
 
     /** If the ringtone is not disabled, this allows for overriding the ringtone with any browser-supported audio file accessible by the user. */
     readonly ringtoneUrl?: string;
+
+    /** Disable Echo Cancellation */
+    readonly disableEchoCancellation?: boolean;
   }
 
   interface ChatOptions {

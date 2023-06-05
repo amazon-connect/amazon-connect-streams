@@ -952,7 +952,22 @@
             callbacks.success(data);
           }
         },
-        failure: callbacks ? callbacks.failure : null
+        failure: function (err, data) {
+          connect.getLog().error("Accept Contact failed").sendInternalLogToServer()
+            .withException(err)
+            .withObject({
+              data
+            });
+
+          connect.publishMetric({
+            name: "ContactAcceptFailure",
+            data: { count: 1 }
+          })
+          
+          if (callbacks && callbacks.failure) {
+            callbacks.failure(connect.ContactStateType.ERROR);
+          }
+        }
       });
   };
 
@@ -1057,12 +1072,6 @@
       ccpVersion: global.ccpVersion,
       report: report
     }, callbacks);
-
-    connect.publishSoftphoneReport({
-      contactId: this.getContactId(),
-      ccpVersion: global.ccpVersion,
-      report: report
-    });
   };
 
   Contact.prototype.conferenceConnections = function (callbacks) {

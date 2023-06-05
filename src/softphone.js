@@ -26,8 +26,20 @@
   var UNKNOWN_MEDIA_TYPE = "Unknown";
 
   var timeSeriesStreamStatsBuffer = [];
+
+  // We buffer only last 3 hours (10800 seconds) of a call's RTP stream stats.
+  var MAX_RTP_STREAM_STATS_BUFFER_SIZE = 10800;
+  var inputRTPStreamStatsBuffer = [];
+  var outputRTPStreamStatsBuffer = [];
+
   var aggregatedUserAudioStats = {};
   var aggregatedRemoteAudioStats = {};
+  var LOW_AUDIO_LEVEL_THRESHOLD = 1;
+  var consecutiveNoAudioInputPackets = 0;
+  var consecutiveLowInputAudioLevel = 0;
+  var consecutiveNoAudioOutputPackets = 0;
+  var consecutiveLowOutputAudioLevel = 0;
+  var audioInputConnectedDurationSeconds = 0;
   var rtpStatsJob = null;
   var reportStatsJob = null;
   //Logger specific to softphone.
@@ -62,7 +74,7 @@
     });
   };
 
-  var SoftphoneManager = function (softphoneParams) {
+  var SoftphoneManager = function (softphoneParams = {}) {
     var self = this;
     logger = new SoftphoneLogger(connect.getLog());
     logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
@@ -77,11 +89,12 @@
         }),
         connect.hitch(self, publishError));
     }
-    if (!isBrowserSoftPhoneSupported()) {
+    if (!SoftphoneManager.isBrowserSoftPhoneSupported()) {
       publishError(SoftphoneErrorTypes.UNSUPPORTED_BROWSER,
         "Connect does not support this browser. Some functionality may not work. ",
         "");
     }
+
     var gumPromise = fetchUserMedia({
       success: function (stream) {
         publishTelemetryEvent("ConnectivityCheckResult", null, 
@@ -100,17 +113,15 @@
       }
     });
     
-    handleSoftPhoneMuteToggle();
-    handleSpeakerDeviceChange();
-    handleMicrophoneDeviceChange();
+    const onMuteSub = handleSoftPhoneMuteToggle();
+    const onSetSpeakerDeviceSub = handleSpeakerDeviceChange();
+    const onSetMicrophoneDeviceSub = handleMicrophoneDeviceChange(!softphoneParams.disableEchoCancellation);
     monitorMicrophonePermission();
 
     this.ringtoneEngine = null;
     var rtcSessions = {};
     // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
     var callsDetected = {};
-    this.onInitContactSub = {};
-    this.onInitContactSub.unsubscribe = function() {};
 
     // variables for firefox multitab
     var isSessionPending = false;
@@ -215,11 +226,9 @@
         agentConnectionId,
         webSocketProvider);
 
-      rtcSessions[agentConnectionId] = session;
+      session.echoCancellation = !softphoneParams.disableEchoCancellation;
 
-      if (connect.core.getSoftphoneUserMediaStream()) {
-        session.mediaStream = connect.core.getSoftphoneUserMediaStream();
-      }
+      rtcSessions[agentConnectionId] = session;
 
       // Custom Event to indicate the session init operations
       connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
@@ -279,6 +288,13 @@
       }
     }
 
+    var onDestroyContact = function (agentConnectionId) {
+      // handle an edge case where a connecting contact gets cleared and the next agent snapshot doesn't contain the contact thus the onRefreshContact callback below can't properly clean up the stale session.
+      if (rtcSessions[agentConnectionId]) {
+        destroySession(agentConnectionId);
+      }
+    }
+
     var onRefreshContact = function (contact, agentConnectionId) {
       if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
         destroySession(agentConnectionId);
@@ -303,6 +319,9 @@
         contact.onRefresh(function () {
           onRefreshContact(contact, agentConnectionId);
         });
+        contact.onDestroy(function () {
+          onDestroyContact(agentConnectionId);
+        });
       }
     };
 
@@ -316,6 +335,20 @@
       onInitContact(contact);
       onRefreshContact(contact, agentConnectionId);
     });
+
+    this.terminate = () => {
+      self.onInitContactSub && self.onInitContactSub.unsubscribe && self.onInitContactSub.unsubscribe();
+      onMuteSub && onMuteSub.unsubscribe && onMuteSub.unsubscribe();
+      onSetSpeakerDeviceSub && onSetSpeakerDeviceSub.unsubscribe && onSetSpeakerDeviceSub.unsubscribe();
+      onSetMicrophoneDeviceSub && onSetMicrophoneDeviceSub.unsubscribe && onSetMicrophoneDeviceSub.unsubscribe();
+      if (rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId) {
+        // This method needs to be called when destroying the softphone manager instance. 
+        // Otherwise the refresh loop in rtcPeerConnectionFactory will keep spawning WebRTCConnections every 60 seconds
+        // and you will eventually get SoftphoneConnectionLimitBreachedException later.
+        rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
+      }
+      rtcPeerConnectionFactory = null;
+    };
   };
 
   var fireContactAcceptedEvent = function (contact) {
@@ -348,17 +381,17 @@
   // Bind events for mute
   var handleSoftPhoneMuteToggle = function () {
     var bus = connect.core.getEventBus();
-    bus.subscribe(connect.EventType.MUTE, muteToggle);
+    return bus.subscribe(connect.EventType.MUTE, muteToggle);
   };
 
   var handleSpeakerDeviceChange = function() {
     var bus = connect.core.getEventBus();
-    bus.subscribe(connect.ConfigurationEvents.SET_SPEAKER_DEVICE, setSpeakerDevice);
+    return bus.subscribe(connect.ConfigurationEvents.SET_SPEAKER_DEVICE, setSpeakerDevice);
   }
 
-  var handleMicrophoneDeviceChange = function () {
+  var handleMicrophoneDeviceChange = function (enableEchoCancellation) {
     var bus = connect.core.getEventBus();
-    bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, setMicrophoneDevice);
+    return bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, (data) => setMicrophoneDevice({ ...data, enableEchoCancellation }));
   }
 
   var monitorMicrophonePermission = function () {
@@ -435,57 +468,80 @@
     });
   };
 
-  var setSpeakerDevice = function (data) {
-    if (connect.keys(localMediaStream).length === 0 || !data || !data.deviceId) {
+  var setSpeakerDevice = function (data = {}) {
+    const deviceId = data.deviceId || '';
+    connect.getLog().info(`[Audio Device Settings] Attempting to set speaker device ${deviceId}`).sendInternalLogToServer();
+
+    if (!deviceId) {
+      connect.getLog().warn("[Audio Device Settings] Setting speaker device cancelled due to missing deviceId").sendInternalLogToServer();
       return;
     }
-    var deviceId = data.deviceId;
-    var remoteAudioElement = document.getElementById('remote-audio');
-    try {
-      logger.info("Trying to set speaker to device " + deviceId);
-      if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
-        remoteAudioElement.setSinkId(deviceId);
-      }
-    } catch (e) {
-      logger.error("Failed to set speaker to device " + deviceId);
-    }
 
-    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
-      data: { deviceId: deviceId }
-    });
+    var remoteAudioElement = document.getElementById('remote-audio');
+    if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
+        remoteAudioElement.setSinkId(deviceId).then(() => {
+          connect.getLog().info(`[Audio Device Settings] Speaker device ${deviceId} successfully set to speaker audio element`).sendInternalLogToServer();
+          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
+            data: { deviceId: deviceId }
+          });
+        }).catch((e) => {
+          connect.getLog().error("[Audio Device Settings] Failed to set speaker device " + deviceId).withException(e).sendInternalLogToServer()
+        });
+    } else {
+      connect.getLog().warn("[Audio Device Settings] Setting speaker device cancelled due to missing remoteAudioElement").sendInternalLogToServer();
+    }
   }
 
-  var setMicrophoneDevice = function (data) {
-    if (connect.keys(localMediaStream).length === 0  || !data || !data.deviceId) {
+  var setMicrophoneDevice = function (data = {}) {
+    const deviceId = data.deviceId || '';
+    connect.getLog().info(`[Audio Device Settings] Attempting to set microphone device ${deviceId}`).sendInternalLogToServer();
+
+    if (connect.keys(localMediaStream).length === 0) {
+      connect.getLog().warn("[Audio Device Settings] Setting microphone device cancelled due to missing localMediaStream").sendInternalLogToServer();
       return;
     }
-    var deviceId = data.deviceId;
-    var softphoneManager = connect.core.getSoftphoneManager();
-    try {
-      navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } })
-        .then(function (newMicrophoneStream) {
-          var newMicrophoneTrack = newMicrophoneStream.getAudioTracks()[0];
-          for (var connectionId in localMediaStream) {
-            if (localMediaStream.hasOwnProperty(connectionId)) {
-              var localMedia = localMediaStream[connectionId].stream;
-              var session = softphoneManager.getSession(connectionId);
-              //Replace the audio track in the RtcPeerConnection
-              session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
-                //Replace the audio track in the local media stream (for mute / unmute)
-                softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
-              });
-            }
-          }
-        });
-    } catch(e) {
-      logger.error("Failed to set microphone device " + deviceId);
+    if (!deviceId) {
+      connect.getLog().warn("[Audio Device Settings] Setting microphone device cancelled due to missing deviceId").sendInternalLogToServer();
+      return;
     }
-
-    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED,
-      data: { deviceId: deviceId }
+    var softphoneManager = connect.core.getSoftphoneManager();
+    var CONSTRAINT = { audio: { deviceId: { exact: deviceId } } };
+    if (!data.enableEchoCancellation) CONSTRAINT.audio.echoCancellation = false;
+    connect.publishMetric({
+      name: ECHO_CANCELLATION_CHECK,
+      data: {
+        count: 1,
+        disableEchoCancellation: !data.enableEchoCancellation
+      }
     });
+     navigator.mediaDevices.getUserMedia(CONSTRAINT)
+        .then((newMicrophoneStream) => {
+          try {
+            var newMicrophoneTrack = newMicrophoneStream.getAudioTracks()[0];
+            for (var connectionId in localMediaStream) {
+              if (localMediaStream.hasOwnProperty(connectionId)) {
+                var localMedia = localMediaStream[connectionId].stream;
+                var session = softphoneManager.getSession(connectionId);
+                //Replace the audio track in the RtcPeerConnection
+                session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
+                  //Replace the audio track in the local media stream (for mute / unmute)
+                  softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
+                  connect.getLog().info(`[Audio Device Settings] Microphone device ${deviceId} successfully set to local media stream in RTCRtpSender`).sendInternalLogToServer();
+                });
+              }
+            }
+          } catch(e) {
+            connect.getLog().error("[Audio Device Settings] Failed to set microphone device " + deviceId).withException(e).sendInternalLogToServer();
+            return;
+          }
+          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED,
+            data: { deviceId: deviceId }
+          });
+        }).catch((e) => {
+          connect.getLog().error("[Audio Device Settings] Failed to set microphone device " + deviceId).withException(e).sendInternalLogToServer();
+        });
   }
 
   var publishSoftphoneFailureLogs = function (rtcSession, reason) {
@@ -607,7 +663,7 @@
       .sendInternalLogToServer();
   };
 
-  var isBrowserSoftPhoneSupported = function () {
+  SoftphoneManager.isBrowserSoftPhoneSupported = function () {
     // In Opera, the true version is after "Opera" or after "Version"
     if (connect.isOperaBrowser() && connect.getOperaBrowserVersion() > 17) {
       return true;
@@ -669,6 +725,7 @@
       setRemoteDescriptionFailure: report.setRemoteDescriptionFailure,
       softphoneStreamStatistics: report.streamStats
     };
+
     contact.sendSoftphoneReport(callReport, {
       success: function () {
         logger.info("sendSoftphoneReport success" + JSON.stringify(callReport))
@@ -680,6 +737,45 @@
           .sendInternalLogToServer();
       }
     });
+
+    var streamPerSecondStats = {
+      AUDIO_INPUT : {
+        packetsCount: inputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
+        packetsLost: inputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
+        audioLevel: inputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
+        jitterBufferMillis: inputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis)
+      },
+      AUDIO_OUTPUT : {
+        packetsCount: outputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
+        packetsLost: outputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
+        audioLevel: outputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
+        jitterBufferMillis: outputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis),
+        roundTripTimeMillis: outputRTPStreamStatsBuffer.map(stats => stats.roundTripTimeMillis)
+      }
+    }
+
+    var telemetryCallReport = {
+      ...callReport,
+      softphoneStreamPerSecondStatistics: streamPerSecondStats,
+      iceConnectionsLost: report.iceConnectionsLost,
+      iceConnectionsFailed: report.iceConnectionsFailed || null,
+      peerConnectionFailed: report.peerConnectionFailed || null,
+      rtcJsVersion: report.rtcJsVersion || null,
+      consecutiveNoAudioInputPackets: consecutiveNoAudioInputPackets,
+      consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
+      consecutiveNoAudioOutputPackets: consecutiveNoAudioOutputPackets,
+      consecutiveLowOutputAudioLevel: consecutiveLowOutputAudioLevel,
+      audioInputConnectedDurationSeconds: audioInputConnectedDurationSeconds
+    }
+
+    connect.publishSoftphoneReport({
+      contactId: contact.getContactId(),
+      ccpVersion: global.ccpVersion,
+      report: telemetryCallReport
+    });
+
+    logger.info("sent TelemetryCallReport " + JSON.stringify(telemetryCallReport))
+      .sendInternalLogToServer();
   };
 
   var startStatsCollectionJob = function (rtcSession) {
@@ -687,14 +783,18 @@
       rtcSession.getUserAudioStats().then(function (stats) {
         var previousUserStats = aggregatedUserAudioStats;
         aggregatedUserAudioStats = stats;
-        timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT));
+        var currRTPStreamStat = getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT);
+        timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
+        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat);
       }, function (error) {
         logger.debug("Failed to get user audio stats.", error).sendInternalLogToServer();
       });
       rtcSession.getRemoteAudioStats().then(function (stats) {
         var previousRemoteStats = aggregatedRemoteAudioStats;
         aggregatedRemoteAudioStats = stats;
-        timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT));
+        var currRTPStreamStat = getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT);
+        timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
+        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat);
       }, function (error) {
         logger.debug("Failed to get remote audio stats.", error).sendInternalLogToServer();
       });
@@ -711,14 +811,24 @@
     aggregatedUserAudioStats = null;
     aggregatedRemoteAudioStats = null;
     timeSeriesStreamStatsBuffer = [];
+    inputRTPStreamStatsBuffer = [];
+    outputRTPStreamStatsBuffer = [];
     rtpStatsJob = null;
     reportStatsJob = null;
+    consecutiveNoAudioInputPackets = 0;
+    consecutiveLowInputAudioLevel = 0;
+    consecutiveNoAudioOutputPackets = 0;
+    consecutiveLowOutputAudioLevel = 0;
+    audioInputConnectedDurationSeconds = 0;
   };
 
   var getTimeSeriesStats = function (currentStats, previousStats, streamType) {
     if (previousStats && currentStats) {
       var packetsLost = currentStats.packetsLost > previousStats.packetsLost ? currentStats.packetsLost - previousStats.packetsLost : 0;
       var packetsCount = currentStats.packetsCount > previousStats.packetsCount ? currentStats.packetsCount - previousStats.packetsCount : 0;
+      checkConsecutiveNoPackets(packetsCount, streamType);
+      checkConsecutiveNoAudio(currentStats.audioLevel, streamType);
+
       return new RTPStreamStats(currentStats.timestamp,
         packetsLost,
         packetsCount,
@@ -734,6 +844,53 @@
         currentStats.audioLevel,
         currentStats.jbMilliseconds,
         currentStats.rttMilliseconds);
+    }
+  };
+
+  var telemetryCallReportRTPStreamStatsBuffer = function (rtpStreamStats) {
+    if (rtpStreamStats.softphoneStreamType === AUDIO_INPUT) {
+      while (inputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
+        inputRTPStreamStatsBuffer.shift();
+      }
+      inputRTPStreamStatsBuffer.push(rtpStreamStats);
+    } else if (rtpStreamStats.softphoneStreamType === AUDIO_OUTPUT) {
+      while (outputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
+        outputRTPStreamStatsBuffer.shift();
+      }
+      outputRTPStreamStatsBuffer.push(rtpStreamStats);
+    }
+  };
+
+  var checkConsecutiveNoPackets = function (packetsCount, streamType) {
+    if (streamType === AUDIO_INPUT) {
+      audioInputConnectedDurationSeconds++;
+      if (packetsCount <= 0){
+        consecutiveNoAudioInputPackets++;
+      } else {
+        consecutiveNoAudioInputPackets = 0;
+      }
+    } else if (streamType === AUDIO_OUTPUT){
+      if (packetsCount <= 0){
+        consecutiveNoAudioOutputPackets++;
+      } else {
+        consecutiveNoAudioOutputPackets = 0;
+      }
+    }
+  };
+
+  var checkConsecutiveNoAudio = function (audioLevel, streamType) {
+    if (streamType === AUDIO_INPUT) {
+      if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD){
+        consecutiveLowInputAudioLevel++;
+      } else{
+        consecutiveLowInputAudioLevel = 0;
+      }
+    } else if (streamType === AUDIO_OUTPUT){
+      if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD){
+        consecutiveLowOutputAudioLevel++;
+      } else{
+        consecutiveLowOutputAudioLevel = 0;
+      }
     }
   };
 

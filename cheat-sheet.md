@@ -1,21 +1,26 @@
-Streams API - Cheat sheet
+# Streams API - Cheat sheet
 
-Get agent config
+## Get agent config
 
+```js
     connect.agent(function(agent) {
       var config = agent.getConfiguration();
       console.log("here is your configuration: " + JSON.stringify(config));
     });
+```
 
-Get agent states
+## Get agent states
 
+```js
     connect.agent(function(agent) {
       var states = agent.getAgentStates();
       console.log("here are your states: " + JSON.stringify(states));
     });
+```
 
-Change agent state
+## Change agent state
 
+```js
     connect.agent(function(agent) {
       var targetState = agent.getAgentStates()[0];
       agent.setState(targetState, {
@@ -27,10 +32,11 @@ Change agent state
         }
         });
     });
+```
 
+## Change agent state to OFFLINE
 
-Change agent state to OFFLINE
-
+```js
     connect.agent(function(agent) {	
       var offlineState = agent.getAgentStates().filter(function (state) { 
         return state.type === connect.AgentStateType.OFFLINE; })[0];
@@ -43,9 +49,11 @@ Change agent state to OFFLINE
         }
       });
     });
-			
-Change agent state to AVAILABLE
+```
 
+## Change agent state to AVAILABLE
+
+```js
     connect.agent(function(agent) {	
       var avail = agent.getAgentStates().filter(function (state) {
                 return state.type === connect.AgentStateType.ROUTABLE;
@@ -59,10 +67,11 @@ Change agent state to AVAILABLE
         }
       });
     });
+```
 
+## Hang up call
 
-Hang up call
-
+```js
     var c;
     connect.contact(function (contact) {
       c = contact;
@@ -75,9 +84,11 @@ Hang up call
         }
       });
     });
+```
 
-Hang up second line
+## Hang up second line
 
+```js
     var c;
     connect.contact(function (contact) {
       c = contact;
@@ -90,10 +101,11 @@ Hang up second line
         }
       });
     });
+```		
 			
-			
-Hang up calls, set status to Offline and redirect to logout URL
+## Hang up calls, set status to Offline and redirect to logout URL
 
+```js
     var c;
     var ccpInstance = "yourInstanceAlias";
     connect.contact(function (contact) {
@@ -127,16 +139,18 @@ Hang up calls, set status to Offline and redirect to logout URL
       window.location.replace('https://<your-instance-domain>/connect/logout');
       // or fetch("https://<your-instance-domain>/connect/logout", { credentials: 'include'})
     });
-			
+```			
 
-Dial a number
+## Dial a number
 
+```js
     var agent = new lily.Agent();
     agent.connect(connect.Endpoint.byPhoneNumber("14802021091"),{});
+```
 
+## Get quick connects
 
-Get quick connects
-
+```js
     var agent = new lily.Agent();
 
     agent.getEndpoints(agent.getAllQueueARNs(), {
@@ -147,10 +161,11 @@ Get quick connects
         console.log("failed")
       }
     });
+```
 
+## Transfer to a quick connect
 
-Transfer to a quick connect
-
+```js
     var agent = new lily.Agent();
 
     agent.getEndpoints(agent.getAllQueueARNs(), {
@@ -170,10 +185,11 @@ Transfer to a quick connect
         console.log("failed")
       }
     });
+```
 
+## Transfer to a phone number
 
-Transfer to a phone number
-
+```js
     var agent = new lily.Agent();
     var endpoint = connect.Endpoint.byPhoneNumber("+14807081026");
 
@@ -185,8 +201,11 @@ Transfer to a phone number
           alert("transfer failed");
       }
     });
-	
-Update agent config to use softphone
+```
+
+## Update agent config to use softphone
+
+```js
     connect.agent(async function(agent) {
       a = agent;
       var config = a.getConfiguration(); 
@@ -201,9 +220,11 @@ Update agent config to use softphone
           console.log("Could not set softphone...."); 
         }});
     });
+```
 
-Get contact attributes
+## Get contact attributes
 
+```js
     var c;
     connect.contact(function (contact) {
         c = contact;
@@ -221,18 +242,23 @@ Get contact attributes
             }
         });
     });
+```
 
-Add a log message to agent logs
+## Add a log message to agent logs
 
+```js
     connect.getLog().warn("yar, I'm a pirate")
+```
 
-Download agent logs
+## Download agent logs
 
+```js
 	connect.getLog().download()
+```
 
+## Media Controller API for chat - ***New,ChatJS Required***
 
-Media Controller API for chat - ***New,ChatJS Required***
-
+```js
     connect.contact(function(contact){
     contact.getAgentConnections().forEach(function(connection){
       // chat users
@@ -254,22 +280,26 @@ Media Controller API for chat - ***New,ChatJS Required***
           });
       }
     });
+```
 
+## ViewContact API
 
-ViewContact API
-
+```js
     connect.core.viewContact("contactID")
+```
 
-onAuthFail Event Handler
+## onAuthFail Event Handler
 
+```js
     connect.core.onAuthFail(function(){
       // agent logged out or session expired.  needs login
       // show button for login or popup a login screen. 
     });
+```
 
+## onSoftphoneSessionInit Event Handler
 
-onSoftphoneSessionInit Event Handler
-
+```js
     connect.core.onSoftphoneSessionInit(function({ connectionId }) {
         var softphoneManager = connect.core.getSoftphoneManager();
         if(softphoneManager){
@@ -278,7 +308,43 @@ onSoftphoneSessionInit Event Handler
           // YOu can use this rtc session for stats analysis 
         }
     });
+```
 
-fetch API 
+## fetch API 
 
+```js
     connect.fetch("endpoint", options, retryinterval, maxRetry); 
+```
+
+## Mute Agent
+  		  
+```js
+  	function muteAgent(){
+  		  const agent = new connect.Agent();
+  		  const contact  = agent.getContacts(connect.ContactType.VOICE)?.[0]
+  		  
+  		  // Get all open active connections
+  		  const activeConnections = contact?.getConnections().filter((conn) => conn.isActive()) || [];
+  		  
+  		  
+  		  if (activeConnections.length === 0) {
+  		      console.log("No Active Connections to mute");
+  		      return;
+  		  }
+  		  
+  		  // Check if we are using multiparty and see if there more than 2 active connections
+  		  if (contact.isMultiPartyConferenceEnabled() && activeConnections.length > 2) {
+  		      // if any of those are in connecting mode
+  		      const connectingConnections =  contact?.getConnections().filter((conn) => conn.isConnecting()) || [];
+  		      if (connectingConnections.length === 0) {
+  		          console.log("Agent Connection is muted at the server side");
+  		          contact.getAgentConnection().muteParticipant();
+  		      } else {
+  		          console.log("Agent Connection cannot be muted while multi party participant is connecting")
+  		      }
+  		  } else {
+  		      console.log("Agent connection muted at the client side");
+  		      agent.mute();
+  		  }
+  	}
+```

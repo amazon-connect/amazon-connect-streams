@@ -18,7 +18,7 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
 1. December 2022 - 2.4.2
     * This patch fixes an issue in Streams’ Voice ID APIs that may have led to incorrect values being set against the generatedSpeakerID field in the VoiceIdResult segment of Connect Contact Trace Records (CTRs). This occurred in some scenarios where you call either enrollSpeakerInVoiceId(), evaluateSpeakerWithVoiceId(), or updateVoiceIdSpeakerId() in your custom CCP integration code. If you are using Voice ID and consuming Voice ID CTRs, or updating speaker ID in your agent workflow, please upgrade to this version.
 1. December 2022 - 2.4.1
-    * This version brings in updates that will provide enhanced monitoring experience to agents and supervisors, allowing to silently monitor multiparty calls, and if needed to barge in the call and take over control, mute agents, or drop them from the call. New APIs introduced with this feature are `isSilentMonitor`, `isBarge`, `isSilentMonitorEnabled`, `isBargeEnabled`, `isUnderSupervision`, `updateMonitorParticipantState`, `getMonitorCapabilities`, `getMonitorStatus`, `isForcedMute`.
+    * This version brings in updates that will provide enhanced monitoring experience to agents and supervisors, allowing to silently monitor multiparty calls, and if needed to barge in the call and take over control, mute agents, or drop them from the call. New APIs introduced with this feature are `isSilentMonitor`, `isBarge`, `isSilentMonitorEnabled`, `isBargeEnabled`, `isUnderSupervision`, `updateMonitorParticipantState`, `getMonitorCapabilities`, `getMonitorStatus`, `isForcedMute`. Before enabling Enhanced monitoring capabilities, ensure that you are using the latest version of the Contact Control Panel (CCP) or Agent workspace.
 1. August 2022 - 2.3.0
     * [Update on 12/13/2022] Please see 2.4.2 for final resolution of the Voice ID CTR fix.
 1. Jan 2022 - 2.0.0
@@ -70,7 +70,7 @@ To allowlist your pages:
 1. Login to your AWS Account, then navigate to the Amazon Connect console.
 2. Choose the instance alias of the instance to allowlist
    pages for to load the settings Overview page for your instance.
-3. Choose "Application integration" link on the left.
+3. In the navigation pane, choose "Approved origins".
 4. Choose "+ Add Origin", then enter a domain URL, e.g.
    "https<nolink>://example.com", or "https<nolink>://example.com:9595" if your
    website is hosted on a non-standard port.
@@ -202,7 +202,8 @@ everything set up correctly and that you are able to listen for events.
           softphone: {                    // optional, defaults below apply if not provided
             allowFramedSoftphone: true,   // optional, defaults to false
             disableRingtone: false,       // optional, defaults to false
-            ringtoneUrl: "./ringtone.mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
+            ringtoneUrl: "./ringtone.mp3",// optional, defaults to CCP’s default ringtone if a falsy value is set
+            disableEchoCancellation: false// optional, defaults to false
           },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
@@ -242,7 +243,7 @@ and made available to your JS client code.
    has completed. If the login page opened in a new tab, this parameter will also auto-close that
    tab. This can also be set in `loginOptions` if those options are used.
 * `loginUrl`: Optional. Allows custom URL to be used to initiate the ccp, as in
-  the case of SAML authentication.
+  the case of SAML authentication. [See more information](#saml-authentication)
 * `softphone`: This object is optional and allows you to specify some settings
   surrounding the softphone feature of Connect.
   * `allowFramedSoftphone`: Normally, the softphone microphone and speaker
@@ -258,7 +259,9 @@ and made available to your JS client code.
 * `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
   * `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local
       machine. If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab. will not be
-      displayed.
+      displayed. 
+    * Important Note: If you are using Firefox as your browser, the output audio device list will be empty and CCP will use the computer's default output audio settings.
+    * To enable output devices for Audio Device Settings, please enable `media.setsinkid.enabled` in Firefox by navigating to `about:config` in Firefox. Then, search for `media.setsinkid.enabled` and toggle it to true.
   * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
       and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
 * `shouldAddNamespaceToLogs`: prepends `[CCP]` to all logs logged by the CCP. Important note: there are a few logs made by the CCP before the namespace is prepended.
@@ -478,6 +481,15 @@ Returns a promise that is resolved with the list of media devices from iframe.
 Timeout for the request can be passed as an optional argument. The default timeout is 1000ms.
 The API should be called after the iframe CCP initialization is complete.
 
+## SAML Authentication
+Streams support Security Assertion Markup Language (SAML) 2.0 to enable single sign-on (SSO) which will allow users to sign in through a SAML 2.0 compatible identity provider (IdP) and gain access to the instance without having to provide separate credentials.
+### Using SAML with Streams
+Going through the basic use case: Customers should be logging in through their IdP by opening a popout window/tab to start the SSO flow. Inside the [`initCCP`](#initialization) function, there are certain optional parameters to take note of which will be useful in setting up SAML. The first will be `loginUrl`, which allows users to link their IdP with Streams. Other optional parameters include `loginPopup`(by default is `true`) and `loginOptions`(only used when `loginPopup` is `true`) which handles the configuration of the popup window for login. When configured correctly, Streams should open up a new window/tab with the login URL provided when authentication is needed, and in the background, a hidden CCP iFrame (built in with streams) will refresh every five seconds until the customer's authentication credentials have been verified. For CCP to load successfully, the SAML federation must be completed successfully along with CCP's initialization execution flow.
+### SSO with a hidden iFrame
+As mentioned above, Streams is currently built with full support for those who perform the SSO flow in a pop out window/tab. For users who would like to perform SSO in an hidden iframe within the same window, please be aware that the IdP may contain a same-origin-policy which can prevent the interactions between the user's domain and IdP. Users will then have to perform the SSO flow by going through the method mentioned above, or delegating the iframe to SSO.
+
+**Note**: For users who want to remove the SSO hidden iframe, please wait until CCP's initialization and SAML flow execution are executed successfully. From the function `connect.core.onInitialized(callback)`, mentioned above, you can add a callback function after CCP initialization execution is complete, Other functions that may be helpful to help monitor the authentication flow are `connect.core.onAuthFail(callback)`(allows users to subscribe a callback function when authentication fails), and `connect.core.onAuthorizeRetriesExhausted(callback)`(subscribes a callback function when multiple agent authorization api failures have happened)
+
 ## Event Subscription
 Event subscriptions link your app into the heartbeat of Amazon Connect by allowing your
 code to be called when new agent information is available.
@@ -613,6 +625,7 @@ This object contains the following fields:
 * `startTimestamp`: A `Date` object that indicates when the state was set.
 * `type`: The agent's current availability state type, as per the `AgentStateType` enumeration.
 
+This object may contain a state that was predefined by the system. Please see [`agent.getAvailabilityState()`](#agentgetavailabilitystate) to retrieve the agent's user-defined state.
 ### `agent.getStateDuration()` / `agent.getStatusDuration()`
 ```js
 var millis = agent.getStateDuration();
@@ -662,6 +675,17 @@ the following fields:
 * `agentStateARN` The agent state ARN.
 * `type`: The agent state type represented as a `AgentStateType` enum value.
 * `name`: The name of the agent state to be displayed in the UI.
+
+### `agent.getAvailabilityState()`
+```js
+var agentState = agent.getAvailabilityState();
+```
+Unlike [`agent.getState()`](#agentgetstate--agentgetstatus) which could return a system defined state,
+this function will only return the agent's current [user-changeable / definable state](https://docs.aws.amazon.com/connect/latest/adminguide/agent-custom.html).
+The object will contain the following fields:
+
+* `state` The name of the agent state.
+* `timestamp`: A `Date` object that indicates when the agent was set to that state.
 
 ### `agent.getRoutingProfile()`
 ```js
@@ -818,13 +842,21 @@ such as adding to a log file or posting elsewhere.
 ```js
 agent.mute();
 ```
-Sets the agent local media to mute mode.
+Sets the agent local media to mute mode. If `Enhanced monitoring & Mutiparty` is enabled, use 
+`voiceConnection.muteParticipant()` when there are more than 2 agent connections (see example 
+[here](cheat-sheet.md#mute-agent)), since `voiceConnection.muteParticipant()` 
+will mute the connection on the server side, and the server side mute value is the only one 
+accounted for when there are more than 2 connections.
 
 ### `agent.unmute()`
 ```js
 agent.unmute();
 ```
-Sets the agent localmedia to unmute mode.
+Sets the agent localmedia to unmute mode. If `Enhanced monitoring & Mutiparty` is enabled, use 
+`voiceConnection.unmuteParticipant()` when there are more than 2 agent connections (see example 
+[here](cheat-sheet.md#mute-agent)), since `voiceConnection.unmuteParticipant()` will unmute the 
+connection on the server side, and the server side mute value is the only one accounted for when 
+there are more than 2 connections.
 
 
 ### `agent.setSpeakerDevice()`
@@ -1784,6 +1816,7 @@ To get latest streams file and allowlist required urls follow [these instruction
       <div id="ccp-container"></div>
       <div id="customerprofiles-container"></div>
       <div id="wisdom-container"></div>
+      <div id="cases-container"></div>
       <div id="customviews-container"></div>
     </main>
     <script type="text/javascript">
@@ -1807,7 +1840,12 @@ To get latest streams file and allowlist required urls follow [these instruction
             connectUrl + "/wisdom-v2/",
             { style: "width:400px; height:600px;" }
         );
-
+        connect.agentApp.initApp(
+  		      "cases", 
+  		      "cases-container", 
+  		      connectUrl + "/cases/agent-app/",
+  		      { style: "width:400px; height:600px;" }
+  		  );
         connect.agentApp.initApp(
             "customviews", 
             "customviews-container", 
@@ -1841,11 +1879,11 @@ To get latest streams file and allowlist required urls follow [these instruction
 ```
 
 Integrates with Amazon Connect by loading the pre-built app located at `appUrl` into an iframe and appending it into the DOM element with id of `containerId`. Underneath the hood, `initApp` creates a `WindowIOStream` for the iframes to communicate with the main CCP iframe, which is in charge of authenticating the agent's session, managing the agent state, and contact state.
-* `name`: A string which should be one of `ccp`, `customerprofiles`, or `wisdom`.
+* `name`: A string which should be one of `ccp`, `customerprofiles`, `wisdom`, `cases`, or `customviews`.
 * `containerId`: The string id of the DOM element that will contain the app iframe.
 * `appUrl`: The string URL of the app. This is the page you would normally navigate to in order to use the app in a standalone page, it is different for each instance.
 * `config`: This object is optional and allows you to specify some settings surrounding the CCP.
-    * `ccpParams`: Optional params that mirror the configuration options for `initCCP`.
+    * `ccpParams`: Optional params that mirror the configuration options for `initCCP`. Only valid when `name` is set to `ccp`. `allowFramedSoftphone` defaults to `true`.
     * `style`: An optional string to supply inline styling for the iframe.
 
 ## Voice ID APIs
@@ -1858,6 +1896,9 @@ Streams Voice ID APIs can be tested after all these prerequisites are met:
 3. "Voice ID" permission is given to the agent in the Security Profile page under the Contact Control Panel (CCP) section
 
 The Voice ID APIs are exposed as Voice Connection methods and only work with two-party calls, not with conference calls at this moment. You can get the voice connection object by calling `contact.getAgentConnection()` when there's a voice connection.
+
+Notes:
+- For outbound calls and queued callbacks, these Streams Voice ID APIs can be called after contact is connected. For inbound calls, they can be called when contact is connecting.
 
 
 ### `voiceConnection.getVoiceIdSpeakerStatus()`
@@ -2007,7 +2048,7 @@ voiceConnection.updateVoiceIdSpeaker()
 ```
 
 ## Enhanced Monitoring APIs
-Enhanced monitoring providing real-time silent monitoring and barge capability to help managers and supervisors to listen in the agents' conversations and barge into the call if needed to take over the control and provide better customer experience. Supervisors in barge mode will be able to force mute agents and prevent them from unmuting themselves, will be able to hold, drop any connection, or directly speak with the customer. If the supervisor has muted an agent and then drops from the call, the agent will be able to unmute themselves once supervisor has dropped. Monitoring APIs are expected to be used against agent's(or supervisor's) connection. To start enhanced monitoring supervisor/manager will need to click an eye icon on the Real Time Metrics page.
+Enhanced monitoring providing real-time silent monitoring and barge capability to help managers and supervisors to listen in the agents' conversations and barge into the call if needed to take over the control and provide better customer experience. Supervisors in barge mode will be able to force mute agents and prevent them from unmuting themselves, will be able to hold, drop any connection, or directly speak with the customer. If the supervisor has muted an agent and then drops from the call, the agent will be able to unmute themselves once supervisor has dropped. Monitoring APIs are expected to be used against agent's(or supervisor's) connection. To start enhanced monitoring supervisor/manager will need to click an eye icon on the Real Time Metrics page. Before enabling Enhanced monitoring capabilities, ensure that you are using the latest version of the Contact Control Panel (CCP) or Agent workspace.
 
 Streams Enhanced Monitoring APIs can be tested after all these prerequisites are met:
 1. Enable Multi-Party Calls and Enhanced Monitoring in Telephony section of the Amazon Connect Console.

@@ -18,6 +18,9 @@
   // The default log roll interval (30min)
   var DEFAULT_LOG_ROLL_INTERVAL = 1800000;
 
+  // Prefix to be added to values obfuscated using MD5 digest.
+  var OBFUSCATED_PREFIX = "[obfuscated value]"
+
   /**
    * An enumeration of common logging levels.
    */
@@ -58,6 +61,15 @@
     CRITICAL: 200
 
   };
+
+  /**
+   * An enumeration of logging context layers.
+   */
+    var LogContextLayer = {
+      CCP: "CCP",
+      SHARED_WORKER: "SharedWorker",
+      CRM: "CRM"
+    }
 
   /**
    * A map from log level to console logger function.
@@ -117,11 +129,12 @@
    * Log entries are aware of their timestamp, order,
    * and can contain objects and exception stack traces.
    */
-  var LogEntry = function (component, level, text, loggerId) {
+  var LogEntry = function (component, level, text, loggerId, tabId, contextLayer) {
     this.component = component;
     this.level = level;
     this.text = text;
     this.time = new Date();
+    this.tabId = tabId ===  null ? null : tabId ? tabId : connect.core.tabId;
     this.exception = null;
     this.objects = [];
     this.line = 0;
@@ -134,10 +147,23 @@
       console.log("Issue finding agentResourceId: ", e); //can't use our logger here as we might infinitely attempt to log this error.
     }
     this.loggerId = loggerId;
+    if (contextLayer) {
+      this.contextLayer = contextLayer;
+    } else {
+      if (connect.isSharedWorker()) {
+        this.contextLayer = LogContextLayer.SHARED_WORKER;
+      } else if (connect.isCRM()) {
+        this.contextLayer = LogContextLayer.CRM;
+      } else if (connect.isCCP()) {
+        this.contextLayer = LogContextLayer.CCP;
+      }  
+    }
   };
 
   LogEntry.fromObject = function (obj) {
-    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text, obj.loggerId);
+    var tabId = obj.tabId || null;
+    var contextLayer = obj.contextLayer || null;
+    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text, obj.loggerId, tabId, contextLayer);
 
     // Required to check for Date objects sent across frame boundaries
     if (Object.prototype.toString.call(obj.time) === '[object Date]') {
@@ -169,7 +195,7 @@
           } else if (["quickConnectName"].includes(key)) {
             data[key] = "[redacted]";
           } else if (["customerId", "CustomerId", "SpeakerId", "CustomerSpeakerId"].includes(key)) {
-            data[key] = md5(data[key]);
+            data[key] = `${OBFUSCATED_PREFIX} ${md5(data[key])}`;
           }
         }
       });
@@ -218,6 +244,14 @@
 
   LogEntry.prototype.getAgentResourceId = function () {
     return this.agentResourceId;
+  }
+
+  LogEntry.prototype.getTabId = function() {
+    return this.tabId;
+  }
+
+  LogEntry.prototype.getContextLayer = function() {
+    return this.contextLayer;
   }
 
   /**
