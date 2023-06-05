@@ -45,12 +45,16 @@
     var self = this;
     if (this._audio) {
       this._audio.play()
+        .then(function() {
+          self._publishTelemetryEvent("Ringtone Start", contact);
+          connect.getLog().info("Ringtone Start").sendInternalLogToServer();
+        })
         .catch(function(e) {
           self._publishTelemetryEvent("Ringtone Playback Failure", contact);
           connect.getLog().error("Ringtone Playback Failure").withException(e).withObject({currentSrc: self._audio.currentSrc, sinkId: self._audio.sinkId, volume: self._audio.volume}).sendInternalLogToServer();
         });
-      self._publishTelemetryEvent("Ringtone Start", contact);
-      connect.getLog().info("Ringtone Start").sendInternalLogToServer();
+      // Empty string as sinkId means audio gets sent to the default device
+      connect.getLog().info(`Attempting to start ringtone to device ${this._audio.sinkId || "''"}`).sendInternalLogToServer();
     }
   };
 
@@ -113,14 +117,16 @@
         })
       ]);
       return playableAudioWithTimeout.then(function (audio) {
-        if (audio) {
-          if (audio.setSinkId) {
-            return Promise.resolve(audio.setSinkId(deviceId));
-          } else {
-            return Promise.reject("Not supported");
-          }
+        if (audio && audio.setSinkId) {
+          return audio.setSinkId(deviceId)
+            .then(function() {
+              return Promise.resolve(deviceId)
+            }).catch(function(err) {
+              // Empty string as sinkId means audio gets sent to the default device
+              return Promise.reject(`RingtoneEngineBase.setOutputDevice failed: audio.setSinkId() failed with error ${err}`)
+            });
         } else {
-          return Promise.reject("No audio found");
+          return Promise.reject(`RingtoneEngineBase.setOutputDevice failed: ${audio ? "audio" : "audio.setSinkId"} not found.`);
         }
       });
     }

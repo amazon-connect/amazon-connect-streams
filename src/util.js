@@ -219,6 +219,12 @@
   /**
   * Methods to determine browser type and versions, used for softphone initialization.
   */
+
+  /*
+    This will also return True for Edge and Opera since they
+    include Chrome in the user agent string, as they are built
+    off of Chrome.
+  */
   connect.isChromeBrowser = function () {
     return userAgent.indexOf("Chrome") !== -1;
   };
@@ -229,6 +235,10 @@
 
   connect.isOperaBrowser = function () {
     return userAgent.indexOf("Opera") !== -1;
+  };
+
+  connect.isEdgeBrowser = function () {
+    return userAgent.indexOf("Edg") !== -1;
   };
 
   connect.getChromeBrowserVersion = function () {
@@ -709,8 +719,21 @@
 
   // internal use only
   connect.isCCP = function () {
+    if (!connect.core.upstream) {
+      return false;
+    }
     var conduit = connect.core.getUpstream();
     return conduit.name === 'ConnectSharedWorkerConduit';
   }
 
+  connect.isSharedWorker = function () {
+    return connect.worker && !!connect.worker.clientEngine;
+  }
+
+  connect.isCRM = function () {
+    if (!connect.core.upstream) {
+      return false;
+    }
+    return connect.core.getUpstream() instanceof connect.IFrameConduit;
+  }
 })();
