@@ -93,6 +93,36 @@ describe('Utils', function () {
             connect.core.getUpstream.restore();
         });
     });
+    
+    describe('#connect.isSharedWorker', function () {
+        it('should return true when the upstream.name is ConnectSharedWorkerConduit', function () {
+            connect.worker.clientEngine = true;
+            assert.isTrue(connect.isSharedWorker());
+        });
+        it('should return false when the upstream.name is NOT ConnectSharedWorkerConduit', function () {
+            connect.worker.clientEngine = null;
+            assert.isFalse(connect.isSharedWorker());
+        });
+    })
+
+    describe('#connect.isCRM', function () {
+        it('should return true when the upstream is instance of IFrameConduit', function () {
+
+            sinon.stub(connect, 'WindowIOStream').returns(sinon.stub());
+            sinon.stub(connect, 'IFrameConduit').returns(sinon.stub());
+            sinon.stub(connect.core, 'getUpstream').returns(new connect.IFrameConduit());
+            assert.isTrue(connect.isCRM());
+            connect.core.getUpstream.restore();
+            connect.WindowIOStream.restore();
+            connect.IFrameConduit.restore();
+        });
+
+        it('should return false when the upstream is not an instance of IFrameConduit', function () {
+            sinon.stub(connect.core, 'getUpstream').returns({ name: 'https://ccp.url.com' });
+            assert.isFalse(connect.isCRM());
+            connect.core.getUpstream.restore();
+        });
+    })
 
     describe('#connect.deepcopyCrossOriginEvent', () => {
         it('should ignore all fields but those hardcoded in the method.', () => {

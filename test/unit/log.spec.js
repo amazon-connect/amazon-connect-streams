@@ -1,4 +1,5 @@
 require("../unit/test-setup.js");
+const { expect } = require("chai");
 
 describe('Logger', function() {
     describe('LogEntry.withException()', function() {
@@ -60,10 +61,10 @@ describe('Logger', function() {
                 "DomainId":"XKkbTGuCuCnYgOD1iPHzPv"
             };
             var expectedObj = [{
-                "customerId":"86afb5d2f86f0ddbe298a8dd895bf5aa",
-                "CustomerId":"a80f842e82ba7031ae6e22d939b179cf",
-                "SpeakerId":"7e7d858bbf580fdaba583bfb0bf4a118",
-                "CustomerSpeakerId":"82d1d42ff66faf8403e8eda577bb9e10",
+                "customerId":"[obfuscated value] 86afb5d2f86f0ddbe298a8dd895bf5aa",
+                "CustomerId":"[obfuscated value] a80f842e82ba7031ae6e22d939b179cf",
+                "SpeakerId":"[obfuscated value] 7e7d858bbf580fdaba583bfb0bf4a118",
+                "CustomerSpeakerId":"[obfuscated value] 82d1d42ff66faf8403e8eda577bb9e10",
                 "DomainId":"XKkbTGuCuCnYgOD1iPHzPv"
             }];
             var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);
@@ -140,6 +141,64 @@ describe('Logger', function() {
             let log = connect.getLog().info("hi");
             assert.equal(log.getAgentResourceId(), agentResourceId);
         });
+
+        it("should have the tabId property", () => {
+            let log = connect.getLog().info("hi");
+            expect(log.tabId).not.to.be.undefined;
+        });
+
+        it("should have the contextLayer property", () => {
+            let log = connect.getLog().info("hi");
+            expect(log.contextLayer).not.to.be.undefined;
+        });
+
+        it("LogEntry should take contextLayer input in fromObject invocation", () => {
+            let log = connect.LogEntry.fromObject({
+                contextLayer: 'contextLayer',
+                level: null,
+                text: "text",
+                loggerId: "loggerId",
+                exception: null,
+                objects: {}
+            })
+            expect(log.contextLayer).to.be.string('contextLayer');
+        })
+
+        it("LogEntry tabId should contain 'tabId' when passed in fromObject invocation", () => {
+            let log = connect.LogEntry.fromObject({
+                tabId: 'tabId',
+                level: null,
+                text: "text",
+                loggerId: "loggerId",
+                exception: null,
+                objects: {}
+            })
+            expect(log.tabId).to.be.string('tabId');
+        })
+
+        it("LogEntry tabId should contain null when passed in fromObject invocation", () => {
+            let log = connect.LogEntry.fromObject({
+                tabId: null,
+                level: null,
+                text: "text",
+                loggerId: "loggerId",
+                exception: null,
+                objects: {}
+            })
+            expect(log.tabId).to.be.null;
+        })
+
+        it("LogEntry tabId should be null when not passed in fromObject invocation", () => {
+            let log = connect.LogEntry.fromObject({
+                level: null,
+                text: "text",
+                loggerId: "loggerId",
+                exception: null,
+                objects: {}
+            })
+            expect(log.tabId).to.be.null;
+        })
+
         it("includes the agentResourceId when printed, and the correct log string", () => {
             let spy = sandbox.spy(connect, "sprintf");
             let log = connect.getLog().info("hello");

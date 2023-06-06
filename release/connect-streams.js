@@ -1145,7 +1145,22 @@
             callbacks.success(data);
           }
         },
-        failure: callbacks ? callbacks.failure : null
+        failure: function (err, data) {
+          connect.getLog().error("Accept Contact failed").sendInternalLogToServer()
+            .withException(err)
+            .withObject({
+              data
+            });
+
+          connect.publishMetric({
+            name: "ContactAcceptFailure",
+            data: { count: 1 }
+          })
+          
+          if (callbacks && callbacks.failure) {
+            callbacks.failure(connect.ContactStateType.ERROR);
+          }
+        }
       });
   };
 
@@ -1250,12 +1265,6 @@
       ccpVersion: global.ccpVersion,
       report: report
     }, callbacks);
-
-    connect.publishSoftphoneReport({
-      contactId: this.getContactId(),
-      ccpVersion: global.ccpVersion,
-      report: report
-    });
   };
 
   Contact.prototype.conferenceConnections = function (callbacks) {
@@ -2589,7 +2598,7 @@
 /***/ 827:
 /***/ ((module, exports, __webpack_require__) => {
 
-var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1200.0
+var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1358.0
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // License at https://sdk.amazonaws.com/js/BUNDLE_LICENSE.txt
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c=undefined;if(!f&&c)return require(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u=undefined,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
@@ -3516,6 +3525,15 @@ module.exports={
                 }
               }
             }
+          },
+          "agentDiscoveryTransport": {
+            "type": "structure",
+            "required": [
+              "presignedUrl"
+            ],
+            "members": {
+              "presignedUrl": {}
+            }
           }
         }
       }
@@ -3560,7 +3578,7 @@ module.exports={
         ],
         "members": {
           "configuration": {
-            "shape": "S1h"
+            "shape": "S1i"
           }
         }
       }
@@ -3627,10 +3645,10 @@ module.exports={
             ],
             "members": {
               "state": {
-                "shape": "S20"
+                "shape": "S21"
               },
               "nextState": {
-                "shape": "S20"
+                "shape": "S21"
               },
               "agentAvailabilityState": {
                 "type": "structure",
@@ -3790,7 +3808,11 @@ module.exports={
                         },
                         "multiPartyConferenceEnabled": {
                           "type": "boolean"
-                        }
+                        },
+                        "screenRecordingEnabled": {
+                          "type": "boolean"
+                        },
+                        "screenRecordingState": {}
                       }
                     },
                     "channelContext": {
@@ -3842,7 +3864,7 @@ module.exports={
           "states": {
             "type": "list",
             "member": {
-              "shape": "S20"
+              "shape": "S21"
             }
           },
           "nextToken": {}
@@ -4047,7 +4069,7 @@ module.exports={
             "shape": "S2"
           },
           "state": {
-            "shape": "S20"
+            "shape": "S21"
           },
           "enqueueNextState": {
             "type": "boolean"
@@ -4164,7 +4186,7 @@ module.exports={
           "contactId": {},
           "ccpVersion": {},
           "softphoneStreamStatistics": {
-            "shape": "S3v"
+            "shape": "S3w"
           }
         }
       },
@@ -4197,7 +4219,7 @@ module.exports={
                 "type": "timestamp"
               },
               "softphoneStreamStatistics": {
-                "shape": "S3v"
+                "shape": "S3w"
               },
               "gumTimeMillis": {
                 "type": "long"
@@ -4319,7 +4341,7 @@ module.exports={
             "shape": "S2"
           },
           "configuration": {
-            "shape": "S1h"
+            "shape": "S1i"
           }
         }
       },
@@ -4392,7 +4414,7 @@ module.exports={
         }
       }
     },
-    "S1h": {
+    "S1i": {
       "type": "structure",
       "required": [
         "name",
@@ -4432,10 +4454,11 @@ module.exports={
           "type": "map",
           "key": {},
           "value": {}
-        }
+        },
+        "agentARN": {}
       }
     },
-    "S20": {
+    "S21": {
       "type": "structure",
       "required": [
         "type",
@@ -4450,7 +4473,7 @@ module.exports={
         }
       }
     },
-    "S3v": {
+    "S3w": {
       "type": "list",
       "member": {
         "type": "structure",
@@ -5272,7 +5295,8 @@ module.exports={
   },
   "marketplacecatalog": {
     "prefix": "marketplace-catalog",
-    "name": "MarketplaceCatalog"
+    "name": "MarketplaceCatalog",
+    "cors": true
   },
   "dataexchange": {
     "name": "DataExchange"
@@ -5672,6 +5696,107 @@ module.exports={
   "supportapp": {
     "prefix": "support-app",
     "name": "SupportApp"
+  },
+  "controltower": {
+    "name": "ControlTower"
+  },
+  "iotfleetwise": {
+    "name": "IoTFleetWise"
+  },
+  "migrationhuborchestrator": {
+    "name": "MigrationHubOrchestrator"
+  },
+  "connectcases": {
+    "name": "ConnectCases"
+  },
+  "resourceexplorer2": {
+    "prefix": "resource-explorer-2",
+    "name": "ResourceExplorer2"
+  },
+  "scheduler": {
+    "name": "Scheduler"
+  },
+  "chimesdkvoice": {
+    "prefix": "chime-sdk-voice",
+    "name": "ChimeSDKVoice"
+  },
+  "iotroborunner": {
+    "prefix": "iot-roborunner",
+    "name": "IoTRoboRunner"
+  },
+  "ssmsap": {
+    "prefix": "ssm-sap",
+    "name": "SsmSap"
+  },
+  "oam": {
+    "name": "OAM"
+  },
+  "arczonalshift": {
+    "prefix": "arc-zonal-shift",
+    "name": "ARCZonalShift"
+  },
+  "omics": {
+    "name": "Omics"
+  },
+  "opensearchserverless": {
+    "name": "OpenSearchServerless"
+  },
+  "securitylake": {
+    "name": "SecurityLake"
+  },
+  "simspaceweaver": {
+    "name": "SimSpaceWeaver"
+  },
+  "docdbelastic": {
+    "prefix": "docdb-elastic",
+    "name": "DocDBElastic"
+  },
+  "sagemakergeospatial": {
+    "prefix": "sagemaker-geospatial",
+    "name": "SageMakerGeospatial"
+  },
+  "codecatalyst": {
+    "name": "CodeCatalyst"
+  },
+  "pipes": {
+    "name": "Pipes"
+  },
+  "sagemakermetrics": {
+    "prefix": "sagemaker-metrics",
+    "name": "SageMakerMetrics"
+  },
+  "kinesisvideowebrtcstorage": {
+    "prefix": "kinesis-video-webrtc-storage",
+    "name": "KinesisVideoWebRTCStorage"
+  },
+  "licensemanagerlinuxsubscriptions": {
+    "prefix": "license-manager-linux-subscriptions",
+    "name": "LicenseManagerLinuxSubscriptions"
+  },
+  "kendraranking": {
+    "prefix": "kendra-ranking",
+    "name": "KendraRanking"
+  },
+  "cleanrooms": {
+    "name": "CleanRooms"
+  },
+  "cloudtraildata": {
+    "prefix": "cloudtrail-data",
+    "name": "CloudTrailData"
+  },
+  "tnb": {
+    "name": "Tnb"
+  },
+  "internetmonitor": {
+    "name": "InternetMonitor"
+  },
+  "ivsrealtime": {
+    "prefix": "ivs-realtime",
+    "name": "IVSRealTime"
+  },
+  "vpclattice": {
+    "prefix": "vpc-lattice",
+    "name": "VPCLattice"
   }
 }
 },{}],5:[function(require,module,exports){
@@ -6040,7 +6165,7 @@ Object.defineProperty(apiLoader.services['sts'], '2011-06-15', {
 
 module.exports = AWS.STS;
 
-},{"../apis/sts-2011-06-15.min.json":5,"../apis/sts-2011-06-15.paginators.json":6,"../lib/core":19,"../lib/node_loader":16,"../lib/services/sts":62}],9:[function(require,module,exports){
+},{"../apis/sts-2011-06-15.min.json":5,"../apis/sts-2011-06-15.paginators.json":6,"../lib/core":19,"../lib/node_loader":16,"../lib/services/sts":63}],9:[function(require,module,exports){
 function apiLoader(svc, version) {
   if (!apiLoader.services.hasOwnProperty(svc)) {
     throw new Error('InvalidService: Failed to load api for ' + svc);
@@ -6167,7 +6292,7 @@ module.exports = exports = {
     convertToBuffer: convertToBuffer,
 };
 
-},{"buffer/":85}],12:[function(require,module,exports){
+},{"buffer/":87}],12:[function(require,module,exports){
 var hashUtils = require('./browserHashUtils');
 
 /**
@@ -6418,7 +6543,7 @@ function ii(a, b, c, d, x, s, t) {
     return cmn(c ^ (b | (~d)), a, b, x, s, t);
 }
 
-},{"./browserHashUtils":11,"buffer/":85}],14:[function(require,module,exports){
+},{"./browserHashUtils":11,"buffer/":87}],14:[function(require,module,exports){
 var Buffer = require('buffer/').Buffer;
 var hashUtils = require('./browserHashUtils');
 
@@ -6586,7 +6711,7 @@ Sha1.prototype.processBlock = function processBlock() {
     }
 };
 
-},{"./browserHashUtils":11,"buffer/":85}],15:[function(require,module,exports){
+},{"./browserHashUtils":11,"buffer/":87}],15:[function(require,module,exports){
 var Buffer = require('buffer/').Buffer;
 var hashUtils = require('./browserHashUtils');
 
@@ -6827,7 +6952,7 @@ Sha256.prototype.hashBuffer = function () {
     state[7] += state7;
 };
 
-},{"./browserHashUtils":11,"buffer/":85}],16:[function(require,module,exports){
+},{"./browserHashUtils":11,"buffer/":87}],16:[function(require,module,exports){
 (function (process){(function (){
 var util = require('./util');
 
@@ -6870,7 +6995,7 @@ if (typeof process === 'undefined') {
 }
 
 }).call(this)}).call(this,require('_process'))
-},{"./browserCryptoLib":10,"./core":19,"./credentials":20,"./credentials/chainable_temporary_credentials":21,"./credentials/cognito_identity_credentials":22,"./credentials/credential_provider_chain":23,"./credentials/saml_credentials":24,"./credentials/temporary_credentials":25,"./credentials/web_identity_credentials":26,"./event-stream/buffered-create-event-stream":28,"./http/xhr":36,"./realclock/browserClock":53,"./util":72,"./xml/browser_parser":73,"_process":90,"buffer/":85,"querystring/":96,"url/":98}],17:[function(require,module,exports){
+},{"./browserCryptoLib":10,"./core":19,"./credentials":20,"./credentials/chainable_temporary_credentials":21,"./credentials/cognito_identity_credentials":22,"./credentials/credential_provider_chain":23,"./credentials/saml_credentials":24,"./credentials/temporary_credentials":25,"./credentials/web_identity_credentials":26,"./event-stream/buffered-create-event-stream":28,"./http/xhr":36,"./realclock/browserClock":54,"./util":74,"./xml/browser_parser":75,"_process":92,"buffer/":87,"querystring/":98,"url/":100}],17:[function(require,module,exports){
 var AWS = require('./core');
 require('./credentials');
 require('./credentials/credential_provider_chain');
@@ -7316,6 +7441,82 @@ AWS.Config = AWS.util.inherit({
   },
 
   /**
+   * Loads token from the configuration object. This is used internally
+   * by the SDK to ensure that refreshable {Token} objects are properly
+   * refreshed and loaded when sending a request. If you want to ensure that
+   * your token is loaded prior to a request, you can use this method
+   * directly to provide accurate token data stored in the object.
+   *
+   * @note If you configure the SDK with static token, the token data should
+   *   already be present in {token} attribute. This method is primarily necessary
+   *   to load token from asynchronous sources, or sources that can refresh
+   *   token periodically.
+   * @example Getting your access token
+   *   AWS.config.getToken(function(err) {
+   *     if (err) console.log(err.stack); // token not loaded
+   *     else console.log("Token:", AWS.config.token.token);
+   *   })
+   * @callback callback function(err)
+   *   Called when the {token} have been properly set on the configuration object.
+   *
+   *   @param err [Error] if this is set, token was not successfully loaded and
+   *     this error provides information why.
+   * @see token
+   */
+  getToken: function getToken(callback) {
+    var self = this;
+
+    function finish(err) {
+      callback(err, err ? null : self.token);
+    }
+
+    function tokenError(msg, err) {
+      return new AWS.util.error(err || new Error(), {
+        code: 'TokenError',
+        message: msg,
+        name: 'TokenError'
+      });
+    }
+
+    function getAsyncToken() {
+      self.token.get(function(err) {
+        if (err) {
+          var msg = 'Could not load token from ' +
+            self.token.constructor.name;
+          err = tokenError(msg, err);
+        }
+        finish(err);
+      });
+    }
+
+    function getStaticToken() {
+      var err = null;
+      if (!self.token.token) {
+        err = tokenError('Missing token');
+      }
+      finish(err);
+    }
+
+    if (self.token) {
+      if (typeof self.token.get === 'function') {
+        getAsyncToken();
+      } else { // static token
+        getStaticToken();
+      }
+    } else if (self.tokenProvider) {
+      self.tokenProvider.resolve(function(err, token) {
+        if (err) {
+          err = tokenError('Could not load token from any providers', err);
+        }
+        self.token = token;
+        finish(err);
+      });
+    } else {
+      finish(tokenError('No token to load'));
+    }
+  },
+
+  /**
    * @!group Loading and Setting Configuration Options
    */
 
@@ -7448,7 +7649,8 @@ AWS.Config = AWS.util.inherit({
     hostPrefixEnabled: true,
     stsRegionalEndpoints: 'legacy',
     useFipsEndpoint: false,
-    useDualstackEndpoint: false
+    useDualstackEndpoint: false,
+    token: null
   },
 
   /**
@@ -7573,7 +7775,7 @@ function resolveRegionalEndpointsFlag(originalConfig, options) {
 module.exports = resolveRegionalEndpointsFlag;
 
 }).call(this)}).call(this,require('_process'))
-},{"./core":19,"_process":90}],19:[function(require,module,exports){
+},{"./core":19,"_process":92}],19:[function(require,module,exports){
 /**
  * The main AWS namespace
  */
@@ -7596,7 +7798,7 @@ AWS.util.update(AWS, {
   /**
    * @constant
    */
-  VERSION: '2.1200.0',
+  VERSION: '2.1358.0',
 
   /**
    * @api private
@@ -7661,6 +7863,7 @@ require('./response');
 require('./resource_waiter');
 require('./signers/request_signer');
 require('./param_validator');
+require('./maintenance_mode_message');
 
 /**
  * @readonly
@@ -7684,7 +7887,7 @@ AWS.util.memoizedProperty(AWS, 'endpointCache', function() {
   return new AWS.EndpointCache(AWS.config.endpointCacheSize);
 }, true);
 
-},{"../vendor/endpoint-cache":109,"./api_loader":9,"./config":17,"./event_listeners":34,"./http":35,"./json/builder":37,"./json/parser":38,"./model/api":39,"./model/operation":41,"./model/paginator":42,"./model/resource_waiter":43,"./model/shape":44,"./param_validator":45,"./protocol/json":47,"./protocol/query":48,"./protocol/rest":49,"./protocol/rest_json":50,"./protocol/rest_xml":51,"./request":57,"./resource_waiter":58,"./response":59,"./sequential_executor":60,"./service":61,"./signers/request_signer":64,"./util":72,"./xml/builder":74}],20:[function(require,module,exports){
+},{"../vendor/endpoint-cache":111,"./api_loader":9,"./config":17,"./event_listeners":34,"./http":35,"./json/builder":37,"./json/parser":38,"./maintenance_mode_message":39,"./model/api":40,"./model/operation":42,"./model/paginator":43,"./model/resource_waiter":44,"./model/shape":45,"./param_validator":46,"./protocol/json":48,"./protocol/query":49,"./protocol/rest":50,"./protocol/rest_json":51,"./protocol/rest_xml":52,"./request":58,"./resource_waiter":59,"./response":60,"./sequential_executor":61,"./service":62,"./signers/request_signer":66,"./util":74,"./xml/builder":76}],20:[function(require,module,exports){
 var AWS = require('./core');
 
 /**
@@ -9428,7 +9631,7 @@ module.exports = {
 };
 
 }).call(this)}).call(this,require('_process'))
-},{"./core":19,"./util":72,"_process":90}],28:[function(require,module,exports){
+},{"./core":19,"./util":74,"_process":92}],28:[function(require,module,exports){
 var eventMessageChunker = require('../event-stream/event-message-chunker').eventMessageChunker;
 var parseEvent = require('./parse-event').parseEvent;
 
@@ -9932,18 +10135,52 @@ function getOperationAuthtype(req) {
   return operation ? operation.authtype : '';
 }
 
+/**
+ * @api private
+ */
+function getIdentityType(req) {
+  var service = req.service;
+
+  if (service.config.signatureVersion) {
+    return service.config.signatureVersion;
+  }
+
+  if (service.api.signatureVersion) {
+    return service.api.signatureVersion;
+  }
+
+  return getOperationAuthtype(req);
+}
+
 AWS.EventListeners = {
   Core: new SequentialExecutor().addNamedListeners(function(add, addAsync) {
-    addAsync('VALIDATE_CREDENTIALS', 'validate',
-        function VALIDATE_CREDENTIALS(req, done) {
-      if (!req.service.api.signatureVersion && !req.service.config.signatureVersion) return done(); // none
-      req.service.config.getCredentials(function(err) {
-        if (err) {
-          req.response.error = AWS.util.error(err,
-            {code: 'CredentialsError', message: 'Missing credentials in config, if using AWS_CONFIG_FILE, set AWS_SDK_LOAD_CONFIG=1'});
+    addAsync(
+      'VALIDATE_CREDENTIALS', 'validate',
+      function VALIDATE_CREDENTIALS(req, done) {
+        if (!req.service.api.signatureVersion && !req.service.config.signatureVersion) return done(); // none
+
+        var identityType = getIdentityType(req);
+        if (identityType === 'bearer') {
+          req.service.config.getToken(function(err) {
+            if (err) {
+              req.response.error = AWS.util.error(err, {code: 'TokenError'});
+            }
+            done();
+          });
+          return;
         }
-        done();
-      });
+
+        req.service.config.getCredentials(function(err) {
+          if (err) {
+            req.response.error = AWS.util.error(err,
+              {
+                code: 'CredentialsError',
+                message: 'Missing credentials in config, if using AWS_CONFIG_FILE, set AWS_SDK_LOAD_CONFIG=1'
+              }
+            );
+          }
+          done();
+        });
     });
 
     add('VALIDATE_REGION', 'validate', function VALIDATE_REGION(req) {
@@ -10109,42 +10346,61 @@ AWS.EventListeners = {
 
     addAsync('SIGN', 'sign', function SIGN(req, done) {
       var service = req.service;
-      var operations = req.service.api.operations || {};
-      var operation = operations[req.operation];
-      var authtype = operation ? operation.authtype : '';
-      if (!service.api.signatureVersion && !authtype && !service.config.signatureVersion) return done(); // none
+      var identityType = getIdentityType(req);
+      if (!identityType || identityType.length === 0) return done(); // none
 
-      service.config.getCredentials(function (err, credentials) {
-        if (err) {
-          req.response.error = err;
-          return done();
-        }
+      if (identityType === 'bearer') {
+        service.config.getToken(function (err, token) {
+          if (err) {
+            req.response.error = err;
+            return done();
+          }
 
-        try {
-          var date = service.getSkewCorrectedDate();
-          var SignerClass = service.getSignerClass(req);
-          var signer = new SignerClass(req.httpRequest,
-            service.getSigningName(req),
-            {
-              signatureCache: service.config.signatureCache,
-              operation: operation,
-              signatureVersion: service.api.signatureVersion
-            });
-          signer.setServiceClientId(service._clientId);
+          try {
+            var SignerClass = service.getSignerClass(req);
+            var signer = new SignerClass(req.httpRequest);
+            signer.addAuthorization(token);
+          } catch (e) {
+            req.response.error = e;
+          }
+          done();
+        });
+      } else {
+        service.config.getCredentials(function (err, credentials) {
+          if (err) {
+            req.response.error = err;
+            return done();
+          }
 
-          // clear old authorization headers
-          delete req.httpRequest.headers['Authorization'];
-          delete req.httpRequest.headers['Date'];
-          delete req.httpRequest.headers['X-Amz-Date'];
+          try {
+            var date = service.getSkewCorrectedDate();
+            var SignerClass = service.getSignerClass(req);
+            var operations = req.service.api.operations || {};
+            var operation = operations[req.operation];
+            var signer = new SignerClass(req.httpRequest,
+              service.getSigningName(req),
+              {
+                signatureCache: service.config.signatureCache,
+                operation: operation,
+                signatureVersion: service.api.signatureVersion
+              });
+            signer.setServiceClientId(service._clientId);
 
-          // add new authorization
-          signer.addAuthorization(credentials, date);
-          req.signedAt = date;
-        } catch (e) {
-          req.response.error = e;
-        }
-        done();
-      });
+            // clear old authorization headers
+            delete req.httpRequest.headers['Authorization'];
+            delete req.httpRequest.headers['Date'];
+            delete req.httpRequest.headers['X-Amz-Date'];
+
+            // add new authorization
+            signer.addAuthorization(credentials, date);
+            req.signedAt = date;
+          } catch (e) {
+            req.response.error = e;
+          }
+          done();
+        });
+
+      }
     });
 
     add('VALIDATE_RESPONSE', 'validateResponse', function VALIDATE_RESPONSE(resp) {
@@ -10159,11 +10415,12 @@ AWS.EventListeners = {
     });
 
     add('ERROR', 'error', function ERROR(err, resp) {
-      var errorCodeMapping = resp.request.service.api.errorCodeMapping;
-      if (errorCodeMapping && err && err.code) {
-        var mapping = errorCodeMapping[err.code];
-        if (mapping) {
-          resp.error.code = mapping.code;
+      var awsQueryCompatible = resp.request.service.api.awsQueryCompatible;
+      if (awsQueryCompatible) {
+        var headers = resp.httpResponse.headers;
+        var queryErrorCode = headers ? headers['x-amzn-query-error'] : undefined;
+        if (queryErrorCode && queryErrorCode.includes(';')) {
+          resp.error.code = queryErrorCode.split(';')[0];
         }
       }
     }, true);
@@ -10518,6 +10775,7 @@ AWS.EventListeners = {
     add('BUILD', 'build', svc.buildRequest);
     add('EXTRACT_DATA', 'extractData', svc.extractData);
     add('EXTRACT_ERROR', 'extractError', svc.extractError);
+    add('UNSET_CONTENT_LENGTH', 'afterBuild', svc.unsetContentLength);
   }),
 
   RestXml: new SequentialExecutor().addNamedListeners(function(add) {
@@ -10536,7 +10794,7 @@ AWS.EventListeners = {
 };
 
 }).call(this)}).call(this,require('_process'))
-},{"./core":19,"./discover_endpoint":27,"./protocol/json":47,"./protocol/query":48,"./protocol/rest":49,"./protocol/rest_json":50,"./protocol/rest_xml":51,"./sequential_executor":60,"_process":90,"util":84}],35:[function(require,module,exports){
+},{"./core":19,"./discover_endpoint":27,"./protocol/json":48,"./protocol/query":49,"./protocol/rest":50,"./protocol/rest_json":51,"./protocol/rest_xml":52,"./sequential_executor":61,"_process":92,"util":86}],35:[function(require,module,exports){
 var AWS = require('./core');
 var inherit = AWS.util.inherit;
 
@@ -10914,7 +11172,7 @@ AWS.HttpClient.prototype = AWS.XHRClient.prototype;
  */
 AWS.HttpClient.streamsApiVersion = 1;
 
-},{"../core":19,"../http":35,"events":86}],37:[function(require,module,exports){
+},{"../core":19,"../http":35,"events":88}],37:[function(require,module,exports){
 var util = require('../util');
 
 function JsonBuilder() { }
@@ -10978,7 +11236,7 @@ function translateScalar(value, shape) {
  */
 module.exports = JsonBuilder;
 
-},{"../util":72}],38:[function(require,module,exports){
+},{"../util":74}],38:[function(require,module,exports){
 var util = require('../util');
 
 function JsonParser() { }
@@ -11048,7 +11306,58 @@ function translateScalar(value, shape) {
  */
 module.exports = JsonParser;
 
-},{"../util":72}],39:[function(require,module,exports){
+},{"../util":74}],39:[function(require,module,exports){
+(function (process){(function (){
+var warning = [
+  'We are formalizing our plans to enter AWS SDK for JavaScript (v2) into maintenance mode in 2023.\n',
+  'Please migrate your code to use AWS SDK for JavaScript (v3).',
+  'For more information, check the migration guide at https://a.co/7PzMCcy'
+].join('\n');
+
+module.exports = {
+  suppress: false
+};
+
+/**
+ * To suppress this message:
+ * @example
+ * require('aws-sdk/lib/maintenance_mode_message').suppress = true;
+ */
+function emitWarning() {
+  if (typeof process === 'undefined')
+    return;
+
+  // Skip maintenance mode message in Lambda environments
+  if (
+    typeof process.env === 'object' &&
+    typeof process.env.AWS_EXECUTION_ENV !== 'undefined' &&
+    process.env.AWS_EXECUTION_ENV.indexOf('AWS_Lambda_') === 0
+  ) {
+    return;
+  }
+
+  if (
+    typeof process.env === 'object' &&
+    typeof process.env.AWS_SDK_JS_SUPPRESS_MAINTENANCE_MODE_MESSAGE !== 'undefined'
+  ) {
+    return;
+  }
+
+  if (typeof process.emitWarning === 'function') {
+    process.emitWarning(warning, {
+      type: 'NOTE'
+    });
+  }
+}
+
+setTimeout(function () {
+  if (!module.exports.suppress) {
+    emitWarning();
+  }
+}, 0);
+
+}).call(this)}).call(this,require('_process'))
+},{"_process":92}],40:[function(require,module,exports){
 var Collection = require('./collection');
 var Operation = require('./operation');
 var Shape = require('./shape');
@@ -11131,7 +11440,7 @@ function Api(api, options) {
     property(this, 'documentation', api.documentation);
     property(this, 'documentationUrl', api.documentationUrl);
   }
-  property(this, 'errorCodeMapping', api.awsQueryCompatible);
+  property(this, 'awsQueryCompatible', api.metadata.awsQueryCompatible);
 }
 
 /**
@@ -11139,7 +11448,7 @@ function Api(api, options) {
  */
 module.exports = Api;
 
-},{"../../apis/metadata.json":4,"../util":72,"./collection":40,"./operation":41,"./paginator":42,"./resource_waiter":43,"./shape":44}],40:[function(require,module,exports){
+},{"../../apis/metadata.json":4,"../util":74,"./collection":41,"./operation":42,"./paginator":43,"./resource_waiter":44,"./shape":45}],41:[function(require,module,exports){
 var memoizedProperty = require('../util').memoizedProperty;
 
 function memoize(name, value, factory, nameTr) {
@@ -11165,7 +11474,7 @@ function Collection(iterable, options, factory, nameTr, callback) {
  */
 module.exports = Collection;
 
-},{"../util":72}],41:[function(require,module,exports){
+},{"../util":74}],42:[function(require,module,exports){
 var Shape = require('./shape');
 
 var util = require('../util');
@@ -11286,7 +11595,7 @@ function hasEventStream(topLevelShape) {
  */
 module.exports = Operation;
 
-},{"../util":72,"./shape":44}],42:[function(require,module,exports){
+},{"../util":74,"./shape":45}],43:[function(require,module,exports){
 var property = require('../util').property;
 
 function Paginator(name, paginator) {
@@ -11302,7 +11611,7 @@ function Paginator(name, paginator) {
  */
 module.exports = Paginator;
 
-},{"../util":72}],43:[function(require,module,exports){
+},{"../util":74}],44:[function(require,module,exports){
 var util = require('../util');
 var property = util.property;
 
@@ -11337,7 +11646,7 @@ function ResourceWaiter(name, waiter, options) {
  */
 module.exports = ResourceWaiter;
 
-},{"../util":72}],44:[function(require,module,exports){
+},{"../util":74}],45:[function(require,module,exports){
 var Collection = require('./collection');
 
 var util = require('../util');
@@ -11746,7 +12055,7 @@ Shape.shapes = {
  */
 module.exports = Shape;
 
-},{"../util":72,"./collection":40}],45:[function(require,module,exports){
+},{"../util":74,"./collection":41}],46:[function(require,module,exports){
 var AWS = require('./core');
 
 /**
@@ -12019,7 +12328,7 @@ AWS.ParamValidator = AWS.util.inherit({
   }
 });
 
-},{"./core":19}],46:[function(require,module,exports){
+},{"./core":19}],47:[function(require,module,exports){
 var util =  require('../util');
 var AWS = require('../core');
 
@@ -12110,7 +12419,7 @@ module.exports = {
   populateHostPrefix: populateHostPrefix
 };
 
-},{"../core":19,"../util":72}],47:[function(require,module,exports){
+},{"../core":19,"../util":74}],48:[function(require,module,exports){
 var util = require('../util');
 var JsonBuilder = require('../json/builder');
 var JsonParser = require('../json/parser');
@@ -12186,7 +12495,7 @@ module.exports = {
   extractData: extractData
 };
 
-},{"../json/builder":37,"../json/parser":38,"../util":72,"./helpers":46}],48:[function(require,module,exports){
+},{"../json/builder":37,"../json/parser":38,"../util":74,"./helpers":47}],49:[function(require,module,exports){
 var AWS = require('../core');
 var util = require('../util');
 var QueryParamSerializer = require('../query/query_param_serializer');
@@ -12298,7 +12607,7 @@ module.exports = {
   extractData: extractData
 };
 
-},{"../core":19,"../model/shape":44,"../query/query_param_serializer":52,"../util":72,"./helpers":46}],49:[function(require,module,exports){
+},{"../core":19,"../model/shape":45,"../query/query_param_serializer":53,"../util":74,"./helpers":47}],50:[function(require,module,exports){
 var util = require('../util');
 var populateHostPrefix = require('./helpers').populateHostPrefix;
 
@@ -12448,12 +12757,24 @@ module.exports = {
   generateURI: generateURI
 };
 
-},{"../util":72,"./helpers":46}],50:[function(require,module,exports){
+},{"../util":74,"./helpers":47}],51:[function(require,module,exports){
 var util = require('../util');
 var Rest = require('./rest');
 var Json = require('./json');
 var JsonBuilder = require('../json/builder');
 var JsonParser = require('../json/parser');
+
+var METHODS_WITHOUT_BODY = ['GET', 'HEAD', 'DELETE'];
+
+function unsetContentLength(req) {
+  var payloadMember = util.getRequestPayloadShape(req);
+  if (
+    payloadMember === undefined &&
+    METHODS_WITHOUT_BODY.indexOf(req.httpRequest.method) >= 0
+  ) {
+    delete req.httpRequest.headers['Content-Length'];
+  }
+}
 
 function populateBody(req) {
   var builder = new JsonBuilder();
@@ -12491,7 +12812,7 @@ function buildRequest(req) {
   Rest.buildRequest(req);
 
   // never send body payload on GET/HEAD/DELETE
-  if (['GET', 'HEAD', 'DELETE'].indexOf(req.httpRequest.method) < 0) {
+  if (METHODS_WITHOUT_BODY.indexOf(req.httpRequest.method) < 0) {
     populateBody(req);
   }
 }
@@ -12540,10 +12861,11 @@ function extractData(resp) {
 module.exports = {
   buildRequest: buildRequest,
   extractError: extractError,
-  extractData: extractData
+  extractData: extractData,
+  unsetContentLength: unsetContentLength
 };
 
-},{"../json/builder":37,"../json/parser":38,"../util":72,"./json":47,"./rest":49}],51:[function(require,module,exports){
+},{"../json/builder":37,"../json/parser":38,"../util":74,"./json":48,"./rest":50}],52:[function(require,module,exports){
 var AWS = require('../core');
 var util = require('../util');
 var Rest = require('./rest');
@@ -12653,7 +12975,7 @@ module.exports = {
   extractData: extractData
 };
 
-},{"../core":19,"../util":72,"./rest":49}],52:[function(require,module,exports){
+},{"../core":19,"../util":74,"./rest":50}],53:[function(require,module,exports){
 var util = require('../util');
 
 function QueryParamSerializer() {
@@ -12739,7 +13061,7 @@ function serializeMember(name, value, rules, fn) {
  */
 module.exports = QueryParamSerializer;
 
-},{"../util":72}],53:[function(require,module,exports){
+},{"../util":74}],54:[function(require,module,exports){
 module.exports = {
   //provide realtime clock for performance measurement
   now: function now() {
@@ -12750,7 +13072,7 @@ module.exports = {
   }
 };
 
-},{}],54:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 function isFipsRegion(region) {
   return typeof region === 'string' && (region.startsWith('fips-') || region.endsWith('-fips'));
 }
@@ -12773,7 +13095,7 @@ module.exports = {
   getRealRegion: getRealRegion
 };
 
-},{}],55:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 var util = require('./util');
 var regionConfig = require('./region_config_data.json');
 
@@ -12839,10 +13161,21 @@ function configureEndpoint(service) {
       }
 
       // signature version
-      if (!config.signatureVersion) config.signatureVersion = 'v4';
+      if (!config.signatureVersion) {
+        // Note: config is a global object and should not be mutated here.
+        // However, we are retaining this line for backwards compatibility.
+        // The non-v4 signatureVersion will be set in a copied object below.
+        config.signatureVersion = 'v4';
+      }
+
+      var useBearer = (service.api && service.api.signatureVersion) === 'bearer';
 
       // merge config
-      applyConfig(service, config);
+      applyConfig(service, Object.assign(
+        {},
+        config,
+        { signatureVersion: useBearer ? 'bearer' : config.signatureVersion }
+      ));
       return;
     }
   }
@@ -12874,7 +13207,7 @@ module.exports = {
   getEndpointSuffix: getEndpointSuffix,
 };
 
-},{"./region_config_data.json":56,"./util":72}],56:[function(require,module,exports){
+},{"./region_config_data.json":57,"./util":74}],57:[function(require,module,exports){
 module.exports={
   "rules": {
     "*/*": {
@@ -12944,7 +13277,11 @@ module.exports={
     "*/sdb": {
       "endpoint": "{service}.{region}.amazonaws.com",
       "signatureVersion": "v2"
-    }
+    },
+    "*/resource-explorer-2": "dualstackByDefault",
+    "*/kendra-ranking": "dualstackByDefault",
+    "*/internetmonitor": "dualstackByDefault",
+    "*/codecatalyst": "globalDualstackByDefault"
   },
 
   "fipsRules": {
@@ -12982,6 +13319,7 @@ module.exports={
     "us-gov-*/runtime.lex": "fips.runtime.lex",
     "us-gov-*/acm-pca": "fipsWithServiceOnly",
     "us-gov-*/batch": "fipsWithServiceOnly",
+    "us-gov-*/cloudformation": "fipsWithServiceOnly",
     "us-gov-*/config": "fipsWithServiceOnly",
     "us-gov-*/eks": "fipsWithServiceOnly",
     "us-gov-*/elasticmapreduce": "fipsWithServiceOnly",
@@ -13004,7 +13342,11 @@ module.exports={
     "us-gov-west-1/organizations": "fipsWithServiceOnly",
     "us-gov-west-1/route53": {
       "endpoint": "route53.us-gov.amazonaws.com"
-    }
+    },
+    "*/resource-explorer-2": "fipsDualstackByDefault",
+    "*/kendra-ranking": "dualstackByDefault",
+    "*/internetmonitor": "dualstackByDefault",
+    "*/codecatalyst": "fipsGlobalDualstackByDefault"
   },
 
   "dualstackRules": {
@@ -13100,11 +13442,23 @@ module.exports={
     },
     "dualstackLegacyEc2": {
       "endpoint": "api.ec2.{region}.aws"
+    },
+    "dualstackByDefault": {
+      "endpoint": "{service}.{region}.api.aws"
+    },
+    "fipsDualstackByDefault": {
+      "endpoint": "{service}-fips.{region}.api.aws"
+    },
+    "globalDualstackByDefault": {
+      "endpoint": "{service}.global.api.aws"
+    },
+    "fipsGlobalDualstackByDefault": {
+      "endpoint": "{service}-fips.global.api.aws"
     }
   }
 }
 
-},{}],57:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 (function (process){(function (){
 var AWS = require('./core');
 var AcceptorStateMachine = require('./state_machine');
@@ -13917,7 +14271,7 @@ AWS.util.addPromises(AWS.Request);
 AWS.util.mixin(AWS.Request, AWS.SequentialExecutor);
 
 }).call(this)}).call(this,require('_process'))
-},{"./core":19,"./state_machine":71,"_process":90,"jmespath":89}],58:[function(require,module,exports){
+},{"./core":19,"./state_machine":73,"_process":92,"jmespath":91}],59:[function(require,module,exports){
 /**
  * Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -14123,7 +14477,7 @@ AWS.ResourceWaiter = inherit({
   }
 });
 
-},{"./core":19,"jmespath":89}],59:[function(require,module,exports){
+},{"./core":19,"jmespath":91}],60:[function(require,module,exports){
 var AWS = require('./core');
 var inherit = AWS.util.inherit;
 var jmespath = require('jmespath');
@@ -14326,7 +14680,7 @@ AWS.Response = inherit({
 
 });
 
-},{"./core":19,"jmespath":89}],60:[function(require,module,exports){
+},{"./core":19,"jmespath":91}],61:[function(require,module,exports){
 var AWS = require('./core');
 
 /**
@@ -14563,7 +14917,7 @@ AWS.SequentialExecutor.prototype.addListener = AWS.SequentialExecutor.prototype.
  */
 module.exports = AWS.SequentialExecutor;
 
-},{"./core":19}],61:[function(require,module,exports){
+},{"./core":19}],62:[function(require,module,exports){
 (function (process){(function (){
 var AWS = require('./core');
 var Api = require('./model/api');
@@ -15066,6 +15420,8 @@ AWS.Service = inherit({
       version = this.config.signatureVersion;
     } else if (authtype === 'v4' || authtype === 'v4-unsigned-body') {
       version = 'v4';
+    } else if (authtype === 'bearer') {
+      version = 'bearer';
     } else {
       version = this.api.signatureVersion;
     }
@@ -15419,7 +15775,7 @@ AWS.util.mixin(AWS.Service, AWS.SequentialExecutor);
 module.exports = AWS.Service;
 
 }).call(this)}).call(this,require('_process'))
-},{"./core":19,"./model/api":39,"./region/utils":54,"./region_config":55,"_process":90}],62:[function(require,module,exports){
+},{"./core":19,"./model/api":40,"./region/utils":55,"./region_config":56,"_process":92}],63:[function(require,module,exports){
 var AWS = require('../core');
 var resolveRegionalEndpointsFlag = require('../config_regional_endpoint');
 var ENV_REGIONAL_ENDPOINT_ENABLED = 'AWS_STS_REGIONAL_ENDPOINTS';
@@ -15507,7 +15863,23 @@ AWS.util.update(AWS.STS.prototype, {
 
 });
 
-},{"../config_regional_endpoint":18,"../core":19}],63:[function(require,module,exports){
+},{"../config_regional_endpoint":18,"../core":19}],64:[function(require,module,exports){
+var AWS = require('../core');
+
+/**
+ * @api private
+ */
+AWS.Signers.Bearer = AWS.util.inherit(AWS.Signers.RequestSigner, {
+  constructor: function Bearer(request) {
+    AWS.Signers.RequestSigner.call(this, request);
+  },
+
+  addAuthorization: function addAuthorization(token) {
+    this.request.headers['Authorization'] = 'Bearer ' + token.token;
+  }
+});
+
+},{"../core":19}],65:[function(require,module,exports){
 var AWS = require('../core');
 var inherit = AWS.util.inherit;
 
@@ -15628,7 +16000,7 @@ AWS.Signers.Presign = inherit({
  */
 module.exports = AWS.Signers.Presign;
 
-},{"../core":19}],64:[function(require,module,exports){
+},{"../core":19}],66:[function(require,module,exports){
 var AWS = require('../core');
 
 var inherit = AWS.util.inherit;
@@ -15658,6 +16030,7 @@ AWS.Signers.RequestSigner.getVersion = function getVersion(version) {
     case 'v4': return AWS.Signers.V4;
     case 's3': return AWS.Signers.S3;
     case 'v3https': return AWS.Signers.V3Https;
+    case 'bearer': return AWS.Signers.Bearer;
   }
   throw new Error('Unknown signing version ' + version);
 };
@@ -15668,8 +16041,9 @@ require('./v3https');
 require('./v4');
 require('./s3');
 require('./presign');
+require('./bearer');
 
-},{"../core":19,"./presign":63,"./s3":65,"./v2":66,"./v3":67,"./v3https":68,"./v4":69}],65:[function(require,module,exports){
+},{"../core":19,"./bearer":64,"./presign":65,"./s3":67,"./v2":68,"./v3":69,"./v3https":70,"./v4":71}],67:[function(require,module,exports){
 var AWS = require('../core');
 var inherit = AWS.util.inherit;
 
@@ -15846,7 +16220,7 @@ AWS.Signers.S3 = inherit(AWS.Signers.RequestSigner, {
  */
 module.exports = AWS.Signers.S3;
 
-},{"../core":19}],66:[function(require,module,exports){
+},{"../core":19}],68:[function(require,module,exports){
 var AWS = require('../core');
 var inherit = AWS.util.inherit;
 
@@ -15896,7 +16270,7 @@ AWS.Signers.V2 = inherit(AWS.Signers.RequestSigner, {
  */
 module.exports = AWS.Signers.V2;
 
-},{"../core":19}],67:[function(require,module,exports){
+},{"../core":19}],69:[function(require,module,exports){
 var AWS = require('../core');
 var inherit = AWS.util.inherit;
 
@@ -15975,7 +16349,7 @@ AWS.Signers.V3 = inherit(AWS.Signers.RequestSigner, {
  */
 module.exports = AWS.Signers.V3;
 
-},{"../core":19}],68:[function(require,module,exports){
+},{"../core":19}],70:[function(require,module,exports){
 var AWS = require('../core');
 var inherit = AWS.util.inherit;
 
@@ -16002,7 +16376,7 @@ AWS.Signers.V3Https = inherit(AWS.Signers.V3, {
  */
 module.exports = AWS.Signers.V3Https;
 
-},{"../core":19,"./v3":67}],69:[function(require,module,exports){
+},{"../core":19,"./v3":69}],71:[function(require,module,exports){
 var AWS = require('../core');
 var v4Credentials = require('./v4_credentials');
 var inherit = AWS.util.inherit;
@@ -16219,7 +16593,7 @@ AWS.Signers.V4 = inherit(AWS.Signers.RequestSigner, {
  */
 module.exports = AWS.Signers.V4;
 
-},{"../core":19,"./v4_credentials":70}],70:[function(require,module,exports){
+},{"../core":19,"./v4_credentials":72}],72:[function(require,module,exports){
 var AWS = require('../core');
 
 /**
@@ -16321,7 +16695,7 @@ module.exports = {
   }
 };
 
-},{"../core":19}],71:[function(require,module,exports){
+},{"../core":19}],73:[function(require,module,exports){
 function AcceptorStateMachine(states, state) {
   this.currentState = state || null;
   this.states = states || {};
@@ -16368,7 +16742,7 @@ AcceptorStateMachine.prototype.addState = function addState(name, acceptState, f
  */
 module.exports = AcceptorStateMachine;
 
-},{}],72:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 (function (process,setImmediate){(function (){
 /* eslint guard-for-in:0 */
 var AWS;
@@ -17441,7 +17815,7 @@ var util = {
 module.exports = util;
 
 }).call(this)}).call(this,require('_process'),require("timers").setImmediate)
-},{"../apis/metadata.json":4,"./core":19,"_process":90,"fs":80,"timers":97,"uuid":100}],73:[function(require,module,exports){
+},{"../apis/metadata.json":4,"./core":19,"_process":92,"fs":82,"timers":99,"uuid":102}],75:[function(require,module,exports){
 var util = require('../util');
 var Shape = require('../model/shape');
 
@@ -17644,7 +18018,7 @@ function parseUnknown(xml) {
  */
 module.exports = DomXmlParser;
 
-},{"../model/shape":44,"../util":72}],74:[function(require,module,exports){
+},{"../model/shape":45,"../util":74}],76:[function(require,module,exports){
 var util = require('../util');
 var XmlNode = require('./xml-node').XmlNode;
 var XmlText = require('./xml-text').XmlText;
@@ -17748,7 +18122,7 @@ function applyNamespaces(xml, shape, isRoot) {
  */
 module.exports = XmlBuilder;
 
-},{"../util":72,"./xml-node":77,"./xml-text":78}],75:[function(require,module,exports){
+},{"../util":74,"./xml-node":79,"./xml-text":80}],77:[function(require,module,exports){
 /**
  * Escapes characters that can not be in an XML attribute.
  */
@@ -17763,7 +18137,7 @@ module.exports = {
     escapeAttribute: escapeAttribute
 };
 
-},{}],76:[function(require,module,exports){
+},{}],78:[function(require,module,exports){
 /**
  * Escapes characters that can not be in an XML element.
  */
@@ -17784,7 +18158,7 @@ module.exports = {
     escapeElement: escapeElement
 };
 
-},{}],77:[function(require,module,exports){
+},{}],79:[function(require,module,exports){
 var escapeAttribute = require('./escape-attribute').escapeAttribute;
 
 /**
@@ -17831,7 +18205,7 @@ module.exports = {
     XmlNode: XmlNode
 };
 
-},{"./escape-attribute":75}],78:[function(require,module,exports){
+},{"./escape-attribute":77}],80:[function(require,module,exports){
 var escapeElement = require('./escape-element').escapeElement;
 
 /**
@@ -17853,7 +18227,7 @@ module.exports = {
     XmlText: XmlText
 };
 
-},{"./escape-element":76}],79:[function(require,module,exports){
+},{"./escape-element":78}],81:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -18005,9 +18379,9 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],80:[function(require,module,exports){
+},{}],82:[function(require,module,exports){
 
-},{}],81:[function(require,module,exports){
+},{}],83:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -18032,7 +18406,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],82:[function(require,module,exports){
+},{}],84:[function(require,module,exports){
 (function (global){(function (){
 /*! https://mths.be/punycode v1.3.2 by @mathias */
 ;(function(root) {
@@ -18555,14 +18929,14 @@ if (typeof Object.create === 'function') {
 }(this));
 
 }).call(this)}).call(this,typeof __webpack_require__.g !== "undefined" ? __webpack_require__.g : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],83:[function(require,module,exports){
+},{}],85:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],84:[function(require,module,exports){
+},{}],86:[function(require,module,exports){
 (function (process,global){(function (){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -19152,7 +19526,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this)}).call(this,require('_process'),typeof __webpack_require__.g !== "undefined" ? __webpack_require__.g : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":83,"_process":90,"inherits":81}],85:[function(require,module,exports){
+},{"./support/isBuffer":85,"_process":92,"inherits":83}],87:[function(require,module,exports){
 (function (global,Buffer){(function (){
 /*!
  * The buffer module from node.js, for the browser.
@@ -20945,7 +21319,7 @@ function isnan (val) {
 }
 
 }).call(this)}).call(this,typeof __webpack_require__.g !== "undefined" ? __webpack_require__.g : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"base64-js":79,"buffer":85,"ieee754":87,"isarray":88}],86:[function(require,module,exports){
+},{"base64-js":81,"buffer":87,"ieee754":89,"isarray":90}],88:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -21249,7 +21623,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],87:[function(require,module,exports){
+},{}],89:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -21335,14 +21709,14 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],88:[function(require,module,exports){
+},{}],90:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],89:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 (function(exports) {
   "use strict";
 
@@ -23016,7 +23390,7 @@ module.exports = Array.isArray || function (arr) {
   exports.strictDeepEqual = strictDeepEqual;
 })(typeof exports === "undefined" ? this.jmespath = {} : exports);
 
-},{}],90:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -23202,7 +23576,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],91:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -23288,7 +23662,7 @@ var isArray = Array.isArray || function (xs) {
   return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
-},{}],92:[function(require,module,exports){
+},{}],94:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -23375,13 +23749,13 @@ var objectKeys = Object.keys || function (obj) {
   return res;
 };
 
-},{}],93:[function(require,module,exports){
+},{}],95:[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":91,"./encode":92}],94:[function(require,module,exports){
+},{"./decode":93,"./encode":94}],96:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -23463,7 +23837,7 @@ module.exports = function(qs, sep, eq, options) {
   return obj;
 };
 
-},{}],95:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -23529,9 +23903,9 @@ module.exports = function(obj, sep, eq, name) {
          encodeURIComponent(stringifyPrimitive(obj));
 };
 
-},{}],96:[function(require,module,exports){
-arguments[4][93][0].apply(exports,arguments)
-},{"./decode":94,"./encode":95,"dup":93}],97:[function(require,module,exports){
+},{}],98:[function(require,module,exports){
+arguments[4][95][0].apply(exports,arguments)
+},{"./decode":96,"./encode":97,"dup":95}],99:[function(require,module,exports){
 (function (setImmediate,clearImmediate){(function (){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -23610,7 +23984,7 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this)}).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":90,"timers":97}],98:[function(require,module,exports){
+},{"process/browser.js":92,"timers":99}],100:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -24319,7 +24693,7 @@ function isNullOrUndefined(arg) {
   return  arg == null;
 }
 
-},{"punycode":82,"querystring":93}],99:[function(require,module,exports){
+},{"punycode":84,"querystring":95}],101:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -24346,7 +24720,7 @@ function bytesToUuid(buf, offset) {
 
 var _default = bytesToUuid;
 exports.default = _default;
-},{}],100:[function(require,module,exports){
+},{}],102:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -24386,7 +24760,7 @@ var _v3 = _interopRequireDefault(require("./v4.js"));
 var _v4 = _interopRequireDefault(require("./v5.js"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-},{"./v1.js":104,"./v3.js":105,"./v4.js":107,"./v5.js":108}],101:[function(require,module,exports){
+},{"./v1.js":106,"./v3.js":107,"./v4.js":109,"./v5.js":110}],103:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -24611,7 +24985,7 @@ function md5ii(a, b, c, d, x, s, t) {
 
 var _default = md5;
 exports.default = _default;
-},{}],102:[function(require,module,exports){
+},{}],104:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -24633,7 +25007,7 @@ function rng() {
 
   return getRandomValues(rnds8);
 }
-},{}],103:[function(require,module,exports){
+},{}],105:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -24729,7 +25103,7 @@ function sha1(bytes) {
 
 var _default = sha1;
 exports.default = _default;
-},{}],104:[function(require,module,exports){
+},{}],106:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -24837,7 +25211,7 @@ function v1(options, buf, offset) {
 
 var _default = v1;
 exports.default = _default;
-},{"./bytesToUuid.js":99,"./rng.js":102}],105:[function(require,module,exports){
+},{"./bytesToUuid.js":101,"./rng.js":104}],107:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -24854,7 +25228,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 const v3 = (0, _v.default)('v3', 0x30, _md.default);
 var _default = v3;
 exports.default = _default;
-},{"./md5.js":101,"./v35.js":106}],106:[function(require,module,exports){
+},{"./md5.js":103,"./v35.js":108}],108:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -24924,7 +25298,7 @@ function _default(name, version, hashfunc) {
   generateUUID.URL = URL;
   return generateUUID;
 }
-},{"./bytesToUuid.js":99}],107:[function(require,module,exports){
+},{"./bytesToUuid.js":101}],109:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -24965,7 +25339,7 @@ function v4(options, buf, offset) {
 
 var _default = v4;
 exports.default = _default;
-},{"./bytesToUuid.js":99,"./rng.js":102}],108:[function(require,module,exports){
+},{"./bytesToUuid.js":101,"./rng.js":104}],110:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -24982,7 +25356,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 const v5 = (0, _v.default)('v5', 0x50, _sha.default);
 var _default = v5;
 exports.default = _default;
-},{"./sha1.js":103,"./v35.js":106}],109:[function(require,module,exports){
+},{"./sha1.js":105,"./v35.js":108}],111:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var LRU_1 = require("./utils/LRU");
@@ -25055,7 +25429,7 @@ var EndpointCache = /** @class */ (function () {
     return EndpointCache;
 }());
 exports.EndpointCache = EndpointCache;
-},{"./utils/LRU":110}],110:[function(require,module,exports){
+},{"./utils/LRU":112}],112:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var LinkedListNode = /** @class */ (function () {
@@ -25163,8 +25537,8 @@ var LRUCache = /** @class */ (function () {
     return LRUCache;
 }());
 exports.LRUCache = LRUCache;
-},{}],111:[function(require,module,exports){
-// AWS SDK for JavaScript v2.1200.0
+},{}],113:[function(require,module,exports){
+// AWS SDK for JavaScript v2.1358.0
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // License at https://sdk.amazonaws.com/js/BUNDLE_LICENSE.txt
 require('./browser_loader');
@@ -25191,7 +25565,7 @@ if (typeof self !== 'undefined') self.AWS = AWS;
 AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-02-15.min');
 
 
-},{"../apis/connect-2017-02-15.min":3,"./browser_loader":16,"./core":19}]},{},[111]);
+},{"../apis/connect-2017-02-15.min":3,"./browser_loader":16,"./core":19}]},{},[113]);
 
 
 
@@ -25286,6 +25660,38 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    ]);
 
    /**---------------------------------------------------------------
+    * client methods that are retryable
+    */
+
+   connect.RetryableClientMethodsList = [
+      connect.ClientMethods.GET_AGENT_SNAPSHOT,
+      connect.ClientMethods.GET_AGENT_CONFIGURATION,
+      connect.ClientMethods.GET_AGENT_PERMISSIONS,
+      connect.ClientMethods.GET_AGENT_STATES,
+      connect.ClientMethods.GET_DIALABLE_COUNTRY_CODES,
+      connect.ClientMethods.GET_ROUTING_PROFILE_QUEUES,
+   ];
+
+    /**---------------------------------------------------------------
+    * retry error types
+    */
+
+   connect.RetryableErrors = connect.makeEnum([
+      'unauthorized',
+      'accessDenied'
+   ]);
+
+   /**---------------------------------------------------------------
+    * retryStatus
+    */
+
+       connect.RetryStatus = connect.makeEnum([
+         'retrying',
+         'exhausted',
+         'none'
+      ]);
+
+   /**---------------------------------------------------------------
     * abstract class ClientBase
     */
    var ClientBase = function() {};
@@ -25340,6 +25746,24 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    UpstreamConduitClientBase.prototype._callImpl = function(method, params, callbacks) {
       var request = connect.EventFactory.createRequest(this.requestEvent, method, params);
       this._requestIdCallbacksMap[request.requestId] = callbacks;
+
+      const methodsToSkip = [
+         connect.ClientMethods.SEND_CLIENT_LOGS,
+         connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS,
+         connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT
+      ];
+      try {
+         if (request.event === connect.EventType.API_REQUEST && !methodsToSkip.includes(request.method)) {
+            connect.getLog().trace(`Sending API_REQUEST event for ${request.method} to upstream`).withObject({
+               method: request.method,
+               params: request.params,
+               stack: (new Error()).stack
+            }).sendInternalLogToServer();
+         }
+      } catch (err) {
+         connect.getLog().error("Stack trace Log Failed").withObject({ err }).sendInternalLogToServer();
+      }
+
       this.conduit.sendUpstream(request.event, request);
    };
 
@@ -25384,7 +25808,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    };
    UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
-   
+
    /**---------------------------------------------------------------
    * class AgentAppClient extends ClientBase
    */
@@ -25444,19 +25868,21 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       AWS.config.region = region;
       this.authToken = authToken;
       var baseUrl = connect.getBaseUrl();
-      var endpointUrl = endpointIn || ( 
+      var endpointUrl = endpointIn || (
          baseUrl.includes(".awsapps.com")
             ? baseUrl + '/connect/api'
             : baseUrl + '/api'
       );
       var endpoint = new AWS.Endpoint(endpointUrl);
       this.client = new AWS.Connect({endpoint: endpoint});
+
+      this.unauthorizedFailCounter = 0;
+      this.accessDeniedFailCounter = 0;
    };
    AWSClient.prototype = Object.create(ClientBase.prototype);
    AWSClient.prototype.constructor = AWSClient;
 
    AWSClient.prototype._callImpl = function(method, params, callbacks) {
-
       var self = this;
       var log = connect.getLog();
 
@@ -25467,7 +25893,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       } else {
          params = this._translateParams(method, params);
 
-         log.trace("AWSClient: --> Calling operation '%s'", method).sendInternalLogToServer();
+         log.trace("AWSClient: --> Calling operation '%s'", method)
+            .sendInternalLogToServer();
 
          this.client[method](params)
             .on('build', function(request) {
@@ -25476,38 +25903,25 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             .send(function(err, data) {
                try {
                   if (err) {
-                     if (err.code === connect.CTIExceptions.UNAUTHORIZED_EXCEPTION) {
-                        callbacks.authFailure();
-                     } else if (callbacks.accessDenied && (err.code === connect.CTIExceptions.ACCESS_DENIED_EXCEPTION || err.statusCode === 403)) {
-                        callbacks.accessDenied();
+                     if (err.code === connect.CTIExceptions.UNAUTHORIZED_EXCEPTION || err.statusCode === 401) {
+                        self._retryMethod(method, callbacks, err, data, connect.RetryableErrors.UNAUTHORIZED);
+                     } else if (err.code === connect.CTIExceptions.ACCESS_DENIED_EXCEPTION || err.statusCode === 403) {
+                        self._retryMethod(method, callbacks, err, data, connect.RetryableErrors.ACCESS_DENIED);
                      } else {
-                        // Can't pass err directly to postMessage
-                        // postMessage() tries to clone the err object and failed.
-                        // Refer to https://github.com/goatslacker/alt-devtool/issues/5
-                        var error = {};
-                        error.type = err.code;
-                        error.message = err.message;
-                        error.stack = [];
-                        if (err.stack){
-                           try {
-                               if (Array.isArray(err.stack)) {
-                                   error.stack = err.stack;
-                               } else if (typeof err.stack === 'object') {
-                                   error.stack = [JSON.stringify(err.stack)];
-                               } else if (typeof err.stack === 'string') {
-                                   error.stack = err.stack.split('\n');
-                               }
-                           } catch {}
-                        }
-                        
-                        callbacks.failure(error, data);
+                        self.unauthorizedFailCounter = 0;
+                        self.accessDeniedFailCounter = 0;
+                        callbacks.failure(self._formatCallError(self._addStatusCodeToError(err)), data);
                      }
-
                      log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err)).sendInternalLogToServer();
-
                   } else {
+                     let dataAttribute = {};
                      log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data).sendInternalLogToServer();
-                     callbacks.success(data);
+                     self.unauthorizedFailCounter = 0;
+                     self.accessDeniedFailCounter = 0;
+                     if (this.httpResponse && this.httpResponse.hasOwnProperty('body')) {
+                        dataAttribute.contentLength = this.httpResponse.body.length;
+                     }
+                     callbacks.success(data, dataAttribute);
                   }
                } catch (e) {
                   connect.getLog().error("Failed to handle AWS API request for method %s", method)
@@ -25516,6 +25930,126 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             });
       }
    };
+
+   AWSClient.prototype._isRetryableMethod = function(method) {
+      return connect.RetryableClientMethodsList.includes(method);
+   }
+
+   AWSClient.prototype._retryMethod = function(method, callbacks, err, data, retryableError) {
+      var self = this;
+      var log = connect.getLog();
+      const formatRetryError = (err) => self._formatCallError(self._addStatusCodeToError(err));
+      let retryParams = {
+         maxCount: connect.core.MAX_UNAUTHORIZED_RETRY_COUNT,
+         failCounter: self.unauthorizedFailCounter,
+         increaseCounter: () => self.unauthorizedFailCounter += 1,
+         resetCounter: () => self.unauthorizedFailCounter = 0,
+         errorMessage: 'unauthorized',
+         exhaustedRetries: self.unauthorizedFailCounter >= connect.core.MAX_UNAUTHORIZED_RETRY_COUNT,
+         retryCallback: (err, data) => callbacks.failure(formatRetryError(err), data),
+         defaultCallback: (err, data) => callbacks.authFailure(formatRetryError(err), data),
+      };
+      switch(retryableError) {
+         case connect.RetryableErrors.UNAUTHORIZED:
+            break;
+         case connect.RetryableErrors.ACCESS_DENIED:
+            retryParams = {
+               ...retryParams,
+               maxCount: connect.core.MAX_ACCESS_DENIED_RETRY_COUNT,
+               failCounter: self.accessDeniedFailCounter,
+               increaseCounter: () => self.accessDeniedFailCounter += 1,
+               resetCounter: () => self.accessDeniedFailCounter = 0,
+               errorMessage: 'access denied',
+               exhaustedRetries: self.accessDeniedFailCounter >= connect.core.MAX_ACCESS_DENIED_RETRY_COUNT,
+               defaultCallback: (err, data) => callbacks.accessDenied(formatRetryError(err), data),
+            };
+            break;
+      }
+
+      let errWithRetry = {
+         ...err,
+         retryStatus: connect.RetryStatus.NONE,
+      };
+      if(self._isRetryableMethod(method)) {
+         if(retryParams.exhaustedRetries) {
+            log.trace(`AWSClient: <-- Operation ${method} exhausted max ${retryParams.maxCount} number of retries for ${retryParams.errorMessage} error`)
+               .sendInternalLogToServer();
+
+            retryParams.resetCounter();
+
+            errWithRetry = {
+               ...errWithRetry,
+               retryStatus: connect.RetryStatus.EXHAUSTED,
+            };
+         } else {
+            log.trace(`AWSClient: <-- Operation ${method} failed with ${retryParams.errorMessage} error. Retrying call for a ${retryParams.failCounter + 1} time`)
+               .sendInternalLogToServer();
+
+            retryParams.increaseCounter();
+
+            errWithRetry = {
+               ...errWithRetry,
+               retryStatus: connect.RetryStatus.RETRYING,
+            };
+            retryParams.retryCallback(errWithRetry, data);
+            return;
+         }
+      } else {
+         log.trace(`AWSClient: <-- Operation ${method} failed: ${JSON.stringify(err)}`).sendInternalLogToServer();
+      }
+
+      retryParams.defaultCallback(errWithRetry, data);
+      return;
+   }
+
+   // Can't pass err directly to postMessage
+   // postMessage() tries to clone the err object and failed.
+   // Refer to https://github.com/goatslacker/alt-devtool/issues/5
+   AWSClient.prototype._formatCallError = function(err) {
+      const error = {
+         type: err.code,
+         message: err.message,
+         stack: [],
+         retryStatus: err.retryStatus || connect.RetryStatus.NONE,
+         ...(err.statusCode && { statusCode: err.statusCode }),
+      };
+      if (err.stack) {
+         try {
+             if (Array.isArray(err.stack)) {
+                 error.stack = err.stack;
+             } else if (typeof err.stack === 'object') {
+                 error.stack = [JSON.stringify(err.stack)];
+             } else if (typeof err.stack === 'string') {
+                 error.stack = err.stack.split('\n');
+             }
+         } finally {}
+      }
+
+      return error;
+   }
+
+   AWSClient.prototype._addStatusCodeToError = function(err) {
+      if(err.statusCode) return err;
+
+      const error = {...err};
+
+      if(!err.code) {
+         error.statusCode = 400;
+      } else {
+
+         // TODO: add more here
+         switch(error.code) {
+            case connect.CTIExceptions.UNAUTHORIZED_EXCEPTION:
+               error.statusCode = 401;
+               break;
+            case connect.CTIExceptions.ACCESS_DENIED_EXCEPTION:
+               error.statusCode = 403
+               break;
+         }
+      }
+
+      return error;
+   }
 
    AWSClient.prototype._requiresAuthenticationParam = function (method) {
       return method !== connect.ClientMethods.COMPLETE_CONTACT &&
@@ -25644,14 +26178,14 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
          headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
-            'x-csrf-token': 'csrf'         
+            'x-csrf-token': 'csrf'
          }
       };
       var instanceId = params.instanceId;
       var url = this.endpointUrl;
       var methods = connect.TaskTemplatesClientMethods;
       switch (method) {
-         case methods.LIST_TASK_TEMPLATES: 
+         case methods.LIST_TASK_TEMPLATES:
             url += `/proxy/instance/${instanceId}/task/template`;
             if (params.queryParams) {
                const queryString = new URLSearchParams(params.queryParams).toString();
@@ -25660,7 +26194,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
                }
             }
             break;
-         case methods.GET_TASK_TEMPLATE: 
+         case methods.GET_TASK_TEMPLATE:
             connect.assertNotNull(params.templateParams, 'params.templateParams');
             const id = connect.assertNotNull(params.templateParams.id, 'params.templateParams.id');
             const version = params.templateParams.version;
@@ -25669,12 +26203,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
                url += `?snapshotVersion=${version}`;
             }
             break;
-         case methods.CREATE_TEMPLATED_TASK: 
+         case methods.CREATE_TEMPLATED_TASK:
             url += `/${method}`;
             options.body = JSON.stringify(params);
             options.method = 'PUT';
             break;
-         case methods.UPDATE_CONTACT: 
+         case methods.UPDATE_CONTACT:
             url += `/${method}`;
             options.body = JSON.stringify(params);
             options.method = 'POST';
@@ -25727,7 +26261,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.4.5";
+  connect.version = "2.5.0";
+  connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -25737,7 +26272,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
   var CCP_IFRAME_REFRESH_LIMIT = 6; // 6 attempts
   var CCP_IFRAME_NAME = 'Amazon Connect CCP';
- 
   var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
   var CLIENT_ID_MAP = {
     "us-east-1": "06919f4fd8ed324e"
@@ -25756,9 +26290,28 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   var CSM_IFRAME_REFRESH_ATTEMPTS = 'IframeRefreshAttempts';
   var CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
   var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
+  var CSM_SET_RINGER_DEVICE_BEFORE_INIT = 'SetRingerDeviceBeforeInitRingtoneEngine';
 
   var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
   var CCP_TABS_ACROSS_BROWSER_COUNT = 'CCPTabsAcrossBrowserCount';
+
+  var MULTIPLE_INIT_SOFTPHONE_MANAGER_CALLS = 'MultipleInitSoftphoneManagerCalls';
+
+  const SNAPSHOT_RECEIVED_BY_CLIENT = 'SnapshotReceivedByClient';
+  const SNAPSHOT_EVENT_TRIGGER_STEP_TIME = 'SnapshotEventTriggerStepTime';
+  const SNAPSHOT_TOTAL_PROCESSING_TIME = 'SnapshotTotalProcessingTime';
+  const SNAPSHOT_COMPARISON_STEP_TIME = 'SnapshotComparisonStepTime';
+
+  const sizingBucket = {
+    '0-100': [0, 100],
+    '101-500': [101, 500],
+    '501-1000': [501, 1000],
+    '1000-3000': [1001, 3000],
+    '3001-5000': [3001, 5000],
+    '5001-10000': [5001, 10000],
+    '10001-20000': [10001, 20000],
+    '20000+': [20001, Number.MAX_SAFE_INTEGER]
+  }
 
   connect.numberOfConnectedCCPs = 0;
   connect.numberOfConnectedCCPsInThisTab = 0;
@@ -25768,7 +26321,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   connect.core.ctiAuthRetryCount = 0;
   connect.core.authorizeTimeoutId = null;
   connect.core.ctiTimeoutId = null;
-
+  // getSnapshot retries every 5 seconds on failure
+  // this max retry value will issues retries within a 2 minute window
+  connect.core.MAX_UNAUTHORIZED_RETRY_COUNT = 20;
+  // access denied
+  connect.core.MAX_ACCESS_DENIED_RETRY_COUNT = 10;
+  
   /*----------------------------------------------------------------
    * enum SessionStorageKeys
    */
@@ -25822,40 +26380,69 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     }
   };
 
+
+  /**
+   * baseParamsStorage. Base class to store params of other modules in local storage
+   * Used mainly for cases where embedded CCP gets refreshed.
+   * (not appending to connect core namespace 
+   *  as we want to limit scope to use by internal functions for now)
+   * @returns {Object}
+  */
+  class BaseParamsStorage {
+    constructor(moduleName) {
+      this.key = `${moduleName}ParamsStorage::${global.location.origin}`;
+    }
+
+    get() {
+      try {
+        const item = global.localStorage.getItem(this.key);
+        return item && JSON.parse(item);
+      } catch (e) {
+        connect.getLog().error(`${this.key}:: Failed to get softphone params from local storage!`)
+          .withException(e).sendInternalLogToServer();
+      }
+      return null;
+    }
+
+    set(value) {
+      try {
+        value && global.localStorage.setItem(this.key, JSON.stringify(value));
+      } catch (e) {
+        connect.getLog().error(`${this.key}:: Failed to set softphone params to local storage!`)
+          .withException(e).sendInternalLogToServer();
+      }
+    }
+
+    clean() {
+      global.localStorage.removeItem(this.key);      
+    }
+  }
+
   /**
    * softphoneParamsStorage module to store necessary softphone params in local storage
    * Used mainly for cases where embedded CCP gets refreshed.
    * @returns {Object}
-   */
-
-  var softphoneParamsStorage = (function () {
-    let key = `SoftphoneParamsStorage::${global.location.origin}`;
-    return {
-      set: function (value) {
-        try {
-          value && global.localStorage.setItem(key, JSON.stringify(value));
-        } catch (e) {
-          connect.getLog().error("SoftphoneParamsStorage:: Failed to set softphone params to local storage!")
-            .withException(e).sendInternalLogToServer();
-        }
-      },
-
-      get: function () {
-        try {
-          let item = global.localStorage.getItem(key);
-          return item && JSON.parse(item);
-        } catch (e) {
-          connect.getLog().error("SoftphoneParamsStorage:: Failed to get softphone params from local storage!")
-            .withException(e).sendInternalLogToServer();
-        }
-        return null;
-      },
-
-      clean: function () {
-        global.localStorage.removeItem(key);
-      }
+  */
+  class SoftphoneParamsStorage extends BaseParamsStorage {
+    constructor() {
+      super('Softphone');
     }
-  })();
+  }
+
+  const softphoneParamsStorage = new SoftphoneParamsStorage();
+
+  /**
+   * ringtoneParamsStorage module to store necessary ringtone params in local storage
+   * Used mainly for cases where embedded CCP gets refreshed.
+   * @returns {Object}
+  */
+  class RingtoneParamsStorage extends BaseParamsStorage {
+    constructor() {
+      super('Ringtone');
+    }
+  }
+
+  const ringtoneParamsStorage = new RingtoneParamsStorage();
 
   /**-------------------------------------------------------------------------
   * Returns scheme://host:port for a given url
@@ -25952,17 +26539,14 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    */
   connect.core.softphoneUserMediaStream = null;
  
-  connect.core.getSoftphoneUserMediaStream = function () {
-    return connect.core.softphoneUserMediaStream;
-  };
- 
   connect.core.setSoftphoneUserMediaStream = function (stream) {
     connect.core.softphoneUserMediaStream = stream;
   };
- 
-  connect.core.initRingtoneEngines = function (params) {
+
+  connect.core.initRingtoneEngines = function (params, _setRingerDevice) {
+    connect.getLog().info("[Ringtone Engine] initRingtoneEngine started").withObject({params}).sendInternalLogToServer();
     connect.assertNotNull(params, "params");
- 
+    const setRingerDeviceFunc = _setRingerDevice || setRingerDevice;
     var setupRingtoneEngines = function (ringtoneSettings) {
       connect.assertNotNull(ringtoneSettings, "ringtoneSettings");
       connect.assertNotNull(ringtoneSettings.voice, "ringtoneSettings.voice");
@@ -25975,28 +26559,37 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       connect.agent(function (agent) {
         agent.onRefresh(function () {
           connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
+            let isInitializedAnyEngine = false;
             if (!ringtoneSettings.voice.disabled && !connect.core.ringtoneEngines.voice) {
               connect.core.ringtoneEngines.voice =
                 new connect.VoiceRingtoneEngine(ringtoneSettings.voice);
+                isInitializedAnyEngine = true;
               connect.getLog().info("VoiceRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
               connect.core.ringtoneEngines.chat =
                 new connect.ChatRingtoneEngine(ringtoneSettings.chat);
+                isInitializedAnyEngine = true;
               connect.getLog().info("ChatRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
               connect.core.ringtoneEngines.task =
                 new connect.TaskRingtoneEngine(ringtoneSettings.task);
-                connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
+                isInitializedAnyEngine = true;
+              connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
+                isInitializedAnyEngine = true;
               connect.getLog().info("QueueCallbackRingtoneEngine initialized.").sendInternalLogToServer();
+            }
+            // Once any of the Ringtone Engines are initialized, set ringer device with latest device id from _ringerDeviceId.
+            if (isInitializedAnyEngine && connect.core._ringerDeviceId) {
+              setRingerDeviceFunc({ deviceId: connect.core._ringerDeviceId });
             }
           });
         });
@@ -26050,18 +26643,58 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     // Merge params from params.softphone and params.chat into params.ringtone
     // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
- 
+
+    /**
+     * If the window is iFramed, then we need to wait for a CONFIGURE message
+     * from downstream, before we initialize the ringtone engine.
+     * All other use cases don't wait for the CONFIGURE message.
+     */
     if (connect.isFramed()) {
-      // If the CCP is in a frame, wait for configuration from downstream.
+      let configureMessageTimer;  // used for re-initializing the ringtone engine
       var bus = connect.core.getEventBus();
+
+      // CONFIGURE handler triggers ringtone engine initialization
+      // this event is propagated by initCCP call from the end customer
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
+        global.clearTimeout(configureMessageTimer); // we don't need to re-init ringtone engine as we recieved configure event
+        connect.getLog().info("[Ringtone Engine] Configure event handler executed").sendInternalLogToServer();
+        
         this.unsubscribe();
         // Merge all params from data into params for any overridden
         // values in either legacy "softphone" or "ringtone" settings.
         mergeParams(params, data);
+        
+        // overwrite/store ringtone params on a configure event
+        ringtoneParamsStorage.set(params.ringtone);
         setupRingtoneEngines(params.ringtone);
       });
- 
+
+      /**
+       * This is the case where CCP is just refreshed after it gets initialized via initCCP
+       * This snippet needs at least one initCCP invocation which sets the params to the store
+       * and waits for CCP to load succesfully to apply the same to setup ringtone engine
+       */
+      const ringtoneParamsFromLocalStorage = ringtoneParamsStorage.get();
+      if(ringtoneParamsFromLocalStorage) {
+        connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function(args) {
+          // only care about shared worker ACK which indicates CCP successfull load
+          const ackFromSharedWorker = args && args.id;
+          if(ackFromSharedWorker) {
+            connect.getLog().info("[RingtoneEngine] Embedded CCP is refreshed successfully and waiting for configure Message handler to execute").sendInternalLogToServer();
+            this.unsubscribe();
+            configureMessageTimer = global.setTimeout(() => {
+              connect.getLog().info("[RingtoneEngine] Embedded CCP is refreshed without configure message & Initializing setupRingtoneEngines (Ringtone Engine) from localStorage ringtone params. ")
+                .withObject({ringtone: ringtoneParamsFromLocalStorage})
+                .sendInternalLogToServer();
+              setupRingtoneEngines(ringtoneParamsFromLocalStorage);
+              
+              // 100 ms is from the time it takes to execute few lines of JS code to trigger the configure event (this is done in initCCP)
+              // which is in fraction of milisecond.  so to be on the safer side we are keeping it to be 100
+              // this number is pulled from performance.now() calculations.
+            }, 100);
+          }
+        });
+      }
     } else {
       setupRingtoneEngines(params.ringtone);
     }
@@ -26072,13 +26705,35 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     bus.subscribe(connect.ConfigurationEvents.SET_RINGER_DEVICE, setRingerDevice);
   }
 
-  var setRingerDevice = function (data){
-    if(connect.keys(connect.core.ringtoneEngines).length === 0 || !data || !data.deviceId){
+  var setRingerDevice = function (data = {}) {
+    const deviceId = data.deviceId || '';
+    connect.getLog().info(`[Audio Device Settings] Attempting to set ringer device ${deviceId}`).sendInternalLogToServer();
+
+    if (connect.keys(connect.core.ringtoneEngines).length === 0) {
+      connect.getLog().info("[Audio Device Settings] setRingerDevice called before ringtone engine is initialized").sendInternalLogToServer();
+      if (deviceId) {
+        connect.core._ringerDeviceId = deviceId;
+        connect.getLog().warn("[Audio Device Settings] stored device Id for later use, once ringtone engine is up.").sendInternalLogToServer();
+        connect.publishMetric({
+          name: CSM_SET_RINGER_DEVICE_BEFORE_INIT,
+          data: { count: 1 }
+        });
+      }
       return;
     }
-    var deviceId = data.deviceId;
-    for (var ringtoneType in connect.core.ringtoneEngines) {
-      connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId);
+    if (!deviceId) {
+      connect.getLog().warn("[Audio Device Settings] Setting ringer device cancelled due to missing deviceId").sendInternalLogToServer();
+      return;
+    }
+
+    for (let ringtoneType in connect.core.ringtoneEngines) {
+      connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId)
+        .then(function(res) {
+          connect.getLog().info(`[Audio Device Settings] ringtoneType ${ringtoneType} successfully set to deviceid ${res}`).sendInternalLogToServer();
+        })
+        .catch(function(err) {
+          connect.getLog().error(err)
+        });
     }
 
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
@@ -26093,7 +26748,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
     var competeForMasterOnAgentUpdate = function (softphoneParamsIn) {
       var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
-      connect.getLog().info("[Softphone Manager] competeForMasterOnAgentUpdate executed").sendInternalLogToServer();
+      connect.getLog().info("[Softphone Manager] competeForMasterOnAgentUpdate executed").withObject({ softphoneParams }).sendInternalLogToServer();
       connect.agent(function (agent) {
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
@@ -26130,7 +26785,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       // This event is propagted by initCCP call from the end customers 
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
         global.clearTimeout(configureMessageTimer); // we don't need to re-init softphone manager as we recieved configure event
-        connect.getLog().info("[Softphone Manager] Configure event handler executed").sendInternalLogToServer();
+        connect.getLog().info("[Softphone Manager] Configure event handler executed").withObject({ data }).sendInternalLogToServer();
         // always overwrite/store the softphone params value if there is a configure event
         softphoneParamsStorage.set(data.softphone);
         if (data.softphone && data.softphone.allowFramedSoftphone) {
@@ -26142,7 +26797,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
       /**
        * This is the case where CCP is just refreshed after it gets initilaized via initCCP
-       * This snippet needs atleast one initCCP invocation which sets the params to the store
+       * This snippet needs at least one initCCP invocation which sets the params to the store
        * and waits for CCP to load successfully to apply the same to init Softphone manager
        */
 
@@ -26156,7 +26811,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed successfully and waiting for configure Message handler to execute").sendInternalLogToServer();
             this.unsubscribe();
             configureMessageTimer = global.setTimeout(() => {
-              connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed without configure message handler execution").sendInternalLogToServer();
+              connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed without configure message handler execution").withObject({ softphoneParamsFromLocalStorage }).sendInternalLogToServer();
               connect.publishMetric({
                 name: "EmbeddedCCPRefreshedWithoutInitCCP",
                 data: { count: 1 }
@@ -26204,11 +26859,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             if (connect.core.softphoneManager) {
               connect.core.softphoneManager.onInitContactSub.unsubscribe();
               delete connect.core.softphoneManager;
-            }
-            var userMediaStream = connect.core.getSoftphoneUserMediaStream();
-            if (userMediaStream) {
-              userMediaStream.getTracks().forEach(function(track) { track.stop(); });
-              connect.core.setSoftphoneUserMediaStream(null);
             }
           }
         });
@@ -26441,7 +27091,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     var authorizeEndpoint = params.authorizeEndpoint;
     if (!authorizeEndpoint) {
       authorizeEndpoint = connect.core.isLegacyDomain()
-        ? LEGACY_AUTHORIZE_ENDPOINT
+        ? LEGACY_AUTHORIZE_ENDPOINT 
         : AUTHORIZE_ENDPOINT;
     }
     var agentAppEndpoint = params.agentAppEndpoint || null;
@@ -26537,8 +27187,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       connect.getLog().info("isCCPv2: " + true).sendInternalLogToServer();
       connect.getLog().info("isFramed: " + connect.isFramed()).sendInternalLogToServer();
       connect.core.upstream.onDownstream(connect.EventType.OUTER_CONTEXT_INFO, function (data) {
-        var streamsVersion = data.streamsVersion;
+        var streamsVersion = data.streamsVersion || null;
         connect.getLog().info("StreamsJS Version: " + streamsVersion).sendInternalLogToServer();
+        connect.outerContextStreamsVersion = streamsVersion;
       });
 
       conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
@@ -26654,9 +27305,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
 
-    // Clean up the Softphone params store to make sure we always pull the latest params
+    // Clean up the Softphone and Ringtone params store to make sure we always pull the latest params
     softphoneParamsStorage.clean();
- 
+    ringtoneParamsStorage.clean();
     // Create the CCP iframe and append it to the container div.
     var iframe = connect.core._createCCPIframe(containerDiv, params);
 
@@ -26841,7 +27492,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   connect.core._refreshIframeOnTimeout = function(initCCPParams, containerDiv) {
     connect.assertNotNull(initCCPParams, 'initCCPParams');
     connect.assertNotNull(containerDiv, 'containerDiv');
-    var ccpIframeRefreshInterval = (initCCPParams.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL : CCP_IFRAME_REFRESH_INTERVAL;
+    var ccpIframeRefreshInterval = CCP_IFRAME_REFRESH_INTERVAL;
     var retryDelay = AWS.util.calculateRetryDelay((connect.core.iframeRefreshAttempt - 1 || 0), { base: 2000 });
     // Evaluates to 0 for 0th attempt and 1 for rest (>0) of the refresh attempts
     var timeoutFactor = Math.ceil((connect.core.iframeRefreshAttempt || 0) / CCP_IFRAME_REFRESH_LIMIT);
@@ -27102,17 +27753,31 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   AgentDataProvider.prototype.updateAgentData = function (agentData) {
     var oldAgentData = this.agentData;
     this.agentData = agentData;
- 
+
+    try {
+      // the agentSnapshot timestamp does not change unless the snapshot has a difference
+      // timestamp is populated by backend service when snapshot is generated
+      const newAgentSnapshotTimestamp = Date.parse(agentData.snapshot.snapshotTimestamp);
+      if ((!oldAgentData) || (newAgentSnapshotTimestamp !== Date.parse(oldAgentData.snapshot.snapshotTimestamp))) {
+        const snapshotDetectedLatency = new Date().getTime() - newAgentSnapshotTimestamp;
+        publishSnapshotMetric(SNAPSHOT_RECEIVED_BY_CLIENT, snapshotDetectedLatency, {
+          ContentLengthInBytes: connect.core._calculateSnapshotSizingBucket(agentData.snapshot),
+          IsCCPLayer: connect.isCCP()
+        });
+      }
+    } catch (e) {
+      connect.getLog().error("[Metrics] Failed to send metrics.")
+          .withException(e).sendInternalLogToServer();
+    }
+
     if (oldAgentData == null) {
       connect.agent.initialized = true;
       this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
     }
- 
     this.bus.trigger(connect.AgentEvents.REFRESH, new connect.Agent());
- 
     this._fireAgentUpdateEvents(oldAgentData);
-  };
- 
+  }
+
   AgentDataProvider.prototype.getAgentData = function () {
     if (this.agentData == null) {
       throw new connect.StateError('No agent data is available yet!');
@@ -27161,7 +27826,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       removed: {},
       common: {},
       oldMap: connect.index(oldAgentData == null ? [] : oldAgentData.snapshot.contacts, function (contact) { return contact.contactId; }),
-      newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; })
+      newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
+      endTime: 0
     };
  
     connect.keys(diff.oldMap).forEach(function (contactId) {
@@ -27177,7 +27843,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         diff.added[contactId] = diff.newMap[contactId];
       }
     });
- 
+    diff.endTime = performance.now();
     return diff;
   };
  
@@ -27206,26 +27872,27 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         self.bus.trigger(event, new connect.Agent());
       });
     }
-
     var oldNextState = oldAgentData && oldAgentData.snapshot.nextState ? oldAgentData.snapshot.nextState.name : null;
     var newNextState = this.agentData.snapshot.nextState ? this.agentData.snapshot.nextState.name : null;
     if (oldNextState !== newNextState && newNextState) {
       self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
     }
 
+    const processingStart = performance.now();
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
- 
     } else {
       diff = {
         added: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
         removed: {},
         common: {},
         oldMap: {},
-        newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; })
+        newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
+        endTime: performance.now()
       };
     }
- 
+
+    const eventTriggerStart = performance.now();
     connect.values(diff.added).forEach(function (contactData) {
       self.bus.trigger(connect.ContactEvents.INIT, new connect.Contact(contactData.contactId));
       self._fireContactUpdateEvents(contactData.contactId, connect.ContactStateType.INIT, contactData.state.type);
@@ -27240,8 +27907,48 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     connect.keys(diff.common).forEach(function (contactId) {
       self._fireContactUpdateEvents(contactId, diff.oldMap[contactId].state.type, diff.newMap[contactId].state.type);
     });
-  };
- 
+
+    const processingEnd = performance.now();
+    const optionalDimensions = {
+      ContentLengthInBytes: connect.core._calculateSnapshotSizingBucket(this.agentData.snapshot),
+      IsCCPLayer: connect.isCCP()
+    };
+    try {
+      publishSnapshotMetric(SNAPSHOT_COMPARISON_STEP_TIME, (diff.endTime - processingStart), optionalDimensions);
+      publishSnapshotMetric(SNAPSHOT_EVENT_TRIGGER_STEP_TIME, (processingEnd - eventTriggerStart), optionalDimensions);
+      publishSnapshotMetric(SNAPSHOT_TOTAL_PROCESSING_TIME, (processingEnd - processingStart), optionalDimensions);
+    } catch (e) {
+      connect.getLog().error("[Metrics] Failed to send metrics.")
+          .withException(e).sendInternalLogToServer();
+    }
+  }
+
+  let publishSnapshotMetric = (metricName, value, optionalDimensions) => {
+    connect.publishMetric({
+      name: metricName,
+      data: {
+        latency: value,
+        optionalDimensions
+      }
+    })
+  }
+
+  // calculate which sizing bucket the size of the snapshot fits into
+  // INTERNAL ONLY
+  connect.core._calculateSnapshotSizingBucket = function(agentSnapshot) {
+    if (agentSnapshot && agentSnapshot.hasOwnProperty('contentLength')) {
+      const contentLength = parseInt(agentSnapshot.contentLength);
+      for (const rangeKey of Object.keys(sizingBucket)) {
+        const [min, max] = sizingBucket[rangeKey];
+        // check if the length is in range or larger than our largest bucket
+        if (contentLength >= min && contentLength <= max) {
+          return rangeKey;
+        }
+      }
+    }
+    return 'undefined';
+  }
+
   AgentDataProvider.prototype._fireContactUpdateEvents = function (contactId, oldContactState, newContactState) {
     var self = this;
     if (oldContactState !== newContactState) {
@@ -28035,6 +28742,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   // The default log roll interval (30min)
   var DEFAULT_LOG_ROLL_INTERVAL = 1800000;
 
+  // Prefix to be added to values obfuscated using MD5 digest.
+  var OBFUSCATED_PREFIX = "[obfuscated value]"
+
   /**
    * An enumeration of common logging levels.
    */
@@ -28075,6 +28785,15 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     CRITICAL: 200
 
   };
+
+  /**
+   * An enumeration of logging context layers.
+   */
+    var LogContextLayer = {
+      CCP: "CCP",
+      SHARED_WORKER: "SharedWorker",
+      CRM: "CRM"
+    }
 
   /**
    * A map from log level to console logger function.
@@ -28134,11 +28853,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    * Log entries are aware of their timestamp, order,
    * and can contain objects and exception stack traces.
    */
-  var LogEntry = function (component, level, text, loggerId) {
+  var LogEntry = function (component, level, text, loggerId, tabId, contextLayer) {
     this.component = component;
     this.level = level;
     this.text = text;
     this.time = new Date();
+    this.tabId = tabId ===  null ? null : tabId ? tabId : connect.core.tabId;
     this.exception = null;
     this.objects = [];
     this.line = 0;
@@ -28151,10 +28871,23 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       console.log("Issue finding agentResourceId: ", e); //can't use our logger here as we might infinitely attempt to log this error.
     }
     this.loggerId = loggerId;
+    if (contextLayer) {
+      this.contextLayer = contextLayer;
+    } else {
+      if (connect.isSharedWorker()) {
+        this.contextLayer = LogContextLayer.SHARED_WORKER;
+      } else if (connect.isCRM()) {
+        this.contextLayer = LogContextLayer.CRM;
+      } else if (connect.isCCP()) {
+        this.contextLayer = LogContextLayer.CCP;
+      }  
+    }
   };
 
   LogEntry.fromObject = function (obj) {
-    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text, obj.loggerId);
+    var tabId = obj.tabId || null;
+    var contextLayer = obj.contextLayer || null;
+    var entry = new LogEntry(LogComponent.CCP, obj.level, obj.text, obj.loggerId, tabId, contextLayer);
 
     // Required to check for Date objects sent across frame boundaries
     if (Object.prototype.toString.call(obj.time) === '[object Date]') {
@@ -28186,7 +28919,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
           } else if (["quickConnectName"].includes(key)) {
             data[key] = "[redacted]";
           } else if (["customerId", "CustomerId", "SpeakerId", "CustomerSpeakerId"].includes(key)) {
-            data[key] = md5(data[key]);
+            data[key] = `${OBFUSCATED_PREFIX} ${md5(data[key])}`;
           }
         }
       });
@@ -28235,6 +28968,14 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   LogEntry.prototype.getAgentResourceId = function () {
     return this.agentResourceId;
+  }
+
+  LogEntry.prototype.getTabId = function() {
+    return this.tabId;
+  }
+
+  LogEntry.prototype.getContextLayer = function() {
+    return this.contextLayer;
   }
 
   /**
@@ -29491,12 +30232,16 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     var self = this;
     if (this._audio) {
       this._audio.play()
+        .then(function() {
+          self._publishTelemetryEvent("Ringtone Start", contact);
+          connect.getLog().info("Ringtone Start").sendInternalLogToServer();
+        })
         .catch(function(e) {
           self._publishTelemetryEvent("Ringtone Playback Failure", contact);
           connect.getLog().error("Ringtone Playback Failure").withException(e).withObject({currentSrc: self._audio.currentSrc, sinkId: self._audio.sinkId, volume: self._audio.volume}).sendInternalLogToServer();
         });
-      self._publishTelemetryEvent("Ringtone Start", contact);
-      connect.getLog().info("Ringtone Start").sendInternalLogToServer();
+      // Empty string as sinkId means audio gets sent to the default device
+      connect.getLog().info(`Attempting to start ringtone to device ${this._audio.sinkId || "''"}`).sendInternalLogToServer();
     }
   };
 
@@ -29559,14 +30304,16 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         })
       ]);
       return playableAudioWithTimeout.then(function (audio) {
-        if (audio) {
-          if (audio.setSinkId) {
-            return Promise.resolve(audio.setSinkId(deviceId));
-          } else {
-            return Promise.reject("Not supported");
-          }
+        if (audio && audio.setSinkId) {
+          return audio.setSinkId(deviceId)
+            .then(function() {
+              return Promise.resolve(deviceId)
+            }).catch(function(err) {
+              // Empty string as sinkId means audio gets sent to the default device
+              return Promise.reject(`RingtoneEngineBase.setOutputDevice failed: audio.setSinkId() failed with error ${err}`)
+            });
         } else {
-          return Promise.reject("No audio found");
+          return Promise.reject(`RingtoneEngineBase.setOutputDevice failed: ${audio ? "audio" : "audio.setSinkId"} not found.`);
         }
       });
     }
@@ -29712,8 +30459,20 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   var UNKNOWN_MEDIA_TYPE = "Unknown";
 
   var timeSeriesStreamStatsBuffer = [];
+
+  // We buffer only last 3 hours (10800 seconds) of a call's RTP stream stats.
+  var MAX_RTP_STREAM_STATS_BUFFER_SIZE = 10800;
+  var inputRTPStreamStatsBuffer = [];
+  var outputRTPStreamStatsBuffer = [];
+
   var aggregatedUserAudioStats = {};
   var aggregatedRemoteAudioStats = {};
+  var LOW_AUDIO_LEVEL_THRESHOLD = 1;
+  var consecutiveNoAudioInputPackets = 0;
+  var consecutiveLowInputAudioLevel = 0;
+  var consecutiveNoAudioOutputPackets = 0;
+  var consecutiveLowOutputAudioLevel = 0;
+  var audioInputConnectedDurationSeconds = 0;
   var rtpStatsJob = null;
   var reportStatsJob = null;
   //Logger specific to softphone.
@@ -29748,7 +30507,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     });
   };
 
-  var SoftphoneManager = function (softphoneParams) {
+  var SoftphoneManager = function (softphoneParams = {}) {
     var self = this;
     logger = new SoftphoneLogger(connect.getLog());
     logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
@@ -29763,11 +30522,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         }),
         connect.hitch(self, publishError));
     }
-    if (!isBrowserSoftPhoneSupported()) {
+    if (!SoftphoneManager.isBrowserSoftPhoneSupported()) {
       publishError(SoftphoneErrorTypes.UNSUPPORTED_BROWSER,
         "Connect does not support this browser. Some functionality may not work. ",
         "");
     }
+
     var gumPromise = fetchUserMedia({
       success: function (stream) {
         publishTelemetryEvent("ConnectivityCheckResult", null, 
@@ -29786,17 +30546,15 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       }
     });
     
-    handleSoftPhoneMuteToggle();
-    handleSpeakerDeviceChange();
-    handleMicrophoneDeviceChange();
+    const onMuteSub = handleSoftPhoneMuteToggle();
+    const onSetSpeakerDeviceSub = handleSpeakerDeviceChange();
+    const onSetMicrophoneDeviceSub = handleMicrophoneDeviceChange(!softphoneParams.disableEchoCancellation);
     monitorMicrophonePermission();
 
     this.ringtoneEngine = null;
     var rtcSessions = {};
     // Tracks the agent connection ID, so that if the same contact gets re-routed to the same agent, it'll still set up softphone
     var callsDetected = {};
-    this.onInitContactSub = {};
-    this.onInitContactSub.unsubscribe = function() {};
 
     // variables for firefox multitab
     var isSessionPending = false;
@@ -29901,11 +30659,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         agentConnectionId,
         webSocketProvider);
 
-      rtcSessions[agentConnectionId] = session;
+      session.echoCancellation = !softphoneParams.disableEchoCancellation;
 
-      if (connect.core.getSoftphoneUserMediaStream()) {
-        session.mediaStream = connect.core.getSoftphoneUserMediaStream();
-      }
+      rtcSessions[agentConnectionId] = session;
 
       // Custom Event to indicate the session init operations
       connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
@@ -29965,6 +30721,13 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       }
     }
 
+    var onDestroyContact = function (agentConnectionId) {
+      // handle an edge case where a connecting contact gets cleared and the next agent snapshot doesn't contain the contact thus the onRefreshContact callback below can't properly clean up the stale session.
+      if (rtcSessions[agentConnectionId]) {
+        destroySession(agentConnectionId);
+      }
+    }
+
     var onRefreshContact = function (contact, agentConnectionId) {
       if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
         destroySession(agentConnectionId);
@@ -29989,6 +30752,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         contact.onRefresh(function () {
           onRefreshContact(contact, agentConnectionId);
         });
+        contact.onDestroy(function () {
+          onDestroyContact(agentConnectionId);
+        });
       }
     };
 
@@ -30002,6 +30768,20 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       onInitContact(contact);
       onRefreshContact(contact, agentConnectionId);
     });
+
+    this.terminate = () => {
+      self.onInitContactSub && self.onInitContactSub.unsubscribe && self.onInitContactSub.unsubscribe();
+      onMuteSub && onMuteSub.unsubscribe && onMuteSub.unsubscribe();
+      onSetSpeakerDeviceSub && onSetSpeakerDeviceSub.unsubscribe && onSetSpeakerDeviceSub.unsubscribe();
+      onSetMicrophoneDeviceSub && onSetMicrophoneDeviceSub.unsubscribe && onSetMicrophoneDeviceSub.unsubscribe();
+      if (rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId) {
+        // This method needs to be called when destroying the softphone manager instance. 
+        // Otherwise the refresh loop in rtcPeerConnectionFactory will keep spawning WebRTCConnections every 60 seconds
+        // and you will eventually get SoftphoneConnectionLimitBreachedException later.
+        rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
+      }
+      rtcPeerConnectionFactory = null;
+    };
   };
 
   var fireContactAcceptedEvent = function (contact) {
@@ -30034,17 +30814,17 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   // Bind events for mute
   var handleSoftPhoneMuteToggle = function () {
     var bus = connect.core.getEventBus();
-    bus.subscribe(connect.EventType.MUTE, muteToggle);
+    return bus.subscribe(connect.EventType.MUTE, muteToggle);
   };
 
   var handleSpeakerDeviceChange = function() {
     var bus = connect.core.getEventBus();
-    bus.subscribe(connect.ConfigurationEvents.SET_SPEAKER_DEVICE, setSpeakerDevice);
+    return bus.subscribe(connect.ConfigurationEvents.SET_SPEAKER_DEVICE, setSpeakerDevice);
   }
 
-  var handleMicrophoneDeviceChange = function () {
+  var handleMicrophoneDeviceChange = function (enableEchoCancellation) {
     var bus = connect.core.getEventBus();
-    bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, setMicrophoneDevice);
+    return bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, (data) => setMicrophoneDevice({ ...data, enableEchoCancellation }));
   }
 
   var monitorMicrophonePermission = function () {
@@ -30121,57 +30901,80 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     });
   };
 
-  var setSpeakerDevice = function (data) {
-    if (connect.keys(localMediaStream).length === 0 || !data || !data.deviceId) {
+  var setSpeakerDevice = function (data = {}) {
+    const deviceId = data.deviceId || '';
+    connect.getLog().info(`[Audio Device Settings] Attempting to set speaker device ${deviceId}`).sendInternalLogToServer();
+
+    if (!deviceId) {
+      connect.getLog().warn("[Audio Device Settings] Setting speaker device cancelled due to missing deviceId").sendInternalLogToServer();
       return;
     }
-    var deviceId = data.deviceId;
-    var remoteAudioElement = document.getElementById('remote-audio');
-    try {
-      logger.info("Trying to set speaker to device " + deviceId);
-      if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
-        remoteAudioElement.setSinkId(deviceId);
-      }
-    } catch (e) {
-      logger.error("Failed to set speaker to device " + deviceId);
-    }
 
-    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
-      data: { deviceId: deviceId }
-    });
+    var remoteAudioElement = document.getElementById('remote-audio');
+    if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
+        remoteAudioElement.setSinkId(deviceId).then(() => {
+          connect.getLog().info(`[Audio Device Settings] Speaker device ${deviceId} successfully set to speaker audio element`).sendInternalLogToServer();
+          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
+            data: { deviceId: deviceId }
+          });
+        }).catch((e) => {
+          connect.getLog().error("[Audio Device Settings] Failed to set speaker device " + deviceId).withException(e).sendInternalLogToServer()
+        });
+    } else {
+      connect.getLog().warn("[Audio Device Settings] Setting speaker device cancelled due to missing remoteAudioElement").sendInternalLogToServer();
+    }
   }
 
-  var setMicrophoneDevice = function (data) {
-    if (connect.keys(localMediaStream).length === 0  || !data || !data.deviceId) {
+  var setMicrophoneDevice = function (data = {}) {
+    const deviceId = data.deviceId || '';
+    connect.getLog().info(`[Audio Device Settings] Attempting to set microphone device ${deviceId}`).sendInternalLogToServer();
+
+    if (connect.keys(localMediaStream).length === 0) {
+      connect.getLog().warn("[Audio Device Settings] Setting microphone device cancelled due to missing localMediaStream").sendInternalLogToServer();
       return;
     }
-    var deviceId = data.deviceId;
-    var softphoneManager = connect.core.getSoftphoneManager();
-    try {
-      navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } })
-        .then(function (newMicrophoneStream) {
-          var newMicrophoneTrack = newMicrophoneStream.getAudioTracks()[0];
-          for (var connectionId in localMediaStream) {
-            if (localMediaStream.hasOwnProperty(connectionId)) {
-              var localMedia = localMediaStream[connectionId].stream;
-              var session = softphoneManager.getSession(connectionId);
-              //Replace the audio track in the RtcPeerConnection
-              session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
-                //Replace the audio track in the local media stream (for mute / unmute)
-                softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
-              });
-            }
-          }
-        });
-    } catch(e) {
-      logger.error("Failed to set microphone device " + deviceId);
+    if (!deviceId) {
+      connect.getLog().warn("[Audio Device Settings] Setting microphone device cancelled due to missing deviceId").sendInternalLogToServer();
+      return;
     }
-
-    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-      event: connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED,
-      data: { deviceId: deviceId }
+    var softphoneManager = connect.core.getSoftphoneManager();
+    var CONSTRAINT = { audio: { deviceId: { exact: deviceId } } };
+    if (!data.enableEchoCancellation) CONSTRAINT.audio.echoCancellation = false;
+    connect.publishMetric({
+      name: ECHO_CANCELLATION_CHECK,
+      data: {
+        count: 1,
+        disableEchoCancellation: !data.enableEchoCancellation
+      }
     });
+     navigator.mediaDevices.getUserMedia(CONSTRAINT)
+        .then((newMicrophoneStream) => {
+          try {
+            var newMicrophoneTrack = newMicrophoneStream.getAudioTracks()[0];
+            for (var connectionId in localMediaStream) {
+              if (localMediaStream.hasOwnProperty(connectionId)) {
+                var localMedia = localMediaStream[connectionId].stream;
+                var session = softphoneManager.getSession(connectionId);
+                //Replace the audio track in the RtcPeerConnection
+                session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
+                  //Replace the audio track in the local media stream (for mute / unmute)
+                  softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
+                  connect.getLog().info(`[Audio Device Settings] Microphone device ${deviceId} successfully set to local media stream in RTCRtpSender`).sendInternalLogToServer();
+                });
+              }
+            }
+          } catch(e) {
+            connect.getLog().error("[Audio Device Settings] Failed to set microphone device " + deviceId).withException(e).sendInternalLogToServer();
+            return;
+          }
+          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED,
+            data: { deviceId: deviceId }
+          });
+        }).catch((e) => {
+          connect.getLog().error("[Audio Device Settings] Failed to set microphone device " + deviceId).withException(e).sendInternalLogToServer();
+        });
   }
 
   var publishSoftphoneFailureLogs = function (rtcSession, reason) {
@@ -30293,7 +31096,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       .sendInternalLogToServer();
   };
 
-  var isBrowserSoftPhoneSupported = function () {
+  SoftphoneManager.isBrowserSoftPhoneSupported = function () {
     // In Opera, the true version is after "Opera" or after "Version"
     if (connect.isOperaBrowser() && connect.getOperaBrowserVersion() > 17) {
       return true;
@@ -30355,6 +31158,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       setRemoteDescriptionFailure: report.setRemoteDescriptionFailure,
       softphoneStreamStatistics: report.streamStats
     };
+
     contact.sendSoftphoneReport(callReport, {
       success: function () {
         logger.info("sendSoftphoneReport success" + JSON.stringify(callReport))
@@ -30366,6 +31170,45 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
           .sendInternalLogToServer();
       }
     });
+
+    var streamPerSecondStats = {
+      AUDIO_INPUT : {
+        packetsCount: inputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
+        packetsLost: inputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
+        audioLevel: inputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
+        jitterBufferMillis: inputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis)
+      },
+      AUDIO_OUTPUT : {
+        packetsCount: outputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
+        packetsLost: outputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
+        audioLevel: outputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
+        jitterBufferMillis: outputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis),
+        roundTripTimeMillis: outputRTPStreamStatsBuffer.map(stats => stats.roundTripTimeMillis)
+      }
+    }
+
+    var telemetryCallReport = {
+      ...callReport,
+      softphoneStreamPerSecondStatistics: streamPerSecondStats,
+      iceConnectionsLost: report.iceConnectionsLost,
+      iceConnectionsFailed: report.iceConnectionsFailed || null,
+      peerConnectionFailed: report.peerConnectionFailed || null,
+      rtcJsVersion: report.rtcJsVersion || null,
+      consecutiveNoAudioInputPackets: consecutiveNoAudioInputPackets,
+      consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
+      consecutiveNoAudioOutputPackets: consecutiveNoAudioOutputPackets,
+      consecutiveLowOutputAudioLevel: consecutiveLowOutputAudioLevel,
+      audioInputConnectedDurationSeconds: audioInputConnectedDurationSeconds
+    }
+
+    connect.publishSoftphoneReport({
+      contactId: contact.getContactId(),
+      ccpVersion: global.ccpVersion,
+      report: telemetryCallReport
+    });
+
+    logger.info("sent TelemetryCallReport " + JSON.stringify(telemetryCallReport))
+      .sendInternalLogToServer();
   };
 
   var startStatsCollectionJob = function (rtcSession) {
@@ -30373,14 +31216,18 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       rtcSession.getUserAudioStats().then(function (stats) {
         var previousUserStats = aggregatedUserAudioStats;
         aggregatedUserAudioStats = stats;
-        timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT));
+        var currRTPStreamStat = getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT);
+        timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
+        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat);
       }, function (error) {
         logger.debug("Failed to get user audio stats.", error).sendInternalLogToServer();
       });
       rtcSession.getRemoteAudioStats().then(function (stats) {
         var previousRemoteStats = aggregatedRemoteAudioStats;
         aggregatedRemoteAudioStats = stats;
-        timeSeriesStreamStatsBuffer.push(getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT));
+        var currRTPStreamStat = getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT);
+        timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
+        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat);
       }, function (error) {
         logger.debug("Failed to get remote audio stats.", error).sendInternalLogToServer();
       });
@@ -30397,14 +31244,24 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     aggregatedUserAudioStats = null;
     aggregatedRemoteAudioStats = null;
     timeSeriesStreamStatsBuffer = [];
+    inputRTPStreamStatsBuffer = [];
+    outputRTPStreamStatsBuffer = [];
     rtpStatsJob = null;
     reportStatsJob = null;
+    consecutiveNoAudioInputPackets = 0;
+    consecutiveLowInputAudioLevel = 0;
+    consecutiveNoAudioOutputPackets = 0;
+    consecutiveLowOutputAudioLevel = 0;
+    audioInputConnectedDurationSeconds = 0;
   };
 
   var getTimeSeriesStats = function (currentStats, previousStats, streamType) {
     if (previousStats && currentStats) {
       var packetsLost = currentStats.packetsLost > previousStats.packetsLost ? currentStats.packetsLost - previousStats.packetsLost : 0;
       var packetsCount = currentStats.packetsCount > previousStats.packetsCount ? currentStats.packetsCount - previousStats.packetsCount : 0;
+      checkConsecutiveNoPackets(packetsCount, streamType);
+      checkConsecutiveNoAudio(currentStats.audioLevel, streamType);
+
       return new RTPStreamStats(currentStats.timestamp,
         packetsLost,
         packetsCount,
@@ -30420,6 +31277,53 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         currentStats.audioLevel,
         currentStats.jbMilliseconds,
         currentStats.rttMilliseconds);
+    }
+  };
+
+  var telemetryCallReportRTPStreamStatsBuffer = function (rtpStreamStats) {
+    if (rtpStreamStats.softphoneStreamType === AUDIO_INPUT) {
+      while (inputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
+        inputRTPStreamStatsBuffer.shift();
+      }
+      inputRTPStreamStatsBuffer.push(rtpStreamStats);
+    } else if (rtpStreamStats.softphoneStreamType === AUDIO_OUTPUT) {
+      while (outputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
+        outputRTPStreamStatsBuffer.shift();
+      }
+      outputRTPStreamStatsBuffer.push(rtpStreamStats);
+    }
+  };
+
+  var checkConsecutiveNoPackets = function (packetsCount, streamType) {
+    if (streamType === AUDIO_INPUT) {
+      audioInputConnectedDurationSeconds++;
+      if (packetsCount <= 0){
+        consecutiveNoAudioInputPackets++;
+      } else {
+        consecutiveNoAudioInputPackets = 0;
+      }
+    } else if (streamType === AUDIO_OUTPUT){
+      if (packetsCount <= 0){
+        consecutiveNoAudioOutputPackets++;
+      } else {
+        consecutiveNoAudioOutputPackets = 0;
+      }
+    }
+  };
+
+  var checkConsecutiveNoAudio = function (audioLevel, streamType) {
+    if (streamType === AUDIO_INPUT) {
+      if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD){
+        consecutiveLowInputAudioLevel++;
+      } else{
+        consecutiveLowInputAudioLevel = 0;
+      }
+    } else if (streamType === AUDIO_OUTPUT){
+      if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD){
+        consecutiveLowOutputAudioLevel++;
+      } else{
+        consecutiveLowOutputAudioLevel = 0;
+      }
     }
   };
 
@@ -31371,6 +32275,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   /**
   * Methods to determine browser type and versions, used for softphone initialization.
   */
+
+  /*
+    This will also return True for Edge and Opera since they
+    include Chrome in the user agent string, as they are built
+    off of Chrome.
+  */
   connect.isChromeBrowser = function () {
     return userAgent.indexOf("Chrome") !== -1;
   };
@@ -31381,6 +32291,10 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.isOperaBrowser = function () {
     return userAgent.indexOf("Opera") !== -1;
+  };
+
+  connect.isEdgeBrowser = function () {
+    return userAgent.indexOf("Edg") !== -1;
   };
 
   connect.getChromeBrowserVersion = function () {
@@ -31861,10 +32775,23 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   // internal use only
   connect.isCCP = function () {
+    if (!connect.core.upstream) {
+      return false;
+    }
     var conduit = connect.core.getUpstream();
     return conduit.name === 'ConnectSharedWorkerConduit';
   }
 
+  connect.isSharedWorker = function () {
+    return connect.worker && !!connect.worker.clientEngine;
+  }
+
+  connect.isCRM = function () {
+    if (!connect.core.upstream) {
+      return false;
+    }
+    return connect.core.getUpstream() instanceof connect.IFrameConduit;
+  }
 })();
 
 
@@ -31961,19 +32888,20 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       })
     } else {
       connect.core.getClient()._callImpl(method, params, {
-        success: function (data) {
+        success: function (data, dataAttribute) {
           self._recordAPILatency(method, request_start);
-          callbacks.success(data);
+          callbacks.success(data, dataAttribute);
         },
         failure: function (error, data) {
           self._recordAPILatency(method, request_start, error);
           callbacks.failure(error, data);
         },
-        authFailure: function () {
-          self._recordAPILatency(method, request_start);
+        authFailure: function (error, data) {
+          self._recordAPILatency(method, request_start, error);
           callbacks.authFailure();
         },
-        accessDenied: function () {
+        accessDenied: function (error, data) {
+          self._recordAPILatency(method, request_start, error);
           callbacks.accessDenied && callbacks.accessDenied();
         }
       });
@@ -31988,16 +32916,33 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   };
 
   WorkerClient.prototype._sendAPIMetrics = function (method, time, err) {
-    this.conduit.sendDownstream(connect.EventType.API_METRIC, {
+    const eventData = {
       name: method,
-      time: time,
-      dimensions: [
-        {
-          name: "Category",
-          value: "API"
-        }
-      ],
-      error: err
+      time,
+      error: err,
+      error5xx: 0
+    };
+
+    const dimensions = [
+      { name: 'Category', value: 'API' },
+    ];
+
+    const statusCode = err && err.statusCode || 200;
+    const retryStatus = err && err.retryStatus || connect.RetryStatus.NONE;
+    const optionalDimensions = [
+      { name: 'HttpStatusCode', value: statusCode },
+      { name: 'HttpGenericStatusCode', value: `${statusCode.toString().charAt(0)}XX` },
+      { name: 'RetryStatus', value: retryStatus },
+    ];
+
+    if (statusCode.toString().charAt(0) === '5') {
+      eventData.error5xx = 1;
+    }
+    
+    this.conduit.sendDownstream(connect.EventType.API_METRIC, {
+        ...eventData,
+        dimensions,
+        optionalDimensions,
     });
   };
 
@@ -32195,40 +33140,44 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   ClientEngine.prototype.pollForAgent = function () {
     var self = this;
-    var onAuthFail = connect.hitch(self, self.handleAuthFail);
+    var onAuthFail = connect.hitch(self, self.handlePollingAuthFail);
+
 
     this.client.call(connect.ClientMethods.GET_AGENT_SNAPSHOT, {
       nextToken: self.nextToken,
       timeout: GET_AGENT_TIMEOUT_MS
     }, {
-        success: function (data) {
-          try {
-            self.agent = self.agent || {};
-            self.agent.snapshot = data.snapshot;
-            self.agent.snapshot.localTimestamp = connect.now();
-            self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
-            self.nextToken = data.nextToken;
-            connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.")
-              .withObject(data)
-              .sendInternalLogToServer();
-            self.updateAgent();
-          } catch (e) {
-            connect.getLog().error("Long poll failed to update agent.")
-              .withObject(data)
-              .withException(e)
-              .sendInternalLogToServer();
-          } finally {
-            global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
+      success: function (data, dataAttribute) {
+        try {
+          self.agent = self.agent || {};
+          self.agent.snapshot = data.snapshot;
+          self.agent.snapshot.localTimestamp = connect.now();
+          self.agent.snapshot.skew = self.agent.snapshot.snapshotTimestamp - self.agent.snapshot.localTimestamp;
+          self.nextToken = data.nextToken;
+          if (dataAttribute && dataAttribute.hasOwnProperty('contentLength')) {
+            self.agent.snapshot.contentLength = dataAttribute.contentLength;
           }
-        },
-        failure: function (err, data) {
-          try {
-            connect.getLog().error("Failed to get agent data.")
-              .sendInternalLogToServer()
-              .withObject({
-                err: err,
-                data: data
-              });
+          connect.getLog().trace("GET_AGENT_SNAPSHOT succeeded.")
+            .withObject(data)
+            .sendInternalLogToServer();
+          self.updateAgent();
+        } catch (e) {
+          connect.getLog().error("Long poll failed to update agent.")
+            .withObject(data)
+            .withException(e)
+            .sendInternalLogToServer();
+        } finally {
+          global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
+        }
+      },
+      failure: function (err, data) {
+        try {
+          connect.getLog().error("Failed to get agent data.")
+            .sendInternalLogToServer()
+            .withObject({
+              err: err,
+              data: data
+            });
 
         } finally {
           global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_RECOVERY_TIMEOUT_MS);
@@ -32246,7 +33195,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   ClientEngine.prototype.pollForAgentConfiguration = function (paramsIn) {
     var self = this;
     var params = paramsIn || {};
-    var onAuthFail = connect.hitch(self, self.handleAuthFail);
+    var onAuthFail = connect.hitch(self, self.handlePollingAuthFail);
 
     this.client.call(connect.ClientMethods.GET_AGENT_CONFIGURATION, {}, {
       success: function (data) {
@@ -32313,7 +33262,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -32349,7 +33298,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -32384,7 +33333,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -32420,7 +33369,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             data: data
           });
       },
-      authFailure: connect.hitch(self, self.handleAuthFail),
+      authFailure: connect.hitch(self, self.handlePollingAuthFail),
       accessDenied: connect.hitch(self, self.handleAccessDenied)
     });
   };
@@ -32683,6 +33632,11 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       self.conduit.sendDownstream(connect.EventType.AUTH_FAIL);
     }
   };
+
+  ClientEngine.prototype.handlePollingAuthFail = function () {
+    var self = this;
+    self.conduit.sendDownstream(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED);
+  }
 
   ClientEngine.prototype.handleAccessDenied = function () {
     var self = this;

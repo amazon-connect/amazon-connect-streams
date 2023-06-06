@@ -52,6 +52,8 @@ describe('SoftphoneManager', function () {
             });
             sandbox.stub(connect, 'isChromeBrowser').returns(true);
             sandbox.stub(connect, 'getChromeBrowserVersion').returns(79);
+            sandbox.stub(connect, 'isFirefoxBrowser').returns(false);
+            sandbox.stub(connect, 'hasOtherConnectedCCPs').returns(false);
             sandbox.stub(contact, 'getAgentConnection').returns({
                 getSoftphoneMediaInfo: sandbox.stub().returns({
                     callConfigJson: "{}"
@@ -101,9 +103,27 @@ describe('SoftphoneManager', function () {
             assert.isTrue(connect.RTCsession.notCalled);
         });
 
-        describe("FIXME", function () {
-            // Include the test cases once we merge the changes
-            it('Multiple RTC session should not be created in case of voice system failures!')
+        describe('disableEchoCancellation', () => {
+            const disableEchoCancellation = true;
+            let stubbedGetStatus, agentConnectionId;;
+
+            before(() => {
+                stubbedGetStatus = sandbox.stub(contact, 'getStatus');
+                agentConnectionId = 'abcdefg';
+                connect.isChromeBrowser.returns(true);
+                connect.isFirefoxBrowser.returns(false);
+                connect.hasOtherConnectedCCPs.returns(false);
+            });
+            afterEach(() => {
+                sandbox.resetHistory();
+            });
+            it('should set session.echoCancellation', () => {
+                const softphoneManager = new connect.SoftphoneManager({ disableEchoCancellation });
+                stubbedGetStatus.returns({ type: connect.ContactStatusType.CONNECTING });
+                softphoneManager.startSession(contact, agentConnectionId);
+                const session = softphoneManager.getSession(agentConnectionId);
+                expect(session.echoCancellation).to.equal(!disableEchoCancellation);
+            });
         });
     });
 

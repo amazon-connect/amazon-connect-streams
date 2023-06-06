@@ -7,7 +7,14 @@ global.expect = chai.expect;
 global.should = chai.should;
 global.sinon = sinon;
 global.navigator = {
-    userAgent: 'browser'
+    userAgent: 'browser',
+    mediaDevices: {
+      getUserMedia: () => {},
+      enumerateDevices: () => {}
+    },
+    permissions: {
+      query: () => {}
+    }
 };
 // required for the core.js to initialize
 global.location = new URL("https://test-fra.awsapps.com/connect/home");
@@ -36,6 +43,13 @@ global.AWS = {
     uuid: {
       v4: () => "4383f0b7-ddcb-4f8c-a63b-cbd53c852d39"
     }
+  },
+  Credentials: () => {},
+  Endpoint: () => {},
+  Connect: () => {},
+  config: {
+    credentials: {},
+    region: '',
   }
 };
 
