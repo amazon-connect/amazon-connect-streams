@@ -256,6 +256,8 @@ and made available to your JS client code.
     ringtone audio that is played when a call is incoming.
   * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
     the ringtone with any browser-supported audio file accessible by the user.
+  * `disableEchoCancellation`: This option allows you to initialize a custom or 
+    embedded CCP with echo cancellation disabled.
 * `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
   * `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local
       machine. If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab. will not be
