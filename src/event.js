@@ -60,7 +60,8 @@
     'sendLogs',
     'softphone',
     'ringtone',
-    'metrics'
+    'metrics',
+    'failover'
   ]);
 
   /**---------------------------------------------------------------
@@ -150,6 +151,19 @@
     'speaker_device_changed',
     'microphone_device_changed',
     'ringer_device_changed'
+  ]);
+
+  /**---------------------------------------------------------------
+   * enum Disaster Recovery Events
+   */
+  var DisasterRecoveryEvents = connect.makeNamespacedEnum('disasterRecovery', [
+    'suppress',
+    'force_offline', // letting the sharedworker know to force offline
+    'set_offline', // iframe letting the native ccp to set offline
+    'init_disaster_recovery',
+    'failover', // used to propagate failover state to other windows
+    'failover_pending', // signals that a soft failover will occur when current voice contact ends
+    'init_dr_polling'
   ]);
 
   /**---------------------------------------------------------------
@@ -367,4 +381,5 @@
   connect.VoiceIdEvents = VoiceIdEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
+  connect.DisasterRecoveryEvents = DisasterRecoveryEvents;
 })();

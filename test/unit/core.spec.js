@@ -110,6 +110,260 @@ describe('Core', function () {
             assert.lengthOf(logger._logs, originalLoggerLength + newLogs.length);
         });
     });
+    describe('#connect.core.initSharedWorker() with DR enabled', function () {
+        jsdom({ url: "http://localhost" });
+        let clock, initDisasterRecoverySpy;
+
+        before(function () {
+            clock = sinon.useFakeTimers();
+            sandbox.stub(connect.core, "checkNotInitialized").returns(true);
+
+            global.SharedWorker = sandbox.stub().returns({
+                port: {
+                    start: sandbox.spy(),
+                    addEventListener: sandbox.spy()
+                },
+            });
+            global.connect.agent.initialized = true;
+
+            sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
+            sandbox.stub(connect, 'randomId').returns('id');
+            initDisasterRecoverySpy = sandbox.stub(connect.core, 'initDisasterRecovery');
+        });
+        after(function () {
+            sandbox.restore();
+            clock.restore();
+        });
+        it("should call initDisasterRecovery if INIT_DISASTER_RECOVERY event is triggered", function () {
+            connect.core.initSharedWorker(params);
+            connect.core.getUpstream().downstreamBus.trigger(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY);
+            sandbox.assert.calledOnce(initDisasterRecoverySpy);
+        });
+    });
+    describe('#connect.core.initDisasterRecovery()', function () {
+        jsdom({ url: "http://localhost" });
+        let clock, suppressContactsSpy, forceOfflineSpy;
+        const NEXT_ARN = "next ARN";
+
+        beforeEach(function () {
+            clock = sinon.useFakeTimers();
+            sandbox.stub(connect.Conduit.prototype, 'sendUpstream');
+            suppressContactsSpy = sandbox.stub();
+            forceOfflineSpy = sandbox.stub();
+        });
+        afterEach(function () {
+            sandbox.restore();
+            clock.restore();
+        });
+        describe("event listener tests", function () {
+            describe("when this is the master for softphone topic", function() {
+                beforeEach(function () {
+                    sandbox.stub(connect, 'ifMaster').callsArg(1);
+                    connect.core.initDisasterRecovery(params, suppressContactsSpy, forceOfflineSpy);
+                });
+                it("should force offline when SET_OFFLINE event is sent from downstream, with hard failover if no data provided", function () {
+                    connect.core.getUpstream().downstreamBus.trigger(connect.DisasterRecoveryEvents.SET_OFFLINE);
+                    sandbox.assert.calledWith(forceOfflineSpy);
+                });
+                it("should force offline when SET_OFFLINE event is sent from downstream, with soft failover if provided", function () {
+                    connect.core.getUpstream().downstreamBus.trigger(connect.DisasterRecoveryEvents.SET_OFFLINE, {softFailover: true});
+                    sandbox.assert.calledWith(forceOfflineSpy, true);
+                });
+                it("should force offline with hard failover when FORCE_OFFLINE event is sent from upstream", function () {
+                    connect.core.getUpstream().upstreamBus.trigger(connect.DisasterRecoveryEvents.FORCE_OFFLINE);
+                    sandbox.assert.calledWith(forceOfflineSpy);
+                });
+                it("should force offline when FORCE_OFFLINE event is sent from upstream, with soft failover and nextActiveArn if provided", function () {
+                    connect.core.getUpstream().upstreamBus.trigger(connect.DisasterRecoveryEvents.FORCE_OFFLINE,
+                        {softFailover: true, nextActiveArn: NEXT_ARN});
+                    sandbox.assert.calledWith(forceOfflineSpy, true, NEXT_ARN);
+                });
+            });
+            describe("when this is not the master for softphone topic", function() {
+                beforeEach(function () {
+                    sandbox.stub(connect, 'ifMaster');
+                    params.isPrimary = true; // simplify assertions by avoiding initial forceOffline call
+                    connect.core.initDisasterRecovery(params, suppressContactsSpy, forceOfflineSpy);
+                });
+                it("should not call forceOffline if SET_OFFLINE event is fired downstream and this is not softphone master", function () {
+                    connect.core.getUpstream().downstreamBus.trigger(connect.DisasterRecoveryEvents.SET_OFFLINE);
+                    sandbox.assert.notCalled(forceOfflineSpy);
+                });
+                it("should not call forceOffline if FORCE_OFFLINE event is fired upstream and this is not softphone master", function () {
+                    connect.core.getUpstream().upstreamBus.trigger(connect.DisasterRecoveryEvents.FORCE_OFFLINE);
+                    sandbox.assert.notCalled(forceOfflineSpy);
+                });
+            });
+        });
+        describe("pollForFailover enabled", function () {
+            const INSTANCE_ARN = "this ARN";
+            const OTHER_ARN = "other ARN";
+            const AUTH_TOKEN = "auth token";
+            beforeEach(function () {
+                params.pollForFailover = true;
+                params.instanceArn = INSTANCE_ARN;
+                params.otherArn = OTHER_ARN;
+                params.authToken = AUTH_TOKEN;
+            });
+            it("should send INIT_DR_POLLING event upstream if pollForFailover is truthy, passing up instance/other ARNs and auth token", function () {
+                connect.core.initDisasterRecovery(params);
+                sandbox.assert.calledWith(connect.Conduit.prototype.sendUpstream, connect.DisasterRecoveryEvents.INIT_DR_POLLING,
+                    { instanceArn: INSTANCE_ARN, otherArn: OTHER_ARN, authToken: AUTH_TOKEN });
+            });
+        });
+        describe("params.isPrimary having an untruthy value (specifically undefined)", function () {
+            beforeEach(function() {
+                connect.core.initDisasterRecovery(params, suppressContactsSpy, forceOfflineSpy);
+            });
+            it("should suppress contacts and force offline if instance is non-primary", function () {
+                sandbox.assert.calledWith(suppressContactsSpy, true);
+                sandbox.assert.calledWith(forceOfflineSpy);
+            });
+        });
+        describe("tests with params.isPrimary set to true", function() {
+            beforeEach(function() {
+                params.isPrimary = true;
+                connect.core.initDisasterRecovery(params, suppressContactsSpy, forceOfflineSpy);
+            });
+            it("should unsuppress contacts and not force offline, if instance is primary", function () {
+                sandbox.assert.calledWith(suppressContactsSpy, false);
+                sandbox.assert.notCalled(forceOfflineSpy);
+            });
+        });
+    });
+    describe('forceOffline', function () {
+        jsdom({ url: "http://localhost" });
+        let clock, suppressContactsSpy, setStateSpy, agentStub;
+        let offlineState = {type: connect.AgentStateType.OFFLINE};
+
+        beforeEach(function () {
+            clock = sinon.useFakeTimers();
+            sandbox.stub(connect, 'ifMaster');
+            suppressContactsSpy = sandbox.stub();
+            params.isPrimary = true; // skip extra forceOffline() call on initDisasterRecovery()
+            connect.core.initDisasterRecovery(params, suppressContactsSpy); // sets up forceOffline binding under connect.core
+            sandbox.stub(connect.Conduit.prototype, 'sendUpstream');
+            sandbox.stub(connect.core, 'getAgentDataProvider').returns({getInstanceId: function() { return "INSTANCE_ID"; }});
+            setStateSpy = sandbox.stub();
+            agentStub = {
+                getAgentStates: function() {
+                    return [offlineState]
+                },
+                setState: setStateSpy,
+            };
+            sandbox.stub(connect, 'agent').callsArgWith(0, agentStub);
+        });
+        afterEach(function () {
+            sandbox.restore();
+            clock.restore();
+        });
+        it("sets force offline upstream to false and agent offline, if no contacts in snapshot", function () {
+            agentStub.getContacts = function() {
+                return []
+            };
+            connect.core.forceOffline();
+            sinon.assert.calledWith(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.FORCE_OFFLINE,
+                sinon.match({offline: false}));
+            sandbox.assert.calledWith(setStateSpy, offlineState);
+        });
+        it("passes next active ARN with FORCE_OFFLINE event upstream", function () {
+            agentStub.getContacts = function() {
+                return []
+            };
+            const NEXT_ARN = "instance arn";
+            connect.core.forceOffline(false, NEXT_ARN);
+            sinon.assert.calledWith(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.FORCE_OFFLINE,
+                sinon.match({offline: false, nextActiveArn: NEXT_ARN}));
+        });
+        it("destroys agent connection, sets force offline upstream to false, and sets agent offline; if contacts in snapshot and using hard failover", function () {
+            let destroyStub = sandbox.stub().yieldsTo('success');
+            let mockContact = {
+                getAgentConnection: function() {
+                    return { destroy: destroyStub };
+                }
+            };
+            agentStub.getContacts = function() {
+                return [mockContact]
+            };
+            connect.core.forceOffline();
+            sandbox.assert.called(destroyStub);
+            sinon.assert.calledWith(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.FORCE_OFFLINE,
+                sinon.match({offline: false}));
+            sandbox.assert.calledWith(setStateSpy, offlineState);
+        });
+        it("destroys agent connection on other contacts and adds onDestroy handler, if voice contact in snapshot and using soft failover", function () {
+            let voiceDestroyStub = sandbox.stub().yieldsTo('success');
+            let voiceOnDestroyStub = sandbox.stub();
+            let chatDestroyStub = sandbox.stub().yieldsTo('success');
+            let mockVoiceContact = {
+                getType: function() {
+                    return connect.ContactType.QUEUE_CALLBACK;
+                },
+                getAgentConnection: function() {
+                    return { destroy: voiceDestroyStub };
+                },
+                onDestroy: voiceOnDestroyStub,
+                getContactId: sandbox.stub()
+            };
+            let mockChatContact = {
+                getType: function() {
+                    return connect.ContactType.CHAT;
+                },
+                getAgentConnection: function() {
+                    return { destroy: chatDestroyStub };
+                }
+            };
+            agentStub.getContacts = function() {
+                return [mockVoiceContact, mockChatContact]
+            };
+            // initial call while voice contact is in snapshot
+            connect.core.forceOffline(true);
+            sandbox.assert.calledOnce(chatDestroyStub);
+            sandbox.assert.notCalled(voiceDestroyStub);
+            sandbox.assert.calledOnce(voiceOnDestroyStub);
+            sandbox.assert.notCalled(setStateSpy);
+            sandbox.assert.notCalled(connect.core.getUpstream().sendUpstream);
+
+            // second call from inside onDestroy after voice contact is destroyed
+            agentStub.getContacts = function() {
+                return [];
+            };
+            voiceOnDestroyStub.getCall(0).callback(mockVoiceContact);
+            sinon.assert.calledWith(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.FORCE_OFFLINE,
+                sinon.match({offline: false}));
+            sandbox.assert.calledWith(setStateSpy, offlineState);
+        });
+        it("sets force offline upstream to true and doesn't set agent state, if contacts in snapshot but a DestroyConnection failed", function () {
+            let destroyStub = sandbox.stub().yieldsTo('failure');
+            let mockContact = {
+                getAgentConnection: function() {
+                    return { destroy: destroyStub };
+                }
+            };
+            agentStub.getContacts = function() {
+                return [mockContact]
+            };
+            connect.core.forceOffline();
+            sinon.assert.calledWith(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.FORCE_OFFLINE,
+                sinon.match({offline: true}));
+            sandbox.assert.notCalled(setStateSpy);
+        });
+        it("sets force offline upstream to true and stops terminating contacts, if multiple contacts in snapshot but a DestroyConnection failed", function () {
+            let destroyStub = sandbox.stub().yieldsTo('failure');
+            let mockContact = {
+                getAgentConnection: function() {
+                    return { destroy: destroyStub };
+                }
+            };
+            agentStub.getContacts = function() {
+                return [mockContact, mockContact]
+            };
+            connect.core.forceOffline();
+            sandbox.assert.calledOnce(destroyStub);
+            sinon.assert.calledOnceWithExactly(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.FORCE_OFFLINE,
+                sinon.match({offline: true}));
+        });
+    });
     describe('onAuthFail', function () {
         let getUpstreamSpy, onUpstreamSpy;
         before(() => {
@@ -1012,6 +1266,7 @@ describe('Core', function () {
             enableAudioDeviceSettings: false,
             enablePhoneTypeSettings: true
         };
+        const disasterRecoveryOn = undefined;
         const shouldAddNamespaceToLogs = false;
             
         before(function () {
@@ -1057,6 +1312,7 @@ describe('Core', function () {
 
         after(function () {
             connect.agent.initialized = false;
+            connect.core.initialized = false;
             connect.core.eventBus = null;
             sandbox.restore();
             clock.restore();
@@ -1180,7 +1436,12 @@ describe('Core', function () {
                     chat: chatParams,
                     pageOptions: pageOptionsParams,
                     shouldAddNamespaceToLogs: shouldAddNamespaceToLogs,
+                    disasterRecoveryOn: disasterRecoveryOn
                 });
+            });
+
+            it("does not send up INIT_DISASTER_RECOVERY event if disaster recovery is off", function () {
+                sinon.assert.neverCalledWith(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, params);
             });
         });
         describe("on ACK_TIMEOUT", function () {
@@ -1203,6 +1464,86 @@ describe('Core', function () {
                     expect(connect.core.loginWindow === null).to.be.true;
                 });
             });
+        });
+    });
+
+    describe('#connect.core.initCCP() after ACKNOWLEDGE, with DR enabled', function () {
+        jsdom({ url: "http://localhost" });
+        let clock;
+        let containerDiv;
+        let clearStub, openStub, closeStub;
+        const softphoneParams = { ringtoneUrl: "customVoiceRingtone.amazon.com" };
+        const chatParams = { ringtoneUrl: "customChatRingtone.amazon.com" };
+        const pageOptionsParams = {
+            enableAudioDeviceSettings: false,
+            enablePhoneTypeSettings: true
+        };
+        const shouldAddNamespaceToLogs = false;
+        const customParams = {
+            ccpUrl: "url.com",
+            loginUrl: "loginUrl.com",
+            softphone: softphoneParams,
+            chat: chatParams,
+            loginOptions: { autoClose: true },
+            pageOptions: pageOptionsParams,
+            shouldAddNamespaceToLogs: shouldAddNamespaceToLogs,
+            disasterRecoveryOn: true
+        };
+            
+        before(function () {
+            clock = sinon.useFakeTimers();
+            containerDiv = { appendChild: sandbox.spy() };
+
+            clearStub = sandbox.fake();
+            closeStub = sandbox.fake();
+            openStub = sandbox.fake.returns({close: closeStub});
+            sandbox.stub(connect.core, "checkNotInitialized").returns(false);
+            sandbox.stub(connect, "UpstreamConduitClient");
+            sandbox.stub(connect, "UpstreamConduitMasterClient");
+            sandbox.stub(connect, "isFramed").returns(true);
+            sandbox.stub(connect, "ifMaster");
+            sandbox.stub(connect, "VoiceRingtoneEngine");
+            sandbox.stub(connect, "QueueCallbackRingtoneEngine");
+            sandbox.stub(connect, "ChatRingtoneEngine");
+            sandbox.spy(document, "createElement");
+            sandbox.stub(connect.core, "_refreshIframeOnTimeout");
+            sandbox.stub(connect.core, "getPopupManager").returns({ clear: clearStub, open: openStub})
+            connect.numberOfConnectedCCPs = 0;
+            connect.agent.initialized = true;
+            sandbox.stub(connect.core, 'getAgentDataProvider').returns({
+                getAgentData: () => ({})
+            });
+            connect.core.eventBus = new connect.EventBus({ logEvents: true });
+            connect.core.initCCP(containerDiv, customParams);
+            sandbox.stub(connect.WindowIOStream.prototype, 'send').returns(null);
+            sandbox.spy(connect.core.getUpstream(), "sendUpstream");
+
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+        });
+
+        after(function () {
+            connect.WindowIOStream.prototype.send.restore();
+            connect.core.getUpstream().sendUpstream.restore();
+            connect.agent.initialized = false;
+            connect.core.initialized = false;
+            connect.core.eventBus = null;
+            sandbox.restore();
+            clock.restore();
+        });
+
+        it("sends up INIT_DISASTER_RECOVERY event if disaster recovery is on", function () {
+            sinon.assert.calledWith(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, customParams);
+        });
+
+        it("binds forceOffline function to send up SET_OFFLINE event if disaster recovery is on", function () {
+            connect.core.forceOffline();
+            sinon.assert.calledWith(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.SET_OFFLINE);
+        });
+
+        it("binds forceOffline function to send up SET_OFFLINE event with data if provided", function () {
+            const data = {softFailover: true};
+            connect.core.forceOffline(data);
+            sinon.assert.calledWith(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.SET_OFFLINE, data);
         });
     });
 

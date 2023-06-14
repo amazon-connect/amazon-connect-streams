@@ -25,13 +25,16 @@
 
   connect.HTTP_STATUS_CODES = {
     SUCCESS: 200,
+    UNAUTHORIZED: 401,
+    ACCESS_DENIED: 403,
     TOO_MANY_REQUESTS: 429,
     INTERNAL_SERVER_ERROR: 500
   };
 
   connect.TRANSPORT_TYPES = {
     CHAT_TOKEN: "chat_token",
-    WEB_SOCKET: "web_socket"
+    WEB_SOCKET: "web_socket",
+    AGENT_DISCOVERY: "agent_discovery"
   };
 
   /**
@@ -456,6 +459,21 @@
       fetchData(maxRetry);
     });
   };
+
+  connect.fetchWithTimeout = async function(endpoint, timeoutMs, options, milliInterval, maxRetry) {
+    options = options || {};
+    if (!timeoutMs) {
+      return connect.fetch(endpoint, options, milliInterval, maxRetry);
+    }
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await connect.fetch(endpoint, {
+      ...options,
+      signal: controller.signal
+    }, milliInterval, maxRetry);
+    clearTimeout(id);
+    return response;
+  }
 
   /**
    * Calling a function with exponential backoff with full jitter retry strategy
