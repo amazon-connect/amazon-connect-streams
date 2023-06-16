@@ -349,7 +349,7 @@
   	}
 ```
 
-## Check if connected contact is ScreenRecording Enabled
+## Check if connected contact has ScreenRecording Enabled
 ```js
     connect.contact(function (contact) {
         contact.onConnected(function (connectedContact) {
