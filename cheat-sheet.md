@@ -348,3 +348,13 @@
   		  }
   	}
 ```
+
+## Check if connected contact has ScreenRecording Enabled
+```js
+    connect.contact(function (contact) {
+        contact.onConnected(function (connectedContact) {
+            const isScreenRecordingEnabled = connectedContact.getContactFeatures()?.screenRecordingConfig?.screenRecordingEnabled ?? false
+            console.log(`contact isScreenRecordingEnabled: ${isScreenRecordingEnabled}`)
+        });
+    });
+```
