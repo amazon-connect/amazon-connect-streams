@@ -196,6 +196,12 @@ declare namespace connect {
      * 
      */
     upstream?: object | null;
+
+    /**
+    * Returns is initialized 
+    *
+    */
+    initialized: boolean
   }
 
   enum EventType {
