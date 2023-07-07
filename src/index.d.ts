@@ -419,6 +419,9 @@ declare namespace connect {
 
     /** A timeout in ms that indicates how long streams will wait for the initial ACKNOWLEDGE event from the shared worker while the CCP is still standing itself up. */
     readonly ccpLoadTimeout?: number;
+
+    /** A timeout in ms that indicates how long streams will wait between iFrame reloads. */
+    readonly ccpIframeRefreshInterval?: number;
   }
 
 

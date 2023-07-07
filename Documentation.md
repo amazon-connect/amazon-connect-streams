@@ -213,6 +213,7 @@ everything set up correctly and that you are able to listen for events.
           ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
           ccpSynTimeout: 3000, //optional, defaults to 1000 (ms)
           ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms)
+          ccpIframeRefreshInterval: 2000 // optional, defaults to 5000 (ms)
          });
       }
     </script>
@@ -270,6 +271,7 @@ and made available to your JS client code.
 * `ccpAckTimeout`: A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its `SYNCHRONIZE` event emissions. These happen continuously from the first time `initCCP` is called. They should only appear when there is a problem that requires a refresh or a re-login.
 * `ccpSynTimeout`: A timeout in ms that indicates how long streams will wait to send a new `SYNCHRONIZE` event to the iframed CCP. These happens continuously from the first time `initCCP` is called. 
 * `ccpLoadTimeout`: A timeout in ms that indicates how long streams will wait for the initial `ACKNOWLEDGE` event from the shared worker while the CCP is still standing itself up.
+* `ccpIframeRefreshInterval`: A timeout in ms that indicates how long streams will wait between iFrame reloads.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
