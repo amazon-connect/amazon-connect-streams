@@ -2354,7 +2354,7 @@
     var transportDetails = {
       transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
       participantId: this.connectionId,
-      contactId: contactData.initialContactId || this.contactId
+      contactId: this.contactId
     };
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
