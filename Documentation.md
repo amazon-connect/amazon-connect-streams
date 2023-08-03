@@ -593,11 +593,15 @@ being able to be routed contacts again.
 
 ### `agent.onSoftphoneError()`
 ```js
-agent.onSoftphoneError(function(error) { /* ... */ });
+agent.onSoftphoneError(function(error) { 
+   console.log("Error type: ", error.errorType); 
+   console.log("Error message: ", error.errorMessage); 
+   console.log("Error endpoint url: ", error.endPointUrl);
+});
 ```
 Subscribe a method to be called when the agent is put into an error state specific to softphone funcionality.
 
-The `error` argument is a `connect.SoftphoneError` instance with the following methods: `getErrorType()`, `getErrorMessage()`, `getEndPointUrl()`.
+The `error` argument is a `connect.SoftphoneError` instance with the following fields: `errorType`, `errorMessage`, `endPointUrl`.
 
 ### `agent.onWebSocketConnectionLost()`
 ```js
