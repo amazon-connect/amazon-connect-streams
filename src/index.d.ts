@@ -639,12 +639,6 @@ declare namespace connect {
 
     /** Indicates the contact has ended. */
     ENDED = "ended",
-
-    /** Indicates the contact acw. */
-    ACW = "acw",
-
-    /** Indicates the contact has cleared. */
-    CLEARED = "cleared",
   }
 
   enum CONTACT_ACTIVE_STATES {
