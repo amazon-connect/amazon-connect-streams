@@ -1300,7 +1300,7 @@ declare namespace connect {
     onDestroy(callback: ContactCallback): void;
 
     /**
-     * Subscribe a method to be invoked whenever the contact enters the ACW state.
+     * Subscribe a method to be invoked whenever the contact enters the ACW state, named `ContactStateType.ENDED`.
      * This is after the connection has been closed, but before the contact is destroyed.
      *
      * @param callback A callback to receive the `Contact` API object instance.
