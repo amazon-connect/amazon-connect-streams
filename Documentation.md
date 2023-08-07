@@ -973,7 +973,7 @@ Subscribe a method to be invoked whenever the contact is destroyed.
 ```js
 contact.onACW(function(contact) { /* ... */ });
 ```
-Subscribe a method to be invoked whenever the contact enters the ACW state. This is after the connection has been closed, but before the contact is destroyed.
+Subscribe a method to be invoked whenever the contact enters the ACW state, named `ContactStateType.ENDED`. This is after the connection has been closed, but before the contact is destroyed.
 
 ### `contact.onConnected()`
 ```js
@@ -1161,7 +1161,7 @@ contact.clear({
 });
 ```
 This is a more generic form of `contact.complete()`. Use this for voice, chat, and task contacts to clear the contact
-when the contact is no longer actively being worked on (i.e. it's one of ERROR, ACW, MISSED, REJECTED). 
+when the contact is no longer actively being worked on (i.e. it's one of ERROR, ENDED, MISSED, REJECTED). 
 It works for both monitoring and non-monitoring connections.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
@@ -1358,7 +1358,7 @@ Determine if the contact is active. The connection is active it is incoming, con
 ```js
 if (conn.isConnected()) { /* ... */ }
 ```
-Determine if the connection is connected, meaning that the agent is live in a conversation through this connection. Please note that `ConnectionStateType.SILENT_MONITOR` and `ConnectionStateType.BARGE` are considered connected as well.
+Determine if the connection is connected, meaning that the agent is live in a conversation through this connection.
    
 Note that, in the case of Agent A transferring a contact to Agent B, the new (third party) agent connection will be marked as `connected` (`connection.isConnected` will return true) as soon as the contact is routed to Agent B's queue, not when Agent B actually is "live" and able to communicate in the conversation.
 
@@ -1639,8 +1639,6 @@ An enumeration listing the different states that a connection can have.
 * `ConnectionStateType.CONNECTED`: The connection is connected to the contact.
 * `ConnectionStateType.HOLD`: The connection is connected but on hold.
 * `ConnectionStateType.DISCONNECTED`: The connection is no longer connected to the contact.
-* `ConnectionStateType.SILENT_MONITOR`: An enhanced listen-in manager session, this state is used instead of `ContactStateType.CONNECTED` for manager
-* `ContactStateType.BARGE`: A special manager session mode with full control over contact actions, this state is used instead of `ContactStateType.CONNECTED` for manager
 
 ### `ContactType`
 This enumeration lists all of the contact types supported by Connect Streams.
