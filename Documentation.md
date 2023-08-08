@@ -259,8 +259,9 @@ and made available to your JS client code.
     ringtone audio that is played when a call is incoming.
   * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
     the ringtone with any browser-supported audio file accessible by the user.
-  * `disableEchoCancellation`: This option allows you to initialize a custom or 
-    embedded CCP with echo cancellation disabled.
+  * `disableEchoCancellation`: This option is only applicable in Chrome and allows you to initialize a custom or
+    embedded CCP with echo cancellation disabled. Setting this to `true` will disable **ALL** audio processing done by Chrome including Auto Gain Control.
+    * Please see this link https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/improve-call-quality-on-agent-workstations-in-amazon-connect-contact-centers.html for possible alternative options in approving auto quality.
 * `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
   * `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local
       machine. If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab. will not be
@@ -270,9 +271,10 @@ and made available to your JS client code.
   * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
       and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
 * `shouldAddNamespaceToLogs`: prepends `[CCP]` to all logs logged by the CCP. Important note: there are a few logs made by the CCP before the namespace is prepended.
-* `ccpAckTimeout`: A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its `SYNCHRONIZE` event emissions. These happen continuously from the first time `initCCP` is called. They should only appear when there is a problem that requires a refresh or a re-login.
-* `ccpSynTimeout`: A timeout in ms that indicates how long streams will wait to send a new `SYNCHRONIZE` event to the iframed CCP. These happens continuously from the first time `initCCP` is called. 
-* `ccpLoadTimeout`: A timeout in ms that indicates how long streams will wait for the initial `ACKNOWLEDGE` event from the shared worker while the CCP is still standing itself up.
+* `ccpAckTimeout`: A timeout in ms that tells CCP how long it should wait for an `ACKNOWLEDGE` message from the shared worker after CCP has sent a `SYNCHRONIZE` message to the shared worker. This is important because an `ACKNOWLEDGE` message is only sent back to CCP if the shared worker is initialized and a shared worker is only initialized if the agent is logged in. Moreover, this check happens continuously.
+* `ccpSynTimeout`: A timeout in ms that tells CCP how long to wait before sending another `SYNCHRONIZE` message to the shared worker, which should trigger the shared worker to send back an `ACKNOWLEDGE` if initialized. This event essentially checks if the shared worker was initialized aka agent is logged in. This check happens continuously as well.
+* `ccpLoadTimeout`: A timeout in ms that tells CCP how long to wait before sending the very first `SYNCHRONIZE` message. The user experience here is that on the first CCP initialization, the login flow is delayed by this timeout.
+  * As an example, if this timeout was set to 10 seconds, then the login pop-up will not open up until 10 seconds has pass.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
@@ -594,11 +596,15 @@ being able to be routed contacts again.
 
 ### `agent.onSoftphoneError()`
 ```js
-agent.onSoftphoneError(function(error) { /* ... */ });
+agent.onSoftphoneError(function(error) { 
+   console.log("Error type: ", error.errorType); 
+   console.log("Error message: ", error.errorMessage); 
+   console.log("Error endpoint url: ", error.endPointUrl);
+});
 ```
 Subscribe a method to be called when the agent is put into an error state specific to softphone funcionality.
 
-The `error` argument is a `connect.SoftphoneError` instance with the following methods: `getErrorType()`, `getErrorMessage()`, `getEndPointUrl()`.
+The `error` argument is a `connect.SoftphoneError` instance with the following fields: `errorType`, `errorMessage`, `endPointUrl`.
 
 ### `agent.onWebSocketConnectionLost()`
 ```js
@@ -970,7 +976,7 @@ Subscribe a method to be invoked whenever the contact is destroyed.
 ```js
 contact.onACW(function(contact) { /* ... */ });
 ```
-Subscribe a method to be invoked whenever the contact enters the ACW state. This is after the connection has been closed, but before the contact is destroyed.
+Subscribe a method to be invoked whenever the contact enters the ACW state, named `ContactStateType.ENDED`. This is after the connection has been closed, but before the contact is destroyed.
 
 ### `contact.onConnected()`
 ```js
@@ -1158,7 +1164,7 @@ contact.clear({
 });
 ```
 This is a more generic form of `contact.complete()`. Use this for voice, chat, and task contacts to clear the contact
-when the contact is no longer actively being worked on (i.e. it's one of ERROR, ACW, MISSED, REJECTED). 
+when the contact is no longer actively being worked on (i.e. it's one of ERROR, ENDED, MISSED, REJECTED). 
 It works for both monitoring and non-monitoring connections.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
@@ -1355,7 +1361,7 @@ Determine if the contact is active. The connection is active it is incoming, con
 ```js
 if (conn.isConnected()) { /* ... */ }
 ```
-Determine if the connection is connected, meaning that the agent is live in a conversation through this connection. Please note that `ConnectionStateType.SILENT_MONITOR` and `ConnectionStateType.BARGE` are considered connected as well.
+Determine if the connection is connected, meaning that the agent is live in a conversation through this connection.
    
 Note that, in the case of Agent A transferring a contact to Agent B, the new (third party) agent connection will be marked as `connected` (`connection.isConnected` will return true) as soon as the contact is routed to Agent B's queue, not when Agent B actually is "live" and able to communicate in the conversation.
 
@@ -1636,8 +1642,6 @@ An enumeration listing the different states that a connection can have.
 * `ConnectionStateType.CONNECTED`: The connection is connected to the contact.
 * `ConnectionStateType.HOLD`: The connection is connected but on hold.
 * `ConnectionStateType.DISCONNECTED`: The connection is no longer connected to the contact.
-* `ConnectionStateType.SILENT_MONITOR`: An enhanced listen-in manager session, this state is used instead of `ContactStateType.CONNECTED` for manager
-* `ContactStateType.BARGE`: A special manager session mode with full control over contact actions, this state is used instead of `ContactStateType.CONNECTED` for manager
 
 ### `ContactType`
 This enumeration lists all of the contact types supported by Connect Streams.

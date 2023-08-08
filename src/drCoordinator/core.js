@@ -222,7 +222,7 @@
   var switchDisplayedRegion = function(newPrimaryRegionId, newSecondaryRegionId) {
     globalConnect.core.primaryRegion = newPrimaryRegionId;
     globalConnect.core.secondaryRegion = newSecondaryRegionId;
-    connect = globalConnect.core.regions[newPrimaryRegionId].connect;
+    window.connect = globalConnect.core.regions[newPrimaryRegionId].connect;
     globalConnect.core.activate(newPrimaryRegionId);
     activateUI(newPrimaryRegionId);
     deactivateUI(newSecondaryRegionId);
@@ -370,8 +370,12 @@
       .info("[Disaster Recovery] Deactivating %s region.", region)
       .sendInternalLogToServer();
     // call this to suppress contacts
-    connect.core.suppressContacts(true);
-    connect.core.forceOffline({softFailover: useSoftFailover});
+    if (connect.core.suppressContacts && connect.core.forceOffline) {
+      connect.core.suppressContacts(true);
+      connect.core.forceOffline({softFailover: useSoftFailover});
+    } else {
+      connect.getLog().error("[Disaster Recovery] CCP did not load successfully for region %s; unable to deactivate region", region);
+    }
   };
 
   /**-------------------------------------------------------------------------
@@ -383,6 +387,10 @@
       .getLog()
       .info("[Disaster Recovery] Activating %s region.", region)
       .sendInternalLogToServer();
-    connect.core.suppressContacts(false);
+    if (connect.core.suppressContacts) {
+      connect.core.suppressContacts(false);
+    } else {
+      connect.getLog().error("[Disaster Recovery] CCP did not load successfully for region %s; unable to activate region", region);
+    }
   };
 })();

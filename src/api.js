@@ -82,24 +82,18 @@
     'connecting',
     'connected',
     'hold',
-    'disconnected',
-    'silent_monitor',
-    'barge'
+    'disconnected'
   ]);
   connect.ConnectionStatusType = connect.ConnectionStateType;
 
   connect.CONNECTION_ACTIVE_STATES = connect.set([
     connect.ConnectionStateType.CONNECTING,
     connect.ConnectionStateType.CONNECTED,
-    connect.ConnectionStateType.HOLD,
-    connect.ConnectionStateType.SILENT_MONITOR,
-    connect.ConnectionStateType.BARGE
+    connect.ConnectionStateType.HOLD
   ]);
 
   connect.CONNECTION_CONNECTED_STATES = connect.set([
-    connect.ConnectionStateType.CONNECTED,
-    connect.ConnectionStateType.SILENT_MONITOR,
-    connect.ConnectionStateType.BARGE
+    connect.ConnectionStateType.CONNECTED
   ]);
 
   /*----------------------------------------------------------------
@@ -2161,7 +2155,7 @@
     var transportDetails = {
       transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
       participantId: this.connectionId,
-      contactId: contactData.initialContactId || this.contactId
+      contactId: this.contactId
     };
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
