@@ -16,11 +16,15 @@
   var GET_AGENT_SUCCESS_TIMEOUT_MS = 100;
   var LOG_BUFFER_CAP_SIZE = 400;
 
+  var CHECK_ACTIVE_REGION_INTERVAL_MS = 60000;
   var CHECK_AUTH_TOKEN_INTERVAL_MS = 300000; // 5 minutes
   var REFRESH_AUTH_TOKEN_INTERVAL_MS = 10000; // 10 seconds
   var REFRESH_AUTH_TOKEN_MAX_TRY = 4;
 
   var GET_AGENT_CONFIGURATION_INTERVAL_MS = 30000;
+  var GET_AGENT_CONFIGURATION_TIMEOUT_MS = 10000;
+
+  var POLL_FOR_ACTIVE_REGION_METHOD = "LADS.GetAgentFailoverConfiguration";
 
   /**-----------------------------------------------------------------------*/
   var MasterTopicCoordinator = function () {
@@ -168,7 +172,10 @@
       allowLongPollingShadowMode: false,
       allowLongPollingWebsocketOnlyMode: false,
     }
-
+    this.drPollingUrl = null;
+    this.thisArn = null;
+    this.otherArn = null;
+    this.pendingFailover = null;
     var webSocketManager = null;
 
     connect.rootLogger = new connect.DownstreamConduitLogger(this.conduit);
@@ -181,6 +188,68 @@
       //only call API to send logs if buffer reached cap
       if (self.logsBuffer.length > LOG_BUFFER_CAP_SIZE) {
         self.handleSendLogsRequest(self.logsBuffer);
+      }
+    });
+    
+    this.conduit.onDownstream(connect.DisasterRecoveryEvents.SUPPRESS, function (data) {
+      connect.getLog().debug("[Disaster Recovery] Setting Suppress to %s", data.suppress)
+        .sendInternalLogToServer();
+      self.suppress = data.suppress || false;
+      if (!self.suppress) {
+        self.forceOffline = false; // if we are unsuppressing this region, clear retry flag for forceOffline
+      }
+      //shouldSendFailoverDownstream is undefined iff suppressContacts was called from the old DR artifact,
+      //but it is false for the suppressContacts calls made when CCP initializes DR without DR polling enabled,
+      //and for all suppressContacts calls made from the new DR artifact.
+      const shouldSendFailoverDownstream = (typeof data.shouldSendFailoverDownstream === 'undefined' || data.shouldSendFailoverDownstream);
+      //signal other windows that a failover happened, if following the old behavior pattern
+      if (shouldSendFailoverDownstream) {
+        self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
+          isPrimary: !self.suppress
+        });
+      }
+    });
+
+    this.conduit.onDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, function (data) {
+      connect.getLog().debug("[Disaster Recovery] Setting FORCE_OFFLINE to %s", data.offline)
+        .sendInternalLogToServer();
+      //signal other windows that a failover happened, unless this force offline is being retried from a previous failure
+      if (!self.forceOffline) {
+        self.pendingFailover = false;
+        self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
+          isPrimary: false,
+          nextActiveArn: data.nextActiveArn
+        });
+      }
+      self.forceOffline = data.offline || false;
+    });
+
+    connect.DisasterRecoveryEvents.INIT_DR_POLLING && this.conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DR_POLLING, function(data) {
+      var log = connect.getLog();
+      if (self.drPollingUrl) {
+        log.debug(`[Disaster Recovery] Adding new CCP to active region polling for instance ${data.instanceArn}`)
+          .sendInternalLogToServer();
+        self.pollForActiveRegion(true, false);
+      } else {
+        log.info(`[Disaster Recovery] Initializing active region polling for instance ${data.instanceArn}`)
+          .sendInternalLogToServer();
+        self.thisArn = data.instanceArn;
+        self.otherArn = data.otherArn;
+        self.getPresignedDiscoveryUrl().then(
+          (presignedUrl) => {
+            self.drPollingUrl = presignedUrl;
+            self.pollForActiveRegion(true, true);
+          },
+          (err) => {
+            // Each worker is responsible for suppressing itself when needed. If this worker couldn't get a presigned URL,
+            // it won't be able to detect whether it needs to be suppressed, but it may still be able to receive contacts.
+            // If this should actually be the primary region after all, the other worker will trigger a force offline that will unsuppress this worker.
+            log.error(`[Disaster Recovery] Failed to get presigned URL for instance ${data.instanceArn}; suppressing contacts`)
+              .withException(err)
+              .sendInternalLogToServer();
+            self.suppress = true;
+          }
+        );
       }
     });
 
@@ -335,6 +404,156 @@
         connect.hitch(self, self.handleCloseEvent, stream));
     };
   };
+
+  /**
+   * Use the presigned URL previously retrieved for this ClientEngine to poll for the instance that should be active
+   *    and what failover method should be used (soft or hard). We need to poll in one of three cases:
+   * 1) We are initializing CCPs for a DR setup where the shared workers were not already running
+   *    (i.e. no CCPs already open)
+   * 2) We are initializing additional CCPs for a DR setup where the shared workers were already running
+   *    (i.e. this is an additional window for this DR setup)
+   * 3) We have already polled successfully in this shared worker, and are continuing with the ongoing
+   *    polling cycle on a regular interval. (steady-state polling)
+   *
+   * Polling in cases 1 and 2 is done to ensure the newly-opened DR window is showing the correct region.
+   *
+   * Typically, failover of the UI (to display the CCP for the newly-active region) will be triggered by
+   *    the region that is being set to inactive, after it has been forced offline.
+   * The exception is in cases 1 and 2, where both regions' workers will send a UI failover signal.
+   * If the region assumed to be the initial primary is degraded at bootstrap time (so it can't request a URL to use for polling),
+   *    but the other region is not, and its polling response says it should be made primary, we need that other
+   *    instance's worker to be able to tell the UI to fail over to it. (The UI in each DR window will ignore
+   *    signals to fail over to the instance already being shown in that window.)
+   *
+   * The URL used for polling will be global, but the endpoint used to get the URL is regional, so once bootstrapping is complete,
+   *    the active region should be able to detect that it needs to be failed out even if its AWS region is degraded.
+   */
+    ClientEngine.prototype.pollForActiveRegion = function(isFirstPollForCCP, isFirstPollForWorker) {
+      var self = this;
+      var log = connect.getLog();
+      if (!self.drPollingUrl) {
+        throw new connect.StateError("[Disaster Recovery] Tried to poll for active region without first initializing DR polling in the worker.");
+      }
+      log.debug(`[Disaster Recovery] Polling for failover with presigned URL for instance ${self.thisArn}`).sendInternalLogToServer();
+      var request_start = new Date().getTime();
+      return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS)
+        .catch(response => {
+          if (response.status) {
+            self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, {statusCode: response.status});
+            if ([connect.HTTP_STATUS_CODES.ACCESS_DENIED, connect.HTTP_STATUS_CODES.UNAUTHORIZED].includes(response.status)) {
+              log.info("[Disaster Recovery] Active region polling failed; trying to get a new URL for polling.").withObject(response).sendInternalLogToServer();
+              return self.getPresignedDiscoveryUrl().then((presignedUrl) => {
+                self.drPollingUrl = presignedUrl;
+              }).then(() => {
+                request_start = new Date().getTime(); // reset request start marker if we had to get a new polling URL
+                return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS)
+              });
+            } else {
+              var errMsg = `[Disaster Recovery] Failed to poll for failover for instance ${self.thisArn}, ` +
+              `received unexpected response code ${response.status}`;
+              log.error(errMsg).withObject(response).sendInternalLogToServer();
+              throw new Error(errMsg);
+            }
+          } else {
+            var errMsg = `[Disaster Recovery] Failed to poll for failover for instance ${self.thisArn}, request timed out or aborted`;
+            self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, {statusCode: -1});
+            log.error(errMsg).withObject(response).sendInternalLogToServer();
+            throw new Error(errMsg);
+          }
+        })
+        .then(response => {
+          self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start);
+          if (typeof response.TerminateActiveContacts !== 'boolean') {
+            log.error("[Disaster Recovery] DR polling response did not contain a valid value for TerminateActiveContacts.").withObject(response).sendInternalLogToServer();
+            return;
+          }
+          var softFailover = !response.TerminateActiveContacts;
+          if (!response.InstanceArn) {
+            log.error("[Disaster Recovery] DR polling response did not contain a truthy active instance ARN.").withObject(response).sendInternalLogToServer();
+            return;
+          } else {
+            log.debug(`[Disaster Recovery] Successfully polled for active region. Primary instance ARN is ${response.InstanceArn} ` +
+              `and soft failover is ${softFailover ? "enabled" : "disabled"}`).sendInternalLogToServer();
+          }
+  
+          if (self.thisArn === response.InstanceArn && !self.suppress && isFirstPollForCCP) {
+            log.debug(`[Disaster Recovery] Instance ${self.thisArn} is being set to primary`).sendInternalLogToServer();
+            self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
+              nextActiveArn: response.InstanceArn
+            });
+          } else if (self.otherArn === response.InstanceArn) {
+            // If this poll is to bootstrap the correct region in a newly-opened additional CCP window, and soft failover is enabled,
+            // and a soft failover has already/will be queued to occur once the current voice contact is destroyed, send a UI failover signal
+            // to ensure the new window will display the previous primary region, in case soft failover will delay the UI failover.
+            // Otherwise, the new window may show the wrong region until soft failover completes.
+            if (softFailover && !isFirstPollForWorker && isFirstPollForCCP && (!self.suppress || self.pendingFailover)) {
+              self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
+                nextActiveArn: self.thisArn
+              });
+            }
+  
+            if (!self.suppress) {
+              self.suppress = true;
+              const willSoftFailover = softFailover && !isFirstPollForWorker;
+              if (willSoftFailover) {
+                self.pendingFailover = true;
+                log.debug(`[Disaster Recovery] Instance ${self.thisArn} will be set to stand-by using soft failover`).sendInternalLogToServer();
+              } else {
+                log.debug(`[Disaster Recovery] Instance ${self.thisArn} is being set to stand-by immediately`).sendInternalLogToServer();
+              }
+              self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, {softFailover: willSoftFailover, nextActiveArn: response.InstanceArn});
+            }
+          } else if (![self.thisArn, self.otherArn].includes(response.InstanceArn)) {
+            log.error(`[Disaster Recovery] The current primary instance in this agent's failover group ${response.InstanceArn} ` +
+              `doesn't match this instance ${self.thisArn} or the other instance ${self.otherArn}`).sendInternalLogToServer();
+          }
+        }).catch((response) => {
+          if (response.status) {
+            self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, {...response, statusCode: response.status});
+          }
+          log.error(`[Disaster Recovery] Active region polling failed for instance ${self.thisArn}.`).withObject(response).sendInternalLogToServer();
+        }).finally(() => {
+          // This polling run should only schedule another poll if the worker has just started, or if this poll was triggered by schedule
+          // otherwise, the polling performed when opening each additional CCP window will create its own polling schedule
+          if (isFirstPollForWorker || !isFirstPollForCCP) {
+            global.setTimeout(connect.hitch(self, self.pollForActiveRegion), CHECK_ACTIVE_REGION_INTERVAL_MS);
+          }
+        });
+    };
+  
+    // Retrieve pre-signed URL to poll for agent discovery status
+    ClientEngine.prototype.getPresignedDiscoveryUrl = function() {
+      var self = this;
+      return new Promise((resolve, reject) => {
+        connect.getLog().info(`[Disaster Recovery] Getting presigned URL for instance ${self.thisArn}`).sendInternalLogToServer();
+        this.client.call(connect.ClientMethods.CREATE_TRANSPORT, {transportType: connect.TRANSPORT_TYPES.AGENT_DISCOVERY}, {
+          success: function (data) {
+            if (data && data.agentDiscoveryTransport && data.agentDiscoveryTransport.presignedUrl) {
+              connect.getLog().info("getPresignedDiscoveryUrl succeeded").sendInternalLogToServer();
+              resolve(data.agentDiscoveryTransport.presignedUrl);
+            } else {
+              connect.getLog().info("getPresignedDiscoveryUrl received empty/invalid data").withObject(data).sendInternalLogToServer();
+              reject(Error("getPresignedDiscoveryUrl received empty/invalid data"));
+            }
+          },
+          failure: function (err, data) {
+            connect.getLog().error(`[Disaster Recovery] Failed to get presigned URL for instance ${self.thisArn}`)
+              .withException(err)
+              .withObject(data)
+              .sendInternalLogToServer();
+            reject(new Error('Failed to get presigned URL'));
+          },
+          authFailure: function () {
+            connect.hitch(self, self.handleAuthFail)();
+            reject(new Error('Encountered auth failure when getting presigned URL'));
+          },
+          accessDenied: function () {
+            connect.hitch(self, self.handleAccessDenied)();
+            reject(new Error('Encountered access denied when getting presigned URL'));
+          }
+        });
+      });
+    };
 
   ClientEngine.prototype.pollForAgent = function () {
     var self = this;
@@ -746,6 +965,15 @@
       });
       this.agent.configuration.routingProfile.routingProfileId =
         this.agent.configuration.routingProfile.routingProfileARN;
+
+      if (this.suppress) {
+        this.agent.snapshot.contacts = this.agent.snapshot.contacts.filter(function(contact){
+          return (contact.state.type == connect.ContactStateType.CONNECTED || contact.state.type == connect.ContactStateType.ENDED);
+        });
+        if (this.forceOffline) {
+          this.conduit.sendDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE);
+        }
+      }
       this.conduit.sendDownstream(connect.AgentEvents.UPDATE, this.agent);
     }
   };

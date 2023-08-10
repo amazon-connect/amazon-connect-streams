@@ -1,6 +1,9 @@
 # Amazon Connect Streams Documentation
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
+## Global Resiliency
+For details on using Amazon Connect Streams with the Connect Global Resiliency feature, please first refer to the specific documentation [here](Documentation-DR.md).
+
 ### A note on "Routability"
 Note that routability in streams is only affected by agent statuses. Voice contacts will change the agent status, and thus can affect routability. Task and chat contacts do not affect routability. However, if the other channels hit their concurrent live contact limit(s), the agent will not be routed more contacts, but they will technically be in a routable agent state.
 
