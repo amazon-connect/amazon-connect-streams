@@ -82,18 +82,24 @@
     'connecting',
     'connected',
     'hold',
-    'disconnected'
+    'disconnected',
+    'silent_monitor',
+    'barge'
   ]);
   connect.ConnectionStatusType = connect.ConnectionStateType;
 
   connect.CONNECTION_ACTIVE_STATES = connect.set([
     connect.ConnectionStateType.CONNECTING,
     connect.ConnectionStateType.CONNECTED,
-    connect.ConnectionStateType.HOLD
+    connect.ConnectionStateType.HOLD,
+    connect.ConnectionStateType.SILENT_MONITOR,
+    connect.ConnectionStateType.BARGE
   ]);
 
   connect.CONNECTION_CONNECTED_STATES = connect.set([
-    connect.ConnectionStateType.CONNECTED
+    connect.ConnectionStateType.CONNECTED,
+    connect.ConnectionStateType.SILENT_MONITOR,
+    connect.ConnectionStateType.BARGE
   ]);
 
   /*----------------------------------------------------------------
