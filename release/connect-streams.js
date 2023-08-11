@@ -275,18 +275,24 @@
     'connecting',
     'connected',
     'hold',
-    'disconnected'
+    'disconnected',
+    'silent_monitor',
+    'barge'
   ]);
   connect.ConnectionStatusType = connect.ConnectionStateType;
 
   connect.CONNECTION_ACTIVE_STATES = connect.set([
     connect.ConnectionStateType.CONNECTING,
     connect.ConnectionStateType.CONNECTED,
-    connect.ConnectionStateType.HOLD
+    connect.ConnectionStateType.HOLD,
+    connect.ConnectionStateType.SILENT_MONITOR,
+    connect.ConnectionStateType.BARGE
   ]);
 
   connect.CONNECTION_CONNECTED_STATES = connect.set([
-    connect.ConnectionStateType.CONNECTED
+    connect.ConnectionStateType.CONNECTED,
+    connect.ConnectionStateType.SILENT_MONITOR,
+    connect.ConnectionStateType.BARGE
   ]);
 
   /*----------------------------------------------------------------
@@ -26291,7 +26297,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.6.0";
+  connect.version = "2.6.1";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
