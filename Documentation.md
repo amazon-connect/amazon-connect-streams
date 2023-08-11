@@ -216,6 +216,8 @@ everything set up correctly and that you are able to listen for events.
           ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
           ccpSynTimeout: 3000, //optional, defaults to 1000 (ms)
           ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms)
+          ccpIframeRefreshLimit: 1000, //optional, defaults to 6
+          ccpIframeRetryDelay: 1000 //optional, defaults to 2000 (ms)
          });
       }
     </script>

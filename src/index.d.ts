@@ -419,6 +419,18 @@ declare namespace connect {
 
     /** A timeout in ms that indicates how long streams will wait for the initial ACKNOWLEDGE event from the shared worker while the CCP is still standing itself up. */
     readonly ccpLoadTimeout?: number;
+
+    /** 
+     * Allows you to configure iframe refresh limit
+     * @default 6
+     */
+    readonly ccpIframeRefreshLimit?: number;
+
+    /** 
+     * Allows you to configure iframe retry delay in ms
+     * @default 2000
+     */
+    readonly ccpIframeRetryDelay?: number;
   }
 
 
@@ -469,6 +481,18 @@ declare namespace connect {
 
     /** A timeout in ms that indicates how long streams will wait for the initial ACKNOWLEDGE event from the shared worker while the CCP is still standing itself up. */
     readonly ccpLoadTimeout?: number;
+
+    /** 
+     * Allows you to configure iframe refresh limit
+     * @default 6
+     */
+    readonly ccpIframeRefreshLimit?: number;
+
+    /** 
+     * Allows you to configure iframe retry delay in ms
+     * @default 2000
+     */
+    readonly ccpIframeRetryDelay?: number;
   }
 
   /** This enumeration lists the different types of agent states. */
