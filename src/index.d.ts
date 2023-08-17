@@ -723,7 +723,7 @@ declare namespace connect {
   }
   
   enum MonitoringMode {
-  	SLIENT_MONITOR = "SILENT_MONITOR",
+  	SILENT_MONITOR = "SILENT_MONITOR",
   	BARGE = "BARGE"
   }
 
