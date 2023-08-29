@@ -359,4 +359,4 @@ For example, in a multi-region setup with one CCP instance in us-west-2 and anot
 
 ## Where to go from here
 
-Check out the full documentation [here](https://code.amazon.com/packages/AmazonConnectStreams/blobs/d226dd7efac909181ad31f0759e10593bad9fc4d/--/Documentation.md) to read more about how to use the `connect` object to subscribe to events and enact state changes programmatically within the currently-active CCP region.
+Check out the full documentation [here](Documentation.md) to read more about how to use the `connect` object to subscribe to events and enact state changes programmatically within the currently-active CCP region.
