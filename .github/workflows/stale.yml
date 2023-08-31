@@ -21,7 +21,10 @@ jobs:
     - uses: actions/stale@v5
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        stale-issue-message: 'Stale issue message'
-        stale-pr-message: 'Stale pull request message'
+        stale-issue-message: 'This issue is stale because it has been open for 90 days with no activity. Remove stale label or comment to keep this active.'
+        days-before-stale: 90
+        days-before-close: -1 # If set to a negative number like -1, the issues or the pull requests will never be closed automatically.
+        # We can change this once we're comfortable turning this on
+        stale-pr-message: 'This PR is stale because it has been open for 90 days with no activity.'
         stale-issue-label: 'no-issue-activity'
         stale-pr-label: 'no-pr-activity'
