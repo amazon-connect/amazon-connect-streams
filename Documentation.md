@@ -881,12 +881,31 @@ Sets the speaker device (output device for call audio)
 agent.setMicrophoneDevice(deviceId);
 ```
 Sets the microphone device (input device for call audio)
+The microphone device can be changed while agent is having a softphone call with a microphone media stream attached to it.
+To properly set a microphone device for every softphone call, you can call this API in the callback function passed to onLocalMediaStreamCreated API.
+
+```js
+agent.onLocalMediaStreamCreated(() => {
+  agent.setMicrophoneDevice(deviceId);
+});
+```
 
 ### `agent.setRingerDevice()`
 ```js
 agent.setRingerDevice(deviceId);
 ```
 Sets the ringer device (output device for ringtone)
+
+### `agent.onLocalMediaStreamCreated()`
+
+```js
+agent.onLocalMediaStreamCreated((data) => {
+  console.log('local media stream created for connection: ', data.connectionId);
+});
+```
+
+Subscribe a method to be called when the agent's microphone media stream is attached to the WebRTC connection for a softphone call, which happens between connect.ContactEvents.CONNECTING and connect.ContactEvents.CONNECTED events.
+This API is useful to do operations that require the local media stream such as setMicrophoneDevice and mute/unmute before CONNECTED event.
 
 ### `agent.onMuteToggle()`
 ```js
@@ -1913,7 +1932,7 @@ Notes:
 
 
 ### `voiceConnection.getVoiceIdSpeakerStatus()`
-Describes the enrollment status of a customer. If the customer exists in the Voice ID, it resolves with a response object that contains one of the valid statuses, ENROLLED or OPTED_OUT. If the customer does not exist in the Voice ID, it still resolves but with an error object because backend API call fails. The case needs to be taken care of in a way like the code sample below.
+Describes the enrollment status of a customer. If the customer exists in the Voice ID, it resolves with a response object that contains one of the valid statuses, ENROLLED, PENDING or OPTED_OUT. PENDING means the customer hasn't enrolled but his/her speakerId has been created in the backend after updateVoiceIdSpeakerId() API is called for the customer. If the customer does not exist in the Voice ID, it still resolves but with an error object because backend API call fails. The case needs to be taken care of in a way like the code sample below.
 
 ```js
 voiceConnection.getVoiceIdSpeakerStatus()
@@ -1925,6 +1944,9 @@ voiceConnection.getVoiceIdSpeakerStatus()
       switch(Status) {
         case connect.VoiceIdSpeakerStatus.ENROLLED:
           // speaker is enrolled
+          break;
+        case connect.VoiceIdSpeakerStatus.PENDING:
+          // speaker is pending
           break;
         case connect.VoiceIdSpeakerStatus.OPTED_OUT:
           // speaker is opted out
@@ -1938,7 +1960,7 @@ voiceConnection.getVoiceIdSpeakerStatus()
 ```
 
 
-### `voiceConnection.enrollSpeakerInVoiceId(callbackOnAudioCollectionComplete)`
+### `voiceConnection.enrollSpeakerInVoiceId(callbackOnAudioCollectionComplete: function)`
 Enrolls a customer in Voice ID. The enrollment process completes once the backend has collected enough speech data (30 seconds of net customer's audio). If after 10 minutes the process hasn't completed, the method will throw a timeout error. If you call this API for a customer who is already enrolled, it will re-enroll the customer by collecting new speech data and registering a new digital voiceprint. Enrollment can happen only once in a voice contact.   
 You can pass in a callback (optional) that will be invoked when our backend has collected sufficient audio for our backend service to create the new voiceprint.
 
@@ -1962,12 +1984,10 @@ voiceConnection.enrollSpeakerInVoiceId(callbackOnAudioCollectionComplete)
   });
 ```
 
-### `voiceConnection.evaluateSpeakerWithVoiceId(boolean)`
+### `voiceConnection.evaluateSpeakerWithVoiceId(startNew: boolean)`
 Checks the customer's Voice ID verification status. The evaluation process completes once the backend has collected enough speech data (10 seconds of net customer's audio). If after 2 minutes the process hasn't completed, the method will throw a timeout error. If you pass in false, it uses the existing audio stream, which is typically started in the contact flow, and immediately returns the result if enough audio has already been collected. If you pass in true, it starts a new audio stream and returns the result when enough audio has been collected. The default value is false.
 
 The response will contain two results, AuthenticationResult and FraudDetectionResult. If one of them is disabled in the Set Voice ID contact flow block, the result will be null for that particular field. The authentication decision can be found at AuthenticationResult.Decision and it can be either AUTHENTICATED, NOT_AUTHENTICATED, OPTED_OUT, or NOT_ENROLLED. The fraud detection decision can be found at FraudDetection.Decision and it can be either HIGH_RISK or LOW_RISK.
-
-Please note that there’s a known issue that you can’t start a new audio session within 4 minutes since the last session started. If you encounter SESSION_NOT_EXISTS error when you call evaluateSpeakerWithVoiceId(true), that is probably due to the issue. We’re working on addressing the issue very soon.
 
 ```js
 voiceConnection.evaluateSpeakerWithVoiceId()
@@ -2046,11 +2066,11 @@ voiceConnection.deleteVoiceIdSpeaker()
 ```
 
 
-### `voiceConnection.updateVoiceIdSpeakerId(string)`
+### `voiceConnection.updateVoiceIdSpeakerId(speakerId: string)`
 Updates the speaker ID of the customer with the provided string.
 
 ```js
-voiceConnection.updateVoiceIdSpeaker()
+voiceConnection.updateVoiceIdSpeakerId('my_new_speaker_id')
   .then(() => {
   })
   .catch((err) => {
