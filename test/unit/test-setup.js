@@ -27,6 +27,7 @@ global.AWS = {
 
 before(() => {
   global.sinon.stub(connect.Agent.prototype, "_getResourceId").returns("id");
+  connect.storageAccess.optOutFromRequestAccess();
 });
 after(() => {
   global.sinon.restore();
