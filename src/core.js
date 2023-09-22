@@ -798,7 +798,7 @@
     iframe.name = CCP_IFRAME_NAME;
 
         //for Storage Access follow the rsa path
-    if(connect.storageAccess.canRequest()){
+    if(connect.storageAccess.canRequest()) {
       iframe.src = connect.storageAccess.getRequestStorageAccessUrl();
       iframe.addEventListener('load', connect.storageAccess.request);
     }
@@ -822,10 +822,10 @@
  
  
 
-      if (connect.storageAccess.canRequest()) {
+    if (connect.storageAccess.canRequest()) {
       // Create the Iframe and load the RSA banner and append it to the container div.
       connect.storageAccess.setupRequestHandlers({ onGrant: setupInitCCP });
-    }else{
+    } else {
       setupInitCCP();
     } 
 
