@@ -1,0 +1,16 @@
+# This workflow sends a message whenever an issue is opened/closed
+#
+# You can adjust the behavior by modifying this file.
+name: Send GitHub Action trigger data to Slack workflow
+on:
+  issues:
+    types:
+      - opened
+      - closed
+
+jobs:
+  name: Slack Notification
+  id: slack
+  uses: slackapi/slack-github-action@v1.24.0
+  env:
+    SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
