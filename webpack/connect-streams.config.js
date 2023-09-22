@@ -15,6 +15,7 @@ const config = Object.assign({}, commonConfig, {
     "./src/streams.js",
     "./src/client.js",
     "./src/transitions.js",
+    './src/request-storage-access.js',
     "./src/api.js",
     "./src/lib/amazon-connect-websocket-manager.js",
     "./src/core.js",

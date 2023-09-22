@@ -27,6 +27,7 @@ global.AWS = {
 
 before(() => {
   global.sinon.stub(connect.Agent.prototype, "_getResourceId").returns("id");
+    connect.storageAccess.optOutFromRequestAccess();
 });
 after(() => {
   global.sinon.restore();
@@ -35,9 +36,12 @@ after(() => {
 // Polyfill for Promise.finally
 Promise.prototype.finally = function(onFinally) {
     return this.then(
-      /* onFulfilled */
-      res => Promise.resolve(onFinally()).then(() => res),
-      /* onRejected */
-      err => Promise.resolve(onFinally()).then(() => { throw err; })
+        /* onFulfilled */
+        (res) => Promise.resolve(onFinally()).then(() => res),
+        /* onRejected */
+        (err) =>
+            Promise.resolve(onFinally()).then(() => {
+                throw err;
+            })
     );
 };

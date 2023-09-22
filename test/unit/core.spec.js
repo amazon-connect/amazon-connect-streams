@@ -1343,4 +1343,10 @@ describe('Core', function () {
             );
         });
     });
+
+    describe.skip('initCCP with storage Access Params', function () {
+        it('Should load request storage access page with storage Access params', function () { });
+        it('Should redirect to CCP once the access is granted with storage access params', function () { });
+    });
+
 });
