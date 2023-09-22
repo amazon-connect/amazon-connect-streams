@@ -9,8 +9,12 @@ on:
       - closed
 
 jobs:
-  name: Slack Notification
-  id: slack
-  uses: slackapi/slack-github-action@v1.24.0
-  env:
-    SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  slack:
+    runs-on: ubuntu-latest
+    name: Trigger slack workflow
+    steps:
+    - name: slack-send
+      id: slack
+      uses: slackapi/slack-github-action@v1.24.0
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
