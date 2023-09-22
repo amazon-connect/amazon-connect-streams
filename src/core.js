@@ -36,6 +36,8 @@
 
   connect.numberOfConnectedCCPs = 0;
 
+   var CCP_IFRAME_NAME = 'Amazon Connect CCP';
+
   /**
    * @deprecated
    * This function was only meant for internal use. 
@@ -751,6 +753,16 @@
         .withException(e).sendInternalLogToServer();
     }
   };
+
+    connect.core._getCCPIframe = function () {
+    for (var iframe of window.document.getElementsByTagName('iframe')) {
+      if (iframe.name === CCP_IFRAME_NAME) {
+        return iframe;
+      }
+    }
+    return null;
+  }
+  
  
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
@@ -773,6 +785,9 @@
  
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
+
+    connect.storageAccess.init(params.ccpUrl, containerDiv, params.storageAccess || {});
+
  
     // Create the CCP iframe and append it to the container div.
     var iframe = document.createElement('iframe');
@@ -780,145 +795,175 @@
     iframe.allow = "microphone; autoplay";
     iframe.style = "width: 100%; height: 100%";
     iframe.title = 'Amazon Connect CCP';
+    iframe.name = CCP_IFRAME_NAME;
+
+        //for Storage Access follow the rsa path
+    if(connect.storageAccess.canRequest()){
+      iframe.src = connect.storageAccess.getRequestStorageAccessUrl();
+      iframe.addEventListener('load', connect.storageAccess.request);
+    }
+
     containerDiv.appendChild(iframe);
+
+    // Build the upstream conduit communicating with the CCP iframe.
+    var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
+
+    // Set the global upstream conduit for external use.
+    connect.core.upstream = conduit;
 
     // Initialize the event bus and agent data providers.
     // NOTE: Setting logEvents here to FALSE in order to avoid duplicating
     // events which are logged in CCP.
     connect.core.eventBus = new connect.EventBus({ logEvents: false });
+
+
     connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
     connect.core.mediaFactory = new connect.MediaFactory(params);
  
-    // Build the upstream conduit communicating with the CCP iframe.
-    var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
  
-    // Let CCP know if iframe is visible
-    iframe.onload = setTimeout(function() {
-      var style = window.getComputedStyle(iframe, null);
-      var data = {
-        display: style.display,
-        offsetWidth: iframe.offsetWidth,
-        offsetHeight: iframe.offsetHeight,
-        clientRectsLength: iframe.getClientRects().length
-      };
-      conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
-    }, 10000);
- 
-    // Set the global upstream conduit for external use.
-    connect.core.upstream = conduit;
- 
-    // Init webSocketProvider
-    connect.core.webSocketProvider = new WebSocketProvider();
- 
-    conduit.onAllUpstream(connect.core.getEventBus().bridge());
- 
-    // Initialize the keepalive manager.
-    connect.core.keepaliveManager = new KeepaliveManager(conduit,
-      connect.core.getEventBus(),
-      params.ccpSynTimeout || CCP_SYN_TIMEOUT,
-      params.ccpAckTimeout || CCP_ACK_TIMEOUT)
-      ;
-    connect.core.iframeRefreshInterval = null;
- 
-    // Allow 5 sec (default) before receiving the first ACK from the CCP.
-    connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
-      connect.core.ccpLoadTimeoutInstance = null;
-      connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
-    }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
 
-    connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
-    connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(conduit);
- 
-    // Once we receive the first ACK, setup our upstream API client and establish
-    // the SYN/ACK refresh flow.
-    conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
-      connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
-      connect.core.client = new connect.UpstreamConduitClient(conduit);
-      connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
-      connect.core.portStreamId = data.id;
+      if (connect.storageAccess.canRequest()) {
+      // Create the Iframe and load the RSA banner and append it to the container div.
+      connect.storageAccess.setupRequestHandlers({ onGrant: setupInitCCP });
+    }else{
+      setupInitCCP();
+    } 
 
-      if (params.softphone || params.chat || params.pageOptions) {
-        // Send configuration up to the CCP.
-        //set it to false if secondary
-        conduit.sendUpstream(connect.EventType.CONFIGURE, {
-          softphone: params.softphone,
-          chat: params.chat,
-          pageOptions: params.pageOptions
-        });
-      }
- 
-      if (connect.core.ccpLoadTimeoutInstance) {
-        global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
+    function setupInitCCP() {
+
+      // Let CCP know if iframe is visible
+      iframe.onload = setTimeout(function() {
+        var style = window.getComputedStyle(iframe, null);
+        var data = {
+          display: style.display,
+          offsetWidth: iframe.offsetWidth,
+          offsetHeight: iframe.offsetHeight,
+          clientRectsLength: iframe.getClientRects().length
+        };
+        conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
+      }, 10000);
+  
+      // Init webSocketProvider
+      connect.core.webSocketProvider = new WebSocketProvider();
+  
+      conduit.onAllUpstream(connect.core.getEventBus().bridge());
+  
+      // Initialize the keepalive manager.
+      connect.core.keepaliveManager = new KeepaliveManager(conduit,
+        connect.core.getEventBus(),
+        params.ccpSynTimeout || CCP_SYN_TIMEOUT,
+        params.ccpAckTimeout || CCP_ACK_TIMEOUT)
+        ;
+      connect.core.iframeRefreshInterval = null;
+  
+      // Allow 5 sec (default) before receiving the first ACK from the CCP.
+      connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
         connect.core.ccpLoadTimeoutInstance = null;
-      }
+        connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
+      }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
 
-      conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
- 
-      connect.core.keepaliveManager.start();
-      this.unsubscribe();
+      connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
+      connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(conduit);
+  
+      // Once we receive the first ACK, setup our upstream API client and establish
+      // the SYN/ACK refresh flow.
+      conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
+        connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
+        connect.core.client = new connect.UpstreamConduitClient(conduit);
+        connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
+        connect.core.portStreamId = data.id;
 
-      connect.core.initialized = true;
-      connect.core.getEventBus().trigger(connect.EventType.INIT);
-    });
- 
-    // Add any logs from the upstream to our own logger.
-    conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
-        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
-      }
-    });
- 
-    // Pop a login page when we encounter an ACK timeout.
-    connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
-      // loginPopup is true by default, only false if explicitly set to false.
-      if (params.loginPopup !== false) {
-        try {
-          var loginUrl = getLoginUrl(params);
-          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
-          // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
-          if (params.loginUrl) {
-             connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-          }
-          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
-        } catch (e) {
-          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
+        if (params.softphone || params.chat || params.pageOptions) {
+          // Send configuration up to the CCP.
+          //set it to false if secondary
+          conduit.sendUpstream(connect.EventType.CONFIGURE, {
+            softphone: params.softphone,
+            chat: params.chat,
+            pageOptions: params.pageOptions
+          });
         }
-      }
- 
-      if (connect.core.iframeRefreshInterval == null) {
-        connect.core.iframeRefreshInterval = window.setInterval(function () {
-          iframe.src = params.ccpUrl;
-        }, CCP_IFRAME_REFRESH_INTERVAL);
- 
-        conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-          this.unsubscribe();
-          global.clearInterval(connect.core.iframeRefreshInterval);
-          connect.core.iframeRefreshInterval = null;
-          connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-          if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
-            connect.core.loginWindow.close();
-            connect.core.loginWindow = null;
+  
+        if (connect.core.ccpLoadTimeoutInstance) {
+          global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
+          connect.core.ccpLoadTimeoutInstance = null;
+        }
+
+        conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
+  
+        connect.core.keepaliveManager.start();
+        this.unsubscribe();
+
+        connect.core.initialized = true;
+        connect.core.getEventBus().trigger(connect.EventType.INIT);
+      });
+  
+      // Add any logs from the upstream to our own logger.
+      conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
+        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        }
+      });
+  
+      // Pop a login page when we encounter an ACK timeout.
+      connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
+        // loginPopup is true by default, only false if explicitly set to false.
+        if (params.loginPopup !== false) {
+          try {
+            var loginUrl = getLoginUrl(params);
+            connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
+            // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
+            if (params.loginUrl) {
+              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+            }
+            connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
+          } catch (e) {
+            connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
           }
-        });
+        }
+  
+        if (connect.core.iframeRefreshInterval == null) {
+          connect.core.iframeRefreshInterval = window.setInterval(function () {
+
+            if(connect.storageAccess.canRequest()){
+              iframe.removeEventListener('load', connect.storageAccess.request);
+              iframe.addEventListener('load', connect.storageAccess.request);
+              iframe.src = connect.storageAccess.getRequestStorageAccessUrl();
+            }else{
+             iframe.src = params.ccpUrl;
+            }
+
+          }, CCP_IFRAME_REFRESH_INTERVAL);
+  
+          conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+            this.unsubscribe();
+            global.clearInterval(connect.core.iframeRefreshInterval);
+            connect.core.iframeRefreshInterval = null;
+            connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+            if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
+              connect.core.loginWindow.close();
+              connect.core.loginWindow = null;
+            }
+          });
+        }
+      });
+  
+      if (params.onViewContact) {
+        connect.core.onViewContact(params.onViewContact);
       }
-    });
- 
-    if (params.onViewContact) {
-      connect.core.onViewContact(params.onViewContact);
+
+      conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
+        connect.numberOfConnectedCCPs = data.length;
+      });
+
+      conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, function (data) {
+        if (data && data.domainId) {
+          connect.core.voiceIdDomainId = data.domainId;
+        }
+      });
+
+      // keep the softphone params for external use
+      connect.core.softphoneParams = params.softphone;
     }
-
-    conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
-      connect.numberOfConnectedCCPs = data.length;
-    });
-
-    conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, function (data) {
-      if (data && data.domainId) {
-        connect.core.voiceIdDomainId = data.domainId;
-      }
-    });
-
-    // keep the softphone params for external use
-    connect.core.softphoneParams = params.softphone;
   };
  
   /**-----------------------------------------------------------------------*/
