@@ -1,0 +1,19 @@
+{
+  "root": true,
+  "parserOptions": {
+    "project": "tsconfig.json"
+  },
+  "extends": ["@amzn/lilax-style/lint-ts"],
+  "globals": {
+    "globalThis": "readonly",
+    "globalConnect": "writable"
+  },
+  "rules": {
+    "wrap-iife": ["error", "inside"],
+    "consistent-return": "off",
+    "func-names": "off",
+    "max-len": "off",
+    "no-console": "off",
+    "no-underscore-dangle": "off"
+  }
+}

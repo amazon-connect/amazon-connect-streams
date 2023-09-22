@@ -94,6 +94,23 @@ declare namespace connect {
    */
   function hitch<T extends (...args: any[]) => any>(scope: object, method: T): T;
 
+  type StorageAcccessCallbackData = {
+    hasAccess?: boolan;
+    [key: string]: any;
+  }
+
+  interface StorageAcccessCallbacks {
+    onInit(options:StorageAcccessCallbackData): Function
+    onRequest(options:StorageAcccessCallbackData): Function
+    onDeny(options:StorageAcccessCallbackData): Function
+  }
+
+  interface StorageAccess { 
+    onRequest(options: StorageAcccessCallbacks): {unsubscribe: Function}
+  }
+
+  const storageAccess: StorageAccess;
+
   interface Core {
     /**
      * Integrates with Amazon Connect by loading the pre-built CCP located at `ccpUrl` into an iframe and placing it into the `container` provided.
@@ -296,6 +313,51 @@ declare namespace connect {
     contactId: string;
   }
 
+  type StorageAccessParameters = {
+    /** Defines whether to use a customized request access banner or default connect branded banner*/
+    mode?: 'default' | 'custom';
+    /** opt out from storage access flow */
+    canRequest?: boolean;
+    /** incase of CCP URL being the SSO URL, use this to pass the connect instance URL, example https://test.my.connect.aws, where test being the instance alias */
+    instanceUrl?: string;
+    /** customize style of the custom request access/deny banner, only works for mode "custom" */
+    style?: {
+      'font-family': string;
+      'primary-color': string;
+      'primary-button-hover-color': string;
+      'link-color': string;
+      'banner-box-shadow': string;
+      'banner-margin': string;
+      'border-radius': string;
+      'banner-header-color': string;
+      'banner-title-color': string;
+      'banner-request-access-description-color': string;
+      'banner-request-deny-description-color': string;
+      'banner-request-access-background': string;
+      'banner-request-deny-background': string;
+      'banner-icon-display': string;
+      'banner-request-access-icon-color': string;
+      'banner-request-deny-icon-color': string;
+      'line-height': string;
+      'header-font-size': string;
+      'bold-font-weight': string;
+      'banner-description-font-size': string;
+    };
+    /** Customize messaging on the request/deny banners */
+    custom?: {
+      header?: string;
+      title?: string;
+      accessBannerDescription?: string;
+      denyBannerDescription?: string;
+      accessBannerButtonText?: string;
+      denyBannerButtonText?: string;
+      accessBannerLearnMoreUrl?: string;
+      denyBannerLearnMoreUrl?: string;
+      accessBannerLearnMoreText?: string;
+      denyBannerLearnMoreText?: string;
+    };
+  };
+
   interface SoftPhoneOptions {
     /**
      * Normally, the softphone microphone and speaker components are not allowed to be hosted in an iframe.
@@ -419,8 +481,10 @@ declare namespace connect {
 
     /** A timeout in ms that indicates how long streams will wait for the initial ACKNOWLEDGE event from the shared worker while the CCP is still standing itself up. */
     readonly ccpLoadTimeout?: number;
-  }
 
+    /** used for request storage access implementations */
+    readonly storageAccess?: StorageAccessParameters
+}
 
   interface OptionalInitCCPOptions {
     /**
