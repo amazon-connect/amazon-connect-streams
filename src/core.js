@@ -1163,7 +1163,6 @@
       connect.getLog().error("[Tab Id] There was an issue setting the tab Id").withException(e).sendInternalLogToServer();
     }
   }
- 
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
    * Initializes Connect by loading the CCP in an iframe and connecting to it.
@@ -1200,107 +1199,210 @@
     // Clean up the Softphone and Ringtone params store to make sure we always pull the latest params
     softphoneParamsStorage.clean();
     ringtoneParamsStorage.clean();
-    // Create the CCP iframe and append it to the container div.
+    // init StorageAccess with the incoming params
+    connect.storageAccess.init(params.ccpUrl, containerDiv, params.storageAccess || {});
+    
     var iframe = connect.core._createCCPIframe(containerDiv, params);
+      // Build the upstream conduit communicating with the CCP iframe.
+    var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
+
+    // Set the global upstream conduit for external use.
+    connect.core.upstream = conduit;
 
     // Initialize the event bus and agent data providers.
     // NOTE: Setting logEvents here to FALSE in order to avoid duplicating
     // events which are logged in CCP.
     connect.core.eventBus = new connect.EventBus({ logEvents: false });
-    connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
-    connect.core.mediaFactory = new connect.MediaFactory(params);
- 
-    // Build the upstream conduit communicating with the CCP iframe.
-    var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
- 
-    // Let CCP know if iframe is visible
-    connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(iframe, conduit);
- 
-    // Set the global upstream conduit for external use.
-    connect.core.upstream = conduit;
- 
-    // Init webSocketProvider
-    connect.core.webSocketProvider = new WebSocketProvider();
- 
-    conduit.onAllUpstream(connect.core.getEventBus().bridge());
- 
-    // Initialize the keepalive manager.
-    connect.core.keepaliveManager = new KeepaliveManager(conduit,
-      connect.core.getEventBus(),
-      params.ccpSynTimeout || CCP_SYN_TIMEOUT,
-      params.ccpAckTimeout || CCP_ACK_TIMEOUT)
-      ;
-    connect.core.iframeRefreshTimeout = null;
- 
-    // Allow 5 sec (default) before receiving the first ACK from the CCP.
-    connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
-      connect.core.ccpLoadTimeoutInstance = null;
-      connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
-      connect.getLog().info("CCP LoadTimeout triggered").sendInternalLogToServer();
-    }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
 
-    connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
-    connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(conduit);
- 
-    // Once we receive the first ACK, setup our upstream API client and establish
-    // the SYN/ACK refresh flow.
-    conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
-      connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
-      connect.core.client = new connect.UpstreamConduitClient(conduit);
-      connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
-      connect.core.portStreamId = data.id;
+    if (connect.storageAccess.canRequest()) {
+      // Create the Iframe and load the RSA banner and append it to the container div.
+      connect.storageAccess.setupRequestHandlers({ onGrant: setupInitCCP });
+    }else{
+      setupInitCCP();
+    } 
 
-      if (params.softphone || params.chat || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
-        // Send configuration up to the CCP.
-        //set it to false if secondary
-        conduit.sendUpstream(connect.EventType.CONFIGURE, {
-          softphone: params.softphone,
-          chat: params.chat,
-          pageOptions: params.pageOptions,
-          shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
-          disasterRecoveryOn: params.disasterRecoveryOn,
-        });
-      }
-      // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
-      if (params.disasterRecoveryOn) {
-        connect.core.region = params.region;
-        connect.core.suppressContacts = suppressContacts;
-        connect.core.forceOffline = function(data) {
-          conduit.sendUpstream(connect.DisasterRecoveryEvents.SET_OFFLINE, data);
-        }
-        conduit.sendUpstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, params);
-      }
+    function setupInitCCP() {
+      connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
+      connect.core.mediaFactory = new connect.MediaFactory(params);
 
-      if (connect.core.ccpLoadTimeoutInstance) {
-        global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
+      // Let CCP know if iframe is visible
+      connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(iframe, conduit);
+
+
+      // Init webSocketProvider
+      connect.core.webSocketProvider = new WebSocketProvider();
+
+      conduit.onAllUpstream(connect.core.getEventBus().bridge());
+
+      // Initialize the keepalive manager.
+      connect.core.keepaliveManager = new KeepaliveManager(conduit,
+        connect.core.getEventBus(),
+        params.ccpSynTimeout || CCP_SYN_TIMEOUT,
+        params.ccpAckTimeout || CCP_ACK_TIMEOUT)
+        ;
+      connect.core.iframeRefreshTimeout = null;
+
+      // Allow 5 sec (default) before receiving the first ACK from the CCP.
+      connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
         connect.core.ccpLoadTimeoutInstance = null;
+        connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
+        connect.getLog().info("CCP LoadTimeout triggered").sendInternalLogToServer();
+      }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
+
+      connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
+      connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(conduit);
+
+      // Once we receive the first ACK, setup our upstream API client and establish
+      // the SYN/ACK refresh flow.
+      conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
+        connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
+        connect.core.client = new connect.UpstreamConduitClient(conduit);
+        connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
+        connect.core.portStreamId = data.id;
+
+        if (params.softphone || params.chat || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
+          // Send configuration up to the CCP.
+          //set it to false if secondary
+          conduit.sendUpstream(connect.EventType.CONFIGURE, {
+            softphone: params.softphone,
+            chat: params.chat,
+            pageOptions: params.pageOptions,
+            shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
+            disasterRecoveryOn: params.disasterRecoveryOn,
+          });
+        }
+
+        // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
+        if (params.disasterRecoveryOn) {
+          connect.core.region = params.region;
+          connect.core.suppressContacts = suppressContacts;
+          connect.core.forceOffline = function (data) {
+            conduit.sendUpstream(connect.DisasterRecoveryEvents.SET_OFFLINE, data);
+          }
+          conduit.sendUpstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, params);
+        }
+
+        if (connect.core.ccpLoadTimeoutInstance) {
+          global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
+          connect.core.ccpLoadTimeoutInstance = null;
+        }
+
+         conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
+
+        connect.core.keepaliveManager.start();
+        this.unsubscribe();
+
+        connect.core.initialized = true;
+        connect.core.getEventBus().trigger(connect.EventType.INIT);
+        if (initStartTime) {
+          var initTime = Date.now() - initStartTime;
+          var refreshAttempts = connect.core.iframeRefreshAttempt || 0;
+          connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
+          connect.getLog().info(`Iframe initialization time ${initTime}`).sendInternalLogToServer();
+          connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
+          setTimeout(() => {
+            connect.publishMetric({
+              name: CSM_IFRAME_REFRESH_ATTEMPTS,
+              data: { count: refreshAttempts }
+            });
+            connect.publishMetric({
+              name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+              data: { count: 1 }
+            });
+            connect.publishMetric({
+              name: CSM_IFRAME_INITIALIZATION_TIME,
+              data: { count: initTime }
+            });
+            if (params.disasterRecoveryOn) {
+              connect.publishMetric({
+                name: CSM_IFRAME_REFRESH_ATTEMPTS_DR,
+                data: { count: refreshAttempts }
+              });
+              connect.publishMetric({
+                name: CSM_IFRAME_INITIALIZATION_SUCCESS_DR,
+                data: { count: 1 }
+              });
+              connect.publishMetric({
+                name: CSM_IFRAME_INITIALIZATION_TIME_DR,
+                data: { count: initTime }
+              });
+            }
+            //to avoid metric emission after initialization
+            initStartTime = null;
+          }, 1000)
+        }
+      });
+
+      // Add any logs from the upstream to our own logger.
+      conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
+        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        }
+      });
+
+      // Pop a login page when we encounter an ACK timeout.
+      connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
+        // loginPopup is true by default, only false if explicitly set to false.
+        if (params.loginPopup !== false) {
+          try {
+            var loginUrl = getLoginUrl(params);
+            connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
+            // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
+            if (params.loginUrl) {
+              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+            }
+            connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
+          } catch (e) {
+            connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
+          }
+        }
+
+        if (connect.core.iframeRefreshTimeout == null) {
+          try {
+            conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+              this.unsubscribe();
+              global.clearTimeout(connect.core.iframeRefreshTimeout);
+              connect.core.iframeRefreshTimeout = null;
+              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+              if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
+                connect.core.loginWindow.close();
+                connect.core.loginWindow = null;
+              }
+            });
+            connect.core._refreshIframeOnTimeout(params, containerDiv);
+          } catch (e) {
+            connect.getLog().error("Error occurred while refreshing iframe").withException(e).sendInternalLogToServer();
+          }
+        }
+      });
+
+      if (params.onViewContact) {
+        connect.core.onViewContact(params.onViewContact);
       }
 
-      conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
- 
-      connect.core.keepaliveManager.start();
-      this.unsubscribe();
+      conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
+        connect.numberOfConnectedCCPs = data.length;
+      });
 
-      connect.core.initialized = true;
-      connect.core.getEventBus().trigger(connect.EventType.INIT);
-      if (initStartTime) {
-        var initTime = Date.now() - initStartTime;
-        var refreshAttempts = connect.core.iframeRefreshAttempt || 0;
-        connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
-        connect.getLog().info(`Iframe initialization time ${initTime}`).sendInternalLogToServer();
-        connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
-        setTimeout(() => {
+      conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, function (data) {
+        if (data && data.domainId) {
+          connect.core.voiceIdDomainId = data.domainId;
+        }
+      });
+
+      connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, function () {
+        if (initStartTime) {
+          var refreshAttempts = connect.core.iframeRefreshAttempt - 1;
+          connect.getLog().info('Iframe initialization failed').sendInternalLogToServer();
+          connect.getLog().info(`Time after iframe initialization started ${Date.now() - initStartTime}`).sendInternalLogToServer();
+          connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
           connect.publishMetric({
             name: CSM_IFRAME_REFRESH_ATTEMPTS,
             data: { count: refreshAttempts} 
           });
           connect.publishMetric({
             name: CSM_IFRAME_INITIALIZATION_SUCCESS,
-            data: { count: 1} 
-          });
-          connect.publishMetric({
-            name: CSM_IFRAME_INITIALIZATION_TIME,
-            data: { count: initTime} 
+            data: { count: 0 }
           });
           if (params.disasterRecoveryOn) {
             connect.publishMetric({
@@ -1309,106 +1411,16 @@
             });
             connect.publishMetric({
               name: CSM_IFRAME_INITIALIZATION_SUCCESS_DR,
-              data: { count: 1 }
-            });
-            connect.publishMetric({
-              name: CSM_IFRAME_INITIALIZATION_TIME_DR,
-              data: { count: initTime }
+              data: { count: 0 }
             });
           }
-          //to avoid metric emission after initialization
           initStartTime = null;
-        },1000)
-      }
-    });
- 
-    // Add any logs from the upstream to our own logger.
-    conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
-        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
-      }
-    });
- 
-    // Pop a login page when we encounter an ACK timeout.
-    connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
-      // loginPopup is true by default, only false if explicitly set to false.
-      if (params.loginPopup !== false) {
-        try {
-          var loginUrl = getLoginUrl(params);
-          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
-          // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
-          if (params.loginUrl) {
-            connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-          }
-          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
-        } catch (e) {
-          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
         }
-      }
+      });
 
-      if (connect.core.iframeRefreshTimeout == null) {
-        try {
-          conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-            this.unsubscribe();
-            global.clearTimeout(connect.core.iframeRefreshTimeout);
-            connect.core.iframeRefreshTimeout = null;
-            connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-            if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
-              connect.core.loginWindow.close();
-              connect.core.loginWindow = null;
-            }
-          });
-          connect.core._refreshIframeOnTimeout(params, containerDiv);
-        } catch (e) {
-          connect.getLog().error("Error occurred while refreshing iframe").withException(e).sendInternalLogToServer();
-        }
-      }
-    });
- 
-    if (params.onViewContact) {
-      connect.core.onViewContact(params.onViewContact);
-    }
-
-    conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
-      connect.numberOfConnectedCCPs = data.length;
-    });
-
-    conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, function (data) {
-      if (data && data.domainId) {
-        connect.core.voiceIdDomainId = data.domainId;
-      }
-    });
-
-    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, function () {
-      if (initStartTime) {
-        var refreshAttempts = connect.core.iframeRefreshAttempt - 1;
-        connect.getLog().info('Iframe initialization failed').sendInternalLogToServer();
-        connect.getLog().info(`Time after iframe initialization started ${Date.now() - initStartTime}`).sendInternalLogToServer();
-        connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
-        connect.publishMetric({
-          name: CSM_IFRAME_REFRESH_ATTEMPTS,
-          data: { count: refreshAttempts}
-        });
-        connect.publishMetric({
-          name: CSM_IFRAME_INITIALIZATION_SUCCESS,
-          data: { count: 0}
-        });
-        if (params.disasterRecoveryOn) {
-          connect.publishMetric({
-            name: CSM_IFRAME_REFRESH_ATTEMPTS_DR,
-            data: { count: refreshAttempts }
-          });
-          connect.publishMetric({
-            name: CSM_IFRAME_INITIALIZATION_SUCCESS_DR,
-            data: { count: 0 }
-          });
-        }
-        initStartTime = null;
-      }
-    });
-
-    // keep the softphone params for external use
-    connect.core.softphoneParams = params.softphone;
+      // keep the softphone params for external use
+      connect.core.softphoneParams = params.softphone;
+    };
   };
 
   connect.core.onIframeRetriesExhausted = function(f) {
@@ -1456,15 +1468,21 @@
     return null;
   }
 
-  connect.core._createCCPIframe = function(containerDiv, initCCPParams) {
+
+  connect.core._createCCPIframe = function (containerDiv, initCCPParams) {
     connect.assertNotNull(initCCPParams, 'initCCPParams');
     connect.assertNotNull(containerDiv, 'containerDiv');
     var iframe = document.createElement('iframe');
-    iframe.src = initCCPParams.ccpUrl;
+    iframe.src =  initCCPParams.ccpUrl;
     iframe.allow = "microphone; autoplay; clipboard-write";
     iframe.style = initCCPParams.style || "width: 100%; height: 100%";
     iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
     iframe.name = CCP_IFRAME_NAME;
+    //for Storage Access follow the rsa path
+    if(connect.storageAccess.canRequest()){
+      iframe.src = connect.storageAccess.getRequestStorageAccessUrl();
+      iframe.addEventListener('load', connect.storageAccess.request);
+    }
     containerDiv.appendChild(iframe);
     return iframe;
   }

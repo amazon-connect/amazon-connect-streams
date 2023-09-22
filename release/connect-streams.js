@@ -26297,7 +26297,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.6.1";
+  connect.version = "2.6.2";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -27449,7 +27449,6 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
       connect.getLog().error("[Tab Id] There was an issue setting the tab Id").withException(e).sendInternalLogToServer();
     }
   }
- 
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
    * Initializes Connect by loading the CCP in an iframe and connecting to it.
@@ -27486,107 +27485,210 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
     // Clean up the Softphone and Ringtone params store to make sure we always pull the latest params
     softphoneParamsStorage.clean();
     ringtoneParamsStorage.clean();
-    // Create the CCP iframe and append it to the container div.
+    // init StorageAccess with the incoming params
+    connect.storageAccess.init(params.ccpUrl, containerDiv, params.storageAccess || {});
+    
     var iframe = connect.core._createCCPIframe(containerDiv, params);
+      // Build the upstream conduit communicating with the CCP iframe.
+    var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
+
+    // Set the global upstream conduit for external use.
+    connect.core.upstream = conduit;
 
     // Initialize the event bus and agent data providers.
     // NOTE: Setting logEvents here to FALSE in order to avoid duplicating
     // events which are logged in CCP.
     connect.core.eventBus = new connect.EventBus({ logEvents: false });
-    connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
-    connect.core.mediaFactory = new connect.MediaFactory(params);
- 
-    // Build the upstream conduit communicating with the CCP iframe.
-    var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
- 
-    // Let CCP know if iframe is visible
-    connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(iframe, conduit);
- 
-    // Set the global upstream conduit for external use.
-    connect.core.upstream = conduit;
- 
-    // Init webSocketProvider
-    connect.core.webSocketProvider = new WebSocketProvider();
- 
-    conduit.onAllUpstream(connect.core.getEventBus().bridge());
- 
-    // Initialize the keepalive manager.
-    connect.core.keepaliveManager = new KeepaliveManager(conduit,
-      connect.core.getEventBus(),
-      params.ccpSynTimeout || CCP_SYN_TIMEOUT,
-      params.ccpAckTimeout || CCP_ACK_TIMEOUT)
-      ;
-    connect.core.iframeRefreshTimeout = null;
- 
-    // Allow 5 sec (default) before receiving the first ACK from the CCP.
-    connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
-      connect.core.ccpLoadTimeoutInstance = null;
-      connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
-      connect.getLog().info("CCP LoadTimeout triggered").sendInternalLogToServer();
-    }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
 
-    connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
-    connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(conduit);
- 
-    // Once we receive the first ACK, setup our upstream API client and establish
-    // the SYN/ACK refresh flow.
-    conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
-      connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
-      connect.core.client = new connect.UpstreamConduitClient(conduit);
-      connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
-      connect.core.portStreamId = data.id;
+    if (connect.storageAccess.canRequest()) {
+      // Create the Iframe and load the RSA banner and append it to the container div.
+      connect.storageAccess.setupRequestHandlers({ onGrant: setupInitCCP });
+    }else{
+      setupInitCCP();
+    } 
 
-      if (params.softphone || params.chat || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
-        // Send configuration up to the CCP.
-        //set it to false if secondary
-        conduit.sendUpstream(connect.EventType.CONFIGURE, {
-          softphone: params.softphone,
-          chat: params.chat,
-          pageOptions: params.pageOptions,
-          shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
-          disasterRecoveryOn: params.disasterRecoveryOn,
-        });
-      }
-      // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
-      if (params.disasterRecoveryOn) {
-        connect.core.region = params.region;
-        connect.core.suppressContacts = suppressContacts;
-        connect.core.forceOffline = function(data) {
-          conduit.sendUpstream(connect.DisasterRecoveryEvents.SET_OFFLINE, data);
-        }
-        conduit.sendUpstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, params);
-      }
+    function setupInitCCP() {
+      connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
+      connect.core.mediaFactory = new connect.MediaFactory(params);
 
-      if (connect.core.ccpLoadTimeoutInstance) {
-        global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
+      // Let CCP know if iframe is visible
+      connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(iframe, conduit);
+
+
+      // Init webSocketProvider
+      connect.core.webSocketProvider = new WebSocketProvider();
+
+      conduit.onAllUpstream(connect.core.getEventBus().bridge());
+
+      // Initialize the keepalive manager.
+      connect.core.keepaliveManager = new KeepaliveManager(conduit,
+        connect.core.getEventBus(),
+        params.ccpSynTimeout || CCP_SYN_TIMEOUT,
+        params.ccpAckTimeout || CCP_ACK_TIMEOUT)
+        ;
+      connect.core.iframeRefreshTimeout = null;
+
+      // Allow 5 sec (default) before receiving the first ACK from the CCP.
+      connect.core.ccpLoadTimeoutInstance = global.setTimeout(function () {
         connect.core.ccpLoadTimeoutInstance = null;
+        connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
+        connect.getLog().info("CCP LoadTimeout triggered").sendInternalLogToServer();
+      }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
+
+      connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
+      connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(conduit);
+
+      // Once we receive the first ACK, setup our upstream API client and establish
+      // the SYN/ACK refresh flow.
+      conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
+        connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
+        connect.core.client = new connect.UpstreamConduitClient(conduit);
+        connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
+        connect.core.portStreamId = data.id;
+
+        if (params.softphone || params.chat || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
+          // Send configuration up to the CCP.
+          //set it to false if secondary
+          conduit.sendUpstream(connect.EventType.CONFIGURE, {
+            softphone: params.softphone,
+            chat: params.chat,
+            pageOptions: params.pageOptions,
+            shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
+            disasterRecoveryOn: params.disasterRecoveryOn,
+          });
+        }
+
+        // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
+        if (params.disasterRecoveryOn) {
+          connect.core.region = params.region;
+          connect.core.suppressContacts = suppressContacts;
+          connect.core.forceOffline = function (data) {
+            conduit.sendUpstream(connect.DisasterRecoveryEvents.SET_OFFLINE, data);
+          }
+          conduit.sendUpstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, params);
+        }
+
+        if (connect.core.ccpLoadTimeoutInstance) {
+          global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
+          connect.core.ccpLoadTimeoutInstance = null;
+        }
+
+        conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version, initCCPParams: params });
+
+        connect.core.keepaliveManager.start();
+        this.unsubscribe();
+
+        connect.core.initialized = true;
+        connect.core.getEventBus().trigger(connect.EventType.INIT);
+        if (initStartTime) {
+          var initTime = Date.now() - initStartTime;
+          var refreshAttempts = connect.core.iframeRefreshAttempt || 0;
+          connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
+          connect.getLog().info(`Iframe initialization time ${initTime}`).sendInternalLogToServer();
+          connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
+          setTimeout(() => {
+            connect.publishMetric({
+              name: CSM_IFRAME_REFRESH_ATTEMPTS,
+              data: { count: refreshAttempts }
+            });
+            connect.publishMetric({
+              name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+              data: { count: 1 }
+            });
+            connect.publishMetric({
+              name: CSM_IFRAME_INITIALIZATION_TIME,
+              data: { count: initTime }
+            });
+            if (params.disasterRecoveryOn) {
+              connect.publishMetric({
+                name: CSM_IFRAME_REFRESH_ATTEMPTS_DR,
+                data: { count: refreshAttempts }
+              });
+              connect.publishMetric({
+                name: CSM_IFRAME_INITIALIZATION_SUCCESS_DR,
+                data: { count: 1 }
+              });
+              connect.publishMetric({
+                name: CSM_IFRAME_INITIALIZATION_TIME_DR,
+                data: { count: initTime }
+              });
+            }
+            //to avoid metric emission after initialization
+            initStartTime = null;
+          }, 1000)
+        }
+      });
+
+      // Add any logs from the upstream to our own logger.
+      conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
+        if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+          connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+        }
+      });
+
+      // Pop a login page when we encounter an ACK timeout.
+      connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
+        // loginPopup is true by default, only false if explicitly set to false.
+        if (params.loginPopup !== false) {
+          try {
+            var loginUrl = getLoginUrl(params);
+            connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
+            // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
+            if (params.loginUrl) {
+              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+            }
+            connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
+          } catch (e) {
+            connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
+          }
+        }
+
+        if (connect.core.iframeRefreshTimeout == null) {
+          try {
+            conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+              this.unsubscribe();
+              global.clearTimeout(connect.core.iframeRefreshTimeout);
+              connect.core.iframeRefreshTimeout = null;
+              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+              if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
+                connect.core.loginWindow.close();
+                connect.core.loginWindow = null;
+              }
+            });
+            connect.core._refreshIframeOnTimeout(params, containerDiv);
+          } catch (e) {
+            connect.getLog().error("Error occurred while refreshing iframe").withException(e).sendInternalLogToServer();
+          }
+        }
+      });
+
+      if (params.onViewContact) {
+        connect.core.onViewContact(params.onViewContact);
       }
 
-      conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
- 
-      connect.core.keepaliveManager.start();
-      this.unsubscribe();
+      conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
+        connect.numberOfConnectedCCPs = data.length;
+      });
 
-      connect.core.initialized = true;
-      connect.core.getEventBus().trigger(connect.EventType.INIT);
-      if (initStartTime) {
-        var initTime = Date.now() - initStartTime;
-        var refreshAttempts = connect.core.iframeRefreshAttempt || 0;
-        connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
-        connect.getLog().info(`Iframe initialization time ${initTime}`).sendInternalLogToServer();
-        connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
-        setTimeout(() => {
+      conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, function (data) {
+        if (data && data.domainId) {
+          connect.core.voiceIdDomainId = data.domainId;
+        }
+      });
+
+      connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, function () {
+        if (initStartTime) {
+          var refreshAttempts = connect.core.iframeRefreshAttempt - 1;
+          connect.getLog().info('Iframe initialization failed').sendInternalLogToServer();
+          connect.getLog().info(`Time after iframe initialization started ${Date.now() - initStartTime}`).sendInternalLogToServer();
+          connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
           connect.publishMetric({
             name: CSM_IFRAME_REFRESH_ATTEMPTS,
             data: { count: refreshAttempts} 
           });
           connect.publishMetric({
             name: CSM_IFRAME_INITIALIZATION_SUCCESS,
-            data: { count: 1} 
-          });
-          connect.publishMetric({
-            name: CSM_IFRAME_INITIALIZATION_TIME,
-            data: { count: initTime} 
+            data: { count: 0 }
           });
           if (params.disasterRecoveryOn) {
             connect.publishMetric({
@@ -27595,106 +27697,16 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
             });
             connect.publishMetric({
               name: CSM_IFRAME_INITIALIZATION_SUCCESS_DR,
-              data: { count: 1 }
-            });
-            connect.publishMetric({
-              name: CSM_IFRAME_INITIALIZATION_TIME_DR,
-              data: { count: initTime }
+              data: { count: 0 }
             });
           }
-          //to avoid metric emission after initialization
           initStartTime = null;
-        },1000)
-      }
-    });
- 
-    // Add any logs from the upstream to our own logger.
-    conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
-      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
-        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
-      }
-    });
- 
-    // Pop a login page when we encounter an ACK timeout.
-    connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
-      // loginPopup is true by default, only false if explicitly set to false.
-      if (params.loginPopup !== false) {
-        try {
-          var loginUrl = getLoginUrl(params);
-          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
-          // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
-          if (params.loginUrl) {
-            connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-          }
-          connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
-        } catch (e) {
-          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
         }
-      }
+      });
 
-      if (connect.core.iframeRefreshTimeout == null) {
-        try {
-          conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-            this.unsubscribe();
-            global.clearTimeout(connect.core.iframeRefreshTimeout);
-            connect.core.iframeRefreshTimeout = null;
-            connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-            if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
-              connect.core.loginWindow.close();
-              connect.core.loginWindow = null;
-            }
-          });
-          connect.core._refreshIframeOnTimeout(params, containerDiv);
-        } catch (e) {
-          connect.getLog().error("Error occurred while refreshing iframe").withException(e).sendInternalLogToServer();
-        }
-      }
-    });
- 
-    if (params.onViewContact) {
-      connect.core.onViewContact(params.onViewContact);
-    }
-
-    conduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
-      connect.numberOfConnectedCCPs = data.length;
-    });
-
-    conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, function (data) {
-      if (data && data.domainId) {
-        connect.core.voiceIdDomainId = data.domainId;
-      }
-    });
-
-    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, function () {
-      if (initStartTime) {
-        var refreshAttempts = connect.core.iframeRefreshAttempt - 1;
-        connect.getLog().info('Iframe initialization failed').sendInternalLogToServer();
-        connect.getLog().info(`Time after iframe initialization started ${Date.now() - initStartTime}`).sendInternalLogToServer();
-        connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
-        connect.publishMetric({
-          name: CSM_IFRAME_REFRESH_ATTEMPTS,
-          data: { count: refreshAttempts}
-        });
-        connect.publishMetric({
-          name: CSM_IFRAME_INITIALIZATION_SUCCESS,
-          data: { count: 0}
-        });
-        if (params.disasterRecoveryOn) {
-          connect.publishMetric({
-            name: CSM_IFRAME_REFRESH_ATTEMPTS_DR,
-            data: { count: refreshAttempts }
-          });
-          connect.publishMetric({
-            name: CSM_IFRAME_INITIALIZATION_SUCCESS_DR,
-            data: { count: 0 }
-          });
-        }
-        initStartTime = null;
-      }
-    });
-
-    // keep the softphone params for external use
-    connect.core.softphoneParams = params.softphone;
+      // keep the softphone params for external use
+      connect.core.softphoneParams = params.softphone;
+    };
   };
 
   connect.core.onIframeRetriesExhausted = function(f) {
@@ -27742,15 +27754,21 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
     return null;
   }
 
-  connect.core._createCCPIframe = function(containerDiv, initCCPParams) {
+
+  connect.core._createCCPIframe = function (containerDiv, initCCPParams) {
     connect.assertNotNull(initCCPParams, 'initCCPParams');
     connect.assertNotNull(containerDiv, 'containerDiv');
     var iframe = document.createElement('iframe');
-    iframe.src = initCCPParams.ccpUrl;
+    iframe.src =  initCCPParams.ccpUrl;
     iframe.allow = "microphone; autoplay; clipboard-write";
     iframe.style = initCCPParams.style || "width: 100%; height: 100%";
     iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
     iframe.name = CCP_IFRAME_NAME;
+    //for Storage Access follow the rsa path
+    if(connect.storageAccess.canRequest()){
+      iframe.src = connect.storageAccess.getRequestStorageAccessUrl();
+      iframe.addEventListener('load', connect.storageAccess.request);
+    }
     containerDiv.appendChild(iframe);
     return iframe;
   }
@@ -30404,6 +30422,367 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
       },
     };
   };
+})();
+
+
+/***/ }),
+
+/***/ 161:
+/***/ (() => {
+
+/**
+ * Module which gets used for the Request storage access
+ * Exposes init, hasAccess, request and onRequest methods.
+ * utilizes core post message technique to communicate back to the parent which invokes the storage access
+ *
+ * @usage - Used by initCCP and customer can make use of onRequest callbacks , this will be called even before agent login
+ *
+ * Example -
+ * connect.storageAccess.onRequest({
+ *  onInit(){},
+ *  onDeny(){},
+ *  onGrant(){}
+ * });
+ *
+ * There are 4 lifecycle methods in the storage access check
+ *
+ * a)  Request - StreamJS would request for storage access check to the embedded Connect hosted storage access banner
+ * b)  Init - Storage access banner inits the access check and sends back the current access state with hasAccess set to true or false
+ *           this is the step where we show the actual RSA banner to agents and for custom use cases hidden container will be shown
+ * c)  Grant [optional] - Executes when Agent/user accepts storage access or already given grant
+ * d)  Deny [optional] - Executes when Agent/user deny the storage access/
+ *
+ * In a positive flow - we should expect Request, Init, Grant and negative Request, Init, Deny
+ *
+ * Chrome Implementation of RSA API can be found here - https://github.com/cfredric/chrome-storage-access-api
+ */
+(function () {
+  const global = this || globalThis;
+  const connect = global.connect || {};
+  global.connect = connect;
+  global.lily = connect;
+
+  const requestStorageAccessPath = '/request-storage-access';
+  /**
+   * Configurable options exposed via initCCP
+   * By default canRequest will be set to false to make this as a explicit opt in
+   */
+  const defaultStorageAccessParams = {
+    /* Config which controls the opt out/in - we expect customers to explicitely opt out. */
+    canRequest: true,
+    /* ["custom", "default"] - decides the rsa page view */
+    mode: 'default',
+    custom: {
+      /**
+       * Only applicable for custom type RSA page and these messages should be localized by customers
+       *
+       * title: 'Cookie Notice',
+       * header: 'Please provide access'
+       *
+       */
+    },
+  };
+
+  let storageParams = {};
+  let originalCCPUrl = '';
+  let rsaContainer = null;
+  let onGrantCallbackInvoked = false;
+  let requesthandlerUnsubscriber;
+
+  const storageAccessEvents = {
+    INIT: 'storageAccess::init',
+    GRANTED: 'storageAccess::granted',
+    DENIED: 'storageAccess::denied',
+    REQUEST: 'storageAccess::request',
+  };
+
+  const initStorageParams = (params = {}) => {
+    params.custom = params.custom || {};
+    storageParams = {
+      ...defaultStorageAccessParams,
+      ...params,
+      custom: {
+        ...defaultStorageAccessParams.custom,
+        ...params.custom,
+      },
+    };
+    storageParams.canRequest = !(storageParams.canRequest === 'false' || storageParams.canRequest === false);
+  };
+
+  const resetStorageAccessState = () => {
+    storageParams = {};
+    originalCCPUrl = '';
+    rsaContainer = null;
+  };
+
+  /**
+   * Handle display none/block properties for the RTSA container, if customer have different settings like height, opacity, positions etc configured they are encouraged to use
+   * onRequest Callback handle to reset the same.
+   * */
+  const getRSAContainer = () => ({
+    show: () => {
+      rsaContainer.style.display = 'block';
+    },
+    hide: () => {
+      rsaContainer.style.display = 'none';
+    },
+  });
+
+  /**
+   * Custom Mode will show minimalistic UI - without any Connect references or Connect headers
+   *  This will allow fully Custom CCPs to use banner and use minimal real estate to show the storage access Content
+   * */
+  const isCustomRequestAccessMode = () => storageParams && storageParams.mode !== 'default';
+
+  const isConnectDomain = (origin) => origin.match(/.connect.aws.a2z.com|.my.connect.aws|.awsapps.com/);
+
+  /**
+   * Given the URL, this method generates the prefixed connect domain request storage access URL
+   * @param {string} url
+   * @returns {string}
+   */
+  const getRsaUrlWithprefix = (url) => {
+    const { origin, pathname } = new URL(url);
+    if (origin.match(/.awsapps.com/)) {
+      let prefix = 'connect';
+      if (pathname.startsWith('/connect-gamma')) {
+        prefix = 'connect-gamma';
+      }
+      return `${origin}/${prefix}${requestStorageAccessPath}`;
+    } else {
+      return `${origin}${requestStorageAccessPath}`;
+    }
+  };
+
+  const isLocalhost = (url) => url.match(/^https?:\/\/localhost/);
+
+  /**
+   * Fetches the landat path for request storage access page to navigate. This is typically CCP path or channel view
+   * @returns {string}
+   */
+  const getlandAtPath = () => {
+    if (!originalCCPUrl) {
+      throw new Error('[StorageAccess] [getlandAtPath] Invoke connect.storageAccess.init first');
+    }
+
+    if (isConnectDomain(originalCCPUrl) || isLocalhost(originalCCPUrl)) {
+      const { pathname } = new URL(originalCCPUrl);
+      return pathname;
+    }
+
+    return '/connect/ccp-v2';
+  };
+
+  /**
+   *
+   * Method which returns the relative request-storage-access page path.
+   * Validates against localhost and connect domains and returns prefixed path
+   * @returns {string}
+   */
+  const getRequestStorageAccessUrl = () => {
+    // ccpUrl may contain non standard direct SSO URLs in which case we may ask customers to provide instanceUrl as part of storage access params
+
+    if (!originalCCPUrl) {
+      throw new Error('[StorageAccess] [getRequestStorageAccessUrl] Invoke connect.storageAccess.init first');
+    }
+
+    if (isConnectDomain(originalCCPUrl)) {
+      return getRsaUrlWithprefix(originalCCPUrl);
+    } else if (isLocalhost(originalCCPUrl)) {
+      connect.getLog().info(`[StorageAccess] [CCP] Local testing`);
+      return `${originalCCPUrl}${requestStorageAccessPath}`;
+    } else if (storageParams.instanceUrl && isConnectDomain(storageParams.instanceUrl)) {
+      connect
+        .getLog()
+        .info(
+          `[StorageAccess] [getRequestStorageAccessUrl] Customer has provided storageParams.instanceUrl ${storageParams.instanceUrl}`
+        );
+
+      return getRsaUrlWithprefix(storageParams.instanceUrl);
+    } else if (storageParams.instanceUrl && isLocalhost(storageParams.instanceUrl)) {
+      connect.getLog().info(`[StorageAccess] [getRequestStorageAccessUrl] Local testing`);
+      return `${storageParams.instanceUrl}${requestStorageAccessPath}`;
+    } else {
+      connect
+        .getLog()
+        .error(
+          `[StorageAccess] [getRequestStorageAccessUrl] Invalid Connect instance/CCP URL provided, please pass the correct ccpUrl or storageAccess.instanceUrl parameters`
+        );
+      // FIXME - For test cases to succeed passing original parameter back instead throw an error by fixing all the CCP URL parameters accross the tests.
+      throw new Error(
+        `[StorageAccess] [getRequestStorageAccessUrl] Invalid Connect instance/CCP URL provided, please pass the valid Connect CCP URL or in case CCP URL is configured to be the SSO URL then use storageAccess.instanceUrl and pass the Connect CCP URL`
+      );
+    }
+  };
+
+  /**
+   * Method which allows customers to listen on Storage access request and it's state changes
+   * @param {Object} consists of callbacks for the onInit, onDeny and onGrants
+   */
+  const onRequestHandler = ({ onInit, onDeny, onGrant }) => {
+    function handleUpstreamMessages({ data, source }) {
+      const iframeContainer = connect.core._getCCPIframe();
+      if (iframeContainer.contentWindow !== source) {
+        // disabling the logs for now
+        // connect.getLog().error('[StorageAccess][onRequestHandler] Request Coming from unknown domain %s', origin);
+        return false;
+      }
+
+      if (connect.core.initialized) {
+        window.removeEventListener('message', handleUpstreamMessages);
+      }
+
+      switch (data.event) {
+        case storageAccessEvents.INIT: {
+          connect.getLog().info(`[StorageAccess][INIT] message recieved`).withObject(data);
+          if (onInit) {
+            onInit(data);
+          }
+          break;
+        }
+
+        case storageAccessEvents.GRANTED: {
+          connect.getLog().info(`[StorageAccess][GRANTED] message recieved`).withObject(data);
+          if (onGrant) {
+            onGrant(data);
+          }
+          break;
+        }
+
+        case storageAccessEvents.DENIED: {
+          connect.getLog().info(`[StorageAccess][DENIED] message recieved`).withObject(data);
+          if (onDeny) {
+            onDeny(data);
+          }
+          break;
+        }
+
+        default: {
+          // Make sure to clean up the handler as soon as the access is granted.
+          if (connect.core.initialized) {
+            window.removeEventListener('message', handleUpstreamMessages);
+          }
+          break;
+        }
+      }
+    }
+    // do this only if canRequest is set to true
+    if (storageParams.canRequest) {
+      window.addEventListener('message', handleUpstreamMessages);
+    }
+
+    return {
+      unsubscribe: () => {
+        window.removeEventListener('message', handleUpstreamMessages);
+      },
+    };
+  };
+
+  /**
+   * setupRequestHandlers - method which attaches post message handlers and let the initCCP flow to continue.
+   * In case of custom CCPs - it also does hide/show the container.
+   * @param {*} param0
+   */
+  const setupRequestHandlers = ({ onGrant: onGrantCallback }) => {
+    if (requesthandlerUnsubscriber) {
+      requesthandlerUnsubscriber.unsubscribe();
+    }
+
+    requesthandlerUnsubscriber = onRequestHandler({
+      onInit: (messageData) => {
+        console.log('%c[INIT]', 'background:lime; color: black; font-size:large');
+        connect.getLog().info(`[StorageAccess][onInit] callback executed`).withObject(messageData?.data);
+
+        if (!messageData?.data.hasAccess && isCustomRequestAccessMode()) {
+          getRSAContainer().show();
+        }
+      },
+
+      onDeny: () => {
+        console.log('%c[DENIED]', 'background:lime; color: black; font-size:large');
+        connect.getLog().info(`[StorageAccess][onDeny] callback executed`);
+        if (isCustomRequestAccessMode()) {
+          getRSAContainer().show();
+        }
+      },
+
+      onGrant: () => {
+        console.log('%c[Granted]', 'background:lime; color: black; font-size:large');
+        connect.getLog().info(`[StorageAccess][onGrant] callback executed`);
+        if (isCustomRequestAccessMode()) {
+          getRSAContainer().hide();
+        }
+        // Invoke onGrantCallback only once as it setsup initCCP callbacks and events
+        if (!onGrantCallbackInvoked) {
+          onGrantCallback();
+          onGrantCallbackInvoked = true;
+        }
+      },
+    });
+  };
+
+  connect.storageAccess = Object.freeze({
+    /**
+     * Checks wther user has opted out for storage Access checks or not
+     * @returns {boolean}
+     */
+    canRequest: () => storageParams.canRequest,
+
+    /**
+     * Mainly used by Tests, by default storage access is enabled for all
+     */
+    optOutFromRequestAccess: () => {
+      defaultStorageAccessParams.canRequest = false;
+    },
+
+    /**
+     * Mainly used by Tests
+     */
+    optInForRequestAccess: () => {
+      defaultStorageAccessParams.canRequest = true;
+    },
+
+    /**
+     * Method which inits the Storage Access module with Customer paramters.
+     * and generates request storage access URL and apply customization to the default paramters
+     * @param {*} params -  storage access params
+     * @param {*} container - Container where CCP is being shown
+     * @returns {{canRequest, requestAccessPageurl}}
+     */
+    init: (ccpUrl, containerDiv, params = {}) => {
+      connect.assertNotNull(ccpUrl, 'ccpUrl');
+      connect.assertNotNull(containerDiv, 'container');
+      rsaContainer = containerDiv;
+      originalCCPUrl = ccpUrl;
+      initStorageParams(params);
+      connect
+        .getLog()
+        .info(
+          `[StorageAccess][init] Request Storage Acccess init called with ccpUrl - ${ccpUrl} - ${!storageParams.canRequest
+            ? 'user has opted out, skipping request storage access'
+            : 'Proceeding with requesting storage access'
+          }`
+        )
+        .withObject(storageParams);
+    },
+
+    setupRequestHandlers,
+    getRequestStorageAccessUrl,
+    storageAccessEvents,
+    resetStorageAccessState,
+    getStorageAccessParams: () => storageParams,
+    onRequest: onRequestHandler,
+    request: () => {
+      const iframeContainer = connect.core._getCCPIframe();
+      iframeContainer.contentWindow.postMessage(
+        {
+          event: storageAccessEvents.REQUEST,
+          data: { ...storageParams, landat: getlandAtPath() },
+        },
+        '*'
+      );
+    },
+  });
 })();
 
 
@@ -34239,6 +34618,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
 /******/ 	__webpack_require__(82);
 /******/ 	__webpack_require__(754);
 /******/ 	__webpack_require__(833);
+/******/ 	__webpack_require__(161);
 /******/ 	__webpack_require__(965);
 /******/ 	__webpack_require__(286);
 /******/ 	__webpack_require__(895);
