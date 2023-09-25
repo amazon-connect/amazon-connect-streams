@@ -788,9 +788,12 @@ Subscribe a method to be invoked whenever the contact is missed. This is an even
 ```js
 contact.onEnded(function(contact) { /* ... */ });
 ```
-Subscribe a method to be invoked whenever the contact is ended or destroyed. This could be due to the conversation
+Subscribe a method to be invoked whenever the contact is ended. This could be due to the conversation
 being ended by the agent, or due to the contact being missed. Call `contact.getState()` to determine the state
 of the contact and take appropriate action.
+
+[Update on v1.8.0]
+The callback function registered via `contact.onEnded ` is no longer invoked when the contact is destroyed. This fix prevents the callback from being invoked twice on ENDED and DESTROYED events.
 
 ### `contact.onDestroy()`
 ```js
