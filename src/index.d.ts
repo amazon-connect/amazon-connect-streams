@@ -95,7 +95,7 @@ declare namespace connect {
   function hitch<T extends (...args: any[]) => any>(scope: object, method: T): T;
 
   type StorageAcccessCallbackData = {
-    hasAccess?: boolan;
+    hasAccess?: boolean;
     [key: string]: any;
   }
 
