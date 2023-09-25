@@ -721,7 +721,6 @@
   Contact.prototype.onEnded = function (f) {
     var bus = connect.core.getEventBus();
     bus.subscribe(this.getEventName(connect.ContactEvents.ENDED), f);
-    bus.subscribe(this.getEventName(connect.ContactEvents.DESTROYED), f);
   };
 
   Contact.prototype.onDestroy = function (f) {
