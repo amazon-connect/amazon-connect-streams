@@ -944,7 +944,6 @@
   Contact.prototype.onEnded = function (f) {
     var bus = connect.core.getEventBus();
     bus.subscribe(this.getEventName(connect.ContactEvents.ENDED), f);
-    bus.subscribe(this.getEventName(connect.ContactEvents.DESTROYED), f);
   };
 
   Contact.prototype.onDestroy = function (f) {
@@ -26297,7 +26296,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.6.2";
+  connect.version = "2.7.0";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -27573,7 +27572,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
           connect.core.ccpLoadTimeoutInstance = null;
         }
 
-        conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version, initCCPParams: params });
+         conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
 
         connect.core.keepaliveManager.start();
         this.unsubscribe();
