@@ -21,7 +21,7 @@ We also support `make` for legacy builds.
 
 # Important Announcements
 
-- September 2023 - Amazon Connect CCP uses cookies for authentication. As part of Google's [Privacy Sandbox](https://privacysandbox.com/open-web/#the-privacy-sandbox-timeline) initiative, Google Chrome has announced plans to block third-party cookies (that is, cookies passed between two top level domains). Version 1.7.6 comes with request storage access API implementation which allows CCP to continue using third party cookies. [Learn more](https://docs.aws.amazon.com/connect/latest/adminguide/admin-3pcookies.html#implement-streams-upgrade).
+- September 2023 - Amazon Connect CCP uses cookies for authentication. As part of Google's [Privacy Sandbox](https://privacysandbox.com/open-web/#the-privacy-sandbox-timeline) initiative, Google Chrome has announced plans to block third-party cookies (that is, cookies passed between two top level domains). Version 1.7.7 comes with request storage access API implementation which allows CCP to continue using third party cookies. [Learn more](https://docs.aws.amazon.com/connect/latest/adminguide/admin-3pcookies.html#implement-streams-upgrade).
 
 - September 2021 - 1.7.0 comes with changes needed to use Amazon Connect Voice ID, which launched on 9/27/2021. For customers who want to use Voice ID, please upgrade Streams to version 1.7.0 or later in the next 1 month, otherwise the Voice ID APIs will stop working by the end of October 2021. For more details on the Voice ID APIs, please look at [the Voice ID APIs section](Documentation.md#voice-id-apis).
 
