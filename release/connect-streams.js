@@ -30533,7 +30533,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
    * */
   const isCustomRequestAccessMode = () => storageParams && storageParams.mode !== 'default';
 
-  const isConnectDomain = (origin) => origin.match(/.connect.aws.a2z.com|.my.connect.aws|.awsapps.com/);
+  const isConnectDomain = (origin) => origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
 
   /**
    * Given the URL, this method generates the prefixed connect domain request storage access URL
