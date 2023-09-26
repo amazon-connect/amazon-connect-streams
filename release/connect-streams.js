@@ -5990,7 +5990,7 @@ function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len 
   global.lily = connect;
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.7.6";
+  connect.version = "1.8.1";
   connect.DEFAULT_BATCH_SIZE = 500;
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
@@ -9525,7 +9525,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     return storageParams && storageParams.mode !== "default";
   };
   var isConnectDomain = function isConnectDomain(origin) {
-    return origin.match(/.connect.aws.a2z.com|.my.connect.aws|.awsapps.com/);
+    return origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
   };
 
   /**
