@@ -985,7 +985,7 @@ Subscribe a method to be invoked whenever the contact is ended. This could be du
 being ended by the agent, or due to the contact being missed. Call `contact.getState()` to determine the state
 of the contact and take appropriate action.
 
-[Update on v2.7.0]`
+[Update on v2.7.0]
 The callback function registered via `contact.onEnded ` is no longer invoked when the contact is destroyed. This fix prevents the callback from being invoked twice on ENDED and DESTROYED events.
 
 ### `contact.onDestroy()`
