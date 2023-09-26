@@ -129,6 +129,14 @@ describe("Request Storage Access module", () => {
       );
     });
 
+    it('should return requestAccessPageurl for govcloud domain', () => {
+      connect.storageAccess.init('https://test122.govcloud.connect.aws/ccp-v2', container);
+
+      expect(connect.storageAccess.getRequestStorageAccessUrl()).to.be.equal(
+          'https://test122.govcloud.connect.aws/request-storage-access'
+      );
+    });
+
     it("should return requestAccessPageurl as instanceUrl if ccpURL doesnt match the connect domains", () => {
       connect.storageAccess.init(
         "https://test122.com/connect/ccp-v2",
