@@ -47,6 +47,7 @@
   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
   var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
   var MULTIPLE_SESSIONS_EVENT = "MultiSessions";
+  var ECHO_CANCELLATION_CHECK = "echoCancellationCheck";
 
   var localMediaStream = {};
 

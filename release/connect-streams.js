@@ -26297,7 +26297,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.6.5";
+  connect.version = "2.6.6";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -31086,6 +31086,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
   var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
   var MULTIPLE_SESSIONS_EVENT = "MultiSessions";
+  var ECHO_CANCELLATION_CHECK = "echoCancellationCheck";
 
   var localMediaStream = {};
 
