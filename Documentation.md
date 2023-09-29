@@ -1434,7 +1434,7 @@ conn.hold({
    failure: function(err) { /* ... */ }
 });
 ```
-Put this connection on hold.
+Put this connection on hold. In two-party calls, it only should be called on the 'initialConnection' (aka customer connection), not on the agent connection. For calls with three or more parties, hold can be used on agent connection. Using hold on a customer connection will ensure that customer doesn't hear the rest of the participants, while using hold on an agent connection will keep customer's ability to speak with other participants, while the agent cannot be heard.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
