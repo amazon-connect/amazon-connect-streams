@@ -1,4 +1,4 @@
-# This workflow sends a message whenever an issue is opened/closed
+# This workflow sends a message whenever an issue/issue comment is created, edited, reopened
 #
 # You can adjust the behavior by modifying this file.
 name: Send GitHub Action trigger data to Slack workflow
@@ -6,7 +6,12 @@ on:
   issues:
     types:
       - opened
-      - closed
+      - edited
+      - reopened
+  issue_comment:
+    types:
+      - created
+      - edited
 
 jobs:
   slack:
@@ -16,5 +21,10 @@ jobs:
     - name: slack-send
       id: slack
       uses: slackapi/slack-github-action@v1.24.0
+      with:
+        payload: |
+          {
+            "issueUrl" : ${{ github.event.issue.issue_url }}
+          }
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
