@@ -103,6 +103,7 @@ declare namespace connect {
     onInit(options:StorageAcccessCallbackData): Function
     onRequest(options:StorageAcccessCallbackData): Function
     onDeny(options:StorageAcccessCallbackData): Function
+    onGrant(options:StorageAcccessCallbackData): Function
   }
 
   interface StorageAccess { 
