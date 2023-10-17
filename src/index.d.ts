@@ -79,19 +79,21 @@ declare namespace connect {
    */
   function hitch<T extends (...args: any[]) => any>(scope: object, method: T): T;
 
-  type StorageAcccessCallbackData = {
+  type StorageAccessCallbackData = {
     hasAccess?: boolean;
     [key: string]: any;
   }
+  type StorageAccessCallback = (option: StorageAccessCallbackData) => void;
 
-  interface StorageAcccessCallbacks {
-    onInit(options:StorageAcccessCallbackData): Function
-    onRequest(options:StorageAcccessCallbackData): Function
-    onDeny(options:StorageAcccessCallbackData): Function
+  interface StorageAccessCallbacks {
+    onInit?: StorageAccessCallback
+    onRequest?: StorageAccessCallback
+    onDeny?: StorageAccessCallback
+    onGrant?: StorageAccessCallback
   }
 
   interface StorageAccess {
-    onRequest(options: StorageAcccessCallbacks): {unsubscribe: Function}
+    onRequest(options: StorageAccessCallbacks): {unsubscribe: Function}
   }
 
   const storageAccess: StorageAccess;
