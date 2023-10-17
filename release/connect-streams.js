@@ -26296,7 +26296,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.7.2";
+  connect.version = "2.7.3";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
