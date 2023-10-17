@@ -1,6 +1,6 @@
 {
   "name": "amazon-connect-streams",
-  "version": "2.6.6",
+  "version": "2.6.7",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
