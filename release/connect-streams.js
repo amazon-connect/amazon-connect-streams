@@ -26297,7 +26297,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.6.7";
+  connect.version = "2.6.8";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -30473,6 +30473,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
     /* ["custom", "default"] - decides the rsa page view */
     mode: 'default',
     custom: {
+      hideCCP: true, // only applicable in custom mode
       /**
        * Only applicable for custom type RSA page and these messages should be localized by customers
        *
@@ -30532,7 +30533,13 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
    * Custom Mode will show minimalistic UI - without any Connect references or Connect headers
    *  This will allow fully Custom CCPs to use banner and use minimal real estate to show the storage access Content
    * */
-  const isCustomRequestAccessMode = () => storageParams && storageParams.mode !== 'default';
+  const isCustomRequestAccessMode = () => storageParams && storageParams.mode === 'custom';
+  		  
+  /**
+   * Check if the user wants to hide CCP
+   * By default this is true
+   */
+  const hideCCP = () => storageParams?.custom?.hideCCP;
 
   const isConnectDomain = (origin) => origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
 
@@ -30690,7 +30697,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
 
     requesthandlerUnsubscriber = onRequestHandler({
       onInit: (messageData) => {
-        console.log('%c[INIT]', 'background:lime; color: black; font-size:large');
+        console.log('%c[StorageAccess][INIT]', 'background:yellow; color:black; font-size:large');
         connect.getLog().info(`[StorageAccess][onInit] callback executed`).withObject(messageData?.data);
 
         if (!messageData?.data.hasAccess && isCustomRequestAccessMode()) {
@@ -30699,7 +30706,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
       },
 
       onDeny: () => {
-        console.log('%c[DENIED]', 'background:lime; color: black; font-size:large');
+        console.log('%c[StorageAccess][DENIED]', 'background:red; color:black; font-size:large');
         connect.getLog().info(`[StorageAccess][onDeny] callback executed`);
         if (isCustomRequestAccessMode()) {
           getRSAContainer().show();
@@ -30707,9 +30714,9 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
       },
 
       onGrant: () => {
-        console.log('%c[Granted]', 'background:lime; color: black; font-size:large');
+        console.log('%c[StorageAccess][GRANTED]', 'background:lime; color:black; font-size:large');
         connect.getLog().info(`[StorageAccess][onGrant] callback executed`);
-        if (isCustomRequestAccessMode()) {
+        if (isCustomRequestAccessMode() && hideCCP()) {
           getRSAContainer().hide();
         }
         // Invoke onGrantCallback only once as it setsup initCCP callbacks and events

@@ -209,6 +209,11 @@ everything set up correctly and that you are able to listen for events.
             ringtoneUrl: "./ringtone.mp3",// optional, defaults to CCP’s default ringtone if a falsy value is set
             disableEchoCancellation: false// optional, defaults to false
           },
+          storageAccess: {
+            canRequest: true, // By default this is set to true. You can set it to false to opt out from checking storage access.  
+            mode: "custom", // To use the default banner, set this to "default"
+            /** More customization options can be found here: https://docs.aws.amazon.com/connect/latest/adminguide/admin-3pcookies.html#config-grant-access */
+          },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
             enablePhoneTypeSettings: true //optional, defaults to 'true' 
