@@ -5991,7 +5991,7 @@ function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len 
   global.lily = connect;
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.7.7";
+  connect.version = "1.7.8";
   connect.DEFAULT_BATCH_SIZE = 500;
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
@@ -9469,6 +9469,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     /* ["custom", "default"] - decides the rsa page view */
     mode: "default",
     custom: {
+      hideCCP: true // only applicable in custom mode
       /**
        * Only applicable for custom type RSA page and these messages should be localized by customers
        *
@@ -9478,6 +9479,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
        */
     }
   };
+
   var storageParams = {};
   var originalCCPUrl = "";
   var rsaContainer = null;
@@ -9523,7 +9525,16 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
    *  This will allow fully Custom CCPs to use banner and use minimal real estate to show the storage access Content
    * */
   var isCustomRequestAccessMode = function isCustomRequestAccessMode() {
-    return storageParams && storageParams.mode !== "default";
+    return storageParams && storageParams.mode === 'custom';
+  };
+
+  /**
+   * Check if the user wants to hide CCP
+   * By default this is true
+   */
+  var hideCCP = function hideCCP() {
+    var _storageParams;
+    return (_storageParams = storageParams) === null || _storageParams === void 0 || (_storageParams = _storageParams.custom) === null || _storageParams === void 0 ? void 0 : _storageParams.hideCCP;
   };
   var isConnectDomain = function isConnectDomain(origin) {
     return origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
@@ -9676,23 +9687,23 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     }
     requesthandlerUnsubscriber = onRequestHandler({
       onInit: function onInit(messageData) {
-        console.log("%c[INIT]", "background:lime; color: black; font-size:large");
+        console.log('%c[StorageAccess][INIT]', 'background:yellow; color:black; font-size:large');
         connect.getLog().info("[StorageAccess][onInit] callback executed").withObject(messageData === null || messageData === void 0 ? void 0 : messageData.data);
         if (!(messageData !== null && messageData !== void 0 && messageData.data.hasAccess) && isCustomRequestAccessMode()) {
           getRSAContainer().show();
         }
       },
       onDeny: function onDeny() {
-        console.log("%c[DENIED]", "background:lime; color: black; font-size:large");
+        console.log('%c[StorageAccess][DENIED]', 'background:red; color:black; font-size:large');
         connect.getLog().info("[StorageAccess][onDeny] callback executed");
         if (isCustomRequestAccessMode()) {
           getRSAContainer().show();
         }
       },
       onGrant: function onGrant() {
-        console.log("%c[Granted]", "background:lime; color: black; font-size:large");
+        console.log('%c[StorageAccess][GRANTED]', 'background:lime; color:black; font-size:large');
         connect.getLog().info("[StorageAccess][onGrant] callback executed");
-        if (isCustomRequestAccessMode()) {
+        if (isCustomRequestAccessMode() && hideCCP()) {
           getRSAContainer().hide();
         }
         // Invoke onGrantCallback only once as it setsup initCCP callbacks and events

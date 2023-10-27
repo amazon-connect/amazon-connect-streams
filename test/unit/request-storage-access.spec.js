@@ -96,6 +96,7 @@ describe("Request Storage Access module", () => {
         },
         mode: "custom",
         custom: {
+          hideCCP: true,
           denyBannerButtonText: "Try again",
         },
       };
@@ -237,7 +238,7 @@ describe("Request Storage Access module", () => {
       expect(onGrantSpy.calledTwice).not.to.be.true;
     });
 
-    it("Should hide container if no access for custom types", () => {
+    it('Should hide container if mode is custom after granting access', () => {
       mockMessageFromIframe({
         event: connect.storageAccess.storageAccessEvents.GRANTED,
         data: {},
@@ -252,7 +253,52 @@ describe("Request Storage Access module", () => {
       expect(container.style.display).to.be.equals("none");
     });
 
-    it("Should display container if no access for custom types", () => {
+    it('Should not hide container if specified not to hide the iframe in custom mode', () => {
+      mockMessageFromIframe({
+        event: connect.storageAccess.storageAccessEvents.GRANTED,
+        data: {},
+      });
+ 
+      connect.storageAccess.init(ccpUrl, container, { mode: 'custom', custom: { hideCCP: false } });
+      connect.storageAccess.setupRequestHandlers({ onGrant: onGrantSpy });
+      connect.storageAccess.request();
+ 
+      expect(postMessageSpy.called).to.be.true;
+ 
+      expect(container.style.display).not.to.be.equals('none');
+    });
+ 
+    it('Should not hide container if mode is default and specified hideCCP to true', () => {
+      mockMessageFromIframe({
+        event: connect.storageAccess.storageAccessEvents.GRANTED,
+        data: {},
+      });
+ 
+      connect.storageAccess.init(ccpUrl, container, { mode: 'default' , custom: { hideCCP: true } });
+      connect.storageAccess.setupRequestHandlers({ onGrant: onGrantSpy });
+      connect.storageAccess.request();
+ 
+      expect(postMessageSpy.called).to.be.true;
+ 
+      expect(container.style.display).not.to.be.equals('none');
+    });
+ 
+    it('Should not hide container if mode is default', () => {
+      mockMessageFromIframe({
+        event: connect.storageAccess.storageAccessEvents.GRANTED,
+        data: {},
+      });
+ 
+      connect.storageAccess.init(ccpUrl, container, { mode: 'default' });
+      connect.storageAccess.setupRequestHandlers({ onGrant: onGrantSpy });
+      connect.storageAccess.request();
+ 
+      expect(postMessageSpy.called).to.be.true;
+ 
+      expect(container.style.display).not.to.be.equals('none');
+    });
+ 
+    it('Should display container if denied access for custom types', () => {
       mockMessageFromIframe({
         event: connect.storageAccess.storageAccessEvents.DENIED,
         data: {},
