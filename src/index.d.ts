@@ -332,6 +332,11 @@ declare namespace connect {
     };
     /** Customize messaging on the request/deny banners */
     custom?: {
+      /** 
+      * provides users the option to specify whether or not to hide CCP Iframe upon granting access when using custom mode
+      * @default true
+      */
+      hideCCP?: boolean;
       header?: string;
       title?: string;
       accessBannerDescription?: string;
