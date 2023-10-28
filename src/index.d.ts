@@ -806,6 +806,21 @@ declare namespace connect {
     METRICS = 'metrics',
   }
 
+
+  enum WebSocketEvents {
+    INIT_FAILURE = 'init_failure',
+    CONNECTION_OPEN = 'connection_open',
+    CONNECTION_CLOSE = 'connection_close',
+    CONNECTION_ERROR = 'connection_error',
+    CONNECTION_GAIN = 'connection_gain',
+    CONNECTION_LOST = 'connection_lost',
+    SUBSCRIPTION_UPDATE = 'subscription_update',
+    SUBSCRIPTION_FAILURE = 'subscription_failure',
+    ALL_MESSAGE = 'all_message',
+    SEND = 'send',
+    SUBSCRIBE = 'subscribe',
+  }
+
   /*
    * A callback to receive notifications of success or failure.
    */
