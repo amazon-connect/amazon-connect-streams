@@ -1493,7 +1493,7 @@
               connect.getLog().info("getSpeakerId succeeded").withObject(data).sendInternalLogToServer();
               resolve(obj);
             } else {
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call");
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId associated with this call");
               reject(error);
             }
 
