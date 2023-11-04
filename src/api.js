@@ -2212,12 +2212,12 @@
   }
 
   TaskConnection.prototype.getMediaInfo = function () {
-      var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-      var mediaObject = {
-        contactId: this.contactId,
-        initialContactId: contactData.initialContactId || this.contactId,
-      };
-      return mediaObject;
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    var mediaObject = {
+      contactId: this.contactId,
+      initialContactId: contactData.initialContactId || this.contactId,
+    };
+    return mediaObject;
   };
 
   TaskConnection.prototype.getMediaController = function () {
