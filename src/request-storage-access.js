@@ -102,7 +102,7 @@
    *  This will allow fully Custom CCPs to use banner and use minimal real estate to show the storage access Content
    * */
   const isCustomRequestAccessMode = () => storageParams && storageParams.mode === 'custom';
-	 
+
   /**
    * Check if the user wants to hide CCP
    * By default this is true
@@ -333,9 +333,10 @@
       connect
         .getLog()
         .info(
-          `[StorageAccess][init] Request Storage Acccess init called with ccpUrl - ${ccpUrl} - ${!storageParams.canRequest
-            ? 'user has opted out, skipping request storage access'
-            : 'Proceeding with requesting storage access'
+          `[StorageAccess][init] Request Storage Acccess init called with ccpUrl - ${ccpUrl} - ${
+            !storageParams.canRequest
+              ? 'user has opted out, skipping request storage access'
+              : 'Proceeding with requesting storage access'
           }`
         )
         .withObject(storageParams);

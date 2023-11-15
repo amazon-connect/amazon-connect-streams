@@ -2195,3 +2195,78 @@ if(voiceConnection.isUnderSupervision()) {
   /* Some logic here to indicate disabled call controls to the agent */
 }
 ```
+## Quick Responses APIs - These APIs are only available **after accepting a chat contact.**
+### `QuickResponses.isEnabled()`
+Determines if quick responses feature is enabled for a given agent. Returns ``true`` if there is a knowledge base for quick responses configured for the instance. If the first call returns true, the knowledgeBase ID will be cached in local storage for subsequent ``QuickResponse`` API calls.
+
+```js
+QuickResponses.isEnabled().then(response => {
+  ...
+})
+```
+### `QuickResponses.searchQuickResponses(params: QuickResponsesQuery)`
+
+Returns a list of Quick Responses based on the params given:
+```js
+  QuickResponsesQuery {
+    query: string; // query string
+    contactId?: string; // ID of a Contact object. Used to retrieve contact's attributes
+    nextToken?: string; // The token for the next set of results. Use the value returned in the previous response in the next request to retrieve the next set of results.
+    debounceMS?: number; // default value is 250ms. set it to 0 to disable debounced input change
+    maxResults?: number; //number of results to be returned
+  }
+```
+
+Example usage:
+```js
+const params = {
+  query: "Hel",
+  contactId: "...",
+  debounceMS: 300,
+  maxResults: 5
+};
+
+QuickResponsesService.searchQuickResponses(params: QuickResponsesQuery).then(response => {
+  ...
+});
+```
+
+Example response:
+```js
+{
+  "nextToken": "token_string",
+  "results": [
+    {
+      "attributesNotInterpolated": [],
+      "channels": [ "Chat" ],
+      "contentType": "application/x.quickresponse;format=markdown",
+      "contents": {
+          "markdown": {
+              "content": "Hello"
+          },
+          "plainText": {
+              "content": "Hello"
+          }
+      },
+      "createdTime": 1697812550,
+      "description": "Test",
+      "groupingConfiguration": {
+          "criteria": "RoutingProfileArn",
+          "values": [ "..." ]
+      },
+      "isActive": true,
+      "knowledgeBaseArn": "...",
+      "knowledgeBaseId": "...",
+      "language": "en_US",
+      "lastModifiedBy": "...",
+      "lastModifiedTime": 1697812550,
+      "name": "Test",
+      "quickResponseArn": "...",
+      "quickResponseId": "...",
+      "shortcutKey": "Test",
+      "status": "CREATED"
+    },
+    //... more results
+  ]
+}
+```

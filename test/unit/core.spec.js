@@ -2071,6 +2071,7 @@ describe('Core', function () {
         function isCCPTerminated() {
             try {
                 assert.isEmpty(connect.core.client);
+                assert.isEmpty(connect.core.apiProxyClient);
                 assert.isEmpty(connect.core.agentAppClient);
                 assert.isEmpty(connect.core.taskTemplatesClient);
                 assert.isEmpty(connect.core.masterClient);
@@ -2161,6 +2162,36 @@ describe('Core', function () {
         });
     });
 
+    describe('Api Proxy Client initialization', function () {
+        jsdom({ url: "http://localhost" });
+        before(() => {
+            containerDiv = { appendChild: sandbox.spy() };
+            params = {
+                ccpUrl: "url.com",
+                loginOptions: { autoClose: true }
+            };
+            sandbox.stub(connect.core, "checkNotInitialized").returns(false);
+            sandbox.stub(connect, "UpstreamConduitClient");
+            sandbox.stub(connect, "UpstreamConduitMasterClient");
+            connect.numberOfConnectedCCPs = 0;
+            connect.agent.initialized = true;
+            connect.core.initCCP(containerDiv, params);
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        it('ApiProxyService initialization should initialize api proxy client', () => {
+            connect.core.initApiProxyService(params);
+            expect(connect.core.apiProxyClient).not.to.be.a("null");
+            expect (typeof connect.core.apiProxyClient).to.equal("object");
+        });
+        it('ApiProxyService initialization should include handler when CCP is framed', () => {
+            sandbox.stub(connect, "isFramed").returns(true);
+            connect.core.initApiProxyService(params);
+            expect(connect.core.handleApiProxyRequest).not.to.be.a("null");
+            expect(typeof connect.core.handleApiProxyRequest).to.equal("function")
+        });
+    })
 
     describe.skip('initCCP with storage Access Params', function () {
         it('Should load request storage access page with storage Access params', function () { });

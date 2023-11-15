@@ -728,3 +728,23 @@ describe('AWSClient', function () {
         sandbox.restore();
     });
 });
+
+describe('ApiProxyClient', function() {
+    var sandbox = sinon.createSandbox();
+    const callbacks = {};
+
+    beforeEach(function () {
+        successSpy = sandbox.spy();
+        failureSpy = sandbox.spy();
+        callbacks.success = successSpy;
+        callbacks.failure = failureSpy;
+    });
+
+    describe.skip('_callImpl', function () {
+        it('sends request through to API_PROXY_REQUEST event bus', function() {});
+
+        it('calls failure callback with exception when method fails', function() {});
+
+        it('calls success callback when response completes', function() {});
+    });
+})

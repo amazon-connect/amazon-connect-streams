@@ -23,10 +23,8 @@
     var logComponent = connect.LogComponent.TASK;
 
     var createMediaInstance = function () {
-      publishTelemetryEvent("Task media controller init", mediaInfo.contactId);
-      logger
-        .info(logComponent, "Task media controller init")
-        .withObject(mediaInfo);
+      publishTelemetryEvent('Task media controller init', mediaInfo.contactId);
+      logger.info(logComponent, 'Task media controller init').withObject(mediaInfo);
 
       var controller = connect.TaskSession.create({
         contactId: mediaInfo.contactId,
@@ -39,30 +37,15 @@
       return controller
         .connect()
         .then(function () {
-          logger.info(
-            logComponent,
-            "Task Session Successfully established for contactId %s",
-            mediaInfo.contactId
-          );
-          publishTelemetryEvent(
-            "Task Session Successfully established",
-            mediaInfo.contactId
-          );
+          logger.info(logComponent, 'Task Session Successfully established for contactId %s', mediaInfo.contactId);
+          publishTelemetryEvent('Task Session Successfully established', mediaInfo.contactId);
           return controller;
         })
         .catch(function (error) {
           logger
-            .error(
-              logComponent,
-              "Task Session establishement failed for contact %s",
-              mediaInfo.contactId
-            )
+            .error(logComponent, 'Task Session establishement failed for contact %s', mediaInfo.contactId)
             .withException(error);
-          publishTelemetryEvent(
-            "Chat Session establishement failed",
-            mediaInfo.contactId,
-            error
-          );
+          publishTelemetryEvent('Chat Session establishement failed', mediaInfo.contactId, error);
           throw error;
         });
     };
@@ -77,17 +60,13 @@
 
     var trackTaskConnectionStatus = function (controller) {
       controller.onConnectionBroken(function (data) {
-        logger
-          .error(logComponent, "Task Session connection broken")
-          .withException(data);
-        publishTelemetryEvent("Task Session connection broken", data);
+        logger.error(logComponent, 'Task Session connection broken').withException(data);
+        publishTelemetryEvent('Task Session connection broken', data);
       });
 
       controller.onConnectionEstablished(function (data) {
-        logger
-          .info(logComponent, "Task Session connection established")
-          .withObject(data);
-        publishTelemetryEvent("Task Session connection established", data);
+        logger.info(logComponent, 'Task Session connection established').withObject(data);
+        publishTelemetryEvent('Task Session connection established', data);
       });
     };
 

@@ -407,6 +407,7 @@
    */
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
+    connect.core.apiProxyClient = new connect.NullClient();
     connect.core.agentAppClient = new connect.NullClient();
     connect.core.taskTemplatesClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
@@ -856,6 +857,26 @@
     }
   };
 
+  //only used in CCP to initialize everything needed for Api Proxy
+  connect.core.initApiProxyService = function () {
+    connect.core.apiProxyClient = new connect.ApiProxyClient();
+    if (connect.isFramed()) {
+      connect.core.handleApiProxyRequest = function (request) {
+        if(!request?.method) return;
+        const successCB = function (data) {
+          const response = { data, requestId: request.requestId };
+          connect.core.getUpstream().sendDownstream(connect.EventType.API_RESPONSE, response);
+        };
+        const failureCB = function (err) {
+          const response = { err, requestId: request.requestId };
+          connect.core.getUpstream().sendDownstream(connect.EventType.API_RESPONSE, response);
+        };
+        const client = connect.core.getApiProxyClient();
+        client.call(request.method, request.params, { success: successCB, failure: failureCB })
+      }
+    }
+  }
+ 
   /**-------------------------------------------------------------------------
    * Get the list of media devices from iframed CCP
    * Timeout for the request is passed on an optional argument
@@ -1018,8 +1039,16 @@
       if (connect.isFramed()) {
         // Bridge all downstream messages into the event bus.
         conduit.onAllDownstream(connect.core.getEventBus().bridge());
-        // Pass all downstream messages (from CCP consumer) upstream (to shared worker).
-        conduit.onAllDownstream(conduit.passUpstream());
+        // Pass all downstream messages (from CCP consumer) upstream (to shared worker) when not using API Proxy Client.
+        conduit.onAllDownstream(function(data, eventName) {
+          if(eventName === connect.EventType.API_REQUEST && 
+             connect.containsValue(connect.ApiProxyClientMethods, data?.method))
+          {
+            connect.core.handleApiProxyRequest(data);
+          }
+          else
+            conduit.passUpstream()(data, eventName);
+        });
       }
 
       // Send configuration up to the shared worker.
@@ -2212,6 +2241,15 @@
     return connect.core.client;
   };
   connect.core.client = null;
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.getApiProxyClient = function () {
+    if (!connect.core.apiProxyClient) {
+      throw new connect.StateError('The connect apiProxy Client has not been initialized!');
+    }
+    return connect.core.apiProxyClient;
+  };
+  connect.core.apiProxyClient = null;
 
   /**-----------------------------------------------------------------------*/
   connect.core.getAgentAppClient = function () {
