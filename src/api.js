@@ -347,6 +347,48 @@
   };
 
   /*----------------------------------------------------------------
+   * Quick Responses APIs (utilizes public api proxy -- No shared worker involvement)
+   */
+  class QuickResponses {
+    static isEnabled = function() {
+      const client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
+      return new Promise(function (resolve, reject) {
+        client.call(connect.ApiProxyClientMethods.QR_INTEGRATION_EXISTS, null, {
+          success: function (data) {
+            connect.getLog().info("Quick Responses isEnabled succeeded").withObject(data).sendInternalLogToServer();
+            resolve(data);
+          },
+          failure: function (err) {
+            connect.getLog().error("Quick Responses isEnabled failed")
+              .withException(err).sendInternalLogToServer();
+            reject(err);
+          }
+        });
+      });   
+    }
+    
+    static searchQuickResponses = function(params) {
+      const client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
+      const attributes = params?.contactId ? new Contact(params.contactId).getAttributes() : undefined;
+      return new Promise(function (resolve, reject) {
+        client.call(connect.ApiProxyClientMethods.QR_SEARCH_QUICK_RESPONSES, {
+          ...params,
+          attributes }, {
+          success: function (data) {
+            connect.getLog().info("searchQuickResponses succeeded").withObject(data).sendInternalLogToServer();
+            resolve(data);
+          },
+          failure: function (err) {
+            connect.getLog().error("searchQuickResponses failed")
+              .withException(err).sendInternalLogToServer();
+            reject(err);
+          }
+        });
+      });  
+    }
+  };
+
+  /*----------------------------------------------------------------
    * class Agent
    */
   var Agent = function () {
@@ -884,6 +926,15 @@
   Contact.prototype.getChannelContext = function () {
     return this._getData().channelContext;
   };
+
+  Contact.prototype.getSegmentAttributes = function () {
+    return this._getData().segmentAttributes;
+  }
+
+  Contact.prototype.getContactSubtype = function () {
+    const segmentAttributes = this.getSegmentAttributes();
+    return segmentAttributes && segmentAttributes["connect:Subtype"] ? segmentAttributes["connect:Subtype"].ValueString : null;
+  }
 
   Contact.prototype.isSoftphoneCall = function () {
     return connect.find(this.getConnections(), function (conn) {
@@ -2395,5 +2446,6 @@
   connect.Address = Endpoint;
   connect.SoftphoneError = SoftphoneError;
   connect.VoiceId = VoiceId;
+  connect.QuickResponses = QuickResponses;
 })();
 

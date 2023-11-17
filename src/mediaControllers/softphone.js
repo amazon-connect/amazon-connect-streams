@@ -22,8 +22,8 @@
   connect.SoftphoneMediaController = function (mediaInfo) {
     return {
       get: function () {
-        return Promise.resolve(mediaInfo)
-      }
-    }
-  }
+        return Promise.resolve(mediaInfo);
+      },
+    };
+  };
 })();

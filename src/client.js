@@ -84,6 +84,14 @@
    ]);
 
    /**---------------------------------------------------------------
+    * enum ApiProxyClientMethods
+    */
+   connect.ApiProxyClientMethods = connect.makeEnum([
+      'qrIntegrationExists',
+      'qrSearchQuickResponses',
+   ]);
+
+   /**---------------------------------------------------------------
     * client methods that are retryable
     */
 
@@ -187,7 +195,6 @@
       } catch (err) {
          connect.getLog().error("Stack trace Log Failed").withObject({ err }).sendInternalLogToServer();
       }
-
       this.conduit.sendUpstream(request.event, request);
    };
 
@@ -224,6 +231,48 @@
    UpstreamConduitClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
    UpstreamConduitClient.prototype.constructor = UpstreamConduitClient;
 
+   /**---------------------------------------------------------------
+    * class ApiProxyClient extends ClientBase
+    */ 
+   var ApiProxyClient = function () { 
+      ClientBase.call(this);
+      const bus = connect.core.getEventBus();
+      bus.subscribe(connect.EventType.API_PROXY_RESPONSE, connect.hitch(this, this._handleResponse))
+      this._requestIdCallbacksMap = {};
+   };
+
+   /**
+    * An eventbus client/wrapper. Sends API_PROXY_REQUEST events and listens for API_PROXY_RESPONSE events.
+    */
+   ApiProxyClient.prototype = Object.create(ClientBase.prototype);
+   ApiProxyClient.prototype.constructor = ApiProxyClient;
+
+   ApiProxyClient.prototype._callImpl = function (method, params, callbacks) {
+      var request = connect.EventFactory.createRequest(connect.EventType.API_PROXY_REQUEST, method, params);
+      this._requestIdCallbacksMap[request.requestId] = callbacks;
+      connect.core.getEventBus().trigger(connect.EventType.API_PROXY_REQUEST, request); //sends to CCP listener
+   }
+
+   ApiProxyClient.prototype._getCallbacksForRequest = function (requestId) {
+      var callbacks = this._requestIdCallbacksMap[requestId] || null;
+      if (callbacks != null) {
+         delete this._requestIdCallbacksMap[requestId];
+      }
+      return callbacks;
+   };
+
+   ApiProxyClient.prototype._handleResponse = function (data) {
+      var callbacks = this._getCallbacksForRequest(data.requestId);
+      if (callbacks == null) {
+         return;
+      }
+      if (data.err && callbacks.failure) {
+         callbacks.failure(data.err, data.data);
+      } else if (callbacks.success) {
+         callbacks.success(data.data);
+      }
+   };
+   
    /**---------------------------------------------------------------
     * class UpstreamConduitMasterClient extends ClientBase
     */
@@ -660,6 +709,7 @@
    connect.ClientBase = ClientBase;
    connect.NullClient = NullClient;
    connect.UpstreamConduitClient = UpstreamConduitClient;
+   connect.ApiProxyClient = ApiProxyClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
    connect.AgentAppClient = AgentAppClient;

@@ -27,30 +27,42 @@
     var logComponent = connect.LogComponent.CHAT;
 
     var metadata = connect.merge({}, params) || {};
-    metadata.region =  metadata.region || "us-west-2"; // Default it to us-west-2
+    metadata.region = metadata.region || 'us-west-2'; // Default it to us-west-2
 
     var getMediaController = function (connectionObj) {
       var connectionId = connectionObj.getConnectionId();
       var mediaInfo = connectionObj.getMediaInfo();
       /** if we do not have the media info then just reject the request */
       if (!mediaInfo) {
-        logger.error(logComponent, "Media info does not exist for a media type %s", connectionObj.getMediaType())
-          .withObject(connectionObj).sendInternalLogToServer();
-        return Promise.reject("Media info does not exist for this connection");
+        logger
+          .error(logComponent, 'Media info does not exist for a media type %s', connectionObj.getMediaType())
+          .withObject(connectionObj)
+          .sendInternalLogToServer();
+        return Promise.reject('Media info does not exist for this connection');
       }
 
       if (!mediaControllers[connectionId]) {
-        logger.info(logComponent, "media controller of type %s init", connectionObj.getMediaType())
-          .withObject(connectionObj).sendInternalLogToServer();
+        logger
+          .info(logComponent, 'media controller of type %s init', connectionObj.getMediaType())
+          .withObject(connectionObj)
+          .sendInternalLogToServer();
         switch (connectionObj.getMediaType()) {
           case connect.MediaType.CHAT:
-            return mediaControllers[connectionId] = new connect.ChatMediaController(connectionObj.getMediaInfo(), metadata).get();
+            return (mediaControllers[connectionId] = new connect.ChatMediaController(
+              connectionObj.getMediaInfo(),
+              metadata
+            ).get());
           case connect.MediaType.SOFTPHONE:
-            return mediaControllers[connectionId] = new connect.SoftphoneMediaController(connectionObj.getMediaInfo()).get();
+            return (mediaControllers[connectionId] = new connect.SoftphoneMediaController(
+              connectionObj.getMediaInfo()
+            ).get());
           case connect.MediaType.TASK:
-            return mediaControllers[connectionId] = new connect.TaskMediaController(connectionObj.getMediaInfo()).get();
+            return (mediaControllers[connectionId] = new connect.TaskMediaController(
+              connectionObj.getMediaInfo()
+            ).get());
           default:
-            logger.error(logComponent, "Unrecognized media type %s ", connectionObj.getMediaType())
+            logger
+              .error(logComponent, 'Unrecognized media type %s ', connectionObj.getMediaType())
               .sendInternalLogToServer();
             return Promise.reject();
         }
@@ -69,25 +81,21 @@
         return getMediaController(connectionObj);
       } else {
         destroy(connectionObj.getConnectionId());
-        return Promise.reject("Media Controller is no longer available for this connection");
+        return Promise.reject('Media Controller is no longer available for this connection');
       }
     };
 
     var destroy = function (connectionId) {
       if (mediaControllers[connectionId] && !toBeDestroyed.has(connectionId)) {
-        logger.info(
-          logComponent,
-          "Destroying mediaController for %s",
-          connectionId
-        );
+        logger.info(logComponent, 'Destroying mediaController for %s', connectionId);
         toBeDestroyed.add(connectionId);
         mediaControllers[connectionId]
-          .then(function() {
-            if (typeof controller.cleanUp === "function") controller.cleanUp();
+          .then(function () {
+            if (typeof controller.cleanUp === 'function') controller.cleanUp();
             delete mediaControllers[connectionId];
             toBeDestroyed.delete(connectionId);
           })
-          .catch(function() {
+          .catch(function () {
             delete mediaControllers[connectionId];
             toBeDestroyed.delete(connectionId);
           });
@@ -96,7 +104,7 @@
 
     return {
       get: get,
-      destroy: destroy
+      destroy: destroy,
     };
-  }
+  };
 })();

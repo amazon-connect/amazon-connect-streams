@@ -102,14 +102,15 @@
    *  This will allow fully Custom CCPs to use banner and use minimal real estate to show the storage access Content
    * */
   const isCustomRequestAccessMode = () => storageParams && storageParams.mode === 'custom';
-	 
+
   /**
    * Check if the user wants to hide CCP
    * By default this is true
    */
   const hideCCP = () => storageParams?.custom?.hideCCP;
 
-  const isConnectDomain = (origin) => origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
+  const isConnectDomain = (origin) =>
+    origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
 
   /**
    * Given the URL, this method generates the prefixed connect domain request storage access URL
@@ -333,9 +334,10 @@
       connect
         .getLog()
         .info(
-          `[StorageAccess][init] Request Storage Acccess init called with ccpUrl - ${ccpUrl} - ${!storageParams.canRequest
-            ? 'user has opted out, skipping request storage access'
-            : 'Proceeding with requesting storage access'
+          `[StorageAccess][init] Request Storage Acccess init called with ccpUrl - ${ccpUrl} - ${
+            !storageParams.canRequest
+              ? 'user has opted out, skipping request storage access'
+              : 'Proceeding with requesting storage access'
           }`
         )
         .withObject(storageParams);

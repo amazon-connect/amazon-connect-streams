@@ -49,7 +49,10 @@
     'authorize_success',
     'authorize_retries_exhausted',
     'cti_authorize_retries_exhausted',
-    'click_stream_data'
+    'click_stream_data',
+    'set_quick_get_agent_snapshot_flag',
+    'api_proxy_request',
+    'api_proxy_response'
   ]);
 
   /**---------------------------------------------------------------
@@ -130,7 +133,6 @@
   var TaskEvents = connect.makeNamespacedEnum('task', [
       'created'
   ]);
-
 
   /**---------------------------------------------------------------
   * enum ConnectionEvents

@@ -253,7 +253,11 @@ declare namespace connect {
     AUTHORIZE_SUCCESS = 'authorize_success',
     AUTHORIZE_RETRIES_EXHAUSTED = 'authorize_retries_exhausted',
     CTI_AUTHORIZE_RETRIES_EXHAUSTED = 'cti_authorize_retries_exhausted',
-    CLICK_STREAM_DATA = 'click_stream_data'
+    CLICK_STREAM_DATA = 'click_stream_data',
+    SET_QUICK_GET_AGENT_SNAPSHOT_FLAG = 'set_quick_get_agent_snapshot_flag',
+    API_PROXY = 'api_proxy',
+    API_PROXY_REQUEST = 'api_proxy_request',
+    API_PROXY_RESPONSE = 'api_proxy_response'
   }
 
   const core: Core;
@@ -1289,6 +1293,12 @@ declare namespace connect {
     };
   }
 
+  interface SegmentAttributeDictionary {
+    readonly [key: string]: {
+      valueString: string;
+    }
+  }
+
   interface ReferenceDictionary {
     readonly [key: string]: {
       type: ReferenceType;
@@ -1586,6 +1596,74 @@ declare namespace connect {
     */
     updateMonitorParticipantState(targetState: MonitoringMode, callbacks?: SuccessFailOptions): void;
   }
+
+  class QuickResponses {
+     /** 
+      * Determine whether Quick Responses is enabled for this instance. Should only be called once during initialization
+      * @returns A boolean, true if feature is enabled, false otherwise.
+      */
+    static isEnabled(): Promise<boolean>;
+
+    /**
+     * Sends a request to retrieve a list of quick responses.
+     * @param params  Uses QuickResponsesQuery interface
+     * @returns An array of objects with QuickResponse interface
+     */
+    static searchQuickResponses(params: QuickResponsesQuery): Promise<SearchQuickResponsesResult>;
+  }
+
+  interface QuickResponsesQuery {
+    query: string;
+    contactId?: string;
+    nextToken?: string;
+    debounceMS?: number;
+  }
+
+  interface SearchQuickResponsesResult {
+    results: QuickResponse[],
+    nextToken?: string
+  }
+  interface QuickResponse {
+    quickResponseArn: string;
+    quickResponseId: string;
+    knowledgeBaseArn: string;
+    knowledgeBaseId: string;
+    name: string;
+    version: string;
+    contentType: QuickResponseContentType;
+    status: QuickResponseStatusType;
+    statusReason: string;
+    createdTime: number;
+    lastModifiedTime: number;
+    title?: string;
+    contents: QuickResponseContentsType;
+    description?: string;
+    groupingConfiguration: GroupingConfigurationType;
+    shortcutKey?: string;
+    lastModifiedBy: string;
+    isActive: boolean;
+    channels: QuickResponseChannels;
+    language: string;
+    tags: Tags;
+  }
+
+  type QuickResponseContentType = 'markdown' | 'plainText';
+  type QuickResponseStatusType = 'active' | 'inactive';
+  type QuickResponseContentsType = {
+    plainText: {
+      content: string;
+    };
+    markdown: {
+      content: string;
+    };
+  };
+  type GroupingConfigurationType = {
+    criteria: string;
+    values: Array<string | null>;
+  };
+  type QuickResponseChannelType = 'Chat' | 'email' | 'voice' | 'tasks';
+  type QuickResponseChannels = Array<QuickResponseChannelType>;
+  type Tags = Array<string | null>;
 
   interface ContactState {
     /** The contact state type, as per the ContactStateType enumeration. */

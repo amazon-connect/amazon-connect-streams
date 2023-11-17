@@ -23,37 +23,39 @@
     var logComponent = connect.LogComponent.CHAT;
 
     var createMediaInstance = function () {
-      publishTelemetryEvent("Chat media controller init", mediaInfo.contactId);
-      logger.info(logComponent, "Chat media controller init")
-        .withObject(mediaInfo).sendInternalLogToServer();
+      publishTelemetryEvent('Chat media controller init', mediaInfo.contactId);
+      logger.info(logComponent, 'Chat media controller init').withObject(mediaInfo).sendInternalLogToServer();
 
       connect.ChatSession.setGlobalConfig({
         loggerConfig: {
-          logger: logger
+          logger: logger,
         },
-        region: metadata.region
+        region: metadata.region,
       });
 
       /** Could be also CUSTOMER -  For now we are creating only Agent connection media object */
       var controller = connect.ChatSession.create({
         chatDetails: mediaInfo,
-        type: "AGENT",
-        websocketManager: connect.core.getWebSocketManager()
+        type: 'AGENT',
+        websocketManager: connect.core.getWebSocketManager(),
       });
-      
+
       trackChatConnectionStatus(controller);
       return controller
         .connect()
         .then(function (data) {
-          logger.info(logComponent, "Chat Session Successfully established for contactId %s", mediaInfo.contactId)
+          logger
+            .info(logComponent, 'Chat Session Successfully established for contactId %s', mediaInfo.contactId)
             .sendInternalLogToServer();
-          publishTelemetryEvent("Chat Session Successfully established", mediaInfo.contactId);
+          publishTelemetryEvent('Chat Session Successfully established', mediaInfo.contactId);
           return controller;
         })
         .catch(function (error) {
-          logger.error(logComponent, "Chat Session establishement failed for contact %s", mediaInfo.contactId)
-            .withException(error).sendInternalLogToServer();
-          publishTelemetryEvent("Chat Session establishement failed", mediaInfo.contactId, error);
+          logger
+            .error(logComponent, 'Chat Session establishement failed for contact %s', mediaInfo.contactId)
+            .withException(error)
+            .sendInternalLogToServer();
+          publishTelemetryEvent('Chat Session establishement failed', mediaInfo.contactId, error);
           throw error;
         });
     };
@@ -62,28 +64,26 @@
       connect.publishMetric({
         name: eventName,
         contactId: mediaInfo.contactId,
-        data: data || mediaInfo
+        data: data || mediaInfo,
       });
     };
 
     var trackChatConnectionStatus = function (controller) {
       controller.onConnectionBroken(function (data) {
-        logger.error(logComponent, "Chat Session connection broken")
-          .withException(data).sendInternalLogToServer();
-        publishTelemetryEvent("Chat Session connection broken", data);
+        logger.error(logComponent, 'Chat Session connection broken').withException(data).sendInternalLogToServer();
+        publishTelemetryEvent('Chat Session connection broken', data);
       });
 
       controller.onConnectionEstablished(function (data) {
-        logger.info(logComponent, "Chat Session connection established")
-          .withObject(data).sendInternalLogToServer();
-        publishTelemetryEvent("Chat Session connection established", data);
+        logger.info(logComponent, 'Chat Session connection established').withObject(data).sendInternalLogToServer();
+        publishTelemetryEvent('Chat Session connection established', data);
       });
-    }
+    };
 
     return {
       get: function () {
         return createMediaInstance();
-      }
-    }
-  }
+      },
+    };
+  };
 })();

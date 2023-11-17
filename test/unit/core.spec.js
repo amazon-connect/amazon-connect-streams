@@ -2071,6 +2071,7 @@ describe('Core', function () {
         function isCCPTerminated() {
             try {
                 assert.isEmpty(connect.core.client);
+                assert.isEmpty(connect.core.apiProxyClient);
                 assert.isEmpty(connect.core.agentAppClient);
                 assert.isEmpty(connect.core.taskTemplatesClient);
                 assert.isEmpty(connect.core.masterClient);
@@ -2161,6 +2162,46 @@ describe('Core', function () {
         });
     });
 
+    describe('Api Proxy Client initialization', function () {
+        beforeEach(() => {
+            connect.core.apiProxyClient = null;
+            sandbox.stub(connect, "isFramed").returns(true);
+            sandbox.spy(connect.core.getUpstream(), "onDownstream");
+        });
+
+        it('ApiProxyService initialization should initialize api proxy client', () => {
+            connect.core.initApiProxyService(params);
+            expect(connect.core.apiProxyClient).not.to.be.a("null");
+            expect(typeof connect.core.apiProxyClient).to.equal("object");
+        });
+
+        it('ApiProxyService initialization should bridge conduit when CCP is framed', () => {
+            // GIVEN we're in a frame
+            connect.isFramed.returns(true);
+
+            // WHEN the proxy is initialized
+            connect.core.initApiProxyService(params);
+
+            // THEN listen for conduit
+            expect(connect.core.handleApiProxyRequest).to.exist;
+        });
+
+        it('ApiProxyService initialization should not bridge conduit when CCP is not framed', () => {
+            // GIVEN we're not in a frame
+            connect.isFramed.returns(false);
+
+            // WHEN the proxy is initialized
+            connect.core.initApiProxyService(params);
+
+            // THEN don't listen for conduit
+            expect(connect.core.handleApiProxyRequest).to.not.exist;
+        });
+
+        afterEach(() => {
+            sandbox.restore();
+            connect.core.handleApiProxyRequest = null;
+        });
+    });
 
     describe.skip('initCCP with storage Access Params', function () {
         it('Should load request storage access page with storage Access params', function () { });
