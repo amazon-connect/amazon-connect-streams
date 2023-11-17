@@ -2195,7 +2195,7 @@ if(voiceConnection.isUnderSupervision()) {
   /* Some logic here to indicate disabled call controls to the agent */
 }
 ```
-## Quick Responses APIs - These APIs are only available **after accepting a chat contact.**
+## Quick responses APIs - These APIs are only available **after accepting a chat contact.**
 ### `QuickResponses.isEnabled()`
 Determines if quick responses feature is enabled for a given agent. Returns ``true`` if there is a knowledge base for quick responses configured for the instance. If the first call returns true, the knowledgeBase ID will be cached in local storage for subsequent ``QuickResponse`` API calls.
 
@@ -2206,7 +2206,7 @@ QuickResponses.isEnabled().then(response => {
 ```
 ### `QuickResponses.searchQuickResponses(params: QuickResponsesQuery)`
 
-Returns a list of Quick Responses based on the params given:
+Returns a list of Quick responses based on the params given:
 ```js
   QuickResponsesQuery {
     query: string; // query string
