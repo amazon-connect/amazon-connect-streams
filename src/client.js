@@ -241,11 +241,14 @@
       this._requestIdCallbacksMap = {};
    };
 
+   /**
+    * An eventbus client/wrapper. Sends API_PROXY_REQUEST events and listens for API_PROXY_RESPONSE events.
+    */
    ApiProxyClient.prototype = Object.create(ClientBase.prototype);
    ApiProxyClient.prototype.constructor = ApiProxyClient;
 
-   ApiProxyClient.prototype._callImpl = function(method, params, callbacks) {
-      var request = connect.EventFactory.createRequest(this.requestEvent, method, params);
+   ApiProxyClient.prototype._callImpl = function (method, params, callbacks) {
+      var request = connect.EventFactory.createRequest(connect.EventType.API_PROXY_REQUEST, method, params);
       this._requestIdCallbacksMap[request.requestId] = callbacks;
       connect.core.getEventBus().trigger(connect.EventType.API_PROXY_REQUEST, request); //sends to CCP listener
    }

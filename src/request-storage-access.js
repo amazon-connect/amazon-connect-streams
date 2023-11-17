@@ -109,7 +109,8 @@
    */
   const hideCCP = () => storageParams?.custom?.hideCCP;
 
-  const isConnectDomain = (origin) => origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
+  const isConnectDomain = (origin) =>
+    origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
 
   /**
    * Given the URL, this method generates the prefixed connect domain request storage access URL

@@ -26098,11 +26098,14 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       this._requestIdCallbacksMap = {};
    };
 
+   /**
+    * An eventbus client/wrapper. Sends API_PROXY_REQUEST events and listens for API_PROXY_RESPONSE events.
+    */
    ApiProxyClient.prototype = Object.create(ClientBase.prototype);
    ApiProxyClient.prototype.constructor = ApiProxyClient;
 
-   ApiProxyClient.prototype._callImpl = function(method, params, callbacks) {
-      var request = connect.EventFactory.createRequest(this.requestEvent, method, params);
+   ApiProxyClient.prototype._callImpl = function (method, params, callbacks) {
+      var request = connect.EventFactory.createRequest(connect.EventType.API_PROXY_REQUEST, method, params);
       this._requestIdCallbacksMap[request.requestId] = callbacks;
       connect.core.getEventBus().trigger(connect.EventType.API_PROXY_REQUEST, request); //sends to CCP listener
    }
@@ -27609,15 +27612,15 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
  
       connect.getLog().scheduleUpstreamLogPush(conduit);
       connect.getLog().scheduleDownstreamClientSideLogsPush();
-      // Bridge all upstream messages into the event bus.
+      // Bridge all messages from "upstream" into the event bus
       conduit.onAllUpstream(connect.core.getEventBus().bridge());
-      // Pass all upstream messages (from shared worker) downstream (to CCP consumer).
+      // Pass all messages from "upstream" to "downstream"
       conduit.onAllUpstream(conduit.passDownstream());
 
       if (connect.isFramed()) {
-        // Bridge all downstream messages into the event bus.
+        // Bridge all messages from "downstream" into the event bus
         conduit.onAllDownstream(connect.core.getEventBus().bridge());
-        // Pass all downstream messages (from CCP consumer) upstream (to shared worker) when not using API Proxy Client.
+        // Pass all messages from "downstream" to "upstream" (except API Proxy Requests)
         conduit.onAllDownstream(function(data, eventName) {
           if(eventName === connect.EventType.API_REQUEST && 
              connect.containsValue(connect.ApiProxyClientMethods, data?.method))
@@ -28948,11 +28951,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     'authorize_retries_exhausted',
     'cti_authorize_retries_exhausted',
     'click_stream_data',
-    'tab_visible_while_softphone_contact_connecting',
-    'report_missed_call_info',
-    'set_chatjs_feature_flag',
-    'check_media_stream',
-    'set_early_gum_feature_flag',
     'set_quick_get_agent_snapshot_flag',
     'api_proxy_request',
     'api_proxy_response'
@@ -30865,7 +30863,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    */
   const hideCCP = () => storageParams?.custom?.hideCCP;
 
-  const isConnectDomain = (origin) => origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
+  const isConnectDomain = (origin) =>
+    origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
 
   /**
    * Given the URL, this method generates the prefixed connect domain request storage access URL

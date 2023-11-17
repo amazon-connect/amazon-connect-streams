@@ -2163,35 +2163,45 @@ describe('Core', function () {
     });
 
     describe('Api Proxy Client initialization', function () {
-        jsdom({ url: "http://localhost" });
-        before(() => {
-            containerDiv = { appendChild: sandbox.spy() };
-            params = {
-                ccpUrl: "url.com",
-                loginOptions: { autoClose: true }
-            };
-            sandbox.stub(connect.core, "checkNotInitialized").returns(false);
-            sandbox.stub(connect, "UpstreamConduitClient");
-            sandbox.stub(connect, "UpstreamConduitMasterClient");
-            connect.numberOfConnectedCCPs = 0;
-            connect.agent.initialized = true;
-            connect.core.initCCP(containerDiv, params);
+        beforeEach(() => {
+            connect.core.apiProxyClient = null;
+            sandbox.stub(connect, "isFramed").returns(true);
+            sandbox.spy(connect.core.getUpstream(), "onDownstream");
         });
-        after(() => {
-            sandbox.restore();
-        });
+
         it('ApiProxyService initialization should initialize api proxy client', () => {
             connect.core.initApiProxyService(params);
             expect(connect.core.apiProxyClient).not.to.be.a("null");
-            expect (typeof connect.core.apiProxyClient).to.equal("object");
+            expect(typeof connect.core.apiProxyClient).to.equal("object");
         });
-        it('ApiProxyService initialization should include handler when CCP is framed', () => {
-            sandbox.stub(connect, "isFramed").returns(true);
+
+        it('ApiProxyService initialization should bridge conduit when CCP is framed', () => {
+            // GIVEN we're in a frame
+            connect.isFramed.returns(true);
+
+            // WHEN the proxy is initialized
             connect.core.initApiProxyService(params);
-            expect(connect.core.handleApiProxyRequest).not.to.be.a("null");
-            expect(typeof connect.core.handleApiProxyRequest).to.equal("function")
+
+            // THEN listen for conduit
+            expect(connect.core.handleApiProxyRequest).to.exist;
         });
-    })
+
+        it('ApiProxyService initialization should not bridge conduit when CCP is not framed', () => {
+            // GIVEN we're not in a frame
+            connect.isFramed.returns(false);
+
+            // WHEN the proxy is initialized
+            connect.core.initApiProxyService(params);
+
+            // THEN don't listen for conduit
+            expect(connect.core.handleApiProxyRequest).to.not.exist;
+        });
+
+        afterEach(() => {
+            sandbox.restore();
+            connect.core.handleApiProxyRequest = null;
+        });
+    });
 
     describe.skip('initCCP with storage Access Params', function () {
         it('Should load request storage access page with storage Access params', function () { });

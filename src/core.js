@@ -1031,15 +1031,15 @@
  
       connect.getLog().scheduleUpstreamLogPush(conduit);
       connect.getLog().scheduleDownstreamClientSideLogsPush();
-      // Bridge all upstream messages into the event bus.
+      // Bridge all messages from "upstream" into the event bus
       conduit.onAllUpstream(connect.core.getEventBus().bridge());
-      // Pass all upstream messages (from shared worker) downstream (to CCP consumer).
+      // Pass all messages from "upstream" to "downstream"
       conduit.onAllUpstream(conduit.passDownstream());
 
       if (connect.isFramed()) {
-        // Bridge all downstream messages into the event bus.
+        // Bridge all messages from "downstream" into the event bus
         conduit.onAllDownstream(connect.core.getEventBus().bridge());
-        // Pass all downstream messages (from CCP consumer) upstream (to shared worker) when not using API Proxy Client.
+        // Pass all messages from "downstream" to "upstream" (except API Proxy Requests)
         conduit.onAllDownstream(function(data, eventName) {
           if(eventName === connect.EventType.API_REQUEST && 
              connect.containsValue(connect.ApiProxyClientMethods, data?.method))

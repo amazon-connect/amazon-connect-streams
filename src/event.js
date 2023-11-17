@@ -50,11 +50,6 @@
     'authorize_retries_exhausted',
     'cti_authorize_retries_exhausted',
     'click_stream_data',
-    'tab_visible_while_softphone_contact_connecting',
-    'report_missed_call_info',
-    'set_chatjs_feature_flag',
-    'check_media_stream',
-    'set_early_gum_feature_flag',
     'set_quick_get_agent_snapshot_flag',
     'api_proxy_request',
     'api_proxy_response'

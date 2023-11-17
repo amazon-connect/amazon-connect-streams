@@ -254,9 +254,9 @@ declare namespace connect {
     AUTHORIZE_RETRIES_EXHAUSTED = 'authorize_retries_exhausted',
     CTI_AUTHORIZE_RETRIES_EXHAUSTED = 'cti_authorize_retries_exhausted',
     CLICK_STREAM_DATA = 'click_stream_data',
-    CHECK_MEDIA_STREAM = 'check_media_stream',
     SET_QUICK_GET_AGENT_SNAPSHOT_FLAG = 'set_quick_get_agent_snapshot_flag',
     API_PROXY = 'api_proxy',
+    API_PROXY_REQUEST = 'api_proxy_request',
     API_PROXY_RESPONSE = 'api_proxy_response'
   }
 

@@ -730,21 +730,84 @@ describe('AWSClient', function () {
 });
 
 describe('ApiProxyClient', function() {
-    var sandbox = sinon.createSandbox();
+    const sandbox = sinon.createSandbox();
+    const conduit = createMockConduit(sandbox);
     const callbacks = {};
 
-    beforeEach(function () {
-        successSpy = sandbox.spy();
-        failureSpy = sandbox.spy();
-        callbacks.success = successSpy;
-        callbacks.failure = failureSpy;
+    before(function () {
+        connect.core.eventBus = new connect.EventBus({ logEvents: true });
+        sandbox.spy(connect.core.eventBus, "trigger");
+        sandbox.spy(connect.core.eventBus, "subscribe");
     });
 
-    describe.skip('_callImpl', function () {
-        it('sends request through to API_PROXY_REQUEST event bus', function() {});
+    after(function () {
+        sandbox.restore();
+    });
 
-        it('calls failure callback with exception when method fails', function() {});
+    beforeEach(function () {
+        connect.core.getEventBus().trigger.resetHistory();
+        connect.core.getEventBus().subscribe.resetHistory();
+        callbacks.success = sandbox.spy();
+        callbacks.failure = sandbox.spy();
+        conduit.resetMocks();
+    });
 
-        it('calls success callback when response completes', function() {});
+    describe('_callImpl', function () {
+        it('sends request through to API_PROXY_REQUEST event bus', function() {
+            const method = connect.ApiProxyClientMethods.QR_INTEGRATION_EXISTS;
+            const params = { exampleData: 'hello' };
+            const client = new connect.ApiProxyClient();
+            
+            client.call(method, params, callbacks);
+
+            sandbox.assert.calledWith(
+                connect.core.getEventBus().trigger, 
+                connect.EventType.API_PROXY_REQUEST, 
+                sinon.match.has('event', sinon.match(connect.EventType.API_PROXY_REQUEST))
+                    .and(sinon.match.has('method', sinon.match(method)))
+                    .and(sinon.match.has('params', sinon.match(params)))
+                    .and(sinon.match.has('requestId')
+            ));
+        
+        });
+
+        it('calls failure callback with exception when method fails', function() {
+            const client = new connect.ApiProxyClient();
+            client._requestIdCallbacksMap['TEST_1'] = callbacks;
+
+            client._handleResponse({
+                requestId: 'TEST_1',
+                err: true,
+                data: 1
+            })
+
+            sandbox.assert.calledWith(callbacks.failure, true, 1);
+            sandbox.assert.notCalled(callbacks.success);
+        });
+
+        it('calls success callback when response completes', function() {
+            const client = new connect.ApiProxyClient();
+            client._requestIdCallbacksMap['TEST_1'] = callbacks;
+
+            client._handleResponse({
+                requestId: 'TEST_1',
+                err: false,
+                data: 2
+            })
+
+            sandbox.assert.calledWith(callbacks.success, 2);
+            sandbox.assert.notCalled(callbacks.failure);
+        });
     });
 })
+
+function createMockConduit(sandbox) {
+    const onUpstream = sandbox.spy();
+    const sendUpstream = sandbox.spy();
+    const sendDownstream = sandbox.spy();
+    const onDownstream = sandbox.spy();
+    const resetMocks = () => 
+        [onUpstream, sendUpstream, sendDownstream, onDownstream]
+            .forEach(spy => spy.resetHistory());
+    return { onUpstream, sendUpstream, sendDownstream, onDownstream, resetMocks };
+}
