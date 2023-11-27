@@ -55,7 +55,6 @@
   let storageParams = {};
   let originalCCPUrl = '';
   let rsaContainer = null;
-  let onGrantCallbackInvoked = false;
   let requesthandlerUnsubscriber;
 
   const storageAccessEvents = {
@@ -263,6 +262,8 @@
     if (requesthandlerUnsubscriber) {
       requesthandlerUnsubscriber.unsubscribe();
     }
+
+    let onGrantCallbackInvoked = false;
 
     requesthandlerUnsubscriber = onRequestHandler({
       onInit: (messageData) => {
