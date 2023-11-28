@@ -1503,7 +1503,7 @@
     connect.assertNotNull(containerDiv, 'containerDiv');
     var iframe = document.createElement('iframe');
     iframe.src =  initCCPParams.ccpUrl;
-    iframe.allow = "microphone; autoplay; clipboard-write";
+    iframe.allow = "microphone; camera; autoplay; clipboard-write";
     iframe.style = initCCPParams.style || "width: 100%; height: 100%";
     iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
     iframe.name = CCP_IFRAME_NAME;

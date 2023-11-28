@@ -32,6 +32,13 @@ declare namespace connect {
   type UserMediaDeviceChangeCallback = (userMediaDeviceChange: UserMediaDeviceChange) => void;
 
   /**
+   * A callback to receive 'UserBackgroundBlurChange' API object instances
+   *
+   * @param UserBackgroundBlurChange The 'UserBackgroundBlurChange' API object instance
+   */
+  type UserBackgroundBlurChangeCallback = (UserBackgroundBlurChange: UserBackgroundBlurChange) => void;
+
+  /**
    * A callback to receive `SoftphoneError` errors.
    *
    * @param error A `SoftphoneError` error.
@@ -130,7 +137,7 @@ declare namespace connect {
 
     /**
      * Subscribes a callback function to be called when the connect.EventType.IFRAME_RETRIES_EXHAUSTED event is triggered.
-     * 
+     *
      * @param f The callback function.
      */
     onIframeRetriesExhausted(f: Function): void;
@@ -138,18 +145,18 @@ declare namespace connect {
     /**
      * Subscribes a callback function to be called when multiple authorization-type CTI API failures have happened.
      * After this event occurs, streams will not try to re-authenticate the user when more CTI API authorization-type (401) failures happen.
-     * Note that CTI APIs are the agent, contact, and connection apis (specifically, those listed under the `connect.ClientMethods` enum). 
+     * Note that CTI APIs are the agent, contact, and connection apis (specifically, those listed under the `connect.ClientMethods` enum).
      * Therefore, it may be prudent to indicate to the agent that there is a problem related to authorization.
-     * 
+     *
      * @param f The callback function.
      */
     onCTIAuthorizeRetriesExhausted(f: Function): void;
 
     /**
      * Subscribes a callback function to be called when multiple agent authorization api failures have happened.
-     * After this event occurs, streams will not try to redirect the user to login when more agent authorization api failures happen. 
+     * After this event occurs, streams will not try to redirect the user to login when more agent authorization api failures happen.
      * Therefore, it may be prudent to indicate to the agent that there is a problem related to authorization.
-     * 
+     *
      * @param f The callback function.
      */
     onAuthorizeRetriesExhausted(f: Function): void;
@@ -212,7 +219,7 @@ declare namespace connect {
 
     /**
      * Global upstream conduit for external use.
-     * 
+     *
      */
     upstream?: object | null;
   }
@@ -386,6 +393,23 @@ declare namespace connect {
 
     /** Disable Echo Cancellation */
     readonly disableEchoCancellation?: boolean;
+
+    /** Disable storing softphone parameters in local storage */
+    readonly disableStoringParamsInLocalStorage?: boolean;
+
+    /**
+     * Currently video call can only be in one single window or tab.
+     * If `allowFramedVideoCall` is true, the Contact Control Panel will handle video calling in this window or tab.
+     * @default false
+     */
+    readonly allowFramedVideoCall?: boolean;
+
+    /**
+     * If `true` or not provided, CCP will capture the agent’s browser microphone media stream before the contact arrives to reduce the call setup latency. 
+     * If `false`, CCP will only capture agent media stream after the contact arrives.
+     * @default true
+     */
+    readonly allowEarlyGum?: boolean;
   }
 
   interface ChatOptions {
@@ -425,6 +449,12 @@ declare namespace connect {
      * If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab.
      */
     readonly enableAudioDeviceSettings?: boolean;
+
+    /**
+     * If `true`, the settings tab will display a section for configuring video input devices for the agent's local machine.
+     * If `false`, or if `pageOptions` is not provided, the agent will not be able to change video device settings from the settings tab.
+     */
+    readonly enableVideoDeviceSettings?: boolean;
 
     /**
      * If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type and deskphone number.
@@ -810,6 +840,10 @@ declare namespace connect {
     METRICS = 'metrics',
   }
 
+  enum VideoCapability {
+    SEND = "SEND"
+  }
+
   /*
    * A callback to receive notifications of success or failure.
    */
@@ -928,8 +962,8 @@ declare namespace connect {
     /** Alias for `getState()`. */
     getStatus(): AgentState;
 
-    /** 
-     * Get the AgentState object of the agent's enqueued next status. 
+    /**
+     * Get the AgentState object of the agent's enqueued next status.
      * If the agent has not enqueued a next status, returns null.
      */
     getNextState(): AgentState;
@@ -1093,6 +1127,20 @@ declare namespace connect {
     setRingerDevice(deviceId: string): void;
 
     /**
+     * Sets the camera device (input device for camera)
+     *
+     * @param deviceId The id of the media device.
+     */
+    setCameraDevice(deviceId: string): void;
+
+    /**
+     * Sets the Background Blur state for camera device (input device for camera)
+     *
+     * @param isBackgroundBlurEnabled Indicates whether Background Blur is enabled
+     */
+    setBackgroundBlur(isBackgroundBlurEnabled: boolean): void;
+
+    /**
      * Subscribe a method to be called when the agent updates the mute status, meaning that agents mute/unmute APIs are called and the local media stream is successfully updated with the new status.
      *
      * @param callback A callback to receive updates on agent mute state
@@ -1127,6 +1175,20 @@ declare namespace connect {
      * @param callback A callback to receive updates on the ringer device
      */
     onRingerDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+
+    /**
+     * Subscribe a method to be called when the agent changes the camera device (input device for camera).
+     *
+     * @param callback A callback to receive updates on the camera device
+     */
+    onCameraDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+
+    /**
+     * Subscribe a method to be called when the agent changes the background blur state for camera device (input device for camera).
+     *
+     * @param callback A callback to receive updates on the background blur state
+     */
+    onBackgroundBlurChanged(callback: UserBackgroundBlurChangeCallback): void;
 
     /**
      * Subscribe a method to be called when the agent has a nextState.
@@ -1170,6 +1232,11 @@ declare namespace connect {
   interface UserMediaDeviceChange {
     /** A value indicating the id of the media device. */
     readonly deviceId: string;
+  }
+
+  interface UserBackgroundBlurChange {
+    /** A value indicating whether Background Blur is enabled. */
+    readonly isBackgroundBlurEnabled: boolean;
   }
 
   interface TaskContactDefinition {
@@ -1396,9 +1463,9 @@ declare namespace connect {
     onConnected(callback: ContactCallback): void;
 
     /**
-     * Subscribe a method to be invoked when the contact error event is triggered. 
+     * Subscribe a method to be invoked when the contact error event is triggered.
      * This event is only triggered when a contact state of type error appears in the snapshot.
-     * 
+     *
      * @param callback A callback to receive the `Contact` API object instance.
      */
     onError(callback: ContactCallback): void;
@@ -1486,8 +1553,23 @@ declare namespace connect {
     /** Gets a map of the attributes associated with the contact. */
     getAttributes(): AttributeDictionary;
 
-    /** Determine whether this contact is a softphone call.  */
+    /** Gets a map of segment attributes associated with the contact */
+    getSegmentAttributes(): SegmentAttributeDictionary;
+
+    /** Gets the contact subtype, if present inside the segmentAttributes, associated with the contact */
+    getContactSubtype(): string | null;
+
+    /** Determine whether this contact is a softphone call. */
     isSoftphoneCall(): boolean;
+
+    /** Determine whether this contact has video capabilities. */
+    hasVideoRTCCapabilities(): boolean;
+
+    /** Determine whether the agent in this contact can send video. */
+    canAgentSendVideo(): boolean;
+
+    /** Determine whether the agent in this contact can receive video. */
+    canAgentReceiveVideo(): boolean;
 
     /** Determine whether this is an inbound or outbound contact. */
     isInbound(): boolean;
@@ -1866,7 +1948,16 @@ declare namespace connect {
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
      */
     unmuteParticipant(callbacks?: SuccessFailOptions): void;
-    
+
+    /** Determine whether the connection can send video. */
+    canSendVideo(): boolean;
+
+    /** Returns the video capabilities associated with the connection. */
+    getCapabilities(): CapabilitiesDictionary;
+
+    /** Provides a promise which resolves with the API response from createTransport transportType web_rtc for this connection. */
+    getVideoConnectionInfo(): Promise<any>;
+
     /**
     * Returns true if monitorStatus is MonitoringMode.SILENT_MONITOR. This means the supervisor connection is in silent monitoring state. 
     * Regular agent will not see supervisor's connection in the snapshot while it is in silent monitor state.
@@ -1939,6 +2030,10 @@ declare namespace connect {
      * The promise resolves to a `ChatSession` object from `amazon-connect-taskjs` library.
      */
     getMediaController(): Promise<any>;
+  }
+
+  interface CapabilitiesDictionary {
+    readonly [key: string]: string;
   }
 
   interface ConnectionState {

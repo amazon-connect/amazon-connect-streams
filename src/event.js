@@ -152,7 +152,9 @@
     'set_ringer_device',
     'speaker_device_changed',
     'microphone_device_changed',
-    'ringer_device_changed'
+    'ringer_device_changed',
+    'camera_device_changed',
+    'background_blur_changed'
   ]);
 
   /**---------------------------------------------------------------

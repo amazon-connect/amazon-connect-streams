@@ -18,9 +18,8 @@ Run `npm run release` to generate new release files. Full instructions for build
 In version 1.x, we also support `make` for legacy builds. This option was removed in version 2.x. 
 
 # Important Announcements
-1. September 2023 - Amazon Connect CCP uses cookies for authentication. As part of Google's [Privacy Sandbox](https://privacysandbox.com/open-web/#the-privacy-sandbox-timeline) initiative, Google Chrome has announced plans to block third-party cookies (that is, cookies passed between two top level domains). Version 2.7.1 comes with request storage access API implementation which allows CCP to continue using third party cookies. [Learn more](https://docs.aws.amazon.com/connect/latest/adminguide/admin-3pcookies.html#implement-streams-upgrade).
-1. December 2022 - In addition to the CCP, customers can now embed an application that provides guided experiences to your agents using the connect.agentApp. See the [updated documentation](https://github.com/amazon-connect/amazon-connect-streams/blob/master/Documentation.md#initialization-for-ccp-customer-profiles-wisdom-and-customviews) for details on usage. 
-    * ### Guided experiences for agents 
+1. December 2022 - In addition to the CCP, customers can now embed an application that provides guided experiences to your agents using the connect.agentApp. See the [updated documentation](https://github.com/amazon-connect/amazon-connect-streams/blob/master/Documentation.md#initialization-for-ccp-customer-profiles-amazon-q-connect-and-customviews) for details on usage. 
+    * ### Guided experiences for agents
       + With Amazon Connect you can now create guided step-by-step experiences that walk agents through tailored views that focus on what must be seen or done by the agent at a given moment during an interaction. You can design workflows for various types of customer interactions and present agents with different step-by-step guides based on context, such as call queue, customer information, and interactive voice response (IVR). This feature is available in the Connect agent workspace as well as an embeddable application that can be embedded into another website via the Streams API. For more information, visit the AWS website: https://aws.amazon.com/connect/agent-workspace/
 1. December 2022 - 2.4.2
     * This patch fixes an issue in Streams’ Voice ID APIs that may have led to incorrect values being set against the generatedSpeakerID field in the VoiceIdResult segment of Connect Contact Trace Records (CTRs). This occurred in some scenarios where you call either enrollSpeakerInVoiceId(), evaluateSpeakerWithVoiceId(), or updateVoiceIdSpeakerId() in your custom CCP integration code. If you are using Voice ID and consuming Voice ID CTRs, or updating speaker ID in your agent workflow, please upgrade to this version.
@@ -37,14 +36,14 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
     * A new **agent.onEnqueuedNextState()** listener lets you subscribe to events for when agents have selected/successfully enqueued their next status.
     * A new **agent.getNextState()** API returns a state object if the agent has successfully selected a next state, and null otherwise. 
     * If you want to use the Next Status feature via `agent.setState()`, please also ensure that your code is using `contact.clear()` and not `contact.complete()` when clearing After Contact Work off a contact.
-1. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Wisdom. See the [updated documentation](Documentation.md#initialization-for-ccp-customer-profiles-and-wisdom) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
+2. December 2020 —  1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Amazon Q Connect. See the [updated documentation](Documentation.md#initialization-for-ccp-customer-profiles-and-amazon-q-connect) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
     * ### About Amazon Connect Customer Profiles
         + Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place. 
-    * ### About Amazon Connect Wisdom
-        + With Amazon Connect Wisdom, agents can search and find content across multiple repositories, such as frequently asked questions (FAQs), wikis, articles, and step-by-step instructions for handling different customer issues. They can type questions or phrases in a search box (such as, "how long after purchase can handbags be exchanged?") without having to guess which keywords will work.
+    * ### About Amazon Connect Amazon Q Connect
+        + With Amazon Q Connect, agents can search and find content across multiple repositories, such as frequently asked questions (FAQs), wikis, articles, and step-by-step instructions for handling different customer issues. They can type questions or phrases in a search box (such as, "how long after purchase can handbags be exchanged?") without having to guess which keywords will work.
     * ### About Amazon Connect Voice ID (The feature is in preview release for Amazon Connect and is subject to change)
         + Amazon Connect Voice ID provides real-time caller authentication which makes voice interactions in contact centers more secure and efficient. Voice ID uses machine learning to verify the identity of genuine customers by analyzing a caller’s unique voice characteristics. This allows contact centers to use an additional security layer that doesn’t rely on the caller answering multiple security questions, and makes it easy to enroll and verify customers without changing the natural flow of their conversation.
-1. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
+3. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`. 
     * `FailedConnectAgent` -- Previously, we required the agent to click the "Clear Contact" button to clear this state. When the agent clicked the "Clear Contact" button, the previous behavior took the agent back to the `Available` state without fail. Now the `FailedConnectAgent` state will be "auto-cleared", much like `FailedConnectCustomer` always has been. 
     * `FailedConnectAgent` and `FailedConnectCustomer` -- We are now using the `contact.clear()` API to auto-clear these states. As a result, the agent will be returned to their previous visible agent state (e.g. `Available`). Previously, the agent had always been set to `Available` as a result of this "auto-clearing" behavior. Note that even custom CCPs will behave differently with this update for `FailedConnectAgent` and `FailedConnectCustomer`.
     * `AfterCallWork` -- As part of the new `contact.clear()` behavior, clicking "Clear Contact" while in `AfterCallWork` will return the agent to their previous visible agent state (e.g. `Available`, etc.). Note that custom CCPs that implement their own After Call Work behavior will not be affected by this change.
@@ -196,10 +195,13 @@ everything setup correctly and that you will be able to listen for events.
           softphone: {                    // optional, defaults below apply if not provided
             allowFramedSoftphone: true,   // optional, defaults to false
             disableRingtone: false,       // optional, defaults to false
-            ringtoneUrl: "./ringtone.mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
+            ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
+            allowFramedVideoCall: true,    // optional, default to false
+            allowEarlyGum: true    //optional, default to true
           },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
+            enableVideoDeviceSettings: false, //optional, defaults to 'false'
             enablePhoneTypeSettings: true //optional, defaults to 'true' 
           },
           shouldAddNamespaceToLogs: false, //optional, defaults to 'false'
@@ -252,6 +254,9 @@ and made available to your JS client code.
 * `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
   * `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local
       machine. If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab. will not be
+      displayed.
+  * `enableVideoDeviceSettings`: If `true`, the settings tab will display a section for configuring video input devices for the agent's local
+      machine. If `false`, or if `pageOptions` is not provided, the agent will not be able to change video device settings from the settings tab. will not be
       displayed.
   * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
       and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.

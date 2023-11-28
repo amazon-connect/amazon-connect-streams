@@ -144,7 +144,8 @@
     'queue_transfer',
     'callback',
     'api',
-    'disconnect'
+    'disconnect',
+    'webrtc_api'
   ]);
 
   /*----------------------------------------------------------------
@@ -311,6 +312,13 @@
   ]);
 
   /*----------------------------------------------------------------
+   * enum for Video Capability
+   */
+  connect.VideoCapability = connect.makeEnum([
+    "SEND"
+  ]);
+
+  /*----------------------------------------------------------------
    * enum for VoiceId EnrollmentRequest Status
    */
   connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
@@ -364,9 +372,9 @@
             reject(err);
           }
         });
-      });   
+      });
     }
-    
+
     static searchQuickResponses = function(params) {
       const client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
       const attributes = params?.contactId ? new Contact(params.contactId).getAttributes() : undefined;
@@ -384,7 +392,7 @@
             reject(err);
           }
         });
-      });  
+      });
     }
   };
 
@@ -475,6 +483,14 @@
     connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.RINGER_DEVICE_CHANGED, f);
   }
 
+  Agent.prototype.onCameraDeviceChanged = function(f){
+    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CAMERA_DEVICE_CHANGED, f);
+  }
+
+  Agent.prototype.onBackgroundBlurChanged = function(f){
+    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.BACKGROUND_BLUR_CHANGED, f);
+  }
+
   Agent.prototype.mute = function () {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
       {
@@ -509,6 +525,21 @@
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.ConfigurationEvents.SET_RINGER_DEVICE,
       data: { deviceId: deviceId }
+    });
+  };
+
+  // Only send event CAMERA_DEVICE_CHANGED because we do not handle video streams in StreamJS
+  Agent.prototype.setCameraDevice = function (deviceId) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ConfigurationEvents.CAMERA_DEVICE_CHANGED,
+      data: { deviceId: deviceId }
+    });
+  };
+
+  Agent.prototype.setBackgroundBlur = function (isBackgroundBlurEnabled) {
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ConfigurationEvents.BACKGROUND_BLUR_CHANGED,
+      data: { isBackgroundBlurEnabled: isBackgroundBlurEnabled }
     });
   };
 
@@ -942,6 +973,30 @@
     }) != null;
   };
 
+  Contact.prototype.hasVideoRTCCapabilities = function () {
+    return connect.find(this.getConnections(), function (conn) {
+      return conn.canSendVideo && conn.canSendVideo();
+    }) != null;
+  };
+
+  Contact.prototype.canAgentSendVideo = function () {
+    const agentConnection = this.getAgentConnection();
+    return agentConnection.canSendVideo && agentConnection.canSendVideo();
+  };
+
+  Contact.prototype.canAgentReceiveVideo = function () {
+    const initialConn = this.getInitialConnection();
+    // If customer has SEND capability, then agent can receive video
+    if (initialConn.canSendVideo && initialConn.canSendVideo()) {
+      return true;
+    }
+    // If customer does not have SEND capability, right now we do not populate SEND capability in third party connection
+    // so if customer does not have SEND capability then use agent SEND capability to determine that agent can
+    // receive videos from other parties (other agents, superiors).
+    const thirdPartyConns = this.getThirdPartyConnections();
+    return thirdPartyConns && thirdPartyConns.length > 0  && this.canAgentSendVideo();
+  };
+
   Contact.prototype._isInbound = function () {
     var initiationMethod = this._getData().initiationMethod;
     return (initiationMethod === connect.ContactInitiationMethod.OUTBOUND) ? false : true;
@@ -1013,7 +1068,7 @@
             name: "ContactAcceptFailure",
             data: { count: 1 }
           })
-          
+
           if (callbacks && callbacks.failure) {
             callbacks.failure(connect.ContactStateType.ERROR);
           }
@@ -1322,7 +1377,7 @@
     return connectionType === connect.ConnectionType.AGENT
       || connectionType === connect.ConnectionType.MONITORING;
   }
-  
+
   /*----------------------------------------------------------------
   * Voice authenticator VoiceId
   */
@@ -2151,6 +2206,39 @@
       contactId: this.getContactId(),
       connectionId: this.getConnectionId()
     }, callbacks);
+  };
+
+  VoiceConnection.prototype.canSendVideo = function () {
+    const capabilities = this.getCapabilities();
+    return capabilities && capabilities.Video === connect.VideoCapability.SEND;
+  };
+
+  VoiceConnection.prototype.getCapabilities = function () {
+    return this._getData().capabilities;
+  };
+
+  VoiceConnection.prototype.getVideoConnectionInfo = function () {
+    const client = connect.core.getClient();
+    const transportDetails = {
+      transportType: connect.TRANSPORT_TYPES.WEB_RTC,
+      contactId: this.contactId,
+    };
+    return new Promise(function (resolve, reject) {
+      client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
+        success: function (data) {
+          connect.getLog().info("getVideoConnectionInfo succeeded").sendInternalLogToServer();
+          resolve(data.webRTCTransport);
+        },
+        failure: function (err, data) {
+          connect.getLog().error("getVideoConnectionInfo failed").sendInternalLogToServer()
+            .withObject({
+              err: err,
+              data: data
+            });
+          reject(Error("getVideoConnectionInfo failed"));
+        }
+      });
+    });
   };
 
 
