@@ -1264,6 +1264,7 @@ describe('Core', function () {
         const chatParams = { ringtoneUrl: "customChatRingtone.amazon.com" };
         const pageOptionsParams = {
             enableAudioDeviceSettings: false,
+            enableVideoDeviceSettings: false,
             enablePhoneTypeSettings: true
         };
         const disasterRecoveryOn = undefined;
@@ -1476,6 +1477,7 @@ describe('Core', function () {
         const chatParams = { ringtoneUrl: "customChatRingtone.amazon.com" };
         const pageOptionsParams = {
             enableAudioDeviceSettings: false,
+            enableVideoDeviceSettings: false,
             enablePhoneTypeSettings: true
         };
         const shouldAddNamespaceToLogs = false;
@@ -1669,7 +1671,7 @@ describe('Core', function () {
         let expectedIframe = {
             ...iframe,
             src: params.ccpUrl,
-            allow: "microphone; autoplay; clipboard-write",
+            allow: "microphone; camera; autoplay; clipboard-write",
             style: "width: 100%; height: 100%",
             title: "Amazon Connect CCP",
             name: "Amazon Connect CCP",
@@ -1917,22 +1919,24 @@ describe('Core', function () {
         
         before(function () {
             clock = sinon.useFakeTimers();
-            global.navigator = {
-                mediaDevices: {
-                    enumerateDevices: () => new Promise((resolve) => {
-                        setTimeout(() => {
-                            resolve([{
-                                toJSON: () => ({
-                                    deviceId: "deviceId",
-                                    groupId: "groupId",
-                                    kind: "audioinput",
-                                    label: "Microphone"
-                                })
-                            }])
-                        }, 500);
-                    })
-                }
-            };
+            sandbox.stub(navigator.mediaDevices, 'enumerateDevices')
+                .callsFake(() => new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve([{
+                            toJSON: () => ({
+                                deviceId: "deviceId",
+                                groupId: "groupId",
+                                kind: "audioinput",
+                                label: "Microphone"
+                            }, {
+                                deviceId: "deviceId",
+                                groupId: "groupId",
+                                kind: "videoinput",
+                                label: "Camera"
+                            })
+                        }])
+                    }, 500);
+                }));
         });
 
         after(function () {
@@ -1964,6 +1968,11 @@ describe('Core', function () {
                 groupId: "groupId",
                 kind: "audioinput",
                 label: "Microphone"
+            }, {
+                deviceId: "deviceId",
+                groupId: "groupId",
+                kind: "videoinput",
+                label: "Camera"
             }];
             connect.core.getFrameMediaDevices()
             .then(data => expect(data).to.eql(arr));  

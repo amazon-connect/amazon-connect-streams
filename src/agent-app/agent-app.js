@@ -64,6 +64,7 @@
       softphone: {
         allowFramedSoftphone: true,
         disableRingtone: false,
+        allowFramedVideoCall: true,
       }
     };
     var ccpParams = connect.merge(defaultParams, config.ccpParams);

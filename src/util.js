@@ -34,7 +34,8 @@
   connect.TRANSPORT_TYPES = {
     CHAT_TOKEN: "chat_token",
     WEB_SOCKET: "web_socket",
-    AGENT_DISCOVERY: "agent_discovery"
+    AGENT_DISCOVERY: "agent_discovery",
+    WEB_RTC: "web_rtc"
   };
 
   /**
@@ -696,7 +697,7 @@
     var format = args.shift();
     var instance = new Error(connect.vsprintf(format, args));
     Object.setPrototypeOf(instance, connect.ValueError.prototype);
-    return instance; 
+    return instance;
   };
   Object.setPrototypeOf(connect.ValueError.prototype, Error.prototype);
   Object.setPrototypeOf(connect.ValueError, Error);
@@ -707,7 +708,7 @@
     var format = args.shift();
     var instance = new Error(connect.vsprintf(format, args));
     Object.setPrototypeOf(instance, connect.NotImplementedError.prototype);
-    return instance; 
+    return instance;
   };
   Object.setPrototypeOf(connect.NotImplementedError.prototype, Error.prototype);
   Object.setPrototypeOf(connect.NotImplementedError, Error);
@@ -718,7 +719,7 @@
     var format = args.shift();
     var instance = new Error(connect.vsprintf(format, args));
     Object.setPrototypeOf(instance, connect.StateError.prototype);
-    return instance; 
+    return instance;
   }
   Object.setPrototypeOf(connect.StateError.prototype, Error.prototype);
   Object.setPrototypeOf(connect.StateError, Error);

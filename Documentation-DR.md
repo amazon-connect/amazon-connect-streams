@@ -137,10 +137,13 @@ Initializing the Streams API is the first step to verify that you have everythin
           softphone: {                    // optional, defaults below apply if not provided
               allowFramedSoftphone: true,   // optional, defaults to false
               disableRingtone: false,       // optional, defaults to false
-              ringtoneUrl: "./ringtone.mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
+              ringtoneUrl: "[your-ringtone-filepath].mp3", // optional, defaults to CCP’s default ringtone if a falsy value is set
+              allowFramedVideoCall: true,    // optional, default to false
+              allowEarlyGum: true // optional, default to true
           },
           pageOptions: { //optional
               enableAudioDeviceSettings: false, //optional, defaults to 'false'
+              enableVideoDeviceSettings: false, //optional, defaults to 'false'
               enablePhoneTypeSettings: true //optional, defaults to 'true'
           },
           shouldAddNamespaceToLogs: false, //optional, defaults to 'false'
@@ -180,8 +183,13 @@ Integrates with Connect by loading the pre-built CCPs located at `ccpUrl` and `s
     * `allowFramedSoftphone`: Normally, the softphone microphone and speaker components are not allowed to be hosted in an iframe. This is because the softphone must be hosted in a single window or tab. The window hosting the softphone session must not be closed during the course of a softphone call or the call will be disconnected. If `allowFramedSoftphone` is `true`, the softphone components will be allowed to be hosted in this window or tab.
     * `disableRingtone`: This option allows you to completely disable the built-in ringtone audio that is played when a call is incoming.
     * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding the ringtone with any browser-supported audio file accessible by the user.
+    * `allowFramedVideoCall`: Currently video call can only be in one single window or tab.. If `true`, CCP will handle
+      video calling experience in this window or tab and agents would be able to see and turn on their video if they 
+      have video permission set in the security profile. If `false` or not provided, CCP will only provide voice calling.
+    * `allowEarlyGum`: If `true` or not provided, CCP will capture the agent’s browser microphone media stream before the contact arrives to reduce the call setup latency. If `false`, CCP will only capture agent media stream after the contact arrives.
 * `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
     * `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local machine. If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab.
+    * `enableVideoDeviceSettings`: If `true`, the settings tab will display a section for configuring video input devices for the agent's local machine. If `false`, or if `pageOptions` is not provided, the agent will not be able to change video device settings from the settings tab.
     * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
 * `shouldAddNamespaceToLogs`: prepends `[CCP]` to all logs logged by the CCP. Important note: there are a few logs made by the CCP before the namespace is prepended.
 * `ccpAckTimeout`: A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its `SYNCHRONIZE` event emissions. These happen continuously from the first time `initCCP` is called. They should only appear when there is a problem that requires a refresh or a re-login.

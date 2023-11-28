@@ -81,6 +81,7 @@ describe('agent-app', function () {
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
+          allowFramedVideoCall: true
         }
       };
       connect.agentApp.initApp('ccp', 'agent-app-dom', endpoint);
@@ -97,6 +98,7 @@ describe('agent-app', function () {
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
+          allowFramedVideoCall: true
         }
       };
       connect.agentApp.initApp('ccp', 'agent-app-dom', endpoint, { ccpParams: { loginPopup: false } });
@@ -114,6 +116,7 @@ describe('agent-app', function () {
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
+          allowFramedVideoCall: true
         },
         style
       };
@@ -132,6 +135,7 @@ describe('agent-app', function () {
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
+          allowFramedVideoCall: true
         },
         style
       };
