@@ -50,7 +50,7 @@ To allowlist your pages:
 
 ## Importing Streams with npm and ES6
 
-`import "amazon-connect-streams/connect-streams-dr.js";` This will make the `globalConnect` variable available in the current context.
+`import "amazon-connect-streams/release/connect-streams-dr.js";` This will make the `globalConnect` variable available in the current context.
 
 ## Downloading Streams from Github
 

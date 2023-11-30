@@ -20,7 +20,6 @@
   var CCP_LOAD_TIMEOUT = 5000; // 5 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
   var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
-  var CCP_IFRAME_REFRESH_LIMIT = 6; // 6 attempts
   var CCP_IFRAME_NAME = 'Amazon Connect CCP';
   var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
   var CLIENT_ID_MAP = {
@@ -1460,14 +1459,11 @@
     connect.assertNotNull(initCCPParams, 'initCCPParams');
     connect.assertNotNull(containerDiv, 'containerDiv');
     var ccpIframeRefreshInterval = (initCCPParams.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL : CCP_IFRAME_REFRESH_INTERVAL;
-    var retryDelay = AWS.util.calculateRetryDelay((connect.core.iframeRefreshAttempt - 1 || 0), { base: 2000 });
-    // Evaluates to 0 for 0th attempt and 1 for rest (>0) of the refresh attempts
-    var timeoutFactor = Math.ceil((connect.core.iframeRefreshAttempt || 0) / CCP_IFRAME_REFRESH_LIMIT);
-    var timeout = (ccpIframeRefreshInterval + retryDelay) * timeoutFactor;
+    const refreshLimit = 5 * (60 * 1000 / ccpIframeRefreshInterval); // Will retry for approximately 5 minutes
     global.clearTimeout(connect.core.iframeRefreshTimeout);
     connect.core.iframeRefreshTimeout = global.setTimeout(function() {
       connect.core.iframeRefreshAttempt = (connect.core.iframeRefreshAttempt || 0) + 1;
-      if (connect.core.iframeRefreshAttempt <= CCP_IFRAME_REFRESH_LIMIT) {
+      if (connect.core.iframeRefreshAttempt <= refreshLimit) {
         try {
           var iframe = connect.core._getCCPIframe();
           if (iframe) {
@@ -1484,7 +1480,7 @@
         connect.core.getEventBus().trigger(connect.EventType.IFRAME_RETRIES_EXHAUSTED);
         global.clearTimeout(connect.core.iframeRefreshTimeout);
       }
-    }, timeout);
+    }, ccpIframeRefreshInterval);
   }
 
 
