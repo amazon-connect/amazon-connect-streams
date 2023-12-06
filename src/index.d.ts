@@ -1976,14 +1976,14 @@ declare namespace connect {
     /** Returns true if agent's monitoringCapabilities contain MonitoringMode.BARGE state type. */
     isBargeEnabled(): boolean;
     
-    /** Returns the array of enabled monitor states of this connection. The array will consist of MonitoringMode enum values. */
-    getMonitorCapabilities(): MonitoringMode[];
+    /** Returns the array of enabled monitor states of this connection or undefined, if connection doesn't have enabled monitor states. The array will consist of MonitoringMode enum values. */
+    getMonitorCapabilities(): MonitoringMode[] | undefined;
     
     /**
     * Returns the current monitoring state of this connection.
     * This value can be one of MonitoringMode enum values if the agent is supervisor, otherwise the monitorStatus will be undefined for the agent.
     */
-    getMonitorStatus(): MonitoringMode;
+    getMonitorStatus(): MonitoringMode | null;
     
     /** Returns true if the connection was forced muted by the manager. */
     isForcedMute(): boolean;
