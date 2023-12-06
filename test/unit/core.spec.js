@@ -1586,7 +1586,7 @@ describe('Core', function () {
             sandbox.restore();
             connect.core.upstream = null;
         })
-        it("should teardown and stand up a new iframe 6 times, and then clean itself up and stop trying.", () => {
+        it("should teardown and stand up a new iframe 10 times and then clean itself up and stop trying.", () => {
             let setTimeoutSpy = sandbox.spy(global, "setTimeout");
             let fakeRemoveChildSpy = sandbox.fake();
             let getCCPIframeSpy = sandbox.stub(connect.core, "_getCCPIframe").returns({parentNode: { removeChild: fakeRemoveChildSpy}});
@@ -1600,11 +1600,13 @@ describe('Core', function () {
 
             connect.core._refreshIframeOnTimeout(params, {});
             expect(setTimeoutSpy.calledOnce).to.be.true;
-            expect(setTimeoutSpy.calledWith(sinon.match.any, sinon.match.number.and(sinon.match((timeout) => timeout === 0)))).to.be.true;
+            // below line checks that setTimeout was called with CCP_IFRAME_REFRESH_INTERVAL which is 5 seconds
+            // CCP_IFRAME_REFRESH_INTERVAL is passed in when we call iframeRefreshTimeout
+            expect(setTimeoutSpy.calledWith(sinon.match.any, sinon.match.number.and(sinon.match((timeout) => timeout === 5000)))).to.be.true;
             expect(connect.core.iframeRefreshAttempt).to.equal(undefined);
             expect(clearTimeoutSpy.calledOnce).to.be.true;
 
-            clock.tick(5001); //the initial retry timeout.
+            clock.tick(5 * 1000 + 1); //the initial retry timeout.
             expect(connect.core.iframeRefreshAttempt).to.equal(1);
             expect(getCCPIframeSpy.calledOnce).to.be.true;
             expect(fakeRemoveChildSpy.calledOnce).to.be.true;
@@ -1613,35 +1615,29 @@ describe('Core', function () {
             expect(connect.core.upstream.upstream.output === fakeContentWindow).to.be.true;
             expect(setTimeoutSpy.calledTwice).to.be.true;
 
-            clock.tick(7001); //the 2nd retry timeout
-            expect(connect.core.iframeRefreshAttempt).to.equal(2);
+            const maxRetry = 10;
 
-            clock.tick(9001); //the 3rd retry timeout
-            expect(connect.core.iframeRefreshAttempt).to.equal(3);
+            for (let retry = 2; retry <= maxRetry; retry++) {
+                clock.tick(5 * 1000 + 1);
+                expect(connect.core.iframeRefreshAttempt).to.equal(retry);
+            }
 
-            clock.tick(12001); //the 4th retry timeout
-            expect(connect.core.iframeRefreshAttempt).to.equal(4);
-
-            clock.tick(21001); //the 5th retry timeout
-            expect(connect.core.iframeRefreshAttempt).to.equal(5);
-
-            clock.tick(37001); //the 6th, final retry timeout
-            expect(connect.core.iframeRefreshAttempt).to.equal(6);
-            expect(getCCPIframeSpy.callCount).to.equal(6);
-            expect(fakeRemoveChildSpy.callCount).to.equal(6);
-            expect(createCCPIframeSpy.callCount).to.equal(6);
-            expect(sendIframeStyleDataUpstreamAfterReasonableWaitTimeSpy.callCount).to.equal(6);
+            expect(connect.core.iframeRefreshAttempt).to.equal(maxRetry);
+            expect(getCCPIframeSpy.callCount).to.equal(maxRetry);
+            expect(fakeRemoveChildSpy.callCount).to.equal(maxRetry);
+            expect(createCCPIframeSpy.callCount).to.equal(maxRetry);
+            expect(sendIframeStyleDataUpstreamAfterReasonableWaitTimeSpy.callCount).to.equal(maxRetry);
             expect(connect.core.upstream.upstream.output === fakeContentWindow).to.be.true;
 
-            clock.tick(133001); //the timeout that happens after the last retry timeout.
-            expect(connect.core.iframeRefreshAttempt).to.equal(7); //this counter is increased, but the condition evaluating whether we should destroy and reload the iframe fails.
-            expect(clearTimeoutSpy.callCount).to.equal(8); //even though we didn't retry in this timeout execution, we clean up the timeout.
+            clock.tick(30 * 1000); //the timeout that happens after the last retry timeout.
+            expect(connect.core.iframeRefreshAttempt).to.equal(maxRetry + 1); //this counter is increased, but the condition evaluating whether we should destroy and reload the iframe fails.
+            expect(clearTimeoutSpy.callCount).to.equal(maxRetry + 2); //even though we didn't retry in this timeout execution, we clean up the timeout.
             sandbox.assert.calledOnceWithExactly(triggerSpy, connect.EventType.IFRAME_RETRIES_EXHAUSTED); //this only happens once we have exhausted all retries.
-            expect(setTimeoutSpy.callCount).to.equal(7);
-            expect(fakeRemoveChildSpy.callCount).to.equal(6); // As mentioned above, this execution of the callback code is not a true retry, as evidenced by the lack of an additional call to remove the current iframe
+            expect(setTimeoutSpy.callCount).to.equal(maxRetry +1);
+            expect(fakeRemoveChildSpy.callCount).to.equal(maxRetry); // As mentioned above, this execution of the callback code is not a true retry, as evidenced by the lack of an additional call to remove the current iframe
 
             clock.tick(300000); //out of retries. Waiting a long time won't change anything.
-            expect(connect.core.iframeRefreshAttempt).to.equal(7);
+            expect(connect.core.iframeRefreshAttempt).to.equal(maxRetry + 1);
         });
     });
 
@@ -2124,18 +2120,26 @@ describe('Core', function () {
         });
 
         it("Check if CCP is initialized after calling terminate function and re-calling initCCP", function () {
+            const storageAccessOriginal = connect.storageAccess;
+            connect.storageAccess = { ...connect.storageAccess, resetStorageAccessState: sinon.fake()};
+           
             expect(params.ccpUrl).not.to.be.a("null");
             expect(containerDiv).not.to.be.a("null");
             connect.core.initCCP(containerDiv, params);
             expect(isCCPInitialized(containerDiv, params)).to.be.true;
+
             connect.core.terminate();
+            expect(connect.storageAccess.resetStorageAccessState.calledOnce).to.be.true;
+
             connect.core.terminate();
+            expect(connect.storageAccess.resetStorageAccessState.calledTwice).to.be.true;
+
             expect(isCCPTerminated()).to.be.true;
             sandbox.resetHistory();
             connect.core.initCCP(containerDiv, params);
             expect(isCCPInitialized(containerDiv, params)).to.be.true;
+            connect.storageAccess = storageAccessOriginal;
         });
-         
     });
 
     describe('connect.core.calculateSnapshotSizingBucket', function () {
