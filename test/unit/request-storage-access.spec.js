@@ -192,6 +192,7 @@ describe('Request Storage Access module', () => {
       });
 
       connect.storageAccess.init(ccpUrl, container);
+      expect(connect.storageAccess.getOnGrantCallbackInvoked()).to.be.false;
       connect.storageAccess.setupRequestHandlers({ onGrant: onGrantSpy });
       connect.storageAccess.request();
 
@@ -202,10 +203,14 @@ describe('Request Storage Access module', () => {
       expect(storageAccessRequestArgs.data.landat).to.be.equals('/connect/ccp-v2');
 
       expect(onGrantSpy.called).to.be.true;
+      expect(connect.storageAccess.getOnGrantCallbackInvoked()).to.be.true;
       connect.storageAccess.request();
 
       /** Should be called only once */
       expect(onGrantSpy.calledTwice).not.to.be.true;
+
+      connect.storageAccess.resetStorageAccessState();
+      expect(connect.storageAccess.getOnGrantCallbackInvoked()).to.be.false;
     });
 
     it('Should hide container if mode is custom after granting access', () => {

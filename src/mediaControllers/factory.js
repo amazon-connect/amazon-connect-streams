@@ -90,7 +90,7 @@
         logger.info(logComponent, 'Destroying mediaController for %s', connectionId);
         toBeDestroyed.add(connectionId);
         mediaControllers[connectionId]
-          .then(function () {
+          .then(function (controller) {
             if (typeof controller.cleanUp === 'function') controller.cleanUp();
             delete mediaControllers[connectionId];
             toBeDestroyed.delete(connectionId);

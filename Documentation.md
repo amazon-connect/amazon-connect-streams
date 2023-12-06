@@ -50,7 +50,11 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
 ## Overview
 The Amazon Connect Streams API (Streams) gives you the power to integrate your existing web applications with Amazon Connect.  Streams lets you embed the Contact Control Panel (CCP) and Customer Profiles app UI into your page.  It also enables you to handle agent and contact state events directly through an object oriented event driven interface.  You can use the built in interface or build your own from scratch: Streams gives you the choice.
 
-This library must be used in conjunction with [amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs) or [amazon-connect-taskjs](https://github.com/amazon-connect/amazon-connect-taskjs) in order to utilize Amazon Connect's Chat or Task functionality.
+This library must be used in conjunction with 
+[amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs), 
+[amazon-chime-sdk-js](https://github.com/aws/amazon-chime-sdk-js/blob/main/README.md),
+or [amazon-connect-taskjs](https://github.com/amazon-connect/amazon-connect-taskjs) 
+in order to utilize Amazon Connect's Chat, Video or Task functionality.
 
 ## Architecture
 Click [here](Architecture.md) to view a quick architecture overview of how the
@@ -316,6 +320,10 @@ this:
   Streams only needs ChatJS when it is being used for chat. Note that when including ChatJS,
   it must be imported after StreamsJS, or there will be AWS SDK issues
   (ChatJS relies on the ConnectParticipant Service, which is not in the Streams AWS SDK).
+* If you are building your own video functionalities, please also include
+  [Amazon Chime SDK JS](https://github.com/aws/amazon-chime-sdk-js) in your code. You can also include
+  [Amazon Chime SDK Component Library React](https://github.com/aws/amazon-chime-sdk-component-library-react) to
+  leverage ready-to-use UI and state managements components in React.
 * If you are using task functionalities you must include [TaskJS](https://github.com/amazon-connect/amazon-connect-taskjs). TaskJS should be imported after Streams.
 * If you'd like access to the WebRTC session to further customize the softphone experience
   you can use [connect-rtc-js](https://github.com/aws/connect-rtc-js). Please refer to the connect-rtc-js readme for detailed instructions on integrating connect-rtc-js with Streams.
@@ -1649,6 +1657,8 @@ Example response:
 ```
 
 Provides a promise which resolves with the API response from createTransport transportType web_rtc for this connection.
+You can use the meeting and attendee info to join a video session. Please refer to 
+[Amazon Chime SDK JS](https://github.com/aws/amazon-chime-sdk-js/blob/main/README.md) for more info.
 
 #### Multiparty call
 
