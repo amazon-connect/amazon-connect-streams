@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-(function() {
+(function () {
    var global = this || globalThis;
    var connect = global.connect || {};
    global.connect = connect;
@@ -13,39 +13,41 @@
     * enum ClientMethods
     */
    connect.ClientMethods = connect.makeEnum([
-         'getAgentSnapshot',
-         'putAgentState',
-         'getAgentStates',
-         'getDialableCountryCodes',
-         'getRoutingProfileQueues',
-         'getAgentPermissions',
-         'getAgentConfiguration',
-         'updateAgentConfiguration',
-         'acceptContact',
-         'createOutboundContact',
-         'createTaskContact',
-         'clearContact',
-         'completeContact',
-         'destroyContact',
-         'rejectContact',
-         'notifyContactIssue',
-         'updateContactAttributes',
-         'createAdditionalConnection',
-         'destroyConnection',
-         'holdConnection',
-         'resumeConnection',
-         'toggleActiveConnections',
-         'conferenceConnections',
-         'sendClientLogs',
-         'sendDigits',
-         'sendSoftphoneCallReport',
-         'sendSoftphoneCallMetrics',
-         'getEndpoints',
-         'getNewAuthToken',
-         'createTransport',
-         'muteParticipant',
-         'unmuteParticipant',
-         'updateMonitorParticipantState'
+      'getAgentSnapshot',
+      'putAgentState',
+      'getAgentStates',
+      'getDialableCountryCodes',
+      'getRoutingProfileQueues',
+      'getAgentPermissions',
+      'getAgentConfiguration',
+      'updateAgentConfiguration',
+      'acceptContact',
+      'createOutboundContact',
+      'createTaskContact',
+      'clearContact',
+      'completeContact',
+      'destroyContact',
+      'rejectContact',
+      'notifyContactIssue',
+      'updateContactAttributes',
+      'createAdditionalConnection',
+      'destroyConnection',
+      'holdConnection',
+      'resumeConnection',
+      'toggleActiveConnections',
+      'conferenceConnections',
+      'sendClientLogs',
+      'sendDigits',
+      'sendSoftphoneCallReport',
+      'sendSoftphoneCallMetrics',
+      'getEndpoints',
+      'getNewAuthToken',
+      'createTransport',
+      'muteParticipant',
+      'unmuteParticipant',
+      'updateMonitorParticipantState',
+      'pauseContact',
+      'resumeContact'
    ]);
 
    /**---------------------------------------------------------------
@@ -69,8 +71,8 @@
     * enum MasterMethods
     */
    connect.MasterMethods = connect.makeEnum([
-         'becomeMaster',
-         'checkMaster'
+      'becomeMaster',
+      'checkMaster'
    ]);
 
    /**---------------------------------------------------------------
@@ -104,9 +106,9 @@
       connect.ClientMethods.GET_ROUTING_PROFILE_QUEUES,
    ];
 
-    /**---------------------------------------------------------------
-    * retry error types
-    */
+   /**---------------------------------------------------------------
+   * retry error types
+   */
 
    connect.RetryableErrors = connect.makeEnum([
       'unauthorized',
@@ -117,52 +119,52 @@
     * retryStatus
     */
 
-       connect.RetryStatus = connect.makeEnum([
-         'retrying',
-         'exhausted',
-         'none'
-      ]);
+   connect.RetryStatus = connect.makeEnum([
+      'retrying',
+      'exhausted',
+      'none'
+   ]);
 
    /**---------------------------------------------------------------
     * abstract class ClientBase
     */
-   var ClientBase = function() {};
+   var ClientBase = function () { };
    ClientBase.EMPTY_CALLBACKS = {
-      success: function() { },
-      failure: function() { }
+      success: function () { },
+      failure: function () { }
    };
 
-   ClientBase.prototype.call = function(method, paramsIn, callbacksIn) {
+   ClientBase.prototype.call = function (method, paramsIn, callbacksIn) {
       connect.assertNotNull(method, 'method');
       var params = paramsIn || {};
       var callbacks = callbacksIn || ClientBase.EMPTY_CALLBACKS;
       this._callImpl(method, params, callbacks);
    };
 
-   ClientBase.prototype._callImpl = function(method, params, callbacks) {
+   ClientBase.prototype._callImpl = function (method, params, callbacks) {
       throw new connect.NotImplementedError();
    };
 
    /**---------------------------------------------------------------
     * class NullClient extends ClientBase
     */
-   var NullClient = function() {
+   var NullClient = function () {
       ClientBase.call(this);
    };
    NullClient.prototype = Object.create(ClientBase.prototype);
    NullClient.prototype.constructor = NullClient;
 
-   NullClient.prototype._callImpl = function(method, params, callbacks) {
+   NullClient.prototype._callImpl = function (method, params, callbacks) {
       if (callbacks && callbacks.failure) {
          var message = connect.sprintf('No such method exists on NULL client: %s', method);
-         callbacks.failure(new connect.ValueError(message), {message: message});
+         callbacks.failure(new connect.ValueError(message), { message: message });
       }
    };
 
    /**---------------------------------------------------------------
     * abstract class UpstreamConduitClientBase extends ClientBase
     */
-   var UpstreamConduitClientBase = function(conduit, requestEvent, responseEvent) {
+   var UpstreamConduitClientBase = function (conduit, requestEvent, responseEvent) {
       ClientBase.call(this);
       this.conduit = conduit;
       this.requestEvent = requestEvent;
@@ -175,7 +177,7 @@
    UpstreamConduitClientBase.prototype = Object.create(ClientBase.prototype);
    UpstreamConduitClientBase.prototype.constructor = UpstreamConduitClientBase;
 
-   UpstreamConduitClientBase.prototype._callImpl = function(method, params, callbacks) {
+   UpstreamConduitClientBase.prototype._callImpl = function (method, params, callbacks) {
       var request = connect.EventFactory.createRequest(this.requestEvent, method, params);
       this._requestIdCallbacksMap[request.requestId] = callbacks;
 
@@ -198,7 +200,7 @@
       this.conduit.sendUpstream(request.event, request);
    };
 
-   UpstreamConduitClientBase.prototype._getCallbacksForRequest = function(requestId) {
+   UpstreamConduitClientBase.prototype._getCallbacksForRequest = function (requestId) {
       var callbacks = this._requestIdCallbacksMap[requestId] || null;
 
       if (callbacks != null) {
@@ -208,7 +210,7 @@
       return callbacks;
    };
 
-   UpstreamConduitClientBase.prototype._handleResponse = function(data) {
+   UpstreamConduitClientBase.prototype._handleResponse = function (data) {
       var callbacks = this._getCallbacksForRequest(data.requestId);
       if (callbacks == null) {
          return;
@@ -225,7 +227,7 @@
    /**---------------------------------------------------------------
     * class UpstreamConduitClient extends ClientBase
     */
-   var UpstreamConduitClient = function(conduit) {
+   var UpstreamConduitClient = function (conduit) {
       UpstreamConduitClientBase.call(this, conduit, connect.EventType.API_REQUEST, connect.EventType.API_RESPONSE);
    };
    UpstreamConduitClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
@@ -233,8 +235,8 @@
 
    /**---------------------------------------------------------------
     * class ApiProxyClient extends ClientBase
-    */ 
-   var ApiProxyClient = function () { 
+    */
+   var ApiProxyClient = function () {
       ClientBase.call(this);
       const bus = connect.core.getEventBus();
       bus.subscribe(connect.EventType.API_PROXY_RESPONSE, connect.hitch(this, this._handleResponse))
@@ -272,11 +274,11 @@
          callbacks.success(data.data);
       }
    };
-   
+
    /**---------------------------------------------------------------
     * class UpstreamConduitMasterClient extends ClientBase
     */
-   var UpstreamConduitMasterClient = function(conduit) {
+   var UpstreamConduitMasterClient = function (conduit) {
       UpstreamConduitClientBase.call(this, conduit, connect.EventType.MASTER_REQUEST, connect.EventType.MASTER_RESPONSE);
    };
    UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
@@ -285,7 +287,7 @@
    /**---------------------------------------------------------------
    * class AgentAppClient extends ClientBase
    */
-   var AgentAppClient = function(authCookieName, authToken, endpoint) {
+   var AgentAppClient = function (authCookieName, authToken, endpoint) {
       connect.assertNotNull(authCookieName, 'authCookieName');
       connect.assertNotNull(authToken, 'authToken');
       connect.assertNotNull(endpoint, 'endpoint');
@@ -298,7 +300,7 @@
    AgentAppClient.prototype = Object.create(ClientBase.prototype);
    AgentAppClient.prototype.constructor = AgentAppClient;
 
-   AgentAppClient.prototype._callImpl = function(method, params, callbacks) {
+   AgentAppClient.prototype._callImpl = function (method, params, callbacks) {
       var self = this;
       var bear = {};
       bear[self.authCookieName] = self.authToken;
@@ -306,15 +308,15 @@
          method: 'post',
          body: JSON.stringify(params || {}),
          headers: {
-               'Accept': 'application/json',
-               'Content-Type': 'application/json',
-               'X-Amz-target': method,
-               'X-Amz-Bearer': JSON.stringify(bear)
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Amz-target': method,
+            'X-Amz-Bearer': JSON.stringify(bear)
          }
       };
-      connect.fetch(self.endpointUrl, options).then(function(res){
+      connect.fetch(self.endpointUrl, options).then(function (res) {
          callbacks.success(res);
-      }).catch(function(err){
+      }).catch(function (err) {
          const reader = err.body.getReader();
          let body = '';
          const decoder = new TextDecoder();
@@ -333,7 +335,7 @@
    /**---------------------------------------------------------------
     * class AWSClient extends ClientBase
     */
-   var AWSClient = function(authToken, region, endpointIn) {
+   var AWSClient = function (authToken, region, endpointIn) {
       connect.assertNotNull(authToken, 'authToken');
       connect.assertNotNull(region, 'region');
       ClientBase.call(this);
@@ -347,7 +349,7 @@
             : baseUrl + '/api'
       );
       var endpoint = new AWS.Endpoint(endpointUrl);
-      this.client = new AWS.Connect({endpoint: endpoint});
+      this.client = new AWS.Connect({ endpoint: endpoint });
 
       this.unauthorizedFailCounter = 0;
       this.accessDeniedFailCounter = 0;
@@ -355,25 +357,35 @@
    AWSClient.prototype = Object.create(ClientBase.prototype);
    AWSClient.prototype.constructor = AWSClient;
 
-   AWSClient.prototype._callImpl = function(method, params, callbacks) {
+   AWSClient.prototype._callImpl = function (method, params, callbacks) {
       var self = this;
       var log = connect.getLog();
 
-      if (! connect.contains(this.client, method)) {
+      if (!connect.contains(this.client, method)) {
          var message = connect.sprintf('No such method exists on AWS client: %s', method);
-         callbacks.failure(new connect.ValueError(message), {message: message});
+         callbacks.failure(new connect.ValueError(message), { message: message });
 
       } else {
          params = this._translateParams(method, params);
+         // pauseContact & resumeContact CTI API refuse authentication added by this._translateParams above
+         if (method === 'pauseContact' || method === 'resumeContact') {
+            delete params.authentication;
+         }
+         // only relatedContactId or previousContactId can exist
+         if (params && params.relatedContactId && params.relatedContactId !== null) {
+            if (params.previousContactId) {
+               delete params.previousContactId;
+            }
+         }
 
          log.trace("AWSClient: --> Calling operation '%s'", method)
             .sendInternalLogToServer();
 
          this.client[method](params)
-            .on('build', function(request) {
+            .on('build', function (request) {
                request.httpRequest.headers['X-Amz-Bearer'] = self.authToken;
             })
-            .send(function(err, data) {
+            .send(function (err, data) {
                try {
                   if (err) {
                      if (err.code === connect.CTIExceptions.UNAUTHORIZED_EXCEPTION || err.statusCode === 401) {
@@ -398,17 +410,17 @@
                   }
                } catch (e) {
                   connect.getLog().error("Failed to handle AWS API request for method %s", method)
-                        .withException(e).sendInternalLogToServer();
+                     .withException(e).sendInternalLogToServer();
                }
             });
       }
    };
 
-   AWSClient.prototype._isRetryableMethod = function(method) {
+   AWSClient.prototype._isRetryableMethod = function (method) {
       return connect.RetryableClientMethodsList.includes(method);
    }
 
-   AWSClient.prototype._retryMethod = function(method, callbacks, err, data, retryableError) {
+   AWSClient.prototype._retryMethod = function (method, callbacks, err, data, retryableError) {
       var self = this;
       var log = connect.getLog();
       const formatRetryError = (err) => self._formatCallError(self._addStatusCodeToError(err));
@@ -422,7 +434,7 @@
          retryCallback: (err, data) => callbacks.failure(formatRetryError(err), data),
          defaultCallback: (err, data) => callbacks.authFailure(formatRetryError(err), data),
       };
-      switch(retryableError) {
+      switch (retryableError) {
          case connect.RetryableErrors.UNAUTHORIZED:
             break;
          case connect.RetryableErrors.ACCESS_DENIED:
@@ -443,8 +455,8 @@
          ...err,
          retryStatus: connect.RetryStatus.NONE,
       };
-      if(self._isRetryableMethod(method)) {
-         if(retryParams.exhaustedRetries) {
+      if (self._isRetryableMethod(method)) {
+         if (retryParams.exhaustedRetries) {
             log.trace(`AWSClient: <-- Operation ${method} exhausted max ${retryParams.maxCount} number of retries for ${retryParams.errorMessage} error`)
                .sendInternalLogToServer();
 
@@ -478,7 +490,7 @@
    // Can't pass err directly to postMessage
    // postMessage() tries to clone the err object and failed.
    // Refer to https://github.com/goatslacker/alt-devtool/issues/5
-   AWSClient.prototype._formatCallError = function(err) {
+   AWSClient.prototype._formatCallError = function (err) {
       const error = {
          type: err.code,
          message: err.message,
@@ -488,30 +500,30 @@
       };
       if (err.stack) {
          try {
-             if (Array.isArray(err.stack)) {
-                 error.stack = err.stack;
-             } else if (typeof err.stack === 'object') {
-                 error.stack = [JSON.stringify(err.stack)];
-             } else if (typeof err.stack === 'string') {
-                 error.stack = err.stack.split('\n');
-             }
-         } finally {}
+            if (Array.isArray(err.stack)) {
+               error.stack = err.stack;
+            } else if (typeof err.stack === 'object') {
+               error.stack = [JSON.stringify(err.stack)];
+            } else if (typeof err.stack === 'string') {
+               error.stack = err.stack.split('\n');
+            }
+         } finally { }
       }
 
       return error;
    }
 
-   AWSClient.prototype._addStatusCodeToError = function(err) {
-      if(err.statusCode) return err;
+   AWSClient.prototype._addStatusCodeToError = function (err) {
+      if (err.statusCode) return err;
 
-      const error = {...err};
+      const error = { ...err };
 
-      if(!err.code) {
+      if (!err.code) {
          error.statusCode = 400;
       } else {
 
          // TODO: add more here
-         switch(error.code) {
+         switch (error.code) {
             case connect.CTIExceptions.UNAUTHORIZED_EXCEPTION:
                error.statusCode = 401;
                break;
@@ -532,7 +544,7 @@
          method !== connect.ClientMethods.UPDATE_MONITOR_PARTICIPANT_STATE;
    };
 
-   AWSClient.prototype._translateParams = function(method, params) {
+   AWSClient.prototype._translateParams = function (method, params) {
       switch (method) {
          case connect.ClientMethods.UPDATE_AGENT_CONFIGURATION:
             params.configuration = this._translateAgentConfiguration(params.configuration);
@@ -540,7 +552,7 @@
 
          case connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS:
             params.softphoneStreamStatistics = this._translateSoftphoneStreamStatistics(
-                  params.softphoneStreamStatistics);
+               params.softphoneStreamStatistics);
             break;
 
          case connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT:
@@ -560,7 +572,7 @@
       return params;
    };
 
-   AWSClient.prototype._translateAgentConfiguration = function(config) {
+   AWSClient.prototype._translateAgentConfiguration = function (config) {
       return {
          name: config.name,
          softphoneEnabled: config.softphoneEnabled,
@@ -571,7 +583,7 @@
       };
    };
 
-   AWSClient.prototype._translateRoutingProfile = function(profile) {
+   AWSClient.prototype._translateRoutingProfile = function (profile) {
       return {
          name: profile.name,
          routingProfileARN: profile.routingProfileARN,
@@ -579,15 +591,15 @@
       };
    };
 
-   AWSClient.prototype._translateQueue = function(queue) {
+   AWSClient.prototype._translateQueue = function (queue) {
       return {
-         queueARN:   queue.queueARN,
-         name:       queue.name
+         queueARN: queue.queueARN,
+         name: queue.name
       };
    };
 
-   AWSClient.prototype._translateSoftphoneStreamStatistics = function(stats) {
-      stats.forEach(function(stat) {
+   AWSClient.prototype._translateSoftphoneStreamStatistics = function (stats) {
+      stats.forEach(function (stat) {
          if ('packetsCount' in stat) {
             stat.packetCount = stat.packetsCount;
             delete stat.packetsCount;
@@ -597,7 +609,7 @@
       return stats;
    };
 
-   AWSClient.prototype._translateSoftphoneCallReport = function(report) {
+   AWSClient.prototype._translateSoftphoneCallReport = function (report) {
       if ('handshakingTimeMillis' in report) {
          report.handshakeTimeMillis = report.handshakingTimeMillis;
          delete report.handshakingTimeMillis;
@@ -619,7 +631,7 @@
       }
 
       report.softphoneStreamStatistics = this._translateSoftphoneStreamStatistics(
-            report.softphoneStreamStatistics);
+         report.softphoneStreamStatistics);
 
       return report;
    };
@@ -627,7 +639,7 @@
    /**---------------------------------------------------------------
    * class TaskTemplatesClient extends ClientBase
    */
-   var TaskTemplatesClient = function(endpoint) {
+   var TaskTemplatesClient = function (endpoint) {
       connect.assertNotNull(endpoint, 'endpoint');
       ClientBase.call(this);
       if (endpoint.includes('/task-templates')) {
@@ -642,7 +654,13 @@
    TaskTemplatesClient.prototype = Object.create(ClientBase.prototype);
    TaskTemplatesClient.prototype.constructor = TaskTemplatesClient;
 
-   TaskTemplatesClient.prototype._callImpl = function(method, params, callbacks) {
+   TaskTemplatesClient.prototype._callImpl = function (method, params, callbacks) {
+      // only relatedContactId or previousContactId can exist
+      if (params && params.relatedContactId && params.relatedContactId !== null) {
+         if (params.previousContactId) {
+            delete params.previousContactId;
+         }
+      }
       connect.assertNotNull(method, 'method');
       connect.assertNotNull(params, 'params');
       var options = {
@@ -687,23 +705,23 @@
             options.method = 'POST';
       }
       connect.fetch(url, options)
-      .then(function(res){
-         callbacks.success(res);
-      }).catch(function(err){
-         const reader = err.body.getReader();
-         let body = '';
-         const decoder = new TextDecoder();
-         reader.read().then(function processText({ done, value }) {
-            if (done) {
-               var error = JSON.parse(body);
-               error.status = err.status;
-               callbacks.failure(error);
-               return;
-            }
-            body += decoder.decode(value);
-            return reader.read().then(processText);
-         });
-      })
+         .then(function (res) {
+            callbacks.success(res);
+         }).catch(function (err) {
+            const reader = err.body.getReader();
+            let body = '';
+            const decoder = new TextDecoder();
+            reader.read().then(function processText({ done, value }) {
+               if (done) {
+                  var error = JSON.parse(body);
+                  error.status = err.status;
+                  callbacks.failure(error);
+                  return;
+               }
+               body += decoder.decode(value);
+               return reader.read().then(processText);
+            });
+         })
    };
 
    connect.ClientBase = ClientBase;

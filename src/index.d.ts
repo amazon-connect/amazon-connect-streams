@@ -707,6 +707,7 @@ declare namespace connect {
     ENDED = "ended",
     ERROR = "error",
     ACCEPTED = "accepted",
+    PAUSED = "paused"
   }
 
   /** An enumeration listing the different high-level states that a contact can have. */
@@ -1587,6 +1588,20 @@ declare namespace connect {
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
      */
     accept(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Pause an active contact.
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    pause(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Resume a paused contact.
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    resume(callbacks?: SuccessFailOptions): void;
 
     /**
      * Close the contact and all of its associated connections.

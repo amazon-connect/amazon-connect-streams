@@ -289,6 +289,7 @@ describe('Worker', function () {
         const method = 'some_method';
         const time = new Date().getTime();
         const error = {};
+        const params = {}
         const expectedEventData = {
           name: method,
           time,
@@ -314,7 +315,7 @@ describe('Worker', function () {
             },
           ]
         };
-        connect.worker.clientEngine.client._sendAPIMetrics(method, time, error);
+        connect.worker.clientEngine.client._sendAPIMetrics(method, time, params, error);
 
         sandbox.assert.calledOnceWithMatch(
           sendDownstreamSpy,
@@ -327,6 +328,7 @@ describe('Worker', function () {
         const method = 'some_method';
         const time = new Date().getTime();
         const statusCode = 401;
+        const params = {}
         const retryStatus = connect.RetryStatus.RETRYING;
         const error = {
           type: 'someType',
@@ -361,13 +363,13 @@ describe('Worker', function () {
           ],
         };
 
-        connect.worker.clientEngine.client._sendAPIMetrics(method, time, error);
+        connect.worker.clientEngine.client._sendAPIMetrics(method, time, params, error);
 
         sandbox.assert.calledOnceWithMatch(
           sendDownstreamSpy,
           connect.EventType.API_METRIC, 
           expectedEventData
-        );          
+        );
       });
     });
   });
