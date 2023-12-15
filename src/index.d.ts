@@ -707,7 +707,6 @@ declare namespace connect {
     ENDED = "ended",
     ERROR = "error",
     ACCEPTED = "accepted",
-    PAUSED = "paused"
   }
 
   /** An enumeration listing the different high-level states that a contact can have. */
@@ -745,6 +744,9 @@ declare namespace connect {
 
     /** Indicates the contact has ended. */
     ENDED = "ended",
+
+    /** Indicates the contact is paused */
+    PAUSED = 'paused'
   }
 
   enum CONTACT_ACTIVE_STATES {

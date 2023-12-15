@@ -28944,6 +28944,15 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       connect.ContactEvents.ERROR)
     .assoc(connect.ContactStateType.CONNECTING,
       connect.ContactStateType.MISSED,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.INCOMING,
+      connect.ContactStateType.MISSED,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.CONNECTING,
+      connect.ContactStateType.REJECTED,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.INCOMING,
+      connect.ContactStateType.REJECTED,
       connect.ContactEvents.MISSED);
 
   /**-----------------------------------------------------------------------*/
