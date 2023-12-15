@@ -1433,8 +1433,6 @@ Resume a paused contact.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
-## Connection API
-
 
 ## Connection API
 The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state

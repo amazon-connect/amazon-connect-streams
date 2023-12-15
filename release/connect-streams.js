@@ -307,11 +307,14 @@
     'connected',
     'missed',
     'error',
-    'ended'
+    'ended',
+    'rejected',
+    'paused'
   ]);
   connect.ContactStatusType = connect.ContactStateType;
 
   connect.CONTACT_ACTIVE_STATES = connect.makeEnum([
+    "paused",
     'incoming',
     'pending',
     'connecting',
@@ -665,23 +668,23 @@
     connect.core.getUpstream().onUpstream(connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED, f);
   };
 
-  Agent.prototype.onSpeakerDeviceChanged = function(f){
+  Agent.prototype.onSpeakerDeviceChanged = function (f) {
     connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED, f);
   }
 
-  Agent.prototype.onMicrophoneDeviceChanged = function(f){
+  Agent.prototype.onMicrophoneDeviceChanged = function (f) {
     connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED, f);
   }
 
-  Agent.prototype.onRingerDeviceChanged = function(f){
+  Agent.prototype.onRingerDeviceChanged = function (f) {
     connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.RINGER_DEVICE_CHANGED, f);
   }
 
-  Agent.prototype.onCameraDeviceChanged = function(f){
+  Agent.prototype.onCameraDeviceChanged = function (f) {
     connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CAMERA_DEVICE_CHANGED, f);
   }
 
-  Agent.prototype.onBackgroundBlurChanged = function(f){
+  Agent.prototype.onBackgroundBlurChanged = function (f) {
     connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.BACKGROUND_BLUR_CHANGED, f);
   }
 
@@ -829,17 +832,17 @@
       client.call(connect.ClientMethods.UPDATE_AGENT_CONFIGURATION, {
         configuration: connect.assertNotNull(configuration, 'configuration')
       }, {
-          success: function (data) {
-            // We need to ask the shared worker to reload agent config
-            // once we change it so every tab has accurate config.
-            var conduit = connect.core.getUpstream();
-            conduit.sendUpstream(connect.EventType.RELOAD_AGENT_CONFIGURATION);
+        success: function (data) {
+          // We need to ask the shared worker to reload agent config
+          // once we change it so every tab has accurate config.
+          var conduit = connect.core.getUpstream();
+          conduit.sendUpstream(connect.EventType.RELOAD_AGENT_CONFIGURATION);
 
-            if (callbacks.success) {
-              callbacks.success(data);
-            }
-          },
-          failure: callbacks && callbacks.failure
+          if (callbacks.success) {
+            callbacks.success(data);
+          }
+        },
+        failure: callbacks && callbacks.failure
       });
     }
   };
@@ -864,13 +867,22 @@
     // Have to remove the endpointId field or AWS JS SDK gets mad.
     delete endpoint.endpointId;
 
-    client.call(connect.ClientMethods.CREATE_OUTBOUND_CONTACT, {
+    var callParams = {
       endpoint: connect.assertNotNull(endpoint, 'endpoint'),
       queueARN: (params && (params.queueARN || params.queueId)) || this.getRoutingProfile().defaultOutboundQueue.queueARN
-    }, params && {
-        success: params.success,
-        failure: params.failure
-      });
+    };
+
+    if (params && params.relatedContactId && params.relatedContactId !== null) {
+      callParams.relatedContactId = params.relatedContactId;
+      if (params.previousContactId) {
+        delete callParams.previousContactId;
+      }
+    }
+
+    client.call(connect.ClientMethods.CREATE_OUTBOUND_CONTACT, callParams, params && {
+      success: params.success,
+      failure: params.failure
+    });
   };
 
   Agent.prototype.getAllQueueARNs = function () {
@@ -884,7 +896,7 @@
     var client = connect.core.getClient();
     connect.assertNotNull(callbacks, "callbacks");
     connect.assertNotNull(callbacks.success, "callbacks.success");
-    var pageInfo = pageInfoIn || { };
+    var pageInfo = pageInfoIn || {};
 
     pageInfo.endpoints = pageInfo.endpoints || [];
     pageInfo.maxResults = pageInfo.maxResults || connect.DEFAULT_BATCH_SIZE;
@@ -900,33 +912,33 @@
       nextToken: pageInfo.nextToken || null,
       maxResults: pageInfo.maxResults
     }, {
-        success: function (data) {
-          if (data.nextToken) {
-            self.getEndpoints(queueARNs, callbacks, {
-              nextToken: data.nextToken,
-              maxResults: pageInfo.maxResults,
-              endpoints: pageInfo.endpoints.concat(data.endpoints)
-            });
-          } else {
-            pageInfo.endpoints = pageInfo.endpoints.concat(data.endpoints);
-            var endpoints = pageInfo.endpoints.map(function (endpoint) {
-              return new connect.Endpoint(endpoint);
-            });
+      success: function (data) {
+        if (data.nextToken) {
+          self.getEndpoints(queueARNs, callbacks, {
+            nextToken: data.nextToken,
+            maxResults: pageInfo.maxResults,
+            endpoints: pageInfo.endpoints.concat(data.endpoints)
+          });
+        } else {
+          pageInfo.endpoints = pageInfo.endpoints.concat(data.endpoints);
+          var endpoints = pageInfo.endpoints.map(function (endpoint) {
+            return new connect.Endpoint(endpoint);
+          });
 
-            callbacks.success({
-              endpoints: endpoints,
-              addresses: endpoints
-            });
-          }
-        },
-        failure: callbacks.failure
-      });
+          callbacks.success({
+            endpoints: endpoints,
+            addresses: endpoints
+          });
+        }
+      },
+      failure: callbacks.failure
+    });
   };
 
   Agent.prototype.getAddresses = Agent.prototype.getEndpoints;
 
   //Internal identifier.
-  Agent.prototype._getResourceId = function() {
+  Agent.prototype._getResourceId = function () {
     var queueArns = this.getAllQueueARNs();
     for (let queueArn of queueArns) {
       const agentIdMatch = queueArn.match(/\/agent\/([^/]+)/);
@@ -1053,7 +1065,7 @@
     return this._getData().type;
   };
 
-  Contact.prototype.getContactDuration = function() {
+  Contact.prototype.getContactDuration = function () {
     return this._getData().contactDuration;
   }
 
@@ -1225,49 +1237,48 @@
     client.call(connect.ClientMethods.ACCEPT_CONTACT, {
       contactId: contactId
     }, {
-        success: function (data) {
-          var conduit = connect.core.getUpstream();
-          conduit.sendUpstream(connect.EventType.BROADCAST, {
-            event: connect.ContactEvents.ACCEPTED,
-            data: new connect.Contact(contactId)
-          });
-          conduit.sendUpstream(connect.EventType.BROADCAST, {
-            event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, self.getContactId()),
-            data: new connect.Contact(contactId)
-          });
+      success: function (data) {
+        var conduit = connect.core.getUpstream();
+        conduit.sendUpstream(connect.EventType.BROADCAST, {
+          event: connect.ContactEvents.ACCEPTED,
+          data: new connect.Contact(contactId)
+        });
+        conduit.sendUpstream(connect.EventType.BROADCAST, {
+          event: connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, self.getContactId()),
+          data: new connect.Contact(contactId)
+        });
 
-          // In Firefox, there's a browser restriction that an unfocused browser tab is not allowed to access the user's microphone.
-          // The problem is that the restriction could cause a webrtc session creation timeout error when you get an incoming call while you are not on the primary tab.
-          // It was hard to workaround the issue especially when you have multiple tabs open because you needed to find the right tab and accept the contact before the timeout.
-          // To avoid the error, when multiple tabs are open in Firefox, a webrtc session is not immediately created as an incoming softphone contact is detected.
-          // Instead, it waits until contact.accept() is called on a tab and lets the tab become the new primary tab and start the web rtc session there
-          // because the tab should be focused at the moment and have access to the user's microphone.
-          var contact = new connect.Contact(contactId);
-          if (connect.isFirefoxBrowser() && contact.isSoftphoneCall()) {
-            connect.core.triggerReadyToStartSessionEvent();
-          }
-
-          if (callbacks && callbacks.success) {
-            callbacks.success(data);
-          }
-        },
-        failure: function (err, data) {
-          connect.getLog().error("Accept Contact failed").sendInternalLogToServer()
-            .withException(err)
-            .withObject({
-              data
-            });
-
-          connect.publishMetric({
-            name: "ContactAcceptFailure",
-            data: { count: 1 }
-          })
-
-          if (callbacks && callbacks.failure) {
-            callbacks.failure(connect.ContactStateType.ERROR);
-          }
+        // In Firefox, there's a browser restriction that an unfocused browser tab is not allowed to access the user's microphone.
+        // The problem is that the restriction could cause a webrtc session creation timeout error when you get an incoming call while you are not on the primary tab.
+        // It was hard to workaround the issue especially when you have multiple tabs open because you needed to find the right tab and accept the contact before the timeout.
+        // To avoid the error, when multiple tabs are open in Firefox, a webrtc session is not immediately created as an incoming softphone contact is detected.
+        // Instead, it waits until contact.accept() is called on a tab and lets the tab become the new primary tab and start the web rtc session there
+        // because the tab should be focused at the moment and have access to the user's microphone.
+        var contact = new connect.Contact(contactId);
+        if (connect.isFirefoxBrowser() && contact.isSoftphoneCall()) {
+          connect.core.triggerReadyToStartSessionEvent();
         }
-      });
+        if (callbacks && callbacks.success) {
+          callbacks.success(data);
+        }
+      },
+      failure: function (err, data) {
+        connect.getLog().error("Accept Contact failed").sendInternalLogToServer()
+          .withException(err)
+          .withObject({
+            data
+          });
+
+        connect.publishMetric({
+          name: "ContactAcceptFailure",
+          data: { count: 1 }
+        })
+
+        if (callbacks && callbacks.failure) {
+          callbacks.failure(connect.ContactStateType.ERROR);
+        }
+      }
+    });
   };
 
   Contact.prototype.destroy = function () {
@@ -1390,7 +1401,7 @@
   }
 
   Contact.prototype.updateMonitorParticipantState = function (targetState, callbacks) {
-    if(!targetState || !Object.values(connect.MonitoringMode).includes(targetState.toUpperCase())) {
+    if (!targetState || !Object.values(connect.MonitoringMode).includes(targetState.toUpperCase())) {
       connect.getLog().error(`Invalid target state was provided: ${targetState}`).sendInternalLogToServer();
       if (callbacks && callbacks.failure) {
         callbacks.failure(connect.MonitoringErrorTypes.INVALID_TARGET_STATE);
@@ -1409,7 +1420,20 @@
     var supervisorConnection = nonAgentConnections && nonAgentConnections.find(conn => conn.isBarge() && conn.isActive());
     return supervisorConnection !== undefined;
   }
+  
+  Contact.prototype.pause = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.PAUSE_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
 
+  Contact.prototype.resume = function (callbacks) {
+    var client = connect.core.getClient();
+    client.call(connect.ClientMethods.RESUME_CONTACT, {
+      contactId: this.getContactId()
+    }, callbacks);
+  };
   /*----------------------------------------------------------------
    * class ContactSnapshot
    */
@@ -1592,28 +1616,28 @@
       };
       connect.getLog().info("getSpeakerId called").withObject(params).sendInternalLogToServer();
       client.call(connect.AgentAppClientMethods.GET_CONTACT, params, {
-          success: function (data) {
-            if(data.contactData.customerId) {
-              var obj = {
-                speakerId: data.contactData.customerId
-              }
-              connect.getLog().info("getSpeakerId succeeded").withObject(data).sendInternalLogToServer();
-              resolve(obj);
-            } else {
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call");
-              reject(error);
+        success: function (data) {
+          if (data.contactData.customerId) {
+            var obj = {
+              speakerId: data.contactData.customerId
             }
-
-          },
-          failure: function (err) {
-            connect.getLog().error("Get SpeakerId failed")
-              .withObject({
-                err: err
-              }).sendInternalLogToServer();
-            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_ID_FAILED, "Get SpeakerId failed", err);
+            connect.getLog().info("getSpeakerId succeeded").withObject(data).sendInternalLogToServer();
+            resolve(obj);
+          } else {
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.NO_SPEAKER_ID_FOUND, "No speakerId assotiated with this call");
             reject(error);
           }
-        });
+
+        },
+        failure: function (err) {
+          connect.getLog().error("Get SpeakerId failed")
+            .withObject({
+              err: err
+            }).sendInternalLogToServer();
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_ID_FAILED, "Get SpeakerId failed", err);
+          reject(error);
+        }
+      });
     });
   };
 
@@ -1622,43 +1646,43 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      self.getSpeakerId().then(function(data){
-        self.getDomainId().then(function(domainId) {
+      self.getSpeakerId().then(function (data) {
+        self.getDomainId().then(function (domainId) {
           const params = {
             "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
-            "DomainId" : domainId
+            "DomainId": domainId
           };
           connect.getLog().info("getSpeakerStatus called").withObject(params).sendInternalLogToServer();
           client.call(connect.AgentAppClientMethods.DESCRIBE_SPEAKER, params, {
-              success: function (data) {
-                connect.getLog().info("getSpeakerStatus succeeded").withObject(data).sendInternalLogToServer();
-                resolve(data);
-              },
-              failure: function (err) {
-                var error;
-                var parsedErr = JSON.parse(err);
-                switch(parsedErr.status) {
-                  case 400:
-                  case 404:
-                    var data = parsedErr;
-                    data.type = data.type ? data.type : connect.VoiceIdErrorTypes.SPEAKER_ID_NOT_ENROLLED;
-                    connect.getLog().info("Speaker is not enrolled.").sendInternalLogToServer();
-                    resolve(data);
-                    break;
-                  default:
-                    connect.getLog().error("getSpeakerStatus failed")
+            success: function (data) {
+              connect.getLog().info("getSpeakerStatus succeeded").withObject(data).sendInternalLogToServer();
+              resolve(data);
+            },
+            failure: function (err) {
+              var error;
+              var parsedErr = JSON.parse(err);
+              switch (parsedErr.status) {
+                case 400:
+                case 404:
+                  var data = parsedErr;
+                  data.type = data.type ? data.type : connect.VoiceIdErrorTypes.SPEAKER_ID_NOT_ENROLLED;
+                  connect.getLog().info("Speaker is not enrolled.").sendInternalLogToServer();
+                  resolve(data);
+                  break;
+                default:
+                  connect.getLog().error("getSpeakerStatus failed")
                     .withObject({
                       err: err
                     }).sendInternalLogToServer();
-                    var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
-                    reject(error);
-                }
+                  var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_SPEAKER_STATUS_FAILED, "Get SpeakerStatus failed", err);
+                  reject(error);
               }
-            });
-        }).catch(function(err) {
+            }
+          });
+        }).catch(function (err) {
           reject(err);
         });
-      }).catch(function(err){
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -1681,19 +1705,19 @@
       };
       connect.getLog().info("_optOutSpeakerInLcms called").withObject(params).sendInternalLogToServer();
       client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, params, {
-          success: function (data) {
-            connect.getLog().info("optOutSpeakerInLcms succeeded").withObject(data).sendInternalLogToServer();
-            resolve(data);
-          },
-          failure: function (err) {
-            connect.getLog().error("optOutSpeakerInLcms failed")
-              .withObject({
-                err: err,
-              }).sendInternalLogToServer();
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.OPT_OUT_SPEAKER_IN_LCMS_FAILED, "optOutSpeakerInLcms failed", err);
-              reject(error);
-          }
-        });
+        success: function (data) {
+          connect.getLog().info("optOutSpeakerInLcms succeeded").withObject(data).sendInternalLogToServer();
+          resolve(data);
+        },
+        failure: function (err) {
+          connect.getLog().error("optOutSpeakerInLcms failed")
+            .withObject({
+              err: err,
+            }).sendInternalLogToServer();
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.OPT_OUT_SPEAKER_IN_LCMS_FAILED, "optOutSpeakerInLcms failed", err);
+          reject(error);
+        }
+      });
     });
   };
 
@@ -1702,33 +1726,33 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      self.getSpeakerId().then(function(data){
-        self.getDomainId().then(function(domainId) {
+      self.getSpeakerId().then(function (data) {
+        self.getDomainId().then(function (domainId) {
           var speakerId = data.speakerId;
           const params = {
             "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
-            "DomainId" : domainId
+            "DomainId": domainId
           };
           connect.getLog().info("optOutSpeaker called").withObject(params).sendInternalLogToServer();
           client.call(connect.AgentAppClientMethods.OPT_OUT_SPEAKER, params, {
-              success: function (data) {
-                self._optOutSpeakerInLcms(speakerId, data.generatedSpeakerId).catch(function(){});
-                connect.getLog().info("optOutSpeaker succeeded").withObject(data).sendInternalLogToServer();
-                resolve(data);
-              },
-              failure: function (err) {
-                connect.getLog().error("optOutSpeaker failed")
-                  .withObject({
-                    err: err,
-                  }).sendInternalLogToServer();
-                var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.OPT_OUT_SPEAKER_FAILED, "optOutSpeaker failed.", err);
-                reject(error);
-              }
-            });
-        }).catch(function(err) {
+            success: function (data) {
+              self._optOutSpeakerInLcms(speakerId, data.generatedSpeakerId).catch(function () { });
+              connect.getLog().info("optOutSpeaker succeeded").withObject(data).sendInternalLogToServer();
+              resolve(data);
+            },
+            failure: function (err) {
+              connect.getLog().error("optOutSpeaker failed")
+                .withObject({
+                  err: err,
+                }).sendInternalLogToServer();
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.OPT_OUT_SPEAKER_FAILED, "optOutSpeaker failed.", err);
+              reject(error);
+            }
+          });
+        }).catch(function (err) {
           reject(err);
         });
-      }).catch(function(err){
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -1739,31 +1763,31 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      self.getSpeakerId().then(function(data){
-        self.getDomainId().then(function(domainId) {
+      self.getSpeakerId().then(function (data) {
+        self.getDomainId().then(function (domainId) {
           const params = {
             "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
-            "DomainId" : domainId
+            "DomainId": domainId
           };
           connect.getLog().info("deleteSpeaker called").withObject(params).sendInternalLogToServer();
           client.call(connect.AgentAppClientMethods.DELETE_SPEAKER, params, {
-              success: function (data) {
-                connect.getLog().info("deleteSpeaker succeeded").withObject(data).sendInternalLogToServer();
-                resolve(data);
-              },
-              failure: function (err) {
-                connect.getLog().error("deleteSpeaker failed")
-                  .withObject({
-                    err: err,
-                  }).sendInternalLogToServer();
-                var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.DELETE_SPEAKER_FAILED, "deleteSpeaker failed.", err);
-                reject(error);
-              }
-            });
-        }).catch(function(err) {
+            success: function (data) {
+              connect.getLog().info("deleteSpeaker succeeded").withObject(data).sendInternalLogToServer();
+              resolve(data);
+            },
+            failure: function (err) {
+              connect.getLog().error("deleteSpeaker failed")
+                .withObject({
+                  err: err,
+                }).sendInternalLogToServer();
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.DELETE_SPEAKER_FAILED, "deleteSpeaker failed.", err);
+              reject(error);
+            }
+          });
+        }).catch(function (err) {
           reject(err);
         });
-      }).catch(function(err){
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -1774,38 +1798,38 @@
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      self.getDomainId().then(function(domainId) {
+      self.getDomainId().then(function (domainId) {
         const params = {
           "contactId": self.contactId,
           "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
           "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
           "clientToken": AWS.util.uuid.v4(),
-          "domainId" : domainId
+          "domainId": domainId
         };
         connect.getLog().info("startSession called").withObject(params).sendInternalLogToServer();
         client.call(connect.AgentAppClientMethods.START_VOICE_ID_SESSION, params, {
-            success: function (data) {
-              if(data.sessionId) {
-                resolve(data);
-              } else {
-                connect.getLog().error("startVoiceIdSession failed, no session id returned")
-                  .withObject({
-                    data: data
-                  }).sendInternalLogToServer();
-                var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "No session id returned from start session api");
-                reject(error);
-              }
-            },
-            failure: function (err) {
-              connect.getLog().error("startVoiceIdSession failed")
+          success: function (data) {
+            if (data.sessionId) {
+              resolve(data);
+            } else {
+              connect.getLog().error("startVoiceIdSession failed, no session id returned")
                 .withObject({
-                  err: err
+                  data: data
                 }).sendInternalLogToServer();
-              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "startVoiceIdSession failed", err);
+              var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "No session id returned from start session api");
               reject(error);
             }
-          });
-      }).catch(function(err) {
+          },
+          failure: function (err) {
+            connect.getLog().error("startVoiceIdSession failed")
+              .withObject({
+                err: err
+              }).sendInternalLogToServer();
+            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.START_SESSION_FAILED, "startVoiceIdSession failed", err);
+            reject(error);
+          }
+        });
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -1819,53 +1843,53 @@
     var pollTimes = 0;
     return new Promise(function (resolve, reject) {
       function evaluate() {
-        self.getDomainId().then(function(domainId) {
+        self.getDomainId().then(function (domainId) {
           const params = {
             "SessionNameOrId": contactData.initialContactId || this.contactId,
-            "DomainId" : domainId
+            "DomainId": domainId
           };
           connect.getLog().info("evaluateSpeaker called").withObject(params).sendInternalLogToServer();
           client.call(connect.AgentAppClientMethods.EVALUATE_SESSION, params, {
             success: function (data) {
-              if(++pollTimes < connect.VoiceIdConstants.EVALUATION_MAX_POLL_TIMES) {
-                if(data.StreamingStatus === connect.VoiceIdStreamingStatus.PENDING_CONFIGURATION) {
+              if (++pollTimes < connect.VoiceIdConstants.EVALUATION_MAX_POLL_TIMES) {
+                if (data.StreamingStatus === connect.VoiceIdStreamingStatus.PENDING_CONFIGURATION) {
                   setTimeout(evaluate, connect.VoiceIdConstants.EVALUATION_POLLING_INTERVAL);
                 } else {
-                  if(!data.AuthenticationResult) {
+                  if (!data.AuthenticationResult) {
                     data.AuthenticationResult = {};
                     data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.NOT_ENABLED;
                   }
 
-                  if(!data.FraudDetectionResult) {
+                  if (!data.FraudDetectionResult) {
                     data.FraudDetectionResult = {};
                     data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.NOT_ENABLED;
                   }
 
                   // Resolve if both authentication and fraud detection are not enabled.
-                  if(!self.isAuthEnabled(data.AuthenticationResult.Decision) &&
+                  if (!self.isAuthEnabled(data.AuthenticationResult.Decision) &&
                     !self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
-                      connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
-                      resolve(data);
-                      return;
+                    connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
+                    resolve(data);
+                    return;
                   }
 
-                  if(data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED) {
-                    if(self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision)) {
+                  if (data.StreamingStatus === connect.VoiceIdStreamingStatus.ENDED) {
+                    if (self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision)) {
                       data.AuthenticationResult.Decision = connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
                     }
-                    if(self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision)) {
+                    if (self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision)) {
                       data.FraudDetectionResult.Decision = connect.ContactFlowFraudDetectionDecision.INCONCLUSIVE;
                     }
                   }
                   // Voice print is not long enough for both authentication and fraud detection
-                  if(self.isAuthResultInconclusive(data.AuthenticationResult.Decision) &&
+                  if (self.isAuthResultInconclusive(data.AuthenticationResult.Decision) &&
                     self.isFraudResultInconclusive(data.FraudDetectionResult.Decision)) {
-                      connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
-                      resolve(data);
-                      return;
+                    connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
+                    resolve(data);
+                    return;
                   }
 
-                  if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) &&
+                  if (!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) &&
                     self.isAuthEnabled(data.AuthenticationResult.Decision)) {
                     switch (data.AuthenticationResult.Decision) {
                       case connect.VoiceIdAuthenticationDecision.ACCEPT:
@@ -1885,7 +1909,7 @@
                     }
                   }
 
-                  if(!self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision) &&
+                  if (!self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision) &&
                     self.isFraudEnabled(data.FraudDetectionResult.Decision)) {
                     switch (data.FraudDetectionResult.Decision) {
                       case connect.VoiceIdFraudDetectionDecision.HIGH_RISK:
@@ -1899,12 +1923,12 @@
                     }
                   }
 
-                  if(!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) &&
+                  if (!self.isAuthResultNotEnoughSpeech(data.AuthenticationResult.Decision) &&
                     !self.isFraudResultNotEnoughSpeech(data.FraudDetectionResult.Decision)) {
-                      // Resolve only when both authentication and fraud detection have results. Otherwise, keep polling.
-                      connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
-                      resolve(data);
-                      return;
+                    // Resolve only when both authentication and fraud detection have results. Otherwise, keep polling.
+                    connect.getLog().info("evaluateSpeaker succeeded").withObject(data).sendInternalLogToServer();
+                    resolve(data);
+                    return;
                   } else {
                     setTimeout(evaluate, connect.VoiceIdConstants.EVALUATION_POLLING_INTERVAL);
                   }
@@ -1918,7 +1942,7 @@
             failure: function (err) {
               var error;
               var parsedErr = JSON.parse(err);
-              switch(parsedErr.status) {
+              switch (parsedErr.status) {
                 case 400:
                 case 404:
                   error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "evaluateSpeaker failed, session not exists", err);
@@ -1931,31 +1955,31 @@
               reject(error);
             }
           })
-        }).catch(function(err) {
+        }).catch(function (err) {
           reject(err);
         });
       }
 
-      if(!startNew) {
+      if (!startNew) {
         self.syncSpeakerId().then(function () {
           evaluate();
         }).catch(function (err) {
           connect.getLog().error("syncSpeakerId failed when session startNew=false")
-                .withObject({err: err}).sendInternalLogToServer();
+            .withObject({ err: err }).sendInternalLogToServer();
           reject(err);
         })
       } else {
-        self.startSession().then(function(data) {
-          self.syncSpeakerId().then(function(data) {
+        self.startSession().then(function (data) {
+          self.syncSpeakerId().then(function (data) {
             setTimeout(evaluate, connect.VoiceIdConstants.EVALUATE_SESSION_DELAY);
           }).catch(function (err) {
-              connect.getLog().error("syncSpeakerId failed when session startNew=true")
-                .withObject({err: err}).sendInternalLogToServer();
-              reject(err);
-            });
-          }).catch(function(err){
-            connect.getLog().error("startSession failed when session startNew=true")
-              .withObject({err: err}).sendInternalLogToServer();
+            connect.getLog().error("syncSpeakerId failed when session startNew=true")
+              .withObject({ err: err }).sendInternalLogToServer();
+            reject(err);
+          });
+        }).catch(function (err) {
+          connect.getLog().error("startSession failed when session startNew=true")
+            .withObject({ err: err }).sendInternalLogToServer();
           reject(err)
         });
       }
@@ -1967,10 +1991,10 @@
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
-      self.getDomainId().then(function(domainId) {
+      self.getDomainId().then(function (domainId) {
         const params = {
           "SessionNameOrId": contactData.initialContactId || this.contactId,
-          "DomainId" : domainId
+          "DomainId": domainId
         };
         connect.getLog().info("describeSession called").withObject(params).sendInternalLogToServer();
         client.call(connect.AgentAppClientMethods.DESCRIBE_SESSION, params, {
@@ -1986,7 +2010,7 @@
             reject(error);
           }
         })
-      }).catch(function(err) {
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -1999,10 +2023,10 @@
     var callbackOnAudioCollectionCompleteHasBeenInvoked = false;
 
     return new Promise(function (resolve, reject) {
-      function describe () {
-        if(++pollingTimes < connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES) {
-          self.describeSession().then(function(data){
-            switch(data.Session.EnrollmentRequestDetails.Status) {
+      function describe() {
+        if (++pollingTimes < connect.VoiceIdConstants.ENROLLMENT_MAX_POLL_TIMES) {
+          self.describeSession().then(function (data) {
+            switch (data.Session.EnrollmentRequestDetails.Status) {
               case connect.VoiceIdEnrollmentRequestStatus.COMPLETED:
                 resolve(data);
                 break;
@@ -2014,13 +2038,13 @@
                 setTimeout(describe, connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL);
                 break;
               case connect.VoiceIdEnrollmentRequestStatus.NOT_ENOUGH_SPEECH:
-                if(data.Session.StreamingStatus !== connect.VoiceIdStreamingStatus.ENDED) {
-                  setTimeout(describe,connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL);
+                if (data.Session.StreamingStatus !== connect.VoiceIdStreamingStatus.ENDED) {
+                  setTimeout(describe, connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL);
                 } else {
-                  setTimeout(function(){
-                    self.startSession().then(function(data) {
+                  setTimeout(function () {
+                    self.startSession().then(function (data) {
                       describe();
-                    }).catch(function(err, data){
+                    }).catch(function (err, data) {
                       reject(err);
                     });
                   }, connect.VoiceIdConstants.START_SESSION_DELAY);
@@ -2029,8 +2053,8 @@
               default:
                 var message = data.Session.EnrollmentRequestDetails.Message ? data.Session.EnrollmentRequestDetails.Message : "enrollSpeaker failed. Unknown enrollment status has been received";
                 connect.getLog().error(message).sendInternalLogToServer();
-  		          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, message, data.Session.EnrollmentRequestDetails.Status);
-  		          reject(error);
+                var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, message, data.Session.EnrollmentRequestDetails.Status);
+                reject(error);
             }
           });
         } else {
@@ -2047,22 +2071,22 @@
     connect.getLog().info("enrollSpeaker called").sendInternalLogToServer();
     var self = this;
     self.checkConferenceCall();
-    return new Promise(function(resolve, reject) {
-      self.syncSpeakerId().then(function() {
-        self.getSpeakerStatus().then(function(data) {
-          if(data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
-            self.deleteSpeaker().then(function() {
+    return new Promise(function (resolve, reject) {
+      self.syncSpeakerId().then(function () {
+        self.getSpeakerStatus().then(function (data) {
+          if (data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
+            self.deleteSpeaker().then(function () {
               self.enrollSpeakerHelper(resolve, reject, callbackOnAudioCollectionComplete);
-            }).catch(function(err) {
+            }).catch(function (err) {
               reject(err);
             });
           } else {
             self.enrollSpeakerHelper(resolve, reject, callbackOnAudioCollectionComplete);
           }
-        }).catch(function(err) {
+        }).catch(function (err) {
           reject(err);
         })
-      }).catch(function(err) {
+      }).catch(function (err) {
         reject(err)
       })
     })
@@ -2072,36 +2096,36 @@
     var self = this;
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-    self.getDomainId().then(function(domainId) {
+    self.getDomainId().then(function (domainId) {
       const params = {
         "SessionNameOrId": contactData.initialContactId || this.contactId,
-        "DomainId" : domainId
+        "DomainId": domainId
       };
       connect.getLog().info("enrollSpeakerHelper called").withObject(params).sendInternalLogToServer();
       client.call(connect.AgentAppClientMethods.ENROLL_BY_SESSION, params, {
-          success: function (data) {
-            if(data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+        success: function (data) {
+          if (data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
+            connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
+            resolve(data);
+          } else {
+            self.checkEnrollmentStatus(callbackOnAudioCollectionComplete).then(function (data) {
               connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
               resolve(data);
-            } else {
-              self.checkEnrollmentStatus(callbackOnAudioCollectionComplete).then(function(data){
-                connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
-                resolve(data);
-              }).catch(function(err){
-                reject(err);
-              })
-            }
-          },
-          failure: function (err) {
-            connect.getLog().error("enrollSpeaker failed")
-              .withObject({
-                err: err
-              }).sendInternalLogToServer();
-            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
-            reject(error);
+            }).catch(function (err) {
+              reject(err);
+            })
           }
-        });
-    }).catch(function(err) {
+        },
+        failure: function (err) {
+          connect.getLog().error("enrollSpeaker failed")
+            .withObject({
+              err: err
+            }).sendInternalLogToServer();
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, "enrollSpeaker failed", err);
+          reject(error);
+        }
+      });
+    }).catch(function (err) {
       reject(err);
     });
   };
@@ -2131,8 +2155,8 @@
             .withObject({
               err: err,
             }).sendInternalLogToServer();
-            var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_IN_LCMS_FAILED, "updateSpeakerIdInLcms failed", err);
-            reject(error);
+          var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_IN_LCMS_FAILED, "updateSpeakerIdInLcms failed", err);
+          reject(error);
         }
       });
     });
@@ -2144,42 +2168,42 @@
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
-      self.getDomainId().then(function(domainId) {
+      self.getDomainId().then(function (domainId) {
         const params = {
           "SessionNameOrId": contactData.initialContactId || this.contactId,
           "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
-          "DomainId" : domainId
+          "DomainId": domainId
         };
         connect.getLog().info("updateSpeakerIdInVoiceId called").withObject(params).sendInternalLogToServer();
         client.call(connect.AgentAppClientMethods.UPDATE_SESSION, params, {
-            success: function (data) {
-              connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
-              var generatedSpeakerId = data && data.Session && data.Session.GeneratedSpeakerId;
-              self._updateSpeakerIdInLcms(speakerId, generatedSpeakerId)
-                .then(function() {
-                  resolve(data);
-                })
-                .catch(function(err) {
-                  reject(err);
-                });
-            },
-            failure: function (err) {
-              var error;
-              var parsedErr = JSON.parse(err);
-              switch(parsedErr.status) {
-                case 400:
-                case 404:
-                  error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "updateSpeakerIdInVoiceId failed, session not exists", err);
-                  connect.getLog().error("updateSpeakerIdInVoiceId failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
-                  break;
-                default:
-                  error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
-                  connect.getLog().error("updateSpeakerIdInVoiceId failed").withObject({ err: err }).sendInternalLogToServer();
-              }
-              reject(error);
+          success: function (data) {
+            connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
+            var generatedSpeakerId = data && data.Session && data.Session.GeneratedSpeakerId;
+            self._updateSpeakerIdInLcms(speakerId, generatedSpeakerId)
+              .then(function () {
+                resolve(data);
+              })
+              .catch(function (err) {
+                reject(err);
+              });
+          },
+          failure: function (err) {
+            var error;
+            var parsedErr = JSON.parse(err);
+            switch (parsedErr.status) {
+              case 400:
+              case 404:
+                error = connect.VoiceIdError(connect.VoiceIdErrorTypes.SESSION_NOT_EXISTS, "updateSpeakerIdInVoiceId failed, session not exists", err);
+                connect.getLog().error("updateSpeakerIdInVoiceId failed, session not exists").withObject({ err: err }).sendInternalLogToServer();
+                break;
+              default:
+                error = connect.VoiceIdError(connect.VoiceIdErrorTypes.UPDATE_SPEAKER_ID_FAILED, "updateSpeakerIdInVoiceId failed", err);
+                connect.getLog().error("updateSpeakerIdInVoiceId failed").withObject({ err: err }).sendInternalLogToServer();
             }
-          });
-      }).catch(function(err) {
+            reject(error);
+          }
+        });
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -2189,19 +2213,19 @@
     connect.getLog().info("syncSpeakerId called").sendInternalLogToServer();
     var self = this;
     return new Promise(function (resolve, reject) {
-      self.getSpeakerId().then(function(data){
-        self.updateSpeakerIdInVoiceId(data.speakerId).then(function(data){
+      self.getSpeakerId().then(function (data) {
+        self.updateSpeakerIdInVoiceId(data.speakerId).then(function (data) {
           resolve(data);
-        }).catch(function(err) {
+        }).catch(function (err) {
           reject(err);
         })
-      }).catch(function(err){
+      }).catch(function (err) {
         reject(err);
       });
     })
   }
 
-  VoiceId.prototype.getDomainId = function() {
+  VoiceId.prototype.getDomainId = function () {
     return new Promise(function (resolve, reject) {
       const agent = new connect.Agent();
       if (!agent.getPermissions().includes(connect.AgentPermissions.VOICE_ID)) {
@@ -2235,7 +2259,7 @@
                 data: { domainId: domainId }
               });
               resolve(domainId);
-            } catch(err) {
+            } catch (err) {
               connect.getLog().error("getDomainId failed").withObject({ err: err }).sendInternalLogToServer();
               var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.GET_DOMAIN_ID_FAILED, "getDomainId failed", err);
               reject(error);
@@ -2251,37 +2275,37 @@
     });
   }
 
-  VoiceId.prototype.checkConferenceCall = function(){
+  VoiceId.prototype.checkConferenceCall = function () {
     var self = this;
     var isConferenceCall = connect.core.getAgentDataProvider().getContactData(self.contactId).connections.filter(function (conn) {
       return connect.contains(connect.CONNECTION_ACTIVE_STATES, conn.state.type);
     }).length > 2;
-    if(isConferenceCall){
+    if (isConferenceCall) {
       throw new connect.NotImplementedError("VoiceId is not supported for conference calls");
     }
   }
 
-  VoiceId.prototype.isAuthEnabled = function(authResult) {
+  VoiceId.prototype.isAuthEnabled = function (authResult) {
     return authResult !== connect.ContactFlowAuthenticationDecision.NOT_ENABLED;
   }
 
-  VoiceId.prototype.isAuthResultNotEnoughSpeech = function(authResult) {
+  VoiceId.prototype.isAuthResultNotEnoughSpeech = function (authResult) {
     return authResult === connect.VoiceIdAuthenticationDecision.NOT_ENOUGH_SPEECH;
   }
 
-  VoiceId.prototype.isAuthResultInconclusive = function(authResult) {
+  VoiceId.prototype.isAuthResultInconclusive = function (authResult) {
     return authResult === connect.ContactFlowAuthenticationDecision.INCONCLUSIVE;
   }
 
-  VoiceId.prototype.isFraudEnabled = function(fraudResult) {
+  VoiceId.prototype.isFraudEnabled = function (fraudResult) {
     return fraudResult !== connect.ContactFlowFraudDetectionDecision.NOT_ENABLED;
   }
 
-  VoiceId.prototype.isFraudResultNotEnoughSpeech = function(fraudResult) {
+  VoiceId.prototype.isFraudResultNotEnoughSpeech = function (fraudResult) {
     return fraudResult === connect.VoiceIdFraudDetectionDecision.NOT_ENOUGH_SPEECH;
   }
 
-  VoiceId.prototype.isFraudResultInconclusive = function(fraudResult) {
+  VoiceId.prototype.isFraudResultInconclusive = function (fraudResult) {
     return fraudResult === connect.ContactFlowFraudDetectionDecision.INCONCLUSIVE;
   }
 
@@ -2319,32 +2343,32 @@
     return connect.core.mediaFactory.get(this);
   }
 
-  VoiceConnection.prototype.getVoiceIdSpeakerId = function() {
+  VoiceConnection.prototype.getVoiceIdSpeakerId = function () {
     return this._speakerAuthenticator.getSpeakerId();
   }
 
-  VoiceConnection.prototype.getVoiceIdSpeakerStatus = function() {
+  VoiceConnection.prototype.getVoiceIdSpeakerStatus = function () {
     return this._speakerAuthenticator.getSpeakerStatus();
   }
 
-  VoiceConnection.prototype.optOutVoiceIdSpeaker = function() {
+  VoiceConnection.prototype.optOutVoiceIdSpeaker = function () {
 
     return this._speakerAuthenticator.optOutSpeaker();
   }
 
-  VoiceConnection.prototype.deleteVoiceIdSpeaker = function() {
+  VoiceConnection.prototype.deleteVoiceIdSpeaker = function () {
     return this._speakerAuthenticator.deleteSpeaker();
   }
 
-  VoiceConnection.prototype.evaluateSpeakerWithVoiceId = function(startNew) {
+  VoiceConnection.prototype.evaluateSpeakerWithVoiceId = function (startNew) {
     return this._speakerAuthenticator.evaluateSpeaker(startNew);
   }
 
-  VoiceConnection.prototype.enrollSpeakerInVoiceId = function(callbackOnAudioCollectionComplete) {
+  VoiceConnection.prototype.enrollSpeakerInVoiceId = function (callbackOnAudioCollectionComplete) {
     return this._speakerAuthenticator.enrollSpeaker(callbackOnAudioCollectionComplete);
   }
 
-  VoiceConnection.prototype.updateVoiceIdSpeakerId = function(speakerId) {
+  VoiceConnection.prototype.updateVoiceIdSpeakerId = function (speakerId) {
     return this._speakerAuthenticator.updateSpeakerIdInVoiceId(speakerId);
   }
 
@@ -2545,12 +2569,12 @@
   }
 
   TaskConnection.prototype.getMediaInfo = function () {
-      var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
-      var mediaObject = {
-        contactId: this.contactId,
-        initialContactId: contactData.initialContactId || this.contactId,
-      };
-      return mediaObject;
+    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    var mediaObject = {
+      contactId: this.contactId,
+      initialContactId: contactData.initialContactId || this.contactId,
+    };
+    return mediaObject;
   };
 
   TaskConnection.prototype.getMediaController = function () {
@@ -2676,15 +2700,15 @@
       topic: topic,
       shouldNotBecomeMasterIfNone: shouldNotBecomeMasterIfNone
     }, {
-        success: function (data) {
-          if (data.isMaster) {
-            f_true();
+      success: function (data) {
+        if (data.isMaster) {
+          f_true();
 
-          } else if (f_else) {
-            f_else();
-          }
+        } else if (f_else) {
+          f_else();
         }
-      });
+      }
+    });
   };
 
   /**
@@ -25949,7 +25973,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-(function() {
+(function () {
    var global = this || globalThis;
    var connect = global.connect || {};
    global.connect = connect;
@@ -25959,39 +25983,41 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     * enum ClientMethods
     */
    connect.ClientMethods = connect.makeEnum([
-         'getAgentSnapshot',
-         'putAgentState',
-         'getAgentStates',
-         'getDialableCountryCodes',
-         'getRoutingProfileQueues',
-         'getAgentPermissions',
-         'getAgentConfiguration',
-         'updateAgentConfiguration',
-         'acceptContact',
-         'createOutboundContact',
-         'createTaskContact',
-         'clearContact',
-         'completeContact',
-         'destroyContact',
-         'rejectContact',
-         'notifyContactIssue',
-         'updateContactAttributes',
-         'createAdditionalConnection',
-         'destroyConnection',
-         'holdConnection',
-         'resumeConnection',
-         'toggleActiveConnections',
-         'conferenceConnections',
-         'sendClientLogs',
-         'sendDigits',
-         'sendSoftphoneCallReport',
-         'sendSoftphoneCallMetrics',
-         'getEndpoints',
-         'getNewAuthToken',
-         'createTransport',
-         'muteParticipant',
-         'unmuteParticipant',
-         'updateMonitorParticipantState'
+      'getAgentSnapshot',
+      'putAgentState',
+      'getAgentStates',
+      'getDialableCountryCodes',
+      'getRoutingProfileQueues',
+      'getAgentPermissions',
+      'getAgentConfiguration',
+      'updateAgentConfiguration',
+      'acceptContact',
+      'createOutboundContact',
+      'createTaskContact',
+      'clearContact',
+      'completeContact',
+      'destroyContact',
+      'rejectContact',
+      'notifyContactIssue',
+      'updateContactAttributes',
+      'createAdditionalConnection',
+      'destroyConnection',
+      'holdConnection',
+      'resumeConnection',
+      'toggleActiveConnections',
+      'conferenceConnections',
+      'sendClientLogs',
+      'sendDigits',
+      'sendSoftphoneCallReport',
+      'sendSoftphoneCallMetrics',
+      'getEndpoints',
+      'getNewAuthToken',
+      'createTransport',
+      'muteParticipant',
+      'unmuteParticipant',
+      'updateMonitorParticipantState',
+      'pauseContact',
+      'resumeContact'
    ]);
 
    /**---------------------------------------------------------------
@@ -26015,8 +26041,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     * enum MasterMethods
     */
    connect.MasterMethods = connect.makeEnum([
-         'becomeMaster',
-         'checkMaster'
+      'becomeMaster',
+      'checkMaster'
    ]);
 
    /**---------------------------------------------------------------
@@ -26050,9 +26076,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       connect.ClientMethods.GET_ROUTING_PROFILE_QUEUES,
    ];
 
-    /**---------------------------------------------------------------
-    * retry error types
-    */
+   /**---------------------------------------------------------------
+   * retry error types
+   */
 
    connect.RetryableErrors = connect.makeEnum([
       'unauthorized',
@@ -26063,52 +26089,52 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     * retryStatus
     */
 
-       connect.RetryStatus = connect.makeEnum([
-         'retrying',
-         'exhausted',
-         'none'
-      ]);
+   connect.RetryStatus = connect.makeEnum([
+      'retrying',
+      'exhausted',
+      'none'
+   ]);
 
    /**---------------------------------------------------------------
     * abstract class ClientBase
     */
-   var ClientBase = function() {};
+   var ClientBase = function () { };
    ClientBase.EMPTY_CALLBACKS = {
-      success: function() { },
-      failure: function() { }
+      success: function () { },
+      failure: function () { }
    };
 
-   ClientBase.prototype.call = function(method, paramsIn, callbacksIn) {
+   ClientBase.prototype.call = function (method, paramsIn, callbacksIn) {
       connect.assertNotNull(method, 'method');
       var params = paramsIn || {};
       var callbacks = callbacksIn || ClientBase.EMPTY_CALLBACKS;
       this._callImpl(method, params, callbacks);
    };
 
-   ClientBase.prototype._callImpl = function(method, params, callbacks) {
+   ClientBase.prototype._callImpl = function (method, params, callbacks) {
       throw new connect.NotImplementedError();
    };
 
    /**---------------------------------------------------------------
     * class NullClient extends ClientBase
     */
-   var NullClient = function() {
+   var NullClient = function () {
       ClientBase.call(this);
    };
    NullClient.prototype = Object.create(ClientBase.prototype);
    NullClient.prototype.constructor = NullClient;
 
-   NullClient.prototype._callImpl = function(method, params, callbacks) {
+   NullClient.prototype._callImpl = function (method, params, callbacks) {
       if (callbacks && callbacks.failure) {
          var message = connect.sprintf('No such method exists on NULL client: %s', method);
-         callbacks.failure(new connect.ValueError(message), {message: message});
+         callbacks.failure(new connect.ValueError(message), { message: message });
       }
    };
 
    /**---------------------------------------------------------------
     * abstract class UpstreamConduitClientBase extends ClientBase
     */
-   var UpstreamConduitClientBase = function(conduit, requestEvent, responseEvent) {
+   var UpstreamConduitClientBase = function (conduit, requestEvent, responseEvent) {
       ClientBase.call(this);
       this.conduit = conduit;
       this.requestEvent = requestEvent;
@@ -26121,7 +26147,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    UpstreamConduitClientBase.prototype = Object.create(ClientBase.prototype);
    UpstreamConduitClientBase.prototype.constructor = UpstreamConduitClientBase;
 
-   UpstreamConduitClientBase.prototype._callImpl = function(method, params, callbacks) {
+   UpstreamConduitClientBase.prototype._callImpl = function (method, params, callbacks) {
       var request = connect.EventFactory.createRequest(this.requestEvent, method, params);
       this._requestIdCallbacksMap[request.requestId] = callbacks;
 
@@ -26144,7 +26170,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       this.conduit.sendUpstream(request.event, request);
    };
 
-   UpstreamConduitClientBase.prototype._getCallbacksForRequest = function(requestId) {
+   UpstreamConduitClientBase.prototype._getCallbacksForRequest = function (requestId) {
       var callbacks = this._requestIdCallbacksMap[requestId] || null;
 
       if (callbacks != null) {
@@ -26154,7 +26180,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       return callbacks;
    };
 
-   UpstreamConduitClientBase.prototype._handleResponse = function(data) {
+   UpstreamConduitClientBase.prototype._handleResponse = function (data) {
       var callbacks = this._getCallbacksForRequest(data.requestId);
       if (callbacks == null) {
          return;
@@ -26171,7 +26197,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    /**---------------------------------------------------------------
     * class UpstreamConduitClient extends ClientBase
     */
-   var UpstreamConduitClient = function(conduit) {
+   var UpstreamConduitClient = function (conduit) {
       UpstreamConduitClientBase.call(this, conduit, connect.EventType.API_REQUEST, connect.EventType.API_RESPONSE);
    };
    UpstreamConduitClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
@@ -26179,8 +26205,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
    /**---------------------------------------------------------------
     * class ApiProxyClient extends ClientBase
-    */ 
-   var ApiProxyClient = function () { 
+    */
+   var ApiProxyClient = function () {
       ClientBase.call(this);
       const bus = connect.core.getEventBus();
       bus.subscribe(connect.EventType.API_PROXY_RESPONSE, connect.hitch(this, this._handleResponse))
@@ -26218,11 +26244,11 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
          callbacks.success(data.data);
       }
    };
-   
+
    /**---------------------------------------------------------------
     * class UpstreamConduitMasterClient extends ClientBase
     */
-   var UpstreamConduitMasterClient = function(conduit) {
+   var UpstreamConduitMasterClient = function (conduit) {
       UpstreamConduitClientBase.call(this, conduit, connect.EventType.MASTER_REQUEST, connect.EventType.MASTER_RESPONSE);
    };
    UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
@@ -26231,7 +26257,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    /**---------------------------------------------------------------
    * class AgentAppClient extends ClientBase
    */
-   var AgentAppClient = function(authCookieName, authToken, endpoint) {
+   var AgentAppClient = function (authCookieName, authToken, endpoint) {
       connect.assertNotNull(authCookieName, 'authCookieName');
       connect.assertNotNull(authToken, 'authToken');
       connect.assertNotNull(endpoint, 'endpoint');
@@ -26244,7 +26270,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    AgentAppClient.prototype = Object.create(ClientBase.prototype);
    AgentAppClient.prototype.constructor = AgentAppClient;
 
-   AgentAppClient.prototype._callImpl = function(method, params, callbacks) {
+   AgentAppClient.prototype._callImpl = function (method, params, callbacks) {
       var self = this;
       var bear = {};
       bear[self.authCookieName] = self.authToken;
@@ -26252,15 +26278,15 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
          method: 'post',
          body: JSON.stringify(params || {}),
          headers: {
-               'Accept': 'application/json',
-               'Content-Type': 'application/json',
-               'X-Amz-target': method,
-               'X-Amz-Bearer': JSON.stringify(bear)
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Amz-target': method,
+            'X-Amz-Bearer': JSON.stringify(bear)
          }
       };
-      connect.fetch(self.endpointUrl, options).then(function(res){
+      connect.fetch(self.endpointUrl, options).then(function (res) {
          callbacks.success(res);
-      }).catch(function(err){
+      }).catch(function (err) {
          const reader = err.body.getReader();
          let body = '';
          const decoder = new TextDecoder();
@@ -26279,7 +26305,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    /**---------------------------------------------------------------
     * class AWSClient extends ClientBase
     */
-   var AWSClient = function(authToken, region, endpointIn) {
+   var AWSClient = function (authToken, region, endpointIn) {
       connect.assertNotNull(authToken, 'authToken');
       connect.assertNotNull(region, 'region');
       ClientBase.call(this);
@@ -26293,7 +26319,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             : baseUrl + '/api'
       );
       var endpoint = new AWS.Endpoint(endpointUrl);
-      this.client = new AWS.Connect({endpoint: endpoint});
+      this.client = new AWS.Connect({ endpoint: endpoint });
 
       this.unauthorizedFailCounter = 0;
       this.accessDeniedFailCounter = 0;
@@ -26301,25 +26327,35 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    AWSClient.prototype = Object.create(ClientBase.prototype);
    AWSClient.prototype.constructor = AWSClient;
 
-   AWSClient.prototype._callImpl = function(method, params, callbacks) {
+   AWSClient.prototype._callImpl = function (method, params, callbacks) {
       var self = this;
       var log = connect.getLog();
 
-      if (! connect.contains(this.client, method)) {
+      if (!connect.contains(this.client, method)) {
          var message = connect.sprintf('No such method exists on AWS client: %s', method);
-         callbacks.failure(new connect.ValueError(message), {message: message});
+         callbacks.failure(new connect.ValueError(message), { message: message });
 
       } else {
          params = this._translateParams(method, params);
+         // pauseContact & resumeContact CTI API refuse authentication added by this._translateParams above
+         if (method === 'pauseContact' || method === 'resumeContact') {
+            delete params.authentication;
+         }
+         // only relatedContactId or previousContactId can exist
+         if (params && params.relatedContactId && params.relatedContactId !== null) {
+            if (params.previousContactId) {
+               delete params.previousContactId;
+            }
+         }
 
          log.trace("AWSClient: --> Calling operation '%s'", method)
             .sendInternalLogToServer();
 
          this.client[method](params)
-            .on('build', function(request) {
+            .on('build', function (request) {
                request.httpRequest.headers['X-Amz-Bearer'] = self.authToken;
             })
-            .send(function(err, data) {
+            .send(function (err, data) {
                try {
                   if (err) {
                      if (err.code === connect.CTIExceptions.UNAUTHORIZED_EXCEPTION || err.statusCode === 401) {
@@ -26344,17 +26380,17 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
                   }
                } catch (e) {
                   connect.getLog().error("Failed to handle AWS API request for method %s", method)
-                        .withException(e).sendInternalLogToServer();
+                     .withException(e).sendInternalLogToServer();
                }
             });
       }
    };
 
-   AWSClient.prototype._isRetryableMethod = function(method) {
+   AWSClient.prototype._isRetryableMethod = function (method) {
       return connect.RetryableClientMethodsList.includes(method);
    }
 
-   AWSClient.prototype._retryMethod = function(method, callbacks, err, data, retryableError) {
+   AWSClient.prototype._retryMethod = function (method, callbacks, err, data, retryableError) {
       var self = this;
       var log = connect.getLog();
       const formatRetryError = (err) => self._formatCallError(self._addStatusCodeToError(err));
@@ -26368,7 +26404,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
          retryCallback: (err, data) => callbacks.failure(formatRetryError(err), data),
          defaultCallback: (err, data) => callbacks.authFailure(formatRetryError(err), data),
       };
-      switch(retryableError) {
+      switch (retryableError) {
          case connect.RetryableErrors.UNAUTHORIZED:
             break;
          case connect.RetryableErrors.ACCESS_DENIED:
@@ -26389,8 +26425,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
          ...err,
          retryStatus: connect.RetryStatus.NONE,
       };
-      if(self._isRetryableMethod(method)) {
-         if(retryParams.exhaustedRetries) {
+      if (self._isRetryableMethod(method)) {
+         if (retryParams.exhaustedRetries) {
             log.trace(`AWSClient: <-- Operation ${method} exhausted max ${retryParams.maxCount} number of retries for ${retryParams.errorMessage} error`)
                .sendInternalLogToServer();
 
@@ -26424,7 +26460,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    // Can't pass err directly to postMessage
    // postMessage() tries to clone the err object and failed.
    // Refer to https://github.com/goatslacker/alt-devtool/issues/5
-   AWSClient.prototype._formatCallError = function(err) {
+   AWSClient.prototype._formatCallError = function (err) {
       const error = {
          type: err.code,
          message: err.message,
@@ -26434,30 +26470,30 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       };
       if (err.stack) {
          try {
-             if (Array.isArray(err.stack)) {
-                 error.stack = err.stack;
-             } else if (typeof err.stack === 'object') {
-                 error.stack = [JSON.stringify(err.stack)];
-             } else if (typeof err.stack === 'string') {
-                 error.stack = err.stack.split('\n');
-             }
-         } finally {}
+            if (Array.isArray(err.stack)) {
+               error.stack = err.stack;
+            } else if (typeof err.stack === 'object') {
+               error.stack = [JSON.stringify(err.stack)];
+            } else if (typeof err.stack === 'string') {
+               error.stack = err.stack.split('\n');
+            }
+         } finally { }
       }
 
       return error;
    }
 
-   AWSClient.prototype._addStatusCodeToError = function(err) {
-      if(err.statusCode) return err;
+   AWSClient.prototype._addStatusCodeToError = function (err) {
+      if (err.statusCode) return err;
 
-      const error = {...err};
+      const error = { ...err };
 
-      if(!err.code) {
+      if (!err.code) {
          error.statusCode = 400;
       } else {
 
          // TODO: add more here
-         switch(error.code) {
+         switch (error.code) {
             case connect.CTIExceptions.UNAUTHORIZED_EXCEPTION:
                error.statusCode = 401;
                break;
@@ -26478,7 +26514,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
          method !== connect.ClientMethods.UPDATE_MONITOR_PARTICIPANT_STATE;
    };
 
-   AWSClient.prototype._translateParams = function(method, params) {
+   AWSClient.prototype._translateParams = function (method, params) {
       switch (method) {
          case connect.ClientMethods.UPDATE_AGENT_CONFIGURATION:
             params.configuration = this._translateAgentConfiguration(params.configuration);
@@ -26486,7 +26522,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
          case connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS:
             params.softphoneStreamStatistics = this._translateSoftphoneStreamStatistics(
-                  params.softphoneStreamStatistics);
+               params.softphoneStreamStatistics);
             break;
 
          case connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT:
@@ -26506,7 +26542,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       return params;
    };
 
-   AWSClient.prototype._translateAgentConfiguration = function(config) {
+   AWSClient.prototype._translateAgentConfiguration = function (config) {
       return {
          name: config.name,
          softphoneEnabled: config.softphoneEnabled,
@@ -26517,7 +26553,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       };
    };
 
-   AWSClient.prototype._translateRoutingProfile = function(profile) {
+   AWSClient.prototype._translateRoutingProfile = function (profile) {
       return {
          name: profile.name,
          routingProfileARN: profile.routingProfileARN,
@@ -26525,15 +26561,15 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       };
    };
 
-   AWSClient.prototype._translateQueue = function(queue) {
+   AWSClient.prototype._translateQueue = function (queue) {
       return {
-         queueARN:   queue.queueARN,
-         name:       queue.name
+         queueARN: queue.queueARN,
+         name: queue.name
       };
    };
 
-   AWSClient.prototype._translateSoftphoneStreamStatistics = function(stats) {
-      stats.forEach(function(stat) {
+   AWSClient.prototype._translateSoftphoneStreamStatistics = function (stats) {
+      stats.forEach(function (stat) {
          if ('packetsCount' in stat) {
             stat.packetCount = stat.packetsCount;
             delete stat.packetsCount;
@@ -26543,7 +26579,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       return stats;
    };
 
-   AWSClient.prototype._translateSoftphoneCallReport = function(report) {
+   AWSClient.prototype._translateSoftphoneCallReport = function (report) {
       if ('handshakingTimeMillis' in report) {
          report.handshakeTimeMillis = report.handshakingTimeMillis;
          delete report.handshakingTimeMillis;
@@ -26565,7 +26601,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       }
 
       report.softphoneStreamStatistics = this._translateSoftphoneStreamStatistics(
-            report.softphoneStreamStatistics);
+         report.softphoneStreamStatistics);
 
       return report;
    };
@@ -26573,7 +26609,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    /**---------------------------------------------------------------
    * class TaskTemplatesClient extends ClientBase
    */
-   var TaskTemplatesClient = function(endpoint) {
+   var TaskTemplatesClient = function (endpoint) {
       connect.assertNotNull(endpoint, 'endpoint');
       ClientBase.call(this);
       if (endpoint.includes('/task-templates')) {
@@ -26588,7 +26624,13 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    TaskTemplatesClient.prototype = Object.create(ClientBase.prototype);
    TaskTemplatesClient.prototype.constructor = TaskTemplatesClient;
 
-   TaskTemplatesClient.prototype._callImpl = function(method, params, callbacks) {
+   TaskTemplatesClient.prototype._callImpl = function (method, params, callbacks) {
+      // only relatedContactId or previousContactId can exist
+      if (params && params.relatedContactId && params.relatedContactId !== null) {
+         if (params.previousContactId) {
+            delete params.previousContactId;
+         }
+      }
       connect.assertNotNull(method, 'method');
       connect.assertNotNull(params, 'params');
       var options = {
@@ -26633,23 +26675,23 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             options.method = 'POST';
       }
       connect.fetch(url, options)
-      .then(function(res){
-         callbacks.success(res);
-      }).catch(function(err){
-         const reader = err.body.getReader();
-         let body = '';
-         const decoder = new TextDecoder();
-         reader.read().then(function processText({ done, value }) {
-            if (done) {
-               var error = JSON.parse(body);
-               error.status = err.status;
-               callbacks.failure(error);
-               return;
-            }
-            body += decoder.decode(value);
-            return reader.read().then(processText);
-         });
-      })
+         .then(function (res) {
+            callbacks.success(res);
+         }).catch(function (err) {
+            const reader = err.body.getReader();
+            let body = '';
+            const decoder = new TextDecoder();
+            reader.read().then(function processText({ done, value }) {
+               if (done) {
+                  var error = JSON.parse(body);
+                  error.status = err.status;
+                  callbacks.failure(error);
+                  return;
+               }
+               body += decoder.decode(value);
+               return reader.read().then(processText);
+            });
+         })
    };
 
    connect.ClientBase = ClientBase;
@@ -26681,7 +26723,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.10.0";
+  connect.version = "2.11.0";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -33879,6 +33921,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   var POLL_FOR_ACTIVE_REGION_METHOD = "LADS.GetAgentFailoverConfiguration";
 
+  const relatedContactIdMethods = {
+    createTaskContact: "createTaskContact",
+    createOutboundContact: "createOutboundContact",
+    createTemplatedTask: "createTemplatedTask"
+  }
+
   /**-----------------------------------------------------------------------*/
   var MasterTopicCoordinator = function () {
     this.topicMasterMap = {};
@@ -33922,41 +33970,41 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     if(connect.containsValue(connect.AgentAppClientMethods, method)) {
       connect.core.getAgentAppClient()._callImpl(method, params, {
         success: function (data) {
-          self._recordAPILatency(method, request_start);
+          self._recordAPILatency(method, request_start, params);
           callbacks.success(data);
         },
         failure: function (error) {
-          self._recordAPILatency(method, request_start, error);
+          self._recordAPILatency(method, request_start, params, error);
           callbacks.failure(error);
         }
       })
     } else if(connect.containsValue(connect.TaskTemplatesClientMethods, method)) {
       connect.core.getTaskTemplatesClient()._callImpl(method, params, {
         success: function (data) {
-          self._recordAPILatency(method, request_start);
+          self._recordAPILatency(method, request_start, params);
           callbacks.success(data);
         },
         failure: function (error) {
-          self._recordAPILatency(method, request_start, error);
+          self._recordAPILatency(method, request_start, params, error);
           callbacks.failure(error);
         }
       })
     } else {
       connect.core.getClient()._callImpl(method, params, {
         success: function (data, dataAttribute) {
-          self._recordAPILatency(method, request_start);
+          self._recordAPILatency(method, request_start, params);
           callbacks.success(data, dataAttribute);
         },
         failure: function (error, data) {
-          self._recordAPILatency(method, request_start, error);
+          self._recordAPILatency(method, request_start, params, error);
           callbacks.failure(error, data);
         },
         authFailure: function (error, data) {
-          self._recordAPILatency(method, request_start, error);
+          self._recordAPILatency(method, request_start, params, error);
           callbacks.authFailure();
         },
         accessDenied: function (error, data) {
-          self._recordAPILatency(method, request_start, error);
+          self._recordAPILatency(method, request_start, params, error);
           callbacks.accessDenied && callbacks.accessDenied();
         }
       });
@@ -33964,14 +34012,14 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   };
 
-  WorkerClient.prototype._recordAPILatency = function (method, request_start, err) {
+  WorkerClient.prototype._recordAPILatency = function (method, request_start, params, err) {
     var request_end = new Date().getTime();
     var request_time = request_end - request_start;
-    this._sendAPIMetrics(method, request_time, err);
+    this._sendAPIMetrics(method, request_time, params, err);
   };
 
-  WorkerClient.prototype._sendAPIMetrics = function (method, time, err) {
-    const eventData = {
+  WorkerClient.prototype._sendAPIMetrics = function (method, time, params, err ) {
+    let eventData = {
       name: method,
       time,
       error: err,
@@ -33993,11 +34041,33 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     if (statusCode.toString().charAt(0) === '5') {
       eventData.error5xx = 1;
     }
-    
-    this.conduit.sendDownstream(connect.EventType.API_METRIC, {
-        ...eventData,
+
+    // API fault metric - ignores 4xx
+    if (statusCode.toString().charAt(0) === '5') {
+      eventData.fault = 1;
+    } else if (statusCode.toString().charAt(0) === '2') {
+      eventData.fault = 0;
+    }
+
+    // Subset Metrics for distinguishing when we use relatedContactId
+    if (relatedContactIdMethods[method] && params && params.relatedContactId) {
+      let relatedEventData = {
+        name: `${method}WithRelatedContactId`,
+        time: eventData.time,
+        error: eventData.error,
+        error5xx: eventData.error5xx
+      };
+      this.conduit.sendDownstream(connect.EventType.API_METRIC, {
+        ...relatedEventData,
         dimensions,
         optionalDimensions,
+      });
+    }
+
+    this.conduit.sendDownstream(connect.EventType.API_METRIC, {
+      ...eventData,
+      dimensions,
+      optionalDimensions,
     });
   };
 
@@ -34077,7 +34147,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       self.forceOffline = data.offline || false;
     });
 
-    connect.DisasterRecoveryEvents.INIT_DR_POLLING && this.conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DR_POLLING, function(data) {
+    connect.DisasterRecoveryEvents.INIT_DR_POLLING && this.conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DR_POLLING, function (data) {
       var log = connect.getLog();
       if (self.drPollingUrl) {
         log.debug(`[Disaster Recovery] Adding new CCP to active region polling for instance ${data.instanceArn}`)
@@ -34127,7 +34197,11 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             .sendInternalLogToServer();
 
           connect.WebSocketManager.setGlobalConfig({
-            loggerConfig: { logger: connect.getLog() }
+            loggerConfig: {
+              logger: connect.getLog(),
+              advancedLogWriter: 'info',
+              level: 10
+            }
           });
 
           webSocketManager = connect.WebSocketManager.create();
@@ -34281,132 +34355,132 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    * The URL used for polling will be global, but the endpoint used to get the URL is regional, so once bootstrapping is complete,
    *    the active region should be able to detect that it needs to be failed out even if its AWS region is degraded.
    */
-    ClientEngine.prototype.pollForActiveRegion = function(isFirstPollForCCP, isFirstPollForWorker) {
-      var self = this;
-      var log = connect.getLog();
-      if (!self.drPollingUrl) {
-        throw new connect.StateError("[Disaster Recovery] Tried to poll for active region without first initializing DR polling in the worker.");
-      }
-      log.debug(`[Disaster Recovery] Polling for failover with presigned URL for instance ${self.thisArn}`).sendInternalLogToServer();
-      var request_start = new Date().getTime();
-      return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS)
-        .catch(response => {
-          if (response.status) {
-            self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, {statusCode: response.status});
-            if ([connect.HTTP_STATUS_CODES.ACCESS_DENIED, connect.HTTP_STATUS_CODES.UNAUTHORIZED].includes(response.status)) {
-              log.info("[Disaster Recovery] Active region polling failed; trying to get a new URL for polling.").withObject(response).sendInternalLogToServer();
-              return self.getPresignedDiscoveryUrl().then((presignedUrl) => {
-                self.drPollingUrl = presignedUrl;
-              }).then(() => {
-                request_start = new Date().getTime(); // reset request start marker if we had to get a new polling URL
-                return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS)
-              });
-            } else {
-              var errMsg = `[Disaster Recovery] Failed to poll for failover for instance ${self.thisArn}, ` +
-              `received unexpected response code ${response.status}`;
-              log.error(errMsg).withObject(response).sendInternalLogToServer();
-              throw new Error(errMsg);
-            }
+  ClientEngine.prototype.pollForActiveRegion = function (isFirstPollForCCP, isFirstPollForWorker) {
+    var self = this;
+    var log = connect.getLog();
+    if (!self.drPollingUrl) {
+      throw new connect.StateError("[Disaster Recovery] Tried to poll for active region without first initializing DR polling in the worker.");
+    }
+    log.debug(`[Disaster Recovery] Polling for failover with presigned URL for instance ${self.thisArn}`).sendInternalLogToServer();
+    var request_start = new Date().getTime();
+    return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS)
+      .catch(response => {
+        if (response.status) {
+          self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, { statusCode: response.status });
+          if ([connect.HTTP_STATUS_CODES.ACCESS_DENIED, connect.HTTP_STATUS_CODES.UNAUTHORIZED].includes(response.status)) {
+            log.info("[Disaster Recovery] Active region polling failed; trying to get a new URL for polling.").withObject(response).sendInternalLogToServer();
+            return self.getPresignedDiscoveryUrl().then((presignedUrl) => {
+              self.drPollingUrl = presignedUrl;
+            }).then(() => {
+              request_start = new Date().getTime(); // reset request start marker if we had to get a new polling URL
+              return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS)
+            });
           } else {
-            var errMsg = `[Disaster Recovery] Failed to poll for failover for instance ${self.thisArn}, request timed out or aborted`;
-            self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, {statusCode: -1});
+            var errMsg = `[Disaster Recovery] Failed to poll for failover for instance ${self.thisArn}, ` +
+              `received unexpected response code ${response.status}`;
             log.error(errMsg).withObject(response).sendInternalLogToServer();
             throw new Error(errMsg);
           }
-        })
-        .then(response => {
-          self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start);
-          if (typeof response.TerminateActiveContacts !== 'boolean') {
-            log.error("[Disaster Recovery] DR polling response did not contain a valid value for TerminateActiveContacts.").withObject(response).sendInternalLogToServer();
-            return;
-          }
-          var softFailover = !response.TerminateActiveContacts;
-          if (!response.InstanceArn) {
-            log.error("[Disaster Recovery] DR polling response did not contain a truthy active instance ARN.").withObject(response).sendInternalLogToServer();
-            return;
-          } else {
-            log.debug(`[Disaster Recovery] Successfully polled for active region. Primary instance ARN is ${response.InstanceArn} ` +
-              `and soft failover is ${softFailover ? "enabled" : "disabled"}`).sendInternalLogToServer();
-          }
-  
-          if (self.thisArn === response.InstanceArn && !self.suppress && isFirstPollForCCP) {
-            log.debug(`[Disaster Recovery] Instance ${self.thisArn} is being set to primary`).sendInternalLogToServer();
+        } else {
+          var errMsg = `[Disaster Recovery] Failed to poll for failover for instance ${self.thisArn}, request timed out or aborted`;
+          self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, { statusCode: -1 });
+          log.error(errMsg).withObject(response).sendInternalLogToServer();
+          throw new Error(errMsg);
+        }
+      })
+      .then(response => {
+        self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start);
+        if (typeof response.TerminateActiveContacts !== 'boolean') {
+          log.error("[Disaster Recovery] DR polling response did not contain a valid value for TerminateActiveContacts.").withObject(response).sendInternalLogToServer();
+          return;
+        }
+        var softFailover = !response.TerminateActiveContacts;
+        if (!response.InstanceArn) {
+          log.error("[Disaster Recovery] DR polling response did not contain a truthy active instance ARN.").withObject(response).sendInternalLogToServer();
+          return;
+        } else {
+          log.debug(`[Disaster Recovery] Successfully polled for active region. Primary instance ARN is ${response.InstanceArn} ` +
+            `and soft failover is ${softFailover ? "enabled" : "disabled"}`).sendInternalLogToServer();
+        }
+
+        if (self.thisArn === response.InstanceArn && !self.suppress && isFirstPollForCCP) {
+          log.debug(`[Disaster Recovery] Instance ${self.thisArn} is being set to primary`).sendInternalLogToServer();
+          self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
+            nextActiveArn: response.InstanceArn
+          });
+        } else if (self.otherArn === response.InstanceArn) {
+          // If this poll is to bootstrap the correct region in a newly-opened additional CCP window, and soft failover is enabled,
+          // and a soft failover has already/will be queued to occur once the current voice contact is destroyed, send a UI failover signal
+          // to ensure the new window will display the previous primary region, in case soft failover will delay the UI failover.
+          // Otherwise, the new window may show the wrong region until soft failover completes.
+          if (softFailover && !isFirstPollForWorker && isFirstPollForCCP && (!self.suppress || self.pendingFailover)) {
             self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
-              nextActiveArn: response.InstanceArn
+              nextActiveArn: self.thisArn
             });
-          } else if (self.otherArn === response.InstanceArn) {
-            // If this poll is to bootstrap the correct region in a newly-opened additional CCP window, and soft failover is enabled,
-            // and a soft failover has already/will be queued to occur once the current voice contact is destroyed, send a UI failover signal
-            // to ensure the new window will display the previous primary region, in case soft failover will delay the UI failover.
-            // Otherwise, the new window may show the wrong region until soft failover completes.
-            if (softFailover && !isFirstPollForWorker && isFirstPollForCCP && (!self.suppress || self.pendingFailover)) {
-              self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
-                nextActiveArn: self.thisArn
-              });
-            }
-  
-            if (!self.suppress) {
-              self.suppress = true;
-              const willSoftFailover = softFailover && !isFirstPollForWorker;
-              if (willSoftFailover) {
-                self.pendingFailover = true;
-                log.debug(`[Disaster Recovery] Instance ${self.thisArn} will be set to stand-by using soft failover`).sendInternalLogToServer();
-              } else {
-                log.debug(`[Disaster Recovery] Instance ${self.thisArn} is being set to stand-by immediately`).sendInternalLogToServer();
-              }
-              self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, {softFailover: willSoftFailover, nextActiveArn: response.InstanceArn});
-            }
-          } else if (![self.thisArn, self.otherArn].includes(response.InstanceArn)) {
-            log.error(`[Disaster Recovery] The current primary instance in this agent's failover group ${response.InstanceArn} ` +
-              `doesn't match this instance ${self.thisArn} or the other instance ${self.otherArn}`).sendInternalLogToServer();
           }
-        }).catch((response) => {
-          if (response.status) {
-            self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, {...response, statusCode: response.status});
-          }
-          log.error(`[Disaster Recovery] Active region polling failed for instance ${self.thisArn}.`).withObject(response).sendInternalLogToServer();
-        }).finally(() => {
-          // This polling run should only schedule another poll if the worker has just started, or if this poll was triggered by schedule
-          // otherwise, the polling performed when opening each additional CCP window will create its own polling schedule
-          if (isFirstPollForWorker || !isFirstPollForCCP) {
-            global.setTimeout(connect.hitch(self, self.pollForActiveRegion), CHECK_ACTIVE_REGION_INTERVAL_MS);
-          }
-        });
-    };
-  
-    // Retrieve pre-signed URL to poll for agent discovery status
-    ClientEngine.prototype.getPresignedDiscoveryUrl = function() {
-      var self = this;
-      return new Promise((resolve, reject) => {
-        connect.getLog().info(`[Disaster Recovery] Getting presigned URL for instance ${self.thisArn}`).sendInternalLogToServer();
-        this.client.call(connect.ClientMethods.CREATE_TRANSPORT, {transportType: connect.TRANSPORT_TYPES.AGENT_DISCOVERY}, {
-          success: function (data) {
-            if (data && data.agentDiscoveryTransport && data.agentDiscoveryTransport.presignedUrl) {
-              connect.getLog().info("getPresignedDiscoveryUrl succeeded").sendInternalLogToServer();
-              resolve(data.agentDiscoveryTransport.presignedUrl);
+
+          if (!self.suppress) {
+            self.suppress = true;
+            const willSoftFailover = softFailover && !isFirstPollForWorker;
+            if (willSoftFailover) {
+              self.pendingFailover = true;
+              log.debug(`[Disaster Recovery] Instance ${self.thisArn} will be set to stand-by using soft failover`).sendInternalLogToServer();
             } else {
-              connect.getLog().info("getPresignedDiscoveryUrl received empty/invalid data").withObject(data).sendInternalLogToServer();
-              reject(Error("getPresignedDiscoveryUrl received empty/invalid data"));
+              log.debug(`[Disaster Recovery] Instance ${self.thisArn} is being set to stand-by immediately`).sendInternalLogToServer();
             }
-          },
-          failure: function (err, data) {
-            connect.getLog().error(`[Disaster Recovery] Failed to get presigned URL for instance ${self.thisArn}`)
-              .withException(err)
-              .withObject(data)
-              .sendInternalLogToServer();
-            reject(new Error('Failed to get presigned URL'));
-          },
-          authFailure: function () {
-            connect.hitch(self, self.handleAuthFail)();
-            reject(new Error('Encountered auth failure when getting presigned URL'));
-          },
-          accessDenied: function () {
-            connect.hitch(self, self.handleAccessDenied)();
-            reject(new Error('Encountered access denied when getting presigned URL'));
+            self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, { softFailover: willSoftFailover, nextActiveArn: response.InstanceArn });
           }
-        });
+        } else if (![self.thisArn, self.otherArn].includes(response.InstanceArn)) {
+          log.error(`[Disaster Recovery] The current primary instance in this agent's failover group ${response.InstanceArn} ` +
+            `doesn't match this instance ${self.thisArn} or the other instance ${self.otherArn}`).sendInternalLogToServer();
+        }
+      }).catch((response) => {
+        if (response.status) {
+          self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, { ...response, statusCode: response.status });
+        }
+        log.error(`[Disaster Recovery] Active region polling failed for instance ${self.thisArn}.`).withObject(response).sendInternalLogToServer();
+      }).finally(() => {
+        // This polling run should only schedule another poll if the worker has just started, or if this poll was triggered by schedule
+        // otherwise, the polling performed when opening each additional CCP window will create its own polling schedule
+        if (isFirstPollForWorker || !isFirstPollForCCP) {
+          global.setTimeout(connect.hitch(self, self.pollForActiveRegion), CHECK_ACTIVE_REGION_INTERVAL_MS);
+        }
       });
-    };
+  };
+
+  // Retrieve pre-signed URL to poll for agent discovery status
+  ClientEngine.prototype.getPresignedDiscoveryUrl = function () {
+    var self = this;
+    return new Promise((resolve, reject) => {
+      connect.getLog().info(`[Disaster Recovery] Getting presigned URL for instance ${self.thisArn}`).sendInternalLogToServer();
+      this.client.call(connect.ClientMethods.CREATE_TRANSPORT, { transportType: connect.TRANSPORT_TYPES.AGENT_DISCOVERY }, {
+        success: function (data) {
+          if (data && data.agentDiscoveryTransport && data.agentDiscoveryTransport.presignedUrl) {
+            connect.getLog().info("getPresignedDiscoveryUrl succeeded").sendInternalLogToServer();
+            resolve(data.agentDiscoveryTransport.presignedUrl);
+          } else {
+            connect.getLog().info("getPresignedDiscoveryUrl received empty/invalid data").withObject(data).sendInternalLogToServer();
+            reject(Error("getPresignedDiscoveryUrl received empty/invalid data"));
+          }
+        },
+        failure: function (err, data) {
+          connect.getLog().error(`[Disaster Recovery] Failed to get presigned URL for instance ${self.thisArn}`)
+            .withException(err)
+            .withObject(data)
+            .sendInternalLogToServer();
+          reject(new Error('Failed to get presigned URL'));
+        },
+        authFailure: function () {
+          connect.hitch(self, self.handleAuthFail)();
+          reject(new Error('Encountered auth failure when getting presigned URL'));
+        },
+        accessDenied: function () {
+          connect.hitch(self, self.handleAccessDenied)();
+          reject(new Error('Encountered access denied when getting presigned URL'));
+        }
+      });
+    });
+  };
 
   ClientEngine.prototype.pollForAgent = function () {
     var self = this;
@@ -34820,7 +34894,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         this.agent.configuration.routingProfile.routingProfileARN;
 
       if (this.suppress) {
-        this.agent.snapshot.contacts = this.agent.snapshot.contacts.filter(function(contact){
+        this.agent.snapshot.contacts = this.agent.snapshot.contacts.filter(function (contact) {
           return (contact.state.type == connect.ContactStateType.CONNECTED || contact.state.type == connect.ContactStateType.ENDED);
         });
         if (this.forceOffline) {
