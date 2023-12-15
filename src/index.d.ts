@@ -744,6 +744,9 @@ declare namespace connect {
 
     /** Indicates the contact has ended. */
     ENDED = "ended",
+
+    /** Indicates the contact is paused */
+    PAUSED = 'paused'
   }
 
   enum CONTACT_ACTIVE_STATES {
@@ -1587,6 +1590,20 @@ declare namespace connect {
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
      */
     accept(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Pause an active contact.
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    pause(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Resume a paused contact.
+     *
+     * @param callbacks Success and failure callbacks to determine whether the operation was successful.
+     */
+    resume(callbacks?: SuccessFailOptions): void;
 
     /**
      * Close the contact and all of its associated connections.

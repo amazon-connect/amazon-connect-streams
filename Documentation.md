@@ -1398,6 +1398,40 @@ Gets the channel context for the contact. For task contacts the channel context 
 }
 ```
 
+### `contact.pause()`
+
+```js
+contact.pause({
+  success: function () {
+    /* ... */
+  },
+  failure: function (err) {
+    /* ... */
+  },
+});
+```
+
+Pause a connected contact.
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
+
+
+### `contact.resume()`
+
+```js
+contact.resume({
+  success: function () {
+    /* ... */
+  },
+  failure: function (err) {
+    /* ... */
+  },
+});
+```
+
+Resume a paused contact.
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
 
 
 ## Connection API

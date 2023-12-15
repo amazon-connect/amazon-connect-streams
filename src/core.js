@@ -2232,6 +2232,15 @@
       connect.ContactEvents.ERROR)
     .assoc(connect.ContactStateType.CONNECTING,
       connect.ContactStateType.MISSED,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.INCOMING,
+      connect.ContactStateType.MISSED,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.CONNECTING,
+      connect.ContactStateType.REJECTED,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.INCOMING,
+      connect.ContactStateType.REJECTED,
       connect.ContactEvents.MISSED);
 
   /**-----------------------------------------------------------------------*/

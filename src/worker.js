@@ -26,6 +26,12 @@
 
   var POLL_FOR_ACTIVE_REGION_METHOD = "LADS.GetAgentFailoverConfiguration";
 
+  const relatedContactIdMethods = {
+    createTaskContact: "createTaskContact",
+    createOutboundContact: "createOutboundContact",
+    createTemplatedTask: "createTemplatedTask"
+  }
+
   /**-----------------------------------------------------------------------*/
   var MasterTopicCoordinator = function () {
     this.topicMasterMap = {};
@@ -69,41 +75,41 @@
     if(connect.containsValue(connect.AgentAppClientMethods, method)) {
       connect.core.getAgentAppClient()._callImpl(method, params, {
         success: function (data) {
-          self._recordAPILatency(method, request_start);
+          self._recordAPILatency(method, request_start, params);
           callbacks.success(data);
         },
         failure: function (error) {
-          self._recordAPILatency(method, request_start, error);
+          self._recordAPILatency(method, request_start, params, error);
           callbacks.failure(error);
         }
       })
     } else if(connect.containsValue(connect.TaskTemplatesClientMethods, method)) {
       connect.core.getTaskTemplatesClient()._callImpl(method, params, {
         success: function (data) {
-          self._recordAPILatency(method, request_start);
+          self._recordAPILatency(method, request_start, params);
           callbacks.success(data);
         },
         failure: function (error) {
-          self._recordAPILatency(method, request_start, error);
+          self._recordAPILatency(method, request_start, params, error);
           callbacks.failure(error);
         }
       })
     } else {
       connect.core.getClient()._callImpl(method, params, {
         success: function (data, dataAttribute) {
-          self._recordAPILatency(method, request_start);
+          self._recordAPILatency(method, request_start, params);
           callbacks.success(data, dataAttribute);
         },
         failure: function (error, data) {
-          self._recordAPILatency(method, request_start, error);
+          self._recordAPILatency(method, request_start, params, error);
           callbacks.failure(error, data);
         },
         authFailure: function (error, data) {
-          self._recordAPILatency(method, request_start, error);
+          self._recordAPILatency(method, request_start, params, error);
           callbacks.authFailure();
         },
         accessDenied: function (error, data) {
-          self._recordAPILatency(method, request_start, error);
+          self._recordAPILatency(method, request_start, params, error);
           callbacks.accessDenied && callbacks.accessDenied();
         }
       });
@@ -111,14 +117,14 @@
 
   };
 
-  WorkerClient.prototype._recordAPILatency = function (method, request_start, err) {
+  WorkerClient.prototype._recordAPILatency = function (method, request_start, params, err) {
     var request_end = new Date().getTime();
     var request_time = request_end - request_start;
-    this._sendAPIMetrics(method, request_time, err);
+    this._sendAPIMetrics(method, request_time, params, err);
   };
 
-  WorkerClient.prototype._sendAPIMetrics = function (method, time, err) {
-    const eventData = {
+  WorkerClient.prototype._sendAPIMetrics = function (method, time, params, err ) {
+    let eventData = {
       name: method,
       time,
       error: err,
@@ -140,11 +146,33 @@
     if (statusCode.toString().charAt(0) === '5') {
       eventData.error5xx = 1;
     }
-    
-    this.conduit.sendDownstream(connect.EventType.API_METRIC, {
-        ...eventData,
+
+    // API fault metric - ignores 4xx
+    if (statusCode.toString().charAt(0) === '5') {
+      eventData.fault = 1;
+    } else if (statusCode.toString().charAt(0) === '2') {
+      eventData.fault = 0;
+    }
+
+    // Subset Metrics for distinguishing when we use relatedContactId
+    if (relatedContactIdMethods[method] && params && params.relatedContactId) {
+      let relatedEventData = {
+        name: `${method}WithRelatedContactId`,
+        time: eventData.time,
+        error: eventData.error,
+        error5xx: eventData.error5xx
+      };
+      this.conduit.sendDownstream(connect.EventType.API_METRIC, {
+        ...relatedEventData,
         dimensions,
         optionalDimensions,
+      });
+    }
+
+    this.conduit.sendDownstream(connect.EventType.API_METRIC, {
+      ...eventData,
+      dimensions,
+      optionalDimensions,
     });
   };
 
@@ -224,7 +252,7 @@
       self.forceOffline = data.offline || false;
     });
 
-    connect.DisasterRecoveryEvents.INIT_DR_POLLING && this.conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DR_POLLING, function(data) {
+    connect.DisasterRecoveryEvents.INIT_DR_POLLING && this.conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DR_POLLING, function (data) {
       var log = connect.getLog();
       if (self.drPollingUrl) {
         log.debug(`[Disaster Recovery] Adding new CCP to active region polling for instance ${data.instanceArn}`)
@@ -274,7 +302,11 @@
             .sendInternalLogToServer();
 
           connect.WebSocketManager.setGlobalConfig({
-            loggerConfig: { logger: connect.getLog() }
+            loggerConfig: {
+              logger: connect.getLog(),
+              advancedLogWriter: 'info',
+              level: 10
+            }
           });
 
           webSocketManager = connect.WebSocketManager.create();
@@ -428,132 +460,132 @@
    * The URL used for polling will be global, but the endpoint used to get the URL is regional, so once bootstrapping is complete,
    *    the active region should be able to detect that it needs to be failed out even if its AWS region is degraded.
    */
-    ClientEngine.prototype.pollForActiveRegion = function(isFirstPollForCCP, isFirstPollForWorker) {
-      var self = this;
-      var log = connect.getLog();
-      if (!self.drPollingUrl) {
-        throw new connect.StateError("[Disaster Recovery] Tried to poll for active region without first initializing DR polling in the worker.");
-      }
-      log.debug(`[Disaster Recovery] Polling for failover with presigned URL for instance ${self.thisArn}`).sendInternalLogToServer();
-      var request_start = new Date().getTime();
-      return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS)
-        .catch(response => {
-          if (response.status) {
-            self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, {statusCode: response.status});
-            if ([connect.HTTP_STATUS_CODES.ACCESS_DENIED, connect.HTTP_STATUS_CODES.UNAUTHORIZED].includes(response.status)) {
-              log.info("[Disaster Recovery] Active region polling failed; trying to get a new URL for polling.").withObject(response).sendInternalLogToServer();
-              return self.getPresignedDiscoveryUrl().then((presignedUrl) => {
-                self.drPollingUrl = presignedUrl;
-              }).then(() => {
-                request_start = new Date().getTime(); // reset request start marker if we had to get a new polling URL
-                return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS)
-              });
-            } else {
-              var errMsg = `[Disaster Recovery] Failed to poll for failover for instance ${self.thisArn}, ` +
-              `received unexpected response code ${response.status}`;
-              log.error(errMsg).withObject(response).sendInternalLogToServer();
-              throw new Error(errMsg);
-            }
+  ClientEngine.prototype.pollForActiveRegion = function (isFirstPollForCCP, isFirstPollForWorker) {
+    var self = this;
+    var log = connect.getLog();
+    if (!self.drPollingUrl) {
+      throw new connect.StateError("[Disaster Recovery] Tried to poll for active region without first initializing DR polling in the worker.");
+    }
+    log.debug(`[Disaster Recovery] Polling for failover with presigned URL for instance ${self.thisArn}`).sendInternalLogToServer();
+    var request_start = new Date().getTime();
+    return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS)
+      .catch(response => {
+        if (response.status) {
+          self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, { statusCode: response.status });
+          if ([connect.HTTP_STATUS_CODES.ACCESS_DENIED, connect.HTTP_STATUS_CODES.UNAUTHORIZED].includes(response.status)) {
+            log.info("[Disaster Recovery] Active region polling failed; trying to get a new URL for polling.").withObject(response).sendInternalLogToServer();
+            return self.getPresignedDiscoveryUrl().then((presignedUrl) => {
+              self.drPollingUrl = presignedUrl;
+            }).then(() => {
+              request_start = new Date().getTime(); // reset request start marker if we had to get a new polling URL
+              return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS)
+            });
           } else {
-            var errMsg = `[Disaster Recovery] Failed to poll for failover for instance ${self.thisArn}, request timed out or aborted`;
-            self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, {statusCode: -1});
+            var errMsg = `[Disaster Recovery] Failed to poll for failover for instance ${self.thisArn}, ` +
+              `received unexpected response code ${response.status}`;
             log.error(errMsg).withObject(response).sendInternalLogToServer();
             throw new Error(errMsg);
           }
-        })
-        .then(response => {
-          self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start);
-          if (typeof response.TerminateActiveContacts !== 'boolean') {
-            log.error("[Disaster Recovery] DR polling response did not contain a valid value for TerminateActiveContacts.").withObject(response).sendInternalLogToServer();
-            return;
-          }
-          var softFailover = !response.TerminateActiveContacts;
-          if (!response.InstanceArn) {
-            log.error("[Disaster Recovery] DR polling response did not contain a truthy active instance ARN.").withObject(response).sendInternalLogToServer();
-            return;
-          } else {
-            log.debug(`[Disaster Recovery] Successfully polled for active region. Primary instance ARN is ${response.InstanceArn} ` +
-              `and soft failover is ${softFailover ? "enabled" : "disabled"}`).sendInternalLogToServer();
-          }
-  
-          if (self.thisArn === response.InstanceArn && !self.suppress && isFirstPollForCCP) {
-            log.debug(`[Disaster Recovery] Instance ${self.thisArn} is being set to primary`).sendInternalLogToServer();
+        } else {
+          var errMsg = `[Disaster Recovery] Failed to poll for failover for instance ${self.thisArn}, request timed out or aborted`;
+          self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, { statusCode: -1 });
+          log.error(errMsg).withObject(response).sendInternalLogToServer();
+          throw new Error(errMsg);
+        }
+      })
+      .then(response => {
+        self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start);
+        if (typeof response.TerminateActiveContacts !== 'boolean') {
+          log.error("[Disaster Recovery] DR polling response did not contain a valid value for TerminateActiveContacts.").withObject(response).sendInternalLogToServer();
+          return;
+        }
+        var softFailover = !response.TerminateActiveContacts;
+        if (!response.InstanceArn) {
+          log.error("[Disaster Recovery] DR polling response did not contain a truthy active instance ARN.").withObject(response).sendInternalLogToServer();
+          return;
+        } else {
+          log.debug(`[Disaster Recovery] Successfully polled for active region. Primary instance ARN is ${response.InstanceArn} ` +
+            `and soft failover is ${softFailover ? "enabled" : "disabled"}`).sendInternalLogToServer();
+        }
+
+        if (self.thisArn === response.InstanceArn && !self.suppress && isFirstPollForCCP) {
+          log.debug(`[Disaster Recovery] Instance ${self.thisArn} is being set to primary`).sendInternalLogToServer();
+          self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
+            nextActiveArn: response.InstanceArn
+          });
+        } else if (self.otherArn === response.InstanceArn) {
+          // If this poll is to bootstrap the correct region in a newly-opened additional CCP window, and soft failover is enabled,
+          // and a soft failover has already/will be queued to occur once the current voice contact is destroyed, send a UI failover signal
+          // to ensure the new window will display the previous primary region, in case soft failover will delay the UI failover.
+          // Otherwise, the new window may show the wrong region until soft failover completes.
+          if (softFailover && !isFirstPollForWorker && isFirstPollForCCP && (!self.suppress || self.pendingFailover)) {
             self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
-              nextActiveArn: response.InstanceArn
+              nextActiveArn: self.thisArn
             });
-          } else if (self.otherArn === response.InstanceArn) {
-            // If this poll is to bootstrap the correct region in a newly-opened additional CCP window, and soft failover is enabled,
-            // and a soft failover has already/will be queued to occur once the current voice contact is destroyed, send a UI failover signal
-            // to ensure the new window will display the previous primary region, in case soft failover will delay the UI failover.
-            // Otherwise, the new window may show the wrong region until soft failover completes.
-            if (softFailover && !isFirstPollForWorker && isFirstPollForCCP && (!self.suppress || self.pendingFailover)) {
-              self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
-                nextActiveArn: self.thisArn
-              });
-            }
-  
-            if (!self.suppress) {
-              self.suppress = true;
-              const willSoftFailover = softFailover && !isFirstPollForWorker;
-              if (willSoftFailover) {
-                self.pendingFailover = true;
-                log.debug(`[Disaster Recovery] Instance ${self.thisArn} will be set to stand-by using soft failover`).sendInternalLogToServer();
-              } else {
-                log.debug(`[Disaster Recovery] Instance ${self.thisArn} is being set to stand-by immediately`).sendInternalLogToServer();
-              }
-              self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, {softFailover: willSoftFailover, nextActiveArn: response.InstanceArn});
-            }
-          } else if (![self.thisArn, self.otherArn].includes(response.InstanceArn)) {
-            log.error(`[Disaster Recovery] The current primary instance in this agent's failover group ${response.InstanceArn} ` +
-              `doesn't match this instance ${self.thisArn} or the other instance ${self.otherArn}`).sendInternalLogToServer();
           }
-        }).catch((response) => {
-          if (response.status) {
-            self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, {...response, statusCode: response.status});
-          }
-          log.error(`[Disaster Recovery] Active region polling failed for instance ${self.thisArn}.`).withObject(response).sendInternalLogToServer();
-        }).finally(() => {
-          // This polling run should only schedule another poll if the worker has just started, or if this poll was triggered by schedule
-          // otherwise, the polling performed when opening each additional CCP window will create its own polling schedule
-          if (isFirstPollForWorker || !isFirstPollForCCP) {
-            global.setTimeout(connect.hitch(self, self.pollForActiveRegion), CHECK_ACTIVE_REGION_INTERVAL_MS);
-          }
-        });
-    };
-  
-    // Retrieve pre-signed URL to poll for agent discovery status
-    ClientEngine.prototype.getPresignedDiscoveryUrl = function() {
-      var self = this;
-      return new Promise((resolve, reject) => {
-        connect.getLog().info(`[Disaster Recovery] Getting presigned URL for instance ${self.thisArn}`).sendInternalLogToServer();
-        this.client.call(connect.ClientMethods.CREATE_TRANSPORT, {transportType: connect.TRANSPORT_TYPES.AGENT_DISCOVERY}, {
-          success: function (data) {
-            if (data && data.agentDiscoveryTransport && data.agentDiscoveryTransport.presignedUrl) {
-              connect.getLog().info("getPresignedDiscoveryUrl succeeded").sendInternalLogToServer();
-              resolve(data.agentDiscoveryTransport.presignedUrl);
+
+          if (!self.suppress) {
+            self.suppress = true;
+            const willSoftFailover = softFailover && !isFirstPollForWorker;
+            if (willSoftFailover) {
+              self.pendingFailover = true;
+              log.debug(`[Disaster Recovery] Instance ${self.thisArn} will be set to stand-by using soft failover`).sendInternalLogToServer();
             } else {
-              connect.getLog().info("getPresignedDiscoveryUrl received empty/invalid data").withObject(data).sendInternalLogToServer();
-              reject(Error("getPresignedDiscoveryUrl received empty/invalid data"));
+              log.debug(`[Disaster Recovery] Instance ${self.thisArn} is being set to stand-by immediately`).sendInternalLogToServer();
             }
-          },
-          failure: function (err, data) {
-            connect.getLog().error(`[Disaster Recovery] Failed to get presigned URL for instance ${self.thisArn}`)
-              .withException(err)
-              .withObject(data)
-              .sendInternalLogToServer();
-            reject(new Error('Failed to get presigned URL'));
-          },
-          authFailure: function () {
-            connect.hitch(self, self.handleAuthFail)();
-            reject(new Error('Encountered auth failure when getting presigned URL'));
-          },
-          accessDenied: function () {
-            connect.hitch(self, self.handleAccessDenied)();
-            reject(new Error('Encountered access denied when getting presigned URL'));
+            self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, { softFailover: willSoftFailover, nextActiveArn: response.InstanceArn });
           }
-        });
+        } else if (![self.thisArn, self.otherArn].includes(response.InstanceArn)) {
+          log.error(`[Disaster Recovery] The current primary instance in this agent's failover group ${response.InstanceArn} ` +
+            `doesn't match this instance ${self.thisArn} or the other instance ${self.otherArn}`).sendInternalLogToServer();
+        }
+      }).catch((response) => {
+        if (response.status) {
+          self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, { ...response, statusCode: response.status });
+        }
+        log.error(`[Disaster Recovery] Active region polling failed for instance ${self.thisArn}.`).withObject(response).sendInternalLogToServer();
+      }).finally(() => {
+        // This polling run should only schedule another poll if the worker has just started, or if this poll was triggered by schedule
+        // otherwise, the polling performed when opening each additional CCP window will create its own polling schedule
+        if (isFirstPollForWorker || !isFirstPollForCCP) {
+          global.setTimeout(connect.hitch(self, self.pollForActiveRegion), CHECK_ACTIVE_REGION_INTERVAL_MS);
+        }
       });
-    };
+  };
+
+  // Retrieve pre-signed URL to poll for agent discovery status
+  ClientEngine.prototype.getPresignedDiscoveryUrl = function () {
+    var self = this;
+    return new Promise((resolve, reject) => {
+      connect.getLog().info(`[Disaster Recovery] Getting presigned URL for instance ${self.thisArn}`).sendInternalLogToServer();
+      this.client.call(connect.ClientMethods.CREATE_TRANSPORT, { transportType: connect.TRANSPORT_TYPES.AGENT_DISCOVERY }, {
+        success: function (data) {
+          if (data && data.agentDiscoveryTransport && data.agentDiscoveryTransport.presignedUrl) {
+            connect.getLog().info("getPresignedDiscoveryUrl succeeded").sendInternalLogToServer();
+            resolve(data.agentDiscoveryTransport.presignedUrl);
+          } else {
+            connect.getLog().info("getPresignedDiscoveryUrl received empty/invalid data").withObject(data).sendInternalLogToServer();
+            reject(Error("getPresignedDiscoveryUrl received empty/invalid data"));
+          }
+        },
+        failure: function (err, data) {
+          connect.getLog().error(`[Disaster Recovery] Failed to get presigned URL for instance ${self.thisArn}`)
+            .withException(err)
+            .withObject(data)
+            .sendInternalLogToServer();
+          reject(new Error('Failed to get presigned URL'));
+        },
+        authFailure: function () {
+          connect.hitch(self, self.handleAuthFail)();
+          reject(new Error('Encountered auth failure when getting presigned URL'));
+        },
+        accessDenied: function () {
+          connect.hitch(self, self.handleAccessDenied)();
+          reject(new Error('Encountered access denied when getting presigned URL'));
+        }
+      });
+    });
+  };
 
   ClientEngine.prototype.pollForAgent = function () {
     var self = this;
@@ -967,7 +999,7 @@
         this.agent.configuration.routingProfile.routingProfileARN;
 
       if (this.suppress) {
-        this.agent.snapshot.contacts = this.agent.snapshot.contacts.filter(function(contact){
+        this.agent.snapshot.contacts = this.agent.snapshot.contacts.filter(function (contact) {
           return (contact.state.type == connect.ContactStateType.CONNECTED || contact.state.type == connect.ContactStateType.ENDED);
         });
         if (this.forceOffline) {
