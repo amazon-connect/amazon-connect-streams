@@ -212,7 +212,7 @@ Integrates with Connect by loading the pre-built CCPs located at `ccpUrl` and `s
 
 ## How to make Streams API calls to the CCP for the currently-active region
 
-The `window.connect` reference on the page will be updated to point to the Connect API object for the currently-active region, both at initialization time and each time there is a change in active region on the page. You can refer to the [standard documentation](https://code.amazon.com/packages/AmazonConnectStreams/blobs/d226dd7efac909181ad31f0759e10593bad9fc4d/--/Documentation.md) for reference on what APIs are available to use on this object. You will need to wait for the `getPrimaryRegion` promise to resolve before you will have a Connect object available for use on the page.
+The `window.connect` reference on the page will be updated to point to the Connect API object for the currently-active region, both at initialization time and each time there is a change in active region on the page. You can refer to the [standard documentation](Documentation.md) for reference on what APIs are available to use on this object. You will need to wait for the `getPrimaryRegion` promise to resolve before you will have a Connect object available for use on the page.
 
 If you have a standard set of Connect API calls (e.g. common `onConnecting()` hooks, usage of `connect.agent()` or `connect.contact()`) you would typically make to set up the embedded CCP on the page, in order to ensure they’re applied to both instances on the page, you should make these API calls in a `globalConnect.core.onInit()` hook. Your onInit logic will be invoked for each Connect instance in the Global Resiliency setup.
 
@@ -302,7 +302,7 @@ Once the Global Resiliency Streams setup is initialized on the page (using `glob
 
 ### connect
 
-The Streams API object for the currently-active Connect instance. Refer to the full Streams documentation [here](https://code.amazon.com/packages/AmazonConnectStreams/blobs/d226dd7efac909181ad31f0759e10593bad9fc4d/--/Documentation.md) to understand what functions are available on this object.
+The Streams API object for the currently-active Connect instance. Refer to the full Streams documentation [here](Documentation.md) to understand what functions are available on this object.
 
 ### globalConnect.core.primaryRegion
 
