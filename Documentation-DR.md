@@ -234,11 +234,11 @@ globalConnect.core.initCCP(containerDiv, {
 
 Since the full `window.connect` binding will not be available until the Global Resiliency setup is initialized on the page, code that relies on modifying the Connect Streams object, such as ChatJS, TaskJS, and other custom code you may have written to work with the standard (non-Global Resiliency) Streams distribution should be loaded in your code that handles the promise returned by your function passed as the getPrimaryRegion parameter of `globalConnect.core.initCCP()`, instead of being loaded immediately at page load time along with Streams itself, as with the non-Global Resiliency version of Streams. 
 
-Any scripts loaded this way should also be loaded as part of a `globalConnect.core.onFailoverCompleted()` hook, to ensure that the code will apply to the newly-active CCP in the event of an active region change; otherwise the code would be applied only to the CCP for the region that was originally active.
+Any scripts loaded this way should also be loaded as part of a `globalConnect.core.onFailoverComplete()` hook, to ensure that the code will apply to the newly-active CCP in the event of an active region change; otherwise the code would be applied only to the CCP for the region that was originally active.
 
 
 ```
-globalConnect.core.onFailoverCompleted(() => {
+globalConnect.core.onFailoverComplete(() => {
     const script = document.createElement('script');
     script.src = "https://example.com/amazon-connect-chat.js";
     document.body.appendChild(script);
@@ -331,7 +331,7 @@ This function provides a convenient place to set up init-time logic using the St
 
 Returns a function that can be called if you wish to deregister the trigger.
 
-### globalConnect.core.onFailoverCompleted(f)
+### globalConnect.core.onFailoverComplete(f)
 
 Register a function to be triggered when the UI changes to display a different region, and agents are able to begin taking contacts in the new CCP region. This function will also be triggered when CCP is initialized and ready for use, if the region whose CCP was provided in the `ccpUrl` parameter (i.e. not the `standByRegion`) is not the currently active region for the agent. If you wish, you can set up hooks using this function before calling `globalConnect.core.initCCP()`.
 
@@ -340,7 +340,6 @@ The function will be called with an Object parameter with three properties:
 
 1. `activeRegion`: the string name of the AWS region for the newly-active CCP instance
 2. `activeCcpUrl`: the value of the ccpUrl parameter for the newly-active instance, as originally provided in the initCCP() parameters
-3. `connect`: the Streams API object for the newly-active region’s CCP.
 
 Returns a function that can be called if you wish to deregister the trigger.
 

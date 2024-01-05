@@ -206,6 +206,8 @@
     'user_busy_error',
     'webrtc_error',
     'realtime_communication_error',
+    'vdi_strategy_not_supported',
+    'vdi_redir_not_supported',
     'other'
   ]);
 

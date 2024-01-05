@@ -102,8 +102,11 @@ declare namespace connect {
   function hitch<T extends (...args: any[]) => any>(scope: object, method: T): T;
 
   type StorageAccessCallbackData = {
-    hasAccess?: boolean;
-    [key: string]: any;
+    data: {
+      hasAccess?: boolean;
+      [key: string]: any;
+    },
+    event: string
   }
   type StorageAccessCallback = (option: StorageAccessCallbackData) => void;
 
@@ -373,6 +376,15 @@ declare namespace connect {
       denyBannerLearnMoreUrl?: string;
       accessBannerLearnMoreText?: string;
       denyBannerLearnMoreText?: string;
+      // pop up customization
+      popupTitle?: string;
+      popupBannerDescription?: string;
+      popupBannerLearnMoreText?: string;
+      popupBannerButtonText?: string;
+      // popup prompt customization
+      promptBannerTitle?: string;
+      promptBannerDescription?: string;
+      promptBannerButtonText?: string;
     };
   };
 
@@ -403,6 +415,13 @@ declare namespace connect {
      * @default false
      */
     readonly allowFramedVideoCall?: boolean;
+
+     /**
+     * VDI SDK support, we are currently only supporting CITRIX
+     * To specify that the VDI environment is Citrix, please set this value to `CITRIX` or 
+     * `VDIPlatformType.CITRIX`
+     */
+    readonly VDIPlatform?: string;
 
     /**
      * If `true` or not provided, CCP will capture the agent’s browser microphone media stream before the contact arrives to reduce the call setup latency. 
@@ -707,6 +726,7 @@ declare namespace connect {
     ENDED = "ended",
     ERROR = "error",
     ACCEPTED = "accepted",
+    PAUSED = "paused"
   }
 
   /** An enumeration listing the different high-level states that a contact can have. */
@@ -772,6 +792,12 @@ declare namespace connect {
 
     /** Task contact. */
     TASK = "task",
+  }
+
+    /** This enumeration lists the different types of VDI Platform supported. */
+  enum VDIPlatformType {
+    /** Citrix. */
+    CITRIX = "CITRIX"
   }
 
   /** This enumeration lists the different types of contact channels. */

@@ -45,10 +45,6 @@
 
     var divStyle = extractDivStyle(globalContainerDiv);
 
-    if (divStyle.display == "none") {
-      uiFailoverEnabled = false;
-    }
-
     if (parseInt(divStyle.height) <= 0) {
       globalContainerDiv.style.height = DIV_DEFAULT_HEIGHT.height; // populating ccp
       divStyle.height = DIV_DEFAULT_HEIGHT.height;
@@ -142,6 +138,7 @@
           });
           var globalIframe = document.createElement("iframe");
           globalIframe.style = GLOBALIFRAME_STYLE;
+          globalIframe.allow = "microphone; camera; autoplay; clipboard-write; identity-credentials-get";
           globalIframe.id = GLOBALIFRAME_ID;
           globalIframe.scrolling = "no";
 
