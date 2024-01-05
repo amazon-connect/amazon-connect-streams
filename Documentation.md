@@ -214,12 +214,13 @@ everything set up correctly and that you are able to listen for events.
             ringtoneUrl: '[your-ringtone-filepath].mp3', // optional, defaults to CCP’s default ringtone if a falsy value is set
             disableEchoCancellation: false, // optional, defaults to false
             allowFramedVideoCall: true, // optional, default to false
+            VDIPlatform: null // optional, provide with 'CITRIX' if using Citrix VDI, or use enum VDIPlatformType
             allowEarlyGum: true //optional, default to true
           },
           storageAccess: {
             canRequest: true, // By default this is set to true. You can set it to false to opt out from checking storage access.  
             mode: "custom", // To use the default banner, set this to "default"
-            /** More customization options can be found here: https://docs.aws.amazon.com/connect/latest/adminguide/admin-3pcookies.html#config-grant-access */
+            /** More customization options can be found here: https://github.com/amazon-connect/amazon-connect-streams/blob/master/src/index.d.ts under StorageAccessParameters */
           },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
@@ -269,6 +270,9 @@ and made available to your JS client code.
     the softphone session must not be closed during the course of a softphone
     call or the call will be disconnected. If `allowFramedSoftphone` is `true`,
     the softphone components will be allowed to be hosted in this window or tab.
+    If `allowFramedSoftphone` is `false`, please make sure you are importing the 
+    [lily-rtc.js](https://github.com/aws/connect-rtc-js) package and adding `connect.core.initSoftphoneManager()`
+    to your code after `connect.core.initCCP()`.
   * `disableRingtone`: This option allows you to completely disable the built-in
     ringtone audio that is played when a call is incoming.
   * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
@@ -279,6 +283,7 @@ and made available to your JS client code.
   - `allowFramedVideoCall`: Currently video call can only be in one single window or tab.. If `true`, CCP will handle 
     video calling experience in this window or tab and agents would be able to see and turn 
     on their video if they have video permission set in the security profile. If `false` or not provided, CCP will only provide voice calling.
+   - `VDIPlatform`: This option is only applicable for virtual desktop interface integrations. If set, it will configure CCP to optimize softphone audio configuration for the VDI. Options can be provided by using enum `VDIPlatformType`. If `allowFramedSoftphone` is `false` and `VDIPlatform` is going to be set, please make sure you are passing this parameter into `connect.core.initSoftphoneManager()`. For example, `connect.core.initSoftphoneManager({ VDIPlatform: "CITRIX" })`
   - `allowEarlyGum`: If `true` or not provided, CCP will capture the agent’s browser microphone media stream before the contact arrives to reduce the call setup latency. If `false`, CCP will only capture agent media stream after the contact arrives.
 - `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
   - `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local

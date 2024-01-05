@@ -10,6 +10,10 @@
   global.lily = connect;
   global.ccpVersion = "V2";
 
+  const VDIPlatformType = {
+    CITRIX: "CITRIX",
+  }
+
   var RTPJobIntervalMs = 1000;
   var statsReportingJobIntervalMs = 30000;
   var streamBufferSize = 500;
@@ -79,16 +83,56 @@
     var self = this;
     logger = new SoftphoneLogger(connect.getLog());
     logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
+    logger.info(`[SoftphoneManager] Client Provided Strategy: ${softphoneParams.VDIPlatform}`).sendInternalLogToServer();
+  
+    let rtcJsStrategy;
+    if (softphoneParams.VDIPlatform) {
+      try {
+        if (softphoneParams.VDIPlatform === VDIPlatformType.CITRIX) {
+          rtcJsStrategy = new connect.CitrixVDIStrategy();
+          logger.info(`[SoftphoneManager] Strategy constructor retrieved: ${rtcJsStrategy}`).sendInternalLogToServer();
+        } else {
+          throw new Error("VDI Strategy not supported");
+        }
+      } catch (error) {
+        if (error.message === "VDI Strategy not supported") {
+          publishError(SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED, error.message, "");
+          throw error;
+        }
+        else if (error.message === "Citrix WebRTC redirection feature is NOT supported!") {
+          publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
+          throw error;
+        }
+        else {
+          publishError(SoftphoneErrorTypes.OTHER, error.message, "");
+          throw error;
+        }
+      }
+    }
+
     var rtcPeerConnectionFactory;
     if (connect.RtcPeerConnectionFactory) {
-      rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
-        connect.core.getWebSocketManager(),
-        softphoneClientId,
-        connect.hitch(self, requestIceAccess, {
-          transportType: "softphone",
-          softphoneClientId: softphoneClientId
-        }),
-        connect.hitch(self, publishError));
+      if (rtcJsStrategy) {
+        rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
+          connect.core.getWebSocketManager(),
+          softphoneClientId,
+          connect.hitch(self, requestIceAccess, {
+            transportType: "softphone",
+            softphoneClientId: softphoneClientId
+          }),
+          connect.hitch(self, publishError),
+          rtcJsStrategy
+        );
+      } else {
+        rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
+          connect.core.getWebSocketManager(),
+          softphoneClientId,
+          connect.hitch(self, requestIceAccess, {
+            transportType: "softphone",
+            softphoneClientId: softphoneClientId
+          }),
+          connect.hitch(self, publishError));
+      }
     }
     if (!SoftphoneManager.isBrowserSoftPhoneSupported()) {
       publishError(SoftphoneErrorTypes.UNSUPPORTED_BROWSER,
@@ -218,14 +262,27 @@
       if (callConfig.useWebSocketProvider) {
         webSocketProvider = connect.core.getWebSocketManager();
       }
-      var session = new connect.RTCSession(
-        callConfig.signalingEndpoint,
-        callConfig.iceServers,
-        softphoneInfo.callContextToken,
-        logger,
-        contact.getContactId(),
-        agentConnectionId,
-        webSocketProvider);
+      var session;
+      if (rtcJsStrategy) {
+        session = new connect.RTCSession(
+          callConfig.signalingEndpoint,
+          callConfig.iceServers,
+          softphoneInfo.callContextToken,
+          logger,
+          contact.getContactId(),
+          agentConnectionId,
+          webSocketProvider,
+          rtcJsStrategy);
+      } else {
+        session = new connect.RTCSession(
+          callConfig.signalingEndpoint,
+          callConfig.iceServers,
+          softphoneInfo.callContextToken,
+          logger,
+          contact.getContactId(),
+          agentConnectionId,
+          webSocketProvider);
+      }
 
       session.echoCancellation = !softphoneParams.disableEchoCancellation;
 
@@ -281,7 +338,7 @@
         });
       };
 
-      session.remoteAudioElement = document.getElementById('remote-audio');
+      session.remoteAudioElement = document.getElementById('remote-audio') || window.parent.parent.document.getElementById('remote-audio');
       if (rtcPeerConnectionFactory) {
         session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
       } else {
@@ -478,7 +535,7 @@
       return;
     }
 
-    var remoteAudioElement = document.getElementById('remote-audio');
+    var remoteAudioElement = document.getElementById('remote-audio') || window.parent.parent.document.getElementById('remote-audio');
     if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
         remoteAudioElement.setSinkId(deviceId).then(() => {
           connect.getLog().info(`[Audio Device Settings] Speaker device ${deviceId} successfully set to speaker audio element`).sendInternalLogToServer();
