@@ -33,7 +33,11 @@
   };
 
   var getConnectUrl = function (ccpUrl) {
-    var pos = ccpUrl.indexOf('ccp-v2');
+    var pos = ccpUrl.indexOf('ccp-v');
+    if (pos < 0) {
+      // see if this is v1 URL
+      pos = ccpUrl.indexOf('ccp#');
+    }
     return ccpUrl.slice(0, pos - 1);
   };
 
