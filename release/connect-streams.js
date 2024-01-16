@@ -25652,7 +25652,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.4.12";
+  connect.version = "2.4.13";
   connect.DEFAULT_BATCH_SIZE = 500;
 
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
@@ -25832,6 +25832,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     connect.core.softphoneManager = null;
     connect.core.upstream = null;
     connect.core.keepaliveManager = null;
+    connect.storageAccess.resetStorageAccessState();
     connect.agent.initialized = false;
     connect.core.initialized = false;
   };
@@ -29389,6 +29390,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         storageParams = {};
         originalCCPUrl = '';
         rsaContainer = null;
+        onGrantCallbackInvoked = false;
     };
 
     /**
@@ -29653,6 +29655,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         getRequestStorageAccessUrl,
         storageAccessEvents,
         resetStorageAccessState,
+        getOnGrantCallbackInvoked: () => onGrantCallbackInvoked,
         getStorageAccessParams: () => storageParams,
         onRequest: onRequestHandler,
         request: () => {

@@ -836,6 +836,87 @@ describe('Core', function () {
         });
     });
 
+    describe('#connect.core.terminate()', function () {
+        jsdom({ url: "http://localhost" });
+        function isCCPInitialized(containerDiv, params) {
+            try {
+                expect(params.ccpUrl).not.to.be.a("null");
+                expect(containerDiv).not.to.be.a("null");
+                assert.isTrue(document.createElement.calledOnce);
+                assert.isTrue(containerDiv.appendChild.calledOnce);
+                return true;
+            } catch(e) {
+                console.log("InitCCP initialization failed: ",e);
+                return false;
+            }
+        }
+        function isCCPTerminated() {
+            try {
+                assert.isEmpty(connect.core.client);
+                assert.isEmpty(connect.core.agentAppClient);
+                assert.isEmpty(connect.core.masterClient);
+                assert.isNull(connect.core.agentDataProvider);
+                assert.isNull(connect.core.softphoneManager);
+                assert.isNull(connect.core.upstream);
+                assert.isNull(connect.core.keepaliveManager);
+                assert.isFalse(connect.agent.initialized);
+                assert.isFalse(connect.core.initialized);
+                assert.isFalse(connect.core.eventBus.logEvents);
+                return true;
+            } catch(e) {
+                console.log("InitCCP Terminated failed: ",e);
+                return false;
+            }
+        }
+        let containerDiv;
+        const softphoneParams = { allowFramedSoftphone: true };
+            
+        before(function () {
+            containerDiv = { appendChild: sandbox.spy() };
+            params = {
+                ccpUrl: "url.com",
+                softphone: softphoneParams,
+                loginOptions: { autoClose: true }
+            };
+
+            sandbox.spy(document, "createElement");
+            connect.core.initialized = false;
+        });
+
+        afterEach(function () {
+            sandbox.resetHistory();
+        });
+
+        it("Checking if Connect is uninitialized", function () {
+            connect.core.initCCP(containerDiv, params);
+            expect(isCCPInitialized(containerDiv, params)).to.be.true;
+            connect.core.terminate();
+            expect(isCCPTerminated()).to.be.true;
+        });
+
+        it("Check if CCP is initialized after calling terminate function and re-calling initCCP", function () {
+            const storageAccessOriginal = connect.storageAccess;
+            connect.storageAccess = { ...connect.storageAccess, resetStorageAccessState: sinon.fake()};
+           
+            expect(params.ccpUrl).not.to.be.a("null");
+            expect(containerDiv).not.to.be.a("null");
+            connect.core.initCCP(containerDiv, params);
+            expect(isCCPInitialized(containerDiv, params)).to.be.true;
+
+            connect.core.terminate();
+            expect(connect.storageAccess.resetStorageAccessState.calledOnce).to.be.true;
+
+            connect.core.terminate();
+            expect(connect.storageAccess.resetStorageAccessState.calledTwice).to.be.true;
+
+            expect(isCCPTerminated()).to.be.true;
+            sandbox.resetHistory();
+            connect.core.initCCP(containerDiv, params);
+            expect(isCCPInitialized(containerDiv, params)).to.be.true;
+            connect.storageAccess = storageAccessOriginal;
+        });
+    });
+
     describe('onIframeRetriesExhausted', () => {
         after(() => {
             sandbox.restore();
