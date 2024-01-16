@@ -2114,16 +2114,25 @@ describe('Core', function () {
         });
 
         it("Check if CCP is initialized after calling terminate function and re-calling initCCP", function () {
+            const storageAccessOriginal = connect.storageAccess;
+            connect.storageAccess = { ...connect.storageAccess, resetStorageAccessState: sinon.fake()};
+            
             expect(params.ccpUrl).not.to.be.a("null");
             expect(containerDiv).not.to.be.a("null");
             connect.core.initCCP(containerDiv, params);
             expect(isCCPInitialized(containerDiv, params)).to.be.true;
+    
             connect.core.terminate();
+            expect(connect.storageAccess.resetStorageAccessState.calledOnce).to.be.true;
+    
             connect.core.terminate();
+            expect(connect.storageAccess.resetStorageAccessState.calledTwice).to.be.true;
+    
             expect(isCCPTerminated()).to.be.true;
             sandbox.resetHistory();
             connect.core.initCCP(containerDiv, params);
             expect(isCCPInitialized(containerDiv, params)).to.be.true;
+            connect.storageAccess = storageAccessOriginal;
         });
          
     });

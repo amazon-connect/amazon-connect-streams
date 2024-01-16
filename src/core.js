@@ -417,6 +417,7 @@
     connect.core.softphoneManager = null;
     connect.core.upstream = null;
     connect.core.keepaliveManager = null;
+    connect.storageAccess.resetStorageAccessState();
     connect.agent.initialized = false;
     connect.core.initialized = false;
   };
