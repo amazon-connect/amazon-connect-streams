@@ -341,7 +341,37 @@ describe('Core', function () {
 
     describe('#connect.core.initCCP()', function () {
         jsdom({ url: "http://localhost" });
-        var clock 
+        var clock;
+        function isCCPInitialized(containerDiv, params) {
+            try {
+                expect(params.ccpUrl).not.to.be.a("null");
+                expect(containerDiv).not.to.be.a("null");
+                assert.isTrue(document.createElement.calledOnce);
+                assert.isTrue(containerDiv.appendChild.calledOnce);
+                return true;
+            } catch(e) {
+                console.log("InitCCP initialization failed: ",e);
+                return false;
+            }
+        } 
+        function isCCPTerminated() {
+            try {
+                assert.isEmpty(connect.core.client);
+                assert.isEmpty(connect.core.agentAppClient);
+                assert.isEmpty(connect.core.masterClient);
+                assert.isNull(connect.core.agentDataProvider);
+                assert.isNull(connect.core.softphoneManager);
+                assert.isNull(connect.core.upstream);
+                assert.isNull(connect.core.keepaliveManager);
+                assert.isFalse(connect.agent.initialized);
+                assert.isFalse(connect.core.initialized);
+                assert.isFalse(connect.core.eventBus.logEvents);
+                return true;
+            } catch(e) {
+                console.log("InitCCP Terminated failed: ",e);
+                return false;
+            }
+        }
             
         before(function () {
             clock = sinon.useFakeTimers();
@@ -366,23 +396,64 @@ describe('Core', function () {
             sandbox.stub(connect, "ChatRingtoneEngine");
             sandbox.spy(document, "createElement");
             connect.numberOfConnectedCCPs = 0;
-            connect.core.initCCP(this.containerDiv, this.params);
         });
-
+    
         after(function () {
             sandbox.restore();
             clock.restore();
         });
-
+    
+        afterEach(() => {
+            sandbox.resetHistory();
+        })
+    
         it("CCP initialization", function () {
+            connect.core.initCCP(this.containerDiv, this.params);
             expect(this.params.ccpUrl).not.to.be.a("null");
             expect(this.containerDiv).not.to.be.a("null");
             assert.isTrue(connect.core.checkNotInitialized.called);
             assert.isTrue(document.createElement.calledOnce);
             assert.isTrue(this.containerDiv.appendChild.calledOnce);
         });
-
+    
+        it("sends initCCP ringtone params on ACK", function () {
+            connect.core.initCCP(this.containerDiv, this.params);
+            const spy = sinon.spy(connect.core.getUpstream(), "sendUpstream");
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+            assert.isTrue(connect.core.getUpstream().sendUpstream.calledWith(connect.EventType.CONFIGURE, {
+                softphone: this.params.softphone,
+                chat: this.params.chat,
+                pageOptions: this.params.pageOptions
+            }));
+            spy.restore();
+        });
+    
+        it("sets up ringtone engines on CONFIGURE with initCCP params", function () {
+            connect.core.initCCP(this.containerDiv, this.params);
+            connect.core.initRingtoneEngines({ ringtone: this.extraRingtone });
+            connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, {
+                softphone: this.params.softphone,
+                chat: this.params.chat,
+                pageOptions: this.params.pageOptions
+            });
+            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+            connect.ifMaster.callArg(1);
+    
+            assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew(this.params.softphone));
+            assert.isTrue(connect.QueueCallbackRingtoneEngine.calledWithNew(this.params.softphone));
+            assert.isTrue(connect.ChatRingtoneEngine.calledWithNew(this.params.chat));
+        });
+    
+        it("should update the number of connected CCPs on UPDATE_CONNECTED_CCPS event", function () {
+            connect.core.initCCP(this.containerDiv, this.params);
+            expect(connect.numberOfConnectedCCPs).to.equal(0);
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 });
+            expect(connect.numberOfConnectedCCPs).to.equal(1);
+        });
+    
         it("Replicates logs received upstream while ignoring duplicates", function () {
+            connect.core.initCCP(this.containerDiv, this.params);
             var logger = connect.getLog();
             var loggerId = logger.getLoggerId();
             var originalLoggerLength = logger._logs.length;
@@ -404,50 +475,39 @@ describe('Core', function () {
             clock.tick(2000);
             assert.lengthOf(logger._logs, originalLoggerLength + newLogs.length);
         });
-
-        it("sends initCCP ringtone params on ACK", function () {
-            const spy = sinon.spy(connect.core.getUpstream(), "sendUpstream");
-            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
-            assert.isTrue(connect.core.getUpstream().sendUpstream.calledWith(connect.EventType.CONFIGURE, {
-                softphone: this.params.softphone,
-                chat: this.params.chat,
-                pageOptions: this.params.pageOptions
-            }));
-            spy.restore();
+    
+        it("Check if CCP is initialized after calling terminate function and re-calling initCCP", function () {
+            const storageAccessOriginal = connect.storageAccess;
+            connect.storageAccess = { ...connect.storageAccess, resetStorageAccessState: sinon.fake()};
+           
+            expect(this.params.ccpUrl).not.to.be.a("null");
+            expect(this.containerDiv).not.to.be.a("null");
+            connect.core.initCCP(this.containerDiv, this.params);
+            expect(isCCPInitialized(this.containerDiv, this.params)).to.be.true;
+    
+            connect.core.terminate();
+            expect(connect.storageAccess.resetStorageAccessState.calledOnce).to.be.true;
+    
+            connect.core.terminate();
+            expect(connect.storageAccess.resetStorageAccessState.calledTwice).to.be.true;
+    
+            expect(isCCPTerminated()).to.be.true;
+            sandbox.resetHistory();
+            connect.core.initCCP(this.containerDiv, this.params);
+            expect(isCCPInitialized(this.containerDiv, this.params)).to.be.true;
+            connect.storageAccess = storageAccessOriginal;
         });
-
-        it("sets up ringtone engines on CONFIGURE with initCCP params", function () {
-            connect.core.initRingtoneEngines({ ringtone: this.extraRingtone });
-            connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, {
-                softphone: this.params.softphone,
-                chat: this.params.chat,
-                pageOptions: this.params.pageOptions
-            });
-            connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
-            connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
-            connect.ifMaster.callArg(1);
-
-            assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew(this.params.softphone));
-            assert.isTrue(connect.QueueCallbackRingtoneEngine.calledWithNew(this.params.softphone));
-            assert.isTrue(connect.ChatRingtoneEngine.calledWithNew(this.params.chat));
-        });
-
-        it("should update the number of connected CCPs on UPDATE_CONNECTED_CCPS event", function () {
-            expect(connect.numberOfConnectedCCPs).to.equal(0);
-            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.UPDATE_CONNECTED_CCPS, { length: 1 });
-            expect(connect.numberOfConnectedCCPs).to.equal(1);
-        });
-
+    
         describe("on ACK", function () {
             let fakeOnInitHandler;
-
+    
             before(function () {
                 fakeOnInitHandler = sinon.fake();
                 connect.core.onInitialized(fakeOnInitHandler);
                 sandbox.stub(connect.WindowIOStream.prototype, 'send').returns(null);
                 connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
             });
-
+    
             it("should set portStreamId on ACK", function () {
                 connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
                 expect(connect.core.portStreamId).to.equal('portId');
