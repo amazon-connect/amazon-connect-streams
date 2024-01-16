@@ -26297,7 +26297,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.6.8";
+  connect.version = "2.6.9";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -26703,6 +26703,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
     connect.core.softphoneManager = null;
     connect.core.upstream = null;
     connect.core.keepaliveManager = null;
+    connect.storageAccess.resetStorageAccessState();
     connect.agent.initialized = false;
     connect.core.initialized = false;
   };
@@ -30514,6 +30515,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
     storageParams = {};
     originalCCPUrl = '';
     rsaContainer = null;
+    onGrantCallbackInvoked = false;
   };
 
   /**
@@ -30777,6 +30779,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1377.0
     getRequestStorageAccessUrl,
     storageAccessEvents,
     resetStorageAccessState,
+    getOnGrantCallbackInvoked: () => onGrantCallbackInvoked,
     getStorageAccessParams: () => storageParams,
     onRequest: onRequestHandler,
     request: () => {
