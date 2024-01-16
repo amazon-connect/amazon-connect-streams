@@ -5991,7 +5991,7 @@ function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len 
   global.lily = connect;
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "1.7.8";
+  connect.version = "1.7.9";
   connect.DEFAULT_BATCH_SIZE = 500;
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
