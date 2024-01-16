@@ -6119,6 +6119,7 @@ function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len 
     connect.core.softphoneManager = null;
     connect.core.upstream = null;
     connect.core.keepaliveManager = null;
+    connect.storageAccess.resetStorageAccessState();
     connect.agent.initialized = false;
     connect.core.initialized = false;
   };
@@ -9503,6 +9504,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     storageParams = {};
     originalCCPUrl = "";
     rsaContainer = null;
+    onGrantCallbackInvoked = false;
   };
 
   /**
@@ -9754,6 +9756,9 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     getRequestStorageAccessUrl: getRequestStorageAccessUrl,
     storageAccessEvents: storageAccessEvents,
     resetStorageAccessState: resetStorageAccessState,
+    getOnGrantCallbackInvoked: function getOnGrantCallbackInvoked() {
+      return onGrantCallbackInvoked;
+    },
     getStorageAccessParams: function getStorageAccessParams() {
       return storageParams;
     },

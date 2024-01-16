@@ -84,6 +84,7 @@
     storageParams = {};
     originalCCPUrl = "";
     rsaContainer = null;
+    onGrantCallbackInvoked = false;
   };
 
   /**
@@ -373,6 +374,7 @@
     getRequestStorageAccessUrl,
     storageAccessEvents,
     resetStorageAccessState,
+    getOnGrantCallbackInvoked: () => onGrantCallbackInvoked,
     getStorageAccessParams: () => storageParams,
     onRequest: onRequestHandler,
     request: () => {
