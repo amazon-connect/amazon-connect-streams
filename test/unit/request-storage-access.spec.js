@@ -184,26 +184,31 @@ describe('Request Storage Access module', () => {
         });
 
         it('Should trigger REQUEST post message and invoke onGrant callback', () => {
-            mockMessageFromIframe({
-                event: connect.storageAccess.storageAccessEvents.GRANTED,
-                data: {},
-            });
-
-            connect.storageAccess.init(ccpUrl, container);
-            connect.storageAccess.setupRequestHandlers({ onGrant: onGrantSpy });
-            connect.storageAccess.request();
-
-            expect(postMessageSpy.called).to.be.true;
-            let storageAccessRequestArgs = postMessageSpy.getCall(0).args[0];
-            console.log(storageAccessRequestArgs);
-            expect(storageAccessRequestArgs.event).to.be.equals('storageAccess::request');
-            expect(storageAccessRequestArgs.data.landat).to.be.equals('/connect/ccp-v2');
-
-            expect(onGrantSpy.called).to.be.true;
-            connect.storageAccess.request();
-
-            /** Should be called only once */
-            expect(onGrantSpy.calledTwice).not.to.be.true;
+          mockMessageFromIframe({
+            event: connect.storageAccess.storageAccessEvents.GRANTED,
+            data: {},
+          });
+     
+          connect.storageAccess.init(ccpUrl, container);
+          expect(connect.storageAccess.getOnGrantCallbackInvoked()).to.be.false;
+          connect.storageAccess.setupRequestHandlers({ onGrant: onGrantSpy });
+          connect.storageAccess.request();
+     
+          expect(postMessageSpy.called).to.be.true;
+          let storageAccessRequestArgs = postMessageSpy.getCall(0).args[0];
+          console.log(storageAccessRequestArgs);
+          expect(storageAccessRequestArgs.event).to.be.equals('storageAccess::request');
+          expect(storageAccessRequestArgs.data.landat).to.be.equals('/connect/ccp-v2');
+     
+          expect(onGrantSpy.called).to.be.true;
+          expect(connect.storageAccess.getOnGrantCallbackInvoked()).to.be.true;
+          connect.storageAccess.request();
+     
+          /** Should be called only once */
+          expect(onGrantSpy.calledTwice).not.to.be.true;
+    
+          connect.storageAccess.resetStorageAccessState();
+          expect(connect.storageAccess.getOnGrantCallbackInvoked()).to.be.false;
         });
 
         it('Should hide container if mode is custom after granting access', () => {
