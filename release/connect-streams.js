@@ -1430,6 +1430,14 @@
     var supervisorConnection = nonAgentConnections && nonAgentConnections.find(conn => conn.isBarge() && conn.isActive());
     return supervisorConnection !== undefined;
   }
+
+  Contact.prototype.silentMonitor = function (callbacks) {
+    return this.updateMonitorParticipantState(connect.MonitoringMode.SILENT_MONITOR, callbacks);
+  }
+
+  Contact.prototype.bargeIn = function (callbacks) {
+    return this.updateMonitorParticipantState(connect.MonitoringMode.BARGE, callbacks);
+  }
   
   Contact.prototype.pause = function (callbacks) {
     var client = connect.core.getClient();
