@@ -177,9 +177,13 @@
 
     var onContactConnect = function (contact) {
       if (contact.getType() === lily.ContactType.CHAT && contact.isInbound()) {
-        self._ringtoneSetup(contact);
-        self._publishTelemetryEvent("Chat Ringtone Connecting", contact);
-        connect.getLog().info("Chat Ringtone Connecting").sendInternalLogToServer();
+        var supervisorConnection = contact.getConnections().filter((conn) => conn.getType() === connect.ConnectionType.AGENT && conn.isSilentMonitor());
+
+        if (supervisorConnection.length === 0) {
+          self._ringtoneSetup(contact);
+          self._publishTelemetryEvent("Chat Ringtone Connecting", contact);
+          connect.getLog().info("Chat Ringtone Connecting").sendInternalLogToServer();
+        }
       }
     };
 

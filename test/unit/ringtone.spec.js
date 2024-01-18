@@ -106,6 +106,15 @@ describe('RingtoneEngine', function () {
             assert.doesNotThrow(this.chatRingtoneEngine._driveRingtone, Error, "Not implemented.");
             sandbox.stub(contact, "getType").returns(lily.ContactType.CHAT);
             sandbox.stub(contact, "isInbound").returns(true);
+            let connectionState;
+            sandbox.stub(connect.core, 'getAgentDataProvider').returns({
+                getContactData: () => ({ connections: [{ state: { type: "connecting" }}]}),
+                getConnectionData: () => ({
+                  isSilentMonitor: false,
+                  state: { type: connectionState },
+                  getMediaController: () => {}
+                })
+            });
         });
 
         after(function () {
