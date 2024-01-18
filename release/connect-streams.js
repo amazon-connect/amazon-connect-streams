@@ -1138,6 +1138,14 @@
     });
   };
 
+  Contact.prototype.getActiveConnections = function () {
+    return this.getConnections().filter((conn) => conn.isActive());
+  }
+
+  Contact.prototype.hasTwoActiveParticipants = function () {
+    return this.getActiveConnections().length === 2;
+  }
+
   Contact.prototype.getName = function () {
     return this._getData().name;
   };
@@ -1436,6 +1444,7 @@
       contactId: this.getContactId()
     }, callbacks);
   };
+
   /*----------------------------------------------------------------
    * class ContactSnapshot
    */
@@ -2553,6 +2562,32 @@
       connect.core.mediaFactory.get(this).catch(function () { });
     }
   }
+
+  ChatConnection.prototype.isBargeEnabled = function () {
+    var monitoringCapabilities = this.getMonitorCapabilities();
+    return monitoringCapabilities && monitoringCapabilities.includes(connect.MonitoringMode.BARGE);
+  };
+
+  ChatConnection.prototype.isSilentMonitorEnabled = function () {
+    var monitoringCapabilities = this.getMonitorCapabilities();
+    return monitoringCapabilities && monitoringCapabilities.includes(connect.MonitoringMode.SILENT_MONITOR);
+  };
+
+  ChatConnection.prototype.getMonitorCapabilities = function () {
+    return this._getData().monitorCapabilities;
+  };
+
+  ChatConnection.prototype.isBarge = function () {
+    return this.getMonitorStatus() === connect.MonitoringMode.BARGE;
+  };
+
+  ChatConnection.prototype.isSilentMonitor = function () {
+    return this.getMonitorStatus() === connect.MonitoringMode.SILENT_MONITOR;
+  };
+
+  ChatConnection.prototype.getMonitorStatus = function () {
+    return this._getData().monitorStatus;
+  };
 
   /**
    * @class TaskConnection
@@ -26725,7 +26760,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.12.0";
+  connect.version = "2.13.0";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -31448,9 +31483,13 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
     var onContactConnect = function (contact) {
       if (contact.getType() === lily.ContactType.CHAT && contact.isInbound()) {
-        self._ringtoneSetup(contact);
-        self._publishTelemetryEvent("Chat Ringtone Connecting", contact);
-        connect.getLog().info("Chat Ringtone Connecting").sendInternalLogToServer();
+        var supervisorConnection = contact.getConnections().filter((conn) => conn.getType() === connect.ConnectionType.AGENT && conn.isSilentMonitor());
+
+        if (supervisorConnection.length === 0) {
+          self._ringtoneSetup(contact);
+          self._publishTelemetryEvent("Chat Ringtone Connecting", contact);
+          connect.getLog().info("Chat Ringtone Connecting").sendInternalLogToServer();
+        }
       }
     };
 

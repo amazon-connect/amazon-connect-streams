@@ -1166,6 +1166,27 @@ var agentConn = contact.getAgentConnection();
 Gets the agent connection. This is the connection that represents the agent's
 participation in the contact.
 
+### `contact.getActiveConnections()`
+
+```js
+var activeConns = contact.getActiveConnections();
+```
+
+Get a list of all active connections, i.e. connections that have not been disconnected.
+
+### `contact.hasTwoActiveParticipants()`
+
+```js
+if (contact.hasTwoActiveParticipants()) {
+  /* ... */
+}
+```
+
+Determines if there are exactly two active participants on a contact.
+
+When using enhanced monitoring & barge, if there are only two active participants on a contact,
+and one of them is the manager who has barged in, the manager cannot switch back to monitoring mode.
+
 ### `contact.getAttributes()`
 ```js
 var attributeMap = contact.getAttributes(); // e.g. { "foo": { "name": "foo", "value": "bar" } }
@@ -1360,6 +1381,71 @@ such as adding to a log file or posting elsewhere.
 if (contact.isMultiPartyConferenceEnabled()) { /* ... */ }
 ```
 Determine whether this contact is a softphone call and multiparty conference feature is turned on.
+
+### `contact.isUnderSupervision()`
+
+```js
+if (contact.isUnderSupervision()) {
+  /* ... */
+}
+```
+
+Determines if the contact is under manager's supervision, meaning there is another agent on the contact
+that is in barge mode.
+
+### `contact.updateMonitorParticipantState()`
+
+```js
+contact.updateMonitorParticipantState(targetState, {
+  success: function () {
+    /* ... */
+  },
+  failure: function (err) {
+    /* ... */
+  },
+});
+```
+
+Updates the monitor participant state to switch between different monitoring modes.
+
+- `targetState`: The target monitoring state type, as per the `MonitoringMode` enumeration.
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
+
+### `contact.silentMonitor()`
+
+```js
+contact.silentMonitor({
+  success: function () {
+    /* ... */
+  },
+  failure: function (err) {
+    /* ... */
+  },
+});
+```
+
+Updates the monitor participant state to silent monitoring mode.
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
+
+### `contact.bargeIn()`
+
+```js
+contact.bargeIn({
+  success: function () {
+    /* ... */
+  },
+  failure: function (err) {
+    /* ... */
+  },
+});
+```
+
+Updates the monitor participant state to barge mode.
+
+Optional success and failure callbacks can be provided to determine if the operation was successful.
+
 
 ### Task Contact APIs
 The following contact methods are currently only available for task contacts.
@@ -1708,6 +1794,69 @@ Agents can only unmute themselves up until the point they have been muted by the
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
+### `voiceConnection.isSilentMonitor()`
+
+```js
+if (conn.isSilentMonitor()) {
+  /* ... */
+}
+```
+
+Determine whether the connection is in silent monitoring state. Only the supervisor will see this connection in the snapshot, 
+other agents will not see the supervisor's connection in the snapshot while it is in silent monitor state.
+
+### `voiceConnection.isBarge()`
+
+```js
+if (conn.isBarge()) {
+  /* ... */
+}
+```
+
+Determine whether the connection is in barge state. All agents will see the supervisor's connection in the snapshot while
+it is in barge state.
+
+### `voiceConnection.isSilentMonitorEnabled()`
+
+```js
+if (conn.isSilentMonitorEnabled()) {
+  /* ... */
+}
+```
+
+Determines if the agent has the ability to enter silent monitoring state, 
+meaning the agent's monitoringCapabilities contain `MonitoringMode.SILENT_MONITOR` type.
+
+### `voiceConnection.isBargeEnabled()`
+
+```js
+if (conn.isBargeEnabled()) {
+  /* ... */
+}
+```
+
+Determines if the agent has the ability to enter barge state, 
+meaning the agent's monitoringCapabilities contain `MonitoringMode.BARGE` type.
+
+### `voiceConnection.getMonitorCapabilities()`
+
+```js
+var monitorCapabilities = conn.getMonitorCapabilities();
+```
+
+Returns the array of enabled monitor states of this connection. The array will consist of MonitoringMode enum values.
+
+### `voiceConnection.getMonitorStatus()`
+
+```js
+var monitorStatus = conn.getMonitorStatus();
+```
+
+Returns the current monitoring state of this connection. This value can be one of MonitoringMode enum values 
+if the agent is supervisor, otherwise the monitorStatus will be undefined for the agent.
+
+
+
 ## ChatConnection API
 The ChatConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
 of a particular chat connection within a contact. Like contacts, connections come and go. It is good practice not
@@ -1742,6 +1891,67 @@ conn.getMediaController().then(function (chatController) { /* ... */ });
 Gets a `Promise` with the media controller associated with this connection.
 The promise resolves to a `ChatSession` object from `amazon-connect-chatjs` library.
 See the [amazon-connect-chatjs documentation](https://github.com/amazon-connect/amazon-connect-chatjs) for more information.
+
+### `chatConnection.isSilentMonitor()`
+
+```js
+if (conn.isSilentMonitor()) {
+  /* ... */
+}
+```
+
+Determine whether the connection is in silent monitoring state. Only the supervisor will see this connection in the snapshot, 
+other agents will not see the supervisor's connection in the snapshot while it is in silent monitor state.
+
+### `chatConnection.isBarge()`
+
+```js
+if (conn.isBarge()) {
+  /* ... */
+}
+```
+
+Determine whether the connection is in barge state. All agents will see the supervisor's connection in the snapshot while
+it is in barge state.
+
+### `chatConnection.isSilentMonitorEnabled()`
+
+```js
+if (conn.isSilentMonitorEnabled()) {
+  /* ... */
+}
+```
+
+Determines if the agent has the ability to enter silent monitoring state, 
+meaning the agent's monitoringCapabilities contain `MonitoringMode.SILENT_MONITOR` type.
+
+### `chatConnection.isBargeEnabled()`
+
+```js
+if (conn.isBargeEnabled()) {
+  /* ... */
+}
+```
+
+Determines if the agent has the ability to enter barge state, 
+meaning the agent's monitoringCapabilities contain `MonitoringMode.BARGE` type.
+
+### `chatConnection.getMonitorCapabilities()`
+
+```js
+var monitorCapabilities = conn.getMonitorCapabilities();
+```
+
+Returns the array of enabled monitor states of this connection. The array will consist of MonitoringMode enum values.
+
+### `chatConnection.getMonitorStatus()`
+
+```js
+var monitorStatus = conn.getMonitorStatus();
+```
+
+Returns the current monitoring state of this connection. This value can be one of MonitoringMode enum values 
+if the agent is supervisor, otherwise the monitorStatus will be undefined for the agent.
 
 ## TaskConnection API
 The TaskConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
@@ -2061,8 +2271,8 @@ To get latest streams file and allowlist required urls follow [these instruction
             { style: "width:400px; height:600px;" }
         );
         connect.agentApp.initApp(
-            "customviews", 
-            "customviews-container", 
+            "customviews",
+            "customviews-container",
             connectUrl + "/stargate/app",
             { style: "width:400px; height:600px;" }
         );
@@ -2093,12 +2303,13 @@ To get latest streams file and allowlist required urls follow [these instruction
 ```
 
 Integrates with Amazon Connect by loading the pre-built app located at `appUrl` into an iframe and appending it into the DOM element with id of `containerId`. Underneath the hood, `initApp` creates a `WindowIOStream` for the iframes to communicate with the main CCP iframe, which is in charge of authenticating the agent's session, managing the agent state, and contact state.
-* `name`: A string which should be one of `ccp`, `customerprofiles`, `wisdom`, or `customviews`.
-* `containerId`: The string id of the DOM element that will contain the app iframe.
-* `appUrl`: The string URL of the app. This is the page you would normally navigate to in order to use the app in a standalone page, it is different for each instance.
-* `config`: This object is optional and allows you to specify some settings surrounding the CCP.
-    * `ccpParams`: Optional params that mirror the configuration options for `initCCP`. Only valid when `name` is set to `ccp`. `allowFramedSoftphone` defaults to `true`.
-    * `style`: An optional string to supply inline styling for the iframe.
+
+- `name`: A string which should be one of `ccp`, `customerprofiles`, `wisdom`, or `customviews`.
+- `containerId`: The string id of the DOM element that will contain the app iframe.
+- `appUrl`: The string URL of the app. This is the page you would normally navigate to in order to use the app in a standalone page, it is different for each instance.
+- `config`: This object is optional and allows you to specify some settings surrounding the CCP.
+  - `ccpParams`: Optional params that mirror the configuration options for `initCCP`. Only valid when `name` is set to `ccp`. `allowFramedSoftphone` defaults to `true`.
+  - `style`: An optional string to supply inline styling for the iframe.
 
 ## Voice ID APIs
 Amazon Voice Connect ID provides real-time caller authentication and fraud risk detection which make voice interactions in contact centers more secure and efficient. For the Voice ID overview and administrator guide, please check the [AWS public doc](https://docs.aws.amazon.com/connect/latest/adminguide/voice-id.html). For more information about the agent experience in default CCP UI, please see [Use Voice ID page](https://docs.aws.amazon.com/connect/latest/adminguide/use-voiceid.html).

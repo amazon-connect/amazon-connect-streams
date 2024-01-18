@@ -944,6 +944,14 @@
     });
   };
 
+  Contact.prototype.getActiveConnections = function () {
+    return this.getConnections().filter((conn) => conn.isActive());
+  }
+
+  Contact.prototype.hasTwoActiveParticipants = function () {
+    return this.getActiveConnections().length === 2;
+  }
+
   Contact.prototype.getName = function () {
     return this._getData().name;
   };
@@ -1242,6 +1250,7 @@
       contactId: this.getContactId()
     }, callbacks);
   };
+
   /*----------------------------------------------------------------
    * class ContactSnapshot
    */
@@ -2359,6 +2368,32 @@
       connect.core.mediaFactory.get(this).catch(function () { });
     }
   }
+
+  ChatConnection.prototype.isBargeEnabled = function () {
+    var monitoringCapabilities = this.getMonitorCapabilities();
+    return monitoringCapabilities && monitoringCapabilities.includes(connect.MonitoringMode.BARGE);
+  };
+
+  ChatConnection.prototype.isSilentMonitorEnabled = function () {
+    var monitoringCapabilities = this.getMonitorCapabilities();
+    return monitoringCapabilities && monitoringCapabilities.includes(connect.MonitoringMode.SILENT_MONITOR);
+  };
+
+  ChatConnection.prototype.getMonitorCapabilities = function () {
+    return this._getData().monitorCapabilities;
+  };
+
+  ChatConnection.prototype.isBarge = function () {
+    return this.getMonitorStatus() === connect.MonitoringMode.BARGE;
+  };
+
+  ChatConnection.prototype.isSilentMonitor = function () {
+    return this.getMonitorStatus() === connect.MonitoringMode.SILENT_MONITOR;
+  };
+
+  ChatConnection.prototype.getMonitorStatus = function () {
+    return this._getData().monitorStatus;
+  };
 
   /**
    * @class TaskConnection
