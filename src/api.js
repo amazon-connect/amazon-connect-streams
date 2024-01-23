@@ -613,6 +613,10 @@
     return this.getConfiguration().name;
   };
 
+  Agent.prototype.getAgentARN = function () {
+    return this.getConfiguration().agentARN;
+  };
+
   Agent.prototype.getExtension = function () {
     return this.getConfiguration().extension;
   };
