@@ -1044,6 +1044,9 @@ declare namespace connect {
      */
     getChannelConcurrency(channel: ChannelType): number;
 
+    /** Gets the agent's ARN. */
+    getAgentARN(): string;
+
     /** Gets the agent's user friendly display name. */
     getName(): string;
 
@@ -1346,6 +1349,9 @@ declare namespace connect {
 
     /** The username for the agent as entered in their Amazon Connect user account. */
     readonly username: string;
+
+    /** The ARN of the agent */
+    readonly agentARN: string;
   }
 
   interface AgentRoutingProfile {

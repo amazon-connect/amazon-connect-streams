@@ -132,6 +132,7 @@
       iframe.id = appName;
       iframe['aria-label'] = appName;
       iframe.onload = onLoad;
+      iframe.allow = "clipboard-read; clipboard-write";
       iframe.setAttribute(
         "sandbox",
         "allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
@@ -805,6 +806,10 @@
 
   Agent.prototype.getName = function () {
     return this.getConfiguration().name;
+  };
+
+  Agent.prototype.getAgentARN = function () {
+    return this.getConfiguration().agentARN;
   };
 
   Agent.prototype.getExtension = function () {
@@ -26768,7 +26773,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.13.0";
+  connect.version = "2.13.1";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -28960,45 +28965,45 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   };
  
   connect.core.contactEventGraph = new connect.EventGraph()
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.INCOMING,
-      connect.ContactEvents.INCOMING)
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.PENDING,
-      connect.ContactEvents.PENDING)
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.CONNECTING,
-      connect.ContactEvents.CONNECTING)
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.CONNECTED,
-      connect.ContactEvents.CONNECTED)
-    .assoc(connect.ContactStateType.CONNECTING,
-      connect.ContactStateType.ERROR,
-      connect.ContactEvents.MISSED)
-    .assoc(connect.ContactStateType.INCOMING,
-      connect.ContactStateType.ERROR,
-      connect.ContactEvents.MISSED)
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.ENDED,
-      connect.ContactEvents.ACW)
-    .assoc(connect.values(connect.CONTACT_ACTIVE_STATES),
-      connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
-      connect.ContactEvents.ENDED)
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.ERROR,
-      connect.ContactEvents.ERROR)
-    .assoc(connect.ContactStateType.CONNECTING,
-      connect.ContactStateType.MISSED,
-      connect.ContactEvents.MISSED)
-    .assoc(connect.ContactStateType.INCOMING,
-      connect.ContactStateType.MISSED,
-      connect.ContactEvents.MISSED)
-    .assoc(connect.ContactStateType.CONNECTING,
-      connect.ContactStateType.REJECTED,
-      connect.ContactEvents.MISSED)
-    .assoc(connect.ContactStateType.INCOMING,
-      connect.ContactStateType.REJECTED,
-      connect.ContactEvents.MISSED);
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.INCOMING,
+          connect.ContactEvents.INCOMING)
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.PENDING,
+          connect.ContactEvents.PENDING)
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.CONNECTING,
+          connect.ContactEvents.CONNECTING)
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.CONNECTED,
+          connect.ContactEvents.CONNECTED)
+      .assoc(connect.ContactStateType.CONNECTING,
+          connect.ContactStateType.ERROR,
+          connect.ContactEvents.MISSED)
+      .assoc(connect.ContactStateType.INCOMING,
+          connect.ContactStateType.ERROR,
+          connect.ContactEvents.MISSED)
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.ENDED,
+          connect.ContactEvents.ACW)
+      .assoc(connect.values(connect.CONTACT_ACTIVE_STATES),
+          connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
+          connect.ContactEvents.ENDED)
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.ERROR,
+          connect.ContactEvents.ERROR)
+      .assoc(connect.ContactStateType.CONNECTING,
+          connect.ContactStateType.MISSED,
+          connect.ContactEvents.MISSED)
+      .assoc(connect.ContactStateType.INCOMING,
+          connect.ContactStateType.MISSED,
+          connect.ContactEvents.MISSED)
+      .assoc(connect.ContactStateType.CONNECTING,
+          connect.ContactStateType.REJECTED,
+          connect.ContactEvents.MISSED)
+      .assoc(connect.ContactStateType.INCOMING,
+          connect.ContactStateType.REJECTED,
+          connect.ContactEvents.MISSED);
 
   /**-----------------------------------------------------------------------*/
   connect.core.getClient = function () {

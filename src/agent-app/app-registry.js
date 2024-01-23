@@ -16,6 +16,7 @@
       iframe.id = appName;
       iframe['aria-label'] = appName;
       iframe.onload = onLoad;
+      iframe.allow = "clipboard-read; clipboard-write";
       iframe.setAttribute(
         "sandbox",
         "allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"

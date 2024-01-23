@@ -2203,45 +2203,45 @@
   };
  
   connect.core.contactEventGraph = new connect.EventGraph()
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.INCOMING,
-      connect.ContactEvents.INCOMING)
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.PENDING,
-      connect.ContactEvents.PENDING)
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.CONNECTING,
-      connect.ContactEvents.CONNECTING)
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.CONNECTED,
-      connect.ContactEvents.CONNECTED)
-    .assoc(connect.ContactStateType.CONNECTING,
-      connect.ContactStateType.ERROR,
-      connect.ContactEvents.MISSED)
-    .assoc(connect.ContactStateType.INCOMING,
-      connect.ContactStateType.ERROR,
-      connect.ContactEvents.MISSED)
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.ENDED,
-      connect.ContactEvents.ACW)
-    .assoc(connect.values(connect.CONTACT_ACTIVE_STATES),
-      connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
-      connect.ContactEvents.ENDED)
-    .assoc(connect.EventGraph.ANY,
-      connect.ContactStateType.ERROR,
-      connect.ContactEvents.ERROR)
-    .assoc(connect.ContactStateType.CONNECTING,
-      connect.ContactStateType.MISSED,
-      connect.ContactEvents.MISSED)
-    .assoc(connect.ContactStateType.INCOMING,
-      connect.ContactStateType.MISSED,
-      connect.ContactEvents.MISSED)
-    .assoc(connect.ContactStateType.CONNECTING,
-      connect.ContactStateType.REJECTED,
-      connect.ContactEvents.MISSED)
-    .assoc(connect.ContactStateType.INCOMING,
-      connect.ContactStateType.REJECTED,
-      connect.ContactEvents.MISSED);
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.INCOMING,
+          connect.ContactEvents.INCOMING)
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.PENDING,
+          connect.ContactEvents.PENDING)
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.CONNECTING,
+          connect.ContactEvents.CONNECTING)
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.CONNECTED,
+          connect.ContactEvents.CONNECTED)
+      .assoc(connect.ContactStateType.CONNECTING,
+          connect.ContactStateType.ERROR,
+          connect.ContactEvents.MISSED)
+      .assoc(connect.ContactStateType.INCOMING,
+          connect.ContactStateType.ERROR,
+          connect.ContactEvents.MISSED)
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.ENDED,
+          connect.ContactEvents.ACW)
+      .assoc(connect.values(connect.CONTACT_ACTIVE_STATES),
+          connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
+          connect.ContactEvents.ENDED)
+      .assoc(connect.EventGraph.ANY,
+          connect.ContactStateType.ERROR,
+          connect.ContactEvents.ERROR)
+      .assoc(connect.ContactStateType.CONNECTING,
+          connect.ContactStateType.MISSED,
+          connect.ContactEvents.MISSED)
+      .assoc(connect.ContactStateType.INCOMING,
+          connect.ContactStateType.MISSED,
+          connect.ContactEvents.MISSED)
+      .assoc(connect.ContactStateType.CONNECTING,
+          connect.ContactStateType.REJECTED,
+          connect.ContactEvents.MISSED)
+      .assoc(connect.ContactStateType.INCOMING,
+          connect.ContactStateType.REJECTED,
+          connect.ContactEvents.MISSED);
 
   /**-----------------------------------------------------------------------*/
   connect.core.getClient = function () {

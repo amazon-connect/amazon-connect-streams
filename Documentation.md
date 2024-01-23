@@ -34,14 +34,14 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
    - A new **agent.onEnqueuedNextState()** listener lets you subscribe to events for when agents have selected/successfully enqueued their next status.
    - A new **agent.getNextState()** API returns a state object if the agent has successfully selected a next state, and null otherwise.
    - If you want to use the Next Status feature via `agent.setState()`, please also ensure that your code is using `contact.clear()` and not `contact.complete()` when clearing After Contact Work off a contact.
-2. December 2020 — 1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Amazon Q Connect. See the [updated documentation](Documentation.md#initialization-for-ccp-customer-profiles-and-amazon-q-connect) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
+1. December 2020 — 1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Amazon Q Connect. See the [updated documentation](Documentation.md#initialization-for-ccp-customer-profiles-and-amazon-q-connect) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
    - ### About Amazon Connect Customer Profiles
      - Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place.
    - ### About Amazon Q Connect
      - With Amazon Q Connect, agents can search and find content across multiple repositories, such as frequently asked questions (FAQs), wikis, articles, and step-by-step instructions for handling different customer issues. They can type questions or phrases in a search box (such as, "how long after purchase can handbags be exchanged?") without having to guess which keywords will work.
    - ### About Amazon Connect Voice ID (The feature is in preview release for Amazon Connect and is subject to change)
      - Amazon Connect Voice ID provides real-time caller authentication which makes voice interactions in contact centers more secure and efficient. Voice ID uses machine learning to verify the identity of genuine customers by analyzing a caller’s unique voice characteristics. This allows contact centers to use an additional security layer that doesn’t rely on the caller answering multiple security questions, and makes it easy to enroll and verify customers without changing the natural flow of their conversation.
-3. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`.
+1. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`.
    - `FailedConnectAgent` -- Previously, we required the agent to click the "Clear Contact" button to clear this state. When the agent clicked the "Clear Contact" button, the previous behavior took the agent back to the `Available` state without fail. Now the `FailedConnectAgent` state will be "auto-cleared", much like `FailedConnectCustomer` always has been.
    - `FailedConnectAgent` and `FailedConnectCustomer` -- We are now using the `contact.clear()` API to auto-clear these states. As a result, the agent will be returned to their previous visible agent state (e.g. `Available`). Previously, the agent had always been set to `Available` as a result of this "auto-clearing" behavior. Note that even custom CCPs will behave differently with this update for `FailedConnectAgent` and `FailedConnectCustomer`.
    - `AfterCallWork` -- As part of the new `contact.clear()` behavior, clicking "Clear Contact" while in `AfterCallWork` will return the agent to their previous visible agent state (e.g. `Available`, etc.). Note that custom CCPs that implement their own After Call Work behavior will not be affected by this change.
@@ -50,10 +50,10 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
 ## Overview
 The Amazon Connect Streams API (Streams) gives you the power to integrate your existing web applications with Amazon Connect.  Streams lets you embed the Contact Control Panel (CCP) and Customer Profiles app UI into your page.  It also enables you to handle agent and contact state events directly through an object oriented event driven interface.  You can use the built in interface or build your own from scratch: Streams gives you the choice.
 
-This library must be used in conjunction with 
-[amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs), 
+This library must be used in conjunction with
+[amazon-connect-chatjs](https://github.com/amazon-connect/amazon-connect-chatjs),
 [amazon-chime-sdk-js](https://github.com/aws/amazon-chime-sdk-js/blob/main/README.md),
-or [amazon-connect-taskjs](https://github.com/amazon-connect/amazon-connect-taskjs) 
+or [amazon-connect-taskjs](https://github.com/amazon-connect/amazon-connect-taskjs)
 in order to utilize Amazon Connect's Chat, Video or Task functionality.
 
 ## Architecture
@@ -214,8 +214,8 @@ everything set up correctly and that you are able to listen for events.
             ringtoneUrl: '[your-ringtone-filepath].mp3', // optional, defaults to CCP’s default ringtone if a falsy value is set
             disableEchoCancellation: false, // optional, defaults to false
             allowFramedVideoCall: true, // optional, default to false
-            VDIPlatform: null // optional, provide with 'CITRIX' if using Citrix VDI, or use enum VDIPlatformType
-            allowEarlyGum: true //optional, default to true
+            VDIPlatform: null, // optional, provide with 'CITRIX' if using Citrix VDI, or use enum VDIPlatformType
+            allowEarlyGum: true, //optional, default to true
           },
           storageAccess: {
             canRequest: true, // By default this is set to true. You can set it to false to opt out from checking storage access.  
@@ -270,7 +270,7 @@ and made available to your JS client code.
     the softphone session must not be closed during the course of a softphone
     call or the call will be disconnected. If `allowFramedSoftphone` is `true`,
     the softphone components will be allowed to be hosted in this window or tab.
-    If `allowFramedSoftphone` is `false`, please make sure you are importing the 
+    If `allowFramedSoftphone` is `false`, please make sure you are importing the
     [lily-rtc.js](https://github.com/aws/connect-rtc-js) package and adding `connect.core.initSoftphoneManager()`
     to your code after `connect.core.initCCP()`.
   * `disableRingtone`: This option allows you to completely disable the built-in
@@ -695,15 +695,16 @@ var config = agent.getConfiguration();
 ```
 Gets the full `AgentConfiguration` object for the agent. This object contains the following fields:
 
-* `agentStates`: See `agent.getAgentStates()` for more info.
-* `dialableCountries`: See `agent.getDialableCountries()` for more info.
-* `extension`: See `agent.getExtension()` for more info.
-* `name`: See `agent.getName()` for more info.
-* `permissions`: See `agent.getPermissions()` for more info.
-* `routingProfile`: See `agent.getRoutingProfile()` for more info.
-* `softphoneAutoAccept`: Indicates whether auto accept soft phone calls is enabled.
-* `softphoneEnabled`: See `agent.isSoftphoneEnabled()` for more info.
-* `username`: The username for the agent as entered in their Amazon Connect user account.
+- `agentStates`: See `agent.getAgentStates()` for more info.
+- `dialableCountries`: See `agent.getDialableCountries()` for more info.
+- `extension`: See `agent.getExtension()` for more info.
+- `name`: See `agent.getName()` for more info.
+- `permissions`: See `agent.getPermissions()` for more info.
+- `routingProfile`: See `agent.getRoutingProfile()` for more info.
+- `softphoneAutoAccept`: Indicates whether auto accept soft phone calls is enabled.
+- `softphoneEnabled`: See `agent.isSoftphoneEnabled()` for more info.
+- `username`: The username for the agent as entered in their Amazon Connect user account.
+- `agentARN`: See `agent.getAgentARN()` for more info.
 
 ### `agent.getAgentStates()`
 ```js
@@ -779,6 +780,14 @@ if (agent.isSoftphoneEnabled()) { /* ... */ }
 ```
 Indicates whether the agent's phone calls should route to the agent's browser-based softphone or the
 telephone number configured as the agent's extension.
+
+### `agent.getAgentARN()`
+
+```js
+const agentARN = agent.getAgentARN();
+```
+
+Gets the agent's ARN.
 
 ### `agent.setConfiguration()`
 ```js
@@ -1203,18 +1212,18 @@ var segmentAttributes = contact.getSegmentAttributes(); // e.g. { "connect:Direc
 
 Gets a map of segment attributes associated with the contact. The current possible segment attributes are `connect:Subtype` and `connect:Direction`. Calling `getContactSubtype()` on a given contact will return the same value as calling `segmentAttributes['connectSubtype']`
 
-
 ### `contact.getContactSubtype()`
 
 ```js
 var contactSubtype = contact.getContactSubtype();
 ```
 
-Get the subtype of the contact. This information is also present in segmentAttributes under the key `connect:Subtype`. 
+Get the subtype of the contact. This information is also present in segmentAttributes under the key `connect:Subtype`.
 
 This further differntiates the contact within a contact Type. Currently it's used to distinguish chat and voice contacts. For example:
- -  Voice calls started using StartWebRTCContact has a subType value of `connect:WebRTC`
- -  SMS chat contacts contain the subType value of `connect:SMS`
+
+- Voice calls started using StartWebRTCContact has a subType value of `connect:WebRTC`
+- SMS chat contacts contain the subType value of `connect:SMS`
 
 ### `contact.isSoftphoneCall()`
 ```js
@@ -1446,7 +1455,6 @@ Updates the monitor participant state to barge mode.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
-
 ### Task Contact APIs
 The following contact methods are currently only available for task contacts.
 
@@ -1505,7 +1513,6 @@ contact.pause({
 Pause a connected contact.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
-
 
 ### `contact.resume()`
 
@@ -1760,6 +1767,7 @@ conn
 ```
 
 Example response:
+
 ```js
 {
   "attendee": {
@@ -1782,7 +1790,7 @@ Example response:
 ```
 
 Provides a promise which resolves with the API response from createTransport transportType web_rtc for this connection.
-You can use the meeting and attendee info to join a video session. Please refer to 
+You can use the meeting and attendee info to join a video session. Please refer to
 [Amazon Chime SDK JS](https://github.com/aws/amazon-chime-sdk-js/blob/main/README.md) for more info.
 
 #### Multiparty call
@@ -1802,7 +1810,7 @@ if (conn.isSilentMonitor()) {
 }
 ```
 
-Determine whether the connection is in silent monitoring state. Only the supervisor will see this connection in the snapshot, 
+Determine whether the connection is in silent monitoring state. Only the supervisor will see this connection in the snapshot,
 other agents will not see the supervisor's connection in the snapshot while it is in silent monitor state.
 
 ### `voiceConnection.isBarge()`
@@ -1824,7 +1832,7 @@ if (conn.isSilentMonitorEnabled()) {
 }
 ```
 
-Determines if the agent has the ability to enter silent monitoring state, 
+Determines if the agent has the ability to enter silent monitoring state,
 meaning the agent's monitoringCapabilities contain `MonitoringMode.SILENT_MONITOR` type.
 
 ### `voiceConnection.isBargeEnabled()`
@@ -1835,7 +1843,7 @@ if (conn.isBargeEnabled()) {
 }
 ```
 
-Determines if the agent has the ability to enter barge state, 
+Determines if the agent has the ability to enter barge state,
 meaning the agent's monitoringCapabilities contain `MonitoringMode.BARGE` type.
 
 ### `voiceConnection.getMonitorCapabilities()`
@@ -1852,10 +1860,8 @@ Returns the array of enabled monitor states of this connection. The array will c
 var monitorStatus = conn.getMonitorStatus();
 ```
 
-Returns the current monitoring state of this connection. This value can be one of MonitoringMode enum values 
+Returns the current monitoring state of this connection. This value can be one of MonitoringMode enum values
 if the agent is supervisor, otherwise the monitorStatus will be undefined for the agent.
-
-
 
 ## ChatConnection API
 The ChatConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
@@ -1900,7 +1906,7 @@ if (conn.isSilentMonitor()) {
 }
 ```
 
-Determine whether the connection is in silent monitoring state. Only the supervisor will see this connection in the snapshot, 
+Determine whether the connection is in silent monitoring state. Only the supervisor will see this connection in the snapshot,
 other agents will not see the supervisor's connection in the snapshot while it is in silent monitor state.
 
 ### `chatConnection.isBarge()`
@@ -1922,7 +1928,7 @@ if (conn.isSilentMonitorEnabled()) {
 }
 ```
 
-Determines if the agent has the ability to enter silent monitoring state, 
+Determines if the agent has the ability to enter silent monitoring state,
 meaning the agent's monitoringCapabilities contain `MonitoringMode.SILENT_MONITOR` type.
 
 ### `chatConnection.isBargeEnabled()`
@@ -1933,7 +1939,7 @@ if (conn.isBargeEnabled()) {
 }
 ```
 
-Determines if the agent has the ability to enter barge state, 
+Determines if the agent has the ability to enter barge state,
 meaning the agent's monitoringCapabilities contain `MonitoringMode.BARGE` type.
 
 ### `chatConnection.getMonitorCapabilities()`
@@ -1950,7 +1956,7 @@ Returns the array of enabled monitor states of this connection. The array will c
 var monitorStatus = conn.getMonitorStatus();
 ```
 
-Returns the current monitoring state of this connection. This value can be one of MonitoringMode enum values 
+Returns the current monitoring state of this connection. This value can be one of MonitoringMode enum values
 if the agent is supervisor, otherwise the monitorStatus will be undefined for the agent.
 
 ## TaskConnection API
@@ -2583,17 +2589,21 @@ if(voiceConnection.isUnderSupervision()) {
 }
 ```
 ## Quick Responses APIs - These APIs are only available **after accepting a chat contact.**
+
 ### `QuickResponses.isEnabled()`
-Determines if quick responses feature is enabled for a given agent. Returns ``true`` if there is a knowledge base for quick responses configured for the instance. If the first call returns true, the knowledgeBase ID will be cached in local storage for subsequent ``QuickResponse`` API calls.
+
+Determines if quick responses feature is enabled for a given agent. Returns `true` if there is a knowledge base for quick responses configured for the instance. If the first call returns true, the knowledgeBase ID will be cached in local storage for subsequent `QuickResponse` API calls.
 
 ```js
 QuickResponses.isEnabled().then(response => {
   ...
 })
 ```
+
 ### `QuickResponses.searchQuickResponses(params: QuickResponsesQuery)`
 
 Returns a list of Quick Responses based on the params given:
+
 ```js
   QuickResponsesQuery {
     query: string; // query string
@@ -2605,6 +2615,7 @@ Returns a list of Quick Responses based on the params given:
 ```
 
 Example usage:
+
 ```js
 const params = {
   query: "Hel",
@@ -2619,6 +2630,7 @@ QuickResponsesService.searchQuickResponses(params: QuickResponsesQuery).then(res
 ```
 
 Example response:
+
 ```js
 {
   "nextToken": "token_string",
@@ -2654,6 +2666,26 @@ Example response:
       "status": "CREATED"
     },
     //... more results
+  ]
+}
+```
+
+To retrieve next set of results:
+
+```js
+QuickResponsesQuery {
+  //... params
+  nextToken: "token_string"
+}
+```
+
+Sample response:
+
+```js
+{
+  "nextToken": null, //would not have next token once last set of responses is returned
+  "results": [
+    //... next set of results
   ]
 }
 ```
