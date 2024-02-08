@@ -1020,7 +1020,7 @@ Subscribe a method to be invoked when the contact is connecting. This event happ
 ```js
 contact.onAccepted(function(contact) { /* ... */ });
 ```
-Subscribe a method to be invoked whenever the contact is accepted. Please note that event doesn't fire for contacts that are auto-accepted, or for agents using a deskphone.
+Subscribe a method to be invoked whenever the contact is accepted. Please note that this event doesn't get triggered for agents using a deskphone.
 
 ### `contact.onMissed()`
 ```js
