@@ -26773,7 +26773,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.13.1";
+  connect.version = "2.13.2";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -27989,8 +27989,11 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
 
     // Clean up the Softphone and Ringtone params store to make sure we always pull the latest params
-    softphoneParamsStorage.clean();
-    ringtoneParamsStorage.clean();
+    if(!params.softphone?.disableStoringParamsInLocalStorage) {
+      softphoneParamsStorage.clean();
+      ringtoneParamsStorage.clean();
+    }
+    
     // init StorageAccess with the incoming params
     connect.storageAccess.init(params.ccpUrl, containerDiv, params.storageAccess || {});
     

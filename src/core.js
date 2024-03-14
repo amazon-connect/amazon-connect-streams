@@ -1227,8 +1227,11 @@
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
 
     // Clean up the Softphone and Ringtone params store to make sure we always pull the latest params
-    softphoneParamsStorage.clean();
-    ringtoneParamsStorage.clean();
+    if(!params.softphone?.disableStoringParamsInLocalStorage) {
+      softphoneParamsStorage.clean();
+      ringtoneParamsStorage.clean();
+    }
+    
     // init StorageAccess with the incoming params
     connect.storageAccess.init(params.ccpUrl, containerDiv, params.storageAccess || {});
     
