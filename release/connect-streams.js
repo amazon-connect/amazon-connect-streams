@@ -26773,7 +26773,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.13.2";
+  connect.version = "2.13.3";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -27654,7 +27654,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       }, timeout);
     });
     var mediaDevicesPromise = new Promise(function (resolve, reject) { 
-      if (connect.isFramed() || connect.isCCP()) {
+      if (connect.isCCP()) {
         if (navigator && navigator.mediaDevices) {
           navigator.mediaDevices.enumerateDevices()
           .then(function (devicesIn) {

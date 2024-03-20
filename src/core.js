@@ -892,7 +892,7 @@
       }, timeout);
     });
     var mediaDevicesPromise = new Promise(function (resolve, reject) { 
-      if (connect.isFramed() || connect.isCCP()) {
+      if (connect.isCCP()) {
         if (navigator && navigator.mediaDevices) {
           navigator.mediaDevices.enumerateDevices()
           .then(function (devicesIn) {
