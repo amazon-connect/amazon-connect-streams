@@ -1945,12 +1945,8 @@ describe('Core', function () {
                 sendUpstream: (...params) => connect.core.getEventBus().trigger(...params),
                 sendDownstream: (...params) => connect.core.getEventBus().trigger(...params)
             });
-            sandbox.stub(connect, "isFramed").returns(true);
-            sandbox.stub(connect, "isCCP").returns(true);
             connect.core.initPageOptions(params);
-            connect.isFramed.restore();
-            connect.isCCP.restore();
-            sandbox.stub(connect, "isFramed").returns(false);
+            sandbox.stub(connect, "isFramed").returns(true);
             sandbox.stub(connect, "isCCP").returns(false);
         });
 
