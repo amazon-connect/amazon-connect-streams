@@ -290,6 +290,8 @@ declare namespace connect {
   interface AppOptions {
     /** Optional CCP configuration that overrides and gets merged with defaults. */
     ccpParams?: OptionalInitCCPOptions;
+    /** Optional CustomViews configuration */
+    customViewsParams?: OptionalCustomViewsOptions;
     /** Optional inline styling for the app iframe. */
     style?: string;
   }
@@ -545,6 +547,50 @@ declare namespace connect {
     /** used for request storage access implementations */
     readonly storageAccess?: StorageAccessParameters
 }
+
+  interface TerminateCustomViewOptions {
+    /** Will deconstruct the application iframe and clear its id in the AppRegistry, freeing the namespace of the applications id. Default is true */
+    readonly resolveIframe: boolean;
+
+    /** Timeout in ms. The amount of time to wait for the DOM to resolve and clear the iframe if resolveIframe is true. Default is 5000 */
+    readonly timeout?: number;
+
+    /** Whether or not to hide the iframe while it waits resolve and clear the DOM. Default is true. */
+    readonly hideIframe?: boolean;
+  }
+
+  interface OptionalCustomViewsOptions {
+    /**
+     * Attaches the contact to the customviews application, can be a contact object or contactId. 
+     * WARNING: IF YOU USE A CONTACTID OR DO NOT PROVIDE THIS PARAMETER AT ALL THEN DISABLEAUTODESTROY IS TRUE BY DEFAULT AND YOU MUST USE
+     * CONNECT.CORE.TERMINATECUSTOMVIEW() TO END THE LIFECYCLE OF THE CUSTOMVIEWS BEFORE CLOSING THE IFRAME. 
+     */
+    readonly contact?: Contact | string;
+
+    /**
+     * Designate the Step by step guide's contactFlowId that the CustomViews application will launch. 
+     */
+    readonly contactFlowId?: string
+
+    /**
+     * Attaches a suffix to the customviews application iframe id. This id will be formed as customviews{iframeSuffix}.
+     * Useful for instantiating multiple customviews applications in a single page.
+     */
+    readonly iframeSuffix?: string;
+
+    /**
+     * Disables automatic teardown of the CustomViews-launched contact and the corresponding CustomViews widget
+     * WARNING: NOT PROPERLY TERMINATING A CUSTOMVIEW WITH CONNECT.CORE.TERMINATECUSTOMVIEW()
+     * BEFORE DESTROYING YOUR IFRAME CONTEXT WILL CAUSE THE CUSTOMVIEW TO COUNT AGAINST YOUR CHAT CONCURRENCY
+     * UNTIL IT IS TERMINATED BY THE DEFAULT CHAT TIMEOUT.
+     */
+    readonly disableAutoDestroy?: boolean;
+
+    /**
+     * Options for adjusting the the auto-teardown behavior around the iframe
+     */
+    readonly terminateCustomViewOptions?: TerminateCustomViewOptions
+  }
 
   interface OptionalInitCCPOptions {
     /**

@@ -14,6 +14,7 @@
 
   var APP = {
     CCP: 'ccp',
+    GUIDES: 'customviews',
   };
 
   connect.agentApp.initCCP = connect.core.initCCP;
@@ -44,22 +45,93 @@
   };
 
   var signOutThroughCCP = function (ccpUrl) {
-    var logoutUrl = getConnectUrl(ccpUrl) + '/logout';
-    return connect.fetch(logoutUrl, {
-      credentials: 'include',
-    }).then(function () {
-      var eventBus = connect.core.getEventBus();
-      eventBus.trigger(connect.EventType.TERMINATE);
-      return true;
-    }).catch(function (e) {
-      connect
-        .getLog()
-        .error('An error occured on logout.' + e)
-        .withException(e);
-      window.location.href = logoutUrl;
-      return false;
-    });
+      var logoutUrl = getConnectUrl(ccpUrl) + '/logout';
+      return connect.fetch(logoutUrl, {
+        credentials: 'include',
+      }).then(function () {
+        var eventBus = connect.core.getEventBus();
+        eventBus.trigger(connect.EventType.TERMINATE);
+        return true;
+      }).catch(function (e) {
+        connect
+          .getLog()
+          .error('An error occured on logout.' + e)
+          .withException(e);
+        window.location.href = logoutUrl;
+        return false;
+      });
+    };
+
+  var removeAppData = function (appName) {
+    connect.agentApp.AppRegistry.delete(appName);
+  }
+
+  /**
+   * Initializes custom views application for a given contact. It set up the iframe for the custom view and 
+   * creates the lifecycle hook of the custom view based on the contact's status.
+   * 
+   * @param {string} connectUrl - The URL for the custom view.
+   * @param {string} containerDOM - The DOM container for the view iframe.
+   * @param {AppOptions} config - Configuration object containing contact details and other settings.
+   */
+  var initCustomViewsApp = function (connectUrl, containerDOM, config) {
+    const { contact, disableAutoDestroy, iframeSuffix, terminateCustomViewOptions = {} } = config.customViewsParams;
+    let { contactFlowId } = config.customViewsParams;
+    let contactId, appName;
+
+    if (contact !== undefined) {
+      contactId = extractContactId(contact);
+
+      if (contactId && disableAutoDestroy !== true && typeof contact !== 'string') {
+        contact.onDestroy((contact) => {
+          connect.core.terminateCustomView(
+            connectUrl,
+            iframeSuffix,
+            {
+              timeout: terminateCustomViewOptions.timeout || 5000,
+              hideIframe: terminateCustomViewOptions.hideIframe !== undefined ? terminateCustomViewOptions.hideIframe : true,
+              resolveIframe: terminateCustomViewOptions.resolveIframe !== undefined ? terminateCustomViewOptions.resolveIframe : true
+            });
+        });
+      }
+      if (!contactFlowId) {
+        console.warn('[CustomViews]: Need to provide a contactFlowId when defining contact parameter for initalizing customviews application');
+      }
+    }
+
+    if (iframeSuffix) {
+      appName = `${APP.GUIDES}${iframeSuffix}`;
+    } else {
+      appName = `${APP.GUIDES}`;
+    }
+    const iframeIdSelector = `iframe[id='${appName}']`;
+    const iframe = containerDOM?.querySelector(iframeIdSelector) ||
+      document.getElementById(appName) ||
+      window.top.document.getElementById(appName);
+
+    if (iframe) {
+      const tabId = AWS.util.uuid.v4();
+      if (contactId) {
+        iframe.src = `${connectUrl}?contactFlowId=${contactFlowId}&currentContactId=${contactId}&agentAppTabId=${tabId}-tab`;
+      } else if (contactFlowId) {
+        iframe.src = `${connectUrl}?contactFlowId=${contactFlowId}&agentAppTabId=${tabId}-tab`;
+      }
+    } else {
+      throw new Error('[CustomViews]: No iframe found for the app: ', appName);
+    }
   };
+
+  var extractContactId = function (contact) {
+    if (typeof contact === 'string') {
+      return contact;
+    }
+    try {
+      return contact.getContactId();
+    } catch {
+      console.error('[CustomViews]: Invalid Contact Provided: ', contact);
+      return undefined;
+    }
+  }
 
   var signInThroughinitCCP = function (ccpUrl, container, config) {
     var defaultParams = {
@@ -82,22 +154,58 @@
     var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
     var onLoad = config.onLoad ? config.onLoad : null;
     var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
-    connect.agentApp.AppRegistry.register(name, registerConfig, document.getElementById(containerId));
-    connect.agentApp.AppRegistry.start(name, function (moduleData) {
+    var filteredName;
+    if (name === APP.CCP_DR) {
+      filteredName = APP.CCP;
+    } else if (name === APP.GUIDES && config.customViewsParams) {
+      const { iframeSuffix } = config.customViewsParams
+      if (iframeSuffix) {
+        filteredName = `${APP.GUIDES}${iframeSuffix}`;
+      } else {
+        filteredName = `${APP.GUIDES}`;
+      }
+      if (connect.agentApp.AppRegistry.get(filteredName) !== undefined) {
+        throw new Error('[CustomViews]: Custom views application with the same name already exists. Please provide a different iframeSuffix for the custom views application.')
+      }
+    } else {
+      filteredName = name;
+    }
+    var containerElement = (typeof containerId === 'string') ? document.getElementById(containerId) : containerId;
+    connect.agentApp.AppRegistry.register(filteredName, registerConfig, containerElement);
+    connect.agentApp.AppRegistry.start(filteredName, function (moduleData) {
       var endpoint = moduleData.endpoint;
       var containerDOM = moduleData.containerDOM;
       return {
         init: function () {
-          if (name === APP.CCP) {
-            config.ccpParams = config.ccpParams ? config.ccpParams : {};
-            if (config.style) config.ccpParams.style = config.style;
-            return signInThroughinitCCP(endpoint, containerDOM, config);
+          switch (name) {
+            case APP.CCP:
+              config.ccpParams = config.ccpParams ? config.ccpParams : {};
+              if (config.style) config.ccpParams.style = config.style;
+              return signInThroughinitCCP(endpoint, containerDOM, config);
+            case APP.GUIDES:
+              if (config.customViewsParams !== undefined) {
+                connect.agentApp.initAppCommunication(filteredName, endpoint, containerDOM);
+                return initCustomViewsApp(endpoint, containerDOM, config);
+              } else {
+                return connect.agentApp.initAppCommunication(filteredName, endpoint, containerDOM)
+              }
+            default:
+              return connect.agentApp.initAppCommunication(filteredName, endpoint, containerDOM);
           }
-          return connect.agentApp.initAppCommunication(name, endpoint);
         },
         destroy: function () {
-          if (name === APP.CCP) return signOutThroughCCP(endpoint);
-          return null;
+          switch (name) {
+            case APP.CCP:
+              return signOutThroughCCP(endpoint);
+            case APP.GUIDES:
+              if (config.customViewsParams !== undefined) {
+                return removeAppData(filteredName);
+              } else {
+                return null;
+              }
+            default:
+              return null;
+          }
         }
       };
     });
@@ -166,11 +274,21 @@
         moduleData[appName].instance = creator(moduleData[appName]);
         return moduleData[appName].instance.init();
       },
+      get: function (appName) {
+        return moduleData[appName];
+      },
+      delete: function (appName) {
+        delete moduleData[appName];
+      },
       stop: function (appName) {
         if (!moduleData[appName]) return;
 
         var data = moduleData[appName];
         var app = data.containerDOM.querySelector('iframe');
+        if (appName.includes('customviews')) {
+          const iframeIdSelector = `iframe[id='${appName}']`;
+          app = data.containerDOM.querySelector(iframeIdSelector);
+        }
         data.containerDOM.removeChild(app);
 
         var result;
@@ -26773,7 +26891,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.13.3";
+  connect.version = "2.13.4";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -26816,6 +26934,10 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   const SNAPSHOT_EVENT_TRIGGER_STEP_TIME = 'SnapshotEventTriggerStepTime';
   const SNAPSHOT_TOTAL_PROCESSING_TIME = 'SnapshotTotalProcessingTime';
   const SNAPSHOT_COMPARISON_STEP_TIME = 'SnapshotComparisonStepTime';
+
+  const APP = {
+    GUIDES: 'customviews',
+  };
 
   const sizingBucket = {
     '0-100': [0, 100],
@@ -26993,7 +27115,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   //
   var suppressContacts = function (isSuppressed) {
     connect.getLog().info("[Disaster Recovery] Signal sharedworker to set contacts suppressor to %s for instance %s.",
-        isSuppressed, connect.core.region
+      isSuppressed, connect.core.region
     ).sendInternalLogToServer();
     connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.SUPPRESS, {
       suppress: isSuppressed,
@@ -27003,7 +27125,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   var setForceOfflineUpstream = function (offline, nextActiveArn) {
     connect.getLog().info("[DISASTER RECOVERY] Signal sharedworker to set forceOffline to %s for instance %s.",
-        offline, connect.core.region
+      offline, connect.core.region
     ).sendInternalLogToServer();
     connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, {
       offline,
@@ -27030,9 +27152,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
           if (failureEncountered) {
             break; // stop after first failure to avoid triggering UI failover multiple times
           } else if (shouldSoftFailover &&
-              (contact.getType() === connect.ContactType.QUEUE_CALLBACK || contact.getType() == connect.ContactType.VOICE)) {
+            (contact.getType() === connect.ContactType.QUEUE_CALLBACK || contact.getType() == connect.ContactType.VOICE)) {
             log.info("[Disaster Recovery] Will wait to complete failover of instance %s until voice contact with ID %s is destroyed",
-                connect.core.region, contact.getContactId()).sendInternalLogToServer();
+              connect.core.region, contact.getContactId()).sendInternalLogToServer();
             connect.core.getUpstream().sendDownstream(connect.DisasterRecoveryEvents.FAILOVER_PENDING, {nextActiveArn});
             contact.onDestroy(function(contact) {
               log.info("[Disaster Recovery] Voice contact with ID %s destroyed, continuing with failover in instance %s", contact.getContactId(), connect.core.region);
@@ -27067,38 +27189,90 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     });
   }
 
+  /**
+   * Terminates a customviews application. 
+   * This function locates the iframe generated by agentApp.initApp for a custom view using the iframeSuffix if provided, posts a termination message to it, hides it, and then stops
+   * the application associated with that view in the AppRegistry. Will default to terminating a customviews application with iframeId="customviews" if iframeSuffix is not provided
+   * 
+   * @param {string} connectUrl - The URL to which the termination message is posted.
+   * @param {string} iframeSuffix - The suffix of the customviews iframe to be terminated.
+   * @param {TerminateCustomViewOptions} - Options around controlling the iframe's resolution behavior.
+   */
+  connect.core.terminateCustomView = function (connectUrl, iframeSuffix = '', { resolveIframe = true, timeout = 5000, hideIframe = true } = {}) {
+    let appName;
+    const getIframe = function (appName, containerDOM, iframeIdSelector) {
+      return containerDOM?.querySelector(iframeIdSelector) ||
+        document.getElementById(appName) ||
+        window.top.document.getElementById(appName);
+    }
+
+    if (!iframeSuffix) {
+      appName = `${APP.GUIDES}`;
+    } else {
+      appName = `${APP.GUIDES}${iframeSuffix}`;
+    }
+    const containerDOM = connect.agentApp.AppRegistry.get(appName)?.containerDOM;
+    const iframeIdSelector = `iframe[id='${appName}']`;
+    const iframe = getIframe(appName, containerDOM, iframeIdSelector);
+    if (!iframe) {
+      console.warn('[CustomViews] terminateCustomView operation failed due to iframe not found')
+      return;
+    }
+    try {
+      const message = { topic: 'lifecycle.terminated' };
+      iframe.contentWindow.postMessage(message, connectUrl);
+      if (resolveIframe) {
+        if (hideIframe) {
+          iframe.style.display = 'none'
+        };
+        console.info('[CustomViews] customviews iframe hidden for resolution during termination')
+        setTimeout(function () {
+          connect.agentApp.stopApp(appName);
+          const iframe = getIframe(appName, containerDOM, iframeIdSelector);
+          if (!iframe) {
+            console.info('[CustomViews] customviews application successfully stopped');
+          } else {
+            console.warn('[CustomViews] customviews application did not stop successfully in terminateCustomView operation');
+          }
+        }, timeout);
+      }
+    } catch (error) {
+      throw new Error('[CustomViews] Error in terminateCustomView: ', error)
+    }
+  }
+
   //Initiate Disaster Recovery (This should only be called from customCCP that are DR enabled)
-  connect.core.initDisasterRecovery = function(params, _suppressContacts, _forceOffline) {
+  connect.core.initDisasterRecovery = function (params, _suppressContacts, _forceOffline) {
     var log = connect.getLog();
     connect.core.region = params.region;
     connect.core.suppressContacts = _suppressContacts || suppressContacts;
     connect.core.forceOffline = _forceOffline || forceOffline;
 
     //Register iframe listener to set native CCP offline
-    connect.core.getUpstream().onDownstream(connect.DisasterRecoveryEvents.SET_OFFLINE, function(data) {
+    connect.core.getUpstream().onDownstream(connect.DisasterRecoveryEvents.SET_OFFLINE, function (data) {
       connect.ifMaster(connect.MasterTopics.FAILOVER,
-          function() {
-            connect.core.forceOffline(data && data.softFailover);
-          }
+        function () {
+          connect.core.forceOffline(data && data.softFailover);
+        }
       );
     });
 
     // Register Event listener to force the agent to be offline in a particular region
-    connect.core.getUpstream().onUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, function(data) {
+    connect.core.getUpstream().onUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, function (data) {
       connect.ifMaster(connect.MasterTopics.FAILOVER,
-          function() {
-            connect.core.forceOffline(data && data.softFailover, data && data.nextActiveArn);
-          }
+        function () {
+          connect.core.forceOffline(data && data.softFailover, data && data.nextActiveArn);
+        }
       );
     });
 
     connect.ifMaster(connect.MasterTopics.FAILOVER,
-        function() {
-          log.info("[Disaster Recovery] Initializing region %s as part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
-        },
-        function() {
-          log.info("[Disaster Recovery] %s already part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
-        });
+      function () {
+        log.info("[Disaster Recovery] Initializing region %s as part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
+      },
+      function () {
+        log.info("[Disaster Recovery] %s already part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
+      });
 
     if (params.pollForFailover && connect.DisasterRecoveryEvents.INIT_DR_POLLING) {
       connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.INIT_DR_POLLING, { instanceArn: params.instanceArn, otherArn: params.otherArn, authToken: params.authToken });
@@ -27215,28 +27389,28 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
             if (!ringtoneSettings.voice.disabled && !connect.core.ringtoneEngines.voice) {
               connect.core.ringtoneEngines.voice =
                 new connect.VoiceRingtoneEngine(ringtoneSettings.voice);
-                isInitializedAnyEngine = true;
+              isInitializedAnyEngine = true;
               connect.getLog().info("VoiceRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
               connect.core.ringtoneEngines.chat =
                 new connect.ChatRingtoneEngine(ringtoneSettings.chat);
-                isInitializedAnyEngine = true;
+              isInitializedAnyEngine = true;
               connect.getLog().info("ChatRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
               connect.core.ringtoneEngines.task =
                 new connect.TaskRingtoneEngine(ringtoneSettings.task);
-                isInitializedAnyEngine = true;
+              isInitializedAnyEngine = true;
               connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
  
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
-                isInitializedAnyEngine = true;
+              isInitializedAnyEngine = true;
               connect.getLog().info("QueueCallbackRingtoneEngine initialized.").sendInternalLogToServer();
             }
             // Once any of the Ringtone Engines are initialized, set ringer device with latest device id from _ringerDeviceId.
@@ -27605,14 +27779,14 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         }
         if (navigator && navigator.mediaDevices) {
           navigator.mediaDevices.enumerateDevices()
-          .then(function (devicesIn) {
-            devices = devicesIn || [];
-            devices = devices.map(function(d) { return d.toJSON() });
-            sendDevices(devices);
-          })
-          .catch(function (err) {
-            sendDevices({error: err.message});
-          }); 
+            .then(function (devicesIn) {
+              devices = devicesIn || [];
+              devices = devices.map(function(d) { return d.toJSON() });
+              sendDevices(devices);
+            })
+            .catch(function (err) {
+              sendDevices({error: err.message});
+            });
         } else {
           sendDevices({error: "No navigator or navigator.mediaDevices object found"});
         }
@@ -27639,7 +27813,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       }
     }
   }
- 
+
   /**-------------------------------------------------------------------------
    * Get the list of media devices from iframed CCP
    * Timeout for the request is passed on an optional argument
@@ -27653,15 +27827,15 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         reject(new Error("Timeout exceeded")); 
       }, timeout);
     });
-    var mediaDevicesPromise = new Promise(function (resolve, reject) { 
+    var mediaDevicesPromise = new Promise(function (resolve, reject) {
       if (connect.isCCP()) {
         if (navigator && navigator.mediaDevices) {
           navigator.mediaDevices.enumerateDevices()
-          .then(function (devicesIn) {
-            devices = devicesIn || [];
-            devices = devices.map(function (d) { return d.toJSON() });
-            resolve(devices);
-          });
+            .then(function (devicesIn) {
+              devices = devicesIn || [];
+              devices = devices.map(function (d) { return d.toJSON() });
+              resolve(devices);
+            });
         } else {
           reject(new Error("No navigator or navigator.mediaDevices object found"));
         }
@@ -27678,11 +27852,11 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       }
     })
     return Promise.race([mediaDevicesPromise, timeoutPromise])
-    .finally(function () {
-      if (sub) {
-        sub.unsubscribe();
-      }
-    });
+      .finally(function () {
+        if (sub) {
+          sub.unsubscribe();
+        }
+      });
   }
 
   //Internal use only.
@@ -27719,7 +27893,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       whitelistedOriginsEndpoint = endpoint;
     }
     else {
-      whitelistedOriginsEndpoint = connect.core.isLegacyDomain() 
+      whitelistedOriginsEndpoint = connect.core.isLegacyDomain()
         ? LEGACY_WHITELISTED_ORIGINS_ENDPOINT
         : WHITELISTED_ORIGINS_ENDPOINT;
     }
@@ -27763,7 +27937,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     var authorizeEndpoint = params.authorizeEndpoint;
     if (!authorizeEndpoint) {
       authorizeEndpoint = connect.core.isLegacyDomain()
-        ? LEGACY_AUTHORIZE_ENDPOINT 
+        ? LEGACY_AUTHORIZE_ENDPOINT
         : AUTHORIZE_ENDPOINT;
     }
     var agentAppEndpoint = params.agentAppEndpoint || null;
@@ -27781,7 +27955,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       var conduit = new connect.Conduit("ConnectSharedWorkerConduit",
         new connect.PortStream(worker.port),
         new connect.WindowIOStream(window, parent));
- 
+
       // Set the global upstream conduit for external use.
       connect.core.upstream = conduit;
       connect.core.webSocketProvider = new WebSocketProvider();
@@ -27804,9 +27978,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         conduit.onAllDownstream(connect.core.getEventBus().bridge());
         // Pass all messages from "downstream" to "upstream" (except API Proxy Requests)
         conduit.onAllDownstream(function(data, eventName) {
-          if(eventName === connect.EventType.API_REQUEST && 
-             connect.containsValue(connect.ApiProxyClientMethods, data?.method))
-          {
+          if(eventName === connect.EventType.API_REQUEST &&
+            connect.containsValue(connect.ApiProxyClientMethods, data?.method))
+            {
             connect.core.handleApiProxyRequest(data);
           }
           else
@@ -27903,7 +28077,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       // Pass the TERMINATE request upstream to the shared worker.
       connect.core.getEventBus().subscribe(connect.EventType.TERMINATE,
         conduit.passUpstream());
- 
+
       // Refresh the page when we receive the TERMINATED response from the
       // shared worker.
       connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
@@ -27993,12 +28167,12 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       softphoneParamsStorage.clean();
       ringtoneParamsStorage.clean();
     }
-    
+
     // init StorageAccess with the incoming params
     connect.storageAccess.init(params.ccpUrl, containerDiv, params.storageAccess || {});
-    
+
     var iframe = connect.core._createCCPIframe(containerDiv, params);
-      // Build the upstream conduit communicating with the CCP iframe.
+    // Build the upstream conduit communicating with the CCP iframe.
     var conduit = new connect.IFrameConduit(params.ccpUrl, window, iframe);
 
     // Set the global upstream conduit for external use.
@@ -28014,7 +28188,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       connect.storageAccess.setupRequestHandlers({ onGrant: setupInitCCP });
     }else{
       setupInitCCP();
-    } 
+    }
 
     function setupInitCCP() {
       connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
@@ -28227,9 +28401,9 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
     connect.assertNotNull(containerDiv, 'containerDiv');
     // ccpIframeRefreshInterval is the ccpLoadTimeout passed into initCCP
     // if no ccpLoadTimeout is passed in, the interval is the default, which depends on if disaster recovery is on
-    var ccpIframeRefreshInterval = (initCCPParams.ccpLoadTimeout) ? (initCCPParams.ccpLoadTimeout) 
-      : (initCCPParams.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL 
-      : CCP_IFRAME_REFRESH_INTERVAL;
+    var ccpIframeRefreshInterval = (initCCPParams.ccpLoadTimeout) ? (initCCPParams.ccpLoadTimeout)
+      : (initCCPParams.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL
+        : CCP_IFRAME_REFRESH_INTERVAL;
     global.clearTimeout(connect.core.iframeRefreshTimeout);
     connect.core.iframeRefreshTimeout = global.setTimeout(function() {
       connect.core.iframeRefreshAttempt = (connect.core.iframeRefreshAttempt || 0) + 1;
@@ -28506,7 +28680,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       }
     } catch (e) {
       connect.getLog().error("[Metrics] Failed to send metrics.")
-          .withException(e).sendInternalLogToServer();
+        .withException(e).sendInternalLogToServer();
     }
 
     if (oldAgentData == null) {
@@ -28658,7 +28832,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       publishSnapshotMetric(SNAPSHOT_TOTAL_PROCESSING_TIME, (processingEnd - processingStart), optionalDimensions);
     } catch (e) {
       connect.getLog().error("[Metrics] Failed to send metrics.")
-          .withException(e).sendInternalLogToServer();
+        .withException(e).sendInternalLogToServer();
     }
   }
 
@@ -28950,7 +29124,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       connect.AgentEvents.NOT_ROUTABLE)
     .assoc(connect.EventGraph.ANY, connect.AgentStateType.OFFLINE,
       connect.AgentEvents.OFFLINE);
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getAgentStateEventGraph = function () {
     return connect.core.agentStateEventGraph;
@@ -28961,52 +29135,52 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       connect.AgentEvents.ERROR)
     .assoc(connect.EventGraph.ANY, connect.AgentAvailStates.AFTER_CALL_WORK,
       connect.AgentEvents.ACW);
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getContactEventGraph = function () {
     return connect.core.contactEventGraph;
   };
  
   connect.core.contactEventGraph = new connect.EventGraph()
-      .assoc(connect.EventGraph.ANY,
-          connect.ContactStateType.INCOMING,
-          connect.ContactEvents.INCOMING)
-      .assoc(connect.EventGraph.ANY,
-          connect.ContactStateType.PENDING,
-          connect.ContactEvents.PENDING)
-      .assoc(connect.EventGraph.ANY,
-          connect.ContactStateType.CONNECTING,
-          connect.ContactEvents.CONNECTING)
-      .assoc(connect.EventGraph.ANY,
-          connect.ContactStateType.CONNECTED,
-          connect.ContactEvents.CONNECTED)
-      .assoc(connect.ContactStateType.CONNECTING,
-          connect.ContactStateType.ERROR,
-          connect.ContactEvents.MISSED)
-      .assoc(connect.ContactStateType.INCOMING,
-          connect.ContactStateType.ERROR,
-          connect.ContactEvents.MISSED)
-      .assoc(connect.EventGraph.ANY,
-          connect.ContactStateType.ENDED,
-          connect.ContactEvents.ACW)
-      .assoc(connect.values(connect.CONTACT_ACTIVE_STATES),
-          connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
-          connect.ContactEvents.ENDED)
-      .assoc(connect.EventGraph.ANY,
-          connect.ContactStateType.ERROR,
-          connect.ContactEvents.ERROR)
-      .assoc(connect.ContactStateType.CONNECTING,
-          connect.ContactStateType.MISSED,
-          connect.ContactEvents.MISSED)
-      .assoc(connect.ContactStateType.INCOMING,
-          connect.ContactStateType.MISSED,
-          connect.ContactEvents.MISSED)
-      .assoc(connect.ContactStateType.CONNECTING,
-          connect.ContactStateType.REJECTED,
-          connect.ContactEvents.MISSED)
-      .assoc(connect.ContactStateType.INCOMING,
-          connect.ContactStateType.REJECTED,
-          connect.ContactEvents.MISSED);
+    .assoc(connect.EventGraph.ANY,
+      connect.ContactStateType.INCOMING,
+      connect.ContactEvents.INCOMING)
+    .assoc(connect.EventGraph.ANY,
+      connect.ContactStateType.PENDING,
+      connect.ContactEvents.PENDING)
+    .assoc(connect.EventGraph.ANY,
+      connect.ContactStateType.CONNECTING,
+      connect.ContactEvents.CONNECTING)
+    .assoc(connect.EventGraph.ANY,
+      connect.ContactStateType.CONNECTED,
+      connect.ContactEvents.CONNECTED)
+    .assoc(connect.ContactStateType.CONNECTING,
+      connect.ContactStateType.ERROR,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.INCOMING,
+      connect.ContactStateType.ERROR,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.EventGraph.ANY,
+      connect.ContactStateType.ENDED,
+      connect.ContactEvents.ACW)
+    .assoc(connect.values(connect.CONTACT_ACTIVE_STATES),
+      connect.values(connect.relativeComplement(connect.CONTACT_ACTIVE_STATES, connect.ContactStateType)),
+      connect.ContactEvents.ENDED)
+    .assoc(connect.EventGraph.ANY,
+      connect.ContactStateType.ERROR,
+      connect.ContactEvents.ERROR)
+    .assoc(connect.ContactStateType.CONNECTING,
+      connect.ContactStateType.MISSED,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.INCOMING,
+      connect.ContactStateType.MISSED,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.CONNECTING,
+      connect.ContactStateType.REJECTED,
+      connect.ContactEvents.MISSED)
+    .assoc(connect.ContactStateType.INCOMING,
+      connect.ContactStateType.REJECTED,
+      connect.ContactEvents.MISSED);
 
   /**-----------------------------------------------------------------------*/
   connect.core.getClient = function () {

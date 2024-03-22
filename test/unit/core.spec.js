@@ -1070,7 +1070,7 @@ describe('Core', function () {
                 sandbox.stub(connect, "VoiceRingtoneEngine");
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
-                sandbox.stub(connect, "TaskRingtoneEngine"); 
+                sandbox.stub(connect, "TaskRingtoneEngine");
             });
 
             afterEach(function () {
@@ -1125,7 +1125,7 @@ describe('Core', function () {
                 sandbox.stub(connect, "VoiceRingtoneEngine");
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
-                sandbox.stub(connect, "TaskRingtoneEngine");                
+                sandbox.stub(connect, "TaskRingtoneEngine");
                 sandbox.stub(connect, 'isFramed').returns(true);
                 stubbedGetItem = sandbox.stub(global.localStorage, "getItem");
                 sandbox.stub(global.localStorage, "setItem");
@@ -1196,7 +1196,7 @@ describe('Core', function () {
                     assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
                 });
             });
-            
+
             it('Ringtone parameters should get cleaned up on every initCCP call', () => {
                 sandbox.stub(connect.core, "checkNotInitialized").returns(false);
                 let container = { appendChild: sandbox.spy() };
@@ -1223,7 +1223,7 @@ describe('Core', function () {
                 chat: { ringtoneUrl: defaultRingtoneUrl },
             };
         });
- 
+
         afterEach(() => {
             connect.agent.initialized = false;
             sandbox.restore();
@@ -1269,7 +1269,7 @@ describe('Core', function () {
         };
         const disasterRecoveryOn = undefined;
         const shouldAddNamespaceToLogs = false;
-            
+
         before(function () {
             clock = sinon.useFakeTimers();
             containerDiv = { appendChild: sandbox.spy() };
@@ -1422,11 +1422,11 @@ describe('Core', function () {
                 expect(connect.core.portStreamId).to.equal('portId');
                 connect.core.initialized = true;
             });
-    
+
             it("should set connect.core.softphoneParams", function () {
                 expect(connect.core.softphoneParams).to.include({ ringtoneUrl: "customVoiceRingtone.amazon.com" });
             });
-    
+
             it("should trigger INIT event on ACK", function () {
                 expect(fakeOnInitHandler.callCount).to.equal(1);
             });
@@ -1491,7 +1491,7 @@ describe('Core', function () {
             shouldAddNamespaceToLogs: shouldAddNamespaceToLogs,
             disasterRecoveryOn: true
         };
-            
+
         before(function () {
             clock = sinon.useFakeTimers();
             containerDiv = { appendChild: sandbox.spy() };
@@ -1569,7 +1569,7 @@ describe('Core', function () {
             if (!retryDelayOptions) retryDelayOptions = {};
             var customBackoff = retryDelayOptions.customBackoff || null;
             if (typeof customBackoff === 'function') {
-              return customBackoff(retryCount);
+                return customBackoff(retryCount);
             }
             var base = typeof retryDelayOptions.base === 'number' ? retryDelayOptions.base : 100;
             var delay = (Math.pow(2, retryCount) * base); // normally this looks like Math.random() * (Math.pow(2, retryCount) * base), but for the sake of consistency
@@ -1846,7 +1846,7 @@ describe('Core', function () {
         function createAgentSnapshotState(type, name) {
             return {
                 snapshot: { state: createState(type, name) }
-            }; 
+            };
         }
 
         before(function () {
@@ -1910,9 +1910,9 @@ describe('Core', function () {
 
     describe('#connect.core.getFrameMediaDevices()', function () {
         jsdom({ url: "http://localhost" });
-        
-        var clock 
-        
+
+        var clock
+
         before(function () {
             clock = sinon.useFakeTimers();
             sandbox.stub(navigator.mediaDevices, 'enumerateDevices')
@@ -1954,7 +1954,7 @@ describe('Core', function () {
             sandbox.restore();
         });
 
-        it('getting the list of media devices in the iframe with default timeout', function() { 
+        it('getting the list of media devices in the iframe with default timeout', function() {
             const arr = [{
                 deviceId: "deviceId",
                 groupId: "groupId",
@@ -1967,13 +1967,13 @@ describe('Core', function () {
                 label: "Camera"
             }];
             connect.core.getFrameMediaDevices()
-            .then(data => expect(data).to.eql(arr));  
+                .then(data => expect(data).to.eql(arr));
             clock.next();
         });
 
-        it('timing out on the media devices request with a custom timeout', function() { 
+        it('timing out on the media devices request with a custom timeout', function() {
             connect.core.getFrameMediaDevices(400)
-            .catch(err => expect(err.message).to.equal("Timeout exceeded"));
+                .catch(err => expect(err.message).to.equal("Timeout exceeded"));
             clock.next();
         });
     });
@@ -2028,7 +2028,7 @@ describe('Core', function () {
         });
         it('call activateChannelWithViewType with base parameters "viewType", "mediaType"', function () {
             connect.core.activateChannelWithViewType(viewType, mediaType);
-            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST, 
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST,
                 {
                     event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
                     data: { viewType, mediaType }
@@ -2037,7 +2037,7 @@ describe('Core', function () {
         });
         it('call activateChannelWithViewType with an optional parameter "source"', function () {
             connect.core.activateChannelWithViewType(viewType, mediaType, "agentapp");
-            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST, 
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST,
                 {
                     event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
                     data: { viewType, mediaType, source: "agentapp" }
@@ -2046,7 +2046,7 @@ describe('Core', function () {
         });
         it('call activateChannelWithViewType with optional parameters "source", "caseId"', function () {
             connect.core.activateChannelWithViewType(viewType, mediaType, "keystone", "1234567890");
-            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST, 
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST,
                 {
                     event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
                     data: { viewType, mediaType, source: "keystone", caseId:  "1234567890" }
@@ -2091,7 +2091,7 @@ describe('Core', function () {
         }
         let containerDiv;
         const softphoneParams = { allowFramedSoftphone: true };
-            
+
         before(function () {
             containerDiv = { appendChild: sandbox.spy() };
             params = {
@@ -2118,7 +2118,7 @@ describe('Core', function () {
         it("Check if CCP is initialized after calling terminate function and re-calling initCCP", function () {
             const storageAccessOriginal = connect.storageAccess;
             connect.storageAccess = { ...connect.storageAccess, resetStorageAccessState: sinon.fake()};
-           
+
             expect(params.ccpUrl).not.to.be.a("null");
             expect(containerDiv).not.to.be.a("null");
             connect.core.initCCP(containerDiv, params);
@@ -2217,4 +2217,74 @@ describe('Core', function () {
         it('Should redirect to CCP once the access is granted with storage access params', function () { });
     });
 
+    describe('CustomViews Termination', () => {
+        let iframeMock, sandbox;
+        jsdom({ url: "http://localhost" });
+
+        beforeEach(() => {
+            sandbox = sinon.createSandbox();
+
+            iframeMock = {
+                style: {
+                    display: ''
+                },
+                contentWindow: {
+                    postMessage: sandbox.stub()
+                }
+            };
+
+            containerDOMMock = {
+                querySelector: sandbox.stub().returns(iframeMock)
+            };
+
+            appRegistryMock = {
+                get: sandbox.stub().returns({containerDOM: containerDOMMock}),
+                stopApp: sandbox.stub()
+            }
+            sandbox.stub(global.window.document, "getElementById").returns(iframeMock);
+            sandbox.stub(global.window, 'postMessage').returns(null);
+
+            connect.agentApp.AppRegistry = appRegistryMock;
+        });
+
+        afterEach(() => {
+            sandbox.restore();
+        });
+
+        describe('terminateCustomView', () => {
+            it('should post a termination message to the iframe with a specific customview iframe suffix', () => {
+                const iframeSuffix = 'contactAlpha';
+                const connectUrl = 'https://example.com';
+
+                connect.core.terminateCustomView(connectUrl, iframeSuffix);
+
+                sinon.assert.match(iframeMock.style.display, '');
+                sinon.assert.calledWith(iframeMock.contentWindow.postMessage, { topic: 'lifecycle.terminated' })
+            })
+
+            it('should hide the iframe and attempt to stop the app after the timeout', (done) => {
+                const iframeSuffix = 'contactBeta';
+                const connectUrl = 'https://example.com';
+                const timeout = 100;
+
+                connect.core.terminateCustomView(connectUrl, iframeSuffix, {timeout: timeout});
+
+                sinon.assert.match(iframeMock.style.display, 'none');
+                sinon.assert.calledWith(iframeMock.contentWindow.postMessage, { topic: 'lifecycle.terminated' })
+                done();
+
+            }, 110);
+
+            it('should handle cases where iframe does not exist', () => {
+                sandbox.restore();
+                sandbox.stub(global.window.document, "getElementById").returns(null);
+                sandbox.stub(global.window, 'postMessage').returns(null);
+
+                const iframeSuffix = 'contactBeta';
+                const connectUrl = 'https://example.com';
+
+                expect(() => connect.core.terminateCustomView(connectUrl, iframeSuffix)).not.to.throw();
+            })
+        })
+    })
 });

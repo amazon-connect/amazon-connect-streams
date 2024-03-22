@@ -1020,6 +1020,7 @@ Subscribe a method to be invoked when the contact is connecting. This event happ
 ```js
 contact.onAccepted(function(contact) { /* ... */ });
 ```
+
 Subscribe a method to be invoked whenever the contact is accepted. Please note that this event doesn't get triggered for agents using a deskphone.
 
 ### `contact.onMissed()`
@@ -2276,31 +2277,86 @@ To get latest streams file and allowlist required urls follow [these instruction
             connectUrl + "/wisdom-v2/",
             { style: "width:400px; height:600px;" }
         );
-        connect.agentApp.initApp(
-            "customviews",
-            "customviews-container",
-            connectUrl + "/stargate/app",
-            { style: "width:400px; height:600px;" }
-        );
+
         /**
+         * CustomViews applications are traditionally attached to a contact for auto handling the lifecycle of a customviews on the attached contacts destroy event. 
+         * Customviews has a few additional options that can be passed into the initApp config under the customViewsParams property to enable this behavior.
+         * NOTE: Destroyed customviews applications will be removed from the AppRegistry to clear their namespace when using customViewsParams.
+         * WARNING: Failing to handle the lifecycle of a customview by setting disableAutoDestroy to true and not calling terminateCustomView() on the application will cause the
+         * customviews to count against your chat concurrency until it is terminated by the chat reaching its configured duration (defaults to 24 hours) or the Show View block timeout.
          * 
-        * CustomViews will not load any view without a contact flow Id. 
-        * You can get the contact flow ID from the contact attribute, DefaultFlowForAgentUI (see [here](https://docs.aws.amazon.com/connect/latest/adminguide/how-to-invoke-a-flow-sg.html) for more details on this particular attribute).
-        * If you want to use information on the current connected contact (voice, chat, or task) to provide context to the step-by-step guide flow, you should add the parameter, currentContactId, at the url.  
-        * For more information, visit the AWS website: https://aws.amazon.com/connect/agent-workspace/
-        *
-        **/
+         * *OPTIONAL*
+         * contact(contact | string): Attaches the contact to the customviews application, can be a contact object or contactId. 
+         * If you use a contactId then disableAutoDestroy is true by default and you must use 
+         * connect.core.terminateCustomView() to end the lifecycle of the customviews before closing the iframe. 
+         * 
+         * iframeSuffix (string): Attaches a suffix to the customviews application iframe id. This id will be formed as customviews{iframeSuffix}. 
+         * Useful for instantiating multiple customviews applications in a single page and associating customviews applications with contactIds.
+         * 
+         * contactFlowId (string): The contactFlowId for the customviews that the application will display.
+         * 
+         * disableAutoDestroy (boolean): Disables the default handling of the views lifecycle behavior to not
+         * terminate when the connected contact is closed. 
+         * WARNING: NOT PROPERLY TERMINATING THE CUSTOMVIEW WITH CONNECT.CORE.TERMINATECUSTOMVIEW() BEFORE DESTROYING YOUR IFRAME CONTEXT WILL CAUSE THE CUSTOMVIEW TO COUNT AGAINST YOUR CHAT CONCURRENCY UNTIL IT IS TERMINATED BY THE DEFAULT CHAT OR CUSTOMVIEW FLOW TIMEOUT.
+         * 
+         * terminateCustomViewOptions (TerminateCustomViewOptions): Options around controlling the iframe's resolution behavior when disableAutoDestroy is true. 
+         *  - resolveIframe (boolean): Whether to deconstruct the application iframe and clear its id in the AppRegistry, freeing the namespace of the applications id. Default true.
+         * -  timeout (number): Timeout in ms. The amount of time to wait for the DOM to resolve and clear the iframe if resolveIframe is true. Default 5000.
+         *  - hideIframe (boolean): Hides the iframe while it wait to be cleared from the DOM. Default true.
+         * 
+         **/
         connect.contact((contact)=>{
             contact.onConnected((contact)=>{
-                const currentContactId = contact.contactId;
-                const contactAttributes = contact.getAttributes();
-                if(contactAttributes["DefaultFlowForAgentUI"]) {
-                    const contactflowId = contactAttributes["DefaultFlowForAgentUI"].value;
-                    const customViewsIframe = document.querySelector('#customviews-container > iframe');
-                    
-                    customViewsIframe.setAttribute('src', `${connectUrl}/stargate/app?contactFlowId=${contactflowId}&currentContactId=${currentContactId}`);
-                }
+                connect.agentApp.initApp(
+                  "customviews",
+                  "customviews-container",
+                  connectUrl + "/stargate/app",
+                  { 
+                    style: "width:400px; height:600px;",
+                    customViewsParams: {
+                      contact: contact,
+                      contactFlowId: "55e028e0-62e5-44e7-aa81-eac163ed3fe1",
+                      iframeSuffix: `${contact.getContactId()}-55e028e0-62e5-44e7-aa81-eac163ed3fe1`;
+                      disableAutoDestroy: false,
+                      {
+                        hideIframe: true,
+                        timeout: 5000,
+                        resolveIframe: true,
+                      }
+                    },
+                  }
+              );
             });
+
+            contact.onACW((contact)=>{
+                connect.agentApp.initApp(
+                  "customviews",
+                  "customviews-container",
+                  connectUrl + "/stargate/app",
+                  { 
+                    style: "width:400px; height:600px;",
+                    customViewsParams: {
+                      contact: contact,
+                      contactFlowId: "70f643e7-7565-431b-9eb7-f5d666fc7a34",
+                      iframeSuffix:`${contact.getContactId()}-70f643e7-7565-431b-9eb7-f5d666fc7a34`;
+                      disableAutoDestroy: true
+                    },
+                  }
+              );
+            });
+
+            // Because the onACW initApp for customviews has disableAutoDestroy set to true, we must manually terminate the customview 
+            contact.onDestroy((contact) => {
+              connect.core.terminateCustomView(
+                connectUrl, 
+                `${contact.getContactId()}-70f643e7-7565-431b-9eb7-f5d666fc7a34`,
+                 {
+                  resolveIframe: true,
+                  timeout: 5000, 
+                  hideIframe: true
+                 }
+              );
+            })
         })
       }
     </script>
@@ -2315,6 +2371,7 @@ Integrates with Amazon Connect by loading the pre-built app located at `appUrl` 
 - `appUrl`: The string URL of the app. This is the page you would normally navigate to in order to use the app in a standalone page, it is different for each instance.
 - `config`: This object is optional and allows you to specify some settings surrounding the CCP.
   - `ccpParams`: Optional params that mirror the configuration options for `initCCP`. Only valid when `name` is set to `ccp`. `allowFramedSoftphone` defaults to `true`.
+  - `customViewsParams`: Optional params that are applicable when the `name` is set to `customviews`. Only valid when `name` is set to `customviews`.
   - `style`: An optional string to supply inline styling for the iframe.
 
 ## Voice ID APIs
