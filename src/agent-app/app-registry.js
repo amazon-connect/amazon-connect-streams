@@ -50,11 +50,21 @@
         moduleData[appName].instance = creator(moduleData[appName]);
         return moduleData[appName].instance.init();
       },
+      get: function (appName) {
+        return moduleData[appName];
+      },
+      delete: function (appName) {
+        delete moduleData[appName];
+      },
       stop: function (appName) {
         if (!moduleData[appName]) return;
 
         var data = moduleData[appName];
         var app = data.containerDOM.querySelector('iframe');
+        if (appName.includes('customviews')) {
+          const iframeIdSelector = `iframe[id='${appName}']`;
+          app = data.containerDOM.querySelector(iframeIdSelector);
+        }
         data.containerDOM.removeChild(app);
 
         var result;
