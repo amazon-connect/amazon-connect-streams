@@ -441,6 +441,14 @@ declare namespace connect {
     readonly ringtoneUrl?: string;
   }
 
+  interface TaskOptions {
+    /** This option allows you to completely disable the built-in ringtone audio that is played when a task is incoming. */
+    readonly disableRingtone?: boolean;
+
+    /** If the ringtone is not disabled, this allows for overriding the ringtone with any browser-supported audio file accessible by the user. */
+    readonly ringtoneUrl?: string;
+  }
+
   interface LoginOptions {
     /*
     * Whether to auto close the login prompt.
@@ -525,6 +533,9 @@ declare namespace connect {
 
     /** Allows you to specify ringtone settings for Chat. */
     readonly chat?: ChatOptions;
+
+    /** Allows you to specify ringtone settings for Task. */
+    readonly task?: TaskOptions;
 
     /**
      * Allows you to customize the title attribute of the CCP iframe.

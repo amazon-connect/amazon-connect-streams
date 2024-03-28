@@ -26891,7 +26891,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.14.0";
+  connect.version = "2.14.1";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -27454,7 +27454,17 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
           params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
         }
       }
- 
+
+      if (otherParams.task) {
+        if (otherParams.task.disableRingtone) {
+          params.ringtone.task.disabled = true;
+        }
+
+        if (otherParams.task.ringtoneUrl) {
+          params.ringtone.task.ringtoneUrl = otherParams.task.ringtoneUrl;
+        }
+      }
+
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -27462,11 +27472,13 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         params.ringtone.queue_callback = connect.merge(params.ringtone.queue_callback,
           otherParams.ringtone.voice || {});
         params.ringtone.chat = connect.merge(params.ringtone.chat,
-          otherParams.ringtone.chat || {});
+            otherParams.ringtone.chat || {});
+        params.ringtone.task = connect.merge(params.ringtone.task,
+            otherParams.ringtone.task || {});
       }
     };
- 
-    // Merge params from params.softphone and params.chat into params.ringtone
+
+    // Merge params from params.softphone and params.chat and params.task into params.ringtone
     // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
 
@@ -28229,12 +28241,13 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
         connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
         connect.core.portStreamId = data.id;
 
-        if (params.softphone || params.chat || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
+        if (params.softphone || params.chat || params.task || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
           // Send configuration up to the CCP.
           //set it to false if secondary
           conduit.sendUpstream(connect.EventType.CONFIGURE, {
             softphone: params.softphone,
             chat: params.chat,
+            task: params.task,
             pageOptions: params.pageOptions,
             shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
             disasterRecoveryOn: params.disasterRecoveryOn,
@@ -28316,10 +28329,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
           try {
             var loginUrl = getLoginUrl(params);
             connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
-            // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
-            if (params.loginUrl) {
-              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-            }
             connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
           } catch (e) {
             connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
@@ -28332,7 +28341,6 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
               this.unsubscribe();
               global.clearTimeout(connect.core.iframeRefreshTimeout);
               connect.core.iframeRefreshTimeout = null;
-              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
               if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
                 connect.core.loginWindow.close();
                 connect.core.loginWindow = null;
@@ -33986,28 +33994,23 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   connect.PopupManager = function () { };
 
   connect.PopupManager.prototype.open = function (url, name, options) {
-    var then = this._getLastOpenedTimestamp(name);
-    var now = new Date().getTime();
     var win = null;
-    if (now - then > ONE_DAY_MILLIS) {
-      if (options) {
-        // default values are chosen to provide a minimum height without scrolling
-        // and a uniform margin based on the css of the ccp login page
-        var height = options.height || DEFAULT_POPUP_HEIGHT;
-        var width = options.width || DEFAULT_POPUP_WIDTH;
-        var top = options.top || 0;
-        var left = options.left || 0;
-        win = window.open('', name, "width="+width+", height="+height+", top="+top+", left="+left);
-        if (win.location !== url) {
-          win = window.open(url, name, "width="+width+", height="+height+", top="+top+", left="+left);
-        }
-      } else {
-        win = window.open('', name);
-        if (win.location !== url) {
-          win = window.open(url, name);
-        }
+    if (options) {
+      // default values are chosen to provide a minimum height without scrolling
+      // and a uniform margin based on the css of the ccp login page
+      var height = options.height || DEFAULT_POPUP_HEIGHT;
+      var width = options.width || DEFAULT_POPUP_WIDTH;
+      var top = options.top || 0;
+      var left = options.left || 0;
+      win = window.open('', name, "width="+width+", height="+height+", top="+top+", left="+left);
+      if (win.location !== url) {
+        win = window.open(url, name, "width="+width+", height="+height+", top="+top+", left="+left);
       }
-      this._setLastOpenedTimestamp(name, now);
+    } else {
+      win = window.open('', name);
+      if (win.location !== url) {
+        win = window.open(url, name);
+      }
     }
     return win;
   };

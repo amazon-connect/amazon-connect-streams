@@ -574,7 +574,17 @@
           params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
         }
       }
- 
+
+      if (otherParams.task) {
+        if (otherParams.task.disableRingtone) {
+          params.ringtone.task.disabled = true;
+        }
+
+        if (otherParams.task.ringtoneUrl) {
+          params.ringtone.task.ringtoneUrl = otherParams.task.ringtoneUrl;
+        }
+      }
+
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -582,11 +592,13 @@
         params.ringtone.queue_callback = connect.merge(params.ringtone.queue_callback,
           otherParams.ringtone.voice || {});
         params.ringtone.chat = connect.merge(params.ringtone.chat,
-          otherParams.ringtone.chat || {});
+            otherParams.ringtone.chat || {});
+        params.ringtone.task = connect.merge(params.ringtone.task,
+            otherParams.ringtone.task || {});
       }
     };
- 
-    // Merge params from params.softphone and params.chat into params.ringtone
+
+    // Merge params from params.softphone and params.chat and params.task into params.ringtone
     // for embedded and non-embedded use cases so that defaults are picked up.
     mergeParams(params, params);
 
@@ -1349,12 +1361,13 @@
         connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
         connect.core.portStreamId = data.id;
 
-        if (params.softphone || params.chat || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
+        if (params.softphone || params.chat || params.task || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
           // Send configuration up to the CCP.
           //set it to false if secondary
           conduit.sendUpstream(connect.EventType.CONFIGURE, {
             softphone: params.softphone,
             chat: params.chat,
+            task: params.task,
             pageOptions: params.pageOptions,
             shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
             disasterRecoveryOn: params.disasterRecoveryOn,
@@ -1436,10 +1449,6 @@
           try {
             var loginUrl = getLoginUrl(params);
             connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
-            // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
-            if (params.loginUrl) {
-              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-            }
             connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
           } catch (e) {
             connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
@@ -1452,7 +1461,6 @@
               this.unsubscribe();
               global.clearTimeout(connect.core.iframeRefreshTimeout);
               connect.core.iframeRefreshTimeout = null;
-              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
               if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
                 connect.core.loginWindow.close();
                 connect.core.loginWindow = null;
