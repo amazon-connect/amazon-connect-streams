@@ -1195,6 +1195,32 @@ describe('Core', function () {
                     assert.isTrue(connect.TaskRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.task));
                     assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
                 });
+
+                it('initializes ringtone engines WITHOUT using stored ringtone params when CONFIGURE message IS delivered, for disabled ringtone', () => {
+                    const otherRingtoneUrl = 'some_other_ringtone_url';
+                    const usedRingtoneParams = {
+                        ringtone: {
+                            voice: { disabled: true, ringtoneUrl: otherRingtoneUrl },
+                            queue_callback: { disabled: true, ringtoneUrl: otherRingtoneUrl },
+                            chat: { disabled: true, ringtoneUrl: otherRingtoneUrl },
+                            task: { disabled: true, ringtoneUrl: otherRingtoneUrl },
+                        }
+                    }
+                    connect.core.initRingtoneEngines(usedRingtoneParams);
+                    connect.core.getEventBus().trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+                    clock.tick(99); // set to below 100 to NOT execute the setimeout handler
+                    // trigger configure
+                    connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, {});
+                    connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                    connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                    connect.ifMaster.callArg(1);
+
+                    sandbox.assert.calledWithExactly(global.localStorage.getItem, ringtoneParamsKey);
+                    assert.isFalse(connect.VoiceRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.voice));
+                    assert.isFalse(connect.ChatRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.chat));
+                    assert.isFalse(connect.TaskRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.task));
+                    assert.isFalse(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
+                });
             });
 
             it('Ringtone parameters should get cleaned up on every initCCP call', () => {
@@ -1262,6 +1288,7 @@ describe('Core', function () {
         let clearStub, openStub, closeStub;
         const softphoneParams = { ringtoneUrl: "customVoiceRingtone.amazon.com" };
         const chatParams = { ringtoneUrl: "customChatRingtone.amazon.com" };
+        const taskParams = { ringtoneUrl: "customTaskRingtone.amazon.com" };
         const pageOptionsParams = {
             enableAudioDeviceSettings: false,
             enableVideoDeviceSettings: false,
@@ -1278,6 +1305,7 @@ describe('Core', function () {
                 loginUrl: "loginUrl.com",
                 softphone: softphoneParams,
                 chat: chatParams,
+                task: taskParams,
                 loginOptions: { autoClose: true },
                 pageOptions: pageOptionsParams,
                 shouldAddNamespaceToLogs: shouldAddNamespaceToLogs
@@ -1435,6 +1463,7 @@ describe('Core', function () {
                 sinon.assert.calledWith(connect.core.getUpstream().sendUpstream, connect.EventType.CONFIGURE, {
                     softphone: softphoneParams,
                     chat: chatParams,
+                    task: taskParams,
                     pageOptions: pageOptionsParams,
                     shouldAddNamespaceToLogs: shouldAddNamespaceToLogs,
                     disasterRecoveryOn: disasterRecoveryOn
@@ -1451,8 +1480,6 @@ describe('Core', function () {
             });
             it("calls _refreshIframeOnTimeout when ack timeout occurs", function () {
                 expect(connect.core._refreshIframeOnTimeout.calledOnce).to.be.true;
-                expect(clearStub.calledOnce).to.be.true;
-                expect(clearStub.calledWith(connect.MasterTopics.LOGIN_POPUP)).to.be.true;
                 expect(openStub.calledOnce).to.be.true;
                 expect(openStub.calledWith(params.loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions));
             });
@@ -1460,7 +1487,6 @@ describe('Core', function () {
                 it("resets the iframe refresh timeout, calls popupManager.clear, calls loginWindow.close", () => {
                     connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
                     expect(connect.core.iframeRefreshTimeout === null).to.be.true;
-                    expect(clearStub.calledTwice).to.be.true;
                     expect(closeStub.calledOnce).to.be.true;
                     expect(connect.core.loginWindow === null).to.be.true;
                 });
@@ -1475,6 +1501,7 @@ describe('Core', function () {
         let clearStub, openStub, closeStub;
         const softphoneParams = { ringtoneUrl: "customVoiceRingtone.amazon.com" };
         const chatParams = { ringtoneUrl: "customChatRingtone.amazon.com" };
+        const taskParams = { ringtoneUrl: "customTaskRingtone.amazon.com" };
         const pageOptionsParams = {
             enableAudioDeviceSettings: false,
             enableVideoDeviceSettings: false,
@@ -1486,6 +1513,7 @@ describe('Core', function () {
             loginUrl: "loginUrl.com",
             softphone: softphoneParams,
             chat: chatParams,
+            task: taskParams,
             loginOptions: { autoClose: true },
             pageOptions: pageOptionsParams,
             shouldAddNamespaceToLogs: shouldAddNamespaceToLogs,

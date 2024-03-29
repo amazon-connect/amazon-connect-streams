@@ -560,28 +560,23 @@
   connect.PopupManager = function () { };
 
   connect.PopupManager.prototype.open = function (url, name, options) {
-    var then = this._getLastOpenedTimestamp(name);
-    var now = new Date().getTime();
     var win = null;
-    if (now - then > ONE_DAY_MILLIS) {
-      if (options) {
-        // default values are chosen to provide a minimum height without scrolling
-        // and a uniform margin based on the css of the ccp login page
-        var height = options.height || DEFAULT_POPUP_HEIGHT;
-        var width = options.width || DEFAULT_POPUP_WIDTH;
-        var top = options.top || 0;
-        var left = options.left || 0;
-        win = window.open('', name, "width="+width+", height="+height+", top="+top+", left="+left);
-        if (win.location !== url) {
-          win = window.open(url, name, "width="+width+", height="+height+", top="+top+", left="+left);
-        }
-      } else {
-        win = window.open('', name);
-        if (win.location !== url) {
-          win = window.open(url, name);
-        }
+    if (options) {
+      // default values are chosen to provide a minimum height without scrolling
+      // and a uniform margin based on the css of the ccp login page
+      var height = options.height || DEFAULT_POPUP_HEIGHT;
+      var width = options.width || DEFAULT_POPUP_WIDTH;
+      var top = options.top || 0;
+      var left = options.left || 0;
+      win = window.open('', name, "width="+width+", height="+height+", top="+top+", left="+left);
+      if (win.location !== url) {
+        win = window.open(url, name, "width="+width+", height="+height+", top="+top+", left="+left);
       }
-      this._setLastOpenedTimestamp(name, now);
+    } else {
+      win = window.open('', name);
+      if (win.location !== url) {
+        win = window.open(url, name);
+      }
     }
     return win;
   };
