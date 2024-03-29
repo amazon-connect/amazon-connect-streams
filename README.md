@@ -201,7 +201,7 @@ everything setup correctly and that you will be able to listen for events.
           },
           task: {
             disableRingtone: false, // optional, defaults to false
-            ringtoneUrl: 'https://customer.com/beep.mp3', // optional, defaults to CCP's default ringtone if a falsy value is set
+            ringtoneUrl: "[your-ringtone-filepath].mp3", // optional, defaults to CCP's default ringtone if a falsy value is set
           },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
