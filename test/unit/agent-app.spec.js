@@ -106,6 +106,57 @@ describe('agent-app', function () {
       expect(connect.core.getEventBus().subscribe.called).to.be.true;
     });
 
+    it('starts CCP with test parameter', function () {
+      var expectedParams = {
+        ccpUrl: 'https://www.amazon.com/ccp-v2/channel-view/?test=true',
+        ccpLoadTimeout: 10000,
+        loginPopup: false,
+        loginUrl: 'https://www.amazon.com/login',
+        softphone: {
+          allowFramedSoftphone: true,
+          disableRingtone: false,
+          allowFramedVideoCall: true
+        }
+      };
+      connect.agentApp.initApp('ccp', 'agent-app-dom', 'https://www.amazon.com/ccp-v2/channel-view/?test=true', { ccpParams: { loginPopup: false } });
+      expect(connect.core.initCCP.calledWith(domCon, expectedParams)).to.be.true;
+      expect(connect.core.getEventBus().subscribe.called).to.be.true;
+    });
+
+    it('starts CCP with test parameter with no leading slash before parameter', function () {
+      var expectedParams = {
+        ccpUrl: 'https://www.amazon.com/ccp-v2/channel-view?test=true',
+        ccpLoadTimeout: 10000,
+        loginPopup: false,
+        loginUrl: 'https://www.amazon.com/login',
+        softphone: {
+          allowFramedSoftphone: true,
+          disableRingtone: false,
+          allowFramedVideoCall: true
+        }
+      };
+      connect.agentApp.initApp('ccp', 'agent-app-dom', 'https://www.amazon.com/ccp-v2/channel-view?test=true', { ccpParams: { loginPopup: false } });
+      expect(connect.core.initCCP.calledWith(domCon, expectedParams)).to.be.true;
+      expect(connect.core.getEventBus().subscribe.called).to.be.true;
+    });
+
+    it('starts CCP with multiple test parameters', function () {
+      var expectedParams = {
+        ccpUrl: 'https://www.amazon.com/ccp-v2/channel-view/?test=false&test-param=true&testParam=1',
+        ccpLoadTimeout: 10000,
+        loginPopup: false,
+        loginUrl: 'https://www.amazon.com/login',
+        softphone: {
+          allowFramedSoftphone: true,
+          disableRingtone: false,
+          allowFramedVideoCall: true
+        }
+      };
+      connect.agentApp.initApp('ccp', 'agent-app-dom', 'https://www.amazon.com/ccp-v2/channel-view/?test=false&test-param=true&testParam=1', { ccpParams: { loginPopup: false } });
+      expect(connect.core.initCCP.calledWith(domCon, expectedParams)).to.be.true;
+      expect(connect.core.getEventBus().subscribe.called).to.be.true;
+    });
+
     it('start CCP with style in ccpParams', function () {
       var style = 'width:200px; height:200px;';
       var expectedParams = {

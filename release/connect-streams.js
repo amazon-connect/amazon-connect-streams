@@ -149,9 +149,14 @@
     connect.core.initCCP(container, ccpParams);
   };
 
+  hasAnySearchParameter = function (url) {
+    var regex = /[?&]?[^=?&]+=[^=?&]+/g;
+    return regex.test(url);
+  }
+
   connect.agentApp.initApp = function (name, containerId, appUrl, config) {
     config = config ? config : {};
-    var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
+    var endpoint = (appUrl.endsWith('/') || hasAnySearchParameter(appUrl))  ? appUrl : appUrl + '/';
     var onLoad = config.onLoad ? config.onLoad : null;
     var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
     var filteredName;
@@ -26891,7 +26896,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.14.1";
+  connect.version = "2.14.2";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  

@@ -143,9 +143,14 @@
     connect.core.initCCP(container, ccpParams);
   };
 
+  hasAnySearchParameter = function (url) {
+    var regex = /[?&]?[^=?&]+=[^=?&]+/g;
+    return regex.test(url);
+  }
+
   connect.agentApp.initApp = function (name, containerId, appUrl, config) {
     config = config ? config : {};
-    var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
+    var endpoint = (appUrl.endsWith('/') || hasAnySearchParameter(appUrl))  ? appUrl : appUrl + '/';
     var onLoad = config.onLoad ? config.onLoad : null;
     var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
     var filteredName;

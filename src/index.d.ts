@@ -1465,6 +1465,12 @@ declare namespace connect {
     };
   }
 
+  interface ChannelContext {
+    scheduledTime?: number,
+    taskTemplateId?: string
+    taskTemplateVersion?: number
+  }
+
   /**
    * The Contact API provides event subscription methods and action methods which can be called on behalf of a specific contact.
    * Contacts come and go and so should these API objects.
@@ -1654,6 +1660,9 @@ declare namespace connect {
 
     /** Gets a map of the attributes associated with the contact. */
     getAttributes(): AttributeDictionary;
+
+    /** Gets the channel context for the contact. Currently, it's primarily used for task contacts*/
+    getChannelContext(): ChannelContext | undefined;
 
     /** Gets a map of segment attributes associated with the contact */
     getSegmentAttributes(): SegmentAttributeDictionary;
