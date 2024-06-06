@@ -149,9 +149,51 @@
     connect.core.initCCP(container, ccpParams);
   };
 
+  var initCCPAppForMR = function (ccpUrl, container, config) {
+    var defaultParams = {
+      ccpUrl,
+      ccpLoadTimeout: 10000,
+      loginPopup: false,
+      loginUrl: getConnectUrl(ccpUrl) + '/login',
+      softphone: {
+        allowFramedSoftphone: true,
+        disableRingtone: false,
+        allowFramedVideoCall: true
+      },
+      getPrimaryRegion: (callback) => {
+        callback(`${config.instanceConfig.primary.region}`)
+          .then((regionalConnect) => {
+            config.setConnectObject(regionalConnect);
+            connect
+              .getLog()
+              .info('promise completed')
+              .sendInternalLogToServer();
+          })
+          .catch((err) => {
+            connect
+              .getLog()
+              .error('promise failed with message ' + err.message)
+              .sendInternalLogToServer();
+          });
+      },
+      region: `${config.instanceConfig.primary.region}`,
+      standByRegion: {
+        ccpUrl: `${config.instanceConfig.secondary.url}/ccp-v2/channel-view`,
+        region: `${config.instanceConfig.secondary.region}`
+      }
+    };
+    var ccpParams = connect.merge(defaultParams, config.ccpParams);
+    globalConnect.core.initCCP(container, ccpParams);
+  };
+
+  hasAnySearchParameter = function (url) {
+    var regex = /[?&]?[^=?&]+=[^=?&]+/g;
+    return regex.test(url);
+  }
+
   connect.agentApp.initApp = function (name, containerId, appUrl, config) {
     config = config ? config : {};
-    var endpoint = appUrl.endsWith('/') ? appUrl : appUrl + '/';
+    var endpoint = (appUrl.endsWith('/') || hasAnySearchParameter(appUrl))  ? appUrl : appUrl + '/';
     var onLoad = config.onLoad ? config.onLoad : null;
     var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
     var filteredName;
@@ -26891,7 +26933,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.14.1";
+  connect.version = "2.14.2";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
