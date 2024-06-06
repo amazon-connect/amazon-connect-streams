@@ -149,43 +149,6 @@
     connect.core.initCCP(container, ccpParams);
   };
 
-  var initCCPAppForMR = function (ccpUrl, container, config) {
-    var defaultParams = {
-      ccpUrl,
-      ccpLoadTimeout: 10000,
-      loginPopup: false,
-      loginUrl: getConnectUrl(ccpUrl) + '/login',
-      softphone: {
-        allowFramedSoftphone: true,
-        disableRingtone: false,
-        allowFramedVideoCall: true
-      },
-      getPrimaryRegion: (callback) => {
-        callback(`${config.instanceConfig.primary.region}`)
-          .then((regionalConnect) => {
-            config.setConnectObject(regionalConnect);
-            connect
-              .getLog()
-              .info('promise completed')
-              .sendInternalLogToServer();
-          })
-          .catch((err) => {
-            connect
-              .getLog()
-              .error('promise failed with message ' + err.message)
-              .sendInternalLogToServer();
-          });
-      },
-      region: `${config.instanceConfig.primary.region}`,
-      standByRegion: {
-        ccpUrl: `${config.instanceConfig.secondary.url}/ccp-v2/channel-view`,
-        region: `${config.instanceConfig.secondary.region}`
-      }
-    };
-    var ccpParams = connect.merge(defaultParams, config.ccpParams);
-    globalConnect.core.initCCP(container, ccpParams);
-  };
-
   hasAnySearchParameter = function (url) {
     var regex = /[?&]?[^=?&]+=[^=?&]+/g;
     return regex.test(url);
