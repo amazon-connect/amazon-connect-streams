@@ -143,7 +143,7 @@
     connect.core.initCCP(container, ccpParams);
   };
 
-  hasAnySearchParameter = function (url) {
+  var hasAnySearchParameter = function (url) {
     var regex = /[?&]?[^=?&]+=[^=?&]+/g;
     return regex.test(url);
   }

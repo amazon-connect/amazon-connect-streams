@@ -37,7 +37,7 @@
    */
   const defaultStorageAccessParams = {
     /* Config which controls the opt out/in - we expect customers to explicitely opt out. */
-    canRequest: true,
+    canRequest: false,
     /* ["custom", "default"] - decides the rsa page view */
     mode: 'default',
     custom: {
