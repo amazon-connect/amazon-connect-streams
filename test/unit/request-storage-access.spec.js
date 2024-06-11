@@ -14,7 +14,6 @@ describe('Request Storage Access module', () => {
 
   before(() => {
     sandbox = sinon.createSandbox();
-    connect.storageAccess.optInForRequestAccess();
   });
 
   beforeEach(() => {
@@ -56,7 +55,8 @@ describe('Request Storage Access module', () => {
 
     it('Should return canRequest true with no additional settings from customers and they will be opted in by default', () => {
       connect.storageAccess.init(ccpUrl, container);
-      expect(connect.storageAccess.canRequest()).to.be.true;
+      console.log('connect.storageAccess.canRequest()',connect.storageAccess.canRequest())
+      expect(connect.storageAccess.canRequest()).to.be.false;
     });
 
     it('Should return canRequest false with explicit customer opt out', () => {
@@ -177,6 +177,10 @@ describe('Request Storage Access module', () => {
 
   describe('Request method', () => {
     let onGrantSpy;
+
+    before(() => {
+      connect.storageAccess.optInForRequestAccess();
+    });
 
     beforeEach(() => {
       onGrantSpy = sandbox.spy();

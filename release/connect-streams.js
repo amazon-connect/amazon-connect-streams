@@ -31203,6 +31203,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   };
 
   const initStorageParams = (params = {}) => {
+    console.log('params', params);
     params.custom = params.custom || {};
     storageParams = {
       ...defaultStorageAccessParams,
@@ -31213,6 +31214,8 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       },
     };
     storageParams.canRequest = !(storageParams.canRequest === 'false' || storageParams.canRequest === false);
+    console.log('storageParams.canRequest', storageParams.canRequest);
+    console.log('storageParams', storageParams);
   };
 
   const resetStorageAccessState = () => {
