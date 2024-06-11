@@ -53,7 +53,7 @@ describe('Request Storage Access module', () => {
       assert.throws(() => connect.storageAccess.init(ccpUrl), connect.ValueError, 'container must be provided');
     });
 
-    it('Should return canRequest true with no additional settings from customers and they will be opted in by default', () => {
+    it('Should return canRequest false with no additional settings from customers and they will be opted out by default', () => {
       connect.storageAccess.init(ccpUrl, container);
       expect(connect.storageAccess.canRequest()).to.be.false;
     });
