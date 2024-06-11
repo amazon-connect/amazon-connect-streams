@@ -149,7 +149,7 @@
     connect.core.initCCP(container, ccpParams);
   };
 
-  hasAnySearchParameter = function (url) {
+  var hasAnySearchParameter = function (url) {
     var regex = /[?&]?[^=?&]+=[^=?&]+/g;
     return regex.test(url);
   }
@@ -26896,7 +26896,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.14.2";
+  connect.version = "2.14.3";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
