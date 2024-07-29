@@ -18,7 +18,12 @@ Run `npm run release` to generate new release files. Full instructions for build
 In version 1.x, we also support `make` for legacy builds. This option was removed in version 2.x. 
 
 # Important Announcements
-1. March 2024 - In response to a Google Chrome feature launched on 7/13/2023 called [Storage Partitioning](https://developers.google.com/privacy-sandbox/3pcd/storage-partitioning), we made a short term fix on 2/10/2024 to adjust our mute functionality and synchronize the mute state across all CCPs. However, due to current limitations, this change required us to disable muting while being on hold. As a workaround, agents should mute themselves on the call before going on hold. We are planning to address this issue by August 2024 and revert back to original mute behavior.
+1. July 2024 - The issue with muting while a Voice contact is on hold has been resolved. Agents can use the mute button while a contact is placed on hold. The following APIs will be available when the contact is on hold:
+    * `voiceConnection.muteParticipant()`
+    * `voiceConnection.unmuteParticipant()`
+    * `agent.mute()`
+    * `agent.unmute()`
+1. February 2024 - In response to a Google Chrome feature launched on 7/13/2023 called [Storage Partitioning](https://developers.google.com/privacy-sandbox/3pcd/storage-partitioning), we made a short term fix on 2/10/2024 to adjust our mute functionality and synchronize the mute state across all CCPs. However, due to current limitations, this change required us to disable muting while being on hold. As a workaround, agents should mute themselves on the call before going on hold. We are planning to address this issue by August 2024 and revert back to original mute behavior.
     * At the moment, the following APIs will fail when the contact is on hold:
       * `voiceConnection.muteParticipant()`
       * `voiceConnection.unmuteParticipant()`
@@ -202,13 +207,9 @@ everything setup correctly and that you will be able to listen for events.
           softphone: {                    // optional, defaults below apply if not provided
             allowFramedSoftphone: true,   // optional, defaults to false
             disableRingtone: false,       // optional, defaults to false
-            ringtoneUrl: "[your-ringtone-filepath].mp3", // optional, defaults to CCP’s default ringtone if a falsy value is set
+            ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
             allowFramedVideoCall: true,    // optional, default to false
             allowEarlyGum: true    //optional, default to true
-          },
-          task: {
-            disableRingtone: false, // optional, defaults to false
-            ringtoneUrl: "[your-ringtone-filepath].mp3", // optional, defaults to CCP's default ringtone if a falsy value is set
           },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
