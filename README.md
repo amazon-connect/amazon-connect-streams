@@ -207,7 +207,7 @@ everything setup correctly and that you will be able to listen for events.
           softphone: {                    // optional, defaults below apply if not provided
             allowFramedSoftphone: true,   // optional, defaults to false
             disableRingtone: false,       // optional, defaults to false
-            ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP’s default ringtone if a falsy value is set
+            ringtoneUrl: "[your-ringtone-filepath].mp3", // optional, defaults to CCP’s default ringtone if a falsy value is set
             allowFramedVideoCall: true,    // optional, default to false
             allowEarlyGum: true    //optional, default to true
           },
