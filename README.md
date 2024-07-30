@@ -211,6 +211,10 @@ everything setup correctly and that you will be able to listen for events.
             allowFramedVideoCall: true,    // optional, default to false
             allowEarlyGum: true    //optional, default to true
           },
+          task: {
+            disableRingtone: false, // optional, defaults to false
+            ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP's default ringtone if a falsy value is set
+          },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
             enableVideoDeviceSettings: false, //optional, defaults to 'false'

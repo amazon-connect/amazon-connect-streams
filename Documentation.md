@@ -229,6 +229,10 @@ everything set up correctly and that you are able to listen for events.
             VDIPlatform: null, // optional, provide with 'CITRIX' if using Citrix VDI, or use enum VDIPlatformType
             allowEarlyGum: true, //optional, default to true
           },
+          task: {
+            disableRingtone: false, // optional, defaults to false
+            ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP's default ringtone if a falsy value is set
+          },
           storageAccess: {
             canRequest: false, // By default this is set to false. You can set it to true to opt in for checking storage access.  
             mode: "custom", // To use the default banner, set this to "default"
