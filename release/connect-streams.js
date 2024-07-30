@@ -31174,7 +31174,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    */
   const defaultStorageAccessParams = {
     /* Config which controls the opt out/in - we expect customers to explicitely opt out. */
-    canRequest: true,
+    canRequest: false,
     /* ["custom", "default"] - decides the rsa page view */
     mode: 'default',
     custom: {
