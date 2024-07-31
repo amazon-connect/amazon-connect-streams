@@ -16,14 +16,18 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
 
 # Important Announcements
 
-1. March 2024 - In response to a Google Chrome feature launched on 7/13/2023 called [Storage Partitioning](https://developers.google.com/privacy-sandbox/3pcd/storage-partitioning), we made a short term fix on 2/10/2024 to adjust our mute functionality and synchronize the mute state across all CCPs. However, due to current limitations, this change required us to disable muting while being on hold. As a workaround, agents should mute themselves on the call before going on hold. We are planning to address this issue by August 2024 and revert back to original mute behavior.
+1. July 2024 - The issue with muting while a Voice contact is on hold has been resolved. Agents can use the mute button while a contact is placed on hold. The following APIs will be available when the contact is on hold:
+    * `voiceConnection.muteParticipant()`
+    * `voiceConnection.unmuteParticipant()`
+    * `agent.mute()`
+    * `agent.unmute()`
+1. February 2024 - In response to a Google Chrome feature launched on 7/13/2023 called [Storage Partitioning](https://developers.google.com/privacy-sandbox/3pcd/storage-partitioning), we made a short term fix on 2/10/2024 to adjust our mute functionality and synchronize the mute state across all CCPs. However, due to current limitations, this change required us to disable muting while being on hold. As a workaround, agents should mute themselves on the call before going on hold. We are planning to address this issue by August 2024 and revert back to original mute behavior.
     * At the moment, the following APIs will fail when the contact is on hold:
       * `voiceConnection.muteParticipant()`
       * `voiceConnection.unmuteParticipant()`
       * `agent.mute()`
       * `agent.unmute()`
     * As a workaround, you can mute the call prior to placing the call on hold.
-
 1. December 2022 - In addition to the CCP, customers can now embed an application that provides guided experiences to your agents using the connect.agentApp. See the [updated documentation](https://github.com/amazon-connect/amazon-connect-streams/blob/master/Documentation.md#initialization-for-ccp-customer-profiles-amazon-q-connect-and-customviews) for details on usage.
    - ### Guided experiences for agents
      - With Amazon Connect you can now create guided step-by-step experiences that walk agents through tailored views that focus on what must be seen or done by the agent at a given moment during an interaction. You can design workflows for various types of customer interactions and present agents with different step-by-step guides based on context, such as call queue, customer information, and interactive voice response (IVR). This feature is available in the Connect agent workspace as well as an embeddable application that can be embedded into another website via the Streams API. For more information, visit the AWS website: https://aws.amazon.com/connect/agent-workspace/
@@ -225,8 +229,12 @@ everything set up correctly and that you are able to listen for events.
             VDIPlatform: null, // optional, provide with 'CITRIX' if using Citrix VDI, or use enum VDIPlatformType
             allowEarlyGum: true, //optional, default to true
           },
+          task: {
+            disableRingtone: false, // optional, defaults to false
+            ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP's default ringtone if a falsy value is set
+          },
           storageAccess: {
-            canRequest: true, // By default this is set to true. You can set it to false to opt out from checking storage access.  
+            canRequest: false, // By default this is set to false. You can set it to true to opt in for checking storage access.  
             mode: "custom", // To use the default banner, set this to "default"
             /** More customization options can be found here: https://github.com/amazon-connect/amazon-connect-streams/blob/master/src/index.d.ts under StorageAccessParameters */
           },

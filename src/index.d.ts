@@ -854,7 +854,8 @@ declare namespace connect {
     /** This enumeration lists the different types of VDI Platform supported. */
   enum VDIPlatformType {
     /** Citrix. */
-    CITRIX = "CITRIX"
+    CITRIX = "CITRIX",
+    AWS_WORKSPACE = "AWS_WORKSPACE",
   }
 
   /** This enumeration lists the different types of contact channels. */

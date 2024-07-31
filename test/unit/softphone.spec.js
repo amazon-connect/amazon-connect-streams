@@ -155,6 +155,37 @@ describe('SoftphoneManager', () => {
             // });
         });
 
+            describe('VDIPlatform: AWS_WORKSPACE', () => {
+                before(() => {
+                    connect.isChromeBrowser.returns(true);
+                    connect.isFirefoxBrowser.returns(false);
+                    connect.hasOtherConnectedCCPs.returns(false);
+                });
+                afterEach(() => {
+                    sandbox.resetHistory();
+                });
+                it('should create RTC session and call session.connect()', function () {
+                    const softphoneManager = new connect.SoftphoneManager({ VDIPlatform: "AWS_WORKSPACE" });
+                    stubbedGetStatus.returns({ type: connect.ContactStatusType.CONNECTING });
+                    softphoneManager.startSession(contact, agentConnectionId);
+                    sinon.assert.calledOnce(stubbedRTCSessionConnect);
+                });
+                it('should NOT create another RTC session if startSession is called twice', function () {
+                    const softphoneManager = new connect.SoftphoneManager({ VDIPlatform: "AWS_WORKSPACE" });
+                    stubbedGetStatus.returns({ type: connect.ContactStatusType.CONNECTING });
+                    softphoneManager.startSession(contact, agentConnectionId);
+                    stubbedGetStatus.returns({ type: connect.ContactStatusType.CONNECTED });
+                    let error;
+                    try {
+                        softphoneManager.startSession(contact, agentConnectionId);
+                    } catch (e) {
+                        error = e;
+                    }
+                    sinon.assert.calledOnce(stubbedRTCSessionConnect);
+                    expect(error).not.to.be.undefined;
+                });
+            });
+            
         describe('disableEchoCancellation', () => {
             const disableEchoCancellation = true;
             before(() => {

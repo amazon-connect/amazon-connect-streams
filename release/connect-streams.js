@@ -26896,7 +26896,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.14.3";
+  connect.version = "2.14.4";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -31771,6 +31771,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   const VDIPlatformType = {
     CITRIX: "CITRIX",
+    AWS_WORKSPACE: "AWS_WORKSPACE",
   }
 
   var RTPJobIntervalMs = 1000;
@@ -31803,6 +31804,11 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   var consecutiveNoAudioOutputPackets = 0;
   var consecutiveLowOutputAudioLevel = 0;
   var audioInputConnectedDurationSeconds = 0;
+  // Time from CCP received the softphone contact till local media is added to the softphone session
+  var ccpMediaReadyLatencyMillis = 0;
+  var allowEarlyGum = false;
+  var earlyGumWorked = false;
+  var vdiPlatform = null;
   var rtpStatsJob = null;
   var reportStatsJob = null;
   //Logger specific to softphone.
@@ -31846,9 +31852,14 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   
     let rtcJsStrategy;
     if (softphoneParams.VDIPlatform) {
+      vdiPlatform = softphoneParams.VDIPlatform;
       try {
         if (softphoneParams.VDIPlatform === VDIPlatformType.CITRIX) {
           rtcJsStrategy = new connect.CitrixVDIStrategy();
+          logger.info(`[SoftphoneManager] Strategy constructor retrieved: ${rtcJsStrategy}`).sendInternalLogToServer();
+        }
+        else if (softphoneParams.VDIPlatform === VDIPlatformType.AWS_WORKSPACE) {
+          rtcJsStrategy = new connect.DCVWebRTCStrategy();
           logger.info(`[SoftphoneManager] Strategy constructor retrieved: ${rtcJsStrategy}`).sendInternalLogToServer();
         } else {
           throw new Error("VDI Strategy not supported");
@@ -31859,6 +31870,10 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
           throw error;
         }
         else if (error.message === "Citrix WebRTC redirection feature is NOT supported!") {
+          publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
+          throw error;
+        }
+        else if (error.message === "DCV WebRTC redirection feature is NOT supported!") {
           publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
           throw error;
         }
@@ -32582,7 +32597,13 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
       consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
       consecutiveNoAudioOutputPackets: consecutiveNoAudioOutputPackets,
       consecutiveLowOutputAudioLevel: consecutiveLowOutputAudioLevel,
-      audioInputConnectedDurationSeconds: audioInputConnectedDurationSeconds
+      audioInputConnectedDurationSeconds: audioInputConnectedDurationSeconds,
+      ccpMediaReadyLatencyMillis: ccpMediaReadyLatencyMillis,
+      contactSubtype: contact.getContactSubtype(),
+      earlyGumEnabled: allowEarlyGum,
+      earlyGumWorked: earlyGumWorked,
+      vdiPlatform: vdiPlatform || null,
+      streamJsVersion: connect.version
     }
 
     connect.publishSoftphoneReport({
