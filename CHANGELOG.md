@@ -1,5 +1,9 @@
 # CHANGELOG.md
 
+## [2.14.5] - 2024-08-02
+Added:
+- Made change to prevent more than one login popup from appearing when an embedded CCP is opened in two or more tabs.
+
 ## [2.14.1] - 2024-03-29
 Added:
 - `initCCP` param to set custom ringtone for chat.

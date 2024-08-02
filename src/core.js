@@ -55,6 +55,8 @@
   const SNAPSHOT_TOTAL_PROCESSING_TIME = 'SnapshotTotalProcessingTime';
   const SNAPSHOT_COMPARISON_STEP_TIME = 'SnapshotComparisonStepTime';
 
+  var CHECK_LOGIN_POPUP_INTERVAL_MS = 1000;
+
   const APP = {
     GUIDES: 'customviews',
   };
@@ -1449,7 +1451,7 @@
           try {
             var loginUrl = getLoginUrl(params);
             connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
-            connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, params.loginOptions);
+            connect.core._openPopupWithLock(loginUrl, params.loginOptions)
           } catch (e) {
             connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
           }
@@ -1518,6 +1520,45 @@
       // keep the softphone params for external use
       connect.core.softphoneParams = params.softphone;
     };
+  };
+
+  connect.core._openPopupWithLock = function (loginUrl, loginOptions) {
+    const lockName = "connect-login-popup-lock" + loginUrl;
+  
+    try {
+      navigator.locks.request(lockName, {mode: 'exclusive', ifAvailable: true }, async lock => {
+        if (!lock) {
+          connect.getLog().info("Popup already opened by another tab.").sendInternalLogToServer();
+          return;
+        }
+        connect.getLog().info("Opening popup window with weblock.").sendInternalLogToServer();
+
+        connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, loginOptions);
+
+        connect.core._shouldHoldPopupLock = true;
+
+        const checkPopupInterval = setInterval(function() {
+          if (!connect.core.loginWindow || connect.core.loginWindow?.closed) {
+              clearInterval(checkPopupInterval);
+              connect.core._shouldHoldPopupLock = false;
+              connect.getLog().info("Cleared check popup interval.").sendInternalLogToServer();
+          }
+        }, CHECK_LOGIN_POPUP_INTERVAL_MS);
+
+        // hold the lock until the popup is closed
+        while (connect.core._shouldHoldPopupLock) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        connect.getLog().info("Releasing weblock for opening login popup.").sendInternalLogToServer();
+      })
+    } catch (e) {
+      connect.getLog().error("Failed to use weblock to open popup. Your browser may be out of date.").withException(e).sendInternalLogToServer();
+      
+      if (!connect.core.loginWindow){
+        connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, loginOptions);
+      }
+    }
   };
 
   connect.core.onIframeRetriesExhausted = function(f) {
