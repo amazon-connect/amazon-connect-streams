@@ -665,6 +665,9 @@ declare namespace connect {
 
     /** The agent is offline. */
     OFFLINE = "offline",
+
+    /** The agent is in a system-defined state */
+    SYSTEM = "system"
   }
 
   enum AgentAvailStates {
