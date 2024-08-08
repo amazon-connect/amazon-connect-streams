@@ -233,11 +233,6 @@ everything set up correctly and that you are able to listen for events.
             disableRingtone: false, // optional, defaults to false
             ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP's default ringtone if a falsy value is set
           },
-          storageAccess: {
-            canRequest: false, // By default this is set to false. You can set it to true to opt in for checking storage access.  
-            mode: "custom", // To use the default banner, set this to "default"
-            /** More customization options can be found here: https://github.com/amazon-connect/amazon-connect-streams/blob/master/src/index.d.ts under StorageAccessParameters */
-          },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
             enableVideoDeviceSettings: false, //optional, defaults to 'false'
