@@ -6,7 +6,7 @@ Added:
 - typescript SYSTEM and ERROR types for AgentStateType
 - Agent and Contact events subscriptions now return subscription
 
-## [2.14.6] - 2024-08-16
+## [2.15.0] - 2024-08-16
 Added:
 - Global Resiliency implementation. See Documentation-GR.md for details.
 

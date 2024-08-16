@@ -1657,6 +1657,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         grProxyConduit.getAllConduits().forEach((conduit) => {
           if (conduit.iframe.dataset.identifier === identifier){
             conduit.upstream.output = newIframe.contentWindow;
+            conduit.iframe = newIframe;
           }
         });
       } else {

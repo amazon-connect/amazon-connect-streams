@@ -26876,7 +26876,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.14.6";
+  connect.version = "2.15.0";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
@@ -28526,6 +28526,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         grProxyConduit.getAllConduits().forEach((conduit) => {
           if (conduit.iframe.dataset.identifier === identifier){
             conduit.upstream.output = newIframe.contentWindow;
+            conduit.iframe = newIframe;
           }
         });
       } else {
@@ -29204,7 +29205,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
   };
 
   /**-----------------------------------------------------------------------*/
-<<<<<<< HEAD
   connect.core.onConfigure = function(f) {
     return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.CONFIGURE, f);
   }
@@ -29212,16 +29212,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
    /**-----------------------------------------------------------------------*/
    connect.core.onInitialized = function(f) {
     return connect.core.getEventBus().subscribe(connect.EventType.INIT, f);
-=======
-  connect.core.onConfigure = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CONFIGURE, f);
-  }
-
-  /**-----------------------------------------------------------------------*/
-  connect.core.onInitialized = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.EventType.INIT, f);
->>>>>>> 96d3dc2 (Add Global Resiliency implementation)
   }
 
   /**-----------------------------------------------------------------------*/
