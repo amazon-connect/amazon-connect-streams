@@ -3,7 +3,6 @@ const ReplacePlugin = require('webpack-plugin-replace');
 const path = require('path');
 const { commonConfig } = require('./common');
 
-
 const config = Object.assign({}, commonConfig, {
   entry: [
     './src/aws-client.js',
@@ -28,6 +27,7 @@ const config = Object.assign({}, commonConfig, {
     './src/mediaControllers/task.js',
     './src/agent-app/agent-app.js',
     './src/agent-app/app-registry.js',
+    './src/global-resiliency.js',
   ],
   output: {
     path: path.resolve(__dirname, '../release'),
@@ -35,19 +35,17 @@ const config = Object.assign({}, commonConfig, {
     clean: true,
   },
   optimization: {
-    minimize: false
+    minimize: false,
   },
   plugins: [
     new ReplacePlugin({
       include: 'core.js',
 
       values: {
-        'STREAMS_VERSION': process.env.npm_package_version
-      }
-    })
-  ]
+        STREAMS_VERSION: process.env.npm_package_version,
+      },
+    }),
+  ],
 });
 
-module.exports = [
-  config
-]
+module.exports = [config];

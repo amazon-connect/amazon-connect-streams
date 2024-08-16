@@ -10,11 +10,14 @@
   global.lily = connect;
 
   connect.core = {};
+  connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
   connect.version = "STREAMS_VERSION";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
- 
+
+  // NOTE: These constants are currently also set in the global-resiliency file.
+  // Until a solution is found, changes to these values should be done there as well.
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
   var CCP_LOAD_TIMEOUT = 5000; // 5 sec
@@ -26,12 +29,12 @@
   var CLIENT_ID_MAP = {
     "us-east-1": "06919f4fd8ed324e"
   };
- 
+
   var AUTHORIZE_ENDPOINT = "/auth/authorize";
   var LEGACY_AUTHORIZE_ENDPOINT = "/connect/auth/authorize";
   var AUTHORIZE_RETRY_INTERVAL = 2000;
   var AUTHORIZE_MAX_RETRY = 5;
- 
+
   var LEGACY_WHITELISTED_ORIGINS_ENDPOINT = "/connect/whitelisted-origins";
   var WHITELISTED_ORIGINS_ENDPOINT = "/whitelisted-origins";
   var WHITELISTED_ORIGINS_RETRY_INTERVAL = 2000;
@@ -85,7 +88,7 @@
   connect.core.MAX_UNAUTHORIZED_RETRY_COUNT = 20;
   // access denied
   connect.core.MAX_ACCESS_DENIED_RETRY_COUNT = 10;
-  
+
   /*----------------------------------------------------------------
    * enum SessionStorageKeys
    */
@@ -96,14 +99,14 @@
 
   /**
    * @deprecated
-   * This function was only meant for internal use. 
+   * This function was only meant for internal use.
    * The name is misleading for what it should do.
    * Internally we have replaced its usage with `getLoginUrl`.
    */
   var createLoginUrl = function (params) {
     var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
     connect.assertNotNull(redirect);
- 
+
     if (params.loginUrl) {
       return params.loginUrl
     } else if (params.alias) {
@@ -143,10 +146,10 @@
   /**
    * baseParamsStorage. Base class to store params of other modules in local storage
    * Used mainly for cases where embedded CCP gets refreshed.
-   * (not appending to connect core namespace 
+   * (not appending to connect core namespace
    *  as we want to limit scope to use by internal functions for now)
    * @returns {Object}
-  */
+   */
   class BaseParamsStorage {
     constructor(moduleName) {
       this.key = `${moduleName}ParamsStorage::${global.location.origin}`;
@@ -173,7 +176,7 @@
     }
 
     clean() {
-      global.localStorage.removeItem(this.key);      
+      global.localStorage.removeItem(this.key);
     }
   }
 
@@ -181,7 +184,7 @@
    * softphoneParamsStorage module to store necessary softphone params in local storage
    * Used mainly for cases where embedded CCP gets refreshed.
    * @returns {Object}
-  */
+   */
   class SoftphoneParamsStorage extends BaseParamsStorage {
     constructor() {
       super('Softphone');
@@ -194,7 +197,7 @@
    * ringtoneParamsStorage module to store necessary ringtone params in local storage
    * Used mainly for cases where embedded CCP gets refreshed.
    * @returns {Object}
-  */
+   */
   class RingtoneParamsStorage extends BaseParamsStorage {
     constructor() {
       super('Ringtone');
@@ -203,17 +206,30 @@
 
   const ringtoneParamsStorage = new RingtoneParamsStorage();
 
+  /**
+   * globalResiliencyParamsStorage module to store necessary global resiliency params in local storage
+   * Used mainly for cases where embedded CCP gets refreshed.
+   * @returns {Object}
+   */
+  class GlobalResiliencyParamsStorage extends BaseParamsStorage {
+    constructor() {
+      super('GlobalResiliency');
+    }
+  }
+
+  const globalResiliencyParamsStorage = new GlobalResiliencyParamsStorage();
+
   /**-------------------------------------------------------------------------
-  * Returns scheme://host:port for a given url
-  */
+   * Returns scheme://host:port for a given url
+   */
   function sanitizeDomain(url) {
     var domain = url.match(/^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/ig);
     return domain.length ? domain[0] : "";
   }
- 
+
   /**-------------------------------------------------------------------------
-    * Print a warning message if the Connect core is not initialized.
-    */
+   * Print a warning message if the Connect core is not initialized.
+   */
   connect.core.checkNotInitialized = function () {
     if (connect.core.initialized) {
       var log = connect.getLog();
@@ -260,12 +276,12 @@
   // is in progress, the contact will be allowed to complete, and the agent will be set offline once the contact is destroyed (i.e. ACW is cleared).
   // If there is no voice contact in progress, or if `shouldSoftFailover` is missing/untruthy, this will disconnect all contacts and set the agent offline immediately.
   // If any of these requests fail (i.e. the backend is down/inaccessible), the shared worker will be signaled to invoke this function again once the region recovers.
-  var forceOffline = function(shouldSoftFailover, nextActiveArn) {
+  var forceOffline = function (shouldSoftFailover, nextActiveArn) {
     var log = connect.getLog();
     // if agent is still initializing, we can't get instance ID; fall back to logging the region, else getInstanceId() will throw
     const instanceIdentifier = (connect.agent.initialized) ? connect.core.getAgentDataProvider().getInstanceId() : connect.core.region;
     log.info(`[Disaster Recovery] Attempting to force instance ${instanceIdentifier} offline using ${shouldSoftFailover ? 'soft' : 'hard'} failover`).sendInternalLogToServer();
-    connect.agent(function(agent) {
+    connect.agent(function (agent) {
       var contactClosed = 0;
       var contacts = agent.getContacts();
       var failureEncountered = false;
@@ -274,16 +290,17 @@
           if (failureEncountered) {
             break; // stop after first failure to avoid triggering UI failover multiple times
           } else if (shouldSoftFailover &&
-            (contact.getType() === connect.ContactType.QUEUE_CALLBACK || contact.getType() == connect.ContactType.VOICE)) {
+            (contact.getType() === connect.ContactType.QUEUE_CALLBACK || contact.getType() === connect.ContactType.VOICE)) {
             log.info("[Disaster Recovery] Will wait to complete failover of instance %s until voice contact with ID %s is destroyed",
               connect.core.region, contact.getContactId()).sendInternalLogToServer();
-            connect.core.getUpstream().sendDownstream(connect.DisasterRecoveryEvents.FAILOVER_PENDING, {nextActiveArn});
-            contact.onDestroy(function(contact) {
+            connect.core.getUpstream().sendDownstream(connect.DisasterRecoveryEvents.FAILOVER_PENDING, { nextActiveArn });
+            contact.onDestroy(function (contact) {
               log.info("[Disaster Recovery] Voice contact with ID %s destroyed, continuing with failover in instance %s", contact.getContactId(), connect.core.region);
-              forceOffline(true, nextActiveArn)});
+              forceOffline(true, nextActiveArn)
+            });
           } else {
             contact.getAgentConnection().destroy({
-              success: function() {
+              success: function () {
                 // check if all active contacts are closed
                 if (++contactClosed === contacts.length) {
                   setForceOfflineUpstream(false, nextActiveArn);
@@ -293,14 +310,15 @@
                   log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
                 }
               },
-              failure: function(err) {
+              failure: function (err) {
                 log.warn("[Disaster Recovery] An error occured while attempting to force this instance to offline in region %s", connect.core.region).sendInternalLogToServer();
                 log.warn(err).sendInternalLogToServer();
                 // signal the sharedworker to call forceOffline again when network connection
                 // has been re-established (this happens in case of network or backend failures)
                 setForceOfflineUpstream(true, nextActiveArn);
                 failureEncountered = true;
-              }});
+              }
+            });
           }
         }
       } else {
@@ -420,7 +438,7 @@
     connect.core.initTaskTemplatesClient(params);
     connect.core.initialized = true;
   };
- 
+
   /**-------------------------------------------------------------------------
    * Initialized AWS client
    * Should be used by Shared Worker to update AWS client with new credentials
@@ -428,11 +446,10 @@
    */
   connect.core.initClient = function (params) {
     connect.assertNotNull(params, 'params');
-    
+
     var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
     var region = connect.assertNotNull(params.region, 'params.region');
     var endpoint = params.endpoint || null;
- 
     connect.core.client = new connect.AWSClient(authToken, region, endpoint);
   };
 
@@ -442,11 +459,11 @@
    * after refreshed authentication.
    */
   connect.core.initAgentAppClient = function (params) {
-    connect.assertNotNull(params, 'params');    
+    connect.assertNotNull(params, 'params');
     var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
     var authCookieName = connect.assertNotNull(params.authCookieName, 'params.authCookieName');
     var endpoint = connect.assertNotNull(params.agentAppEndpoint, 'params.agentAppEndpoint');
-    
+
     connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
   };
 
@@ -459,7 +476,7 @@
     connect.assertNotNull(endpoint, 'taskTemplatesEndpoint');
     connect.core.taskTemplatesClient = new connect.TaskTemplatesClient(endpoint);
   };
- 
+
   /**-------------------------------------------------------------------------
    * Uninitialize Connect.
    */
@@ -481,15 +498,16 @@
     connect.core.initialized = false;
   };
  
-  /**-------------------------------------------------------------------------
-   * Setup the SoftphoneManager to be initialized when the agent
-   * is determined to have softphone enabled.
-   */
-  connect.core.softphoneUserMediaStream = null;
+/**-------------------------------------------------------------------------
+ * Setup the SoftphoneManager to be initialized when the agent
+ * is determined to have softphone enabled.
+ */
+connect.core.softphoneUserMediaStream = null;
+
+connect.core.setSoftphoneUserMediaStream = function (stream) {
+  connect.core.softphoneUserMediaStream = stream;
+};
  
-  connect.core.setSoftphoneUserMediaStream = function (stream) {
-    connect.core.softphoneUserMediaStream = stream;
-  };
 
   connect.core.initRingtoneEngines = function (params, _setRingerDevice) {
     connect.getLog().info("[Ringtone Engine] initRingtoneEngine started").withObject({params}).sendInternalLogToServer();
@@ -501,9 +519,9 @@
       connect.assertTrue(ringtoneSettings.voice.ringtoneUrl || ringtoneSettings.voice.disabled, "ringtoneSettings.voice.ringtoneUrl must be provided or ringtoneSettings.voice.disabled must be true");
       connect.assertNotNull(ringtoneSettings.queue_callback, "ringtoneSettings.queue_callback");
       connect.assertTrue(ringtoneSettings.queue_callback.ringtoneUrl || ringtoneSettings.queue_callback.disabled, "ringtoneSettings.voice.ringtoneUrl must be provided or ringtoneSettings.queue_callback.disabled must be true");
- 
+
       connect.core.ringtoneEngines = {};
- 
+
       connect.agent(function (agent) {
         agent.onRefresh(function () {
           connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
@@ -514,21 +532,21 @@
               isInitializedAnyEngine = true;
               connect.getLog().info("VoiceRingtoneEngine initialized.").sendInternalLogToServer();
             }
- 
+
             if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
               connect.core.ringtoneEngines.chat =
                 new connect.ChatRingtoneEngine(ringtoneSettings.chat);
               isInitializedAnyEngine = true;
               connect.getLog().info("ChatRingtoneEngine initialized.").sendInternalLogToServer();
             }
- 
+
             if (!ringtoneSettings.task.disabled && !connect.core.ringtoneEngines.task) {
               connect.core.ringtoneEngines.task =
                 new connect.TaskRingtoneEngine(ringtoneSettings.task);
               isInitializedAnyEngine = true;
               connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
- 
+
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
@@ -545,7 +563,7 @@
 
       handleRingerDeviceChange();
     };
- 
+
     var mergeParams = function (params, otherParams) {
       // For backwards compatibility: support pulling disabled flag and ringtoneUrl
       // from softphone config if it exists from downstream into the ringtone config.
@@ -554,24 +572,25 @@
       params.ringtone.queue_callback = params.ringtone.queue_callback || {};
       params.ringtone.chat = params.ringtone.chat || { disabled: true };
       params.ringtone.task = params.ringtone.task || { disabled: true };
- 
+
+
       if (otherParams.softphone) {
         if (otherParams.softphone.disableRingtone) {
           params.ringtone.voice.disabled = true;
           params.ringtone.queue_callback.disabled = true;
         }
- 
+
         if (otherParams.softphone.ringtoneUrl) {
           params.ringtone.voice.ringtoneUrl = otherParams.softphone.ringtoneUrl;
           params.ringtone.queue_callback.ringtoneUrl = otherParams.softphone.ringtoneUrl;
         }
       }
- 
+
       if (otherParams.chat) {
         if (otherParams.chat.disableRingtone) {
           params.ringtone.chat.disabled = true;
         }
- 
+
         if (otherParams.chat.ringtoneUrl) {
           params.ringtone.chat.ringtoneUrl = otherParams.chat.ringtoneUrl;
         }
@@ -594,9 +613,9 @@
         params.ringtone.queue_callback = connect.merge(params.ringtone.queue_callback,
           otherParams.ringtone.voice || {});
         params.ringtone.chat = connect.merge(params.ringtone.chat,
-            otherParams.ringtone.chat || {});
+          otherParams.ringtone.chat || {});
         params.ringtone.task = connect.merge(params.ringtone.task,
-            otherParams.ringtone.task || {});
+          otherParams.ringtone.task || {});
       }
     };
 
@@ -618,12 +637,12 @@
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
         global.clearTimeout(configureMessageTimer); // we don't need to re-init ringtone engine as we recieved configure event
         connect.getLog().info("[Ringtone Engine] Configure event handler executed").sendInternalLogToServer();
-        
+
         this.unsubscribe();
         // Merge all params from data into params for any overridden
         // values in either legacy "softphone" or "ringtone" settings.
         mergeParams(params, data);
-        
+
         // overwrite/store ringtone params on a configure event
         ringtoneParamsStorage.set(params.ringtone);
         setupRingtoneEngines(params.ringtone);
@@ -635,19 +654,19 @@
        * and waits for CCP to load succesfully to apply the same to setup ringtone engine
        */
       const ringtoneParamsFromLocalStorage = ringtoneParamsStorage.get();
-      if(ringtoneParamsFromLocalStorage) {
-        connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function(args) {
+      if (ringtoneParamsFromLocalStorage) {
+        connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function (args) {
           // only care about shared worker ACK which indicates CCP successfull load
           const ackFromSharedWorker = args && args.id;
-          if(ackFromSharedWorker) {
+          if (ackFromSharedWorker) {
             connect.getLog().info("[RingtoneEngine] Embedded CCP is refreshed successfully and waiting for configure Message handler to execute").sendInternalLogToServer();
             this.unsubscribe();
             configureMessageTimer = global.setTimeout(() => {
               connect.getLog().info("[RingtoneEngine] Embedded CCP is refreshed without configure message & Initializing setupRingtoneEngines (Ringtone Engine) from localStorage ringtone params. ")
-                .withObject({ringtone: ringtoneParamsFromLocalStorage})
+                .withObject({ ringtone: ringtoneParamsFromLocalStorage })
                 .sendInternalLogToServer();
               setupRingtoneEngines(ringtoneParamsFromLocalStorage);
-              
+
               // 100 ms is from the time it takes to execute few lines of JS code to trigger the configure event (this is done in initCCP)
               // which is in fraction of milisecond.  so to be on the safer side we are keeping it to be 100
               // this number is pulled from performance.now() calculations.
@@ -660,7 +679,7 @@
     }
   };
 
-  var handleRingerDeviceChange = function() {
+  var handleRingerDeviceChange = function () {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.ConfigurationEvents.SET_RINGER_DEVICE, setRingerDevice);
   }
@@ -688,10 +707,10 @@
 
     for (let ringtoneType in connect.core.ringtoneEngines) {
       connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId)
-        .then(function(res) {
+        .then(function (res) {
           connect.getLog().info(`[Audio Device Settings] ringtoneType ${ringtoneType} successfully set to deviceid ${res}`).sendInternalLogToServer();
         })
-        .catch(function(err) {
+        .catch(function (err) {
           connect.getLog().error(err)
         });
     }
@@ -713,15 +732,16 @@
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
         }
+
         agent.onRefresh(function () {
           var sub = this;
           connect.getLog().info("[Softphone Manager] agent refresh handler executed").sendInternalLogToServer();
- 
+
           connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
             connect.getLog().info("[Softphone Manager] confirmed as softphone master topic").sendInternalLogToServer();
+
             if (!connect.core.softphoneManager && agent.isSoftphoneEnabled()) {
               // Become master to send logs, since we need logs from softphone tab.
-              connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
               connect.core.softphoneManager = new connect.SoftphoneManager(softphoneParams);
               sub.unsubscribe();
             }
@@ -731,8 +751,8 @@
     };
 
     /**
-      * If the window is framed and if it's the CCP app then we need to wait for a CONFIGURE message from downstream before we initialize softphone manager.
-      * All medialess softphone initialization cases goes to else check and doesn't wait for CONFIGURE message
+     * If the window is framed and if it's the CCP app then we need to wait for a CONFIGURE message from downstream before we initialize softphone manager.
+     * All medialess softphone initialization cases goes to else check and doesn't wait for CONFIGURE message
      */
 
 
@@ -742,7 +762,7 @@
       var bus = connect.core.getEventBus();
 
       // Configure handler triggers the softphone manager initiation.
-      // This event is propagted by initCCP call from the end customers 
+      // This event is propagted by initCCP call from the end customers
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
         global.clearTimeout(configureMessageTimer); // we don't need to re-init softphone manager as we recieved configure event
         connect.getLog().info("[Softphone Manager] Configure event handler executed").withObject({ data }).sendInternalLogToServer();
@@ -760,13 +780,11 @@
        * This snippet needs at least one initCCP invocation which sets the params to the store
        * and waits for CCP to load successfully to apply the same to init Softphone manager
        */
-
       let softphoneParamsFromLocalStorage = softphoneParamsStorage.get();
-
       if (softphoneParamsFromLocalStorage) {
         connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function (args) {
           // only care about shared worker ACK which indicates CCP successfull load
-          let ackFromSharedWorker =  args && args.id;
+          let ackFromSharedWorker = args && args.id;
           if (ackFromSharedWorker) {
             connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed successfully and waiting for configure Message handler to execute").sendInternalLogToServer();
             this.unsubscribe();
@@ -783,7 +801,7 @@
                 connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed & Initializing competeForMasterOnAgentUpdate (Softphone manager) from localStorage softphone params").sendInternalLogToServer();
                 competeForMasterOnAgentUpdate(softphoneParamsFromLocalStorage);
               }
-              // 100 ms is from the time it takes to execute few lines of JS code to trigger the configure event (this is done in initCCP) 
+              // 100 ms is from the time it takes to execute few lines of JS code to trigger the configure event (this is done in initCCP)
               // which is in fraction of milisecond.  so to be on the safer side we are keeping it to be 100
               // this number is pulled from performance.now() calculations.
             }, 100);
@@ -796,7 +814,7 @@
     }
 
     connect.agent(function (agent) {
-      // Sync mute across all tabs 
+      // Sync mute across all tabs
       if (agent.isSoftphoneEnabled() && agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
         connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
           {
@@ -915,14 +933,14 @@
           navigator.mediaDevices.enumerateDevices()
             .then(function (devicesIn) {
               devices = devicesIn || [];
-              devices = devices.map(function(d) { return d.toJSON() });
+              devices = devices.map(function (d) { return d.toJSON() });
               sendDevices(devices);
             })
             .catch(function (err) {
-              sendDevices({error: err.message});
+              sendDevices({ error: err.message });
             });
         } else {
-          sendDevices({error: "No navigator or navigator.mediaDevices object found"});
+          sendDevices({ error: "No navigator or navigator.mediaDevices object found" });
         }
       });
     }
@@ -933,7 +951,7 @@
     connect.core.apiProxyClient = new connect.ApiProxyClient();
     if (connect.isFramed()) {
       connect.core.handleApiProxyRequest = function (request) {
-        if(!request?.method) return;
+        if (!request?.method) return;
         const successCB = function (data) {
           const response = { data, requestId: request.requestId };
           connect.core.getUpstream().sendDownstream(connect.EventType.API_RESPONSE, response);
@@ -957,8 +975,8 @@
     var sub = null;
     var timeout = timeoutIn || 1000;
     var timeoutPromise = new Promise(function (resolve, reject) {
-      setTimeout(function () { 
-        reject(new Error("Timeout exceeded")); 
+      setTimeout(function () {
+        reject(new Error("Timeout exceeded"));
       }, timeout);
     });
     var mediaDevicesPromise = new Promise(function (resolve, reject) {
@@ -1007,7 +1025,7 @@
     }
     return connect.fetch(authorizeEndpoint, options, AUTHORIZE_RETRY_INTERVAL, AUTHORIZE_MAX_RETRY);
   };
- 
+
   /**
    * @deprecated
    * This used to be used internally, but is no longer needed.
@@ -1023,7 +1041,7 @@
       }
     };
     var whitelistedOriginsEndpoint = null;
-    if (endpoint){
+    if (endpoint) {
       whitelistedOriginsEndpoint = endpoint;
     }
     else {
@@ -1031,7 +1049,7 @@
         ? LEGACY_WHITELISTED_ORIGINS_ENDPOINT
         : WHITELISTED_ORIGINS_ENDPOINT;
     }
-    
+
     return connect.fetch(whitelistedOriginsEndpoint, options, WHITELISTED_ORIGINS_RETRY_INTERVAL, WHITELISTED_ORIGINS_MAX_RETRY).then(function (response) {
       var topDomain = sanitizeDomain(window.document.referrer);
       var isAllowed = response.whitelistedOrigins.some(function (origin) {
@@ -1042,14 +1060,14 @@
   };
 
   /**-------------------------------------------------------------------------
-   * Returns true if this window's href is on the legacy connect domain. 
-   * Only useful for internal use. 
+   * Returns true if this window's href is on the legacy connect domain.
+   * Only useful for internal use.
    */
-  connect.core.isLegacyDomain = function(url) {
+  connect.core.isLegacyDomain = function (url) {
     url = url || window.location.href;
     return url.includes('.awsapps.com');
   }
- 
+
 
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
@@ -1251,15 +1269,15 @@
     }
   };
 
-  connect.core._setTabId = function() {
+  connect.core._setTabId = function () {
     try {
       connect.core.tabId = window.sessionStorage.getItem(connect.SessionStorageKeys.TAB_ID);
-      if (!connect.core.tabId){
+      if (!connect.core.tabId) {
         connect.core.tabId = connect.randomId();
         window.sessionStorage.setItem(connect.SessionStorageKeys.TAB_ID, connect.core.tabId);
       }
-      connect.core.upstream.sendUpstream(connect.EventType.TAB_ID, {tabId: connect.core.tabId});
-    } catch(e) {
+      connect.core.upstream.sendUpstream(connect.EventType.TAB_ID, { tabId: connect.core.tabId });
+    } catch (e) {
       connect.getLog().error("[Tab Id] There was an issue setting the tab Id").withException(e).sendInternalLogToServer();
     }
   }
@@ -1277,13 +1295,13 @@
     // Check if CCP iframe has already been initialized through initCCP
     try {
       if (connect.core._getCCPIframe()) {
-          connect.getLog().error('Attempted to call initCCP when an iframe generated by initCCP already exists').sendInternalLogToServer();
-          return;
-        }
-    } catch(e) {
+        connect.getLog().error('Attempted to call initCCP when an iframe generated by initCCP already exists').sendInternalLogToServer();
+        return;
+      }
+    } catch (e) {
       connect.getLog().error('Error while checking if initCCP has already been called').withException(e).sendInternalLogToServer();
     }
- 
+
     // For backwards compatibility, when instead of taking a params object
     // as input we only accepted ccpUrl.
     var params = {};
@@ -1292,18 +1310,38 @@
     } else {
       params = paramsIn;
     }
- 
+
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
 
+    connect.core.iframeStyle = params.style || "width: 100%; height: 100%;";
+
     // Clean up the Softphone and Ringtone params store to make sure we always pull the latest params
-    if(!params.softphone?.disableStoringParamsInLocalStorage) {
+    if (!params.softphone?.disableStoringParamsInLocalStorage) {
       softphoneParamsStorage.clean();
       ringtoneParamsStorage.clean();
     }
 
     // init StorageAccess with the incoming params
     connect.storageAccess.init(params.ccpUrl, containerDiv, params.storageAccess || {});
+
+     // This is emitted further below as event bus and customer event callbacks are not created yet.
+    let acgrParamError = null;
+    if (params?.enableGlobalResiliency === true){
+      if (typeof (params?.secondaryCCPUrl) !== 'string' || params?.secondaryCCPUrl === ''){
+        const log = "enableGlobalResiliency flag was enabled, but secondaryCCPUrl was not provided. Global Resiliency will not be enabled";
+        connect.getLog().error(log).sendInternalLogToServer();
+        acgrParamError = {event: connect.GlobalResiliencyEvents.CONFIGURE_ERROR, data: new Error(log)}
+      } else if (typeof (params?.loginUrl) !== 'string' || params?.loginUrl === ''){
+        const log = "enableGlobalResiliency flag was enabled, but loginUrl was not provided. Global Resiliency will not be enabled";
+        connect.getLog().error(log).sendInternalLogToServer();
+        acgrParamError = {event: connect.GlobalResiliencyEvents.CONFIGURE_ERROR, data: new Error(log)}
+      } else {
+        connect.getLog().info("enableGlobalResiliency flag was enabled and secondaryCCPUrl and loginUrl was provided. Global Resiliency will be enabled").sendInternalLogToServer();
+
+        return connect.globalResiliency.initGRCCP(containerDiv, paramsIn);
+      }
+    }
 
     var iframe = connect.core._createCCPIframe(containerDiv, params);
     // Build the upstream conduit communicating with the CCP iframe.
@@ -1320,7 +1358,7 @@
     if (connect.storageAccess.canRequest()) {
       // Create the Iframe and load the RSA banner and append it to the container div.
       connect.storageAccess.setupRequestHandlers({ onGrant: setupInitCCP });
-    }else{
+    } else {
       setupInitCCP();
     }
 
@@ -1391,13 +1429,18 @@
           connect.core.ccpLoadTimeoutInstance = null;
         }
 
-         conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
+        conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
 
         connect.core.keepaliveManager.start();
         this.unsubscribe();
 
         connect.core.initialized = true;
         connect.core.getEventBus().trigger(connect.EventType.INIT);
+
+        if (acgrParamError){
+          connect.core.getEventBus().trigger(acgrParamError.event, acgrParamError.data);
+        }
+
         if (initStartTime) {
           var initTime = Date.now() - initStartTime;
           var refreshAttempts = connect.core.iframeRefreshAttempt || 0;
@@ -1444,36 +1487,37 @@
         }
       });
 
-      // Pop a login page when we encounter an ACK timeout.
-      connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
-        // loginPopup is true by default, only false if explicitly set to false.
-        if (params.loginPopup !== false) {
-          try {
-            var loginUrl = getLoginUrl(params);
-            connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
-            connect.core._openPopupWithLock(loginUrl, params.loginOptions)
-          } catch (e) {
-            connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
-          }
+     // Pop a login page when we encounter an ACK timeout.
+     connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
+      // loginPopup is true by default, only false if explicitly set to false.
+      if (params.loginPopup !== false) {
+        try {
+          var loginUrl = getLoginUrl(params);
+          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
+          connect.core._openPopupWithLock(loginUrl, params.loginOptions)
+        } catch (e) {
+          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
         }
+      }
 
-        if (connect.core.iframeRefreshTimeout == null) {
-          try {
-            conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-              this.unsubscribe();
-              global.clearTimeout(connect.core.iframeRefreshTimeout);
-              connect.core.iframeRefreshTimeout = null;
-              if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
-                connect.core.loginWindow.close();
-                connect.core.loginWindow = null;
-              }
-            });
-            connect.core._refreshIframeOnTimeout(params, containerDiv);
-          } catch (e) {
-            connect.getLog().error("Error occurred while refreshing iframe").withException(e).sendInternalLogToServer();
-          }
+      if (connect.core.iframeRefreshTimeout == null) {
+        try {
+          conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+            this.unsubscribe();
+            global.clearTimeout(connect.core.iframeRefreshTimeout);
+            connect.core.iframeRefreshTimeout = null;
+            if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
+              connect.core.loginWindow.close();
+              connect.core.loginWindow = null;
+            }
+          });
+          connect.core._refreshIframeOnTimeout(params, containerDiv);
+        } catch (e) {
+          connect.getLog().error("Error occurred while refreshing iframe").withException(e).sendInternalLogToServer();
         }
-      });
+      }
+    });
+
 
       if (params.onViewContact) {
         connect.core.onViewContact(params.onViewContact);
@@ -1561,63 +1605,100 @@
     }
   };
 
-  connect.core.onIframeRetriesExhausted = function(f) {
+  connect.core.onIframeRetriesExhausted = function (f) {
     connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, f);
   }
 
-  connect.core._refreshIframeOnTimeout = function(initCCPParams, containerDiv) {
+  connect.core._refreshIframeOnTimeout = function (initCCPParams, containerDiv, timerContainer, identifier) {
     connect.assertNotNull(initCCPParams, 'initCCPParams');
     connect.assertNotNull(containerDiv, 'containerDiv');
+    const obj = timerContainer || connect.core;
+
     // ccpIframeRefreshInterval is the ccpLoadTimeout passed into initCCP
     // if no ccpLoadTimeout is passed in, the interval is the default, which depends on if disaster recovery is on
     var ccpIframeRefreshInterval = (initCCPParams.ccpLoadTimeout) ? (initCCPParams.ccpLoadTimeout)
       : (initCCPParams.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL
-        : CCP_IFRAME_REFRESH_INTERVAL;
-    global.clearTimeout(connect.core.iframeRefreshTimeout);
-    connect.core.iframeRefreshTimeout = global.setTimeout(function() {
-      connect.core.iframeRefreshAttempt = (connect.core.iframeRefreshAttempt || 0) + 1;
-      if (connect.core.iframeRefreshAttempt <= CCP_IFRAME_REFRESH_LIMIT) {
-        try {
-          var iframe = connect.core._getCCPIframe();
-          if (iframe) {
-            iframe.parentNode.removeChild(iframe); // The only way to force a synchronous reload of the iframe without the old iframe continuing to function is to remove the old iframe entirely.
-          }
-          var newIframe = connect.core._createCCPIframe(containerDiv, initCCPParams);
-          connect.core.upstream.upstream.output = newIframe.contentWindow; //replaces the output window (old iframe's contentWindow) of the WindowIOStream (within the IFrameConduit) with the new iframe's contentWindow.
-          connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(newIframe, connect.core.upstream);
-        } catch(e) {
-          connect.getLog().error('Error while checking for, and recreating, the CCP IFrame').withException(e).sendInternalLogToServer();
-        }
-        connect.core._refreshIframeOnTimeout(initCCPParams, containerDiv);
+      : CCP_IFRAME_REFRESH_INTERVAL;
+
+    global.clearTimeout(obj.iframeRefreshTimeout);
+
+    obj.iframeRefreshTimeout = global.setTimeout(function () {
+      obj.iframeRefreshAttempt = (obj.iframeRefreshAttempt || 0) + 1;
+      if (obj.iframeRefreshAttempt <= CCP_IFRAME_REFRESH_LIMIT) {
+        connect.getLog().info(`Refreshing the CCP IFrame for ${initCCPParams.ccpUrl} on attempt ${obj.iframeRefreshAttempt}`).sendInternalLogToServer();
+        connect.core._replaceCCPIframe(containerDiv, initCCPParams, identifier);
+        connect.core._refreshIframeOnTimeout(initCCPParams, containerDiv, timerContainer, identifier);
       } else {
-        connect.core.getEventBus().trigger(connect.EventType.IFRAME_RETRIES_EXHAUSTED);
-        global.clearTimeout(connect.core.iframeRefreshTimeout);
+        connect.core.getEventBus().trigger(connect.EventType.IFRAME_RETRIES_EXHAUSTED, identifier);
+        global.clearTimeout(obj.iframeRefreshTimeout);
       }
     }, ccpIframeRefreshInterval);
   }
 
+  connect.core._replaceCCPIframe = function (containerDiv, initCCPParams, identifier) {
+    try {
+      var iframe = connect.core._getCCPIframe(identifier);
+      // Needed because in Global Resiliency, iframe may have been hidden and needs to remain hidden.
+      var iframeStyle = null;
 
-  connect.core._getCCPIframe = function() {
+      if (iframe) {
+        iframeStyle = iframe.style;
+        iframe.parentNode.removeChild(iframe); // The only way to force a synchronous reload of the iframe without the old iframe continuing to function is to remove the old iframe entirely.
+      }
+      var newIframe = connect.core._createCCPIframe(containerDiv, initCCPParams, identifier);
+
+      // Needed as show and hide iframe functions may modify iframe style
+      if (iframeStyle){
+        newIframe.style = iframeStyle.cssText;
+      }
+
+      if (connect.core.getUpstream() instanceof connect.GRProxyIframeConduit){
+        const grProxyConduit = connect.core.upstream;
+        grProxyConduit.getAllConduits().forEach((conduit) => {
+          if (conduit.iframe.dataset.identifier === identifier){
+            conduit.upstream.output = newIframe.contentWindow;
+          }
+        });
+      } else {
+        connect.core.getUpstream().upstream.output = newIframe.contentWindow; //replaces the output window (old iframe's contentWindow) of the WindowIOStream (within the IFrameConduit) with the new iframe's contentWindow.
+      }
+      connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(newIframe, connect.core.upstream);
+    } catch (e) {
+      connect.getLog().error('Error while checking for, and recreating, the CCP IFrame').withException(e).sendInternalLogToServer();
+    }
+  }
+
+
+  connect.core._getCCPIframe = function (identifier) {
     for (var iframe of window.document.getElementsByTagName('iframe')) {
       if (iframe.name === CCP_IFRAME_NAME) {
-        return iframe;
+        if (!identifier || iframe.dataset?.identifier === identifier) {
+          // For global resiliency, there can be multiple CCP iframes with the same name.
+          // Return iframe only if the iframe's data-region value matches the specified region.
+          return iframe;
+        }
       }
     }
     return null;
   }
 
 
-  connect.core._createCCPIframe = function (containerDiv, initCCPParams) {
+  connect.core._createCCPIframe = function (containerDiv, initCCPParams, identifier) {
     connect.assertNotNull(initCCPParams, 'initCCPParams');
     connect.assertNotNull(containerDiv, 'containerDiv');
     var iframe = document.createElement('iframe');
-    iframe.src =  initCCPParams.ccpUrl;
+    iframe.src = initCCPParams.ccpUrl;
     iframe.allow = "microphone; camera; autoplay; clipboard-write; identity-credentials-get";
-    iframe.style = initCCPParams.style || "width: 100%; height: 100%";
+    iframe.style = initCCPParams.style || connect.core.iframeStyle;
     iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
     iframe.name = CCP_IFRAME_NAME;
-    //for Storage Access follow the rsa path
+
+    if (identifier) {
+      iframe.dataset.identifier = identifier;
+    }
+
     if(connect.storageAccess.canRequest()){
+      //for Storage Access follow the rsa path
       iframe.src = connect.storageAccess.getRequestStorageAccessUrl();
       iframe.addEventListener('load', connect.storageAccess.request);
     }
@@ -1625,10 +1706,19 @@
     return iframe;
   }
 
-  connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime = function(iframe, conduit) {
+  connect.core._hideIframe = function (iframe) {
+    iframe.style = connect.core.iframeStyle + "display: none;";
+  }
+
+  connect.core._showIframe = function (iframe) {
+    iframe.style = connect.core.iframeStyle;
+  }
+
+
+  connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime = function (iframe, conduit) {
     connect.assertNotNull(iframe, 'iframe');
     connect.assertNotNull(conduit, 'conduit');
-    setTimeout(function() {
+    setTimeout(function () {
       var style = window.getComputedStyle(iframe, null);
       var data = {
         display: style.display,
@@ -1639,7 +1729,7 @@
       conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
     }, 10000);
   }
- 
+
   /**-----------------------------------------------------------------------*/
   var KeepaliveManager = function (conduit, eventBus, synTimeout, ackTimeout) {
     this.conduit = conduit;
@@ -1650,10 +1740,10 @@
     this.synTimer = null;
     this.ackSub = null;
   };
- 
+
   KeepaliveManager.prototype.start = function () {
     var self = this;
- 
+
     this.conduit.sendUpstream(connect.EventType.SYNCHRONIZE);
     this.ackSub = this.conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
       this.unsubscribe();
@@ -1662,11 +1752,16 @@
     });
     this.ackTimer = global.setTimeout(function () {
       self.ackSub.unsubscribe();
-      self.eventBus.trigger(connect.EventType.ACK_TIMEOUT);
+      if (connect.isActiveConduit(self.conduit)) {
+        connect.getLog().info(`ACK_TIMEOUT event is detected from the KeepaliveManager. ${self.conduit.name}`).sendInternalLogToServer();
+        self.eventBus.trigger(connect.EventType.ACK_TIMEOUT);
+      } else {
+        connect.getLog().warn(`ACK_TIMEOUT event is detected from the KeepaliveManager but suppressed as it is from an inactive region. ${self.conduit.name}`).sendInternalLogToServer();
+      }
       self._deferStart();
     }, this.ackTimeout);
   };
- 
+
   //Fixes the keepalivemanager.
   KeepaliveManager.prototype._deferStart = function () {
     this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
@@ -1678,11 +1773,11 @@
       this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
     }
   };
- 
+
   /**-----------------------------------------------------------------------*/
- 
+
   var WebSocketProvider = function () {
- 
+
     var callbacks = {
       initFailure: new Set(),
       subscriptionUpdate: new Set(),
@@ -1694,13 +1789,13 @@
       connectionOpen: new Set(),
       connectionClose: new Set()
     };
- 
+
     var invokeCallbacks = function (callbacks, response) {
       callbacks.forEach(function (callback) {
         callback(response);
       });
     };
- 
+
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.INIT_FAILURE, function () {
       invokeCallbacks(callbacks.initFailure);
     });
@@ -1720,26 +1815,26 @@
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.CONNECTION_LOST, function (response) {
       invokeCallbacks(callbacks.connectionLost, response);
     });
- 
+
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.SUBSCRIPTION_UPDATE, function (response) {
       invokeCallbacks(callbacks.subscriptionUpdate, response);
     });
- 
+
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.SUBSCRIPTION_FAILURE, function (response) {
       invokeCallbacks(callbacks.subscriptionFailure, response);
     });
- 
+
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.ALL_MESSAGE, function (response) {
       invokeCallbacks(callbacks.allMessage, response);
       if (callbacks.topic.has(response.topic)) {
         invokeCallbacks(callbacks.topic.get(response.topic), response);
       }
     });
- 
+
     this.sendMessage = function (webSocketPayload) {
       connect.core.getUpstream().sendUpstream(connect.WebSocketEvents.SEND, webSocketPayload);
     };
- 
+
     this.onInitFailure = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.initFailure.add(cb);
@@ -1748,7 +1843,7 @@
       };
     };
 
-    this.onConnectionOpen = function(cb) {
+    this.onConnectionOpen = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.connectionOpen.add(cb);
       return function () {
@@ -1756,7 +1851,7 @@
       };
     };
 
-    this.onConnectionClose = function(cb) {
+    this.onConnectionClose = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.connectionClose.add(cb);
       return function () {
@@ -1771,7 +1866,7 @@
         return callbacks.connectionGain.delete(cb);
       };
     };
- 
+
     this.onConnectionLost = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.connectionLost.add(cb);
@@ -1779,7 +1874,7 @@
         return callbacks.connectionLost.delete(cb);
       };
     };
- 
+
     this.onSubscriptionUpdate = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.subscriptionUpdate.add(cb);
@@ -1787,7 +1882,7 @@
         return callbacks.subscriptionUpdate.delete(cb);
       };
     };
- 
+
     this.onSubscriptionFailure = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.subscriptionFailure.add(cb);
@@ -1795,13 +1890,13 @@
         return callbacks.subscriptionFailure.delete(cb);
       };
     };
- 
+
     this.subscribeTopics = function (topics) {
       connect.assertNotNull(topics, 'topics');
       connect.assertTrue(connect.isArray(topics), 'topics must be a array');
       connect.core.getUpstream().sendUpstream(connect.WebSocketEvents.SUBSCRIBE, topics);
     };
- 
+
     this.onMessage = function (topicName, cb) {
       connect.assertNotNull(topicName, 'topicName');
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
@@ -1814,7 +1909,7 @@
         return callbacks.topic.get(topicName).delete(cb);
       };
     };
- 
+
     this.onAllMessage = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.allMessage.add(cb);
@@ -1822,16 +1917,15 @@
         return callbacks.allMessage.delete(cb);
       };
     };
- 
   };
- 
+
   /**-----------------------------------------------------------------------*/
   var AgentDataProvider = function (bus) {
     var agentData = null;
     this.bus = bus;
-    this.bus.subscribe(connect.AgentEvents.UPDATE, connect.hitch(this, this.updateAgentData));
+    this.agentUpdateSubscriber = this.bus.subscribe(connect.AgentEvents.UPDATE, connect.hitch(this, this.updateAgentData));
   };
- 
+
   AgentDataProvider.prototype.updateAgentData = function (agentData) {
     var oldAgentData = this.agentData;
     this.agentData = agentData;
@@ -1851,7 +1945,6 @@
       connect.getLog().error("[Metrics] Failed to send metrics.")
         .withException(e).sendInternalLogToServer();
     }
-
     if (oldAgentData == null) {
       connect.agent.initialized = true;
       this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
@@ -1864,44 +1957,44 @@
     if (this.agentData == null) {
       throw new connect.StateError('No agent data is available yet!');
     }
- 
+
     return this.agentData;
   };
- 
+
   AgentDataProvider.prototype.getContactData = function (contactId) {
     var agentData = this.getAgentData();
     var contactData = connect.find(agentData.snapshot.contacts, function (ctdata) {
       return ctdata.contactId === contactId;
     });
- 
+
     if (contactData == null) {
       throw new connect.StateError('Contact %s no longer exists.', contactId);
     }
- 
+
     return contactData;
   };
- 
+
   AgentDataProvider.prototype.getConnectionData = function (contactId, connectionId) {
     var contactData = this.getContactData(contactId);
     var connectionData = connect.find(contactData.connections, function (cdata) {
       return cdata.connectionId === connectionId;
     });
- 
+
     if (connectionData == null) {
       throw new connect.StateError('Connection %s for contact %s no longer exists.', connectionId, contactId);
     }
- 
+
     return connectionData;
   };
 
-  AgentDataProvider.prototype.getInstanceId = function(){
+  AgentDataProvider.prototype.getInstanceId = function () {
     return this.getAgentData().configuration.routingProfile.routingProfileId.match(/instance\/([0-9a-fA-F|-]+)\//)[1];
   }
 
-  AgentDataProvider.prototype.getAWSAccountId = function(){
+  AgentDataProvider.prototype.getAWSAccountId = function () {
     return this.getAgentData().configuration.routingProfile.routingProfileId.match(/:([0-9]+):instance/)[1];
   }
- 
+
   AgentDataProvider.prototype._diffContacts = function (oldAgentData) {
     var diff = {
       added: {},
@@ -1911,7 +2004,7 @@
       newMap: connect.index(this.agentData.snapshot.contacts, function (contact) { return contact.contactId; }),
       endTime: 0
     };
- 
+
     connect.keys(diff.oldMap).forEach(function (contactId) {
       if (connect.contains(diff.newMap, contactId)) {
         diff.common[contactId] = diff.newMap[contactId];
@@ -1919,7 +2012,7 @@
         diff.removed[contactId] = diff.oldMap[contactId];
       }
     });
- 
+
     connect.keys(diff.newMap).forEach(function (contactId) {
       if (!connect.contains(diff.oldMap, contactId)) {
         diff.added[contactId] = diff.newMap[contactId];
@@ -1928,7 +2021,7 @@
     diff.endTime = performance.now();
     return diff;
   };
- 
+
   AgentDataProvider.prototype._fireAgentUpdateEvents = function (oldAgentData) {
     var self = this;
     var diff = null;
@@ -1936,19 +2029,19 @@
     var newAgentState = this.agentData.snapshot.state.name;
     var oldRoutingState = oldAgentData == null ? connect.AgentStateType.INIT : oldAgentData.snapshot.state.type;
     var newRoutingState = this.agentData.snapshot.state.type;
- 
+
     if (oldRoutingState !== newRoutingState) {
       connect.core.getAgentRoutingEventGraph().getAssociations(this, oldRoutingState, newRoutingState).forEach(function (event) {
         self.bus.trigger(event, new connect.Agent());
       });
     }
- 
+
     if (oldAgentState !== newAgentState) {
       this.bus.trigger(connect.AgentEvents.STATE_CHANGE, {
         agent: new connect.Agent(),
         oldState: oldAgentState,
         newState: newAgentState
- 
+
       });
       connect.core.getAgentStateEventGraph().getAssociations(this, oldAgentState, newAgentState).forEach(function (event) {
         self.bus.trigger(event, new connect.Agent());
@@ -1960,7 +2053,7 @@
       self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
     }
 
-    const processingStart = performance.now();
+   const processingStart = performance.now();
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
     } else {
@@ -1979,13 +2072,13 @@
       self.bus.trigger(connect.ContactEvents.INIT, new connect.Contact(contactData.contactId));
       self._fireContactUpdateEvents(contactData.contactId, connect.ContactStateType.INIT, contactData.state.type);
     });
- 
+
     connect.values(diff.removed).forEach(function (contactData) {
       self.bus.trigger(connect.ContactEvents.DESTROYED, new connect.ContactSnapshot(contactData));
       self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.DESTROYED, contactData.contactId), new connect.ContactSnapshot(contactData));
       self._unsubAllContactEventsForContact(contactData.contactId);
     });
- 
+
     connect.keys(diff.common).forEach(function (contactId) {
       self._fireContactUpdateEvents(contactId, diff.oldMap[contactId].state.type, diff.newMap[contactId].state.type);
     });
@@ -2043,7 +2136,7 @@
     self.bus.trigger(connect.ContactEvents.REFRESH, new connect.Contact(contactId));
     self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.REFRESH, contactId), new connect.Contact(contactId));
   };
- 
+
   AgentDataProvider.prototype._unsubAllContactEventsForContact = function (contactId) {
     var self = this;
     connect.values(connect.ContactEvents).forEach(function (eventName) {
@@ -2051,15 +2144,20 @@
         .map(function (sub) { sub.unsubscribe(); });
     });
   };
- 
+
+  AgentDataProvider.prototype.destroy = function () {
+    var self = this;
+    self.agentUpdateSubscriber.unsubscribe();
+  }
+
   /** ----- minimal view layer event handling **/
- 
+
   connect.core.onViewContact = function (f) {
     connect.core.getUpstream().onUpstream(connect.ContactEvents.VIEW, f);
   };
- 
+
   /**
-   * Used of agent interface control. 
+   * Used of agent interface control.
    * connect.core.viewContact("contactId") ->  this is currently programmed to get the contact into view.
    */
   connect.core.viewContact = function (contactId) {
@@ -2072,22 +2170,22 @@
   };
 
   /** ----- minimal view layer event handling **/
- 
+
   connect.core.onActivateChannelWithViewType = function (f) {
     connect.core.getUpstream().onUpstream(connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
   };
- 
+
   /**
-   * Used of agent interface control. 
+   * Used of agent interface control.
    * connect.core.activateChannelWithViewType() ->  this is currently programmed to get either the number pad, quick connects, or create task into view.
    * the valid combinations are ("create_task", "task"), ("number_pad", "softphone"), ("create_task", "softphone"), ("quick_connects", "softphone")
    * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
    *
    * The 'source' is an optional parameter which indicates the requester. For example, if invoked with ("create_task", "task", "agentapp") we would know agentapp requested open task view.
-   * 
+   *
    * "caseId" is an optional parameter which is passed when a task is created from a Kesytone case
    */
-   connect.core.activateChannelWithViewType = function (viewType, mediaType, source, caseId) {
+  connect.core.activateChannelWithViewType = function (viewType, mediaType, source, caseId) {
     const data = { viewType, mediaType };
     if (source) {
       data.source = source;
@@ -2109,18 +2207,18 @@
   };
 
   /** ------------------------------------------------- */
- 
+
   /**
-  * This will be helpful for the custom and embedded CCPs 
-  * to handle the access denied use case. 
-  */
+   * This will be helpful for the custom and embedded CCPs
+   * to handle the access denied use case.
+   */
   connect.core.onAccessDenied = function (f) {
     connect.core.getUpstream().onUpstream(connect.EventType.ACCESS_DENIED, f);
   };
- 
+
   /**
-  * This will be helpful for SAML use cases to handle the custom logins. 
-  */
+   * This will be helpful for SAML use cases to handle the custom logins.
+   */
   connect.core.onAuthFail = function (f) {
     connect.core.getUpstream().onUpstream(connect.EventType.AUTH_FAIL, f);
   };
@@ -2129,11 +2227,11 @@
     connect.core.getUpstream().onUpstream(connect.EventType.AUTHORIZE_SUCCESS, f);
   }
 
-  connect.core._handleAuthorizeSuccess = function() {
+  connect.core._handleAuthorizeSuccess = function () {
     window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0);
   }
 
-  connect.core._handleAuthFail = function(loginUrl, authorizeEndpoint, authFailData) {
+  connect.core._handleAuthFail = function (loginUrl, authorizeEndpoint, authFailData) {
     if (authFailData && authFailData.authorize) {
       connect.core._handleAuthorizeFail(loginUrl);
     }
@@ -2142,7 +2240,7 @@
     }
   }
 
-  connect.core._handleAuthorizeFail = function(loginUrl) {
+  connect.core._handleAuthorizeFail = function (loginUrl) {
     let authRetryCount = connect.core._getAuthRetryCount()
     if (!connect.core.authorizeTimeoutId) {
       if (authRetryCount < connect.core.MAX_AUTHORIZE_RETRY_COUNT_FOR_SESSION) {
@@ -2152,28 +2250,28 @@
           connect.core._redirectToLogin(loginUrl);
         }, retryDelay); //We don't have to clear the timeoutId because we are redirecting away from this origin once the timeout completes.
       }
-      else  {
+      else {
         connect.getLog().warn("We have exhausted our authorization retries due to 401s from the authorize api. No more retries will be attempted in this session until the authorize api returns 200.").sendInternalLogToServer();
         connect.core.getEventBus().trigger(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED);
       }
     }
   }
 
-  connect.core._redirectToLogin = function(loginUrl) {
-    if (typeof(loginUrl) === 'string') {
+  connect.core._redirectToLogin = function (loginUrl) {
+    if (typeof (loginUrl) === 'string') {
       location.assign(loginUrl);
     } else {
       location.reload();
     }
   }
 
-  connect.core._handleCTIAuthFail = function(authorizeEndpoint) {
+  connect.core._handleCTIAuthFail = function (authorizeEndpoint) {
     if (!connect.core.ctiTimeoutId) {
       if (connect.core.ctiAuthRetryCount < connect.core.MAX_CTI_AUTH_RETRY_COUNT) {
         connect.core.ctiAuthRetryCount++;
         let retryDelay = AWS.util.calculateRetryDelay(connect.core.ctiAuthRetryCount || 0, { base: 500 });
         connect.core.ctiTimeoutId = setTimeout(() => {
-          connect.core.authorize(authorizeEndpoint).then(connect.core._triggerAuthorizeSuccess.bind(connect.core)).catch(connect.core._triggerAuthFail.bind(connect.core, {authorize: true}));
+          connect.core.authorize(authorizeEndpoint).then(connect.core._triggerAuthorizeSuccess.bind(connect.core)).catch(connect.core._triggerAuthFail.bind(connect.core, { authorize: true }));
           connect.core.ctiTimeoutId = null;
         }, retryDelay);
       }
@@ -2184,15 +2282,15 @@
     }
   }
 
-  connect.core._triggerAuthorizeSuccess = function() {
+  connect.core._triggerAuthorizeSuccess = function () {
     connect.core.getUpstream().upstreamBus.trigger(connect.EventType.AUTHORIZE_SUCCESS);
   }
 
-  connect.core._triggerAuthFail = function(data) {
+  connect.core._triggerAuthFail = function (data) {
     connect.core.getUpstream().upstreamBus.trigger(connect.EventType.AUTH_FAIL, data);
   }
 
-  connect.core._getAuthRetryCount = function() {
+  connect.core._getAuthRetryCount = function () {
     let item = window.sessionStorage.getItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT);
     if (item !== null) {
       if (!isNaN(parseInt(item))) {
@@ -2203,23 +2301,23 @@
     } else {
       window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 0);
       return 0;
-    } 
+    }
   }
 
-  connect.core._incrementAuthRetryCount = function() {
-    window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, (connect.core._getAuthRetryCount()+1).toString());
+  connect.core._incrementAuthRetryCount = function () {
+    window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, (connect.core._getAuthRetryCount() + 1).toString());
   }
 
-  connect.core.onAuthorizeRetriesExhausted = function(f) {
+  connect.core.onAuthorizeRetriesExhausted = function (f) {
     connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
   }
 
-  connect.core.onCTIAuthorizeRetriesExhausted = function(f) {
+  connect.core.onCTIAuthorizeRetriesExhausted = function (f) {
     connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
   }
- 
+
   /** ------------------------------------------------- */
- 
+
   /**
    * Used for handling the rtc session stats.
    * Usage
@@ -2227,22 +2325,22 @@
    *     var softphoneManager = connect.core.getSoftphoneManager();
    *     if(softphoneManager){
    *        // access session
-   *        var session = softphoneManager.getSession(connectionId); 
+   *        var session = softphoneManager.getSession(connectionId);
    *      }
    * });
    */
- 
+
   connect.core.onSoftphoneSessionInit = function (f) {
     connect.core.getUpstream().onUpstream(connect.ConnectionEvents.SESSION_INIT, f);
   };
- 
+
   /**-----------------------------------------------------------------------*/
-  connect.core.onConfigure = function(f) {
+  connect.core.onConfigure = function (f) {
     connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CONFIGURE, f);
   }
 
-   /**-----------------------------------------------------------------------*/
-   connect.core.onInitialized = function(f) {
+  /**-----------------------------------------------------------------------*/
+  connect.core.onInitialized = function (f) {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.EventType.INIT, f);
   }
@@ -2256,32 +2354,32 @@
     }
     return connect.sprintf('%s::%s', eventName, contactId);
   };
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getEventBus = function () {
     return connect.core.eventBus;
   };
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getWebSocketManager = function () {
     return connect.core.webSocketProvider;
   };
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getAgentDataProvider = function () {
     return connect.core.agentDataProvider;
   };
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getLocalTimestamp = function () {
     return connect.core.getAgentDataProvider().getAgentData().snapshot.localTimestamp;
   };
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getSkew = function () {
     return connect.core.getAgentDataProvider().getAgentData().snapshot.skew;
   };
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getAgentRoutingEventGraph = function () {
     return connect.core.agentRoutingEventGraph;
@@ -2309,7 +2407,7 @@
   connect.core.getContactEventGraph = function () {
     return connect.core.contactEventGraph;
   };
- 
+
   connect.core.contactEventGraph = new connect.EventGraph()
     .assoc(connect.EventGraph.ANY,
       connect.ContactStateType.INCOMING,
@@ -2377,7 +2475,7 @@
     return connect.core.agentAppClient;
   };
   connect.core.agentAppClient = null;
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getTaskTemplatesClient = function () {
     if (!connect.core.taskTemplatesClient) {
@@ -2395,13 +2493,13 @@
     return connect.core.masterClient;
   };
   connect.core.masterClient = null;
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getSoftphoneManager = function () {
     return connect.core.softphoneManager;
   };
   connect.core.softphoneManager = null;
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getNotificationManager = function () {
     if (!connect.core.notificationManager) {
@@ -2410,13 +2508,13 @@
     return connect.core.notificationManager;
   };
   connect.core.notificationManager = null;
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getPopupManager = function () {
     return connect.core.popupManager;
   };
   connect.core.popupManager = new connect.PopupManager();
- 
+
   /**-----------------------------------------------------------------------*/
   connect.core.getUpstream = function () {
     if (!connect.core.upstream) {
@@ -2425,8 +2523,29 @@
     return connect.core.upstream;
   };
   connect.core.upstream = null;
- 
+
+  /**-----------------------------------------------------------------------*/
+  connect.globalResiliency.onFailoverPending= function (f) {
+    return connect.core.getEventBus().subscribe(connect.GlobalResiliencyEvents.FAILOVER_PENDING_CRM, f);
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.globalResiliency.onFailoverCompleted= function (f) {
+    return connect.core.getEventBus().subscribe(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE, f);
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.globalResiliency.onConfigureError = function (f) {
+    return connect.core.getEventBus().subscribe(connect.GlobalResiliencyEvents.CONFIGURE_ERROR, f);
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.globalResiliency.getActiveRegion = function () {
+    return connect.globalResiliency._activeRegion;
+  };
+
   /**-----------------------------------------------------------------------*/
   connect.core.AgentDataProvider = AgentDataProvider;
- 
+  connect.WebSocketProvider = WebSocketProvider;
+  connect.KeepaliveManager = KeepaliveManager;
 })();

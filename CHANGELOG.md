@@ -1,5 +1,9 @@
 # CHANGELOG.md
 
+## [2.14.6] - 2024-08-16
+Added:
+- Global Resiliency implementation. See Documentation-GR.md for details.
+
 ## [2.14.5] - 2024-08-02
 Added:
 - Made change to prevent more than one login popup from appearing when an embedded CCP is opened in two or more tabs.

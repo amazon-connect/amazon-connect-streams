@@ -24,6 +24,7 @@
     'close',
     'configure',
     'log',
+    'download_log_from_ccp',
     'master_request',
     'master_response',
     'synchronize',
@@ -87,7 +88,8 @@
     'acw',
     'mute_toggle',
     'local_media_stream_created',
-    'enqueued_next_state'
+    'enqueued_next_state',
+    'fetch_agent_data_from_ccp'
   ]);
 
   /**---------------------------------------------------------------
@@ -133,7 +135,7 @@
   var TaskEvents = connect.makeNamespacedEnum('task', [
       'created'
   ]);
-
+  
   /**---------------------------------------------------------------
   * enum ConnectionEvents
   */
@@ -157,9 +159,9 @@
     'background_blur_changed'
   ]);
 
-  /**---------------------------------------------------------------
-   * enum Disaster Recovery Events
-   */
+   /**---------------------------------------------------------------
+    * enum Disaster Recovery Events
+    */
   var DisasterRecoveryEvents = connect.makeNamespacedEnum('disasterRecovery', [
     'suppress',
     'force_offline', // letting the sharedworker know to force offline
@@ -168,6 +170,20 @@
     'failover', // used to propagate failover state to other windows
     'failover_pending', // signals that a soft failover will occur when current voice contact ends
     'init_dr_polling'
+  ]);
+
+  // New Global Resiliency implementation
+  var GlobalResiliencyEvents = connect.makeNamespacedEnum('globalResiliency', [
+    'configure',
+    'configure_ccp_conduit',
+    'init',
+    'configure_error',
+    'failover_initiated',
+    'failover_pending',
+    'failover_pending_crm',
+    'failover_complete',
+    'heartbeat_syn',
+    'heartbeat_ack',
   ]);
 
   /**---------------------------------------------------------------
@@ -386,4 +402,5 @@
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
   connect.DisasterRecoveryEvents = DisasterRecoveryEvents;
+  connect.GlobalResiliencyEvents = GlobalResiliencyEvents;
 })();
