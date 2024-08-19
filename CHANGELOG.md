@@ -15,7 +15,7 @@ Updated:
 
 ## [2.14.2] - 2024-06-07
 Added:
-- `?visual-refresh=true` is used to access CCPUI's updated UI (aka CloudScape)
+- `?visual-refresh=true` is used to access CCPUI's updated UI (aka Cloudscape)
 - Adding typing for `getChannelContext()`
 
 Updated:
