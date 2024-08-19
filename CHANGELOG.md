@@ -4,6 +4,23 @@
 Added:
 - Made change to prevent more than one login popup from appearing when an embedded CCP is opened in two or more tabs.
 
+## [2.14.4] - 2024-08-01
+Added:
+- Adding `AWS_WORKSPACE` as an option in `VDIPlatform`
+
+## [2.14.3] - 2024-06-11
+Updated:
+- Fixed `hasAnySearchParameter` in agent-app.js
+- Disabled request-storage-access by default - this was preventing search params from being passed into initApp
+
+## [2.14.2] - 2024-06-07
+Added:
+- `?visual-refresh=true` is used to access CCPUI's updated UI (aka CloudScape)
+- Adding typing for `getChannelContext()`
+
+Updated:
+- Updating `initApp` to allow customers to call the method with search parameters which originally wasn't a feature. This enables customers with custom workspaces to attach params such as `?visual-refresh=true` or any values they wish to pass to this url.
+
 ## [2.14.1] - 2024-03-29
 Added:
 - `initCCP` param to set custom ringtone for chat.
