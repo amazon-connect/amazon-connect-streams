@@ -670,7 +670,7 @@ declare namespace connect {
     SYSTEM = "system",
 
     /** The agent is in an error state */
-    SYSTEM = "error",
+    ERROR = "error",
   }
 
   enum AgentAvailStates {
