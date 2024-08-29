@@ -207,6 +207,13 @@ declare namespace connect {
     getWebSocketManager(): any;
 
     /**
+     * Subscribes a callback that starts whenever a new webrtc session is created. Used for handling the rtc session stats.
+     *
+     * @param callback A callback that will start whenever a new webrtc session is created.
+     */
+    onSoftphoneSessionInit(callback: Function): Subscription;
+
+    /**
      * Subscribes a callback that executes when the CCP initialization is completed.
      *
      * @param callback A callback that will execute when the CCP initialization is completed.
