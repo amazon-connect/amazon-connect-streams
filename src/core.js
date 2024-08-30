@@ -1562,7 +1562,7 @@
   };
 
   connect.core.onIframeRetriesExhausted = function(f) {
-    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, f);
   }
 
   connect.core._refreshIframeOnTimeout = function(initCCPParams, containerDiv) {
@@ -2055,7 +2055,7 @@
   /** ----- minimal view layer event handling **/
  
   connect.core.onViewContact = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ContactEvents.VIEW, f);
+    return connect.core.getEventBus().subscribe(connect.ContactEvents.VIEW, f);
   };
  
   /**
@@ -2074,7 +2074,7 @@
   /** ----- minimal view layer event handling **/
  
   connect.core.onActivateChannelWithViewType = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
+    return connect.core.getEventBus().subscribe(connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
   };
  
   /**
@@ -2115,18 +2115,18 @@
   * to handle the access denied use case. 
   */
   connect.core.onAccessDenied = function (f) {
-    connect.core.getUpstream().onUpstream(connect.EventType.ACCESS_DENIED, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.ACCESS_DENIED, f);
   };
  
   /**
   * This will be helpful for SAML use cases to handle the custom logins. 
   */
   connect.core.onAuthFail = function (f) {
-    connect.core.getUpstream().onUpstream(connect.EventType.AUTH_FAIL, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.AUTH_FAIL, f);
   };
 
   connect.core.onAuthorizeSuccess = function (f) {
-    connect.core.getUpstream().onUpstream(connect.EventType.AUTHORIZE_SUCCESS, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_SUCCESS, f);
   }
 
   connect.core._handleAuthorizeSuccess = function() {
@@ -2211,11 +2211,11 @@
   }
 
   connect.core.onAuthorizeRetriesExhausted = function(f) {
-    connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
   }
 
   connect.core.onCTIAuthorizeRetriesExhausted = function(f) {
-    connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
   }
  
   /** ------------------------------------------------- */
@@ -2233,18 +2233,17 @@
    */
  
   connect.core.onSoftphoneSessionInit = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConnectionEvents.SESSION_INIT, f);
+    return connect.core.getEventBus().subscribe(connect.ConnectionEvents.SESSION_INIT, f);
   };
  
   /**-----------------------------------------------------------------------*/
   connect.core.onConfigure = function(f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CONFIGURE, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.CONFIGURE, f);
   }
 
    /**-----------------------------------------------------------------------*/
    connect.core.onInitialized = function(f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.EventType.INIT, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.INIT, f);
   }
 
   /**-----------------------------------------------------------------------*/

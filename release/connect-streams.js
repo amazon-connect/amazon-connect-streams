@@ -737,81 +737,71 @@
   };
 
   Agent.prototype.onRefresh = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.REFRESH, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.REFRESH, f);
   };
 
   Agent.prototype.onRoutable = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.ROUTABLE, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.ROUTABLE, f);
   };
 
   Agent.prototype.onNotRoutable = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.NOT_ROUTABLE, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.NOT_ROUTABLE, f);
   };
 
   Agent.prototype.onOffline = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.OFFLINE, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.OFFLINE, f);
   };
 
   Agent.prototype.onError = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.ERROR, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.ERROR, f);
   };
 
   Agent.prototype.onSoftphoneError = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.SOFTPHONE_ERROR, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.SOFTPHONE_ERROR, f);
   };
 
   Agent.prototype.onWebSocketConnectionLost = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST, f);
   }
 
   Agent.prototype.onWebSocketConnectionGained = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED, f);
   }
 
   Agent.prototype.onAfterCallWork = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.ACW, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.ACW, f);
   };
 
   Agent.prototype.onStateChange = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.STATE_CHANGE, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.STATE_CHANGE, f);
   };
 
   Agent.prototype.onMuteToggle = function (f) {
-    connect.core.getUpstream().onUpstream(connect.AgentEvents.MUTE_TOGGLE, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.MUTE_TOGGLE, f);
   };
 
   Agent.prototype.onLocalMediaStreamCreated = function (f) {
-    connect.core.getUpstream().onUpstream(connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED, f);
   };
 
   Agent.prototype.onSpeakerDeviceChanged = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED, f);
   }
 
   Agent.prototype.onMicrophoneDeviceChanged = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED, f);
   }
 
   Agent.prototype.onRingerDeviceChanged = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.RINGER_DEVICE_CHANGED, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.RINGER_DEVICE_CHANGED, f);
   }
 
   Agent.prototype.onCameraDeviceChanged = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CAMERA_DEVICE_CHANGED, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.CAMERA_DEVICE_CHANGED, f);
   }
 
   Agent.prototype.onBackgroundBlurChanged = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.BACKGROUND_BLUR_CHANGED, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.BACKGROUND_BLUR_CHANGED, f);
   }
 
   Agent.prototype.mute = function () {
@@ -1128,58 +1118,47 @@
   };
 
   Contact.prototype.onRefresh = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.REFRESH), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.REFRESH), f);
   };
 
   Contact.prototype.onIncoming = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.INCOMING), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.INCOMING), f);
   };
 
   Contact.prototype.onConnecting = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTING), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.CONNECTING), f);
   };
 
   Contact.prototype.onPending = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.PENDING), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.PENDING), f);
   };
 
   Contact.prototype.onAccepted = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.ACCEPTED), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.ACCEPTED), f);
   };
 
   Contact.prototype.onMissed = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.MISSED), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.MISSED), f);
   };
 
   Contact.prototype.onEnded = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.ENDED), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.ENDED), f);
   };
 
   Contact.prototype.onDestroy = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.DESTROYED), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.DESTROYED), f);
   };
 
   Contact.prototype.onACW = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.ACW), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.ACW), f);
   };
 
   Contact.prototype.onConnected = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTED), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.CONNECTED), f);
   };
 
   Contact.prototype.onError = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.ERROR), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.ERROR), f);
   }
 
   Contact.prototype.getContactId = function () {
@@ -26896,7 +26875,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
 
   connect.core = {};
   connect.core.initialized = false;
-  connect.version = "2.14.5";
+  connect.version = "2.14.6";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
  
@@ -28447,7 +28426,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   };
 
   connect.core.onIframeRetriesExhausted = function(f) {
-    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, f);
   }
 
   connect.core._refreshIframeOnTimeout = function(initCCPParams, containerDiv) {
@@ -28940,7 +28919,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   /** ----- minimal view layer event handling **/
  
   connect.core.onViewContact = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ContactEvents.VIEW, f);
+    return connect.core.getEventBus().subscribe(connect.ContactEvents.VIEW, f);
   };
  
   /**
@@ -28959,7 +28938,7 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   /** ----- minimal view layer event handling **/
  
   connect.core.onActivateChannelWithViewType = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
+    return connect.core.getEventBus().subscribe(connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE, f);
   };
  
   /**
@@ -29000,18 +28979,18 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   * to handle the access denied use case. 
   */
   connect.core.onAccessDenied = function (f) {
-    connect.core.getUpstream().onUpstream(connect.EventType.ACCESS_DENIED, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.ACCESS_DENIED, f);
   };
  
   /**
   * This will be helpful for SAML use cases to handle the custom logins. 
   */
   connect.core.onAuthFail = function (f) {
-    connect.core.getUpstream().onUpstream(connect.EventType.AUTH_FAIL, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.AUTH_FAIL, f);
   };
 
   connect.core.onAuthorizeSuccess = function (f) {
-    connect.core.getUpstream().onUpstream(connect.EventType.AUTHORIZE_SUCCESS, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_SUCCESS, f);
   }
 
   connect.core._handleAuthorizeSuccess = function() {
@@ -29096,11 +29075,11 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
   }
 
   connect.core.onAuthorizeRetriesExhausted = function(f) {
-    connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
   }
 
   connect.core.onCTIAuthorizeRetriesExhausted = function(f) {
-    connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
   }
  
   /** ------------------------------------------------- */
@@ -29118,18 +29097,17 @@ AWS.apiLoader.services['connect']['2017-02-15'] = require('../apis/connect-2017-
    */
  
   connect.core.onSoftphoneSessionInit = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConnectionEvents.SESSION_INIT, f);
+    return connect.core.getEventBus().subscribe(connect.ConnectionEvents.SESSION_INIT, f);
   };
  
   /**-----------------------------------------------------------------------*/
   connect.core.onConfigure = function(f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CONFIGURE, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.CONFIGURE, f);
   }
 
    /**-----------------------------------------------------------------------*/
    connect.core.onInitialized = function(f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.EventType.INIT, f);
+    return connect.core.getEventBus().subscribe(connect.EventType.INIT, f);
   }
 
   /**-----------------------------------------------------------------------*/

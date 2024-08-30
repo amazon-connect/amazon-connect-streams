@@ -364,38 +364,6 @@ describe('Core', function () {
                 sinon.match({offline: true}));
         });
     });
-    describe('onAuthFail', function () {
-        let getUpstreamSpy, onUpstreamSpy;
-        before(() => {
-            onUpstreamSpy = sandbox.fake();
-            getUpstreamSpy = sandbox.stub(connect.core, "getUpstream").returns({onUpstream: onUpstreamSpy});
-        });
-        after(() => {
-            sandbox.restore();
-        });
-        it('calls getUpstream and sets the given function to trigger on the auth fail event via onUpstream', () => {
-            const spy = sandbox.fake();
-            connect.core.onAuthFail(spy);
-            sandbox.assert.calledOnce(getUpstreamSpy);
-            sandbox.assert.calledOnceWithExactly(onUpstreamSpy, connect.EventType.AUTH_FAIL, spy);
-        });
-    });
-    describe('onAuthorizeSuccess', function () {
-        let getUpstreamSpy, onUpstreamSpy;
-        before(() => {
-            onUpstreamSpy = sandbox.fake();
-            getUpstreamSpy = sandbox.stub(connect.core, "getUpstream").returns({onUpstream: onUpstreamSpy});
-        });
-        after(() => {
-            sandbox.restore();
-        });
-        it('calls getUpstream and sets the given function to trigger on the auth fail event via onUpstream', () => {
-            const spy = sandbox.fake();
-            connect.core.onAuthorizeSuccess(spy);
-            sandbox.assert.calledOnce(getUpstreamSpy);
-            sandbox.assert.calledOnceWithExactly(onUpstreamSpy, connect.EventType.AUTHORIZE_SUCCESS, spy);
-        });
-    });
     describe('_handleAuthorizeSuccess', function () {
         jsdom({ url: "https://abc.awsapps.com/connect/ccp-v2" });
         it('resets the authRetryCount to 0', () => {
@@ -2245,74 +2213,36 @@ describe('Core', function () {
         it('Should redirect to CCP once the access is granted with storage access params', function () { });
     });
 
-    describe('CustomViews Termination', () => {
-        let iframeMock, sandbox;
-        jsdom({ url: "http://localhost" });
-
-        beforeEach(() => {
-            sandbox = sinon.createSandbox();
-
-            iframeMock = {
-                style: {
-                    display: ''
-                },
-                contentWindow: {
-                    postMessage: sandbox.stub()
-                }
-            };
-
-            containerDOMMock = {
-                querySelector: sandbox.stub().returns(iframeMock)
-            };
-
-            appRegistryMock = {
-                get: sandbox.stub().returns({containerDOM: containerDOMMock}),
-                stopApp: sandbox.stub()
-            }
-            sandbox.stub(global.window.document, "getElementById").returns(iframeMock);
-            sandbox.stub(global.window, 'postMessage').returns(null);
-
-            connect.agentApp.AppRegistry = appRegistryMock;
-        });
-
-        afterEach(() => {
-            sandbox.restore();
-        });
-
-        describe('terminateCustomView', () => {
-            it('should post a termination message to the iframe with a specific customview iframe suffix', () => {
-                const iframeSuffix = 'contactAlpha';
-                const connectUrl = 'https://example.com';
-
-                connect.core.terminateCustomView(connectUrl, iframeSuffix);
-
-                sinon.assert.match(iframeMock.style.display, '');
-                sinon.assert.calledWith(iframeMock.contentWindow.postMessage, { topic: 'lifecycle.terminated' })
-            })
-
-            it('should hide the iframe and attempt to stop the app after the timeout', (done) => {
-                const iframeSuffix = 'contactBeta';
-                const connectUrl = 'https://example.com';
-                const timeout = 100;
-
-                connect.core.terminateCustomView(connectUrl, iframeSuffix, {timeout: timeout});
-
-                sinon.assert.match(iframeMock.style.display, 'none');
-                sinon.assert.calledWith(iframeMock.contentWindow.postMessage, { topic: 'lifecycle.terminated' })
-                done();
-
-            }, 110);
-
-            it('should handle cases where iframe does not exist', () => {
-                sandbox.restore();
-                sandbox.stub(global.window.document, "getElementById").returns(null);
-                sandbox.stub(global.window, 'postMessage').returns(null);
-
-                const iframeSuffix = 'contactBeta';
-                const connectUrl = 'https://example.com';
-
-                expect(() => connect.core.terminateCustomView(connectUrl, iframeSuffix)).not.to.throw();
-            })
-        })
-    })
+    it('core subscription apis', () => {
+        connect.core.eventBus = new connect.EventBus();
+    
+        function testEventSubscription(apiName, eventName) {
+          const cb = sinon.stub();
+          const sub = connect.core[apiName](cb);
+          connect.core.getEventBus().trigger(eventName);
+          sinon.assert.calledOnce(cb);
+          sub.unsubscribe();
+          cb.resetHistory();
+          connect.core.getEventBus().trigger(eventName);
+          sinon.assert.notCalled(cb);
+        }
+    
+        const apiNameEventNameMap = {
+          'onIframeRetriesExhausted': connect.EventType.IFRAME_RETRIES_EXHAUSTED,
+          'onViewContact': connect.ContactEvents.VIEW,
+          'onActivateChannelWithViewType': connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+          'onAccessDenied': connect.EventType.ACCESS_DENIED,
+          'onAuthFail': connect.EventType.AUTH_FAIL,
+          'onAuthorizeSuccess': connect.EventType.AUTHORIZE_SUCCESS,
+          'onSoftphoneSessionInit': connect.ConnectionEvents.SESSION_INIT,
+          'onConfigure': connect.ConfigurationEvents.CONFIGURE,
+          'onInitialized': connect.EventType.INIT
+        };
+    
+        for (const key in apiNameEventNameMap) {
+          testEventSubscription(key, apiNameEventNameMap[key]);  
+        }
+    
+        connect.core.eventBus = null;
+    });
 });

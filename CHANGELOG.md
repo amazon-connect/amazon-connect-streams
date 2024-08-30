@@ -1,4 +1,10 @@
 # CHANGELOG.md
+## [2.14.6] - 2024-08-02
+Added:
+- typescript support for onSoftphoneSessionInit
+- updated typescript definition for AttributeDictionary, SegmentAttributeDictionary, ReferenceDictionary
+- typescript SYSTEM and ERROR types for AgentStateType
+- Agent and Contact events subscriptions now return subscription
 
 ## [2.14.5] - 2024-08-02
 Added:
