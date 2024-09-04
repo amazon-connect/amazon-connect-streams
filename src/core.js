@@ -2309,21 +2309,12 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, (connect.core._getAuthRetryCount() + 1).toString());
   }
 
-<<<<<<< HEAD
   connect.core.onAuthorizeRetriesExhausted = function(f) {
     return connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
   }
 
   connect.core.onCTIAuthorizeRetriesExhausted = function(f) {
     return connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
-=======
-  connect.core.onAuthorizeRetriesExhausted = function (f) {
-    connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
-  }
-
-  connect.core.onCTIAuthorizeRetriesExhausted = function (f) {
-    connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
->>>>>>> 96d3dc2 (Add Global Resiliency implementation)
   }
 
   /** ------------------------------------------------- */

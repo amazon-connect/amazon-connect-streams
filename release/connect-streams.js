@@ -28469,13 +28469,8 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     }
   };
 
-<<<<<<< HEAD
   connect.core.onIframeRetriesExhausted = function(f) {
     return connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, f);
-=======
-  connect.core.onIframeRetriesExhausted = function (f) {
-    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, f);
->>>>>>> 96d3dc2 (Add Global Resiliency implementation)
   }
 
   connect.core._refreshIframeOnTimeout = function (initCCPParams, containerDiv, timerContainer, identifier) {
