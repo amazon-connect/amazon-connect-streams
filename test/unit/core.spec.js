@@ -2245,4 +2245,75 @@ describe('Core', function () {
     
         connect.core.eventBus = null;
     });
+
+    describe('CustomViews Termination', () => {
+        let iframeMock, sandbox;
+        jsdom({ url: "http://localhost" });
+ 
+        beforeEach(() => {
+            sandbox = sinon.createSandbox();
+ 
+            iframeMock = {
+                style: {
+                    display: ''
+                },
+                contentWindow: {
+                    postMessage: sandbox.stub()
+                }
+            };
+ 
+            containerDOMMock = {
+                querySelector: sandbox.stub().returns(iframeMock)
+            };
+ 
+            appRegistryMock = {
+                get: sandbox.stub().returns({containerDOM: containerDOMMock}),
+                stopApp: sandbox.stub()
+            }
+            sandbox.stub(global.window.document, "getElementById").returns(iframeMock);
+            sandbox.stub(global.window, 'postMessage').returns(null);
+ 
+            connect.agentApp.AppRegistry = appRegistryMock;
+        });
+ 
+        afterEach(() => {
+            sandbox.restore();
+        });
+ 
+        describe('terminateCustomView', () => {
+            it('should post a termination message to the iframe with a specific customview iframe suffix', () => {
+                const iframeSuffix = 'contactAlpha';
+                const connectUrl = 'https://example.com';
+ 
+                connect.core.terminateCustomView(connectUrl, iframeSuffix);
+ 
+                sinon.assert.match(iframeMock.style.display, '');
+                sinon.assert.calledWith(iframeMock.contentWindow.postMessage, { topic: 'lifecycle.terminated' })
+            })
+ 
+            it('should hide the iframe and attempt to stop the app after the timeout', (done) => {
+                const iframeSuffix = 'contactBeta';
+                const connectUrl = 'https://example.com';
+                const timeout = 100;
+ 
+                connect.core.terminateCustomView(connectUrl, iframeSuffix, {timeout: timeout});
+ 
+                sinon.assert.match(iframeMock.style.display, 'none');
+                sinon.assert.calledWith(iframeMock.contentWindow.postMessage, { topic: 'lifecycle.terminated' })
+                done();
+ 
+            }, 110);
+ 
+            it('should handle cases where iframe does not exist', () => {
+                sandbox.restore();
+                sandbox.stub(global.window.document, "getElementById").returns(null);
+                sandbox.stub(global.window, 'postMessage').returns(null);
+ 
+                const iframeSuffix = 'contactBeta';
+                const connectUrl = 'https://example.com';
+ 
+                expect(() => connect.core.terminateCustomView(connectUrl, iframeSuffix)).not.to.throw();
+            })
+        })
+    })
 });
