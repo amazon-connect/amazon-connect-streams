@@ -419,81 +419,71 @@
   };
 
   Agent.prototype.onRefresh = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.REFRESH, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.REFRESH, f);
   };
 
   Agent.prototype.onRoutable = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.ROUTABLE, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.ROUTABLE, f);
   };
 
   Agent.prototype.onNotRoutable = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.NOT_ROUTABLE, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.NOT_ROUTABLE, f);
   };
 
   Agent.prototype.onOffline = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.OFFLINE, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.OFFLINE, f);
   };
 
   Agent.prototype.onError = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.ERROR, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.ERROR, f);
   };
 
   Agent.prototype.onSoftphoneError = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.SOFTPHONE_ERROR, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.SOFTPHONE_ERROR, f);
   };
 
   Agent.prototype.onWebSocketConnectionLost = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_LOST, f);
   }
 
   Agent.prototype.onWebSocketConnectionGained = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED, f);
   }
 
   Agent.prototype.onAfterCallWork = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.ACW, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.ACW, f);
   };
 
   Agent.prototype.onStateChange = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.STATE_CHANGE, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.STATE_CHANGE, f);
   };
 
   Agent.prototype.onMuteToggle = function (f) {
-    connect.core.getUpstream().onUpstream(connect.AgentEvents.MUTE_TOGGLE, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.MUTE_TOGGLE, f);
   };
 
   Agent.prototype.onLocalMediaStreamCreated = function (f) {
-    connect.core.getUpstream().onUpstream(connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED, f);
+    return connect.core.getEventBus().subscribe(connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED, f);
   };
 
   Agent.prototype.onSpeakerDeviceChanged = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED, f);
   }
 
   Agent.prototype.onMicrophoneDeviceChanged = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED, f);
   }
 
   Agent.prototype.onRingerDeviceChanged = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.RINGER_DEVICE_CHANGED, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.RINGER_DEVICE_CHANGED, f);
   }
 
   Agent.prototype.onCameraDeviceChanged = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.CAMERA_DEVICE_CHANGED, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.CAMERA_DEVICE_CHANGED, f);
   }
 
   Agent.prototype.onBackgroundBlurChanged = function (f) {
-    connect.core.getUpstream().onUpstream(connect.ConfigurationEvents.BACKGROUND_BLUR_CHANGED, f);
+    return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.BACKGROUND_BLUR_CHANGED, f);
   }
 
   Agent.prototype.mute = function () {
@@ -810,58 +800,47 @@
   };
 
   Contact.prototype.onRefresh = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.REFRESH), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.REFRESH), f);
   };
 
   Contact.prototype.onIncoming = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.INCOMING), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.INCOMING), f);
   };
 
   Contact.prototype.onConnecting = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTING), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.CONNECTING), f);
   };
 
   Contact.prototype.onPending = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.PENDING), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.PENDING), f);
   };
 
   Contact.prototype.onAccepted = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.ACCEPTED), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.ACCEPTED), f);
   };
 
   Contact.prototype.onMissed = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.MISSED), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.MISSED), f);
   };
 
   Contact.prototype.onEnded = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.ENDED), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.ENDED), f);
   };
 
   Contact.prototype.onDestroy = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.DESTROYED), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.DESTROYED), f);
   };
 
   Contact.prototype.onACW = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.ACW), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.ACW), f);
   };
 
   Contact.prototype.onConnected = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.CONNECTED), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.CONNECTED), f);
   };
 
   Contact.prototype.onError = function (f) {
-    var bus = connect.core.getEventBus();
-    bus.subscribe(this.getEventName(connect.ContactEvents.ERROR), f);
+    return connect.core.getEventBus().subscribe(this.getEventName(connect.ContactEvents.ERROR), f);
   }
 
   Contact.prototype.getContactId = function () {

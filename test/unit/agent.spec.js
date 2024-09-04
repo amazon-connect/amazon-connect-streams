@@ -113,4 +113,44 @@ describe('Agent APIs', () => {
       expect(callbacks.failure.called).not.to.be.true;
     });
   });
+  it('agent subscription apis', () => {
+    connect.core.eventBus = new connect.EventBus();
+
+    function testEventSubscription(apiName, eventName) {
+      const cb = sinon.stub();
+      const sub = agent[apiName](cb);
+      connect.core.getEventBus().trigger(eventName);
+      sinon.assert.calledOnce(cb);
+      sub.unsubscribe();
+      cb.resetHistory();
+      connect.core.getEventBus().trigger(eventName);
+      sinon.assert.notCalled(cb);
+    }
+
+    const apiNameEventNameMap = {
+      'onRefresh': connect.AgentEvents.REFRESH,
+      'onRoutable': connect.AgentEvents.ROUTABLE,
+      'onNotRoutable': connect.AgentEvents.NOT_ROUTABLE,
+      'onOffline': connect.AgentEvents.OFFLINE,
+      'onError': connect.AgentEvents.ERROR,
+      'onSoftphoneError': connect.AgentEvents.SOFTPHONE_ERROR,
+      'onWebSocketConnectionLost': connect.AgentEvents.WEBSOCKET_CONNECTION_LOST,
+      'onWebSocketConnectionGained': connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED,
+      'onAfterCallWork': connect.AgentEvents.ACW,
+      'onStateChange': connect.AgentEvents.STATE_CHANGE,
+      'onMuteToggle': connect.AgentEvents.MUTE_TOGGLE,
+      'onLocalMediaStreamCreated': connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED,
+      'onSpeakerDeviceChanged': connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
+      'onMicrophoneDeviceChanged': connect.ConfigurationEvents.MICROPHONE_DEVICE_CHANGED,
+      'onRingerDeviceChanged': connect.ConfigurationEvents.RINGER_DEVICE_CHANGED,
+      'onCameraDeviceChanged': connect.ConfigurationEvents.CAMERA_DEVICE_CHANGED,
+      'onBackgroundBlurChanged': connect.ConfigurationEvents.BACKGROUND_BLUR_CHANGED
+    };
+
+    for (const key in apiNameEventNameMap) {
+      testEventSubscription(key, apiNameEventNameMap[key]);  
+    }
+
+    connect.core.eventBus = null;
+  });
 });

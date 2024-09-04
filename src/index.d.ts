@@ -53,7 +53,7 @@ declare namespace connect {
    *
    * @param callback A callback that will receive an `Agent` API object instance.
    */
-  function agent(callback: AgentCallback): void;
+  function agent(callback: AgentCallback): Subscription;
 
   /**
    * A callback to receive `Contact` API object instances.
@@ -81,7 +81,7 @@ declare namespace connect {
    *
    * @param callback A callback that will receive an `Contact` API object instance.
    */
-  function contact(callback: ContactCallback): void;
+  function contact(callback: ContactCallback): Subscription;
 
   /**
    * Subscribe a method to be called when the WebSocket connection fails to initialize.
@@ -136,14 +136,14 @@ declare namespace connect {
     /**
      * Subscribes a callback function to be called when the agent authorization api succeeds.
      */
-    onAuthorizeSuccess(f: Function): void;
+    onAuthorizeSuccess(f: Function): Subscription;
 
     /**
      * Subscribes a callback function to be called when the connect.EventType.IFRAME_RETRIES_EXHAUSTED event is triggered.
      *
      * @param f The callback function.
      */
-    onIframeRetriesExhausted(f: Function): void;
+    onIframeRetriesExhausted(f: Function): Subscription;
 
     /**
      * Subscribes a callback function to be called when multiple authorization-type CTI API failures have happened.
@@ -153,7 +153,7 @@ declare namespace connect {
      *
      * @param f The callback function.
      */
-    onCTIAuthorizeRetriesExhausted(f: Function): void;
+    onCTIAuthorizeRetriesExhausted(f: Function): Subscription;
 
     /**
      * Subscribes a callback function to be called when multiple agent authorization api failures have happened.
@@ -162,7 +162,7 @@ declare namespace connect {
      *
      * @param f The callback function.
      */
-    onAuthorizeRetriesExhausted(f: Function): void;
+    onAuthorizeRetriesExhausted(f: Function): Subscription;
 
     /**
      * Terminates Amazon Connect Streams. Removing any subscription methods that have been called.
@@ -184,21 +184,21 @@ declare namespace connect {
      *
      * @param callback A callback that will receive a `ViewContactEvent` object.
      */
-    onViewContact(callback: ViewContactCallback): void;
+    onViewContact(callback: ViewContactCallback): Subscription;
 
     /**
      * Subscribes a callback that starts whenever authentication fails (e.g. SAML authentication).
      *
      * @param callback A callback that will start whenever authentication fails.
      */
-    onAuthFail(callback: SuccessFailCallback): void;
+    onAuthFail(callback: SuccessFailCallback): Subscription;
 
     /**
      * Subscribes a callback that starts whenever authorization fails (i.e. access denied).
      *
      * @param callback A callback that will start whenever access is denied.
      */
-    onAccessDenied(callback: SuccessFailCallback): void;
+    onAccessDenied(callback: SuccessFailCallback): Subscription;
 
     /**
      * Gets the `WebSocket` manager.
@@ -207,11 +207,19 @@ declare namespace connect {
     getWebSocketManager(): any;
 
     /**
+     * Subscribes a callback that starts whenever a new webrtc session is created. Used for handling the rtc session stats.
+    
+     *
+     * @param callback A callback that will start whenever a new webrtc session is created.
+     */
+    onSoftphoneSessionInit(callback: Function): Subscription;
+
+    /**
      * Subscribes a callback that executes when the CCP initialization is completed.
      *
      * @param callback A callback that will execute when the CCP initialization is completed.
      */
-    onInitialized(callback: Function): void;
+    onInitialized(callback: Function): Subscription;
 
     /**
     * Returns a promise that is resolved with the list of media devices from iframe.
@@ -665,6 +673,12 @@ declare namespace connect {
 
     /** The agent is offline. */
     OFFLINE = "offline",
+
+    /** The agent is in a system state. */
+    SYSTEM = "system",
+
+    /** The agent is in a error state. */
+    ERROR = "error",
   }
 
   enum AgentAvailStates {
@@ -965,35 +979,35 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `Agent` API object instance.
      */
-    onRefresh(callback: AgentCallback): void;
+    onRefresh(callback: AgentCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent's state changes.
      *
      * @param callback A callback to receive the `AgentStateChange` API object instance.
      */
-    onStateChange(callback: AgentStateChangeCallback): void;
+    onStateChange(callback: AgentStateChangeCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent becomes routable, meaning that they can be routed incoming contacts.
      *
      * @param callback A callback to receive the `Agent` API object instance.
      */
-    onRoutable(callback: AgentCallback): void;
+    onRoutable(callback: AgentCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent becomes not-routable, meaning that they are online but cannot be routed incoming contacts.
      *
      * @param callback A callback to receive the `Agent` API object instance.
      */
-    onNotRoutable(callback: AgentCallback): void;
+    onNotRoutable(callback: AgentCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent goes offline.
      *
      * @param callback A callback to receive the `Agent` API object instance.
      */
-    onOffline(callback: AgentCallback): void;
+    onOffline(callback: AgentCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent is put into an error state.
@@ -1002,7 +1016,7 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `Agent` API object instance.
      */
-    onError(callback: AgentCallback): void;
+    onError(callback: AgentCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent is put into an error state specific to losing a WebSocket connection.
@@ -1023,7 +1037,7 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `SoftphoneError` error.
      */
-    onSoftphoneError(callback: SoftphoneErrorCallback): void;
+    onSoftphoneError(callback: SoftphoneErrorCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state.
@@ -1031,7 +1045,7 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `Agent` API object instance.
      */
-    onAfterCallWork(callback: AgentCallback): void;
+    onAfterCallWork(callback: AgentCallback): Subscription;
 
     /** 
      * Subscribe a method to be called when the agent is put into an error state specific to losing a WebSocket connection.
@@ -1235,7 +1249,7 @@ declare namespace connect {
      *
      * @param callback A callback to receive updates on agent mute state
      */
-    onMuteToggle(callback: AgentMutedStatusCallback): void;
+    onMuteToggle(callback: AgentMutedStatusCallback): Subscription;
 
     /**
      * Creates an outbound contact to the given endpoint.
@@ -1250,42 +1264,42 @@ declare namespace connect {
      *
      * @param callback A callback to receive updates on the speaker device
      */
-    onSpeakerDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+    onSpeakerDeviceChanged(callback: UserMediaDeviceChangeCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent changes the microphone device (input device for call audio).
      *
      * @param callback A callback to receive updates on the microphone device
      */
-    onMicrophoneDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+    onMicrophoneDeviceChanged(callback: UserMediaDeviceChangeCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent changes the ringer device (output device for ringtone).
      *
      * @param callback A callback to receive updates on the ringer device
      */
-    onRingerDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+    onRingerDeviceChanged(callback: UserMediaDeviceChangeCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent changes the camera device (input device for camera).
      *
      * @param callback A callback to receive updates on the camera device
      */
-    onCameraDeviceChanged(callback: UserMediaDeviceChangeCallback): void;
+    onCameraDeviceChanged(callback: UserMediaDeviceChangeCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent changes the background blur state for camera device (input device for camera).
      *
      * @param callback A callback to receive updates on the background blur state
      */
-    onBackgroundBlurChanged(callback: UserBackgroundBlurChangeCallback): void;
+    onBackgroundBlurChanged(callback: UserBackgroundBlurChangeCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent has a nextState.
      *
      * @param callback A callback that is invoked with the Agent object.
      */
-    onEnqueuedNextState(callback: AgentCallback): void;
+    onEnqueuedNextState(callback: AgentCallback): Subscription;
   }
 
   interface AgentMutedStatus {
@@ -1450,20 +1464,20 @@ declare namespace connect {
     readonly [key: string]: {
       name: string;
       value: string;
-    };
+    } | undefined;
   }
 
   interface SegmentAttributeDictionary {
     readonly [key: string]: {
       valueString: string;
-    }
+    } | undefined;
   }
 
   interface ReferenceDictionary {
     readonly [key: string]: {
       type: ReferenceType;
       value: string;
-    };
+    } | undefined;
   }
 
   interface ChannelContext {
@@ -1487,7 +1501,7 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
-    onRefresh(callback: ContactCallback): void;
+    onRefresh(callback: ContactCallback): Subscription;
 
     /**
      * Subscribe a method to be invoked when a queue callback contact is incoming.
@@ -1495,7 +1509,7 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
-    onIncoming(callback: ContactCallback): void;
+    onIncoming(callback: ContactCallback): Subscription;
 
     /**
      * Subscribe a method to be invoked when the contact is pending.
@@ -1503,7 +1517,7 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
-    onPending(callback: ContactCallback): void;
+    onPending(callback: ContactCallback): Subscription;
 
     /**
      * Subscribe a method to be invoked when the contact is connecting.
@@ -1513,14 +1527,14 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
-    onConnecting(callback: ContactCallback): void;
+    onConnecting(callback: ContactCallback): Subscription;
 
     /**
      * Subscribe a method to be invoked whenever the contact is accepted.
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
-    onAccepted(callback: ContactCallback): void;
+    onAccepted(callback: ContactCallback): Subscription;
 
     /**
      * Subscribe a method to be invoked whenever the contact is missed.
@@ -1528,7 +1542,7 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
-    onMissed(callback: ContactCallback): void;
+    onMissed(callback: ContactCallback): Subscription;
 
     /**
      * Subscribe a method to be invoked whenever the contact is ended or destroyed.
@@ -1537,14 +1551,14 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
-    onEnded(callback: ContactCallback): void;
+    onEnded(callback: ContactCallback): Subscription;
 
     /**
      * Subscribe a method to be invoked whenever the contact is destroyed.
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
-    onDestroy(callback: ContactCallback): void;
+    onDestroy(callback: ContactCallback): Subscription;
 
     /**
      * Subscribe a method to be invoked whenever the contact enters the ACW state, named `ContactStateType.ENDED`.
@@ -1552,14 +1566,14 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
-    onACW(callback: ContactCallback): void;
+    onACW(callback: ContactCallback): Subscription;
 
     /**
      * Subscribe a method to be invoked when the contact is connected.
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
-    onConnected(callback: ContactCallback): void;
+    onConnected(callback: ContactCallback): Subscription;
 
     /**
      * Subscribe a method to be invoked when the contact error event is triggered.
@@ -1567,7 +1581,7 @@ declare namespace connect {
      *
      * @param callback A callback to receive the `Contact` API object instance.
      */
-    onError(callback: ContactCallback): void;
+    onError(callback: ContactCallback): Subscription;
 
     /**
      * Returns a formatted string with the contact event and ID.
@@ -2332,4 +2346,9 @@ declare namespace connect {
 
   /** Gets the global logger instance. */
   function getLog(): Logger;
+
+  interface Subscription {
+    /** Unsubscribe your callback function from the event */
+    unsubscribe: Function;
+  }
 }
