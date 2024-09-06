@@ -24,7 +24,7 @@ jobs:
       with:
         payload: |
           {
-            "issueUrl" : ${{ github.event.issue.issue_url }}
+            "issueUrl" : ${{ github.event.issue.url }}
           }
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
