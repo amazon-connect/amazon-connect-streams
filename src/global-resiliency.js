@@ -40,20 +40,11 @@
       // Because normal flow is initCCP > init softphone manager,
       // it is possible the softphone manager was not yet initialized
       if (connect.core?.softphoneManager) {
-        if (connect.core?.softphoneManager?._refreshRtcPeerConnectionFactory) {
-          connect
-            .getLog()
-            .info('[GR] Refreshing softphone manager RTC peer connection factory.')
-            .sendInternalLogToServer();
-          connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
-        } else {
-          connect
-            .getLog()
-            .warn(
-              `[GR] softphoneManager present, but _refreshRtcPeerConnectionFactory() not found. Consider updating to latest RTCJS version`
-            )
-            .sendInternalLogToServer();
-        }
+        connect
+          .getLog()
+          .info('[GR] Refreshing softphone manager RTC peer connection factory.')
+          .sendInternalLogToServer();
+        connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
       } else {
         connect
           .getLog()
