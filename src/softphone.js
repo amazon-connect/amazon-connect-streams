@@ -351,7 +351,10 @@
             session.hangup();
           }
         }).catch(function (err) {
-          lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message).sendInternalLogToServer();
+          lily.getLog()
+            .warn(`There was an error destroying the softphone session for connection ID ${agentConnectionId} : ${err.message}`)
+            .withObject({agentConnectionId: agentConnectionId, errorMessage: err.message})
+            .sendInternalLogToServer();
         });
       }
     };
