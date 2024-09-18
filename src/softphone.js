@@ -375,6 +375,21 @@
       }
     };
 
+    this._clearAllSessions = function () {
+      connect
+        .getLog()
+        .info(
+          `Clearing all active sessions`
+        )
+        .sendInternalLogToServer();
+
+      for (var connectionId in rtcSessions) {
+        if (rtcSessions.hasOwnProperty(connectionId)) {
+          destroySession(connectionId);
+        }
+      }
+    }
+
     this.startSession = function (_contact, _agentConnectionId) {
       var contact = isSessionPending ? pendingContact : _contact;
       var agentConnectionId = isSessionPending ? pendingAgentConnectionId : _agentConnectionId;
