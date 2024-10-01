@@ -16,7 +16,7 @@ To access the Global Resiliency APIs, you will need to download Streams off of t
 
 amazon-connect-streams is available from [npmjs.com](https://www.npmjs.com/package/amazon-connect-streams). If you'd like to download it here, you can use either of the files like `release/connect-streams*`.
 
-Run `npm run build` to generate new release files. See our official documentation for more details.
+Run `npm run release` to generate new release files. See our official documentation for more details.
 
 ## Getting Started
 
@@ -160,7 +160,7 @@ Registers a callback function to be triggered when the configuration is not set 
 connect.globalResiliency.onFailoverCompleted((data) => {console.log(data)}); // { activeRegion: "us-east-1", activeCcpUrl: "<url>" }
 ```
 
-Register a function to be triggered when the UI changes to display a different region, and agents are able to begin taking contacts in the new CCP region. This function will NOT be triggered in the event where CCP initializes and the region whose CCP was provided in the `ccpUrl` parameter (i.e. not the `secondaryCCPUrl`) is not the currently active region for the agent. If you wish, you can set up hooks using this function before calling `connect.core.initCCP()`.
+Register a function to be triggered when the UI changes to display a different region, and agents are able to begin taking contacts in the new CCP region. This function will NOT be triggered in the event where CCP initializes and the region whose CCP was provided in the `ccpUrl` parameter (i.e. not the `secondaryCCPUrl`) is not the currently active region for the agent.
 
 Parameter `f`: A function that will be triggered when the UI changes to show CCP for a different region.
 The function will be called with an Object parameter with three properties:
@@ -176,13 +176,12 @@ Returns a function that can be called if you wish to deregister the trigger.
 connect.globalResiliency.onFailoverPending((response) => { console.log(response)}); // console logs { nextActiveRegion: "us-east-1", contactIds: ["xxxx",...] }
 ```
 
-Register a function to be triggered when an active region change has been detected and the agent has at least 1 active voice or chat contact. The UI will wait to change over to the new region until ALL active voice/chat contact(s) are ended and cleared from ACW. If you wish, you can set up hooks using this function before calling `connect.core.initCCP()`.
+Register a function to be triggered when an active region change has been detected and the agent has at least 1 active voice or chat contact. The UI will wait to change over to the new region until ALL active voice/chat contact(s) are ended and cleared from ACW.
 
 Parameter `f`: A function that will be triggered when a failover has been scheduled.
 The function will be called with an Object parameter with one property:
 
 1. `nextActiveRegion`: the region of the Connect instance that will become active in the UI once the active contacts is ended and cleared from ACW.
-2. `contactIds`: array of contact IDs that the failover is pending on
 
 Returns a function that can be called if you wish to deregister the trigger.
 
