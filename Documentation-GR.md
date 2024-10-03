@@ -119,7 +119,7 @@ Subscribe a method to be called when the agent is initialized. If the agent has 
 
 In the case where global resiliency is enabled, the callback will only be triggered when the agent's data is retrieved for the current active region as we only consider that the agent is initialized only when the active region CCP's agent is initialized. 
 
-### connect.core.downloadLogs()
+### connect.getLog().download()
 
 A log file will be produced for each Connect instance in the failover group (total of 2). The options are the same as for `connect.getLog().download()` (documented in the standard Streams documentation), except each log name will be prefixed with the AWS region associated with that log's Connect instance.
 
