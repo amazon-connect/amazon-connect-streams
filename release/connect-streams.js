@@ -28810,7 +28810,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       connect.getLog().error("[Metrics] Failed to send metrics.")
         .withException(e).sendInternalLogToServer();
     }
-    if (oldAgentData == null) {
+    if (!connect.agent?.initialized) {
       connect.agent.initialized = true;
       this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
     }
