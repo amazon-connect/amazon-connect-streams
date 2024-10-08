@@ -1585,13 +1585,13 @@ describe('Core', function () {
         it("should teardown and stand up a new iframe 10 times and then clean itself up and stop trying.", () => {
             let setTimeoutSpy = sandbox.spy(global, "setTimeout");
             let fakeRemoveChildSpy = sandbox.fake();
-            let getCCPIframeSpy = sandbox.stub(connect.core, "_getCCPIframe").returns({parentNode: { removeChild: fakeRemoveChildSpy}});
-            let fakeContentWindow = { windowProp1: 1};
-            let createCCPIframeSpy = sandbox.stub(connect.core, "_createCCPIframe").returns({contentWindow: fakeContentWindow});
+            let getCCPIframeSpy = sandbox.stub(connect.core, "_getCCPIframe").returns({ parentNode: { removeChild: fakeRemoveChildSpy } });
+            let fakeContentWindow = { windowProp1: 1 };
+            let createCCPIframeSpy = sandbox.stub(connect.core, "_createCCPIframe").returns({ contentWindow: fakeContentWindow });
             let clearTimeoutSpy = sandbox.spy(global, "clearTimeout");
             let sendIframeStyleDataUpstreamAfterReasonableWaitTimeSpy = sandbox.stub(connect.core, "_sendIframeStyleDataUpstreamAfterReasonableWaitTime");
             let triggerSpy = sandbox.fake();
-            sandbox.stub(connect.core, "getEventBus").returns({trigger: triggerSpy});
+            sandbox.stub(connect.core, "getEventBus").returns({ trigger: triggerSpy });
             connect.core.upstream = { upstream: {} };
 
             connect.core._refreshIframeOnTimeout(params, {});
@@ -1628,8 +1628,8 @@ describe('Core', function () {
             clock.tick(30 * 1000); //the timeout that happens after the last retry timeout.
             expect(connect.core.iframeRefreshAttempt).to.equal(maxRetry + 1); //this counter is increased, but the condition evaluating whether we should destroy and reload the iframe fails.
             expect(clearTimeoutSpy.callCount).to.equal(maxRetry + 2); //even though we didn't retry in this timeout execution, we clean up the timeout.
-            sandbox.assert.calledOnceWithExactly(triggerSpy, connect.EventType.IFRAME_RETRIES_EXHAUSTED); //this only happens once we have exhausted all retries.
-            expect(setTimeoutSpy.callCount).to.equal(maxRetry +1);
+            sandbox.assert.calledOnceWithExactly(triggerSpy, connect.EventType.IFRAME_RETRIES_EXHAUSTED, undefined); //this only happens once we have exhausted all retries.
+            expect(setTimeoutSpy.callCount).to.equal(maxRetry + 1);
             expect(fakeRemoveChildSpy.callCount).to.equal(maxRetry); // As mentioned above, this execution of the callback code is not a true retry, as evidenced by the lack of an additional call to remove the current iframe
 
             clock.tick(300000); //out of retries. Waiting a long time won't change anything.
@@ -1664,7 +1664,7 @@ describe('Core', function () {
             ...iframe,
             src: params.ccpUrl,
             allow: "microphone; camera; autoplay; clipboard-write; identity-credentials-get",
-            style: "width: 100%; height: 100%",
+            style: "width: 100%; height: 100%;",
             title: "Amazon Connect CCP",
             name: "Amazon Connect CCP",
         };
@@ -1685,7 +1685,7 @@ describe('Core', function () {
             expect(returnedIframe).to.be.deep.equal(expectedIframe);
         });
         it('calls appendChild with expected iframe fields if iframeTitle is given', function () {
-            params = { ...params, iframeTitle: 'title'};
+            params = { ...params, iframeTitle: 'title' };
             expectedIframe.title = params.iframeTitle;
             const returnedIframe = connect.core._createCCPIframe(containerDiv, params);
             expect(appendChildSpy.calledOnce).to.be.true;
