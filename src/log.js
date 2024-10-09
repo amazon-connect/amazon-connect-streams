@@ -507,7 +507,7 @@
   };
   
   /**
-   * Download/Archive logs to a file, 
+   * Download/Archive logs to a file or fetch logs as a return of this function, 
    * By default, it returns all logs.
    * To filter logs by the minimum log level set by setLogLevel or the default set in _logLevel, 
    * pass in filterByLogLevel to true in options
@@ -516,16 +516,19 @@
    * - of type Object: 
    *   { logName: 'my-log-name',
    *     filterByLogLevel: false, //download all logs
+   *     returnLogsToCaller: true // true - return logs to call site, false - download logs to disk.
    *   }
    * - of type String (for backward compatibility), the file's name
    */
   Logger.prototype.download = function(options) {
     var logName = 'agent-log';
     var filterByLogLevel = false;
+    var returnLogsToCaller = false;
 
     if (typeof options === 'object') {
       logName = options.logName || logName;
       filterByLogLevel = options.filterByLogLevel || filterByLogLevel;
+      returnLogsToCaller = options.returnLogsToCaller || returnLogsToCaller;
     }
     else if (typeof options === 'string') {
       logName = options || logName;
@@ -537,6 +540,11 @@
       logs = logs.filter(function(entry) {
         return LogLevelOrder[entry.level] >= self._logLevel;
       });
+    }
+
+    if (returnLogsToCaller) {
+      /** Callsite requested for logs to be returned instead of downloading to disk **/
+      return logs;
     }
 
     var logBlob = new global.Blob([JSON.stringify(logs, undefined, 4)], ['text/plain']);
