@@ -522,13 +522,25 @@
   Logger.prototype.download = function(options) {
     var logName = 'agent-log';
     var filterByLogLevel = false;
+    // This will only be set to true on the CRM layer when GlobalResiliency is enabled
+    var isGlobalResiliency = connect?.globalResiliency?.globalResiliencyEnabled === true;
 
-    if (typeof options === 'object') {
+    if (typeof options === 'object' && options !== null) {
       logName = options.logName || logName;
       filterByLogLevel = options.filterByLogLevel || filterByLogLevel;
     }
     else if (typeof options === 'string') {
       logName = options || logName;
+    }
+
+    if (isGlobalResiliency){
+      // Three CCP logs will be downloaded in Global Resiliency
+      // One from each CCP which contains CCP logs + CRM from time of initialization of CCP onwards
+      // This is done when connect.globalResiliency._downloadCCPLogs(); is called
+      // CRM layer which contains all CRM logs and all CCP logs, retrieved in the remainder of this function.
+      connect.globalResiliency._downloadCCPLogs();
+
+      logName = "crm-" + logName;
     }
 
     var self = this;

@@ -748,6 +748,17 @@
     if (!connect.core.upstream) {
       return false;
     }
-    return connect.core.getUpstream() instanceof connect.IFrameConduit;
+    return connect.core.getUpstream() instanceof connect.IFrameConduit || connect.core.getUpstream() instanceof connect.GRProxyIframeConduit;
+  }
+  
+  // internal use only
+  connect.isActiveConduit = function (conduit) {
+    const grProxyConduit = connect.core.getUpstream();
+    if (grProxyConduit instanceof connect.GRProxyIframeConduit) {
+      return conduit.name === grProxyConduit.activeRegionUrl;
+    } else {
+      connect.core.getLog().error('connect.isActiveConduit is called but there is no GR proxy conduit').sendInternalLogToServer();
+      return false;
+    }
   }
 })();
