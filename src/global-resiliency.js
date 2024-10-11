@@ -40,10 +40,7 @@
     // Because normal flow is initCCP > init softphone manager,
     // it is possible the softphone manager was not yet initialized
     if (connect.core?.softphoneManager) {
-      connect
-        .getLog()
-        .info('[GR] Refreshing softphone manager RTC peer connection factory.')
-        .sendInternalLogToServer();
+      connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection factory.').sendInternalLogToServer();
       connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
     } else {
       connect
@@ -121,7 +118,7 @@
         } to ${newActiveConduit?.region} / ${newActiveConduit?.name}`
       )
       .sendInternalLogToServer();
-    
+
     // We need to clear all sessions now as it is not guarenteed that a snapshot informing
     // the softphone manager that the contact is ended will be received before the failover occurrs
     connect.core?.softphoneManager?._clearAllSessions();

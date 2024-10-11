@@ -28186,9 +28186,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       ringtoneParamsStorage.clean();
     }
 
-    // init StorageAccess with the incoming params
-    connect.storageAccess.init(params.ccpUrl, containerDiv, params.storageAccess || {});
-
      // This is emitted further below as event bus and customer event callbacks are not created yet.
     let acgrParamError = null;
     if (params?.enableGlobalResiliency === true){
@@ -28206,6 +28203,9 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         return connect.globalResiliency.initGRCCP(containerDiv, paramsIn);
       }
     }
+
+    // Placed after ACGR init since StorageAccess does not work with ACGR
+    connect.storageAccess.init(params.ccpUrl, containerDiv, params.storageAccess || {});
 
     var iframe = connect.core._createCCPIframe(containerDiv, params);
     // Build the upstream conduit communicating with the CCP iframe.
@@ -28469,7 +28469,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     }
   };
 
-  connect.core.onIframeRetriesExhausted = function(f) {
+  connect.core.onIframeRetriesExhausted = function (f) {
     return connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, f);
   }
 
@@ -29173,11 +29173,11 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, (connect.core._getAuthRetryCount() + 1).toString());
   }
 
-  connect.core.onAuthorizeRetriesExhausted = function(f) {
+  connect.core.onAuthorizeRetriesExhausted = function (f) {
     return connect.core.getEventBus().subscribe(connect.EventType.AUTHORIZE_RETRIES_EXHAUSTED, f);
   }
 
-  connect.core.onCTIAuthorizeRetriesExhausted = function(f) {
+  connect.core.onCTIAuthorizeRetriesExhausted = function (f) {
     return connect.core.getEventBus().subscribe(connect.EventType.CTI_AUTHORIZE_RETRIES_EXHAUSTED, f);
   }
 
@@ -29200,12 +29200,12 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
   };
 
   /**-----------------------------------------------------------------------*/
-  connect.core.onConfigure = function(f) {
+  connect.core.onConfigure = function (f) {
     return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.CONFIGURE, f);
   }
 
-   /**-----------------------------------------------------------------------*/
-   connect.core.onInitialized = function(f) {
+  /**-----------------------------------------------------------------------*/
+  connect.core.onInitialized = function (f) {
     return connect.core.getEventBus().subscribe(connect.EventType.INIT, f);
   }
 
@@ -29875,10 +29875,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     // Because normal flow is initCCP > init softphone manager,
     // it is possible the softphone manager was not yet initialized
     if (connect.core?.softphoneManager) {
-      connect
-        .getLog()
-        .info('[GR] Refreshing softphone manager RTC peer connection factory.')
-        .sendInternalLogToServer();
+      connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection factory.').sendInternalLogToServer();
       connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
     } else {
       connect
@@ -29956,7 +29953,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         } to ${newActiveConduit?.region} / ${newActiveConduit?.name}`
       )
       .sendInternalLogToServer();
-    
+
     // We need to clear all sessions now as it is not guarenteed that a snapshot informing
     // the softphone manager that the contact is ended will be received before the failover occurrs
     connect.core?.softphoneManager?._clearAllSessions();
