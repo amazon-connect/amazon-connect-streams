@@ -39,6 +39,10 @@
   },
   "homepage": "https://github.com/amazon-connect/amazon-connect-streams#readme",
   "devDependencies": {
+    "@babel/preset-env": "^7.21.4",
+    "@babel/preset-typescript": "^7.21.4",
+    "babel": "^6.23.0",
+    "babel-loader": "^9.1.2",
     "chai": "^4.3.7",
     "jshint": "^2.13.6",
     "mocha": "^10.2.0",
