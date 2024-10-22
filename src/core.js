@@ -1561,7 +1561,7 @@
     }
   };
 
-  connect.core.onIframeRetriesExhausted = function(f) {
+  connect.core.onIframeRetriesExhausted = function (f) {
     return connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, f);
   }
 

@@ -81,7 +81,9 @@ describe('agent-app', function () {
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
-          allowFramedVideoCall: true
+          allowFramedVideoCall: true,
+          allowFramedScreenSharing: true,
+          allowFramedScreenSharingPopUp: false,
         }
       };
       connect.agentApp.initApp('ccp', 'agent-app-dom', endpoint);
@@ -98,7 +100,9 @@ describe('agent-app', function () {
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
-          allowFramedVideoCall: true
+          allowFramedVideoCall: true,
+          allowFramedScreenSharing: true,
+          allowFramedScreenSharingPopUp: false,
         }
       };
       connect.agentApp.initApp('ccp', 'agent-app-dom', endpoint, { ccpParams: { loginPopup: false } });
@@ -115,7 +119,9 @@ describe('agent-app', function () {
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
-          allowFramedVideoCall: true
+          allowFramedVideoCall: true,
+          allowFramedScreenSharing: true,
+          allowFramedScreenSharingPopUp: false,
         }
       };
       connect.agentApp.initApp('ccp', 'agent-app-dom', 'https://www.amazon.com/ccp-v2/channel-view/?test=true', { ccpParams: { loginPopup: false } });
@@ -132,7 +138,9 @@ describe('agent-app', function () {
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
-          allowFramedVideoCall: true
+          allowFramedVideoCall: true,
+          allowFramedScreenSharing: true,
+          allowFramedScreenSharingPopUp: false,
         }
       };
       connect.agentApp.initApp('ccp', 'agent-app-dom', 'https://www.amazon.com/ccp-v2/channel-view?test=true', { ccpParams: { loginPopup: false } });
@@ -149,7 +157,9 @@ describe('agent-app', function () {
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
-          allowFramedVideoCall: true
+          allowFramedVideoCall: true,
+          allowFramedScreenSharing: true,
+          allowFramedScreenSharingPopUp: false,
         }
       };
       connect.agentApp.initApp('ccp', 'agent-app-dom', 'https://www.amazon.com/ccp-v2/channel-view/?test=false&test-param=true&testParam=1', { ccpParams: { loginPopup: false } });
@@ -167,7 +177,9 @@ describe('agent-app', function () {
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
-          allowFramedVideoCall: true
+          allowFramedVideoCall: true,
+          allowFramedScreenSharing: true,
+          allowFramedScreenSharingPopUp: false,
         },
         style
       };
@@ -186,7 +198,9 @@ describe('agent-app', function () {
         softphone: {
           allowFramedSoftphone: true,
           disableRingtone: false,
-          allowFramedVideoCall: true
+          allowFramedVideoCall: true,
+          allowFramedScreenSharing: true,
+          allowFramedScreenSharingPopUp: false,
         },
         style
       };

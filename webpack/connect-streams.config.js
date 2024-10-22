@@ -3,7 +3,6 @@ const ReplacePlugin = require('webpack-plugin-replace');
 const path = require('path');
 const { commonConfig } = require('./common');
 
-
 const config = Object.assign({}, commonConfig, {
   entry: [
     './src/aws-client.js',
@@ -35,19 +34,31 @@ const config = Object.assign({}, commonConfig, {
     clean: true,
   },
   optimization: {
-    minimize: false
+    minimize: false,
   },
   plugins: [
     new ReplacePlugin({
       include: 'core.js',
 
       values: {
-        'STREAMS_VERSION': process.env.npm_package_version
+        STREAMS_VERSION: process.env.npm_package_version,
+      },
+    }),
+  ],
+  module: {
+    rules: [
+      {
+        test: /\.m?js$/,
+        include: path.resolve(__dirname, '../src'),
+        use: {
+          loader: "babel-loader",
+          options: {
+            presets: ['@babel/preset-typescript', '@babel/preset-env']
+          }
+        }
       }
-    })
-  ]
+    ]
+  }
 });
 
-module.exports = [
-  config
-]
+module.exports = [config];

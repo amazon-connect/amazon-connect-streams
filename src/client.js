@@ -88,10 +88,11 @@
    /**---------------------------------------------------------------
     * enum ApiProxyClientMethods
     */
-   connect.ApiProxyClientMethods = connect.makeEnum([
-      'qrIntegrationExists',
-      'qrSearchQuickResponses',
-   ]);
+   connect.ApiProxyClientMethods = {
+      QR_INTEGRATION_EXISTS: 'qrIntegrationExists',
+      QR_SEARCH_QUICK_RESPONSES: 'qrSearchQuickResponses',
+      START_SCREEN_SHARING: "startScreenSharing",
+    },
 
    /**---------------------------------------------------------------
     * client methods that are retryable
