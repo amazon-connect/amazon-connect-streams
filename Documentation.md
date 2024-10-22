@@ -1361,6 +1361,16 @@ if (contact.hasVideoRTCCapabilities()) {
 
 Determine whether this contact has video capabilities.
 
+### `contact.hasScreenShareCapability()`
+
+```js
+if (contact.hasScreenShareCapability()) {
+  /* ... */
+}
+```
+
+Determine whether this contact has screen share capability.
+
 ### `contact.canAgentSendVideo()`
 
 ```js
@@ -1380,6 +1390,26 @@ if (contact.canAgentReceiveVideo()) {
 ```
 
 Determine whether the agent in this contact can receive video.
+
+### `contact.canAgentSendScreenShare()`
+
+```js
+if (contact.canAgentSendScreenShare()) {
+  /* ... */
+}
+```
+
+Determine whether the agent in this contact can send screen share.
+
+### `contact.canCustomerSendScreenShare()`
+
+```js
+if (contact.canCustomerSendScreenShare()) {
+  /* ... */
+}
+```
+
+Determine whether the customer in this contact can send screen share.
 
 ### `contact.isInbound()`
 ```js

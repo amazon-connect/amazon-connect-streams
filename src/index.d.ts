@@ -1776,11 +1776,20 @@ declare namespace connect {
     /** Determine whether this contact has video capabilities. */
     hasVideoRTCCapabilities(): boolean;
 
+    /** Determine whether this contact has screen share capability. */
+    hasScreenShareCapability(): boolean;
+
     /** Determine whether the agent in this contact can send video. */
     canAgentSendVideo(): boolean;
 
     /** Determine whether the agent in this contact can receive video. */
     canAgentReceiveVideo(): boolean;
+
+    /** Determine whether the agent in this contact can send screen share. */
+    canAgentSendScreenShare(): boolean;
+
+    /** Determine whether the customer in this contact can send screen share. */
+    canCustomerSendScreenShare(): boolean;
 
     /** Determine whether this is an inbound or outbound contact. */
     isInbound(): boolean;
