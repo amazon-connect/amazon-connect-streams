@@ -226,6 +226,8 @@ everything set up correctly and that you are able to listen for events.
             ringtoneUrl: '[your-ringtone-filepath].mp3', // optional, defaults to CCP’s default ringtone if a falsy value is set
             disableEchoCancellation: false, // optional, defaults to false
             allowFramedVideoCall: true, // optional, default to false
+            allowFramedScreenSharing: true, // optional, default to false
+            allowFramedScreenSharingPopUp: true, // optional, default to false
             VDIPlatform: null, // optional, provide with 'CITRIX' if using Citrix VDI, or use enum VDIPlatformType
             allowEarlyGum: true, //optional, default to true
           },
@@ -296,10 +298,10 @@ and made available to your JS client code.
   * `disableEchoCancellation`: This option is only applicable in Chrome and allows you to initialize a custom or
     embedded CCP with echo cancellation disabled. Setting this to `true` will disable **ALL** audio processing done by Chrome including Auto Gain Control.
     - Please see this link https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/improve-call-quality-on-agent-workstations-in-amazon-connect-contact-centers.html for possible alternative options in approving auto quality.
-  - `allowFramedVideoCall`: Currently video call can only be in one single window or tab.. If `true`, CCP will handle 
-    video calling experience in this window or tab and agents would be able to see and turn 
-    on their video if they have video permission set in the security profile. If `false` or not provided, CCP will only provide voice calling.
-   - `VDIPlatform`: This option is only applicable for virtual desktop interface integrations. If set, it will configure CCP to optimize softphone audio configuration for the VDI. Options can be provided by using enum `VDIPlatformType`. If `allowFramedSoftphone` is `false` and `VDIPlatform` is going to be set, please make sure you are passing this parameter into `connect.core.initSoftphoneManager()`. For example, `connect.core.initSoftphoneManager({ VDIPlatform: "CITRIX" })`
+  - `allowFramedVideoCall`: Currently video call can only be in one single window or tab. If `true`, CCP will handle  video calling experience in this window or tab and agents would be able to see and turn  on their video if they have video permission set in the security profile. If `false` or not provided, CCP will only provide voice calling.
+   - `allowFramedScreenSharing`: Currently it is recommended to enable screen share button on only one CCP in one single window or tab. If `true`, the Contact Control Panel will display the screen share button on that window or tab.
+  - `allowFramedScreenSharingPopUp`: If `true`, clicking the screen sharing button in the embedded CCP will launch the screen sharing app in a new window. If `false` or not provided, clicking the button will not launch the screen sharing app.
+  - `VDIPlatform`: This option is only applicable for virtual desktop interface integrations. If set, it will configure CCP to optimize softphone audio configuration for the VDI. Options can be provided by using enum `VDIPlatformType`. If `allowFramedSoftphone` is `false` and `VDIPlatform` is going to be set, please make sure you are passing this parameter into `connect.core.initSoftphoneManager()`. For example, `connect.core.initSoftphoneManager({ VDIPlatform: "CITRIX" })`
   - `allowEarlyGum`: If `true` or not provided, CCP will capture the agent’s browser microphone media stream before the contact arrives to reduce the call setup latency. If `false`, CCP will only capture agent media stream after the contact arrives.
 - `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
   - `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local
@@ -945,6 +947,36 @@ agent.onLocalMediaStreamCreated(() => {
 });
 ```
 
+### `agent.setCameraDevice()`
+
+```js
+agent.setCameraDevice(deviceId);
+```
+
+The `agent.setCameraDevice()` API is used to broadcast a change in the camera device (input device for camera) state. However, it does not actually switch the camera device. Instead, it triggers the [`agent.onCameraDeviceChanged()`](#agentoncameradevicechanged) callback to notify listeners of the updated camera device state.
+
+To handle the camera functionality, you would need to use either the [Amazon Chime SDK JS](https://github.com/aws/amazon-chime-sdk-js) or the [Amazon Chime SDK Component Library React](https://github.com/aws/amazon-chime-sdk-component-library-react). Specifically, you can use the following APIs:
+
+* [Amazon Chime SDK JS - audioVideo.startVideoInput](https://aws.github.io/amazon-chime-sdk-js/classes/defaultaudiovideofacade.html#startvideoinput)
+* [Amazon Chime SDK Component Library React - useVideoInputs](https://aws.github.io/amazon-chime-sdk-component-library-react/?path=/docs/sdk-hooks-usevideoinputs--page)
+
+After you have selected a new device using the Chime SDK, you can use `agent.setCameraDevice(deviceId)` to notify the state update, and then use the [`agent.onCameraDeviceChanged()`](#agentoncameradevicechanged) callback to handle the state update.
+
+### `agent.setBackgroundBlur()`
+
+```js
+agent.setBackgroundBlur(isBackgroundBlurEnabled);
+```
+
+The `agent.setBackgroundBlur()` API is used to broadcast a change in the Background Blur state. However, it does not actually enable or disable the blur effect. Instead, it triggers the [`agent.onBackgroundBlurChanged()`](#agentonbackgroundblurchanged) callback to notify listeners of the updated blur state.
+
+To handle the Background Blur functionality, you would need to use either the [Amazon Chime SDK JS](https://github.com/aws/amazon-chime-sdk-js) or the [Amazon Chime SDK Component Library React](https://github.com/aws/amazon-chime-sdk-component-library-react). Specifically, you can refer to the following resources:
+
+* [Amazon Chime SDK JS - Adding background filters to your application](https://aws.github.io/amazon-chime-sdk-js/modules/backgroundfilter_videofx_processor.html#adding-background-filters-to-your-application)
+* [Amazon Chime SDK Component Library React - BackgroundBlurProvider](https://aws.github.io/amazon-chime-sdk-component-library-react/?path=/docs/sdk-providers-backgroundblurprovider--page)
+
+After you have changed the actual Background Blur state using the Chime SDK, you can use `agent.setBackgroundBlur(isBackgroundBlurEnabled)` to notify the state update, and then use the [`agent.onBackgroundBlurChanged()`](#agentonbackgroundblurchanged) callback to handle the state update.
+
 ### `agent.setRingerDevice()`
 ```js
 agent.setRingerDevice(deviceId);
@@ -999,7 +1031,8 @@ Subscribe a method to be called when the agent changes the camera device (input 
 ```js
 agent.onBackgroundBlurChanged(function(obj) { /* ... */ });
 ```
-Subscribe a method to be called when the agent enables or disables background blur for the camera device (input device for call video).
+
+Subscribe a method to be called when the agent enables or disables Background Blur for the camera device (input device for call video).
 
 ## Contact API
 The Contact API provides event subscription methods and action methods which can be called on behalf of a specific
@@ -1220,6 +1253,76 @@ var attributeMap = contact.getAttributes(); // e.g. { "foo": { "name": "foo", "v
 Gets a map of the attributes associated with the contact. Each value in the map has the following shape: `{ name: string, value: string }`.
 
 Please note that this api method will return null when the current user is monitoring the contact, rather than being an active participant in the contact.
+
+### `contact.startScreenSharing(skipSessionInitiation)`
+
+```js
+try {
+  await contact.startScreenSharing();
+} catch (err) {
+  /* ... */
+}
+```
+
+Initiates the screen sharing session for the contact.
+
+The method first verifies that the contact is a web calling contact (contact subtype must be `connect:WebRTC`) and that the contact is in a connected state (`this.isConnected()` is `true`). If either condition is not met, an error is thrown.
+
+Once these conditions are satisfied, the `StartScreenSharing` API in Amazon Connect Service is called to initiate the screen sharing session.
+
+If screen sharing session initiation succeeds, `contact.onScreenSharingStarted` event is fired.
+If screen sharing session initiation fails, the `contact.onScreenSharingError` event is fired.
+
+* `skipSessionInitiation`: A boolean that, if set to `true`, skips the screen sharing session initiation process, and directly trigger the `onScreenSharingStarted` event. Defaults to `false`.
+
+### `contact.stopScreenSharing`
+
+```js
+try {
+  await contact.stopScreenSharing();
+} catch (err) {
+  /* ... */
+}
+```
+
+Stops the ongoing screen sharing session for the contact.
+
+The method first verifies that the contact is a web calling contact (contact subtype must be `connect:WebRTC`) and that the contact is in a connected state (`this.isConnected()` is `true`). If either condition is not met, an error is thrown.
+
+Once these conditions are satisfied, it fires `contact.onScreenSharingStopped` event.
+
+### `contact.onScreenSharingStarted`
+
+```js
+contact.onScreenSharingStarted(function () {
+  /* ... */
+});
+```
+
+Subscribe a method to be invoked when screen sharing session is started for the contact.
+This event is triggered when the screen sharing session is successfully initiated for WebRTC contacts.
+
+### `contact.onScreenSharingStopped`
+
+```js
+contact.onScreenSharingStopped(function () {
+  /* ... */
+});
+```
+
+Subscribe a method to be invoked when screen sharing session is stopped for the contact.
+This event is triggered when the screen sharing session is terminated for WebRTC contacts.
+
+### `contact.onScreenSharingError`
+
+```js
+contact.onScreenSharingError(function (error) {
+  /* ... */
+});
+```
+
+Subscribe a method to be invoked when screen sharing session initiation fails for the contact.
+This event is triggered when `contact.startScreenSharing` call fails.
 
 ### `contact.getSegmentAttributes()`
 

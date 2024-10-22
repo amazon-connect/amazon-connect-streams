@@ -426,6 +426,20 @@ declare namespace connect {
      */
     readonly allowFramedVideoCall?: boolean;
 
+    /**
+     * Currently it is recommended to enable screen share button on only one CCP in one single window or tab.
+     * If `allowFramedScreenSharing` is true, the Contact Control Panel will display the screen share button on that window or tab.
+     * @default false
+     */
+    readonly allowFramedScreenSharing?: boolean;
+
+    /**
+     * If true, when agent clicks on screen sharing button in embedded CCP, it will launch the screen sharing app in a
+     * separate window.
+     * @default false
+     */
+    readonly allowFramedScreenSharingPopUp?: boolean;
+
      /**
      * VDI SDK support, we are currently only supporting CITRIX
      * To specify that the VDI environment is Citrix, please set this value to `CITRIX` or 
@@ -945,6 +959,10 @@ declare namespace connect {
     SEND = "SEND"
   }
 
+  enum ScreenShareCapability {
+    SEND = "SEND"
+  }
+
   /*
    * A callback to receive notifications of success or failure.
    */
@@ -1231,14 +1249,31 @@ declare namespace connect {
     setRingerDevice(deviceId: string): void;
 
     /**
-     * Sets the camera device (input device for camera)
-     *
+     * The `agent.setCameraDevice()` API is used to broadcast a change in the camera device (input device for camera) state. However, it does not actually switch the camera device. 
+     * Instead, it triggers the `agent.onCameraDeviceChanged()` callback to notify listeners of the updated camera device state.
+     * To handle the camera functionality, you would need to use either the [Amazon Chime SDK JS](https://github.com/aws/amazon-chime-sdk-js) or the [Amazon Chime SDK Component Library React](https://github.com/aws/amazon-chime-sdk-component-library-react).
+     * 
+     * Specifically, you can use the following APIs:
+     * - [Amazon Chime SDK JS - audioVideo.startVideoInput](https://aws.github.io/amazon-chime-sdk-js/classes/defaultaudiovideofacade.html#startvideoinput)
+     * - [Amazon Chime SDK Component Library React - useVideoInputs](https://aws.github.io/amazon-chime-sdk-component-library-react/?path=/docs/sdk-hooks-usevideoinputs--page)
+     * 
+     * After you have selected a new device using the Chime SDK, you can use `agent.setCameraDevice(deviceId)` to notify the state update, and then use the `agent.onCameraDeviceChanged()` callback to handle the state update.
+     * 
      * @param deviceId The id of the media device.
      */
     setCameraDevice(deviceId: string): void;
 
     /**
-     * Sets the Background Blur state for camera device (input device for camera)
+      * The `agent.setBackgroundBlur()` API is used to broadcast a change in the Background Blur state. However, it does not actually enable or disable the blur effect.
+      * Instead, it triggers the `agent.onBackgroundBlurChanged()` callback to notify listeners of the updated blur state.
+      * 
+      * To handle the Background Blur functionality, you would need to use either the [Amazon Chime SDK JS](https://github.com/aws/amazon-chime-sdk-js) or the [Amazon Chime SDK Component Library React](https://github.com/aws/amazon-chime-sdk-component-library-react).
+      * 
+      * Specifically, you can use the following resources:
+      * - [Amazon Chime SDK JS - Adding background filters to your application](https://aws.github.io/amazon-chime-sdk-js/modules/backgroundfilter_videofx_processor.html#adding-background-filters-to-your-application)
+      * - [Amazon Chime SDK Component Library React - BackgroundBlurProvider](https://aws.github.io/amazon-chime-sdk-component-library-react/?path=/docs/sdk-providers-backgroundblurprovider--page)
+      * 
+      * After you have changed the actual Background Blur state using the Chime SDK, you can use `agent.setBackgroundBlur(isBackgroundBlurEnabled)` to notify the state update, and then use the `agent.onBackgroundBlurChanged()` callback to handle the state update.
      *
      * @param isBackgroundBlurEnabled Indicates whether Background Blur is enabled
      */
@@ -1288,9 +1323,9 @@ declare namespace connect {
     onCameraDeviceChanged(callback: UserMediaDeviceChangeCallback): Subscription;
 
     /**
-     * Subscribe a method to be called when the agent changes the background blur state for camera device (input device for camera).
+     * Subscribe a method to be called when the agent changes the Background Blur state for camera device (input device for camera).
      *
-     * @param callback A callback to receive updates on the background blur state
+     * @param callback A callback to receive updates on the Background Blur state
      */
     onBackgroundBlurChanged(callback: UserBackgroundBlurChangeCallback): Subscription;
 
@@ -1582,6 +1617,56 @@ declare namespace connect {
      * @param callback A callback to receive the `Contact` API object instance.
      */
     onError(callback: ContactCallback): Subscription;
+
+    /**
+     * Subscribe a method to be invoked when screen sharing session is started for the contact.
+     * This event is triggered when the screen sharing session is successfully initiated for WebRTC contacts.
+     *
+     * @param callback A callback to receive the `Contact` API object instance.
+     */
+    onScreenSharingStarted(callback: ContactCallback): Subscription;
+
+    /**
+     * Subscribe a method to be invoked when screen sharing session is stopped for the contact.
+     * This event is triggered when the screen sharing session is terminated for WebRTC contacts.
+     *
+     * @param callback A callback to receive the `Contact` API object instance.
+     */
+    onScreenSharingStopped(callback: ContactCallback): Subscription;
+
+    /**
+     * Subscribe a method to be invoked when screen sharing session initiation fails for the contact.
+     * This event is triggered when `contact.startScreenSharing` call fails.
+     *
+     * @param callback A callback to receive the `Contact` API object instance.
+     */
+    onScreenSharingError(callback: ContactCallback): Subscription;
+
+    /**
+     * Initiates the screen sharing session for the contact.
+     * 
+     * The method first verifies that the contact is a web calling contact (contact subtype must be `connect:WebRTC`) and that the contact is in a connected state (`this.isConnected()` is `true`). If either condition is not met, an error is thrown.
+     *
+     * Once these conditions are satisfied, the `StartScreenSharing` API in Amazon Connect Service is called to initiate the screen sharing session.
+     * 
+     * @param skipSessionInitiation If `true`, the screen sharing session initiation process is skipped, and the screen sharing started event is sent immediately. Defaults to `false`.
+     * @throws An error if the contact type is not supported for screen sharing (only WebRTC contacts are supported).
+     * @throws A `StateError` if the contact is not in a connected state.
+     * @returns A promise that resolves when the screen sharing session is successfully started, or rejects with an error if the initiation fails.
+     */
+    startScreenSharing(skipSessionInitiation?: boolean): Promise<void>;
+
+    /**
+     * Stops the ongoing screen sharing session for the contact.
+     * 
+     * The method first verifies that the contact is a web calling contact (contact subtype must be `connect:WebRTC`) and that the contact is in a connected state (`this.isConnected()` is `true`). If either condition is not met, an error is thrown.
+     *
+     * Once these conditions are satisfied, it fires `contact.onScreenSharingStopped` event.
+     * 
+     * @throws An error if the contact type does not support screen sharing (only WebRTC contacts are supported).
+     * @throws A `StateError` if the contact is not in a connected state.
+     */
+    stopScreenSharing(): Promise<void>;
 
     /**
      * Returns a formatted string with the contact event and ID.

@@ -324,6 +324,13 @@
   ]);
 
   /*----------------------------------------------------------------
+   * enum for Screen Share Capability
+   */
+  connect.ScreenShareCapability = connect.makeEnum([
+    "SEND"
+  ]);
+
+  /*----------------------------------------------------------------
    * enum for VoiceId EnrollmentRequest Status
    */
   connect.VoiceIdEnrollmentRequestStatus = connect.makeEnum([
@@ -981,7 +988,7 @@
   Contact.prototype.hasVideoRTCCapabilities = function () {
     return connect.find(this.getConnections(), function (conn) {
       return conn.canSendVideo && conn.canSendVideo();
-    }) != null;
+    }) !== null;
   };
 
   Contact.prototype.canAgentSendVideo = function () {
@@ -1001,6 +1008,101 @@
     const thirdPartyConns = this.getThirdPartyConnections();
     return thirdPartyConns && thirdPartyConns.length > 0  && this.canAgentSendVideo();
   };
+
+  Contact.prototype.hasScreenShareCapability = function () {
+    return connect.find(this.getConnections(), function (conn) {
+      return conn.canSendScreenShare && conn.canSendScreenShare();
+    }) !== null;
+  }
+
+  Contact.prototype.canAgentSendScreenShare = function () {
+    const agentConnection = this.getAgentConnection();
+    return agentConnection.canSendScreenShare && agentConnection.canSendScreenShare();
+  }
+
+  Contact.prototype.canCustomerSendScreenShare = function () {
+    const initialConn = this.getInitialConnection();
+    return initialConn.canSendScreenShare && initialConn.canSendScreenShare();
+  };
+
+
+  Contact.prototype.startScreenSharing = async function (skipSessionInitiation) {
+    const contactId = this.getContactId();
+    if (this.getContactSubtype() !== "connect:WebRTC") {
+      throw new Error("Screen sharing is only supported for WebRTC contacts.");
+    }
+    if (!this.isConnected()) {
+      throw new connect.StateError('Contact %s is not connected.', contactId);
+    }
+    if (!skipSessionInitiation) {
+      const client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
+      const body = {
+        "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+        "ContactId": contactId,
+        "ParticipantId": this.getAgentConnection().getConnectionId(),
+      };
+      return new Promise(function (resolve, reject) {
+        client.call(connect.ApiProxyClientMethods.START_SCREEN_SHARING, body, {
+          success: function (data) {
+            connect.getLog().info("startScreenSharing succeeded").withObject(data).sendInternalLogToServer();
+            connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+              {
+                event: connect.ContactEvents.SCREEN_SHARING_STARTED,
+                data: { contactId: contactId }
+              }
+            );
+            resolve(data);
+          },
+          failure: function (err) {
+            connect.getLog().error("startScreenSharing failed")
+              .withException(err).sendInternalLogToServer();
+            connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+              {
+                event: connect.ContactEvents.SCREEN_SHARING_ERROR,
+                data: { contactId: contactId }
+              }
+            );
+            reject(err);
+          }
+        });
+      });
+    } else {
+      connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+        {
+          event: connect.ContactEvents.SCREEN_SHARING_STARTED,
+          data: { contactId: contactId }
+        }
+      );
+    }
+  };
+
+  Contact.prototype.onScreenSharingStarted = function (f) {
+    return connect.core.getEventBus().subscribe(connect.ContactEvents.SCREEN_SHARING_STARTED, f);
+  }
+
+  Contact.prototype.stopScreenSharing = async function () {
+    const contactId = this.getContactId();
+    if (this.getContactSubtype() !== "connect:WebRTC") {
+      throw new Error("Screen sharing is only supported for WebRTC contacts.");
+    }
+    if (!this.isConnected()) {
+      throw new connect.StateError('Contact %s is not connected.', contactId);
+    }
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
+      {
+        event: connect.ContactEvents.SCREEN_SHARING_STOPPED,
+        data: { contactId: contactId }
+      }
+    );
+  };
+
+  Contact.prototype.onScreenSharingStopped = function (f) {
+    return connect.core.getEventBus().subscribe(connect.ContactEvents.SCREEN_SHARING_STOPPED, f);
+  }
+
+  Contact.prototype.onScreenSharingError = function (f) {
+    return connect.core.getEventBus().subscribe(connect.ContactEvents.SCREEN_SHARING_ERROR, f);
+  }
 
   Contact.prototype._isInbound = function () {
     var initiationMethod = this._getData().initiationMethod;
@@ -2237,6 +2339,11 @@
   VoiceConnection.prototype.canSendVideo = function () {
     const capabilities = this.getCapabilities();
     return capabilities && capabilities.Video === connect.VideoCapability.SEND;
+  };
+
+  VoiceConnection.prototype.canSendScreenShare = function () {
+    const capabilities = this.getCapabilities();
+    return capabilities && capabilities.ScreenShare === connect.ScreenShareCapability.SEND;
   };
 
   VoiceConnection.prototype.getCapabilities = function () {

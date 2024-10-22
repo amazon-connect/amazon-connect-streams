@@ -123,7 +123,11 @@
     'view',
     'ended',
     'error',
-    'accepted'
+    'accepted',
+    'invalid_state_transition',
+    'screen_sharing_started',
+    'screen_sharing_stopped',
+    'screen_sharing_error'
   ]);
 
   var ChannelViewEvents = connect.makeNamespacedEnum('taskList', [

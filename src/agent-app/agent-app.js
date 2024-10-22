@@ -137,6 +137,8 @@
         allowFramedSoftphone: true,
         disableRingtone: false,
         allowFramedVideoCall: true,
+        allowFramedScreenSharing: true,
+        allowFramedScreenSharingPopUp: false,
       }
     };
     var ccpParams = connect.merge(defaultParams, config.ccpParams);
