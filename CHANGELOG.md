@@ -1,4 +1,9 @@
 # CHANGELOG.md
+## [2.15.0] - 2024-10-22
+Added:
+- Screen Sharing
+- File transpilation
+
 ## [2.14.6] - 2024-08-02
 Added:
 - typescript support for onSoftphoneSessionInit
