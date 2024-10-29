@@ -228,6 +228,19 @@
 
       this.upstream.onMessage(connect.hitch(this, this._dispatchEvent, this.upstreamBus));
       this.downstream.onMessage(connect.hitch(this, this._dispatchEvent, this.downstreamBus));
+
+      // Only relevant for Global Resiliency
+      this.active = true;
+      this.allowedEvents =
+      [
+         ...Object.entries(connect.GlobalResiliencyEvents).map((keyValue)=>{ return keyValue[1] }),
+         connect.EventType.CONFIGURE,
+         connect.EventType.SYNCHRONIZE,
+         connect.EventType.ACKNOWLEDGE,
+         connect.EventType.LOG,
+         connect.EventType.SERVER_BOUND_INTERNAL_LOG,
+         connect.EventType.DOWNLOAD_LOG_FROM_CCP
+      ];
    };
 
    Conduit.prototype.onUpstream = function(eventName, f) {
@@ -282,6 +295,10 @@
    Conduit.prototype.passUpstream = function() {
       var self = this;
       return function(data, eventName) {
+         if (!self.active && !self.allowedEvents.includes(eventName)){
+            connect.getLog().debug(`[GR] Conduit ${self.name} has blocked event ${eventName} from going upstream.`).sendInternalLogToServer();
+            return;
+         }
          self.upstream.send({event: eventName, data: data});
       };
    };
@@ -295,6 +312,10 @@
    Conduit.prototype.passDownstream = function() {
       var self = this;
       return function(data, eventName) {
+         if (!self.active && !self.allowedEvents.includes(eventName)){
+            connect.getLog().debug(`[GR] Conduit ${self.name} has blocked event ${eventName} from going downstream.`).sendInternalLogToServer();
+            return;
+         }
          self.downstream.send({event: eventName, data: data});
       };
    };
@@ -305,6 +326,18 @@
    Conduit.prototype.shutdown = function() {
       this.upstreamBus.unsubscribeAll();
       this.downstreamBus.unsubscribeAll();
+   };
+
+   Conduit.prototype.setActive = function() {
+      connect.getLog().info(`[GR] Setting CCP conduit as active`);
+
+      this.active = true;
+   };
+
+   Conduit.prototype.setInactive = function() {
+      connect.getLog().info(`[GR] Setting CCP conduit as inactive`);
+
+      this.active = false;
    };
 
    /**---------------------------------------------------------------
@@ -318,6 +351,136 @@
    IFrameConduit.prototype = Object.create(Conduit.prototype);
    IFrameConduit.prototype.constructor = IFrameConduit;
 
+   class GRProxyIframeConduit {
+      constructor(window, iframes, defaultActiveCCPUrl) {
+         const defaultActiveOrigin = (new URL(defaultActiveCCPUrl)).origin;
+
+         this.activeRegionUrl = defaultActiveOrigin;
+         this.conduits = iframes.map((iframe) => {
+            const iframeConduit = new IFrameConduit(iframe.src, window, iframe);
+            iframeConduit.iframe = iframe;
+
+            const { origin } = new URL(iframe.src);
+            iframeConduit.name = origin;
+            return iframeConduit;
+         });
+         this.setActiveConduit(defaultActiveOrigin);
+      }
+      
+      onUpstream(eventName, f) {
+         const subs = this.conduits.map((conduit) => {
+            return conduit.onUpstream(eventName, f);
+         });
+         return {
+            unsubscribe: () => subs.forEach((sub) => sub.unsubscribe()),
+         };
+      }
+
+      onAllUpstream(f) {
+         const subs = this.conduits.map((conduit) => {
+            return conduit.onAllUpstream(f);
+         });
+         return {
+            unsubscribe: () => subs.forEach((sub) => sub.unsubscribe()),
+         };
+      }
+
+      onDownstream(eventName, f) {
+         const subs = this.conduits.map((conduit) => {
+            return conduit.onDownstream(eventName, f);
+         });
+         return {
+            unsubscribe: () => subs.forEach((sub) => sub.unsubscribe()),
+         };
+      }
+    
+      onAllDownstream(f) {
+         const subs = this.conduits.map((conduit) => {
+            return conduit.onAllDownstream(f);
+         });
+         return {
+            unsubscribe: () => subs.forEach((sub) => sub.unsubscribe()),
+         };
+      }
+
+      sendUpstream(eventName, data) {
+         this.conduits.forEach((conduit) => {
+            conduit.sendUpstream(eventName, data);
+         });
+      }
+    
+      sendDownstream(eventName, data) {
+         this.conduits.forEach((conduit) => {
+            conduit.sendDownstream(eventName, data);
+         });
+      }
+
+      // Relay an event from one shared worker to another
+      relayUpstream(eventName){
+         var self = this;
+
+         this.conduits.forEach((conduit) => {
+            conduit.onUpstream(eventName, function (data) {
+               const otherConduit = self.getOtherConduit(conduit);
+               otherConduit.sendUpstream(eventName, data);
+
+               connect
+                  .getLog()
+                  .info(`Relayed event ${eventName} from ${conduit.name} to ${otherConduit.name} shared worker`)
+                  .withObject({data})
+                  .sendInternalLogToServer();
+            })
+         });
+      }
+
+      getAllConduits() {
+         return this.conduits;
+      }
+
+      setActiveConduit(activeRegionUrl) {
+         const newActiveConduit = this.conduits.find((conduit) => conduit.name === activeRegionUrl);
+         if (!newActiveConduit) {
+            connect.getLog().error(`[GR] No conduit found with the given ccpUrl: ${activeRegionUrl}`).sendInternalLogToServer();
+            return;
+         }
+
+         this.conduits.forEach((conduit) => {
+            if (conduit.name === activeRegionUrl) {
+               this.activeRegionUrl = activeRegionUrl;
+
+               // Update member variables in case customer directly referencing those  
+               this.name = conduit.name;
+               this.upstream = conduit.upstream;
+               this.downstream = conduit.downstream;
+               this.upstreamBus = conduit.upstreamBus;
+               this.downstreamBus = conduit.downstreamBus;
+            }
+         });
+
+         connect.getLog().info(`[GR] Switched to active conduit ${this.getActiveConduit().name}`).sendInternalLogToServer();
+      }
+
+      getActiveConduit() {
+         return this.conduits.find((conduit) => conduit.name === this.activeRegionUrl);
+      }
+
+      getInactiveConduit() {
+         return this.conduits.find((conduit) => conduit.name !== this.activeRegionUrl);
+      }
+
+      getOtherConduit(conduit) {
+         return this.conduits.find((otherConduit) => conduit.name !== otherConduit.name);
+      }
+      
+      getConduitByRegion(region) {
+         return this.conduits.find((conduit) => conduit.region === region);
+      }
+
+      getConduitByName(name) {
+         return this.conduits.find((conduit) => conduit.name === name);
+      }
+   }
+
    connect.Stream = Stream;
    connect.NullStream = NullStream;
    connect.WindowStream = WindowStream;
@@ -326,4 +489,5 @@
    connect.StreamMultiplexer = StreamMultiplexer;
    connect.Conduit = Conduit;
    connect.IFrameConduit = IFrameConduit;
+   connect.GRProxyIframeConduit = GRProxyIframeConduit;
 })();
