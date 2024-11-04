@@ -191,7 +191,12 @@
     }
 
     this._initiateRtcPeerConnectionManager = function () {
-      // TODO: add code logic for ACGR
+      // close existing peer connection managed by rtcPeerConnectionManager
+      if (connect?.core?.softphoneManager?.rtcPeerConnectionManager?.close) {
+        connect.core.softphoneManager.rtcPeerConnectionManager.close();
+        connect.core.softphoneManager.rtcPeerConnectionManager = null;
+      }
+
       var isPPCEnabled = softphoneParams.isSoftphonePersistentConnectionEnabled;
 
       // browserId will be used to handle browser page refresh, iceRestart scenarios
@@ -204,9 +209,9 @@
       if (connect.RtcPeerConnectionManager) {
         // Disable earlyGum and close rtcPeerConnectionFactory before creating RtcPeerConnectionManager
         allowEarlyGum = false;
-        if (connect?.core?.softphoneManager?.rtcPeerConnectionFactory?.close){
-          connect.core.softphoneManager.rtcPeerConnectionFactory.close();
-          connect.core.softphoneManager.rtcPeerConnectionFactory = null;
+        if (self.rtcPeerConnectionFactory?.close){
+          self.rtcPeerConnectionFactory.close();
+          self.rtcPeerConnectionFactory = null;
         }
 
         self.rtcPeerConnectionManager = new connect.RtcPeerConnectionManager(
@@ -587,6 +592,9 @@
         this.rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
       }
       this.rtcPeerConnectionFactory = null;
+      if (this.rtcPeerConnectionManager && this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId) {
+        this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId();
+      }
     };
   };
 
