@@ -9765,8 +9765,13 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     // Because normal flow is initCCP > init softphone manager,
     // it is possible the softphone manager was not yet initialized
     if ((_connect$core = connect.core) !== null && _connect$core !== void 0 && _connect$core.softphoneManager) {
-      connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection factory.').sendInternalLogToServer();
-      connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
+      if (connect.core._allowSoftphonePersistentConnection) {
+        connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection manager.').sendInternalLogToServer();
+        connect.core.softphoneManager._initiateRtcPeerConnectionManager();
+      } else {
+        connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection factory.').sendInternalLogToServer();
+        connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
+      }
     } else {
       connect.getLog().info('[GR] Softphone manager not initialized or not used, not refreshing softphone manager.').sendInternalLogToServer();
     }
@@ -13318,7 +13323,12 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
       });
     };
     this._initiateRtcPeerConnectionManager = function () {
-      // TODO: add code logic for ACGR
+      var _connect$core2;
+      // close existing peer connection managed by rtcPeerConnectionManager
+      if (connect !== null && connect !== void 0 && (_connect$core2 = connect.core) !== null && _connect$core2 !== void 0 && (_connect$core2 = _connect$core2.softphoneManager) !== null && _connect$core2 !== void 0 && (_connect$core2 = _connect$core2.rtcPeerConnectionManager) !== null && _connect$core2 !== void 0 && _connect$core2.close) {
+        connect.core.softphoneManager.rtcPeerConnectionManager.close();
+        connect.core.softphoneManager.rtcPeerConnectionManager = null;
+      }
       var isPPCEnabled = softphoneParams.isSoftphonePersistentConnectionEnabled;
 
       // browserId will be used to handle browser page refresh, iceRestart scenarios
@@ -13328,12 +13338,12 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
       }
       browserId = global.localStorage.getItem(BROWSER_ID);
       if (connect.RtcPeerConnectionManager) {
-        var _connect$core2;
+        var _self$rtcPeerConnecti;
         // Disable earlyGum and close rtcPeerConnectionFactory before creating RtcPeerConnectionManager
         allowEarlyGum = false;
-        if (connect !== null && connect !== void 0 && (_connect$core2 = connect.core) !== null && _connect$core2 !== void 0 && (_connect$core2 = _connect$core2.softphoneManager) !== null && _connect$core2 !== void 0 && (_connect$core2 = _connect$core2.rtcPeerConnectionFactory) !== null && _connect$core2 !== void 0 && _connect$core2.close) {
-          connect.core.softphoneManager.rtcPeerConnectionFactory.close();
-          connect.core.softphoneManager.rtcPeerConnectionFactory = null;
+        if ((_self$rtcPeerConnecti = self.rtcPeerConnectionFactory) !== null && _self$rtcPeerConnecti !== void 0 && _self$rtcPeerConnecti.close) {
+          self.rtcPeerConnectionFactory.close();
+          self.rtcPeerConnectionFactory = null;
         }
         self.rtcPeerConnectionManager = new connect.RtcPeerConnectionManager(null,
         // signalingURI for ccpv1
@@ -13658,6 +13668,9 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
         _this.rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
       }
       _this.rtcPeerConnectionFactory = null;
+      if (_this.rtcPeerConnectionManager && _this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId) {
+        _this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId();
+      }
     };
   };
   var fireContactAcceptedEvent = function fireContactAcceptedEvent(contact) {
