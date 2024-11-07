@@ -22,9 +22,22 @@
 
   connect.globalResiliency._initializeActiveRegion = function (grProxyConduit, region) {
     // agentDataProvider needs to be reinitialized in order to avoid side effects from the drastic agent snapshot change
-    connect.core.agentDataProvider?.destroy();
-    connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());
-    grProxyConduit.getActiveConduit().sendUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
+    try {
+      connect.core.agentDataProvider?.destroy();
+      connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());
+      grProxyConduit.getActiveConduit().sendUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
+    } catch (e) {
+      connect
+        .getLog()
+        .error('[GR] There was an error reinitializing the agent data provider.')
+        .withException(e)
+        .sendInternalLogToServer();
+
+      connect.publishMetric({
+        name: 'GlobalResiliencySwitchRegionAgentDataProviderFailure',
+        data: { count: 1 },
+      });
+    }
 
     // Set one to the connect.core.keepaliveManager just in case for backward compatibility, but most likely it won't be used.
     connect.core.keepaliveManager = grProxyConduit.getActiveConduit().keepaliveManager;
@@ -39,19 +52,38 @@
 
     // Because normal flow is initCCP > init softphone manager,
     // it is possible the softphone manager was not yet initialized
-    if (connect.core?.softphoneManager) {
-      if (connect.core._allowSoftphonePersistentConnection) {
-        connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection manager.').sendInternalLogToServer();
-        connect.core.softphoneManager._initiateRtcPeerConnectionManager();
+    try {
+      if (connect.core?.softphoneManager) {
+        if (connect.core._allowSoftphonePersistentConnection) {
+          connect
+            .getLog()
+            .info('[GR] Refreshing softphone manager RTC peer connection manager.')
+            .sendInternalLogToServer();
+          connect.core.softphoneManager._initiateRtcPeerConnectionManager();
+        } else {
+          connect
+            .getLog()
+            .info('[GR] Refreshing softphone manager RTC peer connection factory.')
+            .sendInternalLogToServer();
+          connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
+        }
       } else {
-        connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection factory.').sendInternalLogToServer();
-        connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
+        connect
+          .getLog()
+          .info('[GR] Softphone manager not initialized or not used, not refreshing softphone manager.')
+          .sendInternalLogToServer();
       }
-    } else {
+    } catch (e) {
       connect
         .getLog()
-        .info('[GR] Softphone manager not initialized or not used, not refreshing softphone manager.')
+        .error('[GR] There was an error refreshing the softphone manager.')
+        .withException(e)
         .sendInternalLogToServer();
+
+      connect.publishMetric({
+        name: 'GlobalResiliencySwitchRegionWebRTCFailure',
+        data: { count: 1 },
+      });
     }
 
     if (region) {
@@ -79,8 +111,21 @@
       .getInactiveConduit()
       .sendUpstream(connect.GlobalResiliencyEvents.CONFIGURE_CCP_CONDUIT, { instanceState: 'inactive' });
 
-    connect.core._showIframe(grProxyConduit.getActiveConduit().iframe);
-    connect.core._hideIframe(grProxyConduit.getInactiveConduit().iframe);
+    try {
+      connect.core._showIframe(grProxyConduit.getActiveConduit().iframe);
+      connect.core._hideIframe(grProxyConduit.getInactiveConduit().iframe);
+    } catch (e) {
+      connect
+        .getLog()
+        .error('[GR] There was an error updating the IFrame visibility.')
+        .withException(e)
+        .sendInternalLogToServer();
+
+      connect.publishMetric({
+        name: 'GlobalResiliencySwitchRegionIFrameSwapFailure',
+        data: { count: 1 },
+      });
+    }
   };
 
   connect.globalResiliency._switchActiveRegion = function (grProxyConduit, newActiveConduitName) {
@@ -163,6 +208,10 @@
     let hasSentFailoverPending = false;
     connect.globalResiliency._activeRegion = null;
     connect.globalResiliency.globalResiliencyEnabled = true;
+
+    let LAST_FAILOVER_PENDING_TIME;
+    let LAST_FAILOVER_INITIATED_TIME;
+    let LAST_FAILOVER_COMPLETED_TIME;
 
     connect.core.checkNotInitialized();
     if (connect.core.initialized) {
@@ -439,7 +488,25 @@
             )
             .sendInternalLogToServer();
 
-          connect.globalResiliency._switchActiveRegion(grProxyConduit, initialConduit.name);
+          try {
+            connect.globalResiliency._switchActiveRegion(grProxyConduit, initialConduit.name);
+
+            connect.publishMetric({
+              name: 'GlobalResiliencySwitchRegionSuccess',
+              data: { count: 1 },
+            });
+          } catch (e) {
+            connect
+              .getLog()
+              .error(`[GR] Failure switching active region at initialization.`)
+              .withException(e)
+              .sendInternalLogToServer();
+
+            connect.publishMetric({
+              name: 'GlobalResiliencySwitchRegionFailure',
+              data: { count: 1 },
+            });
+          }
           connect.core.getEventBus().trigger(connect.EventType.INIT);
           connect.core.initialized = true;
           // We do no trigger FAILOVER_COMPLETE here as that should only be triggered after initiaization
@@ -457,10 +524,19 @@
       });
 
       conduit.onUpstream(connect.GlobalResiliencyEvents.FAILOVER_INITIATED, (data) => {
+        LAST_FAILOVER_INITIATED_TIME = Date.now();
+
         connect.publishMetric({
           name: 'GlobalResiliencyFailoverInitiatedReceived',
           data: { count: 1 },
         });
+
+        if (hasSentFailoverPending) {
+          connect.publishMetric({
+            name: 'GlobalResiliencyPendingToInitiatedLatency',
+            data: { latency: LAST_FAILOVER_INITIATED_TIME - LAST_FAILOVER_PENDING_TIME },
+          });
+        }
 
         if (!data?.activeRegion) {
           connect
@@ -484,7 +560,7 @@
         if (!newActiveConduit) {
           connect
             .getLog()
-            .warn(
+            .debug(
               `[GR] A conduit did not received GLOBAL_RESILIENCY.INIT event, leading to the region field being unpopulated.`
             );
 
@@ -496,7 +572,23 @@
           });
         }
 
-        const didSwitch = connect.globalResiliency._switchActiveRegion(grProxyConduit, newActiveConduit.name);
+        let didSwitch;
+
+        try {
+          didSwitch = connect.globalResiliency._switchActiveRegion(grProxyConduit, newActiveConduit.name);
+
+          connect.publishMetric({
+            name: 'GlobalResiliencySwitchRegionSuccess',
+            data: { count: 1 },
+          });
+        } catch (e) {
+          connect.getLog().error(`[GR] Failure switching active region.`).withException(e).sendInternalLogToServer();
+
+          connect.publishMetric({
+            name: 'GlobalResiliencySwitchRegionFailure',
+            data: { count: 1 },
+          });
+        }
 
         if (didSwitch) {
           hasSentFailoverPending = false;
@@ -508,11 +600,20 @@
               .getEventBus()
               .trigger(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE, { activeRegion: data.activeRegion });
 
+            grProxyConduit.sendUpstream(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE);
+
             connect.getLog().info(`[GR] GlobalResiliencyEvents.FAILOVER_COMPLETE emitted.`).sendInternalLogToServer();
+
+            LAST_FAILOVER_COMPLETED_TIME = Date.now();
 
             connect.publishMetric({
               name: 'GlobalResiliencyFailoverCompleted',
               data: { count: 1 },
+            });
+
+            connect.publishMetric({
+              name: 'GlobalResiliencyInitiatedToCompletedLatency',
+              data: { latency: LAST_FAILOVER_COMPLETED_TIME - LAST_FAILOVER_INITIATED_TIME },
             });
           });
         }
@@ -596,6 +697,8 @@
 
         hasSentFailoverPending = true;
 
+        LAST_FAILOVER_PENDING_TIME = Date.now();
+
         connect.publishMetric({
           name: 'GlobalResiliencyFailoverPendingReceived',
           data: { count: 1 },
@@ -639,11 +742,6 @@
         connect.publishMetric({
           name: 'GlobalResiliencyPartialInitialization',
           data: { count: 1 },
-        });
-      } else {
-        connect.publishMetric({
-          name: 'GlobalResiliencyPartialInitialization',
-          data: { count: 0 },
         });
       }
     }, 30000);
