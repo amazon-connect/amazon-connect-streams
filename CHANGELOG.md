@@ -1,8 +1,7 @@
 # CHANGELOG.md
-## [2.16.0] - 2024-11-08
+## [2.16.0] - 2024-11-11
 Added:
-- Screen Sharing
-- File transpilation
+- Amazon Connect Global Resiliency implementation.
 
 
 ## [2.15.0] - 2024-10-22
