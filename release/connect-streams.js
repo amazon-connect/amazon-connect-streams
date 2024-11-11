@@ -15886,7 +15886,7 @@ function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" =
     if (grProxyConduit instanceof connect.GRProxyIframeConduit) {
       return conduit.name === grProxyConduit.activeRegionUrl;
     } else {
-      connect.core.getLog().error('connect.isActiveConduit is called but there is no GR proxy conduit').sendInternalLogToServer();
+      connect.getLog().error('connect.isActiveConduit is called but there is no GR proxy conduit').sendInternalLogToServer();
       return false;
     }
   };
