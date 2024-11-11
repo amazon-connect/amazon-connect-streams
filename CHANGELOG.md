@@ -1,8 +1,7 @@
 # CHANGELOG.md
 ## [2.16.0] - 2024-11-11
 Added:
-- Amazon Connect Global Resiliency implementation.
-
+- Amazon Connect Global Resiliency implementation. See Documentation-GR.md for details.
 
 ## [2.15.0] - 2024-10-22
 Added:
@@ -15,10 +14,6 @@ Added:
 - updated typescript definition for AttributeDictionary, SegmentAttributeDictionary, ReferenceDictionary
 - typescript SYSTEM and ERROR types for AgentStateType
 - Agent and Contact events subscriptions now return subscription
-
-## [2.15.0] - 2024-08-16
-Added:
-- Global Resiliency implementation. See Documentation-GR.md for details.
 
 ## [2.14.5] - 2024-08-02
 Added:
