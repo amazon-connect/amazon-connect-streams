@@ -757,8 +757,8 @@
     if (grProxyConduit instanceof connect.GRProxyIframeConduit) {
       return conduit.name === grProxyConduit.activeRegionUrl;
     } else {
-      connect.getLog().error('connect.isActiveConduit is called but there is no GR proxy conduit').sendInternalLogToServer();
-      return false;
+      connect.getLog().debug('connect.isActiveConduit is called but there is no GR proxy conduit').sendInternalLogToServer();
+      return true;
     }
   }
 })();
