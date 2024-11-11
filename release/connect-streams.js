@@ -7027,10 +7027,14 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   global.connect = connect;
   global.lily = connect;
   connect.core = {};
+  connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.15.0";
+  connect.version = "2.16.0";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
+
+  // NOTE: These constants are currently also set in the global-resiliency file.
+  // Until a solution is found, changes to these values should be done there as well.
   var CCP_SYN_TIMEOUT = 1000; // 1 sec
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
   var CCP_LOAD_TIMEOUT = 5000; // 5 sec
@@ -7098,7 +7102,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
 
   /**
    * @deprecated
-   * This function was only meant for internal use. 
+   * This function was only meant for internal use.
    * The name is misleading for what it should do.
    * Internally we have replaced its usage with `getLoginUrl`.
    */
@@ -7135,10 +7139,10 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   /**
    * baseParamsStorage. Base class to store params of other modules in local storage
    * Used mainly for cases where embedded CCP gets refreshed.
-   * (not appending to connect core namespace 
+   * (not appending to connect core namespace
    *  as we want to limit scope to use by internal functions for now)
    * @returns {Object}
-  */
+   */
   var BaseParamsStorage = /*#__PURE__*/function () {
     function BaseParamsStorage(moduleName) {
       _classCallCheck(this, BaseParamsStorage);
@@ -7175,7 +7179,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
    * softphoneParamsStorage module to store necessary softphone params in local storage
    * Used mainly for cases where embedded CCP gets refreshed.
    * @returns {Object}
-  */
+   */
   var SoftphoneParamsStorage = /*#__PURE__*/function (_BaseParamsStorage) {
     function SoftphoneParamsStorage() {
       _classCallCheck(this, SoftphoneParamsStorage);
@@ -7190,7 +7194,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
    * ringtoneParamsStorage module to store necessary ringtone params in local storage
    * Used mainly for cases where embedded CCP gets refreshed.
    * @returns {Object}
-  */
+   */
   var RingtoneParamsStorage = /*#__PURE__*/function (_BaseParamsStorage2) {
     function RingtoneParamsStorage() {
       _classCallCheck(this, RingtoneParamsStorage);
@@ -7201,17 +7205,32 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   }(BaseParamsStorage);
   var ringtoneParamsStorage = new RingtoneParamsStorage();
 
+  /**
+   * globalResiliencyParamsStorage module to store necessary global resiliency params in local storage
+   * Used mainly for cases where embedded CCP gets refreshed.
+   * @returns {Object}
+   */
+  var GlobalResiliencyParamsStorage = /*#__PURE__*/function (_BaseParamsStorage3) {
+    function GlobalResiliencyParamsStorage() {
+      _classCallCheck(this, GlobalResiliencyParamsStorage);
+      return _callSuper(this, GlobalResiliencyParamsStorage, ['GlobalResiliency']);
+    }
+    _inherits(GlobalResiliencyParamsStorage, _BaseParamsStorage3);
+    return _createClass(GlobalResiliencyParamsStorage);
+  }(BaseParamsStorage);
+  var globalResiliencyParamsStorage = new GlobalResiliencyParamsStorage();
+
   /**-------------------------------------------------------------------------
-  * Returns scheme://host:port for a given url
-  */
+   * Returns scheme://host:port for a given url
+   */
   function sanitizeDomain(url) {
     var domain = url.match(/^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/ig);
     return domain.length ? domain[0] : "";
   }
 
   /**-------------------------------------------------------------------------
-    * Print a warning message if the Connect core is not initialized.
-    */
+   * Print a warning message if the Connect core is not initialized.
+   */
   connect.core.checkNotInitialized = function () {
     if (connect.core.initialized) {
       var log = connect.getLog();
@@ -7270,7 +7289,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
             var contact = _step.value;
             if (failureEncountered) {
               break; // stop after first failure to avoid triggering UI failover multiple times
-            } else if (shouldSoftFailover && (contact.getType() === connect.ContactType.QUEUE_CALLBACK || contact.getType() == connect.ContactType.VOICE)) {
+            } else if (shouldSoftFailover && (contact.getType() === connect.ContactType.QUEUE_CALLBACK || contact.getType() === connect.ContactType.VOICE)) {
               log.info("[Disaster Recovery] Will wait to complete failover of instance %s until voice contact with ID %s is destroyed", connect.core.region, contact.getContactId()).sendInternalLogToServer();
               connect.core.getUpstream().sendDownstream(connect.DisasterRecoveryEvents.FAILOVER_PENDING, {
                 nextActiveArn: nextActiveArn
@@ -7711,7 +7730,6 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
             connect.getLog().info("[Softphone Manager] confirmed as softphone master topic").sendInternalLogToServer();
             if (!connect.core.softphoneManager && agent.isSoftphoneEnabled()) {
               // Become master to send logs, since we need logs from softphone tab.
-              connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
               connect.core.softphoneManager = new connect.SoftphoneManager(softphoneParams);
               sub.unsubscribe();
             }
@@ -7721,8 +7739,8 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     };
 
     /**
-      * If the window is framed and if it's the CCP app then we need to wait for a CONFIGURE message from downstream before we initialize softphone manager.
-      * All medialess softphone initialization cases goes to else check and doesn't wait for CONFIGURE message
+     * If the window is framed and if it's the CCP app then we need to wait for a CONFIGURE message from downstream before we initialize softphone manager.
+     * All medialess softphone initialization cases goes to else check and doesn't wait for CONFIGURE message
      */
 
     if (connect.isFramed() && connect.isCCP()) {
@@ -7730,7 +7748,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
       var bus = connect.core.getEventBus();
 
       // Configure handler triggers the softphone manager initiation.
-      // This event is propagted by initCCP call from the end customers 
+      // This event is propagted by initCCP call from the end customers
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
         global.clearTimeout(configureMessageTimer); // we don't need to re-init softphone manager as we recieved configure event
         connect.getLog().info("[Softphone Manager] Configure event handler executed").withObject({
@@ -7750,7 +7768,6 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
        * This snippet needs at least one initCCP invocation which sets the params to the store
        * and waits for CCP to load successfully to apply the same to init Softphone manager
        */
-
       var softphoneParamsFromLocalStorage = softphoneParamsStorage.get();
       if (softphoneParamsFromLocalStorage) {
         connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function (args) {
@@ -7774,7 +7791,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
                 connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed & Initializing competeForMasterOnAgentUpdate (Softphone manager) from localStorage softphone params").sendInternalLogToServer();
                 competeForMasterOnAgentUpdate(softphoneParamsFromLocalStorage);
               }
-              // 100 ms is from the time it takes to execute few lines of JS code to trigger the configure event (this is done in initCCP) 
+              // 100 ms is from the time it takes to execute few lines of JS code to trigger the configure event (this is done in initCCP)
               // which is in fraction of milisecond.  so to be on the safer side we are keeping it to be 100
               // this number is pulled from performance.now() calculations.
             }, 100);
@@ -7786,7 +7803,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
       setupEventListenersForMultiTabUseInFirefox(params);
     }
     connect.agent(function (agent) {
-      // Sync mute across all tabs 
+      // Sync mute across all tabs
       if (agent.isSoftphoneEnabled() && agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
         connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
           event: connect.EventType.MUTE
@@ -8029,8 +8046,8 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   };
 
   /**-------------------------------------------------------------------------
-   * Returns true if this window's href is on the legacy connect domain. 
-   * Only useful for internal use. 
+   * Returns true if this window's href is on the legacy connect domain.
+   * Only useful for internal use.
    */
   connect.core.isLegacyDomain = function (url) {
     url = url || window.location.href;
@@ -8243,7 +8260,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
    * Initializes Connect by loading the CCP in an iframe and connecting to it.
    */
   connect.core.initCCP = function (containerDiv, paramsIn) {
-    var _params$softphone;
+    var _params$softphone, _params;
     connect.core.checkNotInitialized();
     if (connect.core.initialized) {
       return;
@@ -8270,6 +8287,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     }
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
+    connect.core.iframeStyle = params.style || "width: 100%; height: 100%;";
 
     // Clean up the Softphone and Ringtone params store to make sure we always pull the latest params
     if (!((_params$softphone = params.softphone) !== null && _params$softphone !== void 0 && _params$softphone.disableStoringParamsInLocalStorage)) {
@@ -8277,7 +8295,31 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
       ringtoneParamsStorage.clean();
     }
 
-    // init StorageAccess with the incoming params
+    // This is emitted further below as event bus and customer event callbacks are not created yet.
+    var acgrParamError = null;
+    if (((_params = params) === null || _params === void 0 ? void 0 : _params.enableGlobalResiliency) === true) {
+      var _params2, _params3, _params4, _params5;
+      if (typeof ((_params2 = params) === null || _params2 === void 0 ? void 0 : _params2.secondaryCCPUrl) !== 'string' || ((_params3 = params) === null || _params3 === void 0 ? void 0 : _params3.secondaryCCPUrl) === '') {
+        var _log = "enableGlobalResiliency flag was enabled, but secondaryCCPUrl was not provided. Global Resiliency will not be enabled";
+        connect.getLog().error(_log).sendInternalLogToServer();
+        acgrParamError = {
+          event: connect.GlobalResiliencyEvents.CONFIGURE_ERROR,
+          data: new Error(_log)
+        };
+      } else if (typeof ((_params4 = params) === null || _params4 === void 0 ? void 0 : _params4.loginUrl) !== 'string' || ((_params5 = params) === null || _params5 === void 0 ? void 0 : _params5.loginUrl) === '') {
+        var _log2 = "enableGlobalResiliency flag was enabled, but loginUrl was not provided. Global Resiliency will not be enabled";
+        connect.getLog().error(_log2).sendInternalLogToServer();
+        acgrParamError = {
+          event: connect.GlobalResiliencyEvents.CONFIGURE_ERROR,
+          data: new Error(_log2)
+        };
+      } else {
+        connect.getLog().info("enableGlobalResiliency flag was enabled and secondaryCCPUrl and loginUrl was provided. Global Resiliency will be enabled").sendInternalLogToServer();
+        return connect.globalResiliency.initGRCCP(containerDiv, paramsIn);
+      }
+    }
+
+    // Placed after ACGR init since StorageAccess does not work with ACGR
     connect.storageAccess.init(params.ccpUrl, containerDiv, params.storageAccess || {});
     var iframe = connect.core._createCCPIframe(containerDiv, params);
     // Build the upstream conduit communicating with the CCP iframe.
@@ -8364,6 +8406,9 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
         this.unsubscribe();
         connect.core.initialized = true;
         connect.core.getEventBus().trigger(connect.EventType.INIT);
+        if (acgrParamError) {
+          connect.core.getEventBus().trigger(acgrParamError.event, acgrParamError.data);
+        }
         if (initStartTime) {
           var initTime = Date.now() - initStartTime;
           var refreshAttempts = connect.core.iframeRefreshAttempt || 0;
@@ -8567,42 +8612,71 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   connect.core.onIframeRetriesExhausted = function (f) {
     return connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, f);
   };
-  connect.core._refreshIframeOnTimeout = function (initCCPParams, containerDiv) {
+  connect.core._refreshIframeOnTimeout = function (initCCPParams, containerDiv, timerContainer, identifier) {
     connect.assertNotNull(initCCPParams, 'initCCPParams');
     connect.assertNotNull(containerDiv, 'containerDiv');
+    var obj = timerContainer || connect.core;
+
     // ccpIframeRefreshInterval is the ccpLoadTimeout passed into initCCP
     // if no ccpLoadTimeout is passed in, the interval is the default, which depends on if disaster recovery is on
     var ccpIframeRefreshInterval = initCCPParams.ccpLoadTimeout ? initCCPParams.ccpLoadTimeout : initCCPParams.disasterRecoveryOn ? CCP_DR_IFRAME_REFRESH_INTERVAL : CCP_IFRAME_REFRESH_INTERVAL;
-    global.clearTimeout(connect.core.iframeRefreshTimeout);
-    connect.core.iframeRefreshTimeout = global.setTimeout(function () {
-      connect.core.iframeRefreshAttempt = (connect.core.iframeRefreshAttempt || 0) + 1;
-      if (connect.core.iframeRefreshAttempt <= CCP_IFRAME_REFRESH_LIMIT) {
-        try {
-          var iframe = connect.core._getCCPIframe();
-          if (iframe) {
-            iframe.parentNode.removeChild(iframe); // The only way to force a synchronous reload of the iframe without the old iframe continuing to function is to remove the old iframe entirely.
-          }
-          var newIframe = connect.core._createCCPIframe(containerDiv, initCCPParams);
-          connect.core.upstream.upstream.output = newIframe.contentWindow; //replaces the output window (old iframe's contentWindow) of the WindowIOStream (within the IFrameConduit) with the new iframe's contentWindow.
-          connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(newIframe, connect.core.upstream);
-        } catch (e) {
-          connect.getLog().error('Error while checking for, and recreating, the CCP IFrame').withException(e).sendInternalLogToServer();
-        }
-        connect.core._refreshIframeOnTimeout(initCCPParams, containerDiv);
+    global.clearTimeout(obj.iframeRefreshTimeout);
+    obj.iframeRefreshTimeout = global.setTimeout(function () {
+      obj.iframeRefreshAttempt = (obj.iframeRefreshAttempt || 0) + 1;
+      if (obj.iframeRefreshAttempt <= CCP_IFRAME_REFRESH_LIMIT) {
+        connect.getLog().info("Refreshing the CCP IFrame for ".concat(initCCPParams.ccpUrl, " on attempt ").concat(obj.iframeRefreshAttempt)).sendInternalLogToServer();
+        connect.core._replaceCCPIframe(containerDiv, initCCPParams, identifier);
+        connect.core._refreshIframeOnTimeout(initCCPParams, containerDiv, timerContainer, identifier);
       } else {
-        connect.core.getEventBus().trigger(connect.EventType.IFRAME_RETRIES_EXHAUSTED);
-        global.clearTimeout(connect.core.iframeRefreshTimeout);
+        connect.core.getEventBus().trigger(connect.EventType.IFRAME_RETRIES_EXHAUSTED, identifier);
+        global.clearTimeout(obj.iframeRefreshTimeout);
       }
     }, ccpIframeRefreshInterval);
   };
-  connect.core._getCCPIframe = function () {
+  connect.core._replaceCCPIframe = function (containerDiv, initCCPParams, identifier) {
+    try {
+      var iframe = connect.core._getCCPIframe(identifier);
+      // Needed because in Global Resiliency, iframe may have been hidden and needs to remain hidden.
+      var iframeStyle = null;
+      if (iframe) {
+        iframeStyle = iframe.style;
+        iframe.parentNode.removeChild(iframe); // The only way to force a synchronous reload of the iframe without the old iframe continuing to function is to remove the old iframe entirely.
+      }
+      var newIframe = connect.core._createCCPIframe(containerDiv, initCCPParams, identifier);
+
+      // Needed as show and hide iframe functions may modify iframe style
+      if (iframeStyle) {
+        newIframe.style = iframeStyle.cssText;
+      }
+      if (connect.core.getUpstream() instanceof connect.GRProxyIframeConduit) {
+        var grProxyConduit = connect.core.upstream;
+        grProxyConduit.getAllConduits().forEach(function (conduit) {
+          if (conduit.iframe.dataset.identifier === identifier) {
+            conduit.upstream.output = newIframe.contentWindow;
+            conduit.iframe = newIframe;
+          }
+        });
+      } else {
+        connect.core.getUpstream().upstream.output = newIframe.contentWindow; //replaces the output window (old iframe's contentWindow) of the WindowIOStream (within the IFrameConduit) with the new iframe's contentWindow.
+      }
+      connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(newIframe, connect.core.upstream);
+    } catch (e) {
+      connect.getLog().error('Error while checking for, and recreating, the CCP IFrame').withException(e).sendInternalLogToServer();
+    }
+  };
+  connect.core._getCCPIframe = function (identifier) {
     var _iterator2 = _createForOfIteratorHelper(window.document.getElementsByTagName('iframe')),
       _step2;
     try {
       for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
         var iframe = _step2.value;
         if (iframe.name === CCP_IFRAME_NAME) {
-          return iframe;
+          var _iframe$dataset;
+          if (!identifier || ((_iframe$dataset = iframe.dataset) === null || _iframe$dataset === void 0 ? void 0 : _iframe$dataset.identifier) === identifier) {
+            // For global resiliency, there can be multiple CCP iframes with the same name.
+            // Return iframe only if the iframe's data-region value matches the specified region.
+            return iframe;
+          }
         }
       }
     } catch (err) {
@@ -8612,22 +8686,31 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     }
     return null;
   };
-  connect.core._createCCPIframe = function (containerDiv, initCCPParams) {
+  connect.core._createCCPIframe = function (containerDiv, initCCPParams, identifier) {
     connect.assertNotNull(initCCPParams, 'initCCPParams');
     connect.assertNotNull(containerDiv, 'containerDiv');
     var iframe = document.createElement('iframe');
     iframe.src = initCCPParams.ccpUrl;
     iframe.allow = "microphone; camera; autoplay; clipboard-write; identity-credentials-get";
-    iframe.style = initCCPParams.style || "width: 100%; height: 100%";
+    iframe.style = initCCPParams.style || connect.core.iframeStyle;
     iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
     iframe.name = CCP_IFRAME_NAME;
-    //for Storage Access follow the rsa path
+    if (identifier) {
+      iframe.dataset.identifier = identifier;
+    }
     if (connect.storageAccess.canRequest()) {
+      //for Storage Access follow the rsa path
       iframe.src = connect.storageAccess.getRequestStorageAccessUrl();
       iframe.addEventListener('load', connect.storageAccess.request);
     }
     containerDiv.appendChild(iframe);
     return iframe;
+  };
+  connect.core._hideIframe = function (iframe) {
+    iframe.style = connect.core.iframeStyle + "display: none;";
+  };
+  connect.core._showIframe = function (iframe) {
+    iframe.style = connect.core.iframeStyle;
   };
   connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime = function (iframe, conduit) {
     connect.assertNotNull(iframe, 'iframe');
@@ -8664,7 +8747,12 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     });
     this.ackTimer = global.setTimeout(function () {
       self.ackSub.unsubscribe();
-      self.eventBus.trigger(connect.EventType.ACK_TIMEOUT);
+      if (connect.isActiveConduit(self.conduit)) {
+        connect.getLog().info("ACK_TIMEOUT event is detected from the KeepaliveManager. ".concat(self.conduit.name)).sendInternalLogToServer();
+        self.eventBus.trigger(connect.EventType.ACK_TIMEOUT);
+      } else {
+        connect.getLog().warn("ACK_TIMEOUT event is detected from the KeepaliveManager but suppressed as it is from an inactive region. ".concat(self.conduit.name)).sendInternalLogToServer();
+      }
       self._deferStart();
     }, this.ackTimeout);
   };
@@ -8809,9 +8897,10 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   var AgentDataProvider = function AgentDataProvider(bus) {
     var agentData = null;
     this.bus = bus;
-    this.bus.subscribe(connect.AgentEvents.UPDATE, connect.hitch(this, this.updateAgentData));
+    this.agentUpdateSubscriber = this.bus.subscribe(connect.AgentEvents.UPDATE, connect.hitch(this, this.updateAgentData));
   };
   AgentDataProvider.prototype.updateAgentData = function (agentData) {
+    var _connect$agent;
     var oldAgentData = this.agentData;
     this.agentData = agentData;
     try {
@@ -8828,7 +8917,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     } catch (e) {
       connect.getLog().error("[Metrics] Failed to send metrics.").withException(e).sendInternalLogToServer();
     }
-    if (oldAgentData == null) {
+    if (!((_connect$agent = connect.agent) !== null && _connect$agent !== void 0 && _connect$agent.initialized)) {
       connect.agent.initialized = true;
       this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
     }
@@ -9012,6 +9101,10 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
       });
     });
   };
+  AgentDataProvider.prototype.destroy = function () {
+    var self = this;
+    self.agentUpdateSubscriber.unsubscribe();
+  };
 
   /** ----- minimal view layer event handling **/
 
@@ -9020,7 +9113,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   };
 
   /**
-   * Used of agent interface control. 
+   * Used of agent interface control.
    * connect.core.viewContact("contactId") ->  this is currently programmed to get the contact into view.
    */
   connect.core.viewContact = function (contactId) {
@@ -9039,13 +9132,13 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   };
 
   /**
-   * Used of agent interface control. 
+   * Used of agent interface control.
    * connect.core.activateChannelWithViewType() ->  this is currently programmed to get either the number pad, quick connects, or create task into view.
    * the valid combinations are ("create_task", "task"), ("number_pad", "softphone"), ("create_task", "softphone"), ("quick_connects", "softphone")
    * the softphone with create_task combo is a special case in the channel view to allow all three view type buttons to appear on the softphone screen
    *
    * The 'source' is an optional parameter which indicates the requester. For example, if invoked with ("create_task", "task", "agentapp") we would know agentapp requested open task view.
-   * 
+   *
    * "caseId" is an optional parameter which is passed when a task is created from a Kesytone case
    */
   connect.core.activateChannelWithViewType = function (viewType, mediaType, source, caseId) {
@@ -9075,16 +9168,16 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   /** ------------------------------------------------- */
 
   /**
-  * This will be helpful for the custom and embedded CCPs 
-  * to handle the access denied use case. 
-  */
+   * This will be helpful for the custom and embedded CCPs
+   * to handle the access denied use case.
+   */
   connect.core.onAccessDenied = function (f) {
     return connect.core.getEventBus().subscribe(connect.EventType.ACCESS_DENIED, f);
   };
 
   /**
-  * This will be helpful for SAML use cases to handle the custom logins. 
-  */
+   * This will be helpful for SAML use cases to handle the custom logins.
+   */
   connect.core.onAuthFail = function (f) {
     return connect.core.getEventBus().subscribe(connect.EventType.AUTH_FAIL, f);
   };
@@ -9182,7 +9275,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
    *     var softphoneManager = connect.core.getSoftphoneManager();
    *     if(softphoneManager){
    *        // access session
-   *        var session = softphoneManager.getSession(connectionId); 
+   *        var session = softphoneManager.getSession(connectionId);
    *      }
    * });
    */
@@ -9330,7 +9423,29 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   connect.core.upstream = null;
 
   /**-----------------------------------------------------------------------*/
+  connect.globalResiliency.onFailoverPending = function (f) {
+    return connect.core.getEventBus().subscribe(connect.GlobalResiliencyEvents.FAILOVER_PENDING_CRM, f);
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.globalResiliency.onFailoverCompleted = function (f) {
+    return connect.core.getEventBus().subscribe(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE, f);
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.globalResiliency.onConfigureError = function (f) {
+    return connect.core.getEventBus().subscribe(connect.GlobalResiliencyEvents.CONFIGURE_ERROR, f);
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.globalResiliency.getActiveRegion = function () {
+    return connect.globalResiliency._activeRegion;
+  };
+
+  /**-----------------------------------------------------------------------*/
   connect.core.AgentDataProvider = AgentDataProvider;
+  connect.WebSocketProvider = WebSocketProvider;
+  connect.KeepaliveManager = KeepaliveManager;
 })();
 
 /***/ }),
@@ -9352,7 +9467,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   /**---------------------------------------------------------------
    * enum EventType
    */
-  var EventType = connect.makeEnum(['acknowledge', 'ack_timeout', 'init', 'api_request', 'api_response', 'auth_fail', 'access_denied', 'close', 'configure', 'log', 'master_request', 'master_response', 'synchronize', 'terminate', 'terminated', 'send_logs', 'reload_agent_configuration', 'broadcast', 'api_metric', 'client_metric', 'softphone_stats', 'softphone_report', 'client_side_logs', 'server_bound_internal_log', 'mute', "iframe_style", "iframe_retries_exhausted", "update_connected_ccps", "outer_context_info", "media_device_request", "media_device_response", "tab_id", 'authorize_success', 'authorize_retries_exhausted', 'cti_authorize_retries_exhausted', 'click_stream_data', 'set_quick_get_agent_snapshot_flag', 'api_proxy_request', 'api_proxy_response']);
+  var EventType = connect.makeEnum(['acknowledge', 'ack_timeout', 'init', 'api_request', 'api_response', 'auth_fail', 'access_denied', 'close', 'configure', 'log', 'download_log_from_ccp', 'master_request', 'master_response', 'synchronize', 'terminate', 'terminated', 'send_logs', 'reload_agent_configuration', 'broadcast', 'api_metric', 'client_metric', 'softphone_stats', 'softphone_report', 'client_side_logs', 'server_bound_internal_log', 'mute', "iframe_style", "iframe_retries_exhausted", "update_connected_ccps", "outer_context_info", "media_device_request", "media_device_response", "tab_id", 'authorize_success', 'authorize_retries_exhausted', 'cti_authorize_retries_exhausted', 'click_stream_data', 'set_quick_get_agent_snapshot_flag', 'api_proxy_request', 'api_proxy_response']);
 
   /**---------------------------------------------------------------
    * enum MasterTopics
@@ -9362,7 +9477,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   /**---------------------------------------------------------------
    * enum AgentEvents
    */
-  var AgentEvents = connect.makeNamespacedEnum('agent', ['init', 'update', 'refresh', 'routable', 'not_routable', 'pending', 'contact_pending', 'offline', 'error', 'softphone_error', 'websocket_connection_lost', 'websocket_connection_gained', 'state_change', 'acw', 'mute_toggle', 'local_media_stream_created', 'enqueued_next_state']);
+  var AgentEvents = connect.makeNamespacedEnum('agent', ['init', 'update', 'refresh', 'routable', 'not_routable', 'pending', 'contact_pending', 'offline', 'error', 'softphone_error', 'websocket_connection_lost', 'websocket_connection_gained', 'state_change', 'acw', 'mute_toggle', 'local_media_stream_created', 'enqueued_next_state', 'fetch_agent_data_from_ccp']);
 
   /**---------------------------------------------------------------
   * enum WebSocketEvents
@@ -9398,6 +9513,9 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   'failover_pending',
   // signals that a soft failover will occur when current voice contact ends
   'init_dr_polling']);
+
+  // New Global Resiliency implementation
+  var GlobalResiliencyEvents = connect.makeNamespacedEnum('globalResiliency', ['configure', 'configure_ccp_conduit', 'init', 'configure_error', 'failover_initiated', 'failover_pending', 'failover_pending_crm', 'failover_complete', 'heartbeat_syn', 'heartbeat_ack']);
 
   /**---------------------------------------------------------------
    * enum VoiceId Events
@@ -9596,6 +9714,617 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
   connect.DisasterRecoveryEvents = DisasterRecoveryEvents;
+  connect.GlobalResiliencyEvents = GlobalResiliencyEvents;
+})();
+
+/***/ }),
+
+/***/ 281:
+/***/ (() => {
+
+function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, _typeof(obj); }
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { _defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
+function _defineProperty(obj, key, value) { key = _toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+function _toPropertyKey(arg) { var key = _toPrimitive(arg, "string"); return _typeof(key) === "symbol" ? key : String(key); }
+function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
+/*
+ * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+(function () {
+  var global = this || globalThis;
+  var connect = global.connect || {};
+  global.connect = connect;
+  var CCP_SYN_TIMEOUT = 1000; // 1 sec
+  var CCP_ACK_TIMEOUT = 3000; // 3 sec
+  var CCP_LOAD_TIMEOUT = 5000; // 5 sec
+
+  var CSM_IFRAME_REFRESH_ATTEMPTS = 'IframeRefreshAttempts';
+  var CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
+  var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
+  connect.globalResiliency._downloadCCPLogs = function () {
+    connect.core.getEventBus().trigger(connect.EventType.DOWNLOAD_LOG_FROM_CCP);
+  };
+  connect.globalResiliency._initializeActiveRegion = function (grProxyConduit, region) {
+    // agentDataProvider needs to be reinitialized in order to avoid side effects from the drastic agent snapshot change
+    try {
+      var _connect$core$agentDa;
+      (_connect$core$agentDa = connect.core.agentDataProvider) === null || _connect$core$agentDa === void 0 || _connect$core$agentDa.destroy();
+      connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());
+      grProxyConduit.getActiveConduit().sendUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
+    } catch (e) {
+      connect.getLog().error('[GR] There was an error reinitializing the agent data provider.').withException(e).sendInternalLogToServer();
+      connect.publishMetric({
+        name: 'GlobalResiliencySwitchRegionAgentDataProviderFailure',
+        data: {
+          count: 1
+        }
+      });
+    }
+
+    // Set one to the connect.core.keepaliveManager just in case for backward compatibility, but most likely it won't be used.
+    connect.core.keepaliveManager = grProxyConduit.getActiveConduit().keepaliveManager;
+    connect.core.client = new connect.UpstreamConduitClient(grProxyConduit.getActiveConduit());
+    connect.core.masterClient = new connect.UpstreamConduitMasterClient(grProxyConduit.getActiveConduit());
+    connect.core.mediaFactory = new connect.MediaFactory(_objectSpread(_objectSpread({}, connect.globalResiliency.params), {}, {
+      ccpUrl: grProxyConduit.getActiveConduit().name
+    }));
+
+    // Because normal flow is initCCP > init softphone manager,
+    // it is possible the softphone manager was not yet initialized
+    try {
+      var _connect$core;
+      if ((_connect$core = connect.core) !== null && _connect$core !== void 0 && _connect$core.softphoneManager) {
+        if (connect.core._allowSoftphonePersistentConnection) {
+          connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection manager.').sendInternalLogToServer();
+          connect.core.softphoneManager._initiateRtcPeerConnectionManager();
+        } else {
+          connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection factory.').sendInternalLogToServer();
+          connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
+        }
+      } else {
+        connect.getLog().info('[GR] Softphone manager not initialized or not used, not refreshing softphone manager.').sendInternalLogToServer();
+      }
+    } catch (e) {
+      connect.getLog().error('[GR] There was an error refreshing the softphone manager.').withException(e).sendInternalLogToServer();
+      connect.publishMetric({
+        name: 'GlobalResiliencySwitchRegionWebRTCFailure',
+        data: {
+          count: 1
+        }
+      });
+    }
+    if (region) {
+      connect.globalResiliency._activeRegion = region;
+      if (connect.ChatSession) {
+        if (connect.ChatSession.setRegionOverride) {
+          connect.getLog().info("[GR] Updating ChatJS region to ".concat(region)).sendInternalLogToServer();
+          connect.ChatSession.setRegionOverride(region);
+        } else {
+          connect.getLog().warn("[GR] ChatJS present, but setRegionOverride not found. Consider updating to latest ChatJS version").sendInternalLogToServer();
+        }
+      } else {
+        connect.getLog().info('[GR] ChatJS not present, not updating ChatSession region.').sendInternalLogToServer();
+      }
+    }
+    grProxyConduit.getActiveConduit().sendUpstream(connect.GlobalResiliencyEvents.CONFIGURE_CCP_CONDUIT, {
+      instanceState: 'active'
+    });
+    grProxyConduit.getInactiveConduit().sendUpstream(connect.GlobalResiliencyEvents.CONFIGURE_CCP_CONDUIT, {
+      instanceState: 'inactive'
+    });
+    try {
+      connect.core._showIframe(grProxyConduit.getActiveConduit().iframe);
+      connect.core._hideIframe(grProxyConduit.getInactiveConduit().iframe);
+    } catch (e) {
+      connect.getLog().error('[GR] There was an error updating the IFrame visibility.').withException(e).sendInternalLogToServer();
+      connect.publishMetric({
+        name: 'GlobalResiliencySwitchRegionIFrameSwapFailure',
+        data: {
+          count: 1
+        }
+      });
+    }
+  };
+  connect.globalResiliency._switchActiveRegion = function (grProxyConduit, newActiveConduitName) {
+    var _grProxyConduit$getAc, _grProxyConduit$getAc2, _connect$core2, _grProxyConduit$getAc3, _grProxyConduit$getAc4;
+    if (!(grProxyConduit instanceof connect.GRProxyIframeConduit)) {
+      connect.getLog().error('[GR] Tried to switch over active region, but proxy conduit was not of expected type.').withObject({
+        type: _typeof(grProxyConduit)
+      }).sendInternalLogToServer();
+      return false;
+    }
+    var newActiveConduit = grProxyConduit.getConduitByName(newActiveConduitName);
+    if (!(newActiveConduit instanceof connect.IFrameConduit)) {
+      connect.getLog().error('[GR] Tried to switch over active region, but conduit name was invalid').withObject({
+        newActiveConduitName: newActiveConduitName
+      }).sendInternalLogToServer();
+      return false;
+    }
+    if (grProxyConduit.getActiveConduit().name === newActiveConduit.name && connect.globalResiliency._activeRegion === newActiveConduit.region) {
+      connect.getLog().info('[GR] Not switching over active region as we are already on active region.').sendInternalLogToServer();
+      return false;
+    }
+    connect.getLog().info("[GR] Switching active region from ".concat((_grProxyConduit$getAc = grProxyConduit.getActiveConduit()) === null || _grProxyConduit$getAc === void 0 ? void 0 : _grProxyConduit$getAc.region, " / ").concat((_grProxyConduit$getAc2 = grProxyConduit.getActiveConduit()) === null || _grProxyConduit$getAc2 === void 0 ? void 0 : _grProxyConduit$getAc2.name, " to ").concat(newActiveConduit === null || newActiveConduit === void 0 ? void 0 : newActiveConduit.region, " / ").concat(newActiveConduit === null || newActiveConduit === void 0 ? void 0 : newActiveConduit.name)).sendInternalLogToServer();
+
+    // We need to clear all sessions now as it is not guarenteed that a snapshot informing
+    // the softphone manager that the contact is ended will be received before the failover occurrs
+    (_connect$core2 = connect.core) === null || _connect$core2 === void 0 || (_connect$core2 = _connect$core2.softphoneManager) === null || _connect$core2 === void 0 || _connect$core2._clearAllSessions();
+    grProxyConduit.setActiveConduit(newActiveConduit.name);
+    connect.globalResiliency._initializeActiveRegion(grProxyConduit, newActiveConduit.region);
+    connect.getLog().info("[GR] Switched active region to ".concat((_grProxyConduit$getAc3 = grProxyConduit.getActiveConduit()) === null || _grProxyConduit$getAc3 === void 0 ? void 0 : _grProxyConduit$getAc3.region, " / ").concat((_grProxyConduit$getAc4 = grProxyConduit.getActiveConduit()) === null || _grProxyConduit$getAc4 === void 0 ? void 0 : _grProxyConduit$getAc4.name)).sendInternalLogToServer();
+    connect.publishMetric({
+      name: 'CalledInternalSwitchActiveRegionSuccessful',
+      data: {
+        count: 1
+      }
+    });
+    return true;
+  };
+  connect.globalResiliency.initGRCCP = function (containerDiv, paramsIn) {
+    // Legacy auth flow must be enabled for now to allow GR to work
+    var params = _objectSpread(_objectSpread({}, paramsIn), {}, {
+      loginOptions: {
+        legacyAuthFlow: true
+      }
+    });
+    connect.globalResiliency.params = params;
+    var conduitTimerContainerMap = {};
+    var hasSentFailoverPending = false;
+    connect.globalResiliency._activeRegion = null;
+    connect.globalResiliency.globalResiliencyEnabled = true;
+    var LAST_FAILOVER_PENDING_TIME;
+    var LAST_FAILOVER_INITIATED_TIME;
+    var LAST_FAILOVER_COMPLETED_TIME;
+    connect.core.checkNotInitialized();
+    if (connect.core.initialized) {
+      return;
+    }
+
+    // The initialization metric works only for the active region
+    connect.getLog().info('[GR] Iframe initialization started').sendInternalLogToServer();
+    var initStartTime = Date.now();
+    connect.assertNotNull(containerDiv, 'containerDiv');
+    var primaryURLOrigin = new URL(params.ccpUrl).origin;
+    var secondaryURLOrigin = new URL(params.secondaryCCPUrl).origin;
+    var primaryIframe = connect.core._createCCPIframe(containerDiv, params, primaryURLOrigin);
+    var secondaryIframe = connect.core._createCCPIframe(containerDiv, _objectSpread(_objectSpread({}, params), {}, {
+      ccpUrl: params.secondaryCCPUrl
+    }), secondaryURLOrigin);
+
+    // Create an upstream conduit communicating with all the CCP iframes.
+    // This is a sort of a multiplexer of all upstream conduits, i.e.
+    //   - connect.core.upstream.sendUpstream(msg) will postMessage to all iframes
+    //   - connect.core.upstream.onUpstream(event, f) will register a callback to be invoked when one of the iframes postMessages us
+    var grProxyConduit = new connect.GRProxyIframeConduit(window, [primaryIframe, secondaryIframe], primaryIframe.src);
+    connect.core.upstream = grProxyConduit;
+
+    // Initialize the core event bus. The event subscriptions never get lost after failover
+    connect.core.eventBus = new connect.EventBus({
+      logEvents: false
+    });
+    connect.globalResiliency._initializeActiveRegion(grProxyConduit);
+    connect.publishMetric({
+      name: 'InitGlobalResiliencyCCPCalled',
+      data: {
+        count: 1
+      }
+    });
+
+    // Let each CCP know if the iframe is visible to users or not
+    grProxyConduit.getAllConduits().forEach(function (conduit) {
+      connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(conduit.iframe, conduit);
+    });
+
+    // Initialize websocket provider that exchanges websocket specific events with the shared worker.
+    // It receives messages only from the active conduit.
+    // It sends messages only to active condit, except for topic subscription so that inactive regions' media channels can be initialized.
+    connect.core.webSocketProvider = new connect.WebSocketProvider();
+
+    // Bridge all events sent from upstream to the core event bus.
+    // However most of events from inactive conduits are ignored.
+    grProxyConduit.onAllUpstream(connect.core.getEventBus().bridge());
+
+    // Initialize a keep alive manager for each conduit, that sends back a SYN event in response to ACK event from its shared worker
+    grProxyConduit.getAllConduits().forEach(function (conduit) {
+      // set it to conduit for later use
+      conduit.keepaliveManager = new connect.KeepaliveManager(conduit, connect.core.getEventBus(), params.ccpSynTimeout || CCP_SYN_TIMEOUT, params.ccpAckTimeout || CCP_ACK_TIMEOUT);
+    });
+
+    // The CRM layer CCP logs are sent to each CCP
+    connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(grProxyConduit);
+    connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(grProxyConduit);
+
+    // After switching over, we need to grab the agent data of the new CCP
+    grProxyConduit.onUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP, function (agentData) {
+      connect.core.getAgentDataProvider().updateAgentData(agentData);
+      connect.getLog().info('[GR] Fetched agent data from CCP.').sendInternalLogToServer();
+    });
+
+    // Trigger ACK_TIMEOUT event if there's no ACK from the primary CCP for 5 sec.
+    // Ignore and just emit a log for non-primary CCPs.
+    grProxyConduit.getAllConduits().forEach(function (conduit) {
+      conduitTimerContainerMap[conduit.name] = {
+        iframeRefreshTimeout: null
+      };
+      conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = setTimeout(function () {
+        conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = null;
+        if (connect.isActiveConduit(conduit)) {
+          connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
+          connect.getLog().info("CCP LoadTimeout triggered. ".concat(conduit.name)).sendInternalLogToServer();
+        } else {
+          connect.getLog().error("CCP LoadTimeout detected but ignored for non-primary regions. ".concat(conduit.name)).sendInternalLogToServer();
+        }
+      }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
+    });
+
+    // Listen to the first ACK event sent from each conduit.
+    grProxyConduit.getAllConduits().forEach(function (conduit) {
+      conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
+        connect.getLog().info("Acknowledged by the CCP! ".concat(conduit.name)).sendInternalLogToServer();
+        conduit.sendUpstream(connect.EventType.CONFIGURE, {
+          softphone: params.softphone,
+          chat: params.chat,
+          pageOptions: params.pageOptions,
+          shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
+          enableGlobalResiliency: params.enableGlobalResiliency,
+          instanceState: connect.isActiveConduit(conduit) ? 'active' : 'inactive'
+        });
+
+        // Clear the load timeout timer
+        if (conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance) {
+          global.clearTimeout(conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance);
+          conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = null;
+        }
+
+        // Send outer context info to each CCP
+        conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, {
+          streamsVersion: connect.version,
+          initCCPParams: params
+        });
+
+        // Start keepalive manager. Only active region's one can trigger ACK_TIMEOUT event
+        conduit.keepaliveManager.start();
+        if (connect.isActiveConduit(conduit)) {
+          // Only active conduit initialize these since we only need one instance
+          connect.core.client = new connect.UpstreamConduitClient(conduit);
+          connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
+          connect.core.portStreamId = data.id; // We should update this at failover
+
+          // Only active conduit emits these metircs since we don't allow non-active conduits to broadcast events
+          if (initStartTime) {
+            var initTime = Date.now() - initStartTime;
+            var refreshAttempts = conduitTimerContainerMap[conduit.name].iframeRefreshAttempt || 0;
+            connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
+            connect.getLog().info("Iframe initialization time ".concat(initTime)).sendInternalLogToServer();
+            connect.getLog().info("Iframe refresh attempts ".concat(refreshAttempts)).sendInternalLogToServer();
+            setTimeout(function () {
+              connect.publishMetric({
+                name: CSM_IFRAME_REFRESH_ATTEMPTS,
+                data: {
+                  count: refreshAttempts
+                }
+              });
+              connect.publishMetric({
+                name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+                data: {
+                  count: 1
+                }
+              });
+              connect.publishMetric({
+                name: CSM_IFRAME_INITIALIZATION_TIME,
+                data: {
+                  count: initTime
+                }
+              });
+              // to avoid metric emission after initialization
+              initStartTime = null;
+            }, 1000);
+          }
+        }
+        conduit.portStreamId = data.id; // keep this id for future failover
+
+        this.unsubscribe();
+      });
+    });
+
+    // Add logs from the active upstream conduit to our own logger.
+    grProxyConduit.onUpstream(connect.EventType.LOG, function (logEntry) {
+      if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
+        connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
+      }
+    });
+
+    // Pop a login page when we encounter an ACK_TIMEOUT event.
+    // The event can only be triggered from active region.
+    connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
+      // loginPopup is true by default, only false if explicitly set to false.
+      if (params.loginPopup !== false) {
+        try {
+          // For GR, we assume getLoginUrl() always returns the loginUrl for global sign-in page.
+          // LoginUrl existence was checked before calling initGRCCP
+          var loginUrl = params.loginUrl;
+          connect.getLog().warn('ACK_TIMEOUT occurred, attempting to pop the login page if not already open.').sendInternalLogToServer();
+          // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
+          connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+          connect.core._openPopupWithLock(loginUrl, params.loginOptions);
+        } catch (e) {
+          connect.getLog().error('ACK_TIMEOUT occurred but we are unable to open the login popup.').withException(e).sendInternalLogToServer();
+        }
+      }
+
+      // Start iframe refresh for each region's CCP
+      grProxyConduit.getAllConduits().forEach(function (conduit) {
+        if (conduitTimerContainerMap[conduit.name].iframeRefreshTimeout === null) {
+          try {
+            // Stop the iframe refresh when ACK event is sent from upstream
+            conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+              this.unsubscribe();
+              global.clearTimeout(conduitTimerContainerMap[conduit.name].iframeRefreshTimeout);
+              conduitTimerContainerMap[conduit.name].iframeRefreshTimeout = null;
+              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+              if ((params.loginPopupAutoClose || params.loginOptions && params.loginOptions.autoClose) && connect.core.loginWindow) {
+                connect.core.loginWindow.close();
+                connect.core.loginWindow = null;
+              }
+            });
+
+            // Kick off the iframe refresh
+            connect.core._refreshIframeOnTimeout(_objectSpread(_objectSpread({}, params), {}, {
+              ccpUrl: conduit.iframe.src
+            }), containerDiv, conduitTimerContainerMap[conduit.name], conduit.name);
+          } catch (e) {
+            connect.getLog().error('Error occurred while refreshing iframe').withException(e).sendInternalLogToServer();
+          }
+        }
+      });
+    });
+    grProxyConduit.getAllConduits().forEach(function (conduit) {
+      conduit.onUpstream(connect.GlobalResiliencyEvents.INIT, function (data) {
+        if (!(data !== null && data !== void 0 && data.instanceRegion) || !(data !== null && data !== void 0 && data.instanceState) || !(data !== null && data !== void 0 && data.activeRegion)) {
+          connect.getLog().error("[GR] Expected GlobalResiliencyEvents.INIT to have instance region, state, and current active region, but did not find it.").withObject({
+            data: data
+          }).sendInternalLogToServer();
+          return;
+        }
+        connect.getLog().info("[GR] Received GlobalResiliencyEvents.INIT indicating ".concat(conduit.name, " in region ").concat(data === null || data === void 0 ? void 0 : data.instanceRegion, " is ").concat(data === null || data === void 0 ? void 0 : data.instanceState, ".")).withObject({
+          data: data
+        }).sendInternalLogToServer();
+        var initialConduit = data.instanceRegion === data.activeRegion ? conduit : grProxyConduit.getOtherConduit(conduit);
+        if (!conduit.region || !initialConduit.region) {
+          conduit.region = data.instanceRegion;
+          initialConduit.region = data.activeRegion;
+        }
+        conduit.sendUpstream(connect.GlobalResiliencyEvents.CONFIGURE_CCP_CONDUIT, {
+          instanceState: data.instanceState
+        });
+        if (!connect.core.initialized) {
+          connect.getLog().info("[GR] Setting initial active iframe to ".concat(initialConduit.name, " in region ").concat(initialConduit.region, " because the instance state was active")).sendInternalLogToServer();
+          try {
+            connect.globalResiliency._switchActiveRegion(grProxyConduit, initialConduit.name);
+            connect.publishMetric({
+              name: 'GlobalResiliencySwitchRegionSuccess',
+              data: {
+                count: 1
+              }
+            });
+          } catch (e) {
+            connect.getLog().error("[GR] Failure switching active region at initialization.").withException(e).sendInternalLogToServer();
+            connect.publishMetric({
+              name: 'GlobalResiliencySwitchRegionFailure',
+              data: {
+                count: 1
+              }
+            });
+          }
+          connect.core.getEventBus().trigger(connect.EventType.INIT);
+          connect.core.initialized = true;
+          // We do no trigger FAILOVER_COMPLETE here as that should only be triggered after initiaization
+
+          connect.publishMetric({
+            name: 'GlobalResiliencyCoreInitialized',
+            data: {
+              count: 1
+            }
+          });
+        } else {
+          connect.getLog().log("[GR] Deduping GlobalResiliencyEvents.INIT - Core is already initialized.").sendInternalLogToServer();
+        }
+      });
+      conduit.onUpstream(connect.GlobalResiliencyEvents.FAILOVER_INITIATED, function (data) {
+        LAST_FAILOVER_INITIATED_TIME = Date.now();
+        connect.publishMetric({
+          name: 'GlobalResiliencyFailoverInitiatedReceived',
+          data: {
+            count: 1
+          }
+        });
+        if (hasSentFailoverPending) {
+          connect.publishMetric({
+            name: 'GlobalResiliencyPendingToInitiatedLatency',
+            data: {
+              latency: LAST_FAILOVER_INITIATED_TIME - LAST_FAILOVER_PENDING_TIME
+            }
+          });
+        }
+        if (!(data !== null && data !== void 0 && data.activeRegion)) {
+          connect.getLog().error("[GR] Expected GlobalResiliencyEvents.FAILOVER_INITIATED to have new active region, but did not find it.").withObject({
+            data: data
+          }).sendInternalLogToServer();
+          return;
+        }
+        connect.getLog().info("[GR] Received GlobalResiliencyEvents.FAILOVER_INITIATED indicating the activeRegion is ".concat(data.activeRegion, "."));
+        var newActiveConduit = grProxyConduit.getConduitByRegion(data.activeRegion);
+        if (!newActiveConduit) {
+          connect.getLog().debug("[GR] A conduit did not received GLOBAL_RESILIENCY.INIT event, leading to the region field being unpopulated.");
+          grProxyConduit.getAllConduits().forEach(function (searchConduit) {
+            if (searchConduit.region === undefined || searchConduit.region === null) {
+              searchConduit.region = data.activeRegion;
+              newActiveConduit = searchConduit;
+            }
+          });
+        }
+        var didSwitch;
+        try {
+          didSwitch = connect.globalResiliency._switchActiveRegion(grProxyConduit, newActiveConduit.name);
+          connect.publishMetric({
+            name: 'GlobalResiliencySwitchRegionSuccess',
+            data: {
+              count: 1
+            }
+          });
+        } catch (e) {
+          connect.getLog().error("[GR] Failure switching active region.").withException(e).sendInternalLogToServer();
+          connect.publishMetric({
+            name: 'GlobalResiliencySwitchRegionFailure',
+            data: {
+              count: 1
+            }
+          });
+        }
+        if (didSwitch) {
+          hasSentFailoverPending = false;
+          var agentUpdateSub = grProxyConduit.onUpstream(connect.AgentEvents.UPDATE, function () {
+            agentUpdateSub.unsubscribe();
+            connect.core.getEventBus().trigger(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE, {
+              activeRegion: data.activeRegion
+            });
+            grProxyConduit.sendUpstream(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE);
+            connect.getLog().info("[GR] GlobalResiliencyEvents.FAILOVER_COMPLETE emitted.").sendInternalLogToServer();
+            LAST_FAILOVER_COMPLETED_TIME = Date.now();
+            connect.publishMetric({
+              name: 'GlobalResiliencyFailoverCompleted',
+              data: {
+                count: 1
+              }
+            });
+            connect.publishMetric({
+              name: 'GlobalResiliencyInitiatedToCompletedLatency',
+              data: {
+                latency: LAST_FAILOVER_COMPLETED_TIME - LAST_FAILOVER_INITIATED_TIME
+              }
+            });
+          });
+        }
+      });
+    });
+
+    // Not clear what this is about. Probably for backward compatibilty for pre-StreamsJS customers
+    if (params.onViewContact) {
+      connect.core.onViewContact(params.onViewContact);
+    }
+
+    // Update the numberOfConnectedCCPs value when sent from upstream.
+    // On CRM layer, this information is not used by any other component in Streams.
+    grProxyConduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
+      connect.numberOfConnectedCCPs = data.length;
+    });
+
+    // Update and cache the voiceIdDomainId value when sent from each upstream conduit.
+    // The value needs to be updated when switching the active region as each region might have a different VoiceId domain associated.
+    grProxyConduit.getAllConduits().forEach(function (conduit) {
+      conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, function (data) {
+        if (data && data.domainId) {
+          conduit.voiceIdDomainId = data.domainId;
+          if (connect.isActiveConduit(conduit)) {
+            connect.core.voiceIdDomainId = data.domainId;
+          }
+        }
+      });
+    });
+    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, function (conduitName) {
+      if (conduitName !== grProxyConduit.getActiveConduit().name) {
+        // Ignore IFRAME_RETRIES_EXHAUSTED event from non-active region
+        return;
+      }
+      if (initStartTime) {
+        var refreshAttempts = conduitTimerContainerMap[grProxyConduit.getActiveConduit().name].iframeRefreshAttempt - 1;
+        connect.getLog().info('Iframe initialization failed').sendInternalLogToServer();
+        connect.getLog().info("Time after iframe initialization started ".concat(Date.now() - initStartTime)).sendInternalLogToServer();
+        connect.getLog().info("Iframe refresh attempts ".concat(refreshAttempts)).sendInternalLogToServer();
+        connect.publishMetric({
+          name: CSM_IFRAME_REFRESH_ATTEMPTS,
+          data: {
+            count: refreshAttempts
+          }
+        });
+        connect.publishMetric({
+          name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+          data: {
+            count: 0
+          }
+        });
+        initStartTime = null;
+      }
+    });
+
+    // keep the softphone params for external use
+    connect.core.softphoneParams = params.softphone;
+    grProxyConduit.getAllConduits().forEach(function (conduit) {
+      conduit.onUpstream(connect.GlobalResiliencyEvents.FAILOVER_PENDING, function (data) {
+        if (!connect.isActiveConduit(conduit)) {
+          return;
+        }
+        if (hasSentFailoverPending) {
+          connect.getLog().info("[GR] Received FAILOVER_PENDING - deduping, will not trigger event subscription.").withObject({
+            data: data
+          }).sendInternalLogToServer();
+          return;
+        }
+        connect.getLog().info("[GR] Received FAILOVER_PENDING").withObject({
+          data: data
+        }).sendInternalLogToServer();
+        connect.core.getEventBus().trigger(connect.GlobalResiliencyEvents.FAILOVER_PENDING_CRM, {
+          nextActiveRegion: data.activeRegion
+        });
+        hasSentFailoverPending = true;
+        LAST_FAILOVER_PENDING_TIME = Date.now();
+        connect.publishMetric({
+          name: 'GlobalResiliencyFailoverPendingReceived',
+          data: {
+            count: 1
+          }
+        });
+      });
+    });
+    grProxyConduit.relayUpstream(connect.GlobalResiliencyEvents.FAILOVER_PENDING);
+    grProxyConduit.relayUpstream(connect.GlobalResiliencyEvents.FAILOVER_INITIATED);
+    grProxyConduit.relayUpstream(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE);
+    grProxyConduit.relayUpstream(connect.GlobalResiliencyEvents.HEARTBEAT_SYN);
+    grProxyConduit.relayUpstream(connect.GlobalResiliencyEvents.HEARTBEAT_ACK);
+    connect.core.getEventBus().subscribe(connect.EventType.DOWNLOAD_LOG_FROM_CCP, function () {
+      grProxyConduit.getAllConduits().forEach(function (conduit) {
+        var region = conduit.region || 'region';
+        conduit.sendUpstream(connect.EventType.DOWNLOAD_LOG_FROM_CCP, {
+          logName: "ccp-".concat(region, "-agent-log")
+        });
+      });
+    });
+    setTimeout(function () {
+      var count = 0;
+      grProxyConduit.getAllConduits().forEach(function (conduit) {
+        if (conduit.region) {
+          count += 1;
+        }
+      });
+      if (count < 2) {
+        connect.getLog().info("[GR] One or more conduits did not GlobalResiliency.INIT event to CRM layer.").withObject({
+          firstConduitName: grProxyConduit.getAllConduits()[0].name,
+          firstConduitRegion: grProxyConduit.getAllConduits()[0].region,
+          secondConduitName: grProxyConduit.getAllConduits()[1].name,
+          secondConduitRegion: grProxyConduit.getAllConduits()[1].region
+        }).sendInternalLogToServer();
+        connect.publishMetric({
+          name: 'GlobalResiliencyPartialInitialization',
+          data: {
+            count: 1
+          }
+        });
+      }
+    }, 30000);
+  };
 })();
 
 /***/ }),
@@ -11072,13 +11801,24 @@ function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" =
    * - of type String (for backward compatibility), the file's name
    */
   Logger.prototype.download = function (options) {
+    var _connect;
     var logName = 'agent-log';
     var filterByLogLevel = false;
-    if (_typeof(options) === 'object') {
+    // This will only be set to true on the CRM layer when GlobalResiliency is enabled
+    var isGlobalResiliency = ((_connect = connect) === null || _connect === void 0 || (_connect = _connect.globalResiliency) === null || _connect === void 0 ? void 0 : _connect.globalResiliencyEnabled) === true;
+    if (_typeof(options) === 'object' && options !== null) {
       logName = options.logName || logName;
       filterByLogLevel = options.filterByLogLevel || filterByLogLevel;
     } else if (typeof options === 'string') {
       logName = options || logName;
+    }
+    if (isGlobalResiliency) {
+      // Three CCP logs will be downloaded in Global Resiliency
+      // One from each CCP which contains CCP logs + CRM from time of initialization of CCP onwards
+      // This is done when connect.globalResiliency._downloadCCPLogs(); is called
+      // CRM layer which contains all CRM logs and all CCP logs, retrieved in the remainder of this function.
+      connect.globalResiliency._downloadCCPLogs();
+      logName = "crm-" + logName;
     }
     var self = this;
     var logs = this._rolledLogs.concat(this._logs);
@@ -12569,72 +13309,188 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     });
   };
   var _SoftphoneManager = function SoftphoneManager() {
+    var _this = this;
     var softphoneParams = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
     var self = this;
+    this.rtcPeerConnectionFactory = null;
+    this.rtcJsStrategy = null;
+    this.rtcPeerConnectionManager = null;
+    this._setRtcJsStrategy = function () {
+      if (softphoneParams.VDIPlatform) {
+        vdiPlatform = softphoneParams.VDIPlatform;
+        try {
+          if (softphoneParams.VDIPlatform === VDIPlatformType.CITRIX) {
+            this.rtcJsStrategy = new connect.CitrixVDIStrategy();
+            logger.info("[SoftphoneManager] Strategy constructor retrieved: ".concat(this.rtcJsStrategy)).sendInternalLogToServer();
+          } else if (softphoneParams.VDIPlatform === VDIPlatformType.AWS_WORKSPACE) {
+            this.rtcJsStrategy = new connect.DCVWebRTCStrategy();
+            logger.info("[SoftphoneManager] Strategy constructor retrieved: ".concat(this.rtcJsStrategy)).sendInternalLogToServer();
+          } else {
+            throw new Error("VDI Strategy not supported");
+          }
+        } catch (error) {
+          if (error.message === "VDI Strategy not supported") {
+            publishError(SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED, error.message, "");
+            throw error;
+          } else if (error.message === "Citrix WebRTC redirection feature is NOT supported!") {
+            publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
+            throw error;
+          } else if (error.message === "DCV WebRTC redirection feature is NOT supported!") {
+            publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
+            throw error;
+          } else {
+            publishError(SoftphoneErrorTypes.OTHER, error.message, "");
+            throw error;
+          }
+        }
+      }
+    };
+    this._refreshRtcPeerConnectionFactory = function () {
+      var _connect$core;
+      if (connect !== null && connect !== void 0 && (_connect$core = connect.core) !== null && _connect$core !== void 0 && (_connect$core = _connect$core.softphoneManager) !== null && _connect$core !== void 0 && (_connect$core = _connect$core.rtcPeerConnectionFactory) !== null && _connect$core !== void 0 && _connect$core.close) {
+        connect.core.softphoneManager.rtcPeerConnectionFactory.close();
+      }
+      if (connect.RtcPeerConnectionFactory) {
+        if (this.rtcJsStrategy) {
+          this.rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger, connect.core.getWebSocketManager(), softphoneClientId, connect.hitch(self, requestIceAccess, {
+            transportType: "softphone",
+            softphoneClientId: softphoneClientId
+          }), connect.hitch(self, publishError), this.rtcJsStrategy);
+        } else {
+          this.rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger, connect.core.getWebSocketManager(), softphoneClientId, connect.hitch(self, requestIceAccess, {
+            transportType: "softphone",
+            softphoneClientId: softphoneClientId
+          }), connect.hitch(self, publishError));
+        }
+      }
+    };
+
+    // destroy or initiate persistent peer connection based on agent configuration change
+    var listenAgentConfigurationUpdate = function listenAgentConfigurationUpdate() {
+      connect.agent(function (a) {
+        var sub = a.onRefresh(function (agent) {
+          if (_this.rtcPeerConnectionManager) {
+            var isPPCEnabled = agent.getConfiguration().softphonePersistentConnection;
+            // if softphonePersistentConnection changed in agent configuration
+            if (_this.rtcPeerConnectionManager.isPPCEnabled !== isPPCEnabled) {
+              _this.rtcPeerConnectionManager.isPPCEnabled = isPPCEnabled;
+              // if softphonePersistentConnection changed to true, use rtcPeerConnectionManager to initiate a new persistent peer connection
+              if (_this.rtcPeerConnectionManager.isPPCEnabled) {
+                logger.info("softphonePersistentConnection changed to ture, initiate a persistent peer connection").sendInternalLogToServer();
+                _this.rtcPeerConnectionManager.rtcJsStrategy = _this.rtcJsStrategy;
+                _this.rtcPeerConnectionManager.closeEarlyMediaConnection(); // close standby peer connection
+                _this.rtcPeerConnectionManager.requestPeerConnection().then(function () {
+                  // request a new persistent peer connection
+                  _this.rtcPeerConnectionManager.createSession();
+                  _this.rtcPeerConnectionManager.connect();
+                });
+              } else {
+                // if softphonePersistentConnection changed to false, use rtcPeerConnectionManager to tear down the currentpersistent peer connection
+                logger.info("softphonePersistentConnection changed to false, destroy the existing persistent peer connection").sendInternalLogToServer();
+                _this.rtcPeerConnectionManager.destroy();
+                _this.rtcPeerConnectionManager.requestPeerConnection(); // This will create standby(early media) peer connection for supported browsers
+              }
+            }
+          } else if (connect.core._allowSoftphonePersistentConnection) {
+            // TODO: Remove else when Persistent Connection GA
+            _this._initiateRtcPeerConnectionManager();
+          } else {
+            sub.unsubscribe(); // unsubscribe the event if account is not allowlisted.
+          }
+        });
+      });
+    };
+    this._initiateRtcPeerConnectionManager = function () {
+      var _connect$core2;
+      // close existing peer connection managed by rtcPeerConnectionManager
+      if (connect !== null && connect !== void 0 && (_connect$core2 = connect.core) !== null && _connect$core2 !== void 0 && (_connect$core2 = _connect$core2.softphoneManager) !== null && _connect$core2 !== void 0 && (_connect$core2 = _connect$core2.rtcPeerConnectionManager) !== null && _connect$core2 !== void 0 && _connect$core2.close) {
+        connect.core.softphoneManager.rtcPeerConnectionManager.close();
+        connect.core.softphoneManager.rtcPeerConnectionManager = null;
+      }
+      var isPPCEnabled = softphoneParams.isSoftphonePersistentConnectionEnabled;
+
+      // browserId will be used to handle browser page refresh, iceRestart scenarios
+      var browserId;
+      if (!global.localStorage.getItem(BROWSER_ID)) {
+        global.localStorage.setItem(BROWSER_ID, AWS.util.uuid.v4());
+      }
+      browserId = global.localStorage.getItem(BROWSER_ID);
+      if (connect.RtcPeerConnectionManager) {
+        var _self$rtcPeerConnecti;
+        // Disable earlyGum and close rtcPeerConnectionFactory before creating RtcPeerConnectionManager
+        allowEarlyGum = false;
+        if ((_self$rtcPeerConnecti = self.rtcPeerConnectionFactory) !== null && _self$rtcPeerConnecti !== void 0 && _self$rtcPeerConnecti.close) {
+          self.rtcPeerConnectionFactory.close();
+          self.rtcPeerConnectionFactory = null;
+        }
+        self.rtcPeerConnectionManager = new connect.RtcPeerConnectionManager(null,
+        // signalingURI for ccpv1
+        null,
+        // iceServers
+        connect.hitch(self, requestIceAccess, {
+          transportType: "softphone",
+          softphoneClientId: softphoneClientId
+        }),
+        // transportHandle
+        connect.hitch(self, publishError),
+        // publishError
+        softphoneClientId,
+        // clientId
+        null,
+        // callContextToken
+        logger, null,
+        // contactId
+        null,
+        // agent connectionId
+        connect.core.getWebSocketManager(), self.rtcJsStrategy === null ? new connect.StandardStrategy() : self.rtcJsStrategy, isPPCEnabled, browserId);
+      } else {
+        // customer who doesn't upgrade RTC.js will not be able to use RtcPeerConnectionManager to initialize persistent peer connection, but calls still work for them.
+        logger.info("RtcPeerConnectionManager does NOT exist, please upgrade RTC.js");
+      }
+    };
     logger = new SoftphoneLogger(connect.getLog());
     logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
+    if (softphoneParams.allowEarlyGum !== false && (connect.isChromeBrowser() || connect.isEdgeBrowser())) {
+      logger.info("[Softphone Manager] earlyGum mechanism enabled").sendInternalLogToServer();
+      allowEarlyGum = true;
+    } else {
+      logger.info("[Softphone Manager] earlyGum mechanism NOT enabled").sendInternalLogToServer();
+      allowEarlyGum = false;
+    }
     logger.info("[SoftphoneManager] Client Provided Strategy: ".concat(softphoneParams.VDIPlatform)).sendInternalLogToServer();
-    var rtcJsStrategy;
-    if (softphoneParams.VDIPlatform) {
-      vdiPlatform = softphoneParams.VDIPlatform;
-      try {
-        if (softphoneParams.VDIPlatform === VDIPlatformType.CITRIX) {
-          rtcJsStrategy = new connect.CitrixVDIStrategy();
-          logger.info("[SoftphoneManager] Strategy constructor retrieved: ".concat(rtcJsStrategy)).sendInternalLogToServer();
-        } else if (softphoneParams.VDIPlatform === VDIPlatformType.AWS_WORKSPACE) {
-          rtcJsStrategy = new connect.DCVWebRTCStrategy();
-          logger.info("[SoftphoneManager] Strategy constructor retrieved: ".concat(rtcJsStrategy)).sendInternalLogToServer();
-        } else {
-          throw new Error("VDI Strategy not supported");
-        }
-      } catch (error) {
-        if (error.message === "VDI Strategy not supported") {
-          publishError(SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED, error.message, "");
-          throw error;
-        } else if (error.message === "Citrix WebRTC redirection feature is NOT supported!") {
-          publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
-          throw error;
-        } else if (error.message === "DCV WebRTC redirection feature is NOT supported!") {
-          publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
-          throw error;
-        } else {
-          publishError(SoftphoneErrorTypes.OTHER, error.message, "");
-          throw error;
-        }
-      }
+    this._setRtcJsStrategy();
+    this._refreshRtcPeerConnectionFactory();
+    // if allowSoftphonePersistentConnection FAC is true, initiate RtcPeerConnectionManager
+    if (connect.core._allowSoftphonePersistentConnection && this.rtcPeerConnectionManager === null) {
+      this._initiateRtcPeerConnectionManager();
     }
-    var rtcPeerConnectionFactory;
-    if (connect.RtcPeerConnectionFactory) {
-      if (rtcJsStrategy) {
-        rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger, connect.core.getWebSocketManager(), softphoneClientId, connect.hitch(self, requestIceAccess, {
-          transportType: "softphone",
-          softphoneClientId: softphoneClientId
-        }), connect.hitch(self, publishError), rtcJsStrategy);
-      } else {
-        rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger, connect.core.getWebSocketManager(), softphoneClientId, connect.hitch(self, requestIceAccess, {
-          transportType: "softphone",
-          softphoneClientId: softphoneClientId
-        }), connect.hitch(self, publishError));
-      }
-    }
+    listenAgentConfigurationUpdate();
     if (!_SoftphoneManager.isBrowserSoftPhoneSupported()) {
       publishError(SoftphoneErrorTypes.UNSUPPORTED_BROWSER, "Connect does not support this browser. Some functionality may not work. ", "");
     }
-    var gumPromise = fetchUserMedia({
-      success: function success(stream) {
-        publishTelemetryEvent("ConnectivityCheckResult", null, {
-          connectivityCheckType: "MicrophonePermission",
-          status: "granted"
-        });
-      },
-      failure: function failure(err) {
-        publishError(err, "Your microphone is not enabled in your browser. ", "");
-        publishTelemetryEvent("ConnectivityCheckResult", null, {
-          connectivityCheckType: "MicrophonePermission",
-          status: "denied"
-        });
-      }
-    });
+    if (softphoneParams.VDIPlatform !== VDIPlatformType.AWS_WORKSPACE) {
+      var gumPromise = fetchUserMedia({
+        success: function success(stream) {
+          publishTelemetryEvent("ConnectivityCheckResult", null, {
+            connectivityCheckType: "MicrophonePermission",
+            status: "granted"
+          });
+          publishTelemetryEvent("MicCheckSucceeded", null, {
+            context: "Initializing Softphone Manager"
+          }, true);
+        },
+        failure: function failure(err) {
+          publishError(err, "Your microphone is not enabled in your browser. ", "");
+          publishTelemetryEvent("ConnectivityCheckResult", null, {
+            connectivityCheckType: "MicrophonePermission",
+            status: "denied"
+          });
+          publishTelemetryEvent("GumFailed", null, {
+            context: "Initializing Softphone Manager"
+          }, true);
+        }
+      });
+    }
     var onMuteSub = handleSoftPhoneMuteToggle();
     var onSetSpeakerDeviceSub = handleSpeakerDeviceChange();
     var onSetMicrophoneDeviceSub = handleMicrophoneDeviceChange(!softphoneParams.disableEchoCancellation);
@@ -12670,6 +13526,9 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
         track.enabled = oldTrack.enabled;
         oldTrack.enabled = false;
         stream.removeTrack(oldTrack);
+        if (softphoneParams.VDIPlatform === VDIPlatformType.AWS_WORKSPACE) {
+          oldTrack.stop();
+        }
         stream.addTrack(track);
       }
     };
@@ -12684,9 +13543,17 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
         new Promise(function (resolve, reject) {
           delete rtcSessions[agentConnectionId];
           delete callsDetected[agentConnectionId];
-          session.hangup();
+          // if rtcPeerConnectionManager exists, it will hang up the session
+          if (_this.rtcPeerConnectionManager) {
+            _this.rtcPeerConnectionManager.hangup();
+          } else {
+            session.hangup();
+          }
         })["catch"](function (err) {
-          lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message).sendInternalLogToServer();
+          lily.getLog().warn("There was an error destroying the softphone session for connection ID ".concat(agentConnectionId, " : ").concat(err.message)).withObject({
+            agentConnectionId: agentConnectionId,
+            errorMessage: err.message
+          }).sendInternalLogToServer();
         });
       }
     };
@@ -12704,6 +13571,14 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
           }
         }
         throw new Error("duplicate session detected, refusing to setup new connection");
+      }
+    };
+    this._clearAllSessions = function () {
+      connect.getLog().info("Clearing all active sessions").sendInternalLogToServer();
+      for (var connectionId in rtcSessions) {
+        if (rtcSessions.hasOwnProperty(connectionId)) {
+          destroySession(connectionId);
+        }
       }
     };
     this.startSession = function (_contact, _agentConnectionId) {
@@ -12731,8 +13606,8 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
         webSocketProvider = connect.core.getWebSocketManager();
       }
       var session;
-      if (rtcJsStrategy) {
-        session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider, rtcJsStrategy);
+      if (this.rtcJsStrategy) {
+        session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider, this.rtcJsStrategy);
       } else {
         session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider);
       }
@@ -12785,8 +13660,8 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
         });
       };
       session.remoteAudioElement = document.getElementById('remote-audio') || window.parent.parent.document.getElementById('remote-audio');
-      if (rtcPeerConnectionFactory) {
-        session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
+      if (this.rtcPeerConnectionFactory) {
+        session.connect(this.rtcPeerConnectionFactory.get(callConfig.iceServers));
       } else {
         session.connect();
       }
@@ -12803,10 +13678,23 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
         cancelPendingSession();
       }
       if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (contact.getStatus().type === connect.ContactStatusType.CONNECTING || contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
+        publishTelemetryEvent('SoftphoneConfigDetected', contact.getContactId(), {}, true);
         if (connect.isFirefoxBrowser() && connect.hasOtherConnectedCCPs()) {
+          logger.info('[Softphone Manager] Postpone starting session: ' + contact.getContactId()).sendInternalLogToServer();
           postponeStartingSession(contact, agentConnectionId);
         } else {
-          self.startSession(contact, agentConnectionId);
+          var _connect$core$userMed;
+          if (allowEarlyGum && (_connect$core$userMed = connect.core.userMediaProvider) !== null && _connect$core$userMed !== void 0 && _connect$core$userMed.precapturedMediaStreamAvailable()) {
+            earlyGumWorked = true;
+            logger.info('[Softphone Manager] starting session using precapturedMediaStream').sendInternalLogToServer();
+            self.startSession(contact, agentConnectionId, connect.core.userMediaProvider.getPrecapturedMediaStream());
+          } else {
+            earlyGumWorked = false;
+            if (connect.core._isEarlyGumDisabled) {
+              allowEarlyGum = false;
+            }
+            self.startSession(contact, agentConnectionId);
+          }
         }
       }
     };
@@ -12814,17 +13702,32 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
       var agentConnectionId = contact.getAgentConnection().connectionId;
       logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
       if (!callsDetected[agentConnectionId]) {
-        contact.onRefresh(function () {
-          onRefreshContact(contact, agentConnectionId);
+        contact.onRefresh(function (_contact) {
+          onRefreshContact(_contact, agentConnectionId);
+        });
+        contact.onError(function (_contact) {
+          // if contact errored, then publish all batched errors
+          connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
+            publishBatchedSoftphoneErrors(_contact.contactId);
+          }, function () {}, true);
+        });
+        contact.onConnected(function (_contact) {
+          // if the contact connects successfully, then delete all batched errors if exist and check media stream status
+          connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
+            isConnected = true;
+            deleteContactFromErrorMap(_contact.contactId);
+          }, function () {}, true);
         });
         contact.onDestroy(function () {
           onDestroyContact(agentConnectionId);
+          // clean up localMediaStream
+          if (localMediaStream[agentConnectionId]) deleteLocalMediaStream(agentConnectionId);
         });
       }
     };
-    self.onInitContactSub = connect.contact(onInitContact);
+    var onInitContactSub = connect.contact(onInitContact);
 
-    // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed. 
+    // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed.
     new connect.Agent().getContacts().forEach(function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
       logger.info("Contact exist in the snapshot. Reinitiate the Contact and RTC session creation for contactId" + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
@@ -12832,17 +13735,20 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
       onRefreshContact(contact, agentConnectionId);
     });
     this.terminate = function () {
-      self.onInitContactSub && self.onInitContactSub.unsubscribe && self.onInitContactSub.unsubscribe();
+      onInitContactSub && onInitContactSub.unsubscribe && onInitContactSub.unsubscribe();
       onMuteSub && onMuteSub.unsubscribe && onMuteSub.unsubscribe();
       onSetSpeakerDeviceSub && onSetSpeakerDeviceSub.unsubscribe && onSetSpeakerDeviceSub.unsubscribe();
       onSetMicrophoneDeviceSub && onSetMicrophoneDeviceSub.unsubscribe && onSetMicrophoneDeviceSub.unsubscribe();
-      if (rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId) {
-        // This method needs to be called when destroying the softphone manager instance. 
+      if (_this.rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId) {
+        // This method needs to be called when destroying the softphone manager instance.
         // Otherwise the refresh loop in rtcPeerConnectionFactory will keep spawning WebRTCConnections every 60 seconds
         // and you will eventually get SoftphoneConnectionLimitBreachedException later.
-        rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
+        _this.rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
       }
-      rtcPeerConnectionFactory = null;
+      _this.rtcPeerConnectionFactory = null;
+      if (_this.rtcPeerConnectionManager && _this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId) {
+        _this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId();
+      }
     };
   };
   var fireContactAcceptedEvent = function fireContactAcceptedEvent(contact) {
@@ -13584,6 +14490,18 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
 /***/ 768:
 /***/ (() => {
 
+function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, _typeof(obj); }
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, _toPropertyKey(descriptor.key), descriptor); } }
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); Object.defineProperty(Constructor, "prototype", { writable: false }); return Constructor; }
+function _toPropertyKey(arg) { var key = _toPrimitive(arg, "string"); return _typeof(key) === "symbol" ? key : String(key); }
+function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
+function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _unsupportedIterableToArray(arr) || _nonIterableSpread(); }
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
+function _iterableToArray(iter) { if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter); }
+function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) return _arrayLikeToArray(arr); }
+function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]; return arr2; }
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -13806,6 +14724,12 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     this.upstreamBus = new connect.EventBus();
     this.upstream.onMessage(connect.hitch(this, this._dispatchEvent, this.upstreamBus));
     this.downstream.onMessage(connect.hitch(this, this._dispatchEvent, this.downstreamBus));
+
+    // Only relevant for Global Resiliency
+    this.active = true;
+    this.allowedEvents = [].concat(_toConsumableArray(Object.entries(connect.GlobalResiliencyEvents).map(function (keyValue) {
+      return keyValue[1];
+    })), [connect.EventType.CONFIGURE, connect.EventType.SYNCHRONIZE, connect.EventType.ACKNOWLEDGE, connect.EventType.LOG, connect.EventType.SERVER_BOUND_INTERNAL_LOG, connect.EventType.DOWNLOAD_LOG_FROM_CCP]);
   };
   Conduit.prototype.onUpstream = function (eventName, f) {
     connect.assertNotNull(eventName, 'eventName');
@@ -13859,6 +14783,10 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   Conduit.prototype.passUpstream = function () {
     var self = this;
     return function (data, eventName) {
+      if (!self.active && !self.allowedEvents.includes(eventName)) {
+        connect.getLog().debug("[GR] Conduit ".concat(self.name, " has blocked event ").concat(eventName, " from going upstream.")).sendInternalLogToServer();
+        return;
+      }
       self.upstream.send({
         event: eventName,
         data: data
@@ -13875,6 +14803,10 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   Conduit.prototype.passDownstream = function () {
     var self = this;
     return function (data, eventName) {
+      if (!self.active && !self.allowedEvents.includes(eventName)) {
+        connect.getLog().debug("[GR] Conduit ".concat(self.name, " has blocked event ").concat(eventName, " from going downstream.")).sendInternalLogToServer();
+        return;
+      }
       self.downstream.send({
         event: eventName,
         data: data
@@ -13889,6 +14821,14 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
     this.upstreamBus.unsubscribeAll();
     this.downstreamBus.unsubscribeAll();
   };
+  Conduit.prototype.setActive = function () {
+    connect.getLog().info("[GR] Setting CCP conduit as active");
+    this.active = true;
+  };
+  Conduit.prototype.setInactive = function () {
+    connect.getLog().info("[GR] Setting CCP conduit as inactive");
+    this.active = false;
+  };
 
   /**---------------------------------------------------------------
    * class IFrameConduit extends Conduit
@@ -13900,6 +14840,176 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   };
   IFrameConduit.prototype = Object.create(Conduit.prototype);
   IFrameConduit.prototype.constructor = IFrameConduit;
+  var GRProxyIframeConduit = /*#__PURE__*/function () {
+    function GRProxyIframeConduit(window, iframes, defaultActiveCCPUrl) {
+      _classCallCheck(this, GRProxyIframeConduit);
+      var defaultActiveOrigin = new URL(defaultActiveCCPUrl).origin;
+      this.activeRegionUrl = defaultActiveOrigin;
+      this.conduits = iframes.map(function (iframe) {
+        var iframeConduit = new IFrameConduit(iframe.src, window, iframe);
+        iframeConduit.iframe = iframe;
+        var _URL = new URL(iframe.src),
+          origin = _URL.origin;
+        iframeConduit.name = origin;
+        return iframeConduit;
+      });
+      this.setActiveConduit(defaultActiveOrigin);
+    }
+    return _createClass(GRProxyIframeConduit, [{
+      key: "onUpstream",
+      value: function onUpstream(eventName, f) {
+        var subs = this.conduits.map(function (conduit) {
+          return conduit.onUpstream(eventName, f);
+        });
+        return {
+          unsubscribe: function unsubscribe() {
+            return subs.forEach(function (sub) {
+              return sub.unsubscribe();
+            });
+          }
+        };
+      }
+    }, {
+      key: "onAllUpstream",
+      value: function onAllUpstream(f) {
+        var subs = this.conduits.map(function (conduit) {
+          return conduit.onAllUpstream(f);
+        });
+        return {
+          unsubscribe: function unsubscribe() {
+            return subs.forEach(function (sub) {
+              return sub.unsubscribe();
+            });
+          }
+        };
+      }
+    }, {
+      key: "onDownstream",
+      value: function onDownstream(eventName, f) {
+        var subs = this.conduits.map(function (conduit) {
+          return conduit.onDownstream(eventName, f);
+        });
+        return {
+          unsubscribe: function unsubscribe() {
+            return subs.forEach(function (sub) {
+              return sub.unsubscribe();
+            });
+          }
+        };
+      }
+    }, {
+      key: "onAllDownstream",
+      value: function onAllDownstream(f) {
+        var subs = this.conduits.map(function (conduit) {
+          return conduit.onAllDownstream(f);
+        });
+        return {
+          unsubscribe: function unsubscribe() {
+            return subs.forEach(function (sub) {
+              return sub.unsubscribe();
+            });
+          }
+        };
+      }
+    }, {
+      key: "sendUpstream",
+      value: function sendUpstream(eventName, data) {
+        this.conduits.forEach(function (conduit) {
+          conduit.sendUpstream(eventName, data);
+        });
+      }
+    }, {
+      key: "sendDownstream",
+      value: function sendDownstream(eventName, data) {
+        this.conduits.forEach(function (conduit) {
+          conduit.sendDownstream(eventName, data);
+        });
+      }
+
+      // Relay an event from one shared worker to another
+    }, {
+      key: "relayUpstream",
+      value: function relayUpstream(eventName) {
+        var self = this;
+        this.conduits.forEach(function (conduit) {
+          conduit.onUpstream(eventName, function (data) {
+            var otherConduit = self.getOtherConduit(conduit);
+            otherConduit.sendUpstream(eventName, data);
+            connect.getLog().info("Relayed event ".concat(eventName, " from ").concat(conduit.name, " to ").concat(otherConduit.name, " shared worker")).withObject({
+              data: data
+            }).sendInternalLogToServer();
+          });
+        });
+      }
+    }, {
+      key: "getAllConduits",
+      value: function getAllConduits() {
+        return this.conduits;
+      }
+    }, {
+      key: "setActiveConduit",
+      value: function setActiveConduit(activeRegionUrl) {
+        var _this2 = this;
+        var newActiveConduit = this.conduits.find(function (conduit) {
+          return conduit.name === activeRegionUrl;
+        });
+        if (!newActiveConduit) {
+          connect.getLog().error("[GR] No conduit found with the given ccpUrl: ".concat(activeRegionUrl)).sendInternalLogToServer();
+          return;
+        }
+        this.conduits.forEach(function (conduit) {
+          if (conduit.name === activeRegionUrl) {
+            _this2.activeRegionUrl = activeRegionUrl;
+
+            // Update member variables in case customer directly referencing those  
+            _this2.name = conduit.name;
+            _this2.upstream = conduit.upstream;
+            _this2.downstream = conduit.downstream;
+            _this2.upstreamBus = conduit.upstreamBus;
+            _this2.downstreamBus = conduit.downstreamBus;
+          }
+        });
+        connect.getLog().info("[GR] Switched to active conduit ".concat(this.getActiveConduit().name)).sendInternalLogToServer();
+      }
+    }, {
+      key: "getActiveConduit",
+      value: function getActiveConduit() {
+        var _this3 = this;
+        return this.conduits.find(function (conduit) {
+          return conduit.name === _this3.activeRegionUrl;
+        });
+      }
+    }, {
+      key: "getInactiveConduit",
+      value: function getInactiveConduit() {
+        var _this4 = this;
+        return this.conduits.find(function (conduit) {
+          return conduit.name !== _this4.activeRegionUrl;
+        });
+      }
+    }, {
+      key: "getOtherConduit",
+      value: function getOtherConduit(conduit) {
+        return this.conduits.find(function (otherConduit) {
+          return conduit.name !== otherConduit.name;
+        });
+      }
+    }, {
+      key: "getConduitByRegion",
+      value: function getConduitByRegion(region) {
+        return this.conduits.find(function (conduit) {
+          return conduit.region === region;
+        });
+      }
+    }, {
+      key: "getConduitByName",
+      value: function getConduitByName(name) {
+        return this.conduits.find(function (conduit) {
+          return conduit.name === name;
+        });
+      }
+    }]);
+  }();
   connect.Stream = Stream;
   connect.NullStream = NullStream;
   connect.WindowStream = WindowStream;
@@ -13908,6 +15018,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
   connect.StreamMultiplexer = StreamMultiplexer;
   connect.Conduit = Conduit;
   connect.IFrameConduit = IFrameConduit;
+  connect.GRProxyIframeConduit = GRProxyIframeConduit;
 })();
 
 /***/ }),
@@ -14766,7 +15877,18 @@ function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" =
     if (!connect.core.upstream) {
       return false;
     }
-    return connect.core.getUpstream() instanceof connect.IFrameConduit;
+    return connect.core.getUpstream() instanceof connect.IFrameConduit || connect.core.getUpstream() instanceof connect.GRProxyIframeConduit;
+  };
+
+  // internal use only
+  connect.isActiveConduit = function (conduit) {
+    var grProxyConduit = connect.core.getUpstream();
+    if (grProxyConduit instanceof connect.GRProxyIframeConduit) {
+      return conduit.name === grProxyConduit.activeRegionUrl;
+    } else {
+      connect.getLog().debug('connect.isActiveConduit is called but there is no GR proxy conduit').sendInternalLogToServer();
+      return true;
+    }
   };
 })();
 
@@ -15910,7 +17032,8 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
 /******/ 	__webpack_require__(6);
 /******/ 	__webpack_require__(487);
 /******/ 	__webpack_require__(340);
-/******/ 	var __webpack_exports__ = __webpack_require__(228);
+/******/ 	__webpack_require__(228);
+/******/ 	var __webpack_exports__ = __webpack_require__(281);
 /******/ 	
 /******/ })()
 ;

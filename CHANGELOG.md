@@ -1,4 +1,8 @@
 # CHANGELOG.md
+## [2.16.0] - 2024-11-11
+Added:
+- Amazon Connect Global Resiliency implementation. See Documentation-GR.md for details.
+
 ## [2.15.0] - 2024-10-22
 Added:
 - Screen Sharing

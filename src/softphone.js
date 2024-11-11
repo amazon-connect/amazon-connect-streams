@@ -87,92 +87,210 @@
 
   var SoftphoneManager = function (softphoneParams = {}) {
     var self = this;
-    logger = new SoftphoneLogger(connect.getLog());
-    logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
-    logger.info(`[SoftphoneManager] Client Provided Strategy: ${softphoneParams.VDIPlatform}`).sendInternalLogToServer();
-  
-    let rtcJsStrategy;
-    if (softphoneParams.VDIPlatform) {
-      vdiPlatform = softphoneParams.VDIPlatform;
-      try {
-        if (softphoneParams.VDIPlatform === VDIPlatformType.CITRIX) {
-          rtcJsStrategy = new connect.CitrixVDIStrategy();
-          logger.info(`[SoftphoneManager] Strategy constructor retrieved: ${rtcJsStrategy}`).sendInternalLogToServer();
-        }
-        else if (softphoneParams.VDIPlatform === VDIPlatformType.AWS_WORKSPACE) {
-          rtcJsStrategy = new connect.DCVWebRTCStrategy();
-          logger.info(`[SoftphoneManager] Strategy constructor retrieved: ${rtcJsStrategy}`).sendInternalLogToServer();
-        } else {
-          throw new Error("VDI Strategy not supported");
-        }
-      } catch (error) {
-        if (error.message === "VDI Strategy not supported") {
-          publishError(SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED, error.message, "");
-          throw error;
-        }
-        else if (error.message === "Citrix WebRTC redirection feature is NOT supported!") {
-          publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
-          throw error;
-        }
-        else if (error.message === "DCV WebRTC redirection feature is NOT supported!") {
-          publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
-          throw error;
-        }
-        else {
-          publishError(SoftphoneErrorTypes.OTHER, error.message, "");
-          throw error;
+    this.rtcPeerConnectionFactory = null;
+    this.rtcJsStrategy = null;
+    this.rtcPeerConnectionManager = null;
+
+    this._setRtcJsStrategy = function () {
+      if (softphoneParams.VDIPlatform) {
+        vdiPlatform = softphoneParams.VDIPlatform;
+        try {
+          if (softphoneParams.VDIPlatform === VDIPlatformType.CITRIX) {
+            this.rtcJsStrategy = new connect.CitrixVDIStrategy();
+            logger.info(`[SoftphoneManager] Strategy constructor retrieved: ${this.rtcJsStrategy}`).sendInternalLogToServer();
+          }
+          else if (softphoneParams.VDIPlatform === VDIPlatformType.AWS_WORKSPACE) {
+            this.rtcJsStrategy = new connect.DCVWebRTCStrategy();
+            logger.info(`[SoftphoneManager] Strategy constructor retrieved: ${this.rtcJsStrategy}`).sendInternalLogToServer();
+          } else {
+            throw new Error("VDI Strategy not supported");
+          }
+        } catch (error) {
+          if (error.message === "VDI Strategy not supported") {
+            publishError(SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED, error.message, "");
+            throw error;
+          }
+          else if (error.message === "Citrix WebRTC redirection feature is NOT supported!") {
+            publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
+            throw error;
+          }
+          else if (error.message === "DCV WebRTC redirection feature is NOT supported!") {
+            publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
+            throw error;
+          }
+          else {
+            publishError(SoftphoneErrorTypes.OTHER, error.message, "");
+            throw error;
+          }
         }
       }
     }
 
-    var rtcPeerConnectionFactory;
-    if (connect.RtcPeerConnectionFactory) {
-      if (rtcJsStrategy) {
-        rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
-          connect.core.getWebSocketManager(),
-          softphoneClientId,
+    this._refreshRtcPeerConnectionFactory = function () {
+      if (connect?.core?.softphoneManager?.rtcPeerConnectionFactory?.close){
+        connect.core.softphoneManager.rtcPeerConnectionFactory.close()
+      }
+
+      if (connect.RtcPeerConnectionFactory) {
+        if (this.rtcJsStrategy) {
+          this.rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
+            connect.core.getWebSocketManager(),
+            softphoneClientId,
+            connect.hitch(self, requestIceAccess, {
+              transportType: "softphone",
+              softphoneClientId: softphoneClientId
+            }),
+            connect.hitch(self, publishError),
+            this.rtcJsStrategy
+          );
+        } else {
+          this.rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
+            connect.core.getWebSocketManager(),
+            softphoneClientId,
+            connect.hitch(self, requestIceAccess, {
+              transportType: "softphone",
+              softphoneClientId: softphoneClientId
+            }),
+            connect.hitch(self, publishError));
+        }
+      }
+    };
+
+    // destroy or initiate persistent peer connection based on agent configuration change
+    const listenAgentConfigurationUpdate = () => {
+      connect.agent( (a) => {
+        const sub = a.onRefresh( (agent) => {
+          if (this.rtcPeerConnectionManager) {
+            const isPPCEnabled = agent.getConfiguration().softphonePersistentConnection;
+            // if softphonePersistentConnection changed in agent configuration
+            if (this.rtcPeerConnectionManager.isPPCEnabled !== isPPCEnabled) {
+              this.rtcPeerConnectionManager.isPPCEnabled = isPPCEnabled;
+              // if softphonePersistentConnection changed to true, use rtcPeerConnectionManager to initiate a new persistent peer connection
+              if (this.rtcPeerConnectionManager.isPPCEnabled) {
+                logger.info("softphonePersistentConnection changed to ture, initiate a persistent peer connection").sendInternalLogToServer();
+                this.rtcPeerConnectionManager.rtcJsStrategy = this.rtcJsStrategy;
+                this.rtcPeerConnectionManager.closeEarlyMediaConnection(); // close standby peer connection
+                this.rtcPeerConnectionManager.requestPeerConnection().then(() => { // request a new persistent peer connection
+                  this.rtcPeerConnectionManager.createSession();
+                  this.rtcPeerConnectionManager.connect();
+                });
+              } else {
+                // if softphonePersistentConnection changed to false, use rtcPeerConnectionManager to tear down the currentpersistent peer connection
+                logger.info("softphonePersistentConnection changed to false, destroy the existing persistent peer connection").sendInternalLogToServer();
+                this.rtcPeerConnectionManager.destroy();
+                this.rtcPeerConnectionManager.requestPeerConnection(); // This will create standby(early media) peer connection for supported browsers
+              }
+            }
+          } else if (connect.core._allowSoftphonePersistentConnection) { // TODO: Remove else when Persistent Connection GA
+            this._initiateRtcPeerConnectionManager();
+          } else {
+            sub.unsubscribe(); // unsubscribe the event if account is not allowlisted.
+          }
+        });
+      });
+    }
+
+    this._initiateRtcPeerConnectionManager = function () {
+      // close existing peer connection managed by rtcPeerConnectionManager
+      if (connect?.core?.softphoneManager?.rtcPeerConnectionManager?.close) {
+        connect.core.softphoneManager.rtcPeerConnectionManager.close();
+        connect.core.softphoneManager.rtcPeerConnectionManager = null;
+      }
+
+      var isPPCEnabled = softphoneParams.isSoftphonePersistentConnectionEnabled;
+
+      // browserId will be used to handle browser page refresh, iceRestart scenarios
+      var browserId;
+      if (!global.localStorage.getItem(BROWSER_ID)) {
+        global.localStorage.setItem(BROWSER_ID, AWS.util.uuid.v4());
+      }
+      browserId = global.localStorage.getItem(BROWSER_ID);
+
+      if (connect.RtcPeerConnectionManager) {
+        // Disable earlyGum and close rtcPeerConnectionFactory before creating RtcPeerConnectionManager
+        allowEarlyGum = false;
+        if (self.rtcPeerConnectionFactory?.close){
+          self.rtcPeerConnectionFactory.close();
+          self.rtcPeerConnectionFactory = null;
+        }
+
+        self.rtcPeerConnectionManager = new connect.RtcPeerConnectionManager(
+          null, // signalingURI for ccpv1
+          null, // iceServers
           connect.hitch(self, requestIceAccess, {
             transportType: "softphone",
             softphoneClientId: softphoneClientId
-          }),
-          connect.hitch(self, publishError),
-          rtcJsStrategy
+          }), // transportHandle
+          connect.hitch(self, publishError), // publishError
+          softphoneClientId,  // clientId
+          null, // callContextToken
+          logger,
+          null,  // contactId
+          null, // agent connectionId
+          connect.core.getWebSocketManager(),
+          self.rtcJsStrategy === null ? new connect.StandardStrategy(): self.rtcJsStrategy,
+          isPPCEnabled,
+          browserId
         );
       } else {
-        rtcPeerConnectionFactory = new connect.RtcPeerConnectionFactory(logger,
-          connect.core.getWebSocketManager(),
-          softphoneClientId,
-          connect.hitch(self, requestIceAccess, {
-            transportType: "softphone",
-            softphoneClientId: softphoneClientId
-          }),
-          connect.hitch(self, publishError));
+        // customer who doesn't upgrade RTC.js will not be able to use RtcPeerConnectionManager to initialize persistent peer connection, but calls still work for them.
+        logger.info("RtcPeerConnectionManager does NOT exist, please upgrade RTC.js");
       }
     }
+
+    logger = new SoftphoneLogger(connect.getLog());
+    logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
+
+    if(softphoneParams.allowEarlyGum !== false  && (connect.isChromeBrowser() || connect.isEdgeBrowser())){
+      logger.info("[Softphone Manager] earlyGum mechanism enabled").sendInternalLogToServer();
+      allowEarlyGum = true;
+    } else {
+      logger.info("[Softphone Manager] earlyGum mechanism NOT enabled").sendInternalLogToServer();
+      allowEarlyGum = false;
+    }
+
+    logger.info(`[SoftphoneManager] Client Provided Strategy: ${softphoneParams.VDIPlatform}`).sendInternalLogToServer();
+
+    this._setRtcJsStrategy();
+    this._refreshRtcPeerConnectionFactory();
+    // if allowSoftphonePersistentConnection FAC is true, initiate RtcPeerConnectionManager
+    if (connect.core._allowSoftphonePersistentConnection && this.rtcPeerConnectionManager === null) {
+      this._initiateRtcPeerConnectionManager();
+    }
+    listenAgentConfigurationUpdate();
+
     if (!SoftphoneManager.isBrowserSoftPhoneSupported()) {
       publishError(SoftphoneErrorTypes.UNSUPPORTED_BROWSER,
         "Connect does not support this browser. Some functionality may not work. ",
         "");
     }
 
-    var gumPromise = fetchUserMedia({
-      success: function (stream) {
-        publishTelemetryEvent("ConnectivityCheckResult", null, 
-        {
-          connectivityCheckType: "MicrophonePermission",
-          status: "granted"
-        });
-      },
-      failure: function (err) {
-        publishError(err, "Your microphone is not enabled in your browser. ", "");
-        publishTelemetryEvent("ConnectivityCheckResult", null, 
-        {
-          connectivityCheckType: "MicrophonePermission",
-          status: "denied"
-        });
-      }
-    });
-    
+    if(softphoneParams.VDIPlatform !== VDIPlatformType.AWS_WORKSPACE) {
+      var gumPromise = fetchUserMedia({
+        success: function (stream) {
+          publishTelemetryEvent("ConnectivityCheckResult", null,
+              {
+                connectivityCheckType: "MicrophonePermission",
+                status: "granted"
+              });
+          publishTelemetryEvent("MicCheckSucceeded", null, {
+            context: "Initializing Softphone Manager"
+          }, true);
+        },
+        failure: function (err) {
+          publishError(err, "Your microphone is not enabled in your browser. ", "");
+          publishTelemetryEvent("ConnectivityCheckResult", null,
+              {
+                connectivityCheckType: "MicrophonePermission",
+                status: "denied"
+              });
+          publishTelemetryEvent("GumFailed", null, {
+            context: "Initializing Softphone Manager"
+          }, true);
+        }
+      });
+    }
+
     const onMuteSub = handleSoftPhoneMuteToggle();
     const onSetSpeakerDeviceSub = handleSpeakerDeviceChange();
     const onSetMicrophoneDeviceSub = handleMicrophoneDeviceChange(!softphoneParams.disableEchoCancellation);
@@ -203,13 +321,16 @@
       return rtcSessions[connectionId];
     }
 
-    this.replaceLocalMediaTrack = function(connectionId, track) {
+    this.replaceLocalMediaTrack = function (connectionId, track) {
       var stream = localMediaStream[connectionId].stream;
-      if(stream){
+      if (stream) {
         var oldTrack = stream.getAudioTracks()[0];
         track.enabled = oldTrack.enabled;
         oldTrack.enabled = false;
         stream.removeTrack(oldTrack);
+        if (softphoneParams.VDIPlatform === VDIPlatformType.AWS_WORKSPACE) {
+          oldTrack.stop()
+        }
         stream.addTrack(track);
       }
     };
@@ -220,17 +341,25 @@
         contact.getStatus().type === connect.ContactStatusType.MISSED;
     };
 
-    var destroySession = function (agentConnectionId) {
+    var destroySession = (agentConnectionId) => {
       if (rtcSessions.hasOwnProperty(agentConnectionId)) {
         var session = rtcSessions[agentConnectionId];
         // Currently the assumption is it will throw an exception only and if only it already has been hung up.
         // TODO: Update once the hangup API does not throw exceptions
-        new Promise(function (resolve, reject) {
+        new Promise((resolve, reject) => {
           delete rtcSessions[agentConnectionId];
           delete callsDetected[agentConnectionId];
-          session.hangup();
+          // if rtcPeerConnectionManager exists, it will hang up the session
+          if (this.rtcPeerConnectionManager) {
+            this.rtcPeerConnectionManager.hangup();
+          } else {
+            session.hangup();
+          }
         }).catch(function (err) {
-          lily.getLog().warn("Clean up the session locally " + agentConnectionId, err.message).sendInternalLogToServer();
+          lily.getLog()
+            .warn(`There was an error destroying the softphone session for connection ID ${agentConnectionId} : ${err.message}`)
+            .withObject({agentConnectionId: agentConnectionId, errorMessage: err.message})
+            .sendInternalLogToServer();
         });
       }
     };
@@ -250,6 +379,21 @@
         throw new Error("duplicate session detected, refusing to setup new connection");
       }
     };
+
+    this._clearAllSessions = function () {
+      connect
+        .getLog()
+        .info(
+          `Clearing all active sessions`
+        )
+        .sendInternalLogToServer();
+
+      for (var connectionId in rtcSessions) {
+        if (rtcSessions.hasOwnProperty(connectionId)) {
+          destroySession(connectionId);
+        }
+      }
+    }
 
     this.startSession = function (_contact, _agentConnectionId) {
       var contact = isSessionPending ? pendingContact : _contact;
@@ -278,7 +422,7 @@
         webSocketProvider = connect.core.getWebSocketManager();
       }
       var session;
-      if (rtcJsStrategy) {
+      if (this.rtcJsStrategy) {
         session = new connect.RTCSession(
           callConfig.signalingEndpoint,
           callConfig.iceServers,
@@ -287,7 +431,7 @@
           contact.getContactId(),
           agentConnectionId,
           webSocketProvider,
-          rtcJsStrategy);
+          this.rtcJsStrategy);
       } else {
         session = new connect.RTCSession(
           callConfig.signalingEndpoint,
@@ -354,8 +498,8 @@
       };
 
       session.remoteAudioElement = document.getElementById('remote-audio') || window.parent.parent.document.getElementById('remote-audio');
-      if (rtcPeerConnectionFactory) {
-        session.connect(rtcPeerConnectionFactory.get(callConfig.iceServers));
+      if (this.rtcPeerConnectionFactory) {
+        session.connect(this.rtcPeerConnectionFactory.get(callConfig.iceServers));
       } else {
         session.connect();
       }
@@ -376,11 +520,23 @@
       if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
         contact.getStatus().type === connect.ContactStatusType.CONNECTING ||
         contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
-          if (connect.isFirefoxBrowser() && connect.hasOtherConnectedCCPs()) {
-            postponeStartingSession(contact, agentConnectionId);
+        publishTelemetryEvent('SoftphoneConfigDetected', contact.getContactId(), {}, true);
+        if (connect.isFirefoxBrowser() && connect.hasOtherConnectedCCPs()) {
+          logger.info('[Softphone Manager] Postpone starting session: ' + contact.getContactId()).sendInternalLogToServer();
+          postponeStartingSession(contact, agentConnectionId);
+        } else {
+          if (allowEarlyGum && connect.core.userMediaProvider?.precapturedMediaStreamAvailable()) {
+            earlyGumWorked = true;
+            logger.info('[Softphone Manager] starting session using precapturedMediaStream').sendInternalLogToServer();
+            self.startSession(contact, agentConnectionId, connect.core.userMediaProvider.getPrecapturedMediaStream());
           } else {
+            earlyGumWorked = false;
+            if(connect.core._isEarlyGumDisabled){
+              allowEarlyGum = false;
+            }
             self.startSession(contact, agentConnectionId);
           }
+        }
       }
     };
 
@@ -389,18 +545,33 @@
       logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
       if (!callsDetected[agentConnectionId]) {
-        contact.onRefresh(function () {
-          onRefreshContact(contact, agentConnectionId);
+        contact.onRefresh(function (_contact) {
+          onRefreshContact(_contact, agentConnectionId);
         });
+        contact.onError((_contact) => {
+          // if contact errored, then publish all batched errors
+          connect.ifMaster(connect.MasterTopics.SOFTPHONE, () => {
+            publishBatchedSoftphoneErrors(_contact.contactId);
+          }, () => { }, true);
+        })
+        contact.onConnected((_contact) => {
+          // if the contact connects successfully, then delete all batched errors if exist and check media stream status
+          connect.ifMaster(connect.MasterTopics.SOFTPHONE, () => {
+            isConnected = true;
+            deleteContactFromErrorMap(_contact.contactId);
+          }, () => { }, true);
+        })
         contact.onDestroy(function () {
           onDestroyContact(agentConnectionId);
+          // clean up localMediaStream
+          if (localMediaStream[agentConnectionId]) deleteLocalMediaStream(agentConnectionId);
         });
       }
     };
 
-    self.onInitContactSub = connect.contact(onInitContact);
+    const onInitContactSub = connect.contact(onInitContact);
 
-    // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed. 
+    // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed.
     new connect.Agent().getContacts().forEach(function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
       logger.info("Contact exist in the snapshot. Reinitiate the Contact and RTC session creation for contactId" + contact.getContactId(), "agent connectionId " + agentConnectionId)
@@ -410,17 +581,20 @@
     });
 
     this.terminate = () => {
-      self.onInitContactSub && self.onInitContactSub.unsubscribe && self.onInitContactSub.unsubscribe();
+      onInitContactSub && onInitContactSub.unsubscribe && onInitContactSub.unsubscribe();
       onMuteSub && onMuteSub.unsubscribe && onMuteSub.unsubscribe();
       onSetSpeakerDeviceSub && onSetSpeakerDeviceSub.unsubscribe && onSetSpeakerDeviceSub.unsubscribe();
       onSetMicrophoneDeviceSub && onSetMicrophoneDeviceSub.unsubscribe && onSetMicrophoneDeviceSub.unsubscribe();
-      if (rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId) {
-        // This method needs to be called when destroying the softphone manager instance. 
+      if (this.rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId) {
+        // This method needs to be called when destroying the softphone manager instance.
         // Otherwise the refresh loop in rtcPeerConnectionFactory will keep spawning WebRTCConnections every 60 seconds
         // and you will eventually get SoftphoneConnectionLimitBreachedException later.
-        rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
+        this.rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
       }
-      rtcPeerConnectionFactory = null;
+      this.rtcPeerConnectionFactory = null;
+      if (this.rtcPeerConnectionManager && this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId) {
+        this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId();
+      }
     };
   };
 
