@@ -1,19 +1,4 @@
 # CHANGELOG.md
-## [2.16.0] - 2024-11-11
-Added:
-- Amazon Connect Global Resiliency implementation. See Documentation-GR.md for details.
-
-## [2.15.0] - 2024-10-22
-Added:
-- Screen Sharing
-- File transpilation
-
-## [2.14.6] - 2024-08-02
-Added:
-- typescript support for onSoftphoneSessionInit
-- updated typescript definition for AttributeDictionary, SegmentAttributeDictionary, ReferenceDictionary
-- typescript SYSTEM and ERROR types for AgentStateType
-- Agent and Contact events subscriptions now return subscription
 
 ## [2.14.5] - 2024-08-02
 Added:
@@ -30,7 +15,7 @@ Updated:
 
 ## [2.14.2] - 2024-06-07
 Added:
-- `?visual-refresh=true` is used to access CCPUI's updated UI (aka Cloudscape)
+- `?visual-refresh=true` is used to access CCPUI's updated UI (aka CloudScape)
 - Adding typing for `getChannelContext()`
 
 Updated:

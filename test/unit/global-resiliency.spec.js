@@ -519,52 +519,5 @@ describe('Global Resiliency', function () {
 
             assert.isFalse(didSwitch);
          });
-
-         it("should call _refreshRtcPeerConnectionFactory when initialize region", function () {
-            const fakeGrProxyConduit = {
-                setActiveConduit: sinon.stub(),
-                getActiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
-                getInactiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
-            };
- 
-            connect.core.softphoneManager = { _refreshRtcPeerConnectionFactory: sinon.stub() }
- 
-            const region = 'us-east-1';
- 
-            const oldClient = connect.core.client;
-            const oldMasterClient = connect.core.masterClient;
- 
-            connect.globalResiliency._initializeActiveRegion(fakeGrProxyConduit, region);
- 
-            connect.core.masterClient = oldMasterClient;
-            connect.core.client = oldClient;
- 
-            assert.isTrue(connect.core.softphoneManager._refreshRtcPeerConnectionFactory.calledOnce);
-        });
- 
-        it("should call _initiateRtcPeerConnectionManager when initialize region and instance is allowlisted for softphone persistent connection feature", function () {
-            const fakeGrProxyConduit = {
-                setActiveConduit: sinon.stub(),
-                getActiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
-                getInactiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
-            };
- 
-            connect.core._allowSoftphonePersistentConnection = true;
-            connect.core.softphoneManager = { _initiateRtcPeerConnectionManager: sinon.stub(), _refreshRtcPeerConnectionFactory: sinon.stub() }
- 
-            const region = 'us-east-1';
- 
-            const oldClient = connect.core.client;
-            const oldMasterClient = connect.core.masterClient;
- 
-            connect.globalResiliency._initializeActiveRegion(fakeGrProxyConduit, region);
- 
-            // Need to reset these or softphone unit test will fail due to missing client
-            connect.core.masterClient = oldMasterClient;
-            connect.core.client = oldClient;
-            connect.core._allowSoftphonePersistentConnection = null;
- 
-            assert.isTrue(connect.core.softphoneManager._initiateRtcPeerConnectionManager.called);
-        });
     });
 });

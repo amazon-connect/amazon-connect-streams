@@ -16,7 +16,9 @@
     'init',
     'routable',
     'not_routable',
-    'offline'
+    'offline',
+    'system',
+    'error',
   ]);
   connect.AgentStatusType = connect.AgentStateType;
 

@@ -1,4 +1,5 @@
 const { assert, expect } = require("chai");
+const proxyquire = require('proxyquire');
 require("../unit/test-setup.js");
 
 describe('Core', function () {
@@ -1249,7 +1250,149 @@ describe('Core', function () {
         });
     });
 
-    describe('#connect.core.initCCP()', function () {
+    describe("#connect.core.initCCP() starting AmazonConnectStreamsSite", () => {
+        jsdom({ url: "http://url.com/test" });
+
+        let amazonConnectStreamsSite;
+        let containerDiv;
+        let params;
+        let createElementSpy;
+        let loggerInfoSpy, loggerErrorSpy;
+        
+        const streamsSiteStub = {
+            init: sinon.stub()
+        }
+
+        const streamsSiteProviderStub = {
+            id: "test-id",
+            setCCPIframe: sinon.stub()
+        };
+
+        before(() => {
+            params = {
+                ccpUrl: "http://url.com/test",
+            };
+            containerDiv = { appendChild: sandbox.spy() };
+            createElementSpy = sandbox.spy(document, "createElement");
+
+            amazonConnectStreamsSite = proxyquire("../../src/core", {
+                "@amazon-connect/site-streams": {
+                    AmazonConnectStreamsSite: streamsSiteStub
+                }
+            });
+
+            loggerInfoSpy = sinon.spy(connect.getLog(), "info");
+            loggerErrorSpy = sinon.spy(connect.getLog(), "error");
+        });
+
+        beforeEach(() => {
+            loggerInfoSpy.restore();
+            loggerErrorSpy.restore();
+        })
+
+        after(() => {
+            connect.agent.initialized = false;
+            sandbox.restore();
+        });
+
+        describe("before calling initCCP", () => {
+            it("should throw when getting SDK Client Config", () => {
+                expect(() => connect.core.getSDKClientConfig()).to.throw("Provider is not initialized");
+            })
+        });
+
+        describe("when not setting a provider", () => {
+            it("should initialize AmazonConnectStreamsSite", () => {
+                streamsSiteStub.init.returns({provider: streamsSiteProviderStub});
+
+                connect.core.initCCP(containerDiv, params);
+
+                expect(streamsSiteStub.init.calledWithExactly({instanceUrl: "url.com"}));
+                expect(loggerInfoSpy.calledWithExactly('Created AmazonConnectStreamsSite'));
+                expect(loggerErrorSpy.called).to.be.false;
+                expect(createElementSpy.calledOnce).to.be.true;
+                const [iframe] = createElementSpy.returnValues;
+                expect(streamsSiteProviderStub.setCCPIframe.calledWithExactly(iframe));
+            });
+
+            it("should contain provider with getting client config", () => {
+                streamsSiteStub.init.returns({provider: streamsSiteProviderStub});
+                connect.core.initCCP(containerDiv, params);
+
+                const result = connect.core.getSDKClientConfig();
+
+                expect(result.provider).to.equal(streamsSiteProviderStub);
+            });
+
+            it("should error when AmazonConnectStreamsSite fails to initialize", () => {
+                const testError = new Error("test error");
+                streamsSiteStub.init.throws(testError);
+
+                connect.core.initCCP(containerDiv, params);
+
+                expect(loggerErrorSpy.calledWithExactly('Error when setting up AmazonConnectStreamsSite'));
+            })
+
+            it("should error when setting iframe on AmazonConnectStreamsSite", () => {
+                const testError = new Error("test error");
+                streamsSiteStub.init.returns({provider: streamsSiteProviderStub});
+                streamsSiteProviderStub.setCCPIframe.throws(testError);
+
+                connect.core.initCCP(containerDiv, params);
+
+                expect(loggerErrorSpy.calledWithExactly('Error occurred when setting CCP iframe to provider'));
+            })
+        });
+
+        describe("when setting a provider in params", () => {
+            class TestExistingProvider {
+                get id() {
+                    return "test-existing-provider";
+                }
+            }
+
+            let existingProvider;
+            let paramsWithExistingProvider;
+
+            beforeEach(() => {
+                existingProvider = new TestExistingProvider();
+                paramsWithExistingProvider = {
+                    ...params,
+                    provider: existingProvider
+                };
+            });
+
+            it("should not initialize AmazonConnectStreamsSite", () => {
+                connect.core.initCCP(containerDiv, paramsWithExistingProvider);
+
+                expect(streamsSiteStub.init.notCalled);
+                expect(loggerInfoSpy.calledWithExactly('Using AmazonConnectProvider from params"'));
+                expect(loggerErrorSpy.called).to.be.false;
+                expect(createElementSpy.calledOnce).to.be.false;
+            });
+
+            it("should contain provider with getting client config", () => {
+                connect.core.initCCP(containerDiv, paramsWithExistingProvider);
+
+                const result = connect.core.getSDKClientConfig();
+
+                expect(result.provider).to.equal(existingProvider);
+            });
+
+            it("should error when object does not have a constructor", () => {
+                const invalidProviderParams = {
+                    ...params,
+                    provider: { id: "foo" }
+                };
+
+                connect.core.initCCP(containerDiv, invalidProviderParams);
+
+                expect(loggerErrorSpy.calledWithExactly('Error when setting up AmazonConnectProvider from params'));
+            })
+        });
+    })
+
+    describe('#connect.core.initCCP() using legacyAuthFlow', function () {
         jsdom({ url: "http://localhost" });
         let clock;
         let containerDiv;

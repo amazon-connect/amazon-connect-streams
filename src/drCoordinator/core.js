@@ -98,6 +98,7 @@
     );
     var getPrimaryRegionFunc = paramsIn.getPrimaryRegion;
     delete paramsIn.getPrimaryRegion;
+    delete paramsIn.provider;
 
     var dualCcpResources = globalConnect.extractCcpRegionParams(globalContainerDiv, paramsIn);
     getPrimaryRegionFunc(
