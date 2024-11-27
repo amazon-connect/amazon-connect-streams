@@ -18,6 +18,7 @@ Run `npm run release` to generate new release files. Full instructions for build
 In version 1.x, we also support `make` for legacy builds. This option was removed in version 2.x. 
 
 # Important Announcements
+1. November 2024 - Amazon Connect now supports emails.
 1. July 2024 - The issue with muting while a Voice contact is on hold has been resolved. Agents can use the mute button while a contact is placed on hold. The following APIs will be available when the contact is on hold:
     * `voiceConnection.muteParticipant()`
     * `voiceConnection.unmuteParticipant()`
