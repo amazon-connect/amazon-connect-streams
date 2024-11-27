@@ -1,5 +1,25 @@
 # CHANGELOG.md
 
+## [2.17.0] - 2024-11-29
+Added:
+- Eamil
+
+## [2.16.0] - 2024-11-11
+Added:
+- Amazon Connect Global Resiliency implementation. See Documentation-GR.md for details.
+
+## [2.15.0] - 2024-10-22
+Added:
+- Screen Sharing
+- File transpilation
+
+## [2.14.6] - 2024-08-02
+Added:
+- typescript support for onSoftphoneSessionInit
+- updated typescript definition for AttributeDictionary, SegmentAttributeDictionary, ReferenceDictionary
+- typescript SYSTEM and ERROR types for AgentStateType
+- Agent and Contact events subscriptions now return subscription
+
 ## [2.14.5] - 2024-08-02
 Added:
 - Made change to prevent more than one login popup from appearing when an embedded CCP is opened in two or more tabs.
