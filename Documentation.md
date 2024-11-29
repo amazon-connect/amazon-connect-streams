@@ -14,51 +14,6 @@ Run `npm run release` to generate new release files. Full instructions for build
 
 In version 1.x, we also support `make` for legacy builds. This option was removed in version 2.x. 
 
-# Important Announcements
-
-1. July 2024 - The issue with muting while a Voice contact is on hold has been resolved. Agents can use the mute button while a contact is placed on hold. The following APIs will be available when the contact is on hold:
-    * `voiceConnection.muteParticipant()`
-    * `voiceConnection.unmuteParticipant()`
-    * `agent.mute()`
-    * `agent.unmute()`
-1. February 2024 - In response to a Google Chrome feature launched on 7/13/2023 called [Storage Partitioning](https://developers.google.com/privacy-sandbox/3pcd/storage-partitioning), we made a short term fix on 2/10/2024 to adjust our mute functionality and synchronize the mute state across all CCPs. However, due to current limitations, this change required us to disable muting while being on hold. As a workaround, agents should mute themselves on the call before going on hold. We are planning to address this issue by August 2024 and revert back to original mute behavior.
-    * At the moment, the following APIs will fail when the contact is on hold:
-      * `voiceConnection.muteParticipant()`
-      * `voiceConnection.unmuteParticipant()`
-      * `agent.mute()`
-      * `agent.unmute()`
-    * As a workaround, you can mute the call prior to placing the call on hold.
-1. December 2022 - In addition to the CCP, customers can now embed an application that provides guided experiences to your agents using the connect.agentApp. See the [updated documentation](https://github.com/amazon-connect/amazon-connect-streams/blob/master/Documentation.md#initialization-for-ccp-customer-profiles-amazon-q-connect-and-customviews) for details on usage.
-   - ### Guided experiences for agents
-     - With Amazon Connect you can now create guided step-by-step experiences that walk agents through tailored views that focus on what must be seen or done by the agent at a given moment during an interaction. You can design workflows for various types of customer interactions and present agents with different step-by-step guides based on context, such as call queue, customer information, and interactive voice response (IVR). This feature is available in the Connect agent workspace as well as an embeddable application that can be embedded into another website via the Streams API. For more information, visit the AWS website: https://aws.amazon.com/connect/agent-workspace/
-1. December 2022 - 2.4.2
-    * This patch fixes an issue in Streams’ Voice ID APIs that may have led to incorrect values being set against the generatedSpeakerID field in the VoiceIdResult segment of Connect Contact Trace Records (CTRs). This occurred in some scenarios where you call either enrollSpeakerInVoiceId(), evaluateSpeakerWithVoiceId(), or updateVoiceIdSpeakerId() in your custom CCP integration code. If you are using Voice ID and consuming Voice ID CTRs, or updating speaker ID in your agent workflow, please upgrade to this version.
-1. December 2022 - 2.4.1
-    * This version brings in updates that will provide enhanced monitoring experience to agents and supervisors, allowing to silently monitor multiparty calls, and if needed to barge in the call and take over control, mute agents, or drop them from the call. New APIs introduced with this feature are `isSilentMonitor`, `isBarge`, `isSilentMonitorEnabled`, `isBargeEnabled`, `isUnderSupervision`, `updateMonitorParticipantState`, `getMonitorCapabilities`, `getMonitorStatus`, `isForcedMute`. Before enabling Enhanced monitoring capabilities, ensure that you are using the latest version of the Contact Control Panel (CCP) or Agent workspace.
-1. August 2022 - 2.3.0
-    * [Update on 12/13/2022] Please see 2.4.2 for final resolution of the Voice ID CTR fix.
-1. Jan 2022 - 2.0.0
-    * Multiple calls to `initCCP` will no longer append multiple embedded CCPs to the window, and only the first call to `initCCP` will succeed. Please note that the use-case of initializing multiple CCPs has never been supported by Streams, and this change has been added to prevent unpredictable behavior arising from such cases.
-    * `agent.onContactPending` has been removed. Please use `contact.onPending` instead. `connect.onError` now triggers. Previously, this api did not work at all. Please be aware that, if you have application logic within this function, its behavior has changed. See its entry in documentation.md for more details.
-1. September 2021 - 1.7.0 comes with changes needed to use Amazon Connect Voice ID, which launched on 9/27/2021. For customers who want to use Voice ID, please upgrade Streams to version 1.7.0 or later in the next 1 month, otherwise the Voice ID APIs will stop working by the end of October 2021. For more details on the Voice ID APIs, please look at [the Voice ID APIs section](Documentation.md#voice-id-apis).
-1. July 2021 - We released a change to the CCP that lets agent set a next status such as Lunch or Offline while still on a contact, and indicate they don’t want to be routed new contacts while they finish up their remaining work. For more details on this feature, see the [Amazon Connect agent training guide](https://docs.aws.amazon.com/connect/latest/adminguide/set-next-status.html) and the feature's [release notes](https://docs.aws.amazon.com/connect/latest/adminguide/amazon-connect-release-notes.html#july21-release-notes). If your agents interact directly with Connect’s out-of-the-box CCPV2 UX, they will be able to access this feature by default. Otherwise, if your streamsJS application calls `agent.setState()` to switch agent status, you will need to update your code to use this feature:
-   - **Agent.setState()** has been updated so you can pass an optional flag `enqueueNextState: true` to trigger the Next Status behavior.
-   - A new **agent.onEnqueuedNextState()** listener lets you subscribe to events for when agents have selected/successfully enqueued their next status.
-   - A new **agent.getNextState()** API returns a state object if the agent has successfully selected a next state, and null otherwise.
-   - If you want to use the Next Status feature via `agent.setState()`, please also ensure that your code is using `contact.clear()` and not `contact.complete()` when clearing After Contact Work off a contact.
-1. December 2020 — 1.6.0 brings with it the release of a new Agent App API. In addition to the CCP, customers can now embed additional applications using connect.agentApp, including Customer Profiles and Amazon Q Connect. See the [updated documentation](Documentation.md#initialization-for-ccp-customer-profiles-and-amazon-q-connect) for details on usage. We are also introducing a preview release for Amazon Connect Voice ID.
-   - ### About Amazon Connect Customer Profiles
-     - Amazon Connect Customer Profiles provides pre-built integrations so you can quickly combine customer information from multiple external applications, with contact history from Amazon Connect. This allows you to create a customer profile that has all the information agents need during customer interactions in a single place.
-   - ### About Amazon Q Connect
-     - With Amazon Q Connect, agents can search and find content across multiple repositories, such as frequently asked questions (FAQs), wikis, articles, and step-by-step instructions for handling different customer issues. They can type questions or phrases in a search box (such as, "how long after purchase can handbags be exchanged?") without having to guess which keywords will work.
-   - ### About Amazon Connect Voice ID (The feature is in preview release for Amazon Connect and is subject to change)
-     - Amazon Connect Voice ID provides real-time caller authentication which makes voice interactions in contact centers more secure and efficient. Voice ID uses machine learning to verify the identity of genuine customers by analyzing a caller’s unique voice characteristics. This allows contact centers to use an additional security layer that doesn’t rely on the caller answering multiple security questions, and makes it easy to enroll and verify customers without changing the natural flow of their conversation.
-1. July 2020 -- We recently changed the new, omnichannel, CCP's behavior when it encounters three voice-only agent states: `FailedConnectAgent`, `FailedConnectCustomer`, and `AfterCallWork`.
-   - `FailedConnectAgent` -- Previously, we required the agent to click the "Clear Contact" button to clear this state. When the agent clicked the "Clear Contact" button, the previous behavior took the agent back to the `Available` state without fail. Now the `FailedConnectAgent` state will be "auto-cleared", much like `FailedConnectCustomer` always has been.
-   - `FailedConnectAgent` and `FailedConnectCustomer` -- We are now using the `contact.clear()` API to auto-clear these states. As a result, the agent will be returned to their previous visible agent state (e.g. `Available`). Previously, the agent had always been set to `Available` as a result of this "auto-clearing" behavior. Note that even custom CCPs will behave differently with this update for `FailedConnectAgent` and `FailedConnectCustomer`.
-   - `AfterCallWork` -- As part of the new `contact.clear()` behavior, clicking "Clear Contact" while in `AfterCallWork` will return the agent to their previous visible agent state (e.g. `Available`, etc.). Note that custom CCPs that implement their own After Call Work behavior will not be affected by this change.
-     - We are putting `contact.complete()` on a deprecation path. Therefore, you should start using `contact.clear()` in its place. If you want to emulate CCP's After Call Work behavior in your customer CCP, then make sure you use `contact.clear()` when clearing voice contacts.
-
 ## Overview
 The Amazon Connect Streams API (Streams) gives you the power to integrate your existing web applications with Amazon Connect.  Streams lets you embed the Contact Control Panel (CCP) and Customer Profiles app UI into your page.  It also enables you to handle agent and contact state events directly through an object oriented event driven interface.  You can use the built in interface or build your own from scratch: Streams gives you the choice.
 
@@ -234,11 +189,6 @@ everything set up correctly and that you are able to listen for events.
           task: {
             disableRingtone: false, // optional, defaults to false
             ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP's default ringtone if a falsy value is set
-          },
-          storageAccess: {
-            canRequest: false, // By default this is set to false. You can set it to true to opt in for checking storage access.  
-            mode: "custom", // To use the default banner, set this to "default"
-            /** More customization options can be found here: https://github.com/amazon-connect/amazon-connect-streams/blob/master/src/index.d.ts under StorageAccessParameters */
           },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'

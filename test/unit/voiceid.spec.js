@@ -445,10 +445,10 @@ describe('VoiceId', () => {
 
   describe('evaluateSpeaker', () => {
     let clock;
-    beforeEach(() => {
+    before(() => {
       clock = sinon.useFakeTimers();
     });
-    afterEach(() => {
+    after(() => {
       clock.restore();
     });
 
@@ -848,10 +848,10 @@ describe('VoiceId', () => {
 
   describe('checkEnrollmentStatus', () => {
     let clock;
-    beforeEach(() => {
+    before(() => {
       clock = sinon.useFakeTimers();
     });
-    afterEach(() => {
+    after(() => {
       clock.restore();
     });
     it('should get resolved with data when the enrollment status is COMPLETED', async () => {
@@ -1047,10 +1047,10 @@ describe('VoiceId', () => {
 
   describe('enrollSpeakerHelper', () => {
     let clock;
-    beforeEach(() => {
+    before(() => {
       clock = sinon.useFakeTimers();
     });
-    afterEach(() => {
+    after(() => {
       clock.restore();
     });
     it('should call resolve when enrollment status is COMPLETED', async () => {

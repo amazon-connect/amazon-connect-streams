@@ -16,7 +16,9 @@
     'init',
     'routable',
     'not_routable',
-    'offline'
+    'offline',
+    'system',
+    'error',
   ]);
   connect.AgentStatusType = connect.AgentStateType;
 
@@ -148,7 +150,8 @@
     'callback',
     'api',
     'disconnect',
-    'webrtc_api'
+    'webrtc_api',
+    'agent_reply'
   ]);
 
   /*----------------------------------------------------------------
@@ -944,6 +947,10 @@
 
   Contact.prototype.getName = function () {
     return this._getData().name;
+  };
+
+  Contact.prototype.getInitiationMethod = function () {
+    return this._getData().initiationMethod;
   };
 
   Contact.prototype.getContactMetadata = function () {

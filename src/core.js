@@ -12,7 +12,7 @@
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "STREAMS_VERSION";
+  connect.version = process.env.npm_package_version;
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
@@ -53,27 +53,18 @@
 
   var MULTIPLE_INIT_SOFTPHONE_MANAGER_CALLS = 'MultipleInitSoftphoneManagerCalls';
 
-  const SNAPSHOT_RECEIVED_BY_CLIENT = 'SnapshotReceivedByClient';
-  const SNAPSHOT_EVENT_TRIGGER_STEP_TIME = 'SnapshotEventTriggerStepTime';
-  const SNAPSHOT_TOTAL_PROCESSING_TIME = 'SnapshotTotalProcessingTime';
-  const SNAPSHOT_COMPARISON_STEP_TIME = 'SnapshotComparisonStepTime';
-
   var CHECK_LOGIN_POPUP_INTERVAL_MS = 1000;
 
   const APP = {
     GUIDES: 'customviews',
   };
-
-  const sizingBucket = {
-    '0-100': [0, 100],
-    '101-500': [101, 500],
-    '501-1000': [501, 1000],
-    '1000-3000': [1001, 3000],
-    '3001-5000': [3001, 5000],
-    '5001-10000': [5001, 10000],
-    '10001-20000': [10001, 20000],
-    '20000+': [20001, Number.MAX_SAFE_INTEGER]
-  }
+  const inactiveContactState = [
+    'ended',
+    'missed',
+    'error',
+    'rejected',
+    'acw'
+  ];
 
   connect.numberOfConnectedCCPs = 0;
   connect.numberOfConnectedCCPsInThisTab = 0;
@@ -1302,17 +1293,64 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       connect.getLog().error('Error while checking if initCCP has already been called').withException(e).sendInternalLogToServer();
     }
 
+    var params = {};
+    var existingProvider = undefined;
     // For backwards compatibility, when instead of taking a params object
     // as input we only accepted ccpUrl.
-    var params = {};
-    if (typeof (paramsIn) === 'string') {
+    if (typeof paramsIn === 'string') {
       params.ccpUrl = paramsIn;
     } else {
       params = paramsIn;
+
+      if (params.provider) {
+        // Provider must be removed from params as params are sent to CCP
+        // and provider is not cloneable
+        existingProvider = params.provider;
+        delete params.provider;
+      }
     }
 
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
+
+    // Add SDK via AmazonConnectStreamsSite
+    if (!existingProvider) {
+      try {
+        const { AmazonConnectStreamsSite } = require("@amazon-connect/site-streams");
+
+        var instanceUrl = new URL(params.ccpUrl).origin;
+        var config = { instanceUrl };
+        connect.core._amazonConnectProviderData = {
+          ...AmazonConnectStreamsSite.init(config),
+          isStreamsProvider: true
+        };
+        connect.getLog().info("Created AmazonConnectStreamsSite")
+          .withObject({providerId: connect.core._amazonConnectProviderData.provider.id})
+          .sendInternalLogToServer();
+      } catch(e) {
+        connect.getLog().error("Error when setting up AmazonConnectStreamsSite")
+          .withException(e)
+          .sendInternalLogToServer();
+      }
+    } else {
+      try {
+        connect.core._amazonConnectProviderData = {
+          provider: existingProvider,
+          isStreamsProvider: false,
+        };
+
+        connect.getLog().info("Using AmazonConnectProvider from params")
+          .withObject({
+            providerId: connect.core._amazonConnectProviderData.provider.id,
+            providerType: connect.core._amazonConnectProviderData.provider.constructor.name,
+          })
+          .sendInternalLogToServer();
+      } catch(e) {
+        connect.getLog().error("Error when setting up AmazonConnectProvider from params")
+          .withException(e)
+          .sendInternalLogToServer();
+      }
+    }
 
     connect.core.iframeStyle = params.style || "width: 100%; height: 100%;";
 
@@ -1703,6 +1741,18 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       iframe.src = connect.storageAccess.getRequestStorageAccessUrl();
       iframe.addEventListener('load', connect.storageAccess.request);
     }
+
+    // When provider is Streams provider, sets iframe for verification when configuring Message Channel
+    if (connect.core._amazonConnectProviderData?.isStreamsProvider) {
+      try {
+        connect.core._amazonConnectProviderData.provider.setCCPIframe(iframe);
+      } catch (error) {
+        connect.getLog().error("Error occurred when setting CCP iframe to provider")
+          .withException(error)
+          .sendInternalLogToServer();
+      }
+    }
+
     containerDiv.appendChild(iframe);
     return iframe;
   }
@@ -1729,6 +1779,14 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       };
       conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
     }, 10000);
+  }
+
+  connect.core.getSDKClientConfig = function () {
+    if (!connect.core._amazonConnectProviderData) {
+      throw new Error("Provider is not initialized")
+    }
+
+    return {provider: connect.core._amazonConnectProviderData?.provider}; 
   }
 
   /**-----------------------------------------------------------------------*/
@@ -1918,7 +1976,71 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         return callbacks.allMessage.delete(cb);
       };
     };
+
+    this.onDeepHeartbeatSuccess = function (cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.deepHeartbeatSuccess.add(cb);
+      return function () {
+        return callbacks.deepHeartbeatSuccess.delete(cb);
+      };
+    };
+
+    this.onDeepHeartbeatFailure = function (cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.deepHeartbeatFailure.add(cb);
+      return function () {
+        return callbacks.deepHeartbeatFailure.delete(cb);
+      };
+    };
+
+    this.onTopicFailure = function (cb) {
+      connect.assertTrue(connect.isFunction(cb), 'method must be a function');
+      callbacks.topicFailure.add(cb);
+      return function () {
+        return callbacks.topicFailure.delete(cb);
+      };
+    };
+
   };
+
+  connect.core._removeContactFromEndedSet = function (contactId) {
+    try {
+      connect.getLog().info(`[ContactEvent] Removing contact from ENDED event tracker`).withObject({ contactId: contactId }).sendInternalLogToServer();
+      connect.core.endedEventTracker.delete(contactId);
+      connect.getLog().info(`[ContactEvent] Removed contact from ENDED event tracker`).withObject(connect.core.endedEventTracker.entries()).sendInternalLogToServer();
+    } catch (e) {
+      connect.getLog().error(`[ContactEvent] Failed to remove contact from ENDED event tracker`)
+        .withObject({ contactId: contactId || 'unknown' })
+        .withException(e)
+        .sendInternalLogToServer();
+    }
+  }
+
+  connect.core._handleEndedEvent = function (contactId, newContactState) {
+    try {
+      // if the event being triggered is ENDED, remove the contactId from the set
+      // we want to check for all inactive contact states because active state -> inactive state = ENDED event
+      if (connect.core.endedEventTracker.has(contactId) && inactiveContactState.includes(newContactState)) {
+        connect.getLog().info(`[ContactEvent] ENDED was triggered`).withObject({ contactId: contactId }).sendInternalLogToServer();
+        connect.core._removeContactFromEndedSet(contactId);
+      }
+    } catch (e) {
+      connect.getLog().error(`[ContactEvent] Failed to handle proper ENDED event being triggered`).withException(e).sendInternalLogToServer();
+    }
+  };
+
+  connect.core._shouldTriggerInvalidStateTransition = function (contactData) {
+    if (connect.core.endedEventTracker.has(contactData.contactId)) {
+      try {
+        connect.getLog().info(`[ContactEvent] Contact did not transition to the ENDED state prior to DESTROYED`).withObject(contactData).sendInternalLogToServer();
+        connect.core._removeContactFromEndedSet(contactData.contactId);
+        return true;
+      } catch (e) {
+        connect.getLog().error(`[ContactEvent] Failed to handle invalid state transition error handling`).withException(e).sendInternalLogToServer();
+      }
+    }
+    return false;
+  }
 
   /**-----------------------------------------------------------------------*/
   var AgentDataProvider = function (bus) {
@@ -1931,22 +2053,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     var oldAgentData = this.agentData;
     this.agentData = agentData;
 
-    try {
-      // the agentSnapshot timestamp does not change unless the snapshot has a difference
-      // timestamp is populated by backend service when snapshot is generated
-      const newAgentSnapshotTimestamp = Date.parse(agentData.snapshot.snapshotTimestamp);
-      if ((!oldAgentData) || (newAgentSnapshotTimestamp !== Date.parse(oldAgentData.snapshot.snapshotTimestamp))) {
-        const snapshotDetectedLatency = new Date().getTime() - newAgentSnapshotTimestamp;
-        publishSnapshotMetric(SNAPSHOT_RECEIVED_BY_CLIENT, snapshotDetectedLatency, {
-          ContentLengthInBytes: connect.core._calculateSnapshotSizingBucket(agentData.snapshot),
-          IsCCPLayer: connect.isCCP()
-        });
-      }
-    } catch (e) {
-      connect.getLog().error("[Metrics] Failed to send metrics.")
-        .withException(e).sendInternalLogToServer();
-    }
-    if (!connect.agent?.initialized) {
+    if (oldAgentData == null) {
       connect.agent.initialized = true;
       this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
     }
@@ -2054,7 +2161,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
     }
 
-   const processingStart = performance.now();
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
     } else {
@@ -2068,7 +2174,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       };
     }
 
-    const eventTriggerStart = performance.now();
     connect.values(diff.added).forEach(function (contactData) {
       self.bus.trigger(connect.ContactEvents.INIT, new connect.Contact(contactData.contactId));
       self._fireContactUpdateEvents(contactData.contactId, connect.ContactStateType.INIT, contactData.state.type);
@@ -2083,46 +2188,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     connect.keys(diff.common).forEach(function (contactId) {
       self._fireContactUpdateEvents(contactId, diff.oldMap[contactId].state.type, diff.newMap[contactId].state.type);
     });
-
-    const processingEnd = performance.now();
-    const optionalDimensions = {
-      ContentLengthInBytes: connect.core._calculateSnapshotSizingBucket(this.agentData.snapshot),
-      IsCCPLayer: connect.isCCP()
-    };
-    try {
-      publishSnapshotMetric(SNAPSHOT_COMPARISON_STEP_TIME, (diff.endTime - processingStart), optionalDimensions);
-      publishSnapshotMetric(SNAPSHOT_EVENT_TRIGGER_STEP_TIME, (processingEnd - eventTriggerStart), optionalDimensions);
-      publishSnapshotMetric(SNAPSHOT_TOTAL_PROCESSING_TIME, (processingEnd - processingStart), optionalDimensions);
-    } catch (e) {
-      connect.getLog().error("[Metrics] Failed to send metrics.")
-        .withException(e).sendInternalLogToServer();
-    }
-  }
-
-  let publishSnapshotMetric = (metricName, value, optionalDimensions) => {
-    connect.publishMetric({
-      name: metricName,
-      data: {
-        latency: value,
-        optionalDimensions
-      }
-    })
-  }
-
-  // calculate which sizing bucket the size of the snapshot fits into
-  // INTERNAL ONLY
-  connect.core._calculateSnapshotSizingBucket = function(agentSnapshot) {
-    if (agentSnapshot && agentSnapshot.hasOwnProperty('contentLength')) {
-      const contentLength = parseInt(agentSnapshot.contentLength);
-      for (const rangeKey of Object.keys(sizingBucket)) {
-        const [min, max] = sizingBucket[rangeKey];
-        // check if the length is in range or larger than our largest bucket
-        if (contentLength >= min && contentLength <= max) {
-          return rangeKey;
-        }
-      }
-    }
-    return 'undefined';
   }
 
   AgentDataProvider.prototype._fireContactUpdateEvents = function (contactId, oldContactState, newContactState) {
@@ -2185,14 +2250,24 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
    * The 'source' is an optional parameter which indicates the requester. For example, if invoked with ("create_task", "task", "agentapp") we would know agentapp requested open task view.
    *
    * "caseId" is an optional parameter which is passed when a task is created from a Kesytone case
+   * 
+   * clientToken -  optional parameter used for deduping the incoming requests (idempotent token).  
+   * as we use broadcast mechanisms, every browser tab gets this request and we need a way to prevent processing the same request accross all browesrs tabs. 
+   * This is being used for emails today where we have a weblock serving this request and tracks the client token to process it once and dedupes the rest
+   *   
    */
-  connect.core.activateChannelWithViewType = function (viewType, mediaType, source, caseId) {
+  connect.core.activateChannelWithViewType = function (viewType, mediaType, source, caseId, clientToken) {
     const data = { viewType, mediaType };
     if (source) {
       data.source = source;
     }
     if (caseId) {
       data.caseId = caseId;
+    }
+    if (clientToken) {
+      data.clientToken = clientToken;
+    } else {
+      data.clientToken = connect.randomId(); // Create a random token
     }
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
@@ -2207,6 +2282,13 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     connect.core.getUpstream().upstreamBus.trigger(connect.TaskEvents.CREATED, data);
   };
 
+  /**
+   * Used to publish 'email created' event
+   */
+  connect.core.triggerEmailCreated = function (data) {
+    connect.core.getUpstream().upstreamBus.trigger(connect.EmailEvents.CREATED, data);
+  };
+  
   /** ------------------------------------------------- */
 
   /**
