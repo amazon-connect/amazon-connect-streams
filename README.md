@@ -20,6 +20,7 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
 # Important Announcements
 
 1. November 2024 - Major changes:
+   * Introducing Email
    * Storage access settings from `initCCP` are now deprecated after Google is no longer deprecating 3rd party cookies by default.
    * Global resiliency involving `connect-streams-dr.js` is now deprecated. Please reference [Documentation-GR.md](Documentation-GR.md) for the new set of APIs.
 2. July 2024 - The issue with muting while a Voice contact is on hold has been resolved. Agents can use the mute button while a contact is placed on hold. The following APIs will be available when the contact is on hold:

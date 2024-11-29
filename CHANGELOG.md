@@ -1,4 +1,9 @@
 # CHANGELOG.md
+
+## [2.17.0] - 2024-11-29
+Added:
+- Email
+
 ## [2.16.0] - 2024-11-11
 Added:
 - Amazon Connect Global Resiliency implementation. See Documentation-GR.md for details.
@@ -30,7 +35,7 @@ Updated:
 
 ## [2.14.2] - 2024-06-07
 Added:
-- `?visual-refresh=true` is used to access CCPUI's updated UI (aka Cloudscape)
+- `?visual-refresh=true` is used to access CCPUI's updated UI (aka CloudScape)
 - Adding typing for `getChannelContext()`
 
 Updated:
