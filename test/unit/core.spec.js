@@ -948,6 +948,7 @@ describe('Core', function () {
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
+                sandbox.stub(connect, "EmailRingtoneEngine");
                 connect.core.initRingtoneEngines({ ringtone: defaultRingtone });
             });
 
@@ -978,6 +979,13 @@ describe('Core', function () {
                 connect.ifMaster.callArg(1);
                 assert.isFalse(connect.TaskRingtoneEngine.calledWithNew());
             });
+
+            it("Ringtone no init with EmailRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isFalse(connect.EmailRingtoneEngine.calledWithNew());
+            });
         });
 
         describe('with optional chat and task ringtone params', function () {
@@ -987,13 +995,15 @@ describe('Core', function () {
                     voice: { ringtoneUrl: defaultRingtoneUrl },
                     queue_callback: { ringtoneUrl: defaultRingtoneUrl },
                     chat: { ringtoneUrl: defaultRingtoneUrl },
-                    task: { ringtoneUrl: defaultRingtoneUrl }
+                    task: { ringtoneUrl: defaultRingtoneUrl },
+                    email: { ringtoneUrl: defaultRingtoneUrl },
                 };
                 sandbox.stub(connect, "ifMaster");
                 sandbox.stub(connect, "VoiceRingtoneEngine");
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
+                sandbox.stub(connect, "EmailRingtoneEngine");
                 connect.core.initRingtoneEngines({ ringtone: extraRingtone });
             });
 
@@ -1025,6 +1035,14 @@ describe('Core', function () {
                 connect.ifMaster.callArg(1);
                 assert.isTrue(connect.TaskRingtoneEngine.calledWithNew(extraRingtone.task));
             });
+
+
+            it("Ringtone init with EmailRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.EmailRingtoneEngine.calledWithNew(extraRingtone.email));
+            });
         });
 
         describe("initRingtoneEngines with stored ringer device ID", function () {
@@ -1046,6 +1064,7 @@ describe('Core', function () {
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
+                sandbox.stub(connect, "EmailRingtoneEngine");
             });
 
             afterEach(function () {
@@ -1083,6 +1102,8 @@ describe('Core', function () {
                     queue_callback: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                     chat: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                     task: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+                    email: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+
                 };
                 ringtoneParams =  { ringtone: defaultRingtones };
                 ringtoneParamsKey = `RingtoneParamsStorage::${global.location.origin}`;
@@ -1101,6 +1122,8 @@ describe('Core', function () {
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
+                sandbox.stub(connect, "EmailRingtoneEngine");
+
                 sandbox.stub(connect, 'isFramed').returns(true);
                 stubbedGetItem = sandbox.stub(global.localStorage, "getItem");
                 sandbox.stub(global.localStorage, "setItem");
@@ -1143,6 +1166,8 @@ describe('Core', function () {
                     assert.isTrue(connect.ChatRingtoneEngine.calledOnceWith(defaultRingtones.chat));
                     assert.isTrue(connect.TaskRingtoneEngine.calledOnceWith(defaultRingtones.task));
                     assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(defaultRingtones.queue_callback));
+                    assert.isTrue(connect.EmailRingtoneEngine.calledOnceWith(defaultRingtones.email));
+
                 });
 
                 it('initializes ringtone engines WITHOUT using stored ringtone params when CONFIGURE message IS delivered', () => {
@@ -1153,6 +1178,8 @@ describe('Core', function () {
                             queue_callback: { disabled: false, ringtoneUrl: otherRingtoneUrl },
                             chat: { disabled: false, ringtoneUrl: otherRingtoneUrl },
                             task: { disabled: false, ringtoneUrl: otherRingtoneUrl },
+                            email: { disabled: false, ringtoneUrl: otherRingtoneUrl },
+
                         }
                     }
                     connect.core.initRingtoneEngines(usedRingtoneParams);
@@ -1169,6 +1196,8 @@ describe('Core', function () {
                     assert.isTrue(connect.ChatRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.chat));
                     assert.isTrue(connect.TaskRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.task));
                     assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
+                    assert.isTrue(connect.EmailRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.email));
+
                 });
 
                 it('initializes ringtone engines WITHOUT using stored ringtone params when CONFIGURE message IS delivered, for disabled ringtone', () => {
@@ -1179,6 +1208,7 @@ describe('Core', function () {
                             queue_callback: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                             chat: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                             task: { disabled: true, ringtoneUrl: otherRingtoneUrl },
+                            email: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                         }
                     }
                     connect.core.initRingtoneEngines(usedRingtoneParams);
@@ -1195,6 +1225,7 @@ describe('Core', function () {
                     assert.isFalse(connect.ChatRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.chat));
                     assert.isFalse(connect.TaskRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.task));
                     assert.isFalse(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
+                    assert.isFalse(connect.EmailRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.email));
                 });
             });
 
@@ -1264,7 +1295,7 @@ describe('Core', function () {
         let params;
         let createElementSpy;
         let loggerInfoSpy, loggerErrorSpy;
-
+        
         const streamsSiteStub = {
             init: sinon.stub()
         }
@@ -2426,7 +2457,7 @@ describe('Core', function () {
             };
  
             appRegistryMock = {
-                get: sandbox.stub().returns({containerDOM: containerDOMMock}),
+                get: sandbox.stub().returns({ containerDOM: containerDOMMock }),
                 stopApp: sandbox.stub()
             }
             sandbox.stub(global.window.document, "getElementById").returns(iframeMock);

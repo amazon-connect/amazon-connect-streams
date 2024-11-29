@@ -538,6 +538,13 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
               connect.getLog().info("TaskRingtoneEngine initialized.").sendInternalLogToServer();
             }
 
+            if (!ringtoneSettings.email.disabled && !connect.core.ringtoneEngines.email) {
+              connect.core.ringtoneEngines.email =
+                new connect.EmailRingtoneEngine(ringtoneSettings.email);
+              isInitializedAnyEngine = true;
+              connect.getLog().info("EmailRingtoneEngine initialized.").sendInternalLogToServer();
+            }
+
             if (!ringtoneSettings.queue_callback.disabled && !connect.core.ringtoneEngines.queue_callback) {
               connect.core.ringtoneEngines.queue_callback =
                 new connect.QueueCallbackRingtoneEngine(ringtoneSettings.queue_callback);
@@ -563,6 +570,8 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       params.ringtone.queue_callback = params.ringtone.queue_callback || {};
       params.ringtone.chat = params.ringtone.chat || { disabled: true };
       params.ringtone.task = params.ringtone.task || { disabled: true };
+      params.ringtone.email = params.ringtone.email || { disabled: true };
+
 
 
       if (otherParams.softphone) {
@@ -597,6 +606,17 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         }
       }
 
+
+      if (otherParams.email) {
+        if (otherParams.email.disableRingtone) {
+          params.ringtone.email.disabled = true;
+        }
+
+        if (otherParams.email.ringtoneUrl) {
+          params.ringtone.email.ringtoneUrl = otherParams.email.ringtoneUrl;
+        }
+      }
+
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -607,6 +627,8 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
           otherParams.ringtone.chat || {});
         params.ringtone.task = connect.merge(params.ringtone.task,
           otherParams.ringtone.task || {});
+        params.ringtone.email = connect.merge(params.ringtone.email,
+          otherParams.ringtone.email || {});
       }
     };
 

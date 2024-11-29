@@ -136,7 +136,8 @@
     'voice',
     'queue_callback',
     'chat',
-    'task'
+    'task',
+    'email'
   ]);
 
   /*----------------------------------------------------------------
@@ -184,7 +185,8 @@
   connect.MediaType = connect.makeEnum([
     'softphone',
     'chat',
-    'task'
+    'task',
+    'email'
   ]);
 
   /*----------------------------------------------------------------
@@ -373,7 +375,7 @@
    * Quick Responses APIs (utilizes public api proxy -- No shared worker involvement)
    */
   class QuickResponses {
-    static isEnabled = function() {
+    static isEnabled = function () {
       const client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
       return new Promise(function (resolve, reject) {
         client.call(connect.ApiProxyClientMethods.QR_INTEGRATION_EXISTS, null, {
@@ -390,13 +392,14 @@
       });
     }
 
-    static searchQuickResponses = function(params) {
+    static searchQuickResponses = function (params) {
       const client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
       const attributes = params?.contactId ? new Contact(params.contactId).getAttributes() : undefined;
       return new Promise(function (resolve, reject) {
         client.call(connect.ApiProxyClientMethods.QR_SEARCH_QUICK_RESPONSES, {
           ...params,
-          attributes }, {
+          attributes
+        }, {
           success: function (data) {
             connect.getLog().info("searchQuickResponses succeeded").withObject(data).sendInternalLogToServer();
             resolve(data);
@@ -800,6 +803,8 @@
       return new connect.ChatConnection(this.contactId, connectionData.connectionId);
     } else if (this.getType() === connect.ContactType.TASK) {
       return new connect.TaskConnection(this.contactId, connectionData.connectionId);
+    } else if (this.getType() === connect.ContactType.EMAIL) {
+      return new connect.EmailConnection(this.contactId, connectionData.connectionId);
     } else {
       return new connect.VoiceConnection(this.contactId, connectionData.connectionId);
     }
@@ -897,6 +902,8 @@
         return new connect.ChatConnection(self.contactId, connData.connectionId);
       } else if (self.getType() === connect.ContactType.TASK) {
         return new connect.TaskConnection(self.contactId, connData.connectionId);
+      } else if (self.getType() === connect.ContactType.EMAIL) {
+        return new connect.EmailConnection(self.contactId, connData.connectionId);
       } else {
         return new connect.VoiceConnection(self.contactId, connData.connectionId);
       }
@@ -961,6 +968,18 @@
     return this._getData().description;
   };
 
+  Contact.prototype.getRelatedContactId = function () {
+    return this._getData().relatedContactId;
+  };
+
+  Contact.prototype.getCustomerEndpoint = function () {
+    return this._getData().customerEndpoint;
+  }
+
+  Contact.prototype.getConnectSystemEndpoint = function () {
+    return this._getData().connectSystemEndpoint;
+  }
+
   Contact.prototype.getReferences = function () {
     return this._getData().references;
   };
@@ -1013,7 +1032,7 @@
     // so if customer does not have SEND capability then use agent SEND capability to determine that agent can
     // receive videos from other parties (other agents, superiors).
     const thirdPartyConns = this.getThirdPartyConnections();
-    return thirdPartyConns && thirdPartyConns.length > 0  && this.canAgentSendVideo();
+    return thirdPartyConns && thirdPartyConns.length > 0 && this.canAgentSendVideo();
   };
 
   Contact.prototype.hasScreenShareCapability = function () {
@@ -1120,7 +1139,7 @@
     var conn = this.getInitialConnection();
 
     // We will gradually change checking inbound by relying on contact initiationMethod
-    if (conn.getMediaType() === connect.MediaType.TASK) {
+    if ([connect.MediaType.TASK, connect.MediaType.EMAIL].includes(conn.getMediaType())) {
       return this._isInbound();
     }
 
@@ -2529,6 +2548,24 @@
     return connect.core.mediaFactory.get(this);
   };
 
+  /**
+ * @class EmailConnection
+ * @param {*} contactId
+ * @param {*} connectionId
+ * @description adds Email specific functionality
+ */
+  var EmailConnection = function (contactId, connectionId) {
+    Connection.call(this, contactId, connectionId);
+  };
+  EmailConnection.prototype = Object.create(Connection.prototype);
+  EmailConnection.prototype.constructor = EmailConnection;
+
+  EmailConnection.prototype.getMediaType = function () {
+    return connect.MediaType.EMAIL;
+  }
+
+  EmailConnection.prototype._initMediaController = function () { }
+
   /*----------------------------------------------------------------
    * class ConnectionSnapshot
    */
@@ -2695,6 +2732,7 @@
   connect.VoiceConnection = VoiceConnection;
   connect.ChatConnection = ChatConnection;
   connect.TaskConnection = TaskConnection;
+  connect.EmailConnection = EmailConnection;
   connect.ConnectionSnapshot = ConnectionSnapshot;
   connect.Endpoint = Endpoint;
   connect.Address = Endpoint;

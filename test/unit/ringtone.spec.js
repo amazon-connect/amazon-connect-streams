@@ -185,7 +185,7 @@ describe('RingtoneEngine', () => {
             global.Audio.resetHistory();
 
             await voiceRingtoneEngine._startRingtone(contact, 2);
-            
+
             sinon.assert.calledOnce(voiceRingtoneEngine._audio.play);
             sinon.assert.notCalled(global.Audio);
         });
@@ -265,7 +265,6 @@ describe('RingtoneEngine', () => {
 
         it('Validate the ringtone engine stops trying to start the ringtone after one success even if canplay event isnt triggered for some reasons', async () => {
             connect.agentApp.AppRegistry.stop = sinon.fake.resolves(); // needed for the test to pass, or else this throws a not defined errpr
-            
             const fakePlay = sinon.stub();
             fakePlay.onCall(0).rejects();
             fakePlay.onCall(1).resolves();
@@ -305,7 +304,7 @@ describe('RingtoneEngine', () => {
             } catch (e) {
                 error = e;
             }
-            
+
             sinon.assert.calledOnce(voiceRingtoneEngine._audio.play);
             sinon.assert.notCalled(global.Audio);
             expect(error).to.have.lengthOf(1);
@@ -328,7 +327,7 @@ describe('RingtoneEngine', () => {
             } catch (e) {
                 error = e;
             }
-            
+
             sinon.assert.calledOnce(voiceRingtoneEngine._audio.play);
             sinon.assert.notCalled(global.Audio);
             expect(error).to.have.lengthOf(1);
@@ -376,11 +375,11 @@ describe('RingtoneEngine', () => {
             sandbox.stub(contact, "isInbound").returns(true);
             let connectionState;
             sandbox.stub(connect.core, 'getAgentDataProvider').returns({
-                getContactData: () => ({ connections: [{ state: { type: "connecting" }}]}),
+                getContactData: () => ({ connections: [{ state: { type: "connecting" } }] }),
                 getConnectionData: () => ({
-                  isSilentMonitor: false,
-                  state: { type: connectionState },
-                  getMediaController: () => {}
+                    isSilentMonitor: false,
+                    state: { type: connectionState },
+                    getMediaController: () => { }
                 })
             });
         });
@@ -400,6 +399,46 @@ describe('RingtoneEngine', () => {
             sandbox.stub(contact, "getType").returns(lily.ContactType.VOICE);
             this.ringtoneSetup.restore();
             this.ringtoneSetup = sandbox.stub(this.chatRingtoneEngine, "_ringtoneSetup");
+            bus.trigger(connect.ContactEvents.INIT, contact);
+            bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
+            assert.isTrue(this.ringtoneSetup.notCalled);
+        });
+    });
+
+    describe('#connect.EmailRingtoneEngine', function () {
+        before(function () {
+            sandbox.stub(connect.core, "getEventBus").returns(bus);
+            this.emailRingtoneEngine = new connect.EmailRingtoneEngine(ringtoneObj);
+            this.ringtoneSetup = sandbox.stub(this.emailRingtoneEngine, "_ringtoneSetup");
+            assert.doesNotThrow(this.emailRingtoneEngine._driveRingtone, Error, "Not implemented.");
+            sandbox.stub(contact, "getType").returns(lily.ContactType.EMAIL);
+            sandbox.stub(contact, "isInbound").returns(true);
+            let connectionState;
+            sandbox.stub(connect.core, 'getAgentDataProvider').returns({
+                getContactData: () => ({ connections: [{ state: { type: "connecting" } }] }),
+                getConnectionData: () => ({
+                    isSilentMonitor: false,
+                    state: { type: connectionState },
+                    getMediaController: () => { }
+                })
+            });
+        });
+
+        after(function () {
+            sandbox.restore();
+        });
+
+        it('validate the EmailRingtoneEngine implemements _driveRingtone method and calls the  _ringtoneSetup for EMAIL contacts ', function () {
+            bus.trigger(connect.ContactEvents.INIT, contact);
+            bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
+            assert.isTrue(this.ringtoneSetup.withArgs(contact).calledOnce);
+        });
+
+        it('validate the EmailRingtoneEngine should not call the _ringtoneSetup for any other contact types ', function () {
+            contact.getType.restore();
+            sandbox.stub(contact, "getType").returns(lily.ContactType.TASK);
+            this.ringtoneSetup.restore();
+            this.ringtoneSetup = sandbox.stub(this.emailRingtoneEngine, "_ringtoneSetup");
             bus.trigger(connect.ContactEvents.INIT, contact);
             bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
             assert.isTrue(this.ringtoneSetup.notCalled);
