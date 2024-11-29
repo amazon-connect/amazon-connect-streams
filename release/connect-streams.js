@@ -10827,9 +10827,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     this.agentUpdateSubscriber = this.bus.subscribe(connect.AgentEvents.UPDATE, connect.hitch(this, this.updateAgentData));
   };
   AgentDataProvider.prototype.updateAgentData = function (agentData) {
+    var _connect$agent;
     var oldAgentData = this.agentData;
     this.agentData = agentData;
-    if (oldAgentData == null) {
+    if (!((_connect$agent = connect.agent) !== null && _connect$agent !== void 0 && _connect$agent.initialized)) {
       connect.agent.initialized = true;
       this.bus.trigger(connect.AgentEvents.INIT, new connect.Agent());
     }
