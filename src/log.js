@@ -184,7 +184,13 @@
    * Private method to remove sensitive info from client log
    */
   var redactSensitiveInfo = function(data) {
-    var authTokenRegex = /AuthToken.*\=/g;
+    var authTokenRegex = /(AuthToken.*)/gi;
+    var e164NumberFormatRegex = /Phone number.*/gi;
+    var sendDigtRegex = /Send digit.*/gi
+    var connectionAuthTokenRegex = /ConnectionAuthenticationToken.*/gi
+    var credentialRegex = /("credential":")([^"]*)"/
+    const redactedFields = ["quickconnectname", "token", "login", "credential", "internalip", "authtoken", "phonenumber", "firstname", "lastname", "emailaddress", "address", "displayname"];
+    const hashedFields = ["customerid", "speakerid", "customerspeakerid", "presignedurl"];
     if(data && typeof data === 'object') {
       Object.keys(data).forEach(function(key) {
         if (typeof data[key] === 'object') {

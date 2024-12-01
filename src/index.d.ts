@@ -233,7 +233,45 @@ declare namespace connect {
      *
      */
     upstream?: object | null;
+
+    /**
+     * Configuration to be passed to SDK Client
+     *
+     */
+    getSDKClientConfig(): { provider: any };
   }
+
+  interface GlobalResiliency {
+    /**
+     * Subscribes a callback function to be called when a failover is pending, but has not yet been completed.
+     *
+     * @param f The callback function.
+     */
+    onFailoverPending(f: Function): Subscription;
+
+    /**
+     * Subscribes a callback function to be called when the failover to another region has completed.
+     *
+     * @param f The callback function.
+     */
+    onFailoverCompleted(f: Function): Subscription;
+
+    /**
+     * Subscribes a callback function to be called when there is an error setting up Global Resiliency
+     *
+     * @param f The callback function.
+     */
+    onConfigureError(f: Function): Subscription;
+
+    /**
+     * Get the active region for Global Resiliency, i.e. 'us-west-2'
+     *
+     */
+    getActiveRegion(): String;
+
+  }
+
+  const globalResiliency: GlobalResiliency;
 
   enum EventType {
     ACKNOWLEDGE = 'acknowledge',
@@ -579,7 +617,10 @@ declare namespace connect {
 
     /** used for request storage access implementations */
     readonly storageAccess?: StorageAccessParameters
-}
+
+    /** used to associate an existing AmazonConnectProvider */
+    readonly provider?: InstanceType<{ new (...args: any[]): any }>
+  }
 
   interface TerminateCustomViewOptions {
     /** Will deconstruct the application iframe and clear its id in the AppRegistry, freeing the namespace of the applications id. Default is true */
@@ -1293,6 +1334,14 @@ declare namespace connect {
      * @param connectOptions The connection options.
      */
     connect(endpoint: Endpoint, connectOptions?: ConnectOptions): void;
+
+    /**
+     * Subscribe a method to be called when the agent's microphone media stream is attached to the WebRTC connection for a softphone call, which happens between connect.ContactEvents.CONNECTING and connect.ContactEvents.CONNECTED events. 
+     * This API is useful to do operations that require the local media stream such as setMicrophoneDevice and mute/unmute before CONNECTED event.
+     * 
+     * @param callback
+     */
+    onLocalMediaStreamCreated(callback: UserMediaDeviceChangeCallback): Subscription;
 
     /**
      * Subscribe a method to be called when the agent changes the speaker device (output device for call audio).

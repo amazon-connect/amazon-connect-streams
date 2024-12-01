@@ -1,4 +1,5 @@
 const { assert, expect } = require("chai");
+const proxyquire = require('proxyquire');
 require("../unit/test-setup.js");
 
 describe('Core', function () {
@@ -25,7 +26,11 @@ describe('Core', function () {
             shouldAddNamespaceToLogs: true
         };
     });
-    
+
+    after(() => {
+        sandbox.restore();
+    })
+
     describe('#connect.core.initSharedWorker()', function () {
         jsdom({ url: "http://localhost" });
         let clock, onAuthFailSpy, onAuthorizeSuccessSpy, hitchSpy;
@@ -411,6 +416,7 @@ describe('Core', function () {
         });
         after(() => {
             sandbox.restore();
+            clock.restore();
         });
         it('Does not call redirectToLogin at all if authRetryCount is greater than max auth retry count for the session', () => {
             window.sessionStorage.setItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT, 4);
@@ -490,6 +496,7 @@ describe('Core', function () {
         });
         after(() => {
             sandbox.restore();
+            clock.restore();
         });
         const cycleCTIAuthFail = () => {
             connect.core._handleCTIAuthFail(authorizeEndpoint);
@@ -759,7 +766,7 @@ describe('Core', function () {
                 });
 
                 after(() => {
-                    clock = undefined;
+                    clock.restore();
                 });
 
                 it("we should use stored softphone params for initilization in case if the configure message is not delivered", () => {
@@ -941,6 +948,7 @@ describe('Core', function () {
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
+                sandbox.stub(connect, "EmailRingtoneEngine");
                 connect.core.initRingtoneEngines({ ringtone: defaultRingtone });
             });
 
@@ -971,6 +979,13 @@ describe('Core', function () {
                 connect.ifMaster.callArg(1);
                 assert.isFalse(connect.TaskRingtoneEngine.calledWithNew());
             });
+
+            it("Ringtone no init with EmailRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isFalse(connect.EmailRingtoneEngine.calledWithNew());
+            });
         });
 
         describe('with optional chat and task ringtone params', function () {
@@ -980,13 +995,15 @@ describe('Core', function () {
                     voice: { ringtoneUrl: defaultRingtoneUrl },
                     queue_callback: { ringtoneUrl: defaultRingtoneUrl },
                     chat: { ringtoneUrl: defaultRingtoneUrl },
-                    task: { ringtoneUrl: defaultRingtoneUrl }
+                    task: { ringtoneUrl: defaultRingtoneUrl },
+                    email: { ringtoneUrl: defaultRingtoneUrl },
                 };
                 sandbox.stub(connect, "ifMaster");
                 sandbox.stub(connect, "VoiceRingtoneEngine");
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
+                sandbox.stub(connect, "EmailRingtoneEngine");
                 connect.core.initRingtoneEngines({ ringtone: extraRingtone });
             });
 
@@ -1018,9 +1035,17 @@ describe('Core', function () {
                 connect.ifMaster.callArg(1);
                 assert.isTrue(connect.TaskRingtoneEngine.calledWithNew(extraRingtone.task));
             });
+
+
+            it("Ringtone init with EmailRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.EmailRingtoneEngine.calledWithNew(extraRingtone.email));
+            });
         });
 
-        describe ("initRingtoneEngines with stored ringer device ID", function () {
+        describe("initRingtoneEngines with stored ringer device ID", function () {
             const DEVICE_ID = "DEVICE_ID";
             let setRingerDeviceMock;
             let defaultRingtone;
@@ -1039,6 +1064,7 @@ describe('Core', function () {
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
+                sandbox.stub(connect, "EmailRingtoneEngine");
             });
 
             afterEach(function () {
@@ -1076,6 +1102,8 @@ describe('Core', function () {
                     queue_callback: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                     chat: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                     task: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+                    email: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+
                 };
                 ringtoneParams =  { ringtone: defaultRingtones };
                 ringtoneParamsKey = `RingtoneParamsStorage::${global.location.origin}`;
@@ -1094,6 +1122,8 @@ describe('Core', function () {
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
+                sandbox.stub(connect, "EmailRingtoneEngine");
+
                 sandbox.stub(connect, 'isFramed').returns(true);
                 stubbedGetItem = sandbox.stub(global.localStorage, "getItem");
                 sandbox.stub(global.localStorage, "setItem");
@@ -1106,7 +1136,7 @@ describe('Core', function () {
             });
 
             after(() => {
-                clock = undefined;
+                clock.restore();
             });
 
             it('Ringtone parameters are persisted in local storage for the first time when receiving CONFIGURE event', () => {
@@ -1136,6 +1166,8 @@ describe('Core', function () {
                     assert.isTrue(connect.ChatRingtoneEngine.calledOnceWith(defaultRingtones.chat));
                     assert.isTrue(connect.TaskRingtoneEngine.calledOnceWith(defaultRingtones.task));
                     assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(defaultRingtones.queue_callback));
+                    assert.isTrue(connect.EmailRingtoneEngine.calledOnceWith(defaultRingtones.email));
+
                 });
 
                 it('initializes ringtone engines WITHOUT using stored ringtone params when CONFIGURE message IS delivered', () => {
@@ -1146,6 +1178,8 @@ describe('Core', function () {
                             queue_callback: { disabled: false, ringtoneUrl: otherRingtoneUrl },
                             chat: { disabled: false, ringtoneUrl: otherRingtoneUrl },
                             task: { disabled: false, ringtoneUrl: otherRingtoneUrl },
+                            email: { disabled: false, ringtoneUrl: otherRingtoneUrl },
+
                         }
                     }
                     connect.core.initRingtoneEngines(usedRingtoneParams);
@@ -1162,6 +1196,8 @@ describe('Core', function () {
                     assert.isTrue(connect.ChatRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.chat));
                     assert.isTrue(connect.TaskRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.task));
                     assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
+                    assert.isTrue(connect.EmailRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.email));
+
                 });
 
                 it('initializes ringtone engines WITHOUT using stored ringtone params when CONFIGURE message IS delivered, for disabled ringtone', () => {
@@ -1172,6 +1208,7 @@ describe('Core', function () {
                             queue_callback: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                             chat: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                             task: { disabled: true, ringtoneUrl: otherRingtoneUrl },
+                            email: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                         }
                     }
                     connect.core.initRingtoneEngines(usedRingtoneParams);
@@ -1188,6 +1225,7 @@ describe('Core', function () {
                     assert.isFalse(connect.ChatRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.chat));
                     assert.isFalse(connect.TaskRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.task));
                     assert.isFalse(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
+                    assert.isFalse(connect.EmailRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.email));
                 });
             });
 
@@ -1249,7 +1287,149 @@ describe('Core', function () {
         });
     });
 
-    describe('#connect.core.initCCP()', function () {
+    describe("#connect.core.initCCP() starting AmazonConnectStreamsSite", () => {
+        jsdom({ url: "http://url.com/test" });
+
+        let amazonConnectStreamsSite;
+        let containerDiv;
+        let params;
+        let createElementSpy;
+        let loggerInfoSpy, loggerErrorSpy;
+        
+        const streamsSiteStub = {
+            init: sinon.stub()
+        }
+
+        const streamsSiteProviderStub = {
+            id: "test-id",
+            setCCPIframe: sinon.stub()
+        };
+
+        before(() => {
+            params = {
+                ccpUrl: "http://url.com/test",
+            };
+            containerDiv = { appendChild: sandbox.spy() };
+            createElementSpy = sandbox.spy(document, "createElement");
+
+            amazonConnectStreamsSite = proxyquire("../../src/core", {
+                "@amazon-connect/site-streams": {
+                    AmazonConnectStreamsSite: streamsSiteStub
+                }
+            });
+
+            loggerInfoSpy = sinon.spy(connect.getLog(), "info");
+            loggerErrorSpy = sinon.spy(connect.getLog(), "error");
+        });
+
+        beforeEach(() => {
+            loggerInfoSpy.restore();
+            loggerErrorSpy.restore();
+        })
+
+        after(() => {
+            connect.agent.initialized = false;
+            sandbox.restore();
+        });
+
+        describe("before calling initCCP", () => {
+            it("should throw when getting SDK Client Config", () => {
+                expect(() => connect.core.getSDKClientConfig()).to.throw("Provider is not initialized");
+            })
+        });
+
+        describe("when not setting a provider", () => {
+            it("should initialize AmazonConnectStreamsSite", () => {
+                streamsSiteStub.init.returns({provider: streamsSiteProviderStub});
+
+                connect.core.initCCP(containerDiv, params);
+
+                expect(streamsSiteStub.init.calledWithExactly({instanceUrl: "url.com"}));
+                expect(loggerInfoSpy.calledWithExactly('Created AmazonConnectStreamsSite'));
+                expect(loggerErrorSpy.called).to.be.false;
+                expect(createElementSpy.calledOnce).to.be.true;
+                const [iframe] = createElementSpy.returnValues;
+                expect(streamsSiteProviderStub.setCCPIframe.calledWithExactly(iframe));
+            });
+
+            it("should contain provider with getting client config", () => {
+                streamsSiteStub.init.returns({provider: streamsSiteProviderStub});
+                connect.core.initCCP(containerDiv, params);
+
+                const result = connect.core.getSDKClientConfig();
+
+                expect(result.provider).to.equal(streamsSiteProviderStub);
+            });
+
+            it("should error when AmazonConnectStreamsSite fails to initialize", () => {
+                const testError = new Error("test error");
+                streamsSiteStub.init.throws(testError);
+
+                connect.core.initCCP(containerDiv, params);
+
+                expect(loggerErrorSpy.calledWithExactly('Error when setting up AmazonConnectStreamsSite'));
+            })
+
+            it("should error when setting iframe on AmazonConnectStreamsSite", () => {
+                const testError = new Error("test error");
+                streamsSiteStub.init.returns({provider: streamsSiteProviderStub});
+                streamsSiteProviderStub.setCCPIframe.throws(testError);
+
+                connect.core.initCCP(containerDiv, params);
+
+                expect(loggerErrorSpy.calledWithExactly('Error occurred when setting CCP iframe to provider'));
+            })
+        });
+
+        describe("when setting a provider in params", () => {
+            class TestExistingProvider {
+                get id() {
+                    return "test-existing-provider";
+                }
+            }
+
+            let existingProvider;
+            let paramsWithExistingProvider;
+
+            beforeEach(() => {
+                existingProvider = new TestExistingProvider();
+                paramsWithExistingProvider = {
+                    ...params,
+                    provider: existingProvider
+                };
+            });
+
+            it("should not initialize AmazonConnectStreamsSite", () => {
+                connect.core.initCCP(containerDiv, paramsWithExistingProvider);
+
+                expect(streamsSiteStub.init.notCalled);
+                expect(loggerInfoSpy.calledWithExactly('Using AmazonConnectProvider from params"'));
+                expect(loggerErrorSpy.called).to.be.false;
+                expect(createElementSpy.calledOnce).to.be.false;
+            });
+
+            it("should contain provider with getting client config", () => {
+                connect.core.initCCP(containerDiv, paramsWithExistingProvider);
+
+                const result = connect.core.getSDKClientConfig();
+
+                expect(result.provider).to.equal(existingProvider);
+            });
+
+            it("should error when object does not have a constructor", () => {
+                const invalidProviderParams = {
+                    ...params,
+                    provider: { id: "foo" }
+                };
+
+                connect.core.initCCP(containerDiv, invalidProviderParams);
+
+                expect(loggerErrorSpy.calledWithExactly('Error when setting up AmazonConnectProvider from params'));
+            })
+        });
+    })
+
+    describe('#connect.core.initCCP() using legacyAuthFlow', function () {
         jsdom({ url: "http://localhost" });
         let clock;
         let containerDiv;
@@ -1572,14 +1752,12 @@ describe('Core', function () {
             return delay;
         }
         AWS.util.calculateRetryDelay = calculateRetryDelay;
-        beforeEach(() => {
+        before(() => {
             clock = sinon.useFakeTimers();
-        });
-        afterEach(() => {
-            clock.restore();
         });
         after(() => {
             sandbox.restore();
+            clock.restore();
             connect.core.upstream = null;
         })
         it("should teardown and stand up a new iframe 10 times and then clean itself up and stop trying.", () => {
@@ -1713,10 +1891,11 @@ describe('Core', function () {
         jsdom({ url: "http://localhost" });
         let iframe = {offsetWidth: 5, offsetHeight: 5, getClientRects: () => ({length: 1})};
         var clock;
-        beforeEach(() => {
+        before(() => {
             clock = sinon.useFakeTimers();
         });
-        afterEach(() => {
+        after(() => {
+            sandbox.restore();
             clock.restore();
         });
         it('calls the setTimeout function', function () {
@@ -1841,8 +2020,38 @@ describe('Core', function () {
         }
         function createAgentSnapshotState(type, name) {
             return {
-                snapshot: { state: createState(type, name) }
+                snapshot: {
+                    state: createState(type, name)
+                }
             };
+        }
+
+        function createContactSnapshot(contactState, agentMediaLegState, customerMediaLegState) {
+            return [
+                {
+                    contactId: "abc-123",
+                    type: 'voice',
+                    state: {
+                        type: contactState
+                    },
+                    connections: [
+                        {
+                            connectionId: "agentConnectionId",
+                            type: 'agent',
+                            state: {
+                                type: agentMediaLegState
+                            }
+                        },
+                        {
+                            connectionId: "customerConnectionId",
+                            type: 'outbound',
+                            state: {
+                                type: customerMediaLegState
+                            }
+                        }
+                    ]
+                }
+            ]
         }
 
         before(function () {
@@ -2023,14 +2232,17 @@ describe('Core', function () {
             connect.core.upstream = null;
         });
         it('call activateChannelWithViewType with base parameters "viewType", "mediaType"', function () {
+            sandbox.stub(connect, 'randomId').returns("RandomId");
             connect.core.activateChannelWithViewType(viewType, mediaType);
+            sandbox.assert.calledOnce(connect.randomId);
             sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST,
                 {
                     event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
-                    data: { viewType, mediaType }
+                    data: { viewType, mediaType, clientToken: "RandomId" }
                 }
             );
         });
+
         it('call activateChannelWithViewType with an optional parameter "source"', function () {
             connect.core.activateChannelWithViewType(viewType, mediaType, "agentapp");
             sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST,
@@ -2049,6 +2261,17 @@ describe('Core', function () {
                 }
             );
         });
+
+        it('call activateChannelWithViewType with optional parameters "source", "caseId", "clientToken"', function () {
+            connect.core.activateChannelWithViewType(viewType, mediaType, "keystone", "1234567890", "randomToken");
+            sandbox.assert.calledOnceWithMatch(sendUpstream, connect.EventType.BROADCAST,
+                {
+                    event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
+                    data: { viewType, mediaType, source: "keystone", caseId: "1234567890", clientToken: "randomToken" }
+                }
+            );
+        });
+
     });
 
     describe('#connect.core.terminate()', function () {
@@ -2131,39 +2354,6 @@ describe('Core', function () {
             connect.core.initCCP(containerDiv, params);
             expect(isCCPInitialized(containerDiv, params)).to.be.true;
             connect.storageAccess = storageAccessOriginal;
-        });
-    });
-
-    describe('connect.core.calculateSnapshotSizingBucket', function () {
-
-        it('with contentLength in snapshot', () => {
-            const testCases = {
-                50: '0-100',
-                150: '101-500',
-                987: '501-1000',
-                2543: '1000-3000',
-                3001: '3001-5000',
-                10000: '5001-10000',
-                19997: '10001-20000',
-                50000: '20000+'
-            }
-            for (const testCase of Object.keys(testCases)) {
-                const snapshot = {
-                    contentLength: testCase
-                }
-                expect(connect.core._calculateSnapshotSizingBucket(snapshot)).to.equal(testCases[testCase]);
-            }
-        });
-        it('with no contentLength in snapshot', () => {
-            const snapshot = {
-                contentLength: 'data'
-            }
-            expect(connect.core._calculateSnapshotSizingBucket(snapshot)).to.equal('undefined');
-
-            const snapshot2 = {
-                data: 'data'
-            }
-            expect(connect.core._calculateSnapshotSizingBucket(snapshot2)).to.equal('undefined');
         });
     });
 
@@ -2267,7 +2457,7 @@ describe('Core', function () {
             };
  
             appRegistryMock = {
-                get: sandbox.stub().returns({containerDOM: containerDOMMock}),
+                get: sandbox.stub().returns({ containerDOM: containerDOMMock }),
                 stopApp: sandbox.stub()
             }
             sandbox.stub(global.window.document, "getElementById").returns(iframeMock);
@@ -2316,4 +2506,19 @@ describe('Core', function () {
             })
         })
     })
+
+    describe('#connect.core.triggerEmailCreated()', function () {
+        let triggerSpy = sandbox.fake();
+        before(() => {
+            sandbox.stub(connect.core, "getUpstream").returns({ upstreamBus: { trigger: triggerSpy } });
+        });
+        after(() => {
+            sandbox.restore();
+        });
+        it('calls trigger on the upstreamBus for the upstream conduit for the corresponding events', () => {
+            const dataMock = { contactId: 'some-contact-id' }
+            connect.core.triggerEmailCreated(dataMock);
+            sandbox.assert.calledOnceWithExactly(triggerSpy, connect.EmailEvents.CREATED, dataMock);
+        });
+    });
 });

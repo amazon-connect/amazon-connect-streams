@@ -22,7 +22,8 @@
       connect.ContactEvents.VIEW,
       connect.EventType.ACKNOWLEDGE,
       connect.EventType.TERMINATED,
-      connect.TaskEvents.CREATED
+      connect.TaskEvents.CREATED,
+      connect.EmailEvents.CREATED
     ];
     iframe.addEventListener('load', function (e) {
       BROADCAST_TYPE.forEach(function (type) {

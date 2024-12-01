@@ -1,5 +1,4 @@
 const webpack = require('webpack');
-const ReplacePlugin = require('webpack-plugin-replace');
 const path = require('path');
 const { commonConfig } = require('./common');
 
@@ -38,12 +37,8 @@ const config = Object.assign({}, commonConfig, {
     minimize: false,
   },
   plugins: [
-    new ReplacePlugin({
-      include: 'core.js',
-
-      values: {
-        STREAMS_VERSION: process.env.npm_package_version,
-      },
+    new webpack.DefinePlugin({
+      'process.env.npm_package_version': JSON.stringify(process.env.npm_package_version ?? 'live'),
     }),
   ],
   module: {
@@ -52,14 +47,14 @@ const config = Object.assign({}, commonConfig, {
         test: /\.m?js$/,
         include: path.resolve(__dirname, '../src'),
         use: {
-          loader: "babel-loader",
+          loader: 'babel-loader',
           options: {
-            presets: ['@babel/preset-typescript', '@babel/preset-env']
-          }
-        }
-      }
-    ]
-  }
+            presets: ['@babel/preset-typescript', '@babel/preset-env'],
+          },
+        },
+      },
+    ],
+  },
 });
 
 module.exports = [config];

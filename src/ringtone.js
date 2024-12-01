@@ -10,52 +10,83 @@
   global.lily = connect;
 
   var RingtoneEngineBase = function (ringtoneConfig) {
-    var self = this;
-    this._prevContactId = null;
-
     connect.assertNotNull(ringtoneConfig, "ringtoneConfig");
-    if (!ringtoneConfig.ringtoneUrl) {
-      throw new Error("ringtoneUrl is required!");
-    }
+    this._audio = null;
+    this._deviceId = '';
+    this._ringtoneUrl = ringtoneConfig.ringtoneUrl;
+    this._loadRingtone(this._ringtoneUrl).catch(() => { }); // NEXT TODO: trigger ringtone load failure event
+    this._driveRingtone();
+  };
 
-    if (global.Audio && typeof global.Promise !== "undefined") {
-      this._playableAudioPromise = new Promise(function (resolve, reject) {
-        self._audio = new Audio(ringtoneConfig.ringtoneUrl);
-        self._audio.loop = true;
-        self._audio.addEventListener("canplay", function () {
-          connect.getLog().info("Ringtone is ready to play: ", + ringtoneConfig.ringtoneUrl).sendInternalLogToServer();
-          self._audioPlayable = true;
-          resolve(self._audio);
-        });
+  // loading audio is async, but browser can handle audio operation like audio.play() or audio.setSinkId() before load complete
+  RingtoneEngineBase.prototype._loadRingtone = function (ringtoneUrl) {
+    return new Promise((resolve, reject) => {
+      if (!ringtoneUrl) {
+        reject(Error('ringtoneUrl is required!'));
+      }
+      this._audio = new Audio(ringtoneUrl);
+      this._audio.loop = true;
+      this.setOutputDevice(this._deviceId); // re-applying deviceId for audio reloading scenario
+
+      // just in case "canplay" doesn't fire at all for some reasons
+      const timerId = setTimeout(() => {
+        connect.getLog().warn("Ringtone isn't loaded in 1 second but proceeding: ", + ringtoneUrl).sendInternalLogToServer();
+        resolve();
+      }, 1000);
+
+      this._audio.addEventListener('canplay', () => {
+        connect.getLog().info("Ringtone is ready to play: ", + ringtoneUrl).sendInternalLogToServer();
+        clearTimeout(timerId);
+        resolve();
       });
 
-    } else {
-      this._audio = null;
-      connect.getLog().error("Unable to provide a ringtone.").sendInternalLogToServer();
-    }
-
-    self._driveRingtone();
+      this._audio.addEventListener('error', () => {
+        connect.getLog().error("Ringtone load error: ", + ringtoneUrl).sendInternalLogToServer();
+        clearTimeout(timerId);
+        reject(Error('Ringtone load error: ' + ringtoneUrl));
+      });
+    });
   };
 
   RingtoneEngineBase.prototype._driveRingtone = function () {
     throw new Error("Not implemented.");
   };
 
-  RingtoneEngineBase.prototype._startRingtone = function (contact) {
-    var self = this;
-    if (this._audio) {
-      this._audio.play()
-        .then(function() {
-          self._publishTelemetryEvent("Ringtone Start", contact);
-          connect.getLog().info("Ringtone Start").sendInternalLogToServer();
-        })
-        .catch(function(e) {
-          self._publishTelemetryEvent("Ringtone Playback Failure", contact);
-          connect.getLog().error("Ringtone Playback Failure").withException(e).withObject({currentSrc: self._audio.currentSrc, sinkId: self._audio.sinkId, volume: self._audio.volume}).sendInternalLogToServer();
-        });
+  RingtoneEngineBase.prototype._startRingtone = async function (contact, retries = 0, errorList = []) {
+    return new Promise((resolve, reject) => {
+      if (!this._audio) reject(Error('No audio object found'));
+
       // Empty string as sinkId means audio gets sent to the default device
       connect.getLog().info(`Attempting to start ringtone to device ${this._audio.sinkId || "''"}`).sendInternalLogToServer();
-    }
+
+      this._audio.play()
+        .then(() => {
+          this._publishTelemetryEvent("Ringtone Start", contact);
+          connect.getLog().info(`Ringtone Start: Succeeded with ${retries} retries remaining`).withObject({ errorList: errorList, contactId: contact.getContactId() }).sendInternalLogToServer();
+          resolve();
+        })
+        .catch(async (e) => {
+          this._publishTelemetryEvent("Ringtone Playback Failure", contact);
+          connect.getLog().error(`Ringtone Playback Failure: ${retries} retries remaining.`).withException(e).withObject({
+            currentSrc: this._audio.currentSrc,
+            sinkId: this._audio.sinkId,
+            volume: this._audio.volume,
+            contactId: contact.getContactId()
+          }).sendInternalLogToServer();
+
+          errorList.push(e.toString());
+          if (retries > 0) {
+            await this._loadRingtone(this._ringtoneUrl).catch(() => { }); // move on no matter if it has succeeded or not
+            await this._startRingtone(contact, retries - 1, errorList).then(resolve).catch(() => reject(errorList));
+          } else {
+            connect.getLog().error("Ringtone Retries Exhausted").withObject({
+              errorList,
+              contactId: contact.getContactId()
+            }).sendInternalLogToServer();
+            reject(errorList);
+          }
+        });
+    });
   };
 
   RingtoneEngineBase.prototype._stopRingtone = function (contact) {
@@ -77,8 +108,7 @@
   RingtoneEngineBase.prototype._ringtoneSetup = function (contact) {
     var self = this;
     connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
-      self._startRingtone(contact);
-      self._prevContactId = contact.getContactId();
+      self._startRingtone(contact, 2).catch(() => { }); // NEXT TODO: trigger ringtone playback failure event with error type
 
       contact.onConnected(lily.hitch(self, self._stopRingtone));
       contact.onAccepted(lily.hitch(self, self._stopRingtone));
@@ -109,31 +139,20 @@
    * Return a Promise that indicates the result of changing output device.
    */
   RingtoneEngineBase.prototype.setOutputDevice = function (deviceId) {
-    if (this._playableAudioPromise) {
-      var playableAudioWithTimeout = Promise.race([
-        this._playableAudioPromise,
-        new Promise(function (resolve, reject) {
-          global.setTimeout(function () { reject("Timed out waiting for playable audio"); }, 3000/*ms*/);
-        })
-      ]);
-      return playableAudioWithTimeout.then(function (audio) {
-        if (audio && audio.setSinkId) {
-          return audio.setSinkId(deviceId)
-            .then(function() {
-              return Promise.resolve(deviceId)
-            }).catch(function(err) {
-              // Empty string as sinkId means audio gets sent to the default device
-              return Promise.reject(`RingtoneEngineBase.setOutputDevice failed: audio.setSinkId() failed with error ${err}`)
-            });
-        } else {
-          return Promise.reject(`RingtoneEngineBase.setOutputDevice failed: ${audio ? "audio" : "audio.setSinkId"} not found.`);
-        }
-      });
-    }
-
-    if (global.Promise) {
-      return Promise.reject("Not eligible ringtone owner");
-    }
+    return new Promise((resolve, reject) => {
+      if (this._audio && this._audio.setSinkId) {
+        this._audio.setSinkId(deviceId)
+          .then(() => {
+            this._deviceId = deviceId;
+            resolve(deviceId);
+          })
+          .catch((err) => {
+            reject(`RingtoneEngineBase.setOutputDevice failed: audio.setSinkId() failed with error ${err}`);
+          });
+      } else {
+        reject(`RingtoneEngineBase.setOutputDevice failed: ${this._audio ? "audio" : "audio.setSinkId"} not found.`);
+      }
+    });
   };
 
   var VoiceRingtoneEngine = function (ringtoneConfig) {
@@ -143,22 +162,20 @@
   VoiceRingtoneEngine.prototype.constructor = VoiceRingtoneEngine;
 
   VoiceRingtoneEngine.prototype._driveRingtone = function () {
-    var self = this;
-
-    var onContactConnect = function (contact) {
-      if (contact.getType() === lily.ContactType.VOICE &&
-        contact.isSoftphoneCall() && contact.isInbound()) {
-        self._ringtoneSetup(contact);
-        self._publishTelemetryEvent("Ringtone Connecting", contact);
+    const onContactConnect = (contact) => {
+      if (contact.getType() === connect.ContactType.VOICE && contact.isSoftphoneCall() && contact.isInbound()) {
+        this._ringtoneSetup(contact);
+        this._publishTelemetryEvent("Ringtone Connecting", contact);
         connect.getLog().info("Ringtone Connecting").sendInternalLogToServer();
       }
     };
 
-    connect.contact(function (contact) {
+    connect.contact((contact) => {
       contact.onConnecting(onContactConnect);
     });
 
-    new connect.Agent().getContacts().forEach(function (contact) {
+    // handle the case where there's a contact already in connecting state at initialization
+    new connect.Agent().getContacts().forEach((contact) => {
       if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
         onContactConnect(contact);
       }
@@ -215,6 +232,32 @@
   };
 
 
+  /**
+   * Extends the Base ringtone engine and enables the email ringtone engine.
+   * @param {*} ringtoneConfig 
+   */
+  var EmailRingtoneEngine = function (ringtoneConfig) {
+    RingtoneEngineBase.call(this, ringtoneConfig);
+  };
+  EmailRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
+  EmailRingtoneEngine.prototype.constructor = EmailRingtoneEngine;
+
+  EmailRingtoneEngine.prototype._driveRingtone = function () {
+    var self = this;
+
+    var onContactConnect = function (contact) {
+      if (contact.getType() === connect.ContactType.EMAIL && contact.isInbound()) {
+        self._ringtoneSetup(contact);
+        self._publishTelemetryEvent("Email Ringtone Connecting", contact);
+        connect.getLog().info("Email Ringtone Connecting").sendInternalLogToServer();
+      }
+    };
+
+    connect.contact(function (contact) {
+      contact.onConnecting(onContactConnect);
+    });
+  };
+
   var QueueCallbackRingtoneEngine = function (ringtoneConfig) {
     RingtoneEngineBase.call(this, ringtoneConfig);
   };
@@ -240,4 +283,5 @@
   connect.ChatRingtoneEngine = ChatRingtoneEngine;
   connect.TaskRingtoneEngine = TaskRingtoneEngine;
   connect.QueueCallbackRingtoneEngine = QueueCallbackRingtoneEngine;
+  connect.EmailRingtoneEngine = EmailRingtoneEngine;
 })();

@@ -139,6 +139,10 @@
   var TaskEvents = connect.makeNamespacedEnum('task', [
       'created'
   ]);
+
+  var EmailEvents = connect.makeNamespacedEnum('email', [
+    'created'
+  ]);
   
   /**---------------------------------------------------------------
   * enum ConnectionEvents
@@ -402,6 +406,7 @@
   connect.ContactEvents = ContactEvents;
   connect.ChannelViewEvents = ChannelViewEvents;
   connect.TaskEvents = TaskEvents;
+  connect.EmailEvents = EmailEvents;
   connect.VoiceIdEvents = VoiceIdEvents;
   connect.WebSocketEvents = WebSocketEvents;
   connect.MasterTopics = MasterTopics;
