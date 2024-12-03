@@ -141,6 +141,15 @@ Note: these tests run on the release files generated above
 ## Using the AWS SDK and Streams
 Streams has a "baked-in" version of the AWS-SDK in the `./src/aws-client.js` file. Make sure that you import Streams before the AWS SDK so that the `AWS` object bound to the `Window` is the object from your manually included SDK, and not from Streams.
 
+## Handling Email Contacts
+
+To fully implement your custom email experience, you'll **need** to integrate with the [AmazonConnectSDK](https://github.com/amazon-connect/AmazonConnectSDK). It is a 2 step process: 
+
+1. Get the client configuration from Streams
+1. Use the configuration to integrate with the [`EmailClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts) and [`FileClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/file/src/file-client.ts) from the AmazonConnectSDK. You may also optionally integrate with the [`MessageTemplateClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/message-template/src/message-template-client.ts) and [`QuickResponsesClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/quick-responses/src/quick-responses-client.ts) to enhance your custom experience.
+
+A basic example of how to set this up can be found in the Documentation under `connect.core.getSDKClientConfig()`
+
 ## Initialization
 Initializing the Streams API is the first step to verify that you have
 everything set up correctly and that you are able to listen for events.
@@ -485,6 +494,32 @@ Subscribes a callback that executes when the CCP initialization is completed.
 Returns a promise that is resolved with the list of media devices from iframe. 
 Timeout for the request can be passed as an optional argument. The default timeout is 1000ms.
 The API should be called after the iframe CCP initialization is complete.
+
+### `connect.core.getSDKClientConfig()`
+
+```js
+import { EmailClient } from "@amazon-connect/email";
+import { FileClient } from "@amazon-connect/file";
+
+/* ... */
+
+connect.agent(() => {
+  /* ... */
+
+  // Get the client config needed to instantiate clients from the AmazonConnectSDK
+  const connectClientConfig = connect.core.getSDKClientConfig();
+
+  
+  // You can now instantiate the clients that you need. Be sure to import them from their respective packages!
+  const emailClient = new EmailClient(connectClientConfig);
+  const fileClient = new FileClient(connectClientConfig);
+
+});
+```
+
+Returns the [`ConnectClientConfig`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/core/src/client/connect-client-config.ts#L4) needed to instantiate clients from the [AmazonConnectSDK](https://github.com/amazon-connect/AmazonConnectSDK). 
+
+**IMPORTANT:** This should be invoked after the agent is initialized.
 
 ## SAML Authentication
 Streams support Security Assertion Markup Language (SAML) 2.0 to enable single sign-on (SSO) which will allow users to sign in through a SAML 2.0 compatible identity provider (IdP) and gain access to the instance without having to provide separate credentials.
