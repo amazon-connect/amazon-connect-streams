@@ -321,6 +321,16 @@
     "Error"
   ]);
 
+
+  /*----------------------------------------------------------------
+   * enum for contact flow authentication decision
+   */
+    connect.CustomerAuthenticationStatus = connect.makeEnum([
+      "AUTHENTICATED",
+      "FAILED",
+      "TIMEOUT",
+    ]);
+    
   /*----------------------------------------------------------------
    * enum for Video Capability
    */
@@ -2543,6 +2553,34 @@
 
   ChatConnection.prototype.getMonitorStatus = function () {
     return this._getData().monitorStatus;
+  };
+
+  ChatConnection.prototype.getAuthenticationDetails = function () {
+    if (this._isAgentConnectionType()) {
+      //only to be used for ChatConnection
+      throw new Error("Authentication details are available only for customer connection");
+    }
+
+    const contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    if (contactData?.segmentAttributes?.["connect:CustomerAuthentication"]?.ValueMap) {
+      const attributesMap = contactData.segmentAttributes["connect:CustomerAuthentication"].ValueMap;
+      if (typeof attributesMap === 'object' && attributesMap !== null) {
+        let returnVal = {};
+        for (const [key, value] of Object.entries(attributesMap)) {
+          if (value?.ValueString !== null) {
+            returnVal[key] = value.ValueString;
+          }
+        }
+        return returnVal;
+      }
+    }
+    return null;
+    
+  };
+
+  ChatConnection.prototype.isAuthenticated = function () {
+    const authenticationDetails = this.getAuthenticationDetails();
+  	return authenticationDetails?.Status === connect.CustomerAuthenticationStatus.AUTHENTICATED;
   };
 
   /**

@@ -2066,6 +2066,21 @@ declare namespace connect {
   type QuickResponseChannels = Array<QuickResponseChannelType>;
   type Tags = Array<string | null>;
 
+  type CustomerAuthenticationStatus = 'AUTHENTICATED' | 'FAILED' | 'TIMEOUT';
+  type CustomerAuthenticationMethod = 'CONNECT' | 'CUSTOM';
+  type CustomerAuthenticationDetails =  {
+    /** The identity provider that issued the authentication */
+    IdentityProvider?: string;
+    /** The user pool app client that authenticated your user. */
+    ClientId?: string;
+    /** Enum which represents whether the customer is authenticated or not */
+    Status: CustomerAuthenticationStatus;
+    /** Metadata for the customer profile associated with the contact */
+    AssociatedCustomerId?: string;
+    /** Connect managed auth vs customer managed auth. */
+    AuthenticationMethod?: CustomerAuthenticationMethod;
+  };
+
   interface ContactState {
     /** The contact state type, as per the ContactStateType enumeration. */
     readonly type: ContactStateType;
@@ -2361,6 +2376,18 @@ declare namespace connect {
      * Returns the name associated with the connection
      */
     getParticipantName(): string | null;
+
+    /** Get authentication details for customer in chat
+     *  returns `null` if customer is not authenticated.
+     *  returns `CustomerAuthenticationDetails` if customer is authenticated.
+     */
+    getAuthenticationDetails(): CustomerAuthenticationDetails | null;
+
+    /** Determine if customer in chat is authenticated.
+     *  return `true` if customer is authenticated
+     *  return `false` if customer is not authenticated
+     */
+    isAuthenticated(): boolean;
   }
 
   /**

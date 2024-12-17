@@ -23,11 +23,24 @@ describe('Connections API', function () {
       customerName: "CustomerName",
       agentName: "testAgent2"
     };
+    var getAgentDataProviderStub;
 
     before(function () {
 
-      sandbox.stub(connect.core, 'getAgentDataProvider').returns({
-        getContactData: () => { return {} },
+      getAgentDataProviderStub = sandbox.stub(connect.core, 'getAgentDataProvider').returns({
+        getContactData: () => ({
+          segmentAttributes: {
+            "connect:CustomerAuthentication": {
+              "ValueMap": {
+                "IdentityProvider": { "ValueString": "http://my-domain.auth0.com"}, // The identity provider that issued the authentication
+                "ClientId": { "ValueString": "xxxxxxxxxxxxexample" }, // The user pool app client that authenticated your user.
+                "Status": { "ValueString": "AUTHENTICATED" }, // Enum which represents whether the customer is authenticated or not
+                "AssociatedCustomerId": { "ValueString": "3b3fe046ed68479f9d425b5f1a7acbfe"}, // Metadata for the profile associated with the contact
+                "AuthenticationMethod": { "ValueString": "CONNECT" } // This should be reserved
+              }
+            }
+          }
+        }),
         _initMediaController: initMediaController,
         getConnectionData: () => {
           return {
@@ -72,6 +85,72 @@ describe('Connections API', function () {
       const chatConnection = new connect.ChatConnection(contactId, connectionId);
       const monitorInfo = chatConnection.getMonitorInfo();
       assert.deepEqual(monitorInfo, chatMonitorInfo);
+    });
+
+    describe('getAuthenticationDetails', () => {
+
+      it('should return authentication details when presented in segmentAttributes', () => {
+        const chatConnection = new connect.ChatConnection(contactId, connectionId);
+        const result = chatConnection.getAuthenticationDetails();
+        expect(result).to.eql({
+          "IdentityProvider": "http://my-domain.auth0.com",
+          "ClientId": "xxxxxxxxxxxxexample",
+          "Status": "AUTHENTICATED",
+          "AssociatedCustomerId": "3b3fe046ed68479f9d425b5f1a7acbfe",
+          "AuthenticationMethod": "CONNECT"
+        });
+        expect(chatConnection.isAuthenticated()).to.equal(true);
+      });
+
+      it('should return null when authentication details is not present in segmentAttributes', () => {
+        getAgentDataProviderStub.returns({
+          getContactData: () => { return {}; },
+          getConnectionData: () => ({}),
+        })
+        const chatConnection = new connect.ChatConnection(contactId, connectionId);
+        const result = chatConnection.getAuthenticationDetails();
+        expect(result).to.be.a("null");
+        expect(chatConnection.isAuthenticated()).to.equal(false);
+      });
+
+      it('should be un-authenticated if partial data is present in segmentAttributes', () => {
+        getAgentDataProviderStub.returns({
+          getContactData: () => ({
+            segmentAttributes: {
+              "connect:CustomerAuthentication": {
+                "ValueMap": {
+                  "IdentityProvider": { "ValueString": "http://my-domain.auth0.com"}, // The identity provider that issued the authentication
+                  "AssociatedCustomerId": { "ValueString": "3b3fe046ed68479f9d425b5f1a7acbfe"}, // Metadata for the profile associated with the contact
+                  "AuthenticationMethod": { "ValueString": "CONNECT" } // This should be reserved
+                }
+              }
+            }
+          }),
+          getConnectionData: () => ({}),
+        })
+        const chatConnection = new connect.ChatConnection(contactId, connectionId);
+        const result = chatConnection.getAuthenticationDetails();
+        expect(result).to.eql({
+          "IdentityProvider": "http://my-domain.auth0.com",
+          "AssociatedCustomerId": "3b3fe046ed68479f9d425b5f1a7acbfe",
+          "AuthenticationMethod": "CONNECT"
+        });
+        expect(chatConnection.isAuthenticated()).to.equal(false);
+      });
+
+      it('throw error if connection type is not Customer connection', () => {
+        getAgentDataProviderStub.returns({
+          getContactData: () => ({}),
+          getConnectionData: () => ({}),
+        })
+        const chatConnection = new connect.ChatConnection(contactId, connectionId);
+        sandbox.stub(chatConnection, "_isAgentConnectionType").returns(true);
+
+        assert.throws(() => chatConnection.getAuthenticationDetails(), Error, 
+                  "Authentication details are available only for customer connection");
+        assert.throws(() => chatConnection.isAuthenticated(), Error, 
+                  "Authentication details are available only for customer connection");
+      });
     });
 
     it('getParticipantName should return the agent\'s name for connection of type agent', () => {
