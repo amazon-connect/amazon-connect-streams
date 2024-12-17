@@ -1017,6 +1017,14 @@ declare namespace connect {
     readonly failure?: SuccessFailCallback<[string]>;
   }
 
+  interface AddParticipantOptions {
+    readonly callback?: SuccessFailOptions;
+  }
+
+  interface TransferOptions {
+    readonly callback?: SuccessFailOptions;
+  }
+
   interface ConnectOptions extends SuccessFailOptions {
     /** The queue ARN to associate the contact with. */
     readonly queueARN?: string;
@@ -1926,6 +1934,20 @@ declare namespace connect {
     addConnection(endpoint: Endpoint, callbacks?: SuccessFailOptions): void;
 
     /**
+     * Adds a new participant to the contact
+     * For Voice contacts, this will place all existing participants on hold
+     *    and then add the new participant
+     * For Chat contacts, this will invite the new participant directly to the chat
+     */
+    addParticipant(endpoint: Endpoint, options?: AddParticipantOptions): void;
+
+    /**
+     * Transfer the contact to the new participant and drop the existing participant(s)
+     * This is only supported in Chat and Task
+     */
+    transfer(endpoint: Endpoint, options?: TransferOptions): void;
+
+    /**
      * Rotate through the connected and on hold connections of the contact.
      * This operation is only valid if there is at least one third-party connection and the initial connection is still connected.
      *
@@ -2333,7 +2355,12 @@ declare namespace connect {
      * Returns the current monitoring state of this connection.
      * This value can be one of MonitoringMode enum values if the agent is supervisor, otherwise the monitorStatus will be undefined for the agent.
      */
-    getMonitorStatus(): MonitoringMode;
+    getMonitorStatus(): MonitoringMode | null;
+
+    /**
+     * Returns the name associated with the connection
+     */
+    getParticipantName(): string | null;
   }
 
   /**
@@ -2391,6 +2418,7 @@ declare namespace connect {
       readonly chatAutoAccept: boolean;
       readonly connectionData: string;
       readonly customerName: string | null;
+      readonly agentName: string | null;
     };
     readonly participantId: string;
     readonly participantToken: string;

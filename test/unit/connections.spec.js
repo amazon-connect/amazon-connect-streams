@@ -20,7 +20,8 @@ describe('Connections API', function () {
     };
 
     var chatMediaInfo = {
-      customerName: "CustomerName"
+      customerName: "CustomerName",
+      agentName: "testAgent2"
     };
 
     before(function () {
@@ -36,6 +37,11 @@ describe('Connections API', function () {
             getMediaController: () => { }
           }
         },
+        getAgentData: () => ({
+          configuration: {
+            name: 'mainAgent'
+          }
+        }),
       })
     });
 
@@ -66,6 +72,26 @@ describe('Connections API', function () {
       const chatConnection = new connect.ChatConnection(contactId, connectionId);
       const monitorInfo = chatConnection.getMonitorInfo();
       assert.deepEqual(monitorInfo, chatMonitorInfo);
+    });
+
+    it('getParticipantName should return the agent\'s name for connection of type agent', () => {
+      connect.agent.initialized = true;
+      agent = new connect.Agent();
+      const agentChatConnection = new connect.ChatConnection(contactId, connectionId);
+      sandbox.stub(agentChatConnection, 'getType').returns('agent');
+      assert.equal(agentChatConnection.getParticipantName(), 'mainAgent');
+    });
+
+    it('getParticipantName should return the customer\'s name for initial connection', () => {
+      const customerChatConnection = new connect.ChatConnection(contactId, connectionId);
+      sandbox.stub(customerChatConnection, 'isInitialConnection').returns(true);
+      assert.equal(customerChatConnection.getParticipantName(), 'CustomerName');
+    });
+
+    it('getParticipantName should return the agentName field for third party participant', () => {
+      const thirdParticipantChatConnection = new connect.ChatConnection(contactId, connectionId);
+      sandbox.stub(thirdParticipantChatConnection, 'getType').returns('outbound');
+      assert.equal(thirdParticipantChatConnection.getParticipantName(), 'testAgent2');
     });
   });
  

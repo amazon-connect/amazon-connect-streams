@@ -15,9 +15,9 @@
     AWS_WORKSPACE: "AWS_WORKSPACE",
   }
 
-  var RTPJobIntervalMs = 1000;
+  const BROWSER_ID = "browserId" // A key which is used for storing browser id value in local storage
+
   var statsReportingJobIntervalMs = 30000;
-  var streamBufferSize = 500;
   var CallTypeMap = {};
   CallTypeMap[connect.SoftphoneCallType.AUDIO_ONLY] = 'Audio';
   CallTypeMap[connect.SoftphoneCallType.VIDEO_ONLY] = 'Video';
@@ -28,7 +28,6 @@
 
   var MediaTypeMap = {};
   MediaTypeMap[connect.ContactType.VOICE] = "Voice";
-  var UNKNOWN_MEDIA_TYPE = "Unknown";
 
   var timeSeriesStreamStatsBuffer = [];
 
@@ -56,7 +55,6 @@
   var logger = null;
   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
   var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
-  var MULTIPLE_SESSIONS_EVENT = "MultiSessions";
   var ECHO_CANCELLATION_CHECK = "echoCancellationCheck";
 
   var localMediaStream = {};
@@ -548,19 +546,6 @@
         contact.onRefresh(function (_contact) {
           onRefreshContact(_contact, agentConnectionId);
         });
-        contact.onError((_contact) => {
-          // if contact errored, then publish all batched errors
-          connect.ifMaster(connect.MasterTopics.SOFTPHONE, () => {
-            publishBatchedSoftphoneErrors(_contact.contactId);
-          }, () => { }, true);
-        })
-        contact.onConnected((_contact) => {
-          // if the contact connects successfully, then delete all batched errors if exist and check media stream status
-          connect.ifMaster(connect.MasterTopics.SOFTPHONE, () => {
-            isConnected = true;
-            deleteContactFromErrorMap(_contact.contactId);
-          }, () => { }, true);
-        })
         contact.onDestroy(function () {
           onDestroyContact(agentConnectionId);
           // clean up localMediaStream

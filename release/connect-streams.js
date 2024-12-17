@@ -3194,6 +3194,28 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       contactId: this.getContactId()
     }, callbacks);
   };
+  Contact.prototype.addParticipant = function (endpointIn, options) {
+    var client = connect.core.getClient();
+    var endpoint = new connect.Endpoint(endpointIn);
+
+    // endpointId is not defined in the API model, adding it will cause the API to reject
+    delete endpoint.endpointId;
+    client.call(connect.ClientMethods.ADD_NEW_CONNECTION, {
+      contactId: this.getContactId(),
+      endpoint: endpoint
+    }, options);
+  };
+  Contact.prototype.transfer = function (endpointIn, options) {
+    var client = connect.core.getClient();
+    var endpoint = new connect.Endpoint(endpointIn);
+
+    // endpointId is not defined in the API model, adding it will cause the API to reject
+    delete endpoint.endpointId;
+    client.call(connect.ClientMethods.TRANSFER_CONTACT, {
+      contactId: this.getContactId(),
+      endpoint: endpoint
+    }, options);
+  };
 
   /*----------------------------------------------------------------
    * class ContactSnapshot
@@ -4242,6 +4264,19 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   ChatConnection.prototype.getMonitorStatus = function () {
     return this._getData().monitorStatus;
+  };
+
+  /**
+   * Returns the name associated with the connection
+   * @returns 
+   */
+  ChatConnection.prototype.getParticipantName = function () {
+    if (this._isAgentConnectionType()) {
+      return new connect.Agent().getConfiguration().name;
+    } else if (this.isInitialConnection()) {
+      return this._getData().chatMediaInfo.customerName;
+    }
+    return this._getData().chatMediaInfo.agentName;
   };
 
   /**
@@ -8222,7 +8257,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
    * enum ClientMethods
    */
-  connect.ClientMethods = connect.makeEnum(['getAgentSnapshot', 'putAgentState', 'getAgentStates', 'getDialableCountryCodes', 'getRoutingProfileQueues', 'getAgentPermissions', 'getAgentConfiguration', 'updateAgentConfiguration', 'acceptContact', 'createOutboundContact', 'createTaskContact', 'clearContact', 'completeContact', 'destroyContact', 'rejectContact', 'notifyContactIssue', 'updateContactAttributes', 'createAdditionalConnection', 'destroyConnection', 'holdConnection', 'resumeConnection', 'toggleActiveConnections', 'conferenceConnections', 'sendClientLogs', 'sendDigits', 'sendSoftphoneCallReport', 'sendSoftphoneCallMetrics', 'getEndpoints', 'getNewAuthToken', 'createTransport', 'muteParticipant', 'unmuteParticipant', 'updateMonitorParticipantState', 'pauseContact', 'resumeContact']);
+  connect.ClientMethods = connect.makeEnum(['getAgentSnapshot', 'putAgentState', 'getAgentStates', 'getDialableCountryCodes', 'getRoutingProfileQueues', 'getAgentPermissions', 'getAgentConfiguration', 'updateAgentConfiguration', 'acceptContact', 'createOutboundContact', 'createTaskContact', 'clearContact', 'completeContact', 'destroyContact', 'rejectContact', 'notifyContactIssue', 'updateContactAttributes', 'createAdditionalConnection', 'destroyConnection', 'holdConnection', 'resumeConnection', 'toggleActiveConnections', 'conferenceConnections', 'sendClientLogs', 'sendDigits', 'sendSoftphoneCallReport', 'sendSoftphoneCallMetrics', 'getEndpoints', 'getNewAuthToken', 'createTransport', 'muteParticipant', 'unmuteParticipant', 'updateMonitorParticipantState', 'pauseContact', 'resumeContact', 'addNewConnection', 'transferContact']);
 
   /**---------------------------------------------------------------
    * enum AgentAppClientMethods
@@ -8257,16 +8292,6 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.ApiProxyClientMethods = {
     QR_INTEGRATION_EXISTS: 'qrIntegrationExists',
     QR_SEARCH_QUICK_RESPONSES: 'qrSearchQuickResponses',
-    BATCH_GET_ATTACHED_FILE_METADATA: 'batchGetAttachedFileMetadata',
-    START_ATTACHED_FILE_UPLOAD: 'startAttachedFileUpload',
-    COMPLETE_ATTACHED_FILE_UPLOAD: 'completeAttachedFileUpload',
-    GET_ATTACHED_FILE: 'getAttachedFile',
-    DELETE_ATTACHED_FILE: 'deleteAttachedFile',
-    CREATE_OUTBOUND_EMAIL_CONTACT: 'createOutboundEmailContact',
-    START_OUTBOUND_EMAIL_CONTACT: 'startOutboundEmailContact',
-    LIST_CONTACT_REFERENCES: "listContactReferences",
-    DESCRIBE_CONTACT: "describeContact",
-    LIST_ASSOCIATED_CONTACTS: "listAssociatedContacts",
     START_SCREEN_SHARING: "startScreenSharing"
   },
   /**---------------------------------------------------------------
@@ -8509,10 +8534,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       });
     } else {
       params = this._translateParams(method, params);
-      // pauseContact & resumeContact CTI API refuse authentication added by this._translateParams above
-      if (method === 'pauseContact' || method === 'resumeContact') {
-        delete params.authentication;
-      }
+
       // only relatedContactId or previousContactId can exist
       if (params && params.relatedContactId && params.relatedContactId !== null) {
         if (params.previousContactId) {
@@ -8669,7 +8691,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     return error;
   };
   AWSClient.prototype._requiresAuthenticationParam = function (method) {
-    return method !== connect.ClientMethods.COMPLETE_CONTACT && method !== connect.ClientMethods.CLEAR_CONTACT && method !== connect.ClientMethods.REJECT_CONTACT && method !== connect.ClientMethods.CREATE_TASK_CONTACT && method !== connect.ClientMethods.UPDATE_MONITOR_PARTICIPANT_STATE;
+    return method !== connect.ClientMethods.COMPLETE_CONTACT && method !== connect.ClientMethods.CLEAR_CONTACT && method !== connect.ClientMethods.REJECT_CONTACT && method !== connect.ClientMethods.CREATE_TASK_CONTACT && method !== connect.ClientMethods.UPDATE_MONITOR_PARTICIPANT_STATE && method !== connect.ClientMethods.PAUSE_CONTACT && method !== connect.ClientMethods.RESUME_CONTACT && method !== connect.ClientMethods.ADD_NEW_CONNECTION && method !== connect.ClientMethods.TRANSFER_CONTACT;
   };
   AWSClient.prototype._translateParams = function (method, params) {
     switch (method) {
@@ -15282,9 +15304,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     CITRIX: "CITRIX",
     AWS_WORKSPACE: "AWS_WORKSPACE"
   };
-  var RTPJobIntervalMs = 1000;
+  var BROWSER_ID = "browserId"; // A key which is used for storing browser id value in local storage
+
   var statsReportingJobIntervalMs = 30000;
-  var streamBufferSize = 500;
   var CallTypeMap = {};
   CallTypeMap[connect.SoftphoneCallType.AUDIO_ONLY] = 'Audio';
   CallTypeMap[connect.SoftphoneCallType.VIDEO_ONLY] = 'Video';
@@ -15294,7 +15316,6 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   var AUDIO_OUTPUT = 'audio_output';
   var MediaTypeMap = {};
   MediaTypeMap[connect.ContactType.VOICE] = "Voice";
-  var UNKNOWN_MEDIA_TYPE = "Unknown";
   var timeSeriesStreamStatsBuffer = [];
 
   // We buffer only last 3 hours (10800 seconds) of a call's RTP stream stats.
@@ -15320,7 +15341,6 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   var logger = null;
   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
   var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
-  var MULTIPLE_SESSIONS_EVENT = "MultiSessions";
   var ECHO_CANCELLATION_CHECK = "echoCancellationCheck";
   var localMediaStream = {};
   var softphoneClientId = connect.randomId();
@@ -15741,19 +15761,6 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       if (!callsDetected[agentConnectionId]) {
         contact.onRefresh(function (_contact) {
           onRefreshContact(_contact, agentConnectionId);
-        });
-        contact.onError(function (_contact) {
-          // if contact errored, then publish all batched errors
-          connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
-            publishBatchedSoftphoneErrors(_contact.contactId);
-          }, function () {}, true);
-        });
-        contact.onConnected(function (_contact) {
-          // if the contact connects successfully, then delete all batched errors if exist and check media stream status
-          connect.ifMaster(connect.MasterTopics.SOFTPHONE, function () {
-            isConnected = true;
-            deleteContactFromErrorMap(_contact.contactId);
-          }, function () {}, true);
         });
         contact.onDestroy(function () {
           onDestroyContact(agentConnectionId);

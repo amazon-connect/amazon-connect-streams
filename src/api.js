@@ -1370,6 +1370,32 @@
     }, callbacks);
   };
 
+  Contact.prototype.addParticipant = function (endpointIn, options) {
+    const client = connect.core.getClient();
+    const endpoint = new connect.Endpoint(endpointIn);
+
+    // endpointId is not defined in the API model, adding it will cause the API to reject
+    delete endpoint.endpointId;
+
+    client.call(connect.ClientMethods.ADD_NEW_CONNECTION, {
+      contactId: this.getContactId(),
+      endpoint,
+    }, options);
+  };
+
+  Contact.prototype.transfer = function (endpointIn, options) {
+    const client = connect.core.getClient();
+    const endpoint = new connect.Endpoint(endpointIn);
+
+    // endpointId is not defined in the API model, adding it will cause the API to reject
+    delete endpoint.endpointId;
+
+    client.call(connect.ClientMethods.TRANSFER_CONTACT, {
+      contactId: this.getContactId(),
+      endpoint,
+    }, options);
+  }
+
   /*----------------------------------------------------------------
    * class ContactSnapshot
    */
@@ -2517,6 +2543,19 @@
 
   ChatConnection.prototype.getMonitorStatus = function () {
     return this._getData().monitorStatus;
+  };
+
+  /**
+   * Returns the name associated with the connection
+   * @returns 
+   */
+  ChatConnection.prototype.getParticipantName = function () {
+    if (this._isAgentConnectionType()) {
+      return new connect.Agent().getConfiguration().name;
+    } else if (this.isInitialConnection()) {
+      return this._getData().chatMediaInfo.customerName;
+    }
+    return this._getData().chatMediaInfo.agentName;
   };
 
   /**

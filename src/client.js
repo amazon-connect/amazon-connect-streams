@@ -47,7 +47,9 @@
       'unmuteParticipant',
       'updateMonitorParticipantState',
       'pauseContact',
-      'resumeContact'
+      'resumeContact',
+      'addNewConnection',
+      'transferContact'
    ]);
 
    /**---------------------------------------------------------------
@@ -368,10 +370,7 @@
 
       } else {
          params = this._translateParams(method, params);
-         // pauseContact & resumeContact CTI API refuse authentication added by this._translateParams above
-         if (method === 'pauseContact' || method === 'resumeContact') {
-            delete params.authentication;
-         }
+
          // only relatedContactId or previousContactId can exist
          if (params && params.relatedContactId && params.relatedContactId !== null) {
             if (params.previousContactId) {
@@ -542,7 +541,11 @@
          method !== connect.ClientMethods.CLEAR_CONTACT &&
          method !== connect.ClientMethods.REJECT_CONTACT &&
          method !== connect.ClientMethods.CREATE_TASK_CONTACT &&
-         method !== connect.ClientMethods.UPDATE_MONITOR_PARTICIPANT_STATE;
+         method !== connect.ClientMethods.UPDATE_MONITOR_PARTICIPANT_STATE &&
+         method !== connect.ClientMethods.PAUSE_CONTACT &&
+         method !== connect.ClientMethods.RESUME_CONTACT &&
+         method !== connect.ClientMethods.ADD_NEW_CONNECTION &&
+         method !== connect.ClientMethods.TRANSFER_CONTACT;
    };
 
    AWSClient.prototype._translateParams = function (method, params) {

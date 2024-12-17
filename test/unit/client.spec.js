@@ -724,6 +724,40 @@ describe('AWSClient', function () {
         });
     });
 
+    describe('_translateParams', () => {
+        it('should return the same params if no translation is needed', () => {
+            const params = { foo: 'bar' };
+
+            sandbox.stub(AWS, 'Connect').returns({
+                some_whatever_method: () => {}, 
+            });
+
+            const client = new connect.AWSClient(authToken, region);
+            const translatedParams = client._translateParams(connect.ClientMethods.ADD_PARTICIPANT, params);
+            
+            expect(translatedParams).equal(params);
+        });
+
+        it('should add the authentication param for getAgentSnapshot', () => {
+            const params = { foo: 'bar' };
+            const expectedParams = { 
+                foo: 'bar', 
+                authentication: {
+                    authToken
+                }
+            };
+
+            sandbox.stub(AWS, 'Connect').returns({
+                some_whatever_method: () => {},
+                _requiresAuthenticationParam: () => true, 
+            });
+
+            const client = new connect.AWSClient(authToken, region);
+            const translatedParams = client._translateParams(connect.ClientMethods.GET_AGENT_SNAPSHOT, params);
+            assert(sinon.match(translatedParams).test(expectedParams));
+        });
+    });
+
     afterEach(function () {
         sandbox.restore();
     });
