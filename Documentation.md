@@ -1488,6 +1488,50 @@ Add a new outbound third-party connection to this contact and connect it to the 
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
+**This API is on deprecation path, please use either `contact.addParticipant()` or `contact.transfer()`**
+
+### `contact.addParticipant()`
+
+```js
+// endpoint: Endpoint Object
+contact.addParticipant(endpoint, {
+  success: function () {
+    /* ... */
+  },
+  failure: function (err) {
+    /* ... */
+  },
+});
+```
+
+Add a new participant to either a Voice or Chat contact, and connect it to the specified `endpoint`.
+
+Optional success and failure callbacks can be provided to determine if the operation was successfully invoked.
+
+This API is **only** supported in **Voice** and **Chat**. Will return an error if used on an unsupported contact type.
+
+### `contact.transfer()`
+
+```js
+// endpoint: Endpoint Object
+contact.transfer(endpoint, {
+  success: function () {
+    /* ... */
+  },
+  failure: function (err) {
+    /* ... */
+  },
+});
+```
+
+Transfer the contact to the specified `endpoint`.
+
+Only supports the following endpoint types: `EndpointType.QUEUE` and `EndpointType.AGENT`.
+
+Optional success and failure callbacks can be provided to determine if the operation was successfully invoked.
+
+This API is **only** supported in **Chat**, **Task**, and **Email**. Will return an error if used on an unsupported contact type.
+
 ### `contact.toggleActiveConnections()`
 ```js
 contact.toggleActiveConnections({
@@ -2094,6 +2138,46 @@ var monitorStatus = conn.getMonitorStatus();
 Returns the current monitoring state of this connection. This value can be one of MonitoringMode enum values
 if the agent is supervisor, otherwise the monitorStatus will be undefined for the agent.
 
+
+### `chatConnection.getAuthenticationDetails()`
+Get authentication details for customer in chat.
+```js
+
+const customerConnection = contact.getConnections().find(conn => 
+  conn.getType() === connect.ConnectionType.INBOUND);
+const customerAuthDetails = customerConnection.getAuthenticationDetails();
+```
+
+ The authentication details response object includes:
+
+```
+{
+  "IdentityProvider": "http://my-domain.auth0.com",
+  // The identity provider that issued the authentication
+  "ClientId": "xxxxxxxxxxxxexample",
+  // The user pool app client that authenticated your user.
+  "Status": "AUTHENTICATED" | "FAILED" | "TIMEOUT",
+  // Enum which represents whether the customer is authenticated or not
+  "AssociatedCustomerId": "3b3fe046ed68479f9d425b5f1a7acbfe",
+  // Metadata for the customer profile associated with the contact
+  "AuthenticationMethod": "CONNECT" | "CUSTOM",
+  // Connect managed auth vs customer managed auth.
+}
+```
+
+### `chatConnection.isAuthenticated()`
+
+Determine if customer in chat is authenticated.
+
+```js
+const customerConnection = contact.getConnections().find(conn => 
+  conn.getType() === connect.ConnectionType.INBOUND);
+if (customerConnection.isAuthenticated()) {
+  /* ... */
+}
+```
+
+
 ## TaskConnection API
 The TaskConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
 of a particular task connection within a contact. Like contacts, connections come and go. It is good practice not
@@ -2355,13 +2439,41 @@ eventBus.subscribe(connect.EventType.TERMINATED, () => {
 });
 ```
 
-If you are using a custom UI, you can log out the agent by visiting the logout endpoint (`/connect/logout`). In this case, `EventType.TERMINATED` event won't be triggered. If you want the code above to work, you can manually trigger the `EventType.TERMINATE` event after logging out. When the event is triggered, `connect.core.terminate()` is internally called to clean up the Streams and the `EventType.TERMINATED` event will be triggered.
+If you are using a custom UI, you can log out the agent by visiting the logout endpoint (`/logout`). Also it's recommended to set agent offline before logging out to prevent contacts from being routed to the agent.
+
 ```js
-fetch("https://<your-instance-domain>/connect/logout", { credentials: 'include', mode: 'no-cors'})
-  .then(() => {
-    const eventBus = connect.core.getEventBus();
-    eventBus.trigger(connect.EventType.TERMINATE);
+function handleLogoutButtonClick() {
+  const agent = new connect.Agent();
+  if (agent.getState().type === connect.AgentStatusType.OFFLINE) {
+    logout();
+  } else {
+    setAgentOffline()
+      .then(logout)
+      .catch(console.error);
+  }
+}
+
+function setAgentOffline() {
+  return new Promise((resolve, reject) => {
+    const agent = new connect.Agent();
+    const offlineState = agent.getAgentStates().find(
+      (state) => state.type === connect.AgentStateType.OFFLINE,
+    );
+    agent.setState(offlineState, {
+      success: resolve,
+      failure: reject,
+    }, { enqueueNextState: true });
   });
+}
+
+function logout() {
+  const logoutEndpoint = "https://<your-instance-domain>/logout";
+  fetch(logoutEndpoint, { credentials: 'include', mode: 'no-cors'})
+    .then(() => {
+      // Notify all CCPs to terminate
+      connect.core.getUpstream().sendUpstream(connect.EventType.TERMINATE);
+    });
+}
 ```
 In addition, it is recommended to remove the auth token cookies (`lily-auth-*`) after logging out, otherwise you’ll see AuthFail errors. ([Browser API Reference](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/cookies/remove)).
 

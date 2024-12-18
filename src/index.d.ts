@@ -1017,6 +1017,14 @@ declare namespace connect {
     readonly failure?: SuccessFailCallback<[string]>;
   }
 
+  interface AddParticipantOptions {
+    readonly callback?: SuccessFailOptions;
+  }
+
+  interface TransferOptions {
+    readonly callback?: SuccessFailOptions;
+  }
+
   interface ConnectOptions extends SuccessFailOptions {
     /** The queue ARN to associate the contact with. */
     readonly queueARN?: string;
@@ -1926,6 +1934,20 @@ declare namespace connect {
     addConnection(endpoint: Endpoint, callbacks?: SuccessFailOptions): void;
 
     /**
+     * Adds a new participant to the contact
+     * For Voice contacts, this will place all existing participants on hold
+     *    and then add the new participant
+     * For Chat contacts, this will invite the new participant directly to the chat
+     */
+    addParticipant(endpoint: Endpoint, options?: AddParticipantOptions): void;
+
+    /**
+     * Transfer the contact to the new participant and drop the existing participant(s)
+     * This is only supported in Chat and Task
+     */
+    transfer(endpoint: Endpoint, options?: TransferOptions): void;
+
+    /**
      * Rotate through the connected and on hold connections of the contact.
      * This operation is only valid if there is at least one third-party connection and the initial connection is still connected.
      *
@@ -2043,6 +2065,21 @@ declare namespace connect {
   type QuickResponseChannelType = 'Chat' | 'email' | 'voice' | 'tasks';
   type QuickResponseChannels = Array<QuickResponseChannelType>;
   type Tags = Array<string | null>;
+
+  type CustomerAuthenticationStatus = 'AUTHENTICATED' | 'FAILED' | 'TIMEOUT';
+  type CustomerAuthenticationMethod = 'CONNECT' | 'CUSTOM';
+  type CustomerAuthenticationDetails =  {
+    /** The identity provider that issued the authentication */
+    IdentityProvider?: string;
+    /** The user pool app client that authenticated your user. */
+    ClientId?: string;
+    /** Enum which represents whether the customer is authenticated or not */
+    Status: CustomerAuthenticationStatus;
+    /** Metadata for the customer profile associated with the contact */
+    AssociatedCustomerId?: string;
+    /** Connect managed auth vs customer managed auth. */
+    AuthenticationMethod?: CustomerAuthenticationMethod;
+  };
 
   interface ContactState {
     /** The contact state type, as per the ContactStateType enumeration. */
@@ -2333,7 +2370,24 @@ declare namespace connect {
      * Returns the current monitoring state of this connection.
      * This value can be one of MonitoringMode enum values if the agent is supervisor, otherwise the monitorStatus will be undefined for the agent.
      */
-    getMonitorStatus(): MonitoringMode;
+    getMonitorStatus(): MonitoringMode | null;
+
+    /**
+     * Returns the name associated with the connection
+     */
+    getParticipantName(): string | null;
+
+    /** Get authentication details for customer in chat
+     *  returns `null` if customer is not authenticated.
+     *  returns `CustomerAuthenticationDetails` if customer is authenticated.
+     */
+    getAuthenticationDetails(): CustomerAuthenticationDetails | null;
+
+    /** Determine if customer in chat is authenticated.
+     *  return `true` if customer is authenticated
+     *  return `false` if customer is not authenticated
+     */
+    isAuthenticated(): boolean;
   }
 
   /**
@@ -2391,6 +2445,7 @@ declare namespace connect {
       readonly chatAutoAccept: boolean;
       readonly connectionData: string;
       readonly customerName: string | null;
+      readonly agentName: string | null;
     };
     readonly participantId: string;
     readonly participantToken: string;
