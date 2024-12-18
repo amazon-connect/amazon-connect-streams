@@ -1488,6 +1488,50 @@ Add a new outbound third-party connection to this contact and connect it to the 
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
+**This API is on deprecation path, please use either `contact.addParticipant()` or `contact.transfer()`**
+
+### `contact.addParticipant()`
+
+```js
+// endpoint: Endpoint Object
+contact.addParticipant(endpoint, {
+  success: function () {
+    /* ... */
+  },
+  failure: function (err) {
+    /* ... */
+  },
+});
+```
+
+Add a new participant to either a Voice or Chat contact, and connect it to the specified `endpoint`.
+
+Optional success and failure callbacks can be provided to determine if the operation was successfully invoked.
+
+This API is **only** supported in **Voice** and **Chat**. Will return an error if used on an unsupported contact type.
+
+### `contact.transfer()`
+
+```js
+// endpoint: Endpoint Object
+contact.transfer(endpoint, {
+  success: function () {
+    /* ... */
+  },
+  failure: function (err) {
+    /* ... */
+  },
+});
+```
+
+Transfer the contact to the specified `endpoint`.
+
+Only supports the following endpoint types: `EndpointType.QUEUE` and `EndpointType.AGENT`.
+
+Optional success and failure callbacks can be provided to determine if the operation was successfully invoked.
+
+This API is **only** supported in **Chat**, **Task**, and **Email**. Will return an error if used on an unsupported contact type.
+
 ### `contact.toggleActiveConnections()`
 ```js
 contact.toggleActiveConnections({

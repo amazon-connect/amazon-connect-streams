@@ -1,360 +1,355 @@
 # Streams API - Cheat sheet
 
-## Get agent config
+## Get Agent Instance
+You can obtain an agent instance using either the `connect.agent(callback)` API or the `new connect.Agent()` API.
+- `connect.agent(callback)`: Can be called at any time after invoking `connect.core.initCCP()`. The callback will be triggered once the agent is initialized or immediately if already initialized.
+- `new connect.Agent()`: Preferred when you want fewer callbacks. However, ensure the agent is initialized before calling this, as it will throw an error otherwise.
 
+An agent is considered initialized after the first agent data is retrieved from the backend and `connect.agent()` is triggered. Logging out of Connect uninitializes the agent.
 ```js
-    connect.agent(function(agent) {
-      var config = agent.getConfiguration();
-      console.log("here is your configuration: " + JSON.stringify(config));
-    });
+// Using connect.agent(callback)
+connect.agent((agent) => {
+  const state = agent.getState();
+});
+```
+```js
+// Using new connect.Agent()
+// Make sure to use this approach only after agent is initialized.
+const agent = new connect.Agent();
+const state = agent.getState();
 ```
 
-## Get agent states
-
+## Get Agent State
+Get the current state of the agent:
 ```js
-    connect.agent(function(agent) {
-      var states = agent.getAgentStates();
-      console.log("here are your states: " + JSON.stringify(states));
-    });
+const state = agent.getState();
+console.log("Agent's current state", state);
 ```
 
-## Change agent state
 
+## Get All Agent States
+Get all possible agent states:
 ```js
-    connect.agent(function(agent) {
-      var targetState = agent.getAgentStates()[0];
-      agent.setState(targetState, {
-        success: function () {
-          console.log("Set agent status via Streams")
-        },
-        failure: function () {
-          console.log("Failed to set agent status via Streams")
-        }
-        });
-    });
+const states = agent.getAgentStates();
+console.log("All agent states:", states);
 ```
 
-## Change agent state to OFFLINE
-
+## Change Agent State to OFFLINE
+Set the agent state to OFFLINE:
 ```js
-    connect.agent(function(agent) {	
-      var offlineState = agent.getAgentStates().filter(function (state) { 
-        return state.type === connect.AgentStateType.OFFLINE; })[0];
-      agent.setState(offlineState, {
-        success: function () {
-          console.log("Set agent status to Offline via Streams")
-        },
-        failure: function () {
-          console.log("Failed to set agent status to Offline via Streams")
-        }
-      });
-    });
+const offlineState = agent.getAgentStates().find(
+  (state) => state.type === connect.AgentStateType.OFFLINE
+);
+agent.setState(offlineState, {
+  success: () => console.log("Agent state set to OFFLINE"),
+  failure: () => console.log("Failed to set agent state to OFFLINE""),
+}, { enqueueNextState: true });
 ```
 
-## Change agent state to AVAILABLE
-
+## Change Agent State to ROUTABLE
+Set the agent state to ROUTABLE:
+(The defalt routable state name is "Available" but you can edit it in the Admin Website)
 ```js
-    connect.agent(function(agent) {	
-      var avail = agent.getAgentStates().filter(function (state) {
-                return state.type === connect.AgentStateType.ROUTABLE;
-        })[0];
-      agent.setState(avail, {
-        success: function () {
-          console.log("Set agent status to Available via Streams")
-        },
-        failure: function () {
-          console.log("Failed to set agent status to Available via Streams")
-        }
-      });
-    });
+const routableState = agent.getAgentStates().find(
+  (state) => state.type === connect.AgentStateType.ROUTABLE
+);
+agent.setState(routableState, {
+  success: () => console.log(`Agent state set to ${routableState.name}`),
+  failure: () => console.log("Failed to set agent state to ROUTABLE"),
+}, { enqueueNextState: true });
 ```
 
-## Hang up call
-
+## Change Agent State to a Custom State
+Change the agent state to a custom state:
 ```js
-    var c;
-    connect.contact(function (contact) {
-      c = contact;
-      connect.agent(async function(agent) {
-        if (c) {
-          var initialConnection = c.getInitialConnection();
-          if (initialConnection) {
-            initialConnection.destroy();
-          }
-        }
-      });
-    });
+const targetCustomStateName = "your-custom-state";
+const customState = agent.getAgentStates().find(
+  (state) => state.name === targetCustomStateName
+);
+agent.setState(customState, {
+  success: () => console.log(`Agent state set to ${routableState.name}`),
+  failure: () => console.log(`Failed to set agent state to ${targetCustomStateName}`),
+}, { enqueueNextState: true });
 ```
 
-## Hang up second line
-
+## Detect a New Contact Routed to the Agent
+Listen for a new contact being routed to the agent:
 ```js
-    var c;
-    connect.contact(function (contact) {
-      c = contact;
-      connect.agent(async function(agent) {
-        if (c) {
-          var thirdParty = c.getSingleActiveThirdPartyConnection();
-          if (thirdParty) {
-            thirdParty.destroy();
-          }
-        }
-      });
-    });
-```		
-			
-## Hang up calls, set status to Offline and redirect to logout URL
-
-```js
-    var c;
-    var ccpInstance = "yourInstanceAlias";
-    connect.contact(function (contact) {
-      c = contact;
-      connect.agent( function(agent) {
-        if (c) {
-          var initialConnection = c.getInitialConnection();
-          var thirdParty = c.getSingleActiveThirdPartyConnection();
-          if (initialConnection) {
-            initialConnection.destroy();
-            await sleep(1000);
-          }
-          if (thirdParty) {
-            thirdParty.destroy();
-            await sleep(1000);
-          }
-        }
-      });
-      
-      var offlineState = agent.getAgentStates().filter(function (state) { 
-        return state.type === connect.AgentStateType.OFFLINE; })[0];
-      agent.setState(offlineState, {
-        success: function () {
-          console.log("Set agent status to Offline via Streams")
-        },
-        failure: function () {
-          console.log("Failed to set agent status to Offline via Streams")
-        }
-      });
-      
-      window.location.replace('https://<your-instance-domain>/connect/logout');
-      // or fetch("https://<your-instance-domain>/connect/logout", { credentials: 'include'})
-    });
-```			
-
-## Dial a number
-
-```js
-    var agent = new lily.Agent();
-    agent.connect(connect.Endpoint.byPhoneNumber("14802021091"),{});
+connect.contact((contact) => {
+  const contactId = contact.getContactId();
+  const initialContactId = contact.getInitialContactId();
+  const type = contact.getType();
+  const subType = contact.getContactSubtype();
+  console.log("New contact detected:", { contactId, initialContactId, type, subType });
+});
 ```
 
-## Get quick connects
-
+## Show accept button for an incoming contact
+Display an “Accept” button when an incoming contact arrives:
 ```js
-    var agent = new lily.Agent();
+connect.contact((contact) => {
+  contact.onRefresh((_contact) => {
+    if (shouldShowAcceptButton(_contact)) {
+      showAcceptButton(); // Your custom function to display the button
+    } else {
+      hideAcceptButton(); // Your custom function to hide the button
+    }
 
-    agent.getEndpoints(agent.getAllQueueARNs(), {
-      success: function(data){ 
-        console.log("valid_queue_phone_agent_endpoints", data.endpoints, "You can transfer the call to any of these endpoints");
-      },
-      failure:function(){
-        console.log("failed")
+    function shouldShowAcceptButton(c) {
+      const contactStateType = c.getState().type;
+      const contactType = c.getType();
+      const agentConnection = c.getAgentConnection();
+
+      if (contactType === connect.ContactType.QUEUE_CALLBACK || contactType === connect.ContactType.VOICE || contactType === connect.ContactType.CHAT) {
+        // Return false if this is a monitoring contact for supervisor.
+        // Monitoring contact is not supported for task and email channel.
+        const isMonitoringCall = agentConnection.getType() === connect.ConnectionType.MONITORING || Object.values(connect.MonitoringMode).includes(agentConnection.getMonitorStatus()?.toUpperCase());
+        if (isMonitoringCall) return false;
       }
-    });
-```
 
-## Transfer to a quick connect
-
-```js
-    var agent = new lily.Agent();
-
-    agent.getEndpoints(agent.getAllQueueARNs(), {
-      success: function(data){ 
-        console.log("valid_queue_phone_agent_endpoints", data.endpoints, "You can transfer the call to any of these endpoints");
-        agent.getContacts(lily.ContactType.VOICE)[0].addConnection(data.endpoints[6], {
-          success: function(data) {
-            alert("transfer success");
-          },
-          failure: function(data) {
-            alert("transfer failed");
-          }
-        });
-        
-      },
-      failure:function(){
-        console.log("failed")
+      if (contactType === connect.ContactType.QUEUE_CALLBACK) {
+        // Queued callback contact comes in as "incoming" state.
+        return contactStateType === connect.ContactStateType.INCOMING;
+      } else if (contactType === connect.ContactType.VOICE) {
+        // Voice contact comes in as "connecting" state. Return true only if the contact is inbound and the agent is configured to use softphone, not deskphone.
+        return c.isSoftphoneCall() && c.isInbound() && contactStateType === connect.ContactStateType.CONNECTING;
+      } else if (contactStateType === connect.ContactStateType.CONNECTING) {
+        return true;
       }
+
+      return false;
+    }
+  })
+});
+```
+
+## Disconnect Agent from a Contact
+Terminate the agent’s connection to a contact:
+```js
+const agentConnection = contact.getAgentConnection();
+agentConnection.destroy({
+  success: () => console.log("Disconnected from the contact"),
+  failure: () => console.log("Failed to disconnect from the contact"),
+});
+```
+
+## Disconnect Agent from a Contact and Clear the Contact
+Disconnect and clear the contact when it ends:
+```js
+const agentConnection = contact.getAgentConnection();
+
+contact.onEnded((_contact) => {
+  _contact.clear({
+    success: () => console.log("Contact cleared"),
+    failure: () => console.log("Failed to clear contact"),
+  });
+});
+// Don't call contact.clear in success callback as the backend would not be ready yet. Rather use contact.onEnded().
+agentConnection.destroy({
+  success: () => console.log("Disconnected from the contact"),
+  failure: () => console.log("Failed to disconnect from the contact"),
+});
+```
+
+## Get Quick Connect Endpoints of Default Outbound Queue
+Fetch Quick Connect endpoints for all queues in the routing profile:
+```js
+const defaultOutboundQueueARN = agent.getRoutingProfile().defaultOutboundQueue.queueARN;
+agent.getEndpoints(defaultOutboundQueueARN, {
+  success: ({ endpoints }) => console.log("Retrieved Quick Connects", endpoints),
+  failure: () => console.log("Failed to retrieve quick connects"),
+});
+```
+
+## Get Quick Connect Endpoints of All Routing Profile Queues
+Fetch Quick Connect endpoints for all queues in the routing profile:
+```js
+const routingProfileQueueARNs = agent.getAllQueueARNs();
+agent.getEndpoints(routingProfileQueueARNs, {
+  success: ({ endpoints }) => console.log("Retrieved Quick Connects", endpoints),
+  failure: () => console.log("Failed to retrieve quick connects"),
+});
+```
+
+## Get Quick Connect Endpoints of the Current Contact’s Queue
+Fetch Quick Connect endpoints for the queue associated with the current contact:
+```js
+const currentContactQueueARN = contact.getQueue().queueARN;
+agent.getEndpoints(currentContactQueueARN, {
+  success: ({ endpoints }) => console.log("Retrieved Quick Connects", endpoints),
+  failure: () => console.log("Failed to retrieve quick connects"),
+});
+```
+
+## Get Combined Quick Connect Endpoints (Default Outbound Queue + Routing Profile Queues)
+Fetch Quick Connect endpoints for the default outbound queue and all routing profile queues (Native CCP behavior):
+```js
+const defaultOutboundQueueARN = agent.getRoutingProfile().defaultOutboundQueue.queueARN;
+const routingProfileQueueARNs = agent.getAllQueueARNs();
+agent.getEndpoints(routingProfileQueueARNs.concat(defaultOutboundQueueARN), {
+  success: ({ endpoints }) => console.log("Retrieved Quick Connects", endpoints),
+  failure: () => console.log("Failed to retrieve quick connects"),
+});
+```
+
+## Start an Outbound Call by Number
+Initiate an outbound call using a phone number:
+```js
+const endpoint = connect.Endpoint.byPhoneNumber("+18005550100");
+agent.connect(endpoint, {
+  success: () => console.log("Started an outbound call"),
+  failure: () => console.log("Failed to start an outbound call"),
+});
+```
+
+## Filter External Quick Connect Endpoints and Start an Outbound Call
+Filter external Quick Connect endpoints of the default outbound queue and start a call:
+```js
+const filteredEndpoints = endpoints.filter((endpoint) => endpoint.type === connect.AddressType.PHONE_NUMBER);
+
+// Select an endpoint
+const endpoint = filteredEndpoints[0];
+agent.connect(endpoint, {
+  success: () => console.log("Started an outbound call"),
+  failure: () => console.log("Failed to start an outbound call"),
+});
+```
+
+## Set Agent to Offline and Logout
+Set the agent state to OFFLINE and log out:
+```js
+function handleLogoutButtonClick() {
+  const agent = new connect.Agent();
+  if (agent.getState().type === connect.AgentStatusType.OFFLINE) {
+    logout();
+  } else {
+    setAgentOffline()
+      .then(logout)
+      .catch(console.error);
+  }
+}
+
+function setAgentOffline() {
+  return new Promise((resolve, reject) => {
+    const agent = new connect.Agent();
+    const offlineState = agent.getAgentStates().find(
+      (state) => state.type === connect.AgentStateType.OFFLINE,
+    );
+    agent.setState(offlineState, {
+      success: resolve,
+      failure: reject,
+    }, { enqueueNextState: true });
+  });
+}
+
+function logout() {
+  const logoutEndpoint = "https://<your-instance-domain>/logout";
+  fetch(logoutEndpoint, { credentials: 'include', mode: 'no-cors'})
+    .then(() => {
+      // Notify all CCPs to terminate
+      connect.core.getUpstream().sendUpstream(connect.EventType.TERMINATE);
     });
+}
+```
+	
+## Update Agent Configuration to Use Softphone
+Enable softphone for the agent:
+```js
+const config = agent.getConfiguration();
+const newConfig = {
+  ...config,
+  softphoneEnabled: true,
+};
+
+agent.setConfiguration(newConfig, {
+  success: () => console.log("Updated agent configuration"),
+  failure: () => console.log("Failed to update agent configuration"),
+});
 ```
 
-## Transfer to a phone number
-
+## Update Agent’s Extension Number
+Change the agent’s extension number:
 ```js
-    var agent = new lily.Agent();
-    var endpoint = connect.Endpoint.byPhoneNumber("+14807081026");
+const config = agent.getConfiguration();
+const newConfig = {
+  ...config,
+  softphoneEnabled: false,
+  extension: "+11234567890",
+};
 
-    agent.getContacts(lily.ContactType.VOICE)[0].addConnection(endpoint, {
-      success: function(data) {
-          alert("transfer success");
-      },
-      failure: function(data) {
-          alert("transfer failed");
-      }
-    });
+agent.setConfiguration(newConfig, {
+  success: () => console.log("Updated agent configuration"),
+  failure: () => console.log("Failed to update agent configuration"),
+});
 ```
 
-## Update agent config to use softphone
-
+## Update Agent’s Language Preference
+Set the agent’s preferred language:
 ```js
-    connect.agent(async function(agent) {
-      a = agent;
-      var config = a.getConfiguration(); 
-      
-      //config.value = whatYouWant
-      config.softphoneEnabled = true; 
-      a.setConfiguration(config, { 
-        success: function()	{ 
-          console.log("set softphone successfully"); 
-        }, 
-        failure: function() {
-          console.log("Could not set softphone...."); 
-        }});
-    });
+const config = agent.getConfiguration();
+const newConfig = {
+  ...config,
+  agentPreferences: {
+    locale: "en_US",
+  },
+};
+
+agent.setConfiguration(newConfig, {
+  success: () => console.log("Updated agent configuration"),
+  failure: () => console.log("Failed to update agent configuration"),
+});
 ```
 
-## Get contact attributes
+## Change Audio Device Settings
+Manage audio devices (microphone, speaker, ringer). The process varies based on the softphone configuration:
 
+Device IDs are unique to their origin, so the method for obtaining microphone and speaker device IDs depends on where the WebRTC communication occurs. If you initialize the CCP with `allowFramedSoftphone: true`, use the `connect.core.getFrameMediaDevices()` API to retrieve device IDs from the embedded CCP context in the Connect domain. However, ringer device IDs should always be obtained from the embedded CCP context using the same API, as ringtones are played there regardless of the `allowFramedSoftphone` parameter.
+
+### For Framed Softphone Users (`allowFramedSoftphone: true`)
+For those who call initCCP with `allowFramedSoftphone: true`:
 ```js
-    var c;
-    connect.contact(function (contact) {
-        c = contact;
-        c.onConnecting(function (c) {
-            var attr = c.getAttributes();
-            var c1 = c.getConnections()[1];
-            var c2 = c.getStatus();
-            document.getElementById("contactID").value = c.contactId;
-            document.getElementById("phoneNumber").value = c1.getAddress()['phoneNumber'];
-            if (attr.firstName) {
-                console.log (Here's your value for firstName " + attr.firstName.value);
-            }
-            if (attr.lastName) {
-                console.log (Here's your value for lastName " + attr.lastName.value);
-            }
-        });
-    });
+const deviceList = await connect.core.getFrameMediaDevices();
+const audioInputDevices = deviceList.filter(device => device.kind === 'audioinput');
+const audioOutputDevices = deviceList.filter(device => device.kind === 'audiooutput');
+
+// Agent-selected devices
+const targetMicrophoneDeviceId = audioInputDevices[0].deviceId;
+const targetSpeakerDeviceId = audioOutputDevices[0].deviceId;
+const targetRingerDeviceId = audioOutputDevices[0].deviceId;
+
+// Setting speaker and ringer devices can work anytime.
+agent.setSpeakerDevice(targetSpeakerDeviceId);
+agent.setRingerDevice(targetRingerDeviceId);
+
+// The setMicrophoneDevice method can only be used when there is an active softphone contact, so it should be called within the onLocalMediaStreamCreated callback.
+// If you need to call agent.onLocalMediaStreamCreated multiple times, ensure you unsubscribe from the previous callback before registering a new one to prevent setMicrophoneDevice from being called redundantly.
+agent.onLocalMediaStreamCreated(() => {
+  agent.setMicrophoneDevice(targetMicrophoneDeviceId);
+});
 ```
 
-## Add a log message to agent logs
-
+### For Custom Softphone Users (`allowFramedSoftphone: false`)
+For those who load RTCJS, call initCCP with `allowFramedSoftphone: false`, and call `connect.core.initSoftphoneManager()`:
 ```js
-    connect.getLog().warn("yar, I'm a pirate")
-```
+const deviceListFromConnectDomain = await connect.core.getFrameMediaDevices();
+const audioInputDevicesFromConnectDomain = deviceListFromConnectDomain.filter(device => device.kind === 'audioinput');
+const audioOutputDevicesFromConnectDomain = deviceListFromConnectDomain.filter(device => device.kind === 'audiooutput');
 
-## Download agent logs
+const deviceListFromMyDomain = await navigator.mediaDevices.enumerateDevices();
+const audioOutputDevicesFromMyDomain = deviceListFromMyDomain.filter(device => device.kind === 'audiooutput');
 
-```js
-	connect.getLog().download()
-```
+// Agent-selected devices
+const targetMicrophoneDeviceId = audioInputDevicesFromConnectDomain[0].deviceId;
+const targetSpeakerDeviceId = audioOutputDevicesFromConnectDomain[0].deviceId;
+const targetRingerDeviceId = audioOutputDevicesFromMyDomain[0].deviceId;
 
-## Media Controller API for chat - ***New,ChatJS Required***
+// Setting speaker and ringer devices can work anytime.
+agent.setSpeakerDevice(targetSpeakerDeviceId);
+agent.setRingerDevice(targetRingerDeviceId);
 
-```js
-    connect.contact(function(contact){
-    contact.getAgentConnections().forEach(function(connection){
-      // chat users
-      if(connection.getMediaType() === connect.MediaType.CHAT){
-          contact.getConnection().getMediaController()
-          .then(function(controller){
-              controller.onMessage(function(response){
-                  console.log("data", response)
-              })
-
-              controller.sendMessage({message: "so and so", contentType: "text/plain"})
-                  .then(function(res, req){
-                    console.log(res.status)
-              });
-              
-              controller.onDisconnect(function(){
-                  console.log("on disconnect");
-              })
-          });
-      }
-    });
-```
-
-## ViewContact API
-
-```js
-    connect.core.viewContact("contactID")
-```
-
-## onAuthFail Event Handler
-
-```js
-    connect.core.onAuthFail(function(){
-      // agent logged out or session expired.  needs login
-      // show button for login or popup a login screen. 
-    });
-```
-
-## onSoftphoneSessionInit Event Handler
-
-```js
-    connect.core.onSoftphoneSessionInit(function({ connectionId }) {
-        var softphoneManager = connect.core.getSoftphoneManager();
-        if(softphoneManager){
-          // access session
-          var session = softphoneManager.getSession(connectionId);
-          // YOu can use this rtc session for stats analysis 
-        }
-    });
-```
-
-## fetch API 
-
-```js
-    connect.fetch("endpoint", options, retryinterval, maxRetry); 
-```
-
-## Mute Agent
-  		  
-```js
-  	function muteAgent(){
-  		  const agent = new connect.Agent();
-  		  const contact  = agent.getContacts(connect.ContactType.VOICE)?.[0]
-  		  
-  		  // Get all open active connections
-  		  const activeConnections = contact?.getConnections().filter((conn) => conn.isActive()) || [];
-  		  
-  		  
-  		  if (activeConnections.length === 0) {
-  		      console.log("No Active Connections to mute");
-  		      return;
-  		  }
-  		  
-  		  // Check if we are using multiparty and see if there more than 2 active connections
-  		  if (contact.isMultiPartyConferenceEnabled() && activeConnections.length > 2) {
-  		      // if any of those are in connecting mode
-  		      const connectingConnections =  contact?.getConnections().filter((conn) => conn.isConnecting()) || [];
-  		      if (connectingConnections.length === 0) {
-  		          console.log("Agent Connection is muted at the server side");
-  		          contact.getAgentConnection().muteParticipant();
-  		      } else {
-  		          console.log("Agent Connection cannot be muted while multi party participant is connecting")
-  		      }
-  		  } else {
-  		      console.log("Agent connection muted at the client side");
-  		      agent.mute();
-  		  }
-  	}
-```
-
-## Check if connected contact has ScreenRecording Enabled
-```js
-    connect.contact(function (contact) {
-        contact.onConnected(function (connectedContact) {
-            const isScreenRecordingEnabled = connectedContact.getContactFeatures()?.screenRecordingConfig?.screenRecordingEnabled ?? false
-            console.log(`contact isScreenRecordingEnabled: ${isScreenRecordingEnabled}`)
-        });
-    });
+// The setMicrophoneDevice method can only be used when there is an active softphone contact, so it should be called within the onLocalMediaStreamCreated callback.
+// If you need to call agent.onLocalMediaStreamCreated multiple times, ensure you unsubscribe from the previous callback before registering a new one to prevent setMicrophoneDevice from being called redundantly.
+agent.onLocalMediaStreamCreated(() => {
+  agent.setMicrophoneDevice(targetMicrophoneDeviceId);
+});
 ```
