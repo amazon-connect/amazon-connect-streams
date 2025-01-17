@@ -54,19 +54,11 @@
     // it is possible the softphone manager was not yet initialized
     try {
       if (connect.core?.softphoneManager) {
-        if (connect.core._allowSoftphonePersistentConnection) {
           connect
             .getLog()
             .info('[GR] Refreshing softphone manager RTC peer connection manager.')
             .sendInternalLogToServer();
           connect.core.softphoneManager._initiateRtcPeerConnectionManager();
-        } else {
-          connect
-            .getLog()
-            .info('[GR] Refreshing softphone manager RTC peer connection factory.')
-            .sendInternalLogToServer();
-          connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
-        }
       } else {
         connect
           .getLog()
