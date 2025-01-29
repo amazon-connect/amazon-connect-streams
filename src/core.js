@@ -1868,7 +1868,10 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       connectionGain: new Set(),
       connectionLost: new Set(),
       connectionOpen: new Set(),
-      connectionClose: new Set()
+      connectionClose: new Set(),
+      deepHeartbeatSuccess: new Set(),
+      deepHeartbeatFailure: new Set(),
+      topicFailure: new Set(),
     };
 
     var invokeCallbacks = function (callbacks, response) {

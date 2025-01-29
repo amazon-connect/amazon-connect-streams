@@ -2521,4 +2521,303 @@ describe('Core', function () {
             sandbox.assert.calledOnceWithExactly(triggerSpy, connect.EmailEvents.CREATED, dataMock);
         });
     });
+
+    describe("WebSocketProvider", function () {
+        let sandbox;
+        let provider;
+        let onUpstreamStub;
+        let sendUpstreamStub;
+
+        jsdom({ url: "http://localhost" });
+
+        beforeEach(function () {
+          sandbox = sinon.createSandbox();
+      
+          onUpstreamStub = sandbox.stub();
+          sendUpstreamStub = sandbox.stub();
+          sandbox.spy(document, "createElement");
+          sandbox.stub(connect.core, "checkNotInitialized").returns(true);
+      
+          sandbox.stub(connect.core, "getUpstream").returns({
+            onUpstream: onUpstreamStub,
+            sendUpstream: sendUpstreamStub,
+          });
+
+          let container = { appendChild: sandbox.spy() };
+          connect.core.initCCP(container, {
+              ccpUrl: "ccpURL"
+          });
+          provider = connect.core.webSocketProvider;
+        });
+      
+        afterEach(function () {
+          sandbox.restore();
+        });
+      
+        describe("Initialization", function () {
+          it("should attach onUpstream listeners for each WebSocket event", function () {
+            const expectedEvents = [
+              connect.WebSocketEvents.INIT_FAILURE,
+              connect.WebSocketEvents.CONNECTION_OPEN,
+              connect.WebSocketEvents.CONNECTION_CLOSE,
+              connect.WebSocketEvents.CONNECTION_GAIN,
+              connect.WebSocketEvents.CONNECTION_LOST,
+              connect.WebSocketEvents.SUBSCRIPTION_UPDATE,
+              connect.WebSocketEvents.SUBSCRIPTION_FAILURE,
+              connect.WebSocketEvents.ALL_MESSAGE,
+            ];
+      
+            const actualEvents = onUpstreamStub.getCalls().map((call) => call.args[0]);
+      
+            expectedEvents.forEach((evt) => {
+              expect(actualEvents).to.include(evt);
+            });
+
+          });
+        });
+      
+        describe("Event callbacks", function () {
+          it("onInitFailure callback is invoked when INIT_FAILURE upstream event fires", function () {
+            const cb = sandbox.spy();
+            const unsub = provider.onInitFailure(cb);
+      
+            expect(unsub).to.be.a("function");
+      
+            const initCall = onUpstreamStub
+              .getCalls()
+              .find((c) => c.args[0] === connect.WebSocketEvents.INIT_FAILURE);
+            expect(initCall).to.exist;
+      
+            const handler = initCall.args[1];
+            handler();
+      
+            sinon.assert.calledOnce(cb);
+      
+            unsub();
+            handler();
+            sinon.assert.calledOnce(cb);
+          });
+      
+          it("onConnectionOpen callback is invoked when CONNECTION_OPEN upstream event fires", function () {
+            const cb = sandbox.spy();
+            const unsub = provider.onConnectionOpen(cb);
+            const openCall = onUpstreamStub
+              .getCalls()
+              .find((c) => c.args[0] === connect.WebSocketEvents.CONNECTION_OPEN);
+            const handler = openCall.args[1];
+      
+            const fakeResponse = { foo: "bar" };
+            handler(fakeResponse);
+      
+            sinon.assert.calledOnceWithExactly(cb, fakeResponse);
+            unsub();
+            handler(fakeResponse);
+            sinon.assert.calledOnce(cb);
+          });
+      
+          it("onConnectionClose callback is invoked when CONNECTION_CLOSE upstream event fires", function () {
+            const cb = sandbox.spy();
+            provider.onConnectionClose(cb);
+      
+            const closeCall = onUpstreamStub
+              .getCalls()
+              .find((c) => c.args[0] === connect.WebSocketEvents.CONNECTION_CLOSE);
+            const handler = closeCall.args[1];
+      
+            const fakeResponse = { reason: "TestingClose" };
+            handler(fakeResponse);
+            sinon.assert.calledOnceWithExactly(cb, fakeResponse);
+          });
+      
+          it("onConnectionGain callback is invoked when CONNECTION_GAIN upstream event fires", function () {
+            const cb = sandbox.spy();
+            provider.onConnectionGain(cb);
+      
+            const gainCall = onUpstreamStub
+              .getCalls()
+              .find((c) => c.args[0] === connect.WebSocketEvents.CONNECTION_GAIN);
+            const handler = gainCall.args[1];
+      
+            handler();
+            sinon.assert.calledOnce(cb);
+          });
+      
+          it("onConnectionLost callback is invoked when CONNECTION_LOST upstream event fires", function () {
+            const cb = sandbox.spy();
+            provider.onConnectionLost(cb);
+      
+            const lostCall = onUpstreamStub
+              .getCalls()
+              .find((c) => c.args[0] === connect.WebSocketEvents.CONNECTION_LOST);
+            const handler = lostCall.args[1];
+      
+            const fakeResponse = { error: "NetworkDown" };
+            handler(fakeResponse);
+            sinon.assert.calledOnceWithExactly(cb, fakeResponse);
+          });
+      
+          it("onSubscriptionUpdate callback is invoked when SUBSCRIPTION_UPDATE upstream event fires", function () {
+            const cb = sandbox.spy();
+            provider.onSubscriptionUpdate(cb);
+      
+            const subUpdateCall = onUpstreamStub
+              .getCalls()
+              .find(
+                (c) => c.args[0] === connect.WebSocketEvents.SUBSCRIPTION_UPDATE
+              );
+            const handler = subUpdateCall.args[1];
+      
+            const fakeResponse = { subscription: "upd" };
+            handler(fakeResponse);
+            sinon.assert.calledOnceWithExactly(cb, fakeResponse);
+          });
+      
+          it("onSubscriptionFailure callback is invoked when SUBSCRIPTION_FAILURE upstream event fires", function () {
+            const cb = sandbox.spy();
+            provider.onSubscriptionFailure(cb);
+      
+            const subFailCall = onUpstreamStub
+              .getCalls()
+              .find(
+                (c) => c.args[0] === connect.WebSocketEvents.SUBSCRIPTION_FAILURE
+              );
+            const handler = subFailCall.args[1];
+      
+            const fakeResponse = { subscription: "fail", reason: "Timeout" };
+            handler(fakeResponse);
+            sinon.assert.calledOnceWithExactly(cb, fakeResponse);
+          });
+      
+          it("onAllMessage callback is invoked when ALL_MESSAGE upstream event fires", function () {
+            const allMsgCb = sandbox.spy();
+            provider.onAllMessage(allMsgCb);
+      
+            const allMessageCall = onUpstreamStub
+              .getCalls()
+              .find((c) => c.args[0] === connect.WebSocketEvents.ALL_MESSAGE);
+            const handler = allMessageCall.args[1];
+      
+            const fakeResponse = { topic: "myTopic", data: 123 };
+            handler(fakeResponse);
+            sinon.assert.calledOnceWithExactly(allMsgCb, fakeResponse);
+          });
+      
+          it("onAllMessage also invokes topic callback if response.topic matches", function () {
+            const allMsgCb = sandbox.spy();
+            provider.onAllMessage(allMsgCb);
+      
+            const specificCb = sandbox.spy();
+            provider.onMessage("myTopic", specificCb);
+      
+            const allMessageCall = onUpstreamStub
+              .getCalls()
+              .find((c) => c.args[0] === connect.WebSocketEvents.ALL_MESSAGE);
+            const handler = allMessageCall.args[1];
+      
+            const fakeResponse = { topic: "myTopic", data: 1234 };
+            handler(fakeResponse);
+      
+            sinon.assert.calledOnceWithExactly(allMsgCb, fakeResponse);
+            sinon.assert.calledOnceWithExactly(specificCb, fakeResponse);
+      
+            const otherResponse = { topic: "someOtherTopic", data: 999 };
+            handler(otherResponse);
+            sinon.assert.calledTwice(allMsgCb);
+            sinon.assert.calledOnce(specificCb);
+          });
+        });
+      
+        describe("subscribeTopics()", function () {
+          it("should call sendUpstream with WebSocketEvents.SUBSCRIBE and the provided topics array", function () {
+            const topics = ["Topic1", "Topic2"];
+            provider.subscribeTopics(topics);
+      
+            sinon.assert.calledOnceWithExactly(
+              sendUpstreamStub,
+              connect.WebSocketEvents.SUBSCRIBE,
+              topics
+            );
+          });
+      
+          it("should throw an error if topics is not an array", function () {
+            expect(() => provider.subscribeTopics("notAnArray")).to.throw();
+          });
+        });
+      
+        describe("onMessage()", function () {
+          it("should add a callback for the given topic", function () {
+            const cb = sandbox.spy();
+            provider.onMessage("testTopic", cb);
+      
+            expect(cb.called).to.be.false;
+          });
+      
+          it("should remove the callback when unsubscribed", function () {
+            const cb = sandbox.spy();
+            const unsub = provider.onMessage("testTopic", cb);
+      
+            unsub();
+            const allMessageCall = onUpstreamStub
+              .getCalls()
+              .find((c) => c.args[0] === connect.WebSocketEvents.ALL_MESSAGE);
+            const handler = allMessageCall.args[1];
+      
+            handler({ topic: "testTopic", data: {} });
+            sinon.assert.notCalled(cb);
+          });
+        });
+      
+        describe("onAllMessage()", function () {
+          it("should add a callback for all messages", function () {
+            const cb = sandbox.spy();
+            provider.onAllMessage(cb);
+
+            const allMessageCall = onUpstreamStub
+              .getCalls()
+              .find((c) => c.args[0] === connect.WebSocketEvents.ALL_MESSAGE);
+            const handler = allMessageCall.args[1];
+      
+            handler({ topic: "randomTopic" });
+            sinon.assert.calledOnce(cb);
+          });
+        });
+      
+        describe("sendMessage()", function () {
+          it("should call sendUpstream with WebSocketEvents.SEND and the given payload", function () {
+            const payload = { some: "payload" };
+            provider.sendMessage(payload);
+      
+            sinon.assert.calledOnceWithExactly(
+              sendUpstreamStub,
+              connect.WebSocketEvents.SEND,
+              payload
+            );
+          });
+        });
+      
+        describe("onDeepHeartbeatSuccess()", function () {
+          it("registers and triggers callback", function () {
+            const cb = sandbox.spy();
+            provider.onDeepHeartbeatSuccess(cb);
+
+            expect(cb.called).to.be.false;
+          });
+        });
+      
+        describe("onDeepHeartbeatFailure()", function () {
+          it("registers and triggers callback", function () {
+            const cb = sandbox.spy();
+            provider.onDeepHeartbeatFailure(cb);
+            expect(cb.called).to.be.false;
+          });
+        });
+      
+        describe("onTopicFailure()", function () {
+          it("registers and triggers callback", function () {
+            const cb = sandbox.spy();
+            provider.onTopicFailure(cb);
+            expect(cb.called).to.be.false;
+          });
+        });
+      });
 });

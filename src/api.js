@@ -1016,9 +1016,11 @@
   }
 
   Contact.prototype.isSoftphoneCall = function () {
-    return connect.find(this.getConnections(), function (conn) {
-      return conn.getSoftphoneMediaInfo() != null;
-    }) != null;
+    if (this.getType() !== connect.ContactType.VOICE && this.getType() !== connect.ContactType.QUEUE_CALLBACK) {
+      return false;
+    }
+
+    return Boolean(this.getConnections().find((conn) => conn.getSoftphoneMediaInfo()));
   };
 
   Contact.prototype.hasVideoRTCCapabilities = function () {
