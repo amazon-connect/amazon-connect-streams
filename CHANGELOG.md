@@ -1,6 +1,13 @@
 # CHANGELOG.md
 
+## [2.18.1] - 2025-01-28
+- adding bug fixes for voice and chat
+
+## [2.18.0]
+(Deprecated)
+
 ## [2.17.0] - 2024-11-29
+(Deprecated)
 Added:
 - Email
 

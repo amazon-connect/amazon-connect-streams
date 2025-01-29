@@ -1,4 +1,5 @@
 require("./test-setup.js");
+const SAMPLE_SNAPSHOTS = require("./sample-snapshots.js");
 
 let sampleContactData = {
   "attributes": {},
@@ -97,7 +98,71 @@ describe('Contact APIs', () => {
         expect(result).to.be.a("null");
       });
     });
-  })
+  });
+
+  describe("contact.isSoftphoneCall", () => {
+    const sandbox = sinon.createSandbox();
+
+    afterEach(() => {
+      sandbox.restore();
+    });
+
+    it("should return true if the contact is voice and has a connection with softphoneMediaInfo populated", () => {
+      sandbox.stub(connect.Contact.prototype, "_getData").returns({
+        contactId: "test-contact-id",
+        type: "voice",
+        connections: [{ connectionId: "test-connection-id" }],
+      });
+      sandbox.stub(connect, "VoiceConnection").returns({
+        getSoftphoneMediaInfo: () => true,
+      });
+      const contact = new connect.Contact(contactId);
+      const result = contact.isSoftphoneCall();
+      expect(result).to.equal(true);
+    });
+
+    it("should return true if the contact is queue_callback and has a connection with softphoneMediaInfo populated", () => {
+      sandbox.stub(connect.Contact.prototype, "_getData").returns({
+        contactId: "test-contact-id",
+        type: "queue_callback",
+        connections: [{ connectionId: "test-connection-id" }],
+      });
+      sandbox.stub(connect, "VoiceConnection").returns({
+        getSoftphoneMediaInfo: () => true,
+      });
+      const contact = new connect.Contact(contactId);
+      const result = contact.isSoftphoneCall();
+      expect(result).to.equal(true);
+    });
+
+    it("should return false if the contact does not have a connection with softphoneMediaInfo", () => {
+      sandbox.stub(connect.Contact.prototype, "_getData").returns({
+        contactId: "test-contact-id",
+        type: "voice",
+        connections: [{ connectionId: "test-connection-id" }],
+      });
+      sandbox.stub(connect, "VoiceConnection").returns({
+        getSoftphoneMediaInfo: () => false,
+      });
+      const contact = new connect.Contact(contactId);
+      const result = contact.isSoftphoneCall();
+      expect(result).to.equal(false);
+    });
+
+    it("should return false if the contact is non-voice", () => {
+      sandbox.stub(connect.Contact.prototype, "_getData").returns({
+        contactId: "test-contact-id",
+        type: "chat",
+        connections: [{ connectionId: "test-connection-id" }],
+      });
+      sandbox.stub(connect, "VoiceConnection").returns({
+        getSoftphoneMediaInfo: () => false,
+      });
+      const contact = new connect.Contact(contactId);
+      const result = contact.isSoftphoneCall();
+      expect(result).to.equal(false);
+    });
+  });
 
 
   describe("contact APIs", () => {
