@@ -2847,9 +2847,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     return segmentAttributes && segmentAttributes["connect:Subtype"] ? segmentAttributes["connect:Subtype"].ValueString : null;
   };
   Contact.prototype.isSoftphoneCall = function () {
-    return connect.find(this.getConnections(), function (conn) {
-      return conn.getSoftphoneMediaInfo() != null;
-    }) != null;
+    if (this.getType() !== connect.ContactType.VOICE && this.getType() !== connect.ContactType.QUEUE_CALLBACK) {
+      return false;
+    }
+    return Boolean(this.getConnections().find(function (conn) {
+      return conn.getSoftphoneMediaInfo();
+    }));
   };
   Contact.prototype.hasVideoRTCCapabilities = function () {
     return connect.find(this.getConnections(), function (conn) {
@@ -8940,7 +8943,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.18.0";
+  connect.version = "2.18.1";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
@@ -10754,7 +10757,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       connectionGain: new Set(),
       connectionLost: new Set(),
       connectionOpen: new Set(),
-      connectionClose: new Set()
+      connectionClose: new Set(),
+      deepHeartbeatSuccess: new Set(),
+      deepHeartbeatFailure: new Set(),
+      topicFailure: new Set()
     };
     var invokeCallbacks = function invokeCallbacks(callbacks, response) {
       callbacks.forEach(function (callback) {
