@@ -1495,13 +1495,11 @@ Optional success and failure callbacks can be provided to determine if the opera
 ```js
 // endpoint: Endpoint Object
 contact.addParticipant(endpoint, {
-  callback: {
-      success: function () {
-        /* ... */
-      },
-      failure: function (err) {
-        /* ... */
-      },
+  success: function () {
+    /* ... */
+  },
+  failure: function (err) {
+    /* ... */
   },
 });
 ```
@@ -1517,13 +1515,11 @@ This API is **only** supported in **Voice** and **Chat**. Will return an error i
 ```js
 // endpoint: Endpoint Object
 contact.transfer(endpoint, {
-  callback: {
-      success: function () {
-        /* ... */
-      },
-      failure: function (err) {
-        /* ... */
-      },
+  success: function () {
+    /* ... */
+  },
+  failure: function (err) {
+    /* ... */
   },
 });
 ```

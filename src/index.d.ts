@@ -1017,12 +1017,16 @@ declare namespace connect {
     readonly failure?: SuccessFailCallback<[string]>;
   }
 
-  interface AddParticipantOptions {
-    readonly callback?: SuccessFailOptions;
+  interface AddParticipantOptions extends SuccessFailOptions {
+    /**
+     * Allows for additional parameters
+    */
   }
 
-  interface TransferOptions {
-    readonly callback?: SuccessFailOptions;
+  interface TransferOptions extends SuccessFailOptions {
+    /**
+     * Allows for additional parameters
+    */
   }
 
   interface ConnectOptions extends SuccessFailOptions {
