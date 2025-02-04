@@ -565,6 +565,7 @@
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
+    return logBlob;
   };
 
   Logger.prototype.scheduleUpstreamLogPush = function (conduit) {
