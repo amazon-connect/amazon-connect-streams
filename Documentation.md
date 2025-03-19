@@ -247,9 +247,12 @@ and made available to your JS client code.
     the softphone session must not be closed during the course of a softphone
     call or the call will be disconnected. If `allowFramedSoftphone` is `true`,
     the softphone components will be allowed to be hosted in this window or tab.
-    If `allowFramedSoftphone` is `false`, please make sure you are importing the
-    [lily-rtc.js](https://github.com/aws/connect-rtc-js) package and adding `connect.core.initSoftphoneManager()`
-    to your code after `connect.core.initCCP()`.
+    If you are building a [split CCP](https://docs.aws.amazon.com/connect/latest/adminguide/using-ccp-vdi.html#use-split-ccp), set `allowFramedSoftphone` to `false`
+    to create a media-less CCP for use inside your VDI and run the out of the box
+    CCP on the local machine to handle the media.
+    If `allowFramedSoftphone` is `false` but you want to handle the media locally
+    please make sure you are importing the [connect-rtc.js](https://github.com/aws/connect-rtc-js) package
+    and adding `connect.core.initSoftphoneManager()` to your code after `connect.core.initCCP()`.
   * `disableRingtone`: This option allows you to completely disable the built-in
     ringtone audio that is played when a call is incoming.
   * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
