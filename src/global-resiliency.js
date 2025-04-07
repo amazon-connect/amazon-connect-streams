@@ -23,9 +23,13 @@
   connect.globalResiliency._initializeActiveRegion = function (grProxyConduit, region) {
     // agentDataProvider needs to be reinitialized in order to avoid side effects from the drastic agent snapshot change
     try {
-      connect.core.agentDataProvider?.destroy();
-      connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());
-      grProxyConduit.getActiveConduit().sendUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
+      if (region) {
+        connect.core.agentDataProvider?.destroy();
+        if (!connect.core.agentDataProvider)
+          connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());
+        else connect.core.agentDataProviderBackup = new connect.core.AgentDataProvider(connect.core.getEventBus());
+        grProxyConduit.getActiveConduit().sendUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
+      }
     } catch (e) {
       connect
         .getLog()
@@ -288,7 +292,13 @@
 
     // After switching over, we need to grab the agent data of the new CCP
     grProxyConduit.onUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP, (agentData) => {
-      connect.core.getAgentDataProvider().updateAgentData(agentData);
+      if (connect.core.agentDataProviderBackup) {
+        connect.core.agentDataProviderBackup.updateAgentData(agentData);
+        connect.core.agentDataProvider = connect.core.agentDataProviderBackup;
+        connect.core.agentDataProviderBackup = null;
+      } else {
+        connect.core.agentDataProvider.updateAgentData(agentData);
+      }
       connect.getLog().info('[GR] Fetched agent data from CCP.').sendInternalLogToServer();
     });
 

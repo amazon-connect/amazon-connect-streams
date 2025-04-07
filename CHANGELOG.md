@@ -1,4 +1,8 @@
 # CHANGELOG.md
+## [2.16.1] - 2025-04-09
+Added:
+- Made change to address issue getting certain information during or immediately after a CCP Global Resiliency failover.
+
 ## [2.16.0] - 2024-11-11
 Added:
 - Amazon Connect Global Resiliency implementation. See Documentation-GR.md for details.
