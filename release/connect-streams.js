@@ -1,7 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 781:
+/***/ 256:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -30,12 +30,35 @@ function global_provider_getGlobalProvider(notSetMessage) {
     return _provider;
 }
 //# sourceMappingURL=global-provider.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/error/connect-error.js
+class ConnectError extends Error {
+    constructor({ reason, namespace, errorKey, details, }) {
+        super(`ConnectError with error key "${errorKey}"`);
+        this.errorType = ConnectError.ErrorType;
+        this.namespace = namespace;
+        this.errorKey = errorKey;
+        this.reason = reason;
+        this.details = details !== null && details !== void 0 ? details : {};
+    }
+}
+ConnectError.ErrorType = "ConnectError";
+function isConnectError(error) {
+    return Boolean(error instanceof ConnectError ||
+        (error &&
+            typeof error === "object" &&
+            "errorType" in error &&
+            error.errorType === ConnectError.ErrorType));
+}
+//# sourceMappingURL=connect-error.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/error/index.js
+
+//# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/utility/emitter/emitter-base.js
 
 class emitter_base_EmitterBase {
     constructor({ provider, loggerKey }) {
         this.events = new Map();
-        this.logger = new ConnectLogger({
+        this.logger = new connect_logger_ConnectLogger({
             provider,
             source: "emitter",
             mixin: () => ({
@@ -75,7 +98,7 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
     });
 };
 
-class AsyncEventEmitter extends (/* unused pure expression or super */ null && (EmitterBase)) {
+class AsyncEventEmitter extends emitter_base_EmitterBase {
     emit(parameter, event) {
         return __awaiter(this, void 0, void 0, function* () {
             const handlers = this.getHandlers(parameter);
@@ -358,7 +381,7 @@ class SubscriptionManager {
 /**
  * @classdesc ConnectMetricRecorder class provides APIs to emit metrics based on users' need
  */
-class ConnectMetricRecorder {
+class connect_metric_recorder_ConnectMetricRecorder {
     /**
      * Constructor for ConnectMetricRecorder
      * @param {ConnectRecorderMetricParams} params - The namespace and provider(optional)
@@ -380,7 +403,6 @@ class ConnectMetricRecorder {
     recordSuccess(metricName, metricOptions) {
         var _a;
         const processedDimensions = Object.assign({}, ((_a = metricOptions === null || metricOptions === void 0 ? void 0 : metricOptions.dimensions) !== null && _a !== void 0 ? _a : {}));
-        processedDimensions["Metric"] = "Error";
         const processedMetricOptions = Object.assign(Object.assign({}, metricOptions), { dimensions: processedDimensions });
         this.recordCount(metricName, 0, processedMetricOptions);
     }
@@ -393,7 +415,6 @@ class ConnectMetricRecorder {
     recordError(metricName, metricOptions) {
         var _a;
         const processedDimensions = Object.assign({}, ((_a = metricOptions === null || metricOptions === void 0 ? void 0 : metricOptions.dimensions) !== null && _a !== void 0 ? _a : {}));
-        processedDimensions["Metric"] = "Error";
         const processedMetricOptions = Object.assign(Object.assign({}, metricOptions), { dimensions: processedDimensions });
         this.recordCount(metricName, 1, processedMetricOptions);
     }
@@ -516,29 +537,6 @@ function createMetricMessage({ metricData, time, namespace }, messageOrigin) {
 
 
 
-
-//# sourceMappingURL=index.js.map
-;// ./node_modules/@amazon-connect/core/lib-esm/error/connect-error.js
-class ConnectError extends Error {
-    constructor({ reason, namespace, errorKey, details, }) {
-        super(`ConnectError with error key "${errorKey}"`);
-        this.errorType = ConnectError.ErrorType;
-        this.namespace = namespace;
-        this.errorKey = errorKey;
-        this.reason = reason;
-        this.details = details !== null && details !== void 0 ? details : {};
-    }
-}
-ConnectError.ErrorType = "ConnectError";
-function isConnectError(error) {
-    return Boolean(error instanceof ConnectError ||
-        (error &&
-            typeof error === "object" &&
-            "errorType" in error &&
-            error.errorType === ConnectError.ErrorType));
-}
-//# sourceMappingURL=connect-error.js.map
-;// ./node_modules/@amazon-connect/core/lib-esm/error/index.js
 
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/request/client-timeout-error.js
@@ -719,13 +717,33 @@ class ChannelManager {
             source: "childConnectionManager",
         });
     }
-    addChannel({ connectionId, port, providerId }) {
+    addChannel(params) {
+        const { connectionId } = params;
         if (this.messagePorts.has(connectionId)) {
             this.logger.error("Attempted to add child connection that already exists. No action", {
                 connectionId,
             });
             return;
         }
+        this.setupPort(params);
+        this.logger.debug("Child port added", { connectionId });
+    }
+    updateChannelPort(params) {
+        var _a;
+        const { connectionId } = params;
+        const originalPort = (_a = this.messagePorts.get(connectionId)) === null || _a === void 0 ? void 0 : _a.port;
+        if (!originalPort) {
+            this.logger.error("Attempted to update child connection that does not exist No action", {
+                connectionId,
+            });
+            return;
+        }
+        originalPort.onmessage = null;
+        originalPort.close();
+        this.setupPort(params);
+        this.logger.info("Updated child port", { connectionId });
+    }
+    setupPort({ connectionId, port, providerId, }) {
         const handler = this.createMessageHandler(connectionId, providerId);
         port.addEventListener("message", handler);
         port.start();
@@ -739,7 +757,6 @@ class ChannelManager {
                 type: "childConnectionReady",
             },
         });
-        this.logger.debug("Child port added", { connectionId });
     }
     handleDownstreamMessage({ connectionId, message, targetProviderId, }) {
         const messagePortData = this.messagePorts.get(connectionId);
@@ -825,6 +842,143 @@ class ErrorService {
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/error/index.js
 
 //# sourceMappingURL=index.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/proxy/health-check/health-check-manager.js
+
+
+class HealthCheckManager {
+    constructor({ provider, sendHealthCheck, getUpstreamMessageOrigin, }) {
+        this.connectionId = null;
+        this.healthCheckInterval = null;
+        this.healthCheckTimeout = null;
+        this.sendHealthCheck = sendHealthCheck;
+        this.getUpstreamMessageOrigin = getUpstreamMessageOrigin;
+        this.sendHealthCheckInterval = null;
+        this.lastHealthCheckResponse = null;
+        this._status = "unknown";
+        this.logger = new connect_logger_ConnectLogger({
+            source: "core.proxy.health-check",
+            provider: provider,
+            mixin: () => ({
+                connectionId: this.connectionId,
+            }),
+        });
+        this.events = new AsyncEventEmitter({
+            provider,
+            loggerKey: "core.proxy.health-check",
+        });
+    }
+    get status() {
+        return this._status;
+    }
+    get isRunning() {
+        return this.sendHealthCheckInterval !== null;
+    }
+    get lastCheckCounter() {
+        var _a, _b;
+        return (_b = (_a = this.lastHealthCheckResponse) === null || _a === void 0 ? void 0 : _a.counter) !== null && _b !== void 0 ? _b : null;
+    }
+    get lastCheckTime() {
+        var _a, _b;
+        return (_b = (_a = this.lastHealthCheckResponse) === null || _a === void 0 ? void 0 : _a.time) !== null && _b !== void 0 ? _b : null;
+    }
+    start({ healthCheckInterval: interval, connectionId, }) {
+        this.connectionId = connectionId;
+        this.healthCheckInterval = interval;
+        this.clearInterval();
+        if (interval <= 0) {
+            this.logger.debug("Health check disabled");
+            return;
+        }
+        if (interval < 1000) {
+            this.logger.error("Health check interval is less than 1 second. Not running", { interval });
+            return;
+        }
+        this.sendHealthCheckMessage();
+        this.sendHealthCheckInterval = setInterval(() => this.sendHealthCheckMessage(), interval);
+        this.startTimeout();
+    }
+    stop() {
+        this.clearInterval();
+        this.clearTimeout();
+    }
+    handleResponse(message) {
+        this.setHealthy({
+            time: message.time,
+            counter: message.counter,
+        });
+    }
+    sendHealthCheckMessage() {
+        this.sendHealthCheck({
+            type: "healthCheck",
+            messageOrigin: this.getUpstreamMessageOrigin(),
+        });
+    }
+    startTimeout() {
+        if (!this.healthCheckInterval) {
+            this.logger.error("Health check interval not set. Cannot start timeout");
+            return;
+        }
+        // Cancels a preexisting timeout to be replaced with new timeout
+        this.clearTimeout();
+        this.healthCheckTimeout = setTimeout(() => {
+            this.setUnhealthy();
+        }, this.healthCheckInterval * 3);
+    }
+    clearInterval() {
+        if (this.sendHealthCheckInterval) {
+            clearInterval(this.sendHealthCheckInterval);
+            this.sendHealthCheckInterval = null;
+        }
+    }
+    clearTimeout() {
+        if (this.healthCheckTimeout) {
+            clearTimeout(this.healthCheckTimeout);
+            this.healthCheckTimeout = null;
+        }
+    }
+    setUnhealthy() {
+        if (this._status !== "unhealthy") {
+            const previousStatus = this._status;
+            this.logger.info("Connection unhealthy", {
+                previousStatus,
+            });
+            this._status = "unhealthy";
+            this.emitStatusChanged("unhealthy", previousStatus);
+        }
+    }
+    setHealthy(result) {
+        this.lastHealthCheckResponse = Object.assign({}, result);
+        if (this._status !== "healthy") {
+            const previousStatus = this._status;
+            this.logger.debug("Connection healthy", {
+                previousStatus,
+            });
+            this._status = "healthy";
+            this.emitStatusChanged("healthy", previousStatus);
+        }
+        this.startTimeout();
+    }
+    emitStatusChanged(status, previousStatus) {
+        var _a, _b, _c, _d;
+        void this.events.emit(HealthCheckManager.statusChangedKey, {
+            status,
+            previousStatus,
+            lastCheckTime: (_b = (_a = this.lastHealthCheckResponse) === null || _a === void 0 ? void 0 : _a.time) !== null && _b !== void 0 ? _b : null,
+            lastCheckCounter: (_d = (_c = this.lastHealthCheckResponse) === null || _c === void 0 ? void 0 : _c.counter) !== null && _d !== void 0 ? _d : null,
+        });
+    }
+    onStatusChanged(handler) {
+        this.events.on(HealthCheckManager.statusChangedKey, handler);
+    }
+    offStatusChanged(handler) {
+        this.events.off(HealthCheckManager.statusChangedKey, handler);
+    }
+}
+HealthCheckManager.statusChangedKey = "statusChanged";
+//# sourceMappingURL=health-check-manager.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/proxy/health-check/index.js
+
+//# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/proxy-connection/proxy-connection-status-manager.js
 
 class ProxyConnectionStatusManager {
@@ -893,6 +1047,7 @@ var proxy_rest = (undefined && undefined.__rest) || function (s, e) {
 
 
 
+
 class Proxy {
     constructor(provider) {
         this.provider = provider;
@@ -913,6 +1068,11 @@ class Proxy {
         this.subscriptions = new SubscriptionManager();
         this.connectionId = null;
         this.channelManager = new ChannelManager(provider, this.sendOrQueueMessageToSubject.bind(this));
+        this.healthCheck = new HealthCheckManager({
+            provider,
+            sendHealthCheck: this.sendOrQueueMessageToSubject.bind(this),
+            getUpstreamMessageOrigin: this.getUpstreamMessageOrigin.bind(this),
+        });
     }
     init() {
         if (this.isInitialized)
@@ -1028,6 +1188,9 @@ class Proxy {
             case "childConnectionClose":
                 this.channelManager.handleCloseMessage(msg);
                 break;
+            case "healthCheckResponse":
+                this.healthCheck.handleResponse(msg);
+                break;
             default:
                 this.logger.error("Unknown inbound message", {
                     originalMessageEventData: msg,
@@ -1047,6 +1210,7 @@ class Proxy {
             const msg = this.upstreamMessageQueue.shift();
             this.sendMessageToSubject(msg);
         }
+        this.healthCheck.start(msg);
     }
     handleResponse(msg) {
         this.requestManager.processResponse(msg);
@@ -1112,8 +1276,17 @@ class Proxy {
     offConnectionStatusChange(handler) {
         this.status.offChange(handler);
     }
+    onHealthCheckStatusChanged(handler) {
+        this.healthCheck.onStatusChanged(handler);
+    }
+    offHealthCheckStatusChanged(handler) {
+        this.healthCheck.offStatusChanged(handler);
+    }
     addChildChannel(params) {
         this.channelManager.addChannel(params);
+    }
+    updateChildChannelPort(params) {
+        this.channelManager.updateChannelPort(params);
     }
     resetConnection(reason) {
         var _a;
@@ -1321,11 +1494,12 @@ class TimeoutTracker {
 
 
 //# sourceMappingURL=index.js.map
-;// ./node_modules/@amazon-connect/core/lib-esm/provider/provider.js
+;// ./node_modules/@amazon-connect/core/lib-esm/provider/provider-base.js
 
 
 
-class AmazonConnectProvider {
+
+class AmazonConnectProviderBase {
     constructor({ config, proxyFactory }) {
         this._id = generateUUID();
         if (!proxyFactory) {
@@ -1357,14 +1531,29 @@ class AmazonConnectProvider {
         this.getProxy().offError(handler);
     }
     static initializeProvider(provider) {
-        const logger = new connect_logger_ConnectLogger({
-            source: "core.amazonConnect.init",
-            provider,
-        });
         if (this.isInitialized) {
-            const msg = "Error: Attempted to initialize provider more than one time.";
-            logger.error(msg);
-            throw new Error(msg);
+            const msg = "Attempted to initialize provider more than one time.";
+            const details = {};
+            try {
+                // Attempts to get the existing provider for logging
+                const existingProvider = global_provider_getGlobalProvider();
+                const logger = new connect_logger_ConnectLogger({
+                    source: "core.amazonConnectProvider.init",
+                    provider: existingProvider,
+                });
+                logger.error(msg);
+            }
+            catch (e) {
+                // In the event of a error when logging or attempting
+                // to get provider when logging, capture the message
+                // in the error being thrown
+                details.loggingError = e === null || e === void 0 ? void 0 : e.message;
+            }
+            throw new ConnectError({
+                errorKey: "attemptInitializeMultipleProviders",
+                reason: msg,
+                details,
+            });
         }
         setGlobalProvider(provider);
         this.isInitialized = true;
@@ -1373,8 +1562,8 @@ class AmazonConnectProvider {
         return provider;
     }
 }
-AmazonConnectProvider.isInitialized = false;
-//# sourceMappingURL=provider.js.map
+AmazonConnectProviderBase.isInitialized = false;
+//# sourceMappingURL=provider-base.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/provider/index.js
 
 
@@ -1582,9 +1771,13 @@ class module_context_ModuleContext {
     createLogger(params) {
         return this.engineContext.createLogger(params);
     }
+    createMetricRecorder(params) {
+        return this.engineContext.createMetricRecorder(params);
+    }
 }
 //# sourceMappingURL=module-context.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/context/context.js
+
 
 
 
@@ -1611,6 +1804,17 @@ class context_Context {
         else {
             return new ConnectLogger({
                 source: params,
+                provider: () => this.getProvider(),
+            });
+        }
+    }
+    createMetricRecorder(params) {
+        if (typeof params === "object") {
+            return new ConnectMetricRecorder(Object.assign(Object.assign({}, params), { provider: () => this.getProvider() }));
+        }
+        else {
+            return new ConnectMetricRecorder({
+                namespace: params,
                 provider: () => this.getProvider(),
             });
         }
@@ -1685,12 +1889,12 @@ class SiteProxy extends Proxy {
         return {};
     }
     listenForInitialMessage(evt) {
+        // Verify origin
+        if (!this.verifyOrigin(evt)) {
+            // Log message is handled in the function with the actual reason for failure
+            return;
+        }
         if (this.verifyEventSource(evt)) {
-            // Verify origin
-            if (!this.verifyOrigin(evt)) {
-                // Log message is handled in the function with the actual reason for failure
-                return;
-            }
             // Verify message
             if (evt.data.type !== "cross-domain-adapter-init") {
                 this.invalidInitMessageHandler(evt.data);
@@ -1797,7 +2001,7 @@ class StreamsSiteProxy extends SiteProxy {
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/amazon-connect-streams-site.js
 
 
-class AmazonConnectStreamsSite extends AmazonConnectProvider {
+class AmazonConnectStreamsSite extends AmazonConnectProviderBase {
     constructor(config) {
         super({
             config,
@@ -10215,7 +10419,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     // Add SDK via AmazonConnectStreamsSite
     if (!existingProvider) {
       try {
-        var _require = __webpack_require__(781),
+        var _require = __webpack_require__(256),
           AmazonConnectStreamsSite = _require.AmazonConnectStreamsSite;
         var instanceUrl = new URL(params.ccpUrl).origin;
         var config = {

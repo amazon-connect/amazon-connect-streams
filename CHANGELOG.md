@@ -1,5 +1,8 @@
 # CHANGELOG.md
 
+## [2.18.2] - 2025-04-28
+- Fix to remove console log message `[siteProxy]: Message came from unexpected iframe. Not a valid CCP.`
+
 ## [2.18.1] - 2025-01-28
 - adding bug fixes for voice and chat
 
