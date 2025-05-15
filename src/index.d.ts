@@ -828,6 +828,9 @@ declare namespace connect {
     /** The connection is connected but on hold. */
     HOLD = "hold",
 
+    /** The connection is rejected. */
+    REJECTED = "rejected",
+
     /** The connection is no longer connected to the contact. */
     DISCONNECTED = "disconnected",
 
