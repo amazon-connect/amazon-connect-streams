@@ -2288,6 +2288,7 @@ An enumeration listing the different states that a connection can have.
 * `ConnectionStateType.CONNECTING`: The connection is being initialized.
 * `ConnectionStateType.CONNECTED`: The connection is connected to the contact.
 * `ConnectionStateType.HOLD`: The connection is connected but on hold.
+* `ConnectionStateType.REJECTED`: The connection is rejected.
 * `ConnectionStateType.DISCONNECTED`: The connection is no longer connected to the contact.
 * `ConnectionStateType.SILENT_MONITOR`: An enhanced listen-in manager session, this state is used instead of `ContactStateType.CONNECTED` for manager
 * `ContactStateType.BARGE`: A special manager session mode with full control over contact actions, this state is used instead of `ContactStateType.CONNECTED` for manager
