@@ -1,5 +1,8 @@
 # CHANGELOG.md
 
+## [2.18.3] - 2025-05-21
+- Update the release artifacts with the correct version number
+
 ## [2.18.2] - 2025-04-28
 - Fix to remove console log message `[siteProxy]: Message came from unexpected iframe. Not a valid CCP.`
 
