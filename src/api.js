@@ -561,6 +561,10 @@
     });
   };
 
+  /**
+   * @deprecated
+   * use agent.getAvailabilityState
+   */
   Agent.prototype.getState = function () {
     return this._getData().snapshot.state;
   };
@@ -573,6 +577,10 @@
     return this._getData().snapshot.agentAvailabilityState;
   };
 
+  /**
+    * @deprecated
+    * use agent.getAvailabilityState
+    */
   Agent.prototype.getStatus = Agent.prototype.getState;
 
   Agent.prototype.getStateDuration = function () {

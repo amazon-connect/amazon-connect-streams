@@ -2668,6 +2668,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       }
     });
   };
+
+  /**
+   * @deprecated
+   * use agent.getAvailabilityState
+   */
   Agent.prototype.getState = function () {
     return this._getData().snapshot.state;
   };
@@ -2677,6 +2682,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   Agent.prototype.getAvailabilityState = function () {
     return this._getData().snapshot.agentAvailabilityState;
   };
+
+  /**
+    * @deprecated
+    * use agent.getAvailabilityState
+    */
   Agent.prototype.getStatus = Agent.prototype.getState;
   Agent.prototype.getStateDuration = function () {
     return connect.now() - this._getData().snapshot.state.startTimestamp.getTime() + connect.core.getSkew();

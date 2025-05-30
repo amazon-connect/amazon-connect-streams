@@ -1128,10 +1128,16 @@ declare namespace connect {
     /** Get the agent's current 'AgentAvailabilityState' object indicating their actual state type. */
     getAvailabilityState(): AgentAvailabilityState;
 
-    /** Get the agent's current `AgentState` object indicating their availability state type. */
+    /**
+     * @deprecated Use getAvailabilityState() 
+     * Get the agent's current `AgentState` object indicating their availability state type. 
+     * */
     getState(): AgentState;
 
-    /** Alias for `getState()`. */
+    /**
+     * @deprecated Use getAvailabilityState()
+     * Alias for `getState()`.
+     * */
     getStatus(): AgentState;
 
     /**

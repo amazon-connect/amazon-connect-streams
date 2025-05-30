@@ -661,7 +661,11 @@ agent.onAfterCallWork(function(agent) { /* ... */ });
 Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state (note that this event is only triggered for voice contacts even though all contacts enter ACW contact state. See contact.onACW below). This is a non-routable state which exists to allow agents some time to wrap up after handling a contact before they are routed additional contacts.
 
 ### `agent.getState()` / `agent.getStatus()`
+
+This API has been deprecated, please use [`agent.getAvailabilityState()`](#agentgetavailabilitystate)
+
 ```js
+// @deprecated
 var state = agent.getState();
 ```
 Get the agent's current `AgentState` object indicating their availability state type.
