@@ -141,15 +141,6 @@ Note: these tests run on the release files generated above
 ## Using the AWS SDK and Streams
 Streams has a "baked-in" version of the AWS-SDK in the `./src/aws-client.js` file. Make sure that you import Streams before the AWS SDK so that the `AWS` object bound to the `Window` is the object from your manually included SDK, and not from Streams.
 
-## Handling Email Contacts
-
-To fully implement your custom email experience, you'll **need** to integrate with the [AmazonConnectSDK](https://github.com/amazon-connect/AmazonConnectSDK). It is a 2 step process: 
-
-1. Get the client configuration from Streams
-1. Use the configuration to integrate with the [`EmailClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts) and [`FileClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/file/src/file-client.ts) from the AmazonConnectSDK. You may also optionally integrate with the [`MessageTemplateClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/message-template/src/message-template-client.ts) and [`QuickResponsesClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/quick-responses/src/quick-responses-client.ts) to enhance your custom experience.
-
-A basic example of how to set this up can be found in the Documentation under `connect.core.getSDKClientConfig()`
-
 ## Initialization
 Initializing the Streams API is the first step to verify that you have
 everything set up correctly and that you are able to listen for events.
@@ -1450,8 +1441,8 @@ contact.clear({
    failure: function(err) { /* ... */ }
 });
 ```
-This is a more generic form of `contact.complete()`. Use this for voice, chat, and task contacts to clear the contact
-when the contact is no longer actively being worked on (i.e. it's one of ERROR, ENDED, MISSED, REJECTED). 
+This is a more generic form of `contact.complete()`. Use this for voice, chat, task, and email contacts to clear the contact
+when the contact is no longer actively being worked on (i.e. it's one of ERROR, ENDED, MISSED, REJECTED).
 It works for both monitoring and non-monitoring connections.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
@@ -1640,6 +1631,66 @@ contact.bargeIn({
 Updates the monitor participant state to barge mode.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
+
+### `contact.getConnectSystemEndpoint()`
+ 
+```js
+var connectSystemEndpoint = contact.getConnectSystemEndpoint()
+```
+ 
+Gets the system endpoint
+ 
+### `contact.getCustomerEndpoint()`
+ 
+```js
+var customerEndpoint = contact.getCustomerEndpoint()
+```
+ 
+Gets the customer endpoint
+ 
+### `contact.getContactAssociationId()`
+ 
+```js
+var contactAssociationId = contact.getContactAssociationId()
+```
+ 
+Gets the contact association id
+ 
+```js
+var initiationMethod = contact.getInitiationMethod()
+```
+ 
+Gets the contact's initiation method
+ 
+### `contact.getConnectSystemEndpoint()`
+ 
+```js
+var connectSystemEndpoint = contact.getConnectSystemEndpoint()
+```
+ 
+Gets the system endpoint
+ 
+### `contact.getCustomerEndpoint()`
+ 
+```js
+var customerEndpoint = contact.getCustomerEndpoint()
+```
+ 
+Gets the customer endpoint
+ 
+### `contact.getContactAssociationId()`
+ 
+```js
+var contactAssociationId = contact.getContactAssociationId()
+```
+ 
+Gets the contact association id
+ 
+```js
+var initiationMethod = contact.getInitiationMethod()
+```
+ 
+Gets the contact's initiation method
 
 ### Task Contact APIs
 The following contact methods are currently only available for task contacts.
@@ -2212,10 +2263,171 @@ Gets a `Promise` with the media controller associated with this connection.
 The promise resolves to a `TaskSession` object from the `amazon-connect-taskjs` library.
 See the [amazon-connect-taskjs documentation](https://github.com/amazon-connect/amazon-connect-taskjs) for more information.
 
+## Handling Email Contacts
+ 
+To fully implement your custom email experience, you'll **need** to integrate with the [AmazonConnectSDK](https://github.com/amazon-connect/AmazonConnectSDK). It is a 2 step process: 
+ 
+1. Get the client configuration from Streams
+1. Use the configuration to integrate with the [`EmailClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts) and [`FileClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/file/src/file-client.ts) from the AmazonConnectSDK. You may also optionally integrate with the [`MessageTemplateClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/message-template/src/message-template-client.ts) and [`QuickResponsesClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/quick-responses/src/quick-responses-client.ts) to enhance your custom experience.
+ 
+A basic example of how to set this up can be found in the Documentation under `connect.core.getSDKClientConfig()`
+ 
+### Creating Draft Email Contacts
+#### Example 1: Agent Initiated Outbound
+```
+const contact = await emailClient.createDraftEmail({
+   initiationMethod: "OUTBOUND",
+});
+ 
+const { contactId } = contact;
+```
+ 
+ 
+#### Example 2: Agent Reply
+```
+const contact = await emailClient.createDraftEmail({
+   initiationMethod: "AGENT_REPLY",
+   relatedContactId: contactToReplyTo, // This is the contact ID of the contact on which the contact.accept() method was called
+});
+ 
+const { contactId } = contact;
+```
+ 
+An agent initiated outbound or reply draft contact is created via [`createDraftEmail`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts#L52). Upon successful draft contact creation, the contact will be in `ContactStateType.CONNECTED` state.
+ 
+See [CreateDraftEmailContact](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/types.ts#L133) type in the AmazonConnectSDK for additional properties to include in the request.
+ 
+### Sending Draft Email Contacts
+ 
+```
+const toEmailAddress = {
+  emailAddress: "",
+};
+ 
+const emailContent = {
+  subject: "Hello!",
+  body: "Thank you!",
+  bodyType: "text/plain",
+}
+ 
+const draftContact = {
+  to: [toEmailAddress]
+  emailContent,
+  contactId: draftContactId, // This is the contact ID of the draft contact created via createDraftEmail()
+};
+ 
+await emailClient.sendEmail(draftContact);
+```
+ 
+Both agent initiated and agent reply draft email contacts are sent via [`sendEmail`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts#L83). Upon successfully sending the email, the contact will transition to `ContactStateType.ENDED` (the ACW state).
+ 
+### Getting the email contacts in an email thread
+```
+const acceptedContactId = contact.getContactId(); // `contact` is the accepted inbound email contact
+const contactAssociationId = contact.getContactAssociationId(); 
+ 
+const emailThreadContacts = await emailClient.getEmailThread({
+  contactAssociationId: contactAssociationId,
+});
+ 
+// OPTIONAL: Filter out contacts that have been transferred to avoid displaying duplicated email content
+const previousContactIdsSet = new Set(
+    emailThreadContacts
+        .map(emailThreadContact => emailThreadContact.previousContactId)
+        .filter(Boolean)
+);
+ 
+const filteredEmailContactsInEmailThread = emailThreadContacts.filter(emailContact => 
+    emailContact.contactId === acceptedContactId || 
+    !previousContactIdsSet.includes(emailContact.contactId)
+);
+```
+The [`getEmailThread`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts#L67) method allows you to retrieve all contacts associated with an email thread using the `contactAssociationId` from an accepted email contact. Each time an email contact is transferred, a new contact ID is created with `initiationMethod === 'TRANSFER'` and its `previousContactId` is the contact id before the transfer. You may optionally filter out these transferred contacts to avoid duplicate content when rendering the email thread. Once you have the email contacts to display in the thread, you can describe each email contact as explained below.
+ 
+### Describing an email contact
+#### Example 1: Agent has accepted an inbound email contact and needs to get that inbound contact's data
+```
+const emailData = await emailClient.getEmailData({ contactId: inboundContactId, activeContactId: inboundContactId });
+ 
+// Get the body of the email through the File Client
+const bodyLocation = emailMetadata.bodyLocation;
+if (bodyLocation) {
+   const body = await fileClient.getAttachedFileUrl({
+        attachment: bodyLocation,
+        activeContactId: inboundContactId,
+   });
+   
+   const { downloadUrl } = body;
+   const response = await fetch(downloadUrl, { method: "GET" }); //
+   const bodyContent = (await response.json()).messageContent;
+}
+```
+#### Example 2: Agent has accepted an inbound email contact and needs to get the data for a contact in the inbound contact's thread
+```
+const emailData = await emailClient.getEmailData({ contactId: contactIdFromThread, activeContactId: inboundContactId });
+ 
+// Get the body of the email through the File Client
+const bodyLocation = emailMetadata.bodyLocation;
+if (bodyLocation) {
+   const body = await fileClient.getAttachedFileUrl({
+        attachment: bodyLocation,
+        activeContactId: inboundContactId,
+   });
+   
+   const { downloadUrl } = body;
+   const response = await fetch(downloadUrl, { method: "GET" });
+   const bodyContent = (await response.json()).messageContent;
+}
+```
+ 
+Details of an email contact are retrieved via [`getEmailData`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts#L31).
+ 
+See the [EmailContact](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/types.ts#L1) type for additional properties returned from `getEmailData()` 
+ 
+#### IMPORTANT NOTES
+1. `getEmailData()` requires an `activeContactId` in addition to the contactId of the contact you wish to describe. `activeContactId` will be the contact that is actively being handled *in the context of that email / email thread*.
+1. The `EmailContact` object may contain `bodyLocation` and `attachmentLocations`, both of which will require use of the [FileClient](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/file/src/file-client.ts#L14)’s [getAttachedFileUrl()](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/file/src/file-client.ts#L75) to get the relevant data for those objects.
+ 
+### Action and Subscription methods for email contacts via Streams API
+ 
+In addition to the EmailClient methods, the existing Contact + Connection API action and event subscription methods should be used to manage the email contact lifecycle.
+ 
+| Use Case   | Streams method | AmazonConnectSDK method |
+| -------- | ------- | ------- |
+| Subscribe to the event fired when an email contact is connecting (when the contact comes in, before accepting) | `contact.onConnecting()`|
+| Accept an inbound email contact | `contact.accept()`|
+| Subscribe to the event fired when an email contact is accepted | `contact.onAccepted()`| [EmailClient.onAcceptedEmail()](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts#L90C3-L90C18) |
+| Subscribe to the event fired when a new inbound email contact is connected (after the contact has been accepted)  | `contact.onConnected()` |
+| Subscribe to the event fired when a new draft email contact is created | `contact.onConnected()` | [EmailClient.onDraftEmailCreated()](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts#L123) |
+| Subscribe to the event fired when an email contact has been sent successfully |`contact.onACW()` or `contact.onEnded()`|
+| Discard a draft email contact | `connection.destroy()` |
+| Subscribe to the event fired when a draft email is discarded | `contact.onDestroy()`|
+| End an inbound email contact an agent is viewing (transition email contact to ACW state) | `connection.destroy()`|
+| Subscribe to the event fired when an inbound email contact transitions to ACW state |`contact.onACW()` or `contact.onEnded()`|
+| Clear an email contact that is in ACW state | `contact.clear() `|
+| Subscribe to the event fired when an email contact's ACW state is cleared | `contact.onDestroy()`|
+| Transfer an email contact (**cannot transfer draft email contacts**) | `contact.transfer()`|
+| Reject an inbound email contact | `contact.reject()` |
+| Subscribe to the event fired when an email contact is rejected | `contact.onMissed()` or `contact.onEnded()` |
+ 
+ 
+ 
+### Useful methods to use in Streams API when handling email contacts
+ 
+| Use Case | Method |
+| -------- | ------- |
+| Get the email address the end customer sent the email to  | `contact.getConnectSystemEndpoint()` |
+| Get the email address the end customer sent the email from | `contact.getCustomerEndpoint()` |
+| Get the contact association id of a contact (use this when calling `EmailClient.getEmailThread`) | `contact.getContactAssociationId()`|
+| Get the initiation method of the email contact (see `connect.ContactInitiationMethod`) | `contact.getInitiationMethod()`| 
+| Get system defined key-value pairs stored on a contact segment; includes `connect:Subtype`, `connect:Direction` and for non-draft email contacts, `connect:EmailSubject`| `contact.getSegmentAttributes()` |
+ 
+### To integrate Attached Files, Message Templates and Quick Responses with your Email contact handling experience, please read the [Amazon Connect SDK API Reference](https://docs.aws.amazon.com/agentworkspace/latest/devguide/api-reference-3p-apps-events-and-requests.html)
+
 ## Utility Functions
 ### `Endpoint.byPhoneNumber()` (static function)
 ```js
-var endpoint = Endpoint.byPhoneNumber("+18005550100");
+var endpoint = Endpoint.byPhoneNumber('+18005550100');
 ```
 Creates an `Endpoint` object for the given phone number, useful for `agent.connect()` and
 `contact.addConnection()` calls.
@@ -2299,10 +2511,11 @@ An enumeration listing the different states that a connection can have.
 ### `ContactType`
 This enumeration lists all of the contact types supported by Connect Streams.
 
-* `ContactType.VOICE`: Normal incoming and outgoing voice calls.
-* `ContactType.QUEUE_CALLBACK`: Special outbound voice calls which are routed to agents before being placed. For more information about how to setup and use queued callbacks, see the Amazon Connect user documentation.
-* `ContactType.CHAT`: Chat contact.
-* `ContactType.TASK`: Task contact.
+- `ContactType.VOICE`: Normal incoming and outgoing voice calls.
+- `ContactType.QUEUE_CALLBACK`: Special outbound voice calls which are routed to agents before being placed. For more information about how to setup and use queued callbacks, see the Amazon Connect user documentation.
+- `ContactType.CHAT`: Chat contact.
+- `ContactType.TASK`: Task contact.
+- `ContactType.EMAIL`: Email contact.
 
 ### `EventType`
 This is a list of some of the special event types which are published into the low-level
