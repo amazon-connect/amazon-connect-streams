@@ -359,8 +359,8 @@ describe('Global Resiliency', function () {
             assert.isTrue(connect.core.keepaliveManager !== null);
             assert.isTrue(checkClient !== null);
             assert.isTrue(checkMasterClient !== null);
-            assert.isTrue(connect.core.agentDataProvider !== null);
-            sinon.assert.calledWithExactly(fakeGrProxyConduit.getActiveConduit().sendUpstream, connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
+            assert.isTrue(connect.core.agentDataProvider == null);
+            // sinon.assert.calledWithExactly(fakeGrProxyConduit.getActiveConduit().sendUpstream, connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
             assert.isTrue(connect.core.mediaFactory !== null);
 
             assert.isTrue(connect.core._showIframe.calledOnce);
@@ -393,6 +393,7 @@ describe('Global Resiliency', function () {
            assert.isTrue(didSwitch);
 
            assert.isTrue(connect.globalResiliency._initializeActiveRegion.calledOnce);
+           assert.isUndefined(connect.core.agentDataProviderBackup);
         });
 
         it("Switch active region only triggers once", function () {
@@ -565,6 +566,51 @@ describe('Global Resiliency', function () {
             connect.core._allowSoftphonePersistentConnection = null;
 
             assert.isTrue(connect.core.softphoneManager._initiateRtcPeerConnectionManager.calledOnce);
+        });
+
+        it("should create an agent data provider if none is created yet", function () {
+            const fakeGrProxyConduit = {
+                setActiveConduit: sinon.stub(),
+                getActiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
+                getInactiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
+            };
+
+            const region = 'us-east-1';
+
+            const oldClient = connect.core.client;
+            const oldMasterClient = connect.core.masterClient;
+
+            connect.globalResiliency._initializeActiveRegion(fakeGrProxyConduit, region);
+
+            // Need to reset these or softphone unit test will fail due to missing client
+            connect.core.masterClient = oldMasterClient;
+            connect.core.client = oldClient;
+
+            assert.isDefined(connect.core.agentDataProvider);
+        });
+
+        it("should create a backup agent data provider if one is already created", function () {
+            const fakeGrProxyConduit = {
+                setActiveConduit: sinon.stub(),
+                getActiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
+                getInactiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
+            };
+
+            const region = 'us-east-1';
+
+            const oldClient = connect.core.client;
+            const oldMasterClient = connect.core.masterClient;
+            const providerMock = new connect.core.AgentDataProvider(connect.core.getEventBus());
+            connect.core.agentDataProvider = providerMock;
+
+            connect.globalResiliency._initializeActiveRegion(fakeGrProxyConduit, region);
+
+            // Need to reset these or softphone unit test will fail due to missing client
+            connect.core.masterClient = oldMasterClient;
+            connect.core.client = oldClient;
+
+            expect(connect.core.agentDataProvider).to.equal(providerMock);
+            assert.isDefined(connect.core.agentDataProviderBackup);
         });
     });
 });
