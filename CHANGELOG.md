@@ -1,5 +1,12 @@
 # CHANGELOG.md
 
+## [2.18.4] - 2025-05-30
+Added:
+- Made change to address issue getting certain information during or immediately after a CCP Global Resiliency failover.
+- Add getContactAssociationId API.
+- Documentation updates for Email.
+- Mark agent.getState() as deprecated.
+
 ## [2.18.3] - 2025-05-21
 - Update the release artifacts with the correct version number
 

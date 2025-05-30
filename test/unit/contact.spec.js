@@ -182,6 +182,11 @@ describe('Contact APIs', () => {
       expect(result).to.equal("TEST_RELATED_CONTACT_ID");
     });
 
+    it('getContactAssociationId should return contact association id if it exists', () => {
+      const result = contact.getContactAssociationId();
+      expect(result).to.equal("123");
+    });
+
     it('getCustomerEndpoint should return customer endpoint info', () => {
       const result = contact.getCustomerEndpoint();
       expect(result).to.equal(sampleContactData.customerEndpoint);
