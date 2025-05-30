@@ -990,6 +990,10 @@
     return this._getData().relatedContactId;
   };
 
+  Contact.prototype.getContactAssociationId = function () {
+    return this._getData().contactAssociationId;
+  }
+
   Contact.prototype.getCustomerEndpoint = function () {
     return this._getData().customerEndpoint;
   }

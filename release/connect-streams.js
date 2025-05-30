@@ -3035,6 +3035,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   Contact.prototype.getRelatedContactId = function () {
     return this._getData().relatedContactId;
   };
+  Contact.prototype.getContactAssociationId = function () {
+    return this._getData().contactAssociationId;
+  };
   Contact.prototype.getCustomerEndpoint = function () {
     return this._getData().customerEndpoint;
   };
