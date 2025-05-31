@@ -84,6 +84,7 @@
     'connecting',
     'connected',
     'hold',
+    'rejected',
     'disconnected',
     'silent_monitor',
     'barge'
@@ -94,6 +95,7 @@
     connect.ConnectionStateType.CONNECTING,
     connect.ConnectionStateType.CONNECTED,
     connect.ConnectionStateType.HOLD,
+    connect.ConnectionStateType.REJECTED,
     connect.ConnectionStateType.SILENT_MONITOR,
     connect.ConnectionStateType.BARGE
   ]);
