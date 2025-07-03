@@ -918,6 +918,9 @@ declare namespace connect {
 
     /** Task contact. */
     TASK = "task",
+
+    /** Email contact. */
+    EMAIL = "email",
   }
 
     /** This enumeration lists the different types of VDI Platform supported. */
