@@ -1480,6 +1480,10 @@ declare namespace connect {
     readonly state: string;
     /** Date indicating when the agent went into the current state. */
     readonly timeStamp: Date;
+    /** The agent state ARN. */
+    agentStateARN: string;
+    /** The agent state type. */
+    type: string;
   }
 
   /** An object containing the current Agent state. */
