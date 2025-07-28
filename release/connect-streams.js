@@ -9147,7 +9147,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.18.3";
+  connect.version = "2.18.5";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
@@ -10257,6 +10257,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         connect.core.portStreamId = data.id;
         this.unsubscribe();
       });
+
       // Add all upstream log entries to our own logger.
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
         if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
@@ -10375,6 +10376,23 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       });
     } catch (e) {
       connect.getLog().error("[Tab Id] There was an issue setting the tab Id").withException(e).sendInternalLogToServer();
+    }
+  };
+  connect.core.setupAuthenticationEventHandlers = function (params, containerDiv, conduit) {
+    var _params$loginOptions;
+    connect.core.loginAckTimeoutSub = connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
+      connect.getLog().warn("ACK_TIMEOUT occurred. Attempting to authenticate.").sendInternalLogToServer();
+      connect.core.authenticate(params, containerDiv, conduit);
+    });
+    if (!((_params$loginOptions = params.loginOptions) !== null && _params$loginOptions !== void 0 && _params$loginOptions.enableAckTimer)) {
+      connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
+        connect.getLog().warn("TERMINATED occurred. Attempting to authenticate.").sendInternalLogToServer();
+        connect.core.authenticate(params, containerDiv, conduit);
+      });
+      connect.core.getEventBus().subscribe(connect.EventType.AUTH_FAIL, function () {
+        connect.getLog().warn("AUTH_FAIL occurred. Attempting to authenticate.").sendInternalLogToServer();
+        connect.core.authenticate(params, containerDiv, conduit);
+      });
     }
   };
   /**-------------------------------------------------------------------------
@@ -10530,22 +10548,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       // Once we receive the first ACK, setup our upstream API client and establish
       // the SYN/ACK refresh flow.
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
+        var _params$loginOptions2;
         connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
         connect.core.client = new connect.UpstreamConduitClient(conduit);
         connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
         connect.core.portStreamId = data.id;
-        if (params.softphone || params.chat || params.task || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
-          // Send configuration up to the CCP.
-          //set it to false if secondary
-          conduit.sendUpstream(connect.EventType.CONFIGURE, {
-            softphone: params.softphone,
-            chat: params.chat,
-            task: params.task,
-            pageOptions: params.pageOptions,
-            shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
-            disasterRecoveryOn: params.disasterRecoveryOn
-          });
-        }
+        connect.core.sendConfigure(params, conduit, false);
+        connect.core.listenForConfigureRequest(params, conduit, false); // failsafe for abnormal ccp refresh
 
         // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
         if (params.disasterRecoveryOn) {
@@ -10563,7 +10572,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, {
           streamsVersion: connect.version
         });
-        connect.core.keepaliveManager.start();
+        if ((_params$loginOptions2 = params.loginOptions) !== null && _params$loginOptions2 !== void 0 && _params$loginOptions2.enableAckTimer) {
+          // this will generate ACK_TIMEOUT events after the initial login
+          connect.core.keepaliveManager.start();
+        }
         this.unsubscribe();
         connect.core.initialized = true;
         connect.core.getEventBus().trigger(connect.EventType.INIT);
@@ -10627,36 +10639,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
         }
       });
-
-      // Pop a login page when we encounter an ACK timeout.
-      connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
-        // loginPopup is true by default, only false if explicitly set to false.
-        if (params.loginPopup !== false) {
-          try {
-            var loginUrl = getLoginUrl(params);
-            connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
-            connect.core._openPopupWithLock(loginUrl, params.loginOptions);
-          } catch (e) {
-            connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
-          }
-        }
-        if (connect.core.iframeRefreshTimeout == null) {
-          try {
-            conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-              this.unsubscribe();
-              global.clearTimeout(connect.core.iframeRefreshTimeout);
-              connect.core.iframeRefreshTimeout = null;
-              if ((params.loginPopupAutoClose || params.loginOptions && params.loginOptions.autoClose) && connect.core.loginWindow) {
-                connect.core.loginWindow.close();
-                connect.core.loginWindow = null;
-              }
-            });
-            connect.core._refreshIframeOnTimeout(params, containerDiv);
-          } catch (e) {
-            connect.getLog().error("Error occurred while refreshing iframe").withException(e).sendInternalLogToServer();
-          }
-        }
-      });
+      connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
       if (params.onViewContact) {
         connect.core.onViewContact(params.onViewContact);
       }
@@ -10896,6 +10879,41 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       };
       conduit.sendUpstream(connect.EventType.IFRAME_STYLE, data);
     }, 10000);
+  };
+
+  // Open login popup and refresh the iframe until the user is logged in.
+  connect.core.authenticate = function (params, containerDiv, conduit) {
+    if (params.loginPopup !== false) {
+      try {
+        var loginUrl = getLoginUrl(params);
+        connect.getLog().warn("Attempting to pop the login page if not already open.").sendInternalLogToServer();
+        // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
+        if (params.loginUrl) {
+          connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+        }
+        connect.core._openPopupWithLock(loginUrl, params.loginOptions);
+      } catch (e) {
+        connect.getLog().error("Unable to open the login popup.").withException(e).sendInternalLogToServer();
+      }
+    }
+    if (connect.core.iframeRefreshTimeout == null) {
+      try {
+        conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+          this.unsubscribe();
+          global.clearTimeout(connect.core.iframeRefreshTimeout);
+          connect.core.iframeRefreshTimeout = null;
+          connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+          if ((params.loginPopupAutoClose || params.loginOptions && params.loginOptions.autoClose) && connect.core.loginWindow) {
+            connect.core.loginWindow.close();
+            connect.core.loginWindow = null;
+          }
+        });
+        connect.core.iframeRefreshAttempt = 0;
+        connect.core._refreshIframeOnTimeout(params, containerDiv);
+      } catch (e) {
+        connect.getLog().error("Error occurred while refreshing iframe").withException(e).sendInternalLogToServer();
+      }
+    }
   };
   connect.core.getSDKClientConfig = function () {
     var _connect$core$_amazon2;
@@ -11499,6 +11517,36 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   /**-----------------------------------------------------------------------*/
+  connect.core.sendConfigure = function (params, conduit, isACGR) {
+    if (params.softphone || params.chat || params.task || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
+      var config = {
+        softphone: params.softphone,
+        chat: params.chat,
+        task: params.task,
+        pageOptions: params.pageOptions,
+        shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs
+      };
+      if (isACGR) {
+        // ACGR mode: add ACGR-specific params, exclude disasterRecoveryOn
+        config.enableGlobalResiliency = params.enableGlobalResiliency;
+        config.instanceState = connect.isActiveConduit(conduit) ? 'active' : 'inactive';
+      } else {
+        // Legacy mode: include disasterRecoveryOn param
+        config.disasterRecoveryOn = params.disasterRecoveryOn;
+      }
+      conduit.sendUpstream(connect.EventType.CONFIGURE, config);
+    }
+    ;
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.listenForConfigureRequest = function (params, conduit, isACGR) {
+    conduit.onUpstream(connect.EventType.REQUEST_CONFIGURE, function () {
+      connect.core.sendConfigure(params, conduit, isACGR);
+    });
+  };
+
+  /**-----------------------------------------------------------------------*/
   connect.core.getContactEventName = function (eventName, contactId) {
     connect.assertNotNull(eventName, 'eventName');
     connect.assertNotNull(contactId, 'contactId');
@@ -11671,7 +11719,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
    * enum EventType
    */
-  var EventType = connect.makeEnum(['acknowledge', 'ack_timeout', 'init', 'api_request', 'api_response', 'auth_fail', 'access_denied', 'close', 'configure', 'log', 'download_log_from_ccp', 'master_request', 'master_response', 'synchronize', 'terminate', 'terminated', 'send_logs', 'reload_agent_configuration', 'broadcast', 'api_metric', 'client_metric', 'softphone_stats', 'softphone_report', 'client_side_logs', 'server_bound_internal_log', 'mute', "iframe_style", "iframe_retries_exhausted", "update_connected_ccps", "outer_context_info", "media_device_request", "media_device_response", "tab_id", 'authorize_success', 'authorize_retries_exhausted', 'cti_authorize_retries_exhausted', 'click_stream_data', 'set_quick_get_agent_snapshot_flag', 'api_proxy_request', 'api_proxy_response']);
+  var EventType = connect.makeEnum(['acknowledge', 'ack_timeout', 'init', 'api_request', 'api_response', 'auth_fail', 'access_denied', 'close', 'configure', 'log', 'download_log_from_ccp', 'master_request', 'master_response', 'synchronize', 'terminate', 'terminated', 'send_logs', 'reload_agent_configuration', 'broadcast', 'api_metric', 'client_metric', 'softphone_stats', 'softphone_report', 'client_side_logs', 'server_bound_internal_log', 'mute', "iframe_style", "iframe_retries_exhausted", "update_connected_ccps", "outer_context_info", "media_device_request", "media_device_response", "tab_id", 'authorize_success', 'authorize_retries_exhausted', 'cti_authorize_retries_exhausted', 'click_stream_data', 'set_quick_get_agent_snapshot_flag', 'api_proxy_request', 'api_proxy_response', 'request_configure']);
 
   /**---------------------------------------------------------------
    * enum MasterTopics
@@ -11956,10 +12004,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.globalResiliency._initializeActiveRegion = function (grProxyConduit, region) {
     // agentDataProvider needs to be reinitialized in order to avoid side effects from the drastic agent snapshot change
     try {
-      var _connect$core$agentDa;
-      (_connect$core$agentDa = connect.core.agentDataProvider) === null || _connect$core$agentDa === void 0 || _connect$core$agentDa.destroy();
-      connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());
-      grProxyConduit.getActiveConduit().sendUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
+      if (region) {
+        var _connect$core$agentDa;
+        (_connect$core$agentDa = connect.core.agentDataProvider) === null || _connect$core$agentDa === void 0 || _connect$core$agentDa.destroy();
+        if (!connect.core.agentDataProvider) connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());else connect.core.agentDataProviderBackup = new connect.core.AgentDataProvider(connect.core.getEventBus());
+        grProxyConduit.getActiveConduit().sendUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
+      }
     } catch (e) {
       connect.getLog().error('[GR] There was an error reinitializing the agent data provider.').withException(e).sendInternalLogToServer();
       connect.publishMetric({
@@ -12145,7 +12195,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
     // After switching over, we need to grab the agent data of the new CCP
     grProxyConduit.onUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP, function (agentData) {
-      connect.core.getAgentDataProvider().updateAgentData(agentData);
+      if (connect.core.agentDataProviderBackup) {
+        connect.core.agentDataProviderBackup.updateAgentData(agentData);
+        connect.core.agentDataProvider = connect.core.agentDataProviderBackup;
+        connect.core.agentDataProviderBackup = null;
+      } else {
+        connect.core.agentDataProvider.updateAgentData(agentData);
+      }
       connect.getLog().info('[GR] Fetched agent data from CCP.').sendInternalLogToServer();
     });
 
@@ -12169,15 +12225,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     // Listen to the first ACK event sent from each conduit.
     grProxyConduit.getAllConduits().forEach(function (conduit) {
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
+        var _params$loginOptions;
         connect.getLog().info("Acknowledged by the CCP! ".concat(conduit.name)).sendInternalLogToServer();
-        conduit.sendUpstream(connect.EventType.CONFIGURE, {
-          softphone: params.softphone,
-          chat: params.chat,
-          pageOptions: params.pageOptions,
-          shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
-          enableGlobalResiliency: params.enableGlobalResiliency,
-          instanceState: connect.isActiveConduit(conduit) ? 'active' : 'inactive'
-        });
+        var isACGR = true;
+        connect.core.sendConfigure(params, conduit, isACGR);
+        connect.core.listenForConfigureRequest(params, conduit, isACGR); // fallback in case of abnormal CCP refresh
 
         // Clear the load timeout timer
         if (conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance) {
@@ -12190,9 +12242,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           streamsVersion: connect.version,
           initCCPParams: params
         });
-
-        // Start keepalive manager. Only active region's one can trigger ACK_TIMEOUT event
-        conduit.keepaliveManager.start();
+        if ((_params$loginOptions = params.loginOptions) !== null && _params$loginOptions !== void 0 && _params$loginOptions.enableAckTimer) {
+          // if enableAckTimer, start the keepalive manger to enable ACK_TIMEOUTS for logout and auth session expiration
+          // otherwise detect logout and auth session expiration through TERMINATED and AUTH_FAIL events
+          connect.core.keepaliveManager.start();
+        }
         if (connect.isActiveConduit(conduit)) {
           // Only active conduit initialize these since we only need one instance
           connect.core.client = new connect.UpstreamConduitClient(conduit);

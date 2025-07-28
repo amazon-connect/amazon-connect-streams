@@ -23,9 +23,13 @@
   connect.globalResiliency._initializeActiveRegion = function (grProxyConduit, region) {
     // agentDataProvider needs to be reinitialized in order to avoid side effects from the drastic agent snapshot change
     try {
-      connect.core.agentDataProvider?.destroy();
-      connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());
-      grProxyConduit.getActiveConduit().sendUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
+      if (region) {
+        connect.core.agentDataProvider?.destroy();
+        if (!connect.core.agentDataProvider)
+          connect.core.agentDataProvider = new connect.core.AgentDataProvider(connect.core.getEventBus());
+        else connect.core.agentDataProviderBackup = new connect.core.AgentDataProvider(connect.core.getEventBus());
+        grProxyConduit.getActiveConduit().sendUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
+      }
     } catch (e) {
       connect
         .getLog()
@@ -288,7 +292,13 @@
 
     // After switching over, we need to grab the agent data of the new CCP
     grProxyConduit.onUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP, (agentData) => {
-      connect.core.getAgentDataProvider().updateAgentData(agentData);
+      if (connect.core.agentDataProviderBackup) {
+        connect.core.agentDataProviderBackup.updateAgentData(agentData);
+        connect.core.agentDataProvider = connect.core.agentDataProviderBackup;
+        connect.core.agentDataProviderBackup = null;
+      } else {
+        connect.core.agentDataProvider.updateAgentData(agentData);
+      }
       connect.getLog().info('[GR] Fetched agent data from CCP.').sendInternalLogToServer();
     });
 
@@ -317,14 +327,9 @@
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
         connect.getLog().info(`Acknowledged by the CCP! ${conduit.name}`).sendInternalLogToServer();
 
-        conduit.sendUpstream(connect.EventType.CONFIGURE, {
-          softphone: params.softphone,
-          chat: params.chat,
-          pageOptions: params.pageOptions,
-          shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
-          enableGlobalResiliency: params.enableGlobalResiliency,
-          instanceState: connect.isActiveConduit(conduit) ? 'active' : 'inactive',
-        });
+        const isACGR = true;
+        connect.core.sendConfigure(params, conduit, isACGR);
+        connect.core.listenForConfigureRequest(params, conduit, isACGR); // fallback in case of abnormal CCP refresh
 
         // Clear the load timeout timer
         if (conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance) {
@@ -338,8 +343,11 @@
           initCCPParams: params,
         });
 
-        // Start keepalive manager. Only active region's one can trigger ACK_TIMEOUT event
-        conduit.keepaliveManager.start();
+        if (params.loginOptions?.enableAckTimer) {
+          // if enableAckTimer, start the keepalive manger to enable ACK_TIMEOUTS for logout and auth session expiration
+          // otherwise detect logout and auth session expiration through TERMINATED and AUTH_FAIL events
+          connect.core.keepaliveManager.start();
+        }
 
         if (connect.isActiveConduit(conduit)) {
           // Only active conduit initialize these since we only need one instance

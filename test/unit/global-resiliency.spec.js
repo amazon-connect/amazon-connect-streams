@@ -178,6 +178,105 @@ describe('Global Resiliency', function () {
             assert.isTrue(containerDiv.appendChild.calledTwice);
         });
 
+        describe("ACGR sendConfigure and listenForConfigureRequest", function () {
+            beforeEach(function () {
+
+            });
+
+            it("should call sendConfigure with ACGR config when ACKNOWLEDGE handler is triggered directly", function () {
+                const fakeConduit = { 
+                    sendUpstream: sinon.stub(),
+                    name: 'test-conduit'
+                };
+                const params = {
+                    softphone: { allowFramedSoftphone: true },
+                    chat: { enabled: true },
+                    task: { enabled: false },
+                    pageOptions: { enableAudioDeviceSettings: true },
+                    shouldAddNamespaceToLogs: true,
+                    enableGlobalResiliency: true
+                };
+
+                sandbox.stub(connect, "isActiveConduit").returns(true);
+                sandbox.stub(connect.core, 'listenForConfigureRequest');
+
+                const isACGR = true;
+                connect.core.sendConfigure(params, fakeConduit, isACGR);
+
+                sinon.assert.calledWith(fakeConduit.sendUpstream, connect.EventType.CONFIGURE, {
+                    softphone: params.softphone,
+                    chat: params.chat,
+                    task: params.task,
+                    pageOptions: params.pageOptions,
+                    shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
+                    enableGlobalResiliency: params.enableGlobalResiliency,
+                    instanceState: 'active'
+                });
+            });
+
+            it("should call sendConfigure with inactive instanceState for inactive conduit", function () {
+                const fakeConduit = { 
+                    sendUpstream: sinon.stub(),
+                    name: 'inactive-conduit'
+                };
+                const params = {
+                    softphone: { allowFramedSoftphone: true },
+                    enableGlobalResiliency: true
+                };
+
+                sandbox.stub(connect, "isActiveConduit").returns(false);
+
+                const isACGR = true;
+                connect.core.sendConfigure(params, fakeConduit, isACGR);
+
+                sinon.assert.calledWith(fakeConduit.sendUpstream, connect.EventType.CONFIGURE, 
+                    sinon.match({
+                        enableGlobalResiliency: params.enableGlobalResiliency,
+                        instanceState: 'inactive'
+                    })
+                );
+            });
+
+            it("should exclude disasterRecoveryOn when isACGR is true", function () {
+                const fakeConduit = { 
+                    sendUpstream: sinon.stub(),
+                    name: 'test-conduit'
+                };
+                const params = {
+                    softphone: { allowFramedSoftphone: true },
+                    disasterRecoveryOn: true,
+                    enableGlobalResiliency: true
+                };
+
+                sandbox.stub(connect, "isActiveConduit").returns(true);
+
+                connect.core.sendConfigure(params, fakeConduit, true);
+
+                const configCall = fakeConduit.sendUpstream.getCall(0);
+                assert.isUndefined(configCall.args[1].disasterRecoveryOn);
+                assert.isDefined(configCall.args[1].enableGlobalResiliency);
+                assert.isDefined(configCall.args[1].instanceState);
+            });
+
+            it("should include disasterRecoveryOn when isACGR is false", function () {
+                const fakeConduit = { 
+                    sendUpstream: sinon.stub(),
+                    name: 'test-conduit'
+                };
+                const params = {
+                    softphone: { allowFramedSoftphone: true },
+                    disasterRecoveryOn: true
+                };
+
+                connect.core.sendConfigure(params, fakeConduit, false);
+
+                const configCall = fakeConduit.sendUpstream.getCall(0);
+                assert.isDefined(configCall.args[1].disasterRecoveryOn);
+                assert.isUndefined(configCall.args[1].enableGlobalResiliency);
+                assert.isUndefined(configCall.args[1].instanceState);
+            });
+        });
+
         it("Check conduit settings", function () {
             const fakeIframe = { isIframe: true };
             const fakeActiveConduit = { keepalivemanager: 0, sendUpstream: sinon.stub(), onUpstream: sinon.stub(), iframe: fakeIframe };
@@ -359,8 +458,8 @@ describe('Global Resiliency', function () {
             assert.isTrue(connect.core.keepaliveManager !== null);
             assert.isTrue(checkClient !== null);
             assert.isTrue(checkMasterClient !== null);
-            assert.isTrue(connect.core.agentDataProvider !== null);
-            sinon.assert.calledWithExactly(fakeGrProxyConduit.getActiveConduit().sendUpstream, connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
+            assert.isTrue(connect.core.agentDataProvider == null);
+            // sinon.assert.calledWithExactly(fakeGrProxyConduit.getActiveConduit().sendUpstream, connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP);
             assert.isTrue(connect.core.mediaFactory !== null);
 
             assert.isTrue(connect.core._showIframe.calledOnce);
@@ -393,6 +492,7 @@ describe('Global Resiliency', function () {
            assert.isTrue(didSwitch);
 
            assert.isTrue(connect.globalResiliency._initializeActiveRegion.calledOnce);
+           assert.isUndefined(connect.core.agentDataProviderBackup);
         });
 
         it("Switch active region only triggers once", function () {
@@ -565,6 +665,51 @@ describe('Global Resiliency', function () {
             connect.core._allowSoftphonePersistentConnection = null;
 
             assert.isTrue(connect.core.softphoneManager._initiateRtcPeerConnectionManager.calledOnce);
+        });
+
+        it("should create an agent data provider if none is created yet", function () {
+            const fakeGrProxyConduit = {
+                setActiveConduit: sinon.stub(),
+                getActiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
+                getInactiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
+            };
+
+            const region = 'us-east-1';
+
+            const oldClient = connect.core.client;
+            const oldMasterClient = connect.core.masterClient;
+
+            connect.globalResiliency._initializeActiveRegion(fakeGrProxyConduit, region);
+
+            // Need to reset these or softphone unit test will fail due to missing client
+            connect.core.masterClient = oldMasterClient;
+            connect.core.client = oldClient;
+
+            assert.isDefined(connect.core.agentDataProvider);
+        });
+
+        it("should create a backup agent data provider if one is already created", function () {
+            const fakeGrProxyConduit = {
+                setActiveConduit: sinon.stub(),
+                getActiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
+                getInactiveConduit: sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() }),
+            };
+
+            const region = 'us-east-1';
+
+            const oldClient = connect.core.client;
+            const oldMasterClient = connect.core.masterClient;
+            const providerMock = new connect.core.AgentDataProvider(connect.core.getEventBus());
+            connect.core.agentDataProvider = providerMock;
+
+            connect.globalResiliency._initializeActiveRegion(fakeGrProxyConduit, region);
+
+            // Need to reset these or softphone unit test will fail due to missing client
+            connect.core.masterClient = oldMasterClient;
+            connect.core.client = oldClient;
+
+            expect(connect.core.agentDataProvider).to.equal(providerMock);
+            assert.isDefined(connect.core.agentDataProviderBackup);
         });
     });
 });
