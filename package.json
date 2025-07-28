@@ -1,6 +1,10 @@
 {
   "name": "amazon-connect-streams",
+<<<<<<< HEAD
   "version": "2.18.4",
+=======
+  "version": "2.18.5",
+>>>>>>> 061b029 (deprecating ackTimeout and synTimeout. adding listener for CONFIGURE event resiliency)
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
@@ -39,9 +43,9 @@
   },
   "homepage": "https://github.com/amazon-connect/amazon-connect-streams#readme",
   "dependencies": {
-    "@amazon-connect/core": "1.0.5",
-    "@amazon-connect/site": "1.0.5",
-    "@amazon-connect/site-streams": "1.0.5"
+    "@amazon-connect/core": "1.0.7",
+    "@amazon-connect/site": "1.0.7",
+    "@amazon-connect/site-streams": "1.0.7"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.24.5",

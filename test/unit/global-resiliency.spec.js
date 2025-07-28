@@ -178,6 +178,105 @@ describe('Global Resiliency', function () {
             assert.isTrue(containerDiv.appendChild.calledTwice);
         });
 
+        describe("ACGR sendConfigure and listenForConfigureRequest", function () {
+            beforeEach(function () {
+
+            });
+
+            it("should call sendConfigure with ACGR config when ACKNOWLEDGE handler is triggered directly", function () {
+                const fakeConduit = { 
+                    sendUpstream: sinon.stub(),
+                    name: 'test-conduit'
+                };
+                const params = {
+                    softphone: { allowFramedSoftphone: true },
+                    chat: { enabled: true },
+                    task: { enabled: false },
+                    pageOptions: { enableAudioDeviceSettings: true },
+                    shouldAddNamespaceToLogs: true,
+                    enableGlobalResiliency: true
+                };
+
+                sandbox.stub(connect, "isActiveConduit").returns(true);
+                sandbox.stub(connect.core, 'listenForConfigureRequest');
+
+                const isACGR = true;
+                connect.core.sendConfigure(params, fakeConduit, isACGR);
+
+                sinon.assert.calledWith(fakeConduit.sendUpstream, connect.EventType.CONFIGURE, {
+                    softphone: params.softphone,
+                    chat: params.chat,
+                    task: params.task,
+                    pageOptions: params.pageOptions,
+                    shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
+                    enableGlobalResiliency: params.enableGlobalResiliency,
+                    instanceState: 'active'
+                });
+            });
+
+            it("should call sendConfigure with inactive instanceState for inactive conduit", function () {
+                const fakeConduit = { 
+                    sendUpstream: sinon.stub(),
+                    name: 'inactive-conduit'
+                };
+                const params = {
+                    softphone: { allowFramedSoftphone: true },
+                    enableGlobalResiliency: true
+                };
+
+                sandbox.stub(connect, "isActiveConduit").returns(false);
+
+                const isACGR = true;
+                connect.core.sendConfigure(params, fakeConduit, isACGR);
+
+                sinon.assert.calledWith(fakeConduit.sendUpstream, connect.EventType.CONFIGURE, 
+                    sinon.match({
+                        enableGlobalResiliency: params.enableGlobalResiliency,
+                        instanceState: 'inactive'
+                    })
+                );
+            });
+
+            it("should exclude disasterRecoveryOn when isACGR is true", function () {
+                const fakeConduit = { 
+                    sendUpstream: sinon.stub(),
+                    name: 'test-conduit'
+                };
+                const params = {
+                    softphone: { allowFramedSoftphone: true },
+                    disasterRecoveryOn: true,
+                    enableGlobalResiliency: true
+                };
+
+                sandbox.stub(connect, "isActiveConduit").returns(true);
+
+                connect.core.sendConfigure(params, fakeConduit, true);
+
+                const configCall = fakeConduit.sendUpstream.getCall(0);
+                assert.isUndefined(configCall.args[1].disasterRecoveryOn);
+                assert.isDefined(configCall.args[1].enableGlobalResiliency);
+                assert.isDefined(configCall.args[1].instanceState);
+            });
+
+            it("should include disasterRecoveryOn when isACGR is false", function () {
+                const fakeConduit = { 
+                    sendUpstream: sinon.stub(),
+                    name: 'test-conduit'
+                };
+                const params = {
+                    softphone: { allowFramedSoftphone: true },
+                    disasterRecoveryOn: true
+                };
+
+                connect.core.sendConfigure(params, fakeConduit, false);
+
+                const configCall = fakeConduit.sendUpstream.getCall(0);
+                assert.isDefined(configCall.args[1].disasterRecoveryOn);
+                assert.isUndefined(configCall.args[1].enableGlobalResiliency);
+                assert.isUndefined(configCall.args[1].instanceState);
+            });
+        });
+
         it("Check conduit settings", function () {
             const fakeIframe = { isIframe: true };
             const fakeActiveConduit = { keepalivemanager: 0, sendUpstream: sinon.stub(), onUpstream: sinon.stub(), iframe: fakeIframe };
