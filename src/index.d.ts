@@ -1101,6 +1101,9 @@ declare namespace connect {
   interface ConnectOptions extends SuccessFailOptions {
     /** The queue ARN to associate the contact with. */
     readonly queueARN?: string;
+
+    /** The related contact ID for linking contacts. */
+    readonly relatedContactId?: string;
   }
 
   interface AgentSetStateOptions {
