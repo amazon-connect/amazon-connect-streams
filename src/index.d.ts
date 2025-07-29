@@ -46,6 +46,26 @@ declare namespace connect {
   type SoftphoneErrorCallback = (error: SoftphoneError) => void;
 
   /**
+   * A callback to receive softphone session initialization events.
+   *
+   * @param session The softphone session object.
+   */
+  type SoftphoneSessionCallback = (session: unknown) => void;
+
+  /**
+   * WebSocket manager interface for chat integration.
+   */
+  interface WebSocketManager {
+    connect(): void;
+    disconnect(): void;
+    send(message: unknown): void;
+    onMessage(callback: (message: unknown) => void): void;
+    onOpen(callback: () => void): void;
+    onClose(callback: () => void): void;
+    onError(callback: (error: Error) => void): void;
+  }
+
+  /**
    * Subscribe a method to be called when the agent is initialized.
    * If the agent has already been initialized, the call is synchronous and the callback is invoked immediately.
    * Otherwise, the callback is invoked once the first agent data is received from upstream.
@@ -104,7 +124,7 @@ declare namespace connect {
   type StorageAccessCallbackData = {
     data: {
       hasAccess?: boolean;
-      [key: string]: any;
+      [key: string]: unknown;
     },
     event: string
   }
@@ -123,6 +143,23 @@ declare namespace connect {
 
   const storageAccess: StorageAccess;
 
+  /**
+   * EventBus interface for handling events and subscriptions
+   */
+  interface EventBus {
+    /** Subscribe to an event with a callback function */
+    subscribe(eventName: string, callback: Function): Subscription;
+    
+    /** Subscribe to all events with a callback function */
+    subscribeAll(callback: Function): Subscription;
+    
+    /** Trigger an event with optional data */
+    trigger(eventName: string, data?: unknown): void;
+    
+    /** Unsubscribe all listeners */
+    unsubscribeAll(): void;
+  }
+
   interface Core {
     /**
      * Integrates with Amazon Connect by loading the pre-built CCP located at `ccpUrl` into an iframe and placing it into the `container` provided.
@@ -132,6 +169,12 @@ declare namespace connect {
      * @param options The CCP init options.
      */
     initCCP(container: HTMLElement, options: InitCCPOptions): void;
+
+    /**
+     * Gets the global event bus for subscribing to and triggering events.
+     * This is the main event system used throughout Amazon Connect Streams.
+     */
+    getEventBus(): EventBus;
 
     /**
      * Subscribes a callback function to be called when the agent authorization api succeeds.
@@ -204,7 +247,7 @@ declare namespace connect {
      * Gets the `WebSocket` manager.
      * This method is only used when integrating with `amazon-connect-chatjs`.
      */
-    getWebSocketManager(): any;
+    getWebSocketManager(): WebSocketManager;
 
     /**
      * Subscribes a callback that starts whenever a new webrtc session is created. Used for handling the rtc session stats.
@@ -212,21 +255,21 @@ declare namespace connect {
      *
      * @param callback A callback that will start whenever a new webrtc session is created.
      */
-    onSoftphoneSessionInit(callback: Function): Subscription;
+    onSoftphoneSessionInit(callback: SoftphoneSessionCallback): Subscription;
 
     /**
      * Subscribes a callback that executes when the CCP initialization is completed.
      *
      * @param callback A callback that will execute when the CCP initialization is completed.
      */
-    onInitialized(callback: Function): Subscription;
+    onInitialized(callback: Callback): Subscription;
 
     /**
     * Returns a promise that is resolved with the list of media devices from iframe.
     *
     * @param timeout A timeout for the request in milliseconds.
     */
-    getFrameMediaDevices(timeout: Number): Promise<any[]>;
+    getFrameMediaDevices(timeout: number): Promise<MediaDeviceInfo[]>;
 
     /**
      * Global upstream conduit for external use.
@@ -238,7 +281,7 @@ declare namespace connect {
      * Configuration to be passed to SDK Client
      *
      */
-    getSDKClientConfig(): { provider: any };
+    getSDKClientConfig(): { provider: unknown };
   }
 
   interface GlobalResiliency {
@@ -755,6 +798,7 @@ declare namespace connect {
     DEFAULT = "Default",
     FAILED_CONNECT_AGENT = "FailedConnectAgent",
     FAILED_CONNECT_CUSTOMER = "FailedConnectCustomer",
+    INVALID_LOCALE = "InvalidLocale",
     LINE_ENGAGED_AGENT = "LineEngagedAgent",
     LINE_ENGAGED_CUSTOMER = "LineEngagedCustomer",
     MISSED_CALL_AGENT = "MissedCallAgent",
@@ -946,6 +990,7 @@ declare namespace connect {
     SOFTPHONE = "softphone",
     CHAT = "chat",
     TASK = "task",
+    EMAIL = "email",
   }
 
   enum SoftphoneCallType {
@@ -1007,6 +1052,27 @@ declare namespace connect {
     SEND = "SEND"
   }
 
+  enum ContactInitiationMethod {
+    INBOUND = "inbound",
+    OUTBOUND = "outbound",
+    TRANSFER = "transfer",
+    QUEUE_TRANSFER = "queue_transfer",
+    CALLBACK = "callback",
+    API = "api",
+    DISCONNECT = "disconnect",
+    WEBRTC_API = "webrtc_api",
+    AGENT_REPLY = "agent_reply",
+  }
+
+  enum MonitoringErrorTypes {
+    INVALID_TARGET_STATE = "invalid_target_state",
+  }
+
+  interface AgentPermissions {
+    OUTBOUND_CALL: "outboundCall";
+    VOICE_ID: "voiceId";
+  }
+
   /*
    * A callback to receive notifications of success or failure.
    */
@@ -1035,6 +1101,9 @@ declare namespace connect {
   interface ConnectOptions extends SuccessFailOptions {
     /** The queue ARN to associate the contact with. */
     readonly queueARN?: string;
+
+    /** The related contact ID for linking contacts. */
+    readonly relatedContactId?: string;
   }
 
   interface AgentSetStateOptions {
@@ -1473,13 +1542,19 @@ declare namespace connect {
   }
 
   /**
-   * An object containing the current Agent state
+   * An object containing the current Agent availability state
    */
   interface AgentAvailabilityState {
-    /** The name of the agent's actual state. */
+    /** The name of the agent's actual availability state. */
     readonly state: string;
     /** Date indicating when the agent went into the current state. */
     readonly timeStamp: Date;
+    /** The agent availability state type, as per the `AgentStateType` enumeration. */
+    readonly type: AgentStateType;
+    /** The agent state ARN. */
+    readonly agentStateARN?: string;
+    /** Indicates when the state was set (start timestamp). */
+    readonly startTimestamp?: Date;
   }
 
   /** An object containing the current Agent state. */
@@ -1778,6 +1853,27 @@ declare namespace connect {
 
     /** Get references for the contact. */
     getReferences(): ReferenceDictionary;
+
+    /** Get the duration of the contact in milliseconds. */
+    getContactDuration(): number;
+
+    /** Get the initiation method for the contact. */
+    getInitiationMethod(): ContactInitiationMethod;
+
+    /** Get the contact metadata. */
+    getContactMetadata(): any;
+
+    /** Get the related contact ID. */
+    getRelatedContactId(): string | null;
+
+    /** Get the contact association ID. */
+    getContactAssociationId(): string | null;
+
+    /** Get the customer endpoint. */
+    getCustomerEndpoint(): Endpoint | null;
+
+    /** Get the Connect system endpoint. */
+    getConnectSystemEndpoint(): Endpoint | null;
 
     /**
      * Get the duration of the contact state in milliseconds relative to local time.
@@ -2561,5 +2657,103 @@ declare namespace connect {
   interface Subscription {
     /** Unsubscribe your callback function from the event */
     unsubscribe: Function;
+  }
+
+  // Stream Infrastructure Types
+  interface StreamMessage {
+    event?: string;
+    data?: unknown;
+    [key: string]: unknown;
+  }
+
+  type StreamMessageHandler = (message: MessageEvent<StreamMessage>) => void;
+  type StreamEventHandler = (data: unknown, eventName?: string) => void;
+
+  // Stream Infrastructure Classes
+  abstract class Stream {
+    /** Send a message to the stream. Must be implemented by subclasses. */
+    abstract send(message: StreamMessage): void;
+    
+    /** Provide a method to be called when messages are received from this stream. Must be implemented by subclasses. */
+    abstract onMessage(f: StreamMessageHandler): void;
+  }
+
+  class NullStream extends Stream {
+    onMessage(f: StreamMessageHandler): void;
+    send(message: StreamMessage): void;
+  }
+
+  class WindowStream extends Stream {
+    constructor(win: Window, domain?: string);
+    send(message: StreamMessage): void;
+    onMessage(f: StreamMessageHandler): void;
+  }
+
+  class WindowIOStream extends Stream {
+    constructor(inputwin: Window, outputwin: Window, domain?: string);
+    send(message: StreamMessage): void;
+    onMessage(f: StreamMessageHandler): void;
+  }
+
+  class PortStream extends Stream {
+    constructor(port: MessagePort);
+    send(message: StreamMessage): void;
+    onMessage(f: StreamMessageHandler): void;
+    getId(): string;
+  }
+
+  class StreamMultiplexer extends Stream {
+    constructor(streams?: Stream[]);
+    send(message: StreamMessage): void;
+    onMessage(f: StreamMessageHandler): void;
+    addStream(stream: Stream): void;
+    removeStream(stream: Stream): void;
+    getStreams(): Stream[];
+    getStreamForPort(port: MessagePort): Stream | null;
+  }
+
+  class Conduit {
+    constructor(name: string, upstream?: Stream, downstream?: Stream);
+    onUpstream(eventName: string, f: StreamEventHandler): Subscription;
+    onAllUpstream(f: StreamEventHandler): Subscription;
+    onDownstream(eventName: string, f: StreamEventHandler): Subscription;
+    onAllDownstream(f: StreamEventHandler): Subscription;
+    sendUpstream(eventName: string, data?: unknown): void;
+    sendDownstream(eventName: string, data?: unknown): void;
+    passUpstream(): StreamEventHandler;
+    passDownstream(): StreamEventHandler;
+    shutdown(): void;
+    setActive(): void;
+    setInactive(): void;
+  }
+
+  class IFrameConduit extends Conduit {
+    constructor(name: string, window: Window, iframe: HTMLIFrameElement, domain?: string);
+  }
+
+  class GRProxyIframeConduit {
+    constructor(window: Window, iframes: HTMLIFrameElement[], defaultActiveCCPUrl: string);
+    onUpstream(eventName: string, f: StreamEventHandler): Subscription;
+    onAllUpstream(f: StreamEventHandler): Subscription;
+    onDownstream(eventName: string, f: StreamEventHandler): Subscription;
+    onAllDownstream(f: StreamEventHandler): Subscription;
+    sendUpstream(eventName: string, data?: unknown): void;
+    sendDownstream(eventName: string, data?: unknown): void;
+    relayUpstream(eventName: string): void;
+    getAllConduits(): Conduit[];
+    setActiveConduit(activeRegionUrl: string): void;
+    getActiveConduit(): Conduit;
+    getInactiveConduit(): Conduit;
+    getOtherConduit(conduit: Conduit): Conduit;
+    getConduitByRegion(region: string): Conduit | undefined;
+    getConduitByName(name: string): Conduit | undefined;
+  }
+
+  /**
+   * The EmailConnection API provides action methods (no event subscriptions) which can be called to manipulate the state of a particular email connection within a contact.
+   */
+  class EmailConnection extends BaseConnection {
+    /** Returns the `MediaType` enum value: `"email"`. */
+    getMediaType(): MediaType.EMAIL;
   }
 }
