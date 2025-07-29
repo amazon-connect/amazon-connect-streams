@@ -1,5 +1,8 @@
 # CHANGELOG.md
-
+## [2.18.5] - 2025-07-29
+- Add email contactType in index.d.ts
+- Added more missing type definitions 
+ 
 ## [2.18.4] - 2025-05-30
 Added:
 - Made change to address issue getting certain information during or immediately after a CCP Global Resiliency failover.
