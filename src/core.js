@@ -1174,6 +1174,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         connect.core.portStreamId = data.id;
         this.unsubscribe();
       });
+
       // Add all upstream log entries to our own logger.
       conduit.onUpstream(connect.EventType.LOG, function (logEntry) {
         if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
@@ -1294,6 +1295,25 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       connect.getLog().error("[Tab Id] There was an issue setting the tab Id").withException(e).sendInternalLogToServer();
     }
   }
+
+  connect.core.setupAuthenticationEventHandlers = function (params, containerDiv, conduit) {
+    connect.core.loginAckTimeoutSub = connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
+      connect.getLog().warn("ACK_TIMEOUT occurred. Attempting to authenticate.").sendInternalLogToServer();
+      connect.core.authenticate(params, containerDiv, conduit);
+    });
+
+    if (!params.loginOptions?.enableAckTimeout) {
+      connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
+        connect.getLog().warn("TERMINATED occurred. Attempting to authenticate.").sendInternalLogToServer();
+        connect.core.authenticate(params, containerDiv, conduit);
+      });
+
+      connect.core.getEventBus().subscribe(connect.EventType.AUTH_FAIL, function () {
+        connect.getLog().warn("AUTH_FAIL occurred. Attempting to authenticate.").sendInternalLogToServer();
+        connect.core.authenticate(params, containerDiv, conduit);
+      });
+    }
+  };
   /**-------------------------------------------------------------------------
    * Initializes Connect by creating or connecting to the API Shared Worker.
    * Initializes Connect by loading the CCP in an iframe and connecting to it.
@@ -1461,18 +1481,8 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
         connect.core.portStreamId = data.id;
 
-        if (params.softphone || params.chat || params.task || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
-          // Send configuration up to the CCP.
-          //set it to false if secondary
-          conduit.sendUpstream(connect.EventType.CONFIGURE, {
-            softphone: params.softphone,
-            chat: params.chat,
-            task: params.task,
-            pageOptions: params.pageOptions,
-            shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
-            disasterRecoveryOn: params.disasterRecoveryOn,
-          });
-        }
+        connect.core.sendConfigure(params, conduit, false);
+        connect.core.listenForConfigureRequest(params, conduit, false); // failsafe for abnormal ccp refresh
 
         // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
         if (params.disasterRecoveryOn) {
@@ -1490,7 +1500,10 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         }
 
         conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, { streamsVersion: connect.version });
-
+        const { enableAckTimeout } = params.loginOptions || {};
+        if (enableAckTimeout) {
+          connect.core.keepaliveManager.enableAckTimeout(enableAckTimeout);
+        }
         connect.core.keepaliveManager.start();
         this.unsubscribe();
 
@@ -1547,37 +1560,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         }
       });
 
-     // Pop a login page when we encounter an ACK timeout.
-     connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
-      // loginPopup is true by default, only false if explicitly set to false.
-      if (params.loginPopup !== false) {
-        try {
-          var loginUrl = getLoginUrl(params);
-          connect.getLog().warn("ACK_TIMEOUT occurred, attempting to pop the login page if not already open.").sendInternalLogToServer();
-          connect.core._openPopupWithLock(loginUrl, params.loginOptions)
-        } catch (e) {
-          connect.getLog().error("ACK_TIMEOUT occurred but we are unable to open the login popup.").withException(e).sendInternalLogToServer();
-        }
-      }
-
-      if (connect.core.iframeRefreshTimeout == null) {
-        try {
-          conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-            this.unsubscribe();
-            global.clearTimeout(connect.core.iframeRefreshTimeout);
-            connect.core.iframeRefreshTimeout = null;
-            if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
-              connect.core.loginWindow.close();
-              connect.core.loginWindow = null;
-            }
-          });
-          connect.core._refreshIframeOnTimeout(params, containerDiv);
-        } catch (e) {
-          connect.getLog().error("Error occurred while refreshing iframe").withException(e).sendInternalLogToServer();
-        }
-      }
-    });
-
+      connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
 
       if (params.onViewContact) {
         connect.core.onViewContact(params.onViewContact);
@@ -1803,6 +1786,43 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     }, 10000);
   }
 
+  // Open login popup and refresh the iframe until the user is logged in.
+  connect.core.authenticate = function (params, containerDiv, conduit) {
+    if (params.loginPopup !== false) {
+      try {
+        var loginUrl = getLoginUrl(params);
+        connect.getLog().warn("Attempting to pop the login page if not already open.").sendInternalLogToServer();
+        // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
+        if (params.loginUrl) {
+          connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+        }
+        connect.core._openPopupWithLock(loginUrl, params.loginOptions);
+      } catch (e) {
+        connect.getLog().error("Unable to open the login popup.").withException(e).sendInternalLogToServer();
+      }
+    }
+
+    if (connect.core.iframeRefreshTimeout == null) {
+      try {
+        conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
+          this.unsubscribe();
+          global.clearTimeout(connect.core.iframeRefreshTimeout);
+          connect.core.iframeRefreshTimeout = null;
+          connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+
+          if ((params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) && connect.core.loginWindow) {
+            connect.core.loginWindow.close();
+            connect.core.loginWindow = null;
+          }
+        });
+        connect.core.iframeRefreshAttempt = 0;
+        connect.core._refreshIframeOnTimeout(params, containerDiv);
+      } catch (e) {
+        connect.getLog().error("Error occurred while refreshing iframe").withException(e).sendInternalLogToServer();
+      }
+    }
+  };
+
   connect.core.getSDKClientConfig = function () {
     if (!connect.core._amazonConnectProviderData) {
       throw new Error("Provider is not initialized")
@@ -1820,6 +1840,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     this.ackTimer = null;
     this.synTimer = null;
     this.ackSub = null;
+    this._enableAckTimeout = false;
   };
 
   KeepaliveManager.prototype.start = function () {
@@ -1833,10 +1854,10 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     });
     this.ackTimer = global.setTimeout(function () {
       self.ackSub.unsubscribe();
-      if (connect.isActiveConduit(self.conduit)) {
+      if (connect.isActiveConduit(self.conduit) && self._enableAckTimeout) {
         connect.getLog().info(`ACK_TIMEOUT event is detected from the KeepaliveManager. ${self.conduit.name}`).sendInternalLogToServer();
         self.eventBus.trigger(connect.EventType.ACK_TIMEOUT);
-      } else {
+      } else if (self._enableAckTimeout) {
         connect.getLog().warn(`ACK_TIMEOUT event is detected from the KeepaliveManager but suppressed as it is from an inactive region. ${self.conduit.name}`).sendInternalLogToServer();
       }
       self._deferStart();
@@ -1854,6 +1875,10 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       this.synTimer = global.setTimeout(connect.hitch(this, this.start), this.synTimeout);
     }
   };
+
+  KeepaliveManager.prototype.enableAckTimeout = function(enable) {
+    this._enableAckTimeout = enable;
+  }
 
   /**-----------------------------------------------------------------------*/
 
@@ -2452,6 +2477,59 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     return connect.core.getEventBus().subscribe(connect.EventType.INIT, f);
   }
 
+  /**-----------------------------------------------------------------------*/
+  connect.core.sendConfigure = function (params, conduit, isACGR) {
+    if (
+      params.softphone ||
+      params.chat ||
+      params.task ||
+      params.pageOptions ||
+      params.shouldAddNamespaceToLogs ||
+      params.disasterRecoveryOn
+    ) {      
+      const config = {
+        softphone: params.softphone,
+        chat: params.chat,
+        task: params.task,
+        pageOptions: params.pageOptions,
+        shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
+      };
+
+      if (isACGR) {
+        // ACGR mode: add ACGR-specific params, exclude disasterRecoveryOn
+        config.enableGlobalResiliency = params.enableGlobalResiliency;
+        config.instanceState = connect.isActiveConduit(conduit) ? 'active' : 'inactive';
+      } else {
+        // Legacy mode: include disasterRecoveryOn param
+        config.disasterRecoveryOn = params.disasterRecoveryOn;
+      }
+
+      conduit.sendUpstream(connect.EventType.CONFIGURE, config);
+    };
+  };
+
+  /**-----------------------------------------------------------------------*/
+  connect.core.listenForConfigureRequest = function (params, conduit, isACGR) {
+    conduit.onUpstream(connect.EventType.REQUEST_CONFIGURE, () => {
+      connect.core.sendConfigure(params, conduit, isACGR);
+    });
+  }
+
+  /**-----------------------------------------------------------------------*/
+  // If the CRM hasn't sent a configure message, we send a request to receive configure
+  // This is in case iframed CCP is refreshed abnormally
+  connect.core.checkIfConfigureReceived = function(conduit) {
+    if (connect.isFramed()) {
+      global.setTimeout(() => {
+        if (!connect.core.hasReceivedCRMConfigure) {
+          connect.getLog().warn(`CCP has not received a configure message. Sending request to CRM for configuration.`)
+            .sendInternalLogToServer();
+          conduit.sendDownstream(connect.EventType.REQUEST_CONFIGURE);
+        }
+      }, 1000);
+    }
+  }
+  
   /**-----------------------------------------------------------------------*/
   connect.core.getContactEventName = function (eventName, contactId) {
     connect.assertNotNull(eventName, 'eventName');
