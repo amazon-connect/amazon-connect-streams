@@ -53,7 +53,8 @@
     'click_stream_data',
     'set_quick_get_agent_snapshot_flag',
     'api_proxy_request',
-    'api_proxy_response'
+    'api_proxy_response',
+    'request_configure',
   ]);
 
   /**---------------------------------------------------------------

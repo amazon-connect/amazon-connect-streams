@@ -56,6 +56,7 @@ describe('Core', function () {
             onAuthorizeSuccessSpy = sandbox.stub(connect.core, 'onAuthorizeSuccess');
             hitchSpy = sandbox.spy(connect, "hitch");
             sandbox.spy(connect, 'ifMaster');
+            sandbox.stub(connect, "isFramed").returns(true);
         });
         after(function () {
             sandbox.restore();
@@ -114,6 +115,90 @@ describe('Core', function () {
             clock.tick(2000);
             assert.lengthOf(logger._logs, originalLoggerLength + newLogs.length);
         });
+
+        describe('checkIfConfigureReceived', function () {
+            let conduitStub, sendDownstreamStub;
+            
+            beforeEach(function () {
+                sendDownstreamStub = sandbox.stub();
+                conduitStub = {
+                    sendDownstream: sendDownstreamStub
+                };
+            });
+
+            afterEach(function () {
+                connect.core.hasReceivedCRMConfigure = undefined;
+            });
+
+            describe('when CCP is framed', function () {                
+                beforeEach(function () {
+                    connect.isFramed.returns(true);
+                });
+
+                it('should set up timeout and send configure request when hasReceivedCRMConfigure is false', function () {
+                    connect.core.hasReceivedCRMConfigure = false;
+                    
+                    connect.core.checkIfConfigureReceived(conduitStub);
+                    
+                    sinon.assert.notCalled(conduitStub.sendDownstream);
+                    
+                    clock.tick(2000);
+                    
+                    sinon.assert.calledWith(conduitStub.sendDownstream, connect.EventType.REQUEST_CONFIGURE);
+                });
+
+                it('should not send configure request when hasReceivedCRMConfigure is true', function () {
+                    connect.core.hasReceivedCRMConfigure = true;
+                    
+                    connect.core.checkIfConfigureReceived(conduitStub);
+                    
+                    clock.tick(1000);
+                    
+                    sinon.assert.notCalled(conduitStub.sendDownstream);
+                });
+
+                it('should send configure request when hasReceivedCRMConfigure is undefined', function () {
+                    connect.core.hasReceivedCRMConfigure = undefined;
+                    
+                    connect.core.checkIfConfigureReceived(conduitStub);
+                    
+                    clock.tick(1000);
+                    
+                    sinon.assert.calledWith(conduitStub.sendDownstream, connect.EventType.REQUEST_CONFIGURE);
+                });
+            });
+
+            describe('when CCP is not framed', function () {
+                beforeEach(function () {
+                    connect.isFramed.returns(false);
+                });
+
+                it('should do nothing when not framed', function () {
+                    connect.core.hasReceivedCRMConfigure = false;
+                    
+                    connect.core.checkIfConfigureReceived(conduitStub);
+                    
+                    clock.tick(2000);
+                    
+                    sinon.assert.notCalled(conduitStub.sendDownstream);
+                });
+
+                it('should do nothing regardless of hasReceivedCRMConfigure value', function () {
+                    const testValues = [false, true, undefined, null];
+                    
+                    testValues.forEach(function(value) {
+                        connect.core.hasReceivedCRMConfigure = value;
+                        
+                        connect.core.checkIfConfigureReceived(conduitStub);
+                        
+                        clock.tick(2000);
+                        
+                        sinon.assert.notCalled(conduitStub.sendDownstream);
+                    });
+                });
+            });
+        });
+
     });
     describe('#connect.core.initSharedWorker() with DR enabled', function () {
         jsdom({ url: "http://localhost" });
@@ -544,6 +629,7 @@ describe('Core', function () {
     });
     describe('_triggerAuthorizeSuccess / _triggerAuthFail', function () {
         let triggerSpy = sandbox.fake();
+        let sendDownstreamStub = sandbox.stub();
         before(() => {
             sandbox.stub(connect.core, "getUpstream").returns({upstreamBus: { trigger: triggerSpy}});
         });
@@ -656,8 +742,9 @@ describe('Core', function () {
             sandbox.stub(connect.core, 'getNotificationManager').returns({
                 requestPermission: sandbox.spy()
             });
-
+            
             sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
+            
         });
         afterEach(function () {
             sandbox.restore();
@@ -1429,7 +1516,7 @@ describe('Core', function () {
         });
     })
 
-    describe('#connect.core.initCCP() using legacyAuthFlow', function () {
+    describe('#connect.core.initCCP()', function () {
         jsdom({ url: "http://localhost" });
         let clock;
         let containerDiv;
@@ -1561,7 +1648,51 @@ describe('Core', function () {
             expect(connect.numberOfConnectedCCPs).to.equal(1);
         });
 
-        it("Multiple calls to initCCP does not append multiple CCP iframes", function() {
+        describe("listenForConfigureRequest", function () {
+            let testSandbox, getUpstreamStub, conduitStub, onUpstreamStub, sendUpstreamStub;
+            
+            beforeEach(function () {
+                testSandbox = sinon.createSandbox();
+                onUpstreamStub = testSandbox.stub();
+                sendUpstreamStub = testSandbox.stub();
+                conduitStub = {
+                    onUpstream: onUpstreamStub,
+                    sendUpstream: sendUpstreamStub
+                };
+                getUpstreamStub = testSandbox.stub(connect.core, 'getUpstream').returns(conduitStub);
+            });
+
+            afterEach(function () {
+                testSandbox.restore();
+            });
+
+            it("should set up listener for REQUEST_CONFIGURE and respond with provided params", function () {
+                const params = { 
+                    softphone: { ringtoneUrl: "test-softphone.mp3" },
+                };
+                
+                connect.core.listenForConfigureRequest(params, conduitStub, false);
+                
+                testSandbox.assert.calledOnce(onUpstreamStub);
+                testSandbox.assert.calledWith(onUpstreamStub, connect.EventType.REQUEST_CONFIGURE, sinon.match.func);
+                
+                const requestHandler = onUpstreamStub.getCall(0).args[1];
+                requestHandler();
+                
+                testSandbox.assert.calledOnce(sendUpstreamStub);
+                testSandbox.assert.calledWithExactly(sendUpstreamStub, connect.EventType.CONFIGURE, {
+                    softphone: { ringtoneUrl: 'test-softphone.mp3' },
+                    chat: undefined,
+                    task: undefined,
+                    pageOptions: undefined,
+                    shouldAddNamespaceToLogs: undefined,
+                    disasterRecoveryOn: undefined,
+                });
+            });
+        });
+
+
+        it("Multiple calls to initCCP does not append multiple CCP iframes", function () {
             sandbox.stub(window.document, "getElementsByTagName").returns([{ name: 'Amazon Connect CCP' }]);
             sandbox.resetHistory();
             connect.core.initCCP(containerDiv, params);
@@ -1622,6 +1753,7 @@ describe('Core', function () {
                 sinon.assert.neverCalledWith(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, params);
             });
         });
+        
         describe("on ACK_TIMEOUT", function () {
             before(() => {
                 connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
@@ -1637,6 +1769,145 @@ describe('Core', function () {
                     expect(connect.core.iframeRefreshTimeout === null).to.be.true;
                     expect(closeStub.calledOnce).to.be.true;
                     expect(connect.core.loginWindow === null).to.be.true;
+                });
+            });
+        });
+
+        describe('#connect.core.setupAuthenticationEventHandlers() authenticate event subscriptions', function () {
+            let containerDiv;
+            let authenticateSpy;
+            let logWarnSpy;
+            let sendInternalLogSpy;
+            let eventBusSpy;
+            let params;
+            let conduit;
+
+            beforeEach(function () {
+                containerDiv = { appendChild: sandbox.spy() };
+                conduit = { sendUpstream: sandbox.spy() };
+                
+                authenticateSpy = sandbox.stub(connect.core, 'authenticate');
+                                
+                params = {
+                    ccpUrl: "url.com",
+                    loginOptions: {}
+                };
+
+                connect.agent.initialized = true;
+                connect.core.eventBus = new connect.EventBus({ logEvents: true });
+                eventBusSpy = sandbox.spy(connect.core.eventBus, 'subscribe');
+            });
+
+            afterEach(function () {
+                connect.agent.initialized = false;
+                connect.core.initialized = false;
+                connect.core.eventBus = null;
+                sandbox.restore();
+            });
+
+            describe('when enableAckTimeout is NOT set', function () {
+                it('should subscribe to TERMINATED event and call authenticate when triggered', function () {
+                    params.loginOptions = {};
+                    
+                    connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
+                    
+                    const terminatedSubscription = eventBusSpy.getCalls().find(call => 
+                        call.args[0] === connect.EventType.TERMINATED
+                    );
+                    expect(terminatedSubscription).to.exist;
+                    
+                    connect.core.getEventBus().trigger(connect.EventType.TERMINATED);
+                    
+                    sandbox.assert.calledOnce(authenticateSpy);
+                    sandbox.assert.calledWith(authenticateSpy, params, containerDiv, conduit);
+                });
+
+                it('should subscribe to AUTH_FAIL event and call authenticate when triggered', function () {
+                    params.loginOptions = {};
+                    
+                    connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
+                    
+                    const authFailSubscription = eventBusSpy.getCalls().find(call => 
+                        call.args[0] === connect.EventType.AUTH_FAIL
+                    );
+                    expect(authFailSubscription).to.exist;
+                    
+                    connect.core.getEventBus().trigger(connect.EventType.AUTH_FAIL);
+                    
+                    sandbox.assert.calledOnce(authenticateSpy);
+                    sandbox.assert.calledWith(authenticateSpy, params, containerDiv, conduit);
+                });
+
+                it('should subscribe to both events when enableAckTimeout is false', function () {
+                    params.loginOptions = { enableAckTimeout: false };
+                    
+                    connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
+                    
+                    const terminatedSubscription = eventBusSpy.getCalls().find(call => 
+                        call.args[0] === connect.EventType.TERMINATED
+                    );
+                    const authFailSubscription = eventBusSpy.getCalls().find(call => 
+                        call.args[0] === connect.EventType.AUTH_FAIL
+                    );
+                    
+                    expect(terminatedSubscription).to.exist;
+                    expect(authFailSubscription).to.exist;
+                });
+            });
+
+            describe('when enableAckTimeout IS set', function () {
+                it('should NOT subscribe to TERMINATED or AUTH_FAIL events', function () {
+                    params.loginOptions = { enableAckTimeout: true };
+                    
+                    connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
+                    
+                    const terminatedSubscription = eventBusSpy.getCalls().find(call => 
+                        call.args[0] === connect.EventType.TERMINATED
+                    );
+                    const authFailSubscription = eventBusSpy.getCalls().find(call => 
+                        call.args[0] === connect.EventType.AUTH_FAIL
+                    );
+                    
+                    expect(terminatedSubscription).to.not.exist;
+                    expect(authFailSubscription).to.not.exist;
+                });
+
+                it('should NOT call authenticate when TERMINATED event is triggered', function () {
+                    params.loginOptions = { enableAckTimeout: true };
+                    
+                    connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
+                    
+                    connect.core.getEventBus().trigger(connect.EventType.TERMINATED);
+                    
+                    sandbox.assert.notCalled(authenticateSpy);
+                });
+
+                it('should NOT call authenticate when AUTH_FAIL event is triggered', function () {
+                    params.loginOptions = { enableAckTimeout: true };
+                    
+                    connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
+                    
+                    connect.core.getEventBus().trigger(connect.EventType.AUTH_FAIL);
+                    
+                    sandbox.assert.notCalled(authenticateSpy);
+                });
+            });
+
+            describe('edge cases', function () {
+                it('should subscribe to events when loginOptions is undefined', function () {
+                    delete params.loginOptions;
+                    
+                    connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
+                    
+                    const terminatedSubscription = eventBusSpy.getCalls().find(call => 
+                        call.args[0] === connect.EventType.TERMINATED
+                    );
+                    const authFailSubscription = eventBusSpy.getCalls().find(call => 
+                        call.args[0] === connect.EventType.AUTH_FAIL
+                    );
+                    
+                    expect(terminatedSubscription).to.exist;
+                    expect(authFailSubscription).to.exist;
                 });
             });
         });
@@ -1777,7 +2048,7 @@ describe('Core', function () {
             // below line checks that setTimeout was called with CCP_IFRAME_REFRESH_INTERVAL which is 5 seconds
             // CCP_IFRAME_REFRESH_INTERVAL is passed in when we call iframeRefreshTimeout
             expect(setTimeoutSpy.calledWith(sinon.match.any, sinon.match.number.and(sinon.match((timeout) => timeout === 5000)))).to.be.true;
-            expect(connect.core.iframeRefreshAttempt).to.equal(undefined);
+            expect(connect.core.iframeRefreshAttempt).to.equal(0);
             expect(clearTimeoutSpy.calledOnce).to.be.true;
 
             clock.tick(5 * 1000 + 1); //the initial retry timeout.
@@ -2819,5 +3090,5 @@ describe('Core', function () {
             expect(cb.called).to.be.false;
           });
         });
-      });
+    });
 });

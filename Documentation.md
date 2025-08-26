@@ -2,7 +2,7 @@
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
 ## Global Resiliency
-For details on using Amazon Connect Streams with the Connect Global Resiliency feature, please first refer to the specific documentation [here](Documentation-DR.md).
+For details on using Amazon Connect Streams with the Connect Global Resiliency feature, please first refer to the specific documentation [here](Documentation-GR.md).
 
 ### A note on "Routability"
 Note that routability in streams is only affected by agent statuses. Voice contacts will change the agent status, and thus can affect routability. Task and chat contacts do not affect routability. However, if the other channels hit their concurrent live contact limit(s), the agent will not be routed more contacts, but they will technically be in a routable agent state.
@@ -196,9 +196,7 @@ everything set up correctly and that you are able to listen for events.
             enablePhoneTypeSettings: true //optional, defaults to 'true' 
           },
           shouldAddNamespaceToLogs: false, //optional, defaults to 'false'
-          ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
-          ccpSynTimeout: 3000, //optional, defaults to 1000 (ms)
-          ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms)
+          ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms), defines how often to refresh the CCP iframe when logging in
          });
       }
     </script>
@@ -268,10 +266,9 @@ and made available to your JS client code.
   - `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
     and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
 - `shouldAddNamespaceToLogs`: prepends `[CCP]` to all logs logged by the CCP. Important note: there are a few logs made by the CCP before the namespace is prepended.
-- `ccpAckTimeout`: A timeout in ms that tells CCP how long it should wait for an `ACKNOWLEDGE` message from the shared worker after CCP has sent a `SYNCHRONIZE` message to the shared worker. This is important because an `ACKNOWLEDGE` message is only sent back to CCP if the shared worker is initialized and a shared worker is only initialized if the agent is logged in. Moreover, this check happens continuously.
-- `ccpSynTimeout`: A timeout in ms that tells CCP how long to wait before sending another `SYNCHRONIZE` message to the shared worker, which should trigger the shared worker to send back an `ACKNOWLEDGE` if initialized. This event essentially checks if the shared worker was initialized aka agent is logged in. This check happens continuously as well.
-- `ccpLoadTimeout`: A timeout in ms that tells CCP how long to wait before sending the very first `SYNCHRONIZE` message. The user experience here is that on the first CCP initialization, the login flow is delayed by this timeout.
-  - As an example, if this timeout was set to 10 seconds, then the login pop-up will not open up until 10 seconds has pass.
+- `ccpLoadTimeout`: A timeout in ms used to configure the refresh rate of CCP when logging in. When an Agent loads their workspace, this timer defines how long Streams will wait for CCP to load. If the agent is unauthenticated, a login popup will open on ccpLoadTimeout. Streams will then refresh the CCP iframe at the ccpLoadTimeout interval to check if the agent is logged in. 
+  - Streams will refresh 10 times at the ccpLoadTimeout interval. The Agent will need to refresh their page if they don't login after 10 iframe refreshes.
+  - If it's taking longer for an agent to log in, try increasing the ccpLoadTimeout. CCP be authenticated but not have enough time to log initialize before the iframe refreshes. This is dependent on the network conditions of the customer's environment.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the

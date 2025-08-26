@@ -327,14 +327,9 @@
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
         connect.getLog().info(`Acknowledged by the CCP! ${conduit.name}`).sendInternalLogToServer();
 
-        conduit.sendUpstream(connect.EventType.CONFIGURE, {
-          softphone: params.softphone,
-          chat: params.chat,
-          pageOptions: params.pageOptions,
-          shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
-          enableGlobalResiliency: params.enableGlobalResiliency,
-          instanceState: connect.isActiveConduit(conduit) ? 'active' : 'inactive',
-        });
+        const isACGR = true;
+        connect.core.sendConfigure(params, conduit, isACGR);
+        connect.core.listenForConfigureRequest(params, conduit, isACGR); // fallback in case of abnormal CCP refresh
 
         // Clear the load timeout timer
         if (conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance) {
@@ -348,8 +343,11 @@
           initCCPParams: params,
         });
 
-        // Start keepalive manager. Only active region's one can trigger ACK_TIMEOUT event
-        conduit.keepaliveManager.start();
+        const { enableAckTimeout } = params.loginOptions || {};
+        if (enableAckTimeout) {
+          connect.core.keepaliveManager.enableAckTimeout(enableAckTimeout);
+        }
+        connect.core.keepaliveManager.start();
 
         if (connect.isActiveConduit(conduit)) {
           // Only active conduit initialize these since we only need one instance
