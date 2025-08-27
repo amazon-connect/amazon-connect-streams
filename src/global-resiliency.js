@@ -345,9 +345,9 @@
 
         const { enableAckTimeout } = params.loginOptions || {};
         if (enableAckTimeout) {
-          connect.core.keepaliveManager.enableAckTimeout(enableAckTimeout);
+          conduit.keepaliveManager.enableAckTimeout(enableAckTimeout);
         }
-        connect.core.keepaliveManager.start();
+        conduit.keepaliveManager.start();
 
         if (connect.isActiveConduit(conduit)) {
           // Only active conduit initialize these since we only need one instance
