@@ -9160,7 +9160,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.18.6";
+  connect.version = "2.18.7";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
@@ -12276,9 +12276,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         var _ref = params.loginOptions || {},
           enableAckTimeout = _ref.enableAckTimeout;
         if (enableAckTimeout) {
-          connect.core.keepaliveManager.enableAckTimeout(enableAckTimeout);
+          conduit.keepaliveManager.enableAckTimeout(enableAckTimeout);
         }
-        connect.core.keepaliveManager.start();
+        conduit.keepaliveManager.start();
         if (connect.isActiveConduit(conduit)) {
           // Only active conduit initialize these since we only need one instance
           connect.core.client = new connect.UpstreamConduitClient(conduit);

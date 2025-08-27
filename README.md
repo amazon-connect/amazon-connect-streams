@@ -19,7 +19,7 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
 
 # Important Announcements
 
-1. August 2025 - 2.18.6
+1. August 2025 - 2.18.7
    * Adds important stability update addressing periodic login popups that some customers experienced even when agents had valid authentication sessions. This update replaces the heartbeat mechanism used to detect changes in agent authentication status as Chrome now no longer recommends using timers for periodic state checks.
    * Deprecates ccpSynTimeout and ccpAckTimeout init CCP Params
 2. January 2025 - 2.18.1
