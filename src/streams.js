@@ -352,16 +352,20 @@
    IFrameConduit.prototype.constructor = IFrameConduit;
 
    class GRProxyIframeConduit {
-      constructor(window, iframes, defaultActiveCCPUrl) {
+      constructor(window, iframeConfigs, defaultActiveCCPUrl) {
+         this.iframeLabelMap = {};
+
          const defaultActiveOrigin = (new URL(defaultActiveCCPUrl)).origin;
 
          this.activeRegionUrl = defaultActiveOrigin;
-         this.conduits = iframes.map((iframe) => {
+         this.conduits = iframeConfigs.map((config) => {
+            const { iframe, label } = config;
             const iframeConduit = new IFrameConduit(iframe.src, window, iframe);
             iframeConduit.iframe = iframe;
 
             const { origin } = new URL(iframe.src);
             iframeConduit.name = origin;
+            this.iframeLabelMap[origin] = label;
             return iframeConduit;
          });
          this.setActiveConduit(defaultActiveOrigin);

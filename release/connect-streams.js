@@ -1,7 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 650:
+/***/ 463:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -10,7 +10,9 @@ __webpack_require__.r(__webpack_exports__);
 
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
-  AmazonConnectStreamsSite: () => (/* reexport */ AmazonConnectStreamsSite)
+  AmazonConnectGRStreamsSite: () => (/* reexport */ AmazonConnectGRStreamsSite),
+  AmazonConnectStreamsSite: () => (/* reexport */ AmazonConnectStreamsSite),
+  GlobalResiliencyRegion: () => (/* reexport */ GlobalResiliencyRegion)
 });
 
 ;// ./node_modules/@amazon-connect/core/lib-esm/provider/global-provider.js
@@ -729,47 +731,164 @@ function sanitizeDownstreamMessage(message) {
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/channel-manager.js
 
 
+/**
+ * Manages communication channels between the proxy and child entities.
+ *
+ * The ChannelManager supports two types of communication channels:
+ * 1. Iframe channels - Use browser MessagePort API for communication across different execution contexts
+ * 2. Component channels - Use direct function calls when both entities exist in the same execution context
+ *
+ * Key responsibilities:
+ * - Adding and removing child channels
+ * - Routing downstream messages from proxy to child entities
+ * - Relaying upstream messages from child entities back to the proxy
+ * - Managing MessagePort lifecycle (opening, closing, cleanup)
+ * - Validating provider IDs to ensure secure message routing
+ *
+ * @example Iframe Channel
+ * ```typescript
+ * const { port1, port2 } = new MessageChannel();
+ * channelManager.addChannel({
+ *   connectionId: "child-uuid",
+ *   providerId: "provider-uuid",
+ *   type: "iframe",
+ *   port: port1
+ * });
+ * // port2 gets transferred to child entity
+ * ```
+ *
+ * @example Component Channel
+ * ```typescript
+ * channelManager.addChannel({
+ *   connectionId: "child-uuid",
+ *   providerId: "provider-uuid",
+ *   type: "component",
+ *   sendDownstreamMessage: (msg) => childEntity.receive(msg),
+ *   setUpstreamMessageHandler: (handler) => childEntity.onUpstream = handler
+ * });
+ * ```
+ */
 class ChannelManager {
     constructor(provider, relayChildUpstreamMessage) {
         this.provider = provider;
         this.relayChildUpstreamMessage = relayChildUpstreamMessage;
-        this.messagePorts = new Map();
+        this.channels = new Map();
         this.logger = new connect_logger_ConnectLogger({
             provider,
             source: "childConnectionManager",
         });
     }
+    /**
+     * Adds a new communication channel for a child entity.
+     *
+     * Supports both iframe and component channel types. For iframe channels,
+     * sets up message event listeners and starts the port. For component channels,
+     * configures the upstream message handler. Both types send a "childConnectionReady"
+     * message upstream to notify the proxy that the channel is established.
+     *
+     * @param params - Channel configuration parameters
+     * @param params.connectionId - UUID identifier for this channel connection
+     * @param params.providerId - UUID of the provider that owns this channel
+     * @param params.type - Channel type: "iframe" or "component"
+     *
+     * @example Iframe Channel
+     * ```typescript
+     * const { port1, port2 } = new MessageChannel();
+     * channelManager.addChannel({
+     *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
+     *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+     *   type: "iframe",
+     *   port: port1
+     * });
+     * ```
+     *
+     * @example Component Channel
+     * ```typescript
+     * channelManager.addChannel({
+     *   connectionId: "550e8400-e29b-41d4-a716-446655440001",
+     *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+     *   type: "component",
+     *   sendDownstreamMessage: (msg) => childEntity.receive(msg),
+     *   setUpstreamMessageHandler: (handler) => childEntity.onUpstream = handler
+     * });
+     * ```
+     */
     addChannel(params) {
         const { connectionId } = params;
-        if (this.messagePorts.has(connectionId)) {
+        if (this.channels.has(connectionId)) {
             this.logger.error("Attempted to add child connection that already exists. No action", {
                 connectionId,
             });
             return;
         }
-        this.setupPort(params);
-        this.logger.debug("Child port added", { connectionId });
+        if (params.type === "iframe") {
+            this.setupIframe(params);
+        }
+        else {
+            this.setupComponent(params);
+        }
+        this.logger.debug("Child channel added", {
+            connectionId,
+            type: params.type,
+        });
     }
+    /**
+     * Updates an existing MessagePort channel with a new MessagePort.
+     *
+     * This method is only applicable to MessagePort channels. Direct channels cannot
+     * be updated and will result in an error. The old MessagePort is properly cleaned up
+     * (event listeners removed, port closed) before the new port is configured.
+     *
+     * @param params - Update parameters
+     * @param params.connectionId - UUID identifier for the channel to update
+     * @param params.port - New MessagePort instance to replace the existing one
+     * @param params.providerId - UUID of the provider that owns this channel
+     *
+     * @throws Logs error if connectionId doesn't exist or channel is Direct type
+     *
+     * @example
+     * ```typescript
+     * const { port1, port2 } = new MessageChannel();
+     * channelManager.updateChannelPort({
+     *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
+     *   port: port1,
+     *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+     * });
+     * ```
+     */
     updateChannelPort(params) {
-        var _a;
         const { connectionId } = params;
-        const originalPort = (_a = this.messagePorts.get(connectionId)) === null || _a === void 0 ? void 0 : _a.port;
-        if (!originalPort) {
+        const existingChannel = this.channels.get(connectionId);
+        if (!existingChannel) {
             this.logger.error("Attempted to update child connection that does not exist No action", {
                 connectionId,
             });
             return;
         }
-        originalPort.onmessage = null;
-        originalPort.close();
-        this.setupPort(params);
+        if (existingChannel.type === "component") {
+            this.logger.error("Attempted to update a component channel connection as MessagePort. This is not supported.", {
+                connectionId,
+            });
+            return;
+        }
+        const originalChannel = existingChannel;
+        originalChannel.port.onmessage = null;
+        originalChannel.port.close();
+        const setupParams = Object.assign(Object.assign({}, params), { type: "iframe" });
+        this.setupIframe(setupParams);
         this.logger.info("Updated child port", { connectionId });
     }
-    setupPort({ connectionId, port, providerId, }) {
+    setupIframe(params) {
+        const { connectionId, port, providerId } = params;
         const handler = this.createMessageHandler(connectionId, providerId);
         port.addEventListener("message", handler);
         port.start();
-        this.messagePorts.set(connectionId, { port, handler, providerId });
+        this.channels.set(connectionId, {
+            type: "iframe",
+            port,
+            handler,
+            providerId,
+        });
         this.relayChildUpstreamMessage({
             type: "childUpstream",
             connectionId,
@@ -780,13 +899,62 @@ class ChannelManager {
             },
         });
     }
+    setupComponent(params) {
+        const { connectionId, providerId, sendDownstreamMessage, setUpstreamMessageHandler, } = params;
+        const upstreamHandler = (message) => {
+            this.relayChildUpstreamMessage({
+                type: "childUpstream",
+                sourceProviderId: providerId,
+                parentProviderId: this.provider.id,
+                connectionId,
+                message,
+            });
+        };
+        setUpstreamMessageHandler(upstreamHandler);
+        this.channels.set(connectionId, {
+            type: "component",
+            providerId,
+            sendDownstreamMessage,
+            setUpstreamMessageHandler,
+        });
+        this.relayChildUpstreamMessage({
+            type: "childUpstream",
+            connectionId,
+            sourceProviderId: providerId,
+            parentProviderId: this.provider.id,
+            message: {
+                type: "childConnectionReady",
+            },
+        });
+    }
+    /**
+     * Routes a downstream message from the proxy to the appropriate child channel.
+     *
+     * Validates that the target channel exists and that the provider ID matches
+     * (for security). For MessagePort channels, uses postMessage(). For Direct
+     * channels, calls the sendDownstreamMessage function.
+     *
+     * @param params - Downstream message parameters
+     * @param params.connectionId - UUID of the target channel
+     * @param params.message - The message to send to the child entity
+     * @param params.targetProviderId - Expected provider ID for validation
+     *
+     * @example
+     * ```typescript
+     * channelManager.handleDownstreamMessage({
+     *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
+     *   message: { type: "request", data: "some data" },
+     *   targetProviderId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+     * });
+     * ```
+     */
     handleDownstreamMessage({ connectionId, message, targetProviderId, }) {
-        const messagePortData = this.messagePorts.get(connectionId);
-        if (!messagePortData) {
-            this.logger.warn("Attempted to route downstream message to child message port that does not exist", { connectionId, message: sanitizeDownstreamMessage(message) });
+        const channelData = this.channels.get(connectionId);
+        if (!channelData) {
+            this.logger.warn("Attempted to route downstream message to child channel that does not exist", { connectionId, message: sanitizeDownstreamMessage(message) });
             return;
         }
-        const { port, providerId } = messagePortData;
+        const { providerId } = channelData;
         // Older versions of the SDK do not provide a provider id. This
         // check is ignored for versions without a providerId.
         if (providerId && providerId !== targetProviderId) {
@@ -798,19 +966,50 @@ class ChannelManager {
             });
             return;
         }
-        port.postMessage(message);
+        if (channelData.type === "iframe") {
+            channelData.port.postMessage(message);
+        }
+        else {
+            channelData.sendDownstreamMessage(message);
+        }
     }
+    /**
+     * Handles closing a child channel and performs appropriate cleanup.
+     *
+     * For MessagePort channels, removes event listeners and closes the port.
+     * For Direct channels, simply removes the channel from the internal map
+     * since no port cleanup is needed. The channel is always removed from
+     * the channels map regardless of type.
+     *
+     * @param params - Close message parameters
+     * @param params.connectionId - UUID of the channel to close
+     *
+     * @example
+     * ```typescript
+     * channelManager.handleCloseMessage({
+     *   connectionId: "550e8400-e29b-41d4-a716-446655440000"
+     * });
+     * ```
+     */
     handleCloseMessage({ connectionId }) {
-        const messagePortData = this.messagePorts.get(connectionId);
-        if (!messagePortData) {
-            this.logger.warn("Attempted to close child message port that was not found", { connectionId });
+        const channelData = this.channels.get(connectionId);
+        if (!channelData) {
+            this.logger.warn("Attempted to close child channel that was not found", {
+                connectionId,
+            });
             return;
         }
-        const { port, handler } = messagePortData;
-        port.removeEventListener("message", handler);
-        port.close();
-        this.messagePorts.delete(connectionId);
-        this.logger.debug("Removed child message channel", { connectionId });
+        if (channelData.type === "iframe") {
+            const { port, handler } = channelData;
+            port.removeEventListener("message", handler);
+            port.close();
+        }
+        // For component channels, no cleanup of ports/handlers is needed
+        this.channels.delete(connectionId);
+        this.logger.debug("Removed child channel", {
+            connectionId,
+            type: channelData.type,
+        });
     }
     createMessageHandler(connectionId, providerId) {
         return (message) => this.relayChildUpstreamMessage({
@@ -1304,11 +1503,108 @@ class Proxy {
     offHealthCheckStatusChanged(handler) {
         this.healthCheck.offStatusChanged(handler);
     }
+    /**
+     * @deprecated Use addChildIframeChannel instead. This method will be removed in a future version.
+     */
     addChildChannel(params) {
-        this.channelManager.addChannel(params);
+        // Legacy method that only supports MessagePort channels
+        this.addChildIframeChannel(params);
     }
-    updateChildChannelPort(params) {
+    /**
+     * Adds a component-based child channel to the proxy.
+     *
+     * This method establishes a communication channel using component function calls instead
+     * of MessagePorts. This is useful when both the proxy and child entity exist in the same
+     * execution context, such as within the same browser window or iframe.
+     *
+     * Component channels provide better performance than iframe channels since they avoid
+     * the overhead of serialization and can support synchronous communication patterns.
+     *
+     * @param params - Component channel configuration
+     * @param params.connectionId - UUID identifier for this channel connection
+     * @param params.providerId - UUID of the provider that owns this channel
+     * @param params.sendDownstreamMessage - Function to send messages to the child entity
+     * @param params.setUpstreamMessageHandler - Function to register upstream message handler
+     *
+     * @example
+     * ```typescript
+     * proxy.addChildComponentChannel({
+     *   connectionId: "child-uuid",
+     *   providerId: "provider-uuid",
+     *   sendDownstreamMessage: (message) => childComponent.receive(message),
+     *   setUpstreamMessageHandler: (handler) => childComponent.onUpstream = handler
+     * });
+     * ```
+     */
+    addChildIframeChannel(params) {
+        this.channelManager.addChannel(Object.assign(Object.assign({}, params), { type: "iframe" }));
+    }
+    /**
+     * Adds a component-based child channel for communication with child entities.
+     *
+     * This method establishes a communication channel using direct function calls instead
+     * of MessagePorts. This is useful when both the proxy and child entity exist in the same
+     * execution context and can directly reference each other's functions.
+     *
+     * @param params - Configuration parameters for the component function channel
+     * @param params.connectionId - Unique UUID identifier for this channel connection
+     * @param params.providerId - UUID of the provider that owns this channel connection
+     * @param params.sendDownstreamMessage - Function to send messages from proxy to child entity
+     * @param params.setUpstreamMessageHandler - Function to register handler for messages from child entity
+     *
+     * @example
+     * ```typescript
+     * // Child entity exposes these functions
+     * const childAPI = {
+     *   receive: (message) => { },
+     *   onUpstream: null as ((message) => void) | null
+     * };
+     *
+     * proxy.addChildComponentChannel({
+     *   connectionId: "550e8400-e29b-41d4-a716-446655440001", // UUID
+     *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8", // UUID
+     *   sendDownstreamMessage: (message) => {
+     *     childAPI.receive(message);
+     *   },
+     *   setUpstreamMessageHandler: (handler) => {
+     *     childAPI.onUpstream = handler;
+     *   }
+     * });
+     * ```
+     */
+    addChildComponentChannel(params) {
+        this.channelManager.addChannel(Object.assign(Object.assign({}, params), { type: "component" }));
+    }
+    /**
+     * Updates an existing iframe channel with a new MessagePort.
+     *
+     * This method is only applicable to iframe channels. Component channels cannot
+     * be updated and will result in an error. The old MessagePort is properly cleaned up
+     * (event listeners removed, port closed) before the new port is configured.
+     *
+     * @param params - Update parameters
+     * @param params.connectionId - UUID identifier for the channel to update
+     * @param params.port - New MessagePort instance to replace the existing one
+     * @param params.providerId - UUID of the provider that owns this channel
+     *
+     * @example
+     * ```typescript
+     * const { port1, port2 } = new MessageChannel();
+     * proxy.updateChildIframeChannelPort({
+     *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
+     *   port: port1,
+     *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+     * });
+     * ```
+     */
+    updateChildIframeChannelPort(params) {
         this.channelManager.updateChannelPort(params);
+    }
+    /**
+     * @deprecated Use updateChildIframeChannelPort instead. This method will be removed in a future version.
+     */
+    updateChildChannelPort(params) {
+        this.updateChildIframeChannelPort(params);
     }
     getConnectionId() {
         if (this.connectionId)
@@ -1331,17 +1627,20 @@ class Proxy {
         });
     }
     resetConnection(reason) {
-        var _a;
         this.connectionEstablished = false;
         this.status.update({
             status: "reset",
             reason,
         });
-        const subscriptionHandlerIds = this.subscriptions.getAllSubscriptionHandlerIds();
+        const { subscriptionHandlerCount } = this.restoreAllHandler();
         this.logger.info("Resetting proxy", {
             reason,
-            subscriptionHandlerCount: (_a = subscriptionHandlerIds === null || subscriptionHandlerIds === void 0 ? void 0 : subscriptionHandlerIds.length) !== null && _a !== void 0 ? _a : -1,
+            subscriptionHandlerCount,
         });
+    }
+    restoreAllHandler() {
+        var _a;
+        const subscriptionHandlerIds = this.subscriptions.getAllSubscriptionHandlerIds();
         // Restore all subscriptions
         subscriptionHandlerIds === null || subscriptionHandlerIds === void 0 ? void 0 : subscriptionHandlerIds.map(({ topic, handlerId }) => ({
             type: "subscribe",
@@ -1349,7 +1648,19 @@ class Proxy {
             messageOrigin: this.getUpstreamMessageOrigin(),
             handlerId,
         })).forEach((msg) => this.sendOrQueueMessageToSubject(msg));
-        // TODO Notify Connection has repaired
+        return { subscriptionHandlerCount: (_a = subscriptionHandlerIds === null || subscriptionHandlerIds === void 0 ? void 0 : subscriptionHandlerIds.length) !== null && _a !== void 0 ? _a : -1 };
+    }
+    unsubscribeAllHandlers() {
+        var _a;
+        const subscriptionHandlerIds = this.subscriptions.getAllSubscriptionHandlerIds();
+        this.logger.info("Unsubscribing all handlers from proxy", {
+            subscriptionHandlerCount: (_a = subscriptionHandlerIds === null || subscriptionHandlerIds === void 0 ? void 0 : subscriptionHandlerIds.length) !== null && _a !== void 0 ? _a : -1,
+        });
+        subscriptionHandlerIds === null || subscriptionHandlerIds === void 0 ? void 0 : subscriptionHandlerIds.map(({ topic }) => ({
+            type: "unsubscribe",
+            topic,
+            messageOrigin: this.getUpstreamMessageOrigin(),
+        })).forEach((msg) => this.sendOrQueueMessageToSubject(msg));
     }
 }
 //# sourceMappingURL=proxy.js.map
@@ -1810,6 +2121,7 @@ AmazonConnectProviderBase.isInitialized = false;
 ;// ./node_modules/@amazon-connect/core/lib-esm/provider/index.js
 
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/context/module-context.js
 
@@ -1877,14 +2189,33 @@ class context_Context {
 
 
 //# sourceMappingURL=index.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/client/get-module-context.js
+
+
+function get_module_context_getModuleContext({ namespace, config, }) {
+    if (config && "context" in config && config.context) {
+        return config.context;
+    }
+    else if (isAmazonConnectProvider(config)) {
+        return new Context(config).getModuleContext(namespace);
+    }
+    else {
+        return new Context(config === null || config === void 0 ? void 0 : config.provider).getModuleContext(namespace);
+    }
+}
+//# sourceMappingURL=get-module-context.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/client/connect-client.js
 
 class ConnectClient {
     constructor(namespace, config) {
-        var _a;
         this.namespace = namespace;
-        this.context =
-            (_a = config === null || config === void 0 ? void 0 : config.context) !== null && _a !== void 0 ? _a : new Context(config === null || config === void 0 ? void 0 : config.provider).getModuleContext(namespace);
+        this.context = getModuleContext({ namespace, config });
+    }
+}
+class ConnectClientWithOptionalConfig {
+    constructor(namespace, config) {
+        this.namespace = namespace;
+        this.context = getModuleContext({ namespace, config });
     }
 }
 //# sourceMappingURL=connect-client.js.map
@@ -1908,8 +2239,16 @@ class ConnectClient {
 ;// ./node_modules/@amazon-connect/site/lib-esm/proxy/site-proxy.js
 
 class SiteProxy extends Proxy {
-    constructor(provider) {
+    constructor(provider, instanceUrl) {
         super(provider);
+        if (instanceUrl !== undefined) {
+            // Two-parameter constructor: use the explicit instanceUrl parameter
+            this.instanceUrl = instanceUrl;
+        }
+        else {
+            // Single-parameter constructor: get instanceUrl from config
+            this.instanceUrl = provider.config.instanceUrl;
+        }
         this.postMessageHandler = this.listenForInitialMessage.bind(this);
         this.proxyLogger = new connect_logger_ConnectLogger({
             source: "siteProxy",
@@ -1978,13 +2317,13 @@ class SiteProxy extends Proxy {
         }
         let expectedOrigin;
         try {
-            expectedOrigin = new URL(this.provider.config.instanceUrl).origin;
+            expectedOrigin = new URL(this.instanceUrl).origin;
         }
         catch (error) {
-            this.proxyLogger.error("Unable to parse expected origin from config. Cannot match", {
+            this.proxyLogger.error("Unable to parse expected origin from instanceUrl. Cannot match", {
                 error,
                 eventOrigin,
-                configInstanceUrl: this.provider.config.instanceUrl,
+                instanceUrl: this.instanceUrl,
             }, { duplicateMessageToConsole: true });
             return false;
         }
@@ -2079,7 +2418,233 @@ class AmazonConnectStreamsSite extends AmazonConnectProviderBase {
     }
 }
 //# sourceMappingURL=amazon-connect-streams-site.js.map
+;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/global-resiliency-region.js
+var GlobalResiliencyRegion;
+(function (GlobalResiliencyRegion) {
+    GlobalResiliencyRegion["Primary"] = "primary";
+    GlobalResiliencyRegion["Secondary"] = "secondary";
+})(GlobalResiliencyRegion || (GlobalResiliencyRegion = {}));
+//# sourceMappingURL=global-resiliency-region.js.map
+;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/regional-proxy.js
+
+
+class RegionalProxy extends SiteProxy {
+    constructor({ provider, region, getUpstreamMessageOrigin, relayToGlobalResiliencyProxy, }) {
+        super(provider, region === GlobalResiliencyRegion.Primary
+            ? provider.config.primaryInstanceUrl
+            : provider.config.secondaryInstanceUrl);
+        this.getParentUpstreamMessageOrigin = getUpstreamMessageOrigin;
+        this.relayToGlobalResiliencyProxy = relayToGlobalResiliencyProxy;
+        this.ccpIFrame = null;
+        this.region = region;
+        this.unexpectedIframeWarningCount = 0;
+    }
+    get proxyType() {
+        return "acgr-regional-proxy";
+    }
+    setCCPIframe(iframe) {
+        const isCcpIFrameSet = Boolean(this.ccpIFrame);
+        this.ccpIFrame = iframe;
+        this.unexpectedIframeWarningCount = 0;
+        if (isCcpIFrameSet)
+            this.resetConnection("CCP IFrame Updated");
+    }
+    handleMessageFromSubject(msg) {
+        switch (msg.type) {
+            case "response":
+            case "publish":
+            case "error":
+                this.relayToGlobalResiliencyProxy(msg);
+                break;
+            default:
+                // All other messages handled by this proxy
+                super.handleMessageFromSubject(msg);
+        }
+    }
+    getUpstreamMessageOrigin() {
+        return this.getParentUpstreamMessageOrigin();
+    }
+    verifyEventSource(evt) {
+        const ccpIFrame = this.ccpIFrame;
+        if (!ccpIFrame) {
+            this.proxyLogger.error("CCP Iframe not provided to proxy. Unable to verify event to Connect to CCP.", {
+                origin: evt.origin,
+            });
+            return false;
+        }
+        const valid = evt.source === ccpIFrame.contentWindow;
+        if (!valid) {
+            this.unexpectedIframeWarningCount++;
+            if (this.unexpectedIframeWarningCount < 5) {
+                this.proxyLogger.warn("Message came from unexpected iframe. Not a valid CCP. Will not connect", {
+                    origin: evt.origin,
+                    unexpectedIframeWarningCount: this.unexpectedIframeWarningCount,
+                });
+            }
+        }
+        return valid;
+    }
+    sendOrQueueMessageToSubject(message) {
+        super.sendOrQueueMessageToSubject(message);
+    }
+    invalidInitMessageHandler() {
+        // CCP sends messages via Streams
+        // Take no action here
+    }
+}
+//# sourceMappingURL=regional-proxy.js.map
+;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/verify-region.js
+
+function verifyRegion(region) {
+    const validValues = Object.values(GlobalResiliencyRegion);
+    if (!validValues.includes(region)) {
+        throw new Error(`Invalid region: ${region}. Valid regions are: ${validValues.join(", ")}`);
+    }
+}
+//# sourceMappingURL=verify-region.js.map
+;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/global-resiliency-proxy.js
+
+
+
+
+class GlobalResiliencyProxy extends Proxy {
+    constructor(provider) {
+        super(provider);
+        this.activeRegion = GlobalResiliencyRegion.Primary;
+        this.regionProxies = {
+            [GlobalResiliencyRegion.Primary]: new RegionalProxy({
+                provider,
+                region: GlobalResiliencyRegion.Primary,
+                getUpstreamMessageOrigin: this.getUpstreamMessageOrigin.bind(this),
+                relayToGlobalResiliencyProxy: this.handleMessageFromSubject.bind(this),
+            }),
+            [GlobalResiliencyRegion.Secondary]: new RegionalProxy({
+                provider,
+                region: GlobalResiliencyRegion.Secondary,
+                getUpstreamMessageOrigin: this.getUpstreamMessageOrigin.bind(this),
+                relayToGlobalResiliencyProxy: this.handleMessageFromSubject.bind(this),
+            }),
+        };
+        this.proxyLogger = new connect_logger_ConnectLogger({
+            source: "globalResiliencyProxy",
+            provider,
+        });
+    }
+    initProxy() {
+        Object.values(this.regionProxies).forEach((proxy) => proxy.init());
+    }
+    setCCPIframe({ iframe, region }) {
+        verifyRegion(region);
+        this.regionProxies[region].setCCPIframe(iframe);
+    }
+    setActiveRegion(region) {
+        verifyRegion(region);
+        if (region !== this.activeRegion) {
+            const previousRegionProxy = this.regionProxies[this.activeRegion];
+            const currentRegionProxy = this.regionProxies[region];
+            // Removes subscriptions from original engine
+            this.unsubscribeAllHandlers();
+            this.proxyLogger.info("Active region changed", {
+                current: region,
+                instanceUrl: currentRegionProxy.instanceUrl,
+                previousInstanceUrl: previousRegionProxy.instanceUrl,
+            });
+            this.activeRegion = region;
+            // Adds subscriptions to new engine
+            this.restoreAllHandler();
+            const currentStatus = this.status.getStatus();
+            const activeRegionStatus = currentRegionProxy.connectionStatus;
+            switch (activeRegionStatus) {
+                case "ready":
+                    this.proxyLogger.info("Active region is ready", {
+                        activeRegionStatus,
+                    });
+                    this.status.update({
+                        status: "ready",
+                        connectionId: currentRegionProxy["connectionId"],
+                    });
+                    break;
+                case "connecting":
+                case "initializing":
+                    if (currentStatus !== activeRegionStatus) {
+                        this.status.update({ status: activeRegionStatus });
+                    }
+                    break;
+                case "error":
+                    if (currentStatus !== activeRegionStatus) {
+                        this.status.update({
+                            status: "error",
+                            reason: "new active region in error on transition",
+                            details: { region: this.activeRegion },
+                        });
+                    }
+                    break;
+            }
+        }
+    }
+    get proxyType() {
+        return "global-resiliency-proxy";
+    }
+    // Override the normal sendOrQueueMessageToSubject to rely on the
+    // of the regional proxy
+    sendOrQueueMessageToSubject(message) {
+        this.regionProxies[this.activeRegion].sendOrQueueMessageToSubject(message);
+    }
+    addContextToLogger() {
+        return { activeRegion: this.activeRegion };
+    }
+    // When sending a message, it goes to the sendOrQueueMessageToSubject of the
+    // active region
+    sendMessageToSubject(message) {
+        this.regionProxies[this.activeRegion].sendOrQueueMessageToSubject(message);
+    }
+    getUpstreamMessageOrigin() {
+        return Object.assign(Object.assign({ _type: "global-resiliency-streams-site", providerId: this.provider.id }, getOriginAndPath()), { activeRegion: this.activeRegion });
+    }
+    addChildIframeChannel(params) {
+        this.regionProxies[this.activeRegion].addChildIframeChannel(params);
+    }
+    addChildComponentChannel(params) {
+        this.regionProxies[this.activeRegion].addChildComponentChannel(params);
+    }
+    updateChildIframeChannelPort(params) {
+        this.regionProxies[this.activeRegion].updateChildIframeChannelPort(params);
+    }
+}
+//# sourceMappingURL=global-resiliency-proxy.js.map
+;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/amazon-connect-gr-streams-site.js
+
+
+class AmazonConnectGRStreamsSite extends AmazonConnectProviderBase {
+    constructor(config) {
+        super({
+            config,
+            proxyFactory: (p) => new GlobalResiliencyProxy(p),
+        });
+    }
+    static init(config) {
+        const provider = new AmazonConnectGRStreamsSite(config);
+        AmazonConnectGRStreamsSite.initializeProvider(provider);
+        return { provider };
+    }
+    static get default() {
+        return global_provider_getGlobalProvider("AmazonConnectGRStreamsSite has not been initialized");
+    }
+    // This should be called for each region on startup
+    setCCPIframe(iframe) {
+        this.getProxy().setCCPIframe(iframe);
+    }
+    setActiveRegion(region) {
+        this.getProxy().setActiveRegion(region);
+    }
+}
+//# sourceMappingURL=amazon-connect-gr-streams-site.js.map
+;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/index.js
+
+
+//# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/index.js
+
 
 //# sourceMappingURL=index.js.map
 
@@ -2834,7 +3399,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   Agent.prototype.onEnqueuedNextState = function (f) {
     var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
+    return bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
   };
   Agent.prototype.setStatus = Agent.prototype.setState;
   Agent.prototype.connect = function (endpointIn, params) {
@@ -9218,7 +9783,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.18.8";
+  connect.version = "2.19.0";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
@@ -10471,7 +11036,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * Initializes Connect by loading the CCP in an iframe and connecting to it.
    */
   connect.core.initCCP = function (containerDiv, paramsIn) {
-    var _params$softphone, _params;
+    var _params$softphone, _params3;
     connect.core.checkNotInitialized();
     if (connect.core.initialized) {
       return;
@@ -10508,18 +11073,34 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     // Add SDK via AmazonConnectStreamsSite
     if (!existingProvider) {
       try {
-        var _require = __webpack_require__(650),
-          AmazonConnectStreamsSite = _require.AmazonConnectStreamsSite;
+        var _params, _params2;
+        var _require = __webpack_require__(463),
+          AmazonConnectStreamsSite = _require.AmazonConnectStreamsSite,
+          AmazonConnectGRStreamsSite = _require.AmazonConnectGRStreamsSite;
         var instanceUrl = new URL(params.ccpUrl).origin;
-        var config = {
-          instanceUrl: instanceUrl
-        };
-        connect.core._amazonConnectProviderData = _objectSpread(_objectSpread({}, AmazonConnectStreamsSite.init(config)), {}, {
-          isStreamsProvider: true
-        });
-        connect.getLog().info("Created AmazonConnectStreamsSite").withObject({
-          providerId: connect.core._amazonConnectProviderData.provider.id
-        }).sendInternalLogToServer();
+        if (((_params = params) === null || _params === void 0 ? void 0 : _params.enableGlobalResiliency) === true && (_params2 = params) !== null && _params2 !== void 0 && _params2.secondaryCCPUrl) {
+          var config = {
+            primaryInstanceUrl: instanceUrl,
+            secondaryInstanceUrl: new URL(params.secondaryCCPUrl).origin
+          };
+          connect.core._amazonConnectProviderData = _objectSpread(_objectSpread({}, AmazonConnectGRStreamsSite.init(config)), {}, {
+            isStreamsProvider: true,
+            isACGREnabled: true
+          });
+          connect.getLog().info("[GR] Created AmazonConnectGRStreamsSite").withObject({
+            providerId: connect.core._amazonConnectProviderData.provider.id
+          }).sendInternalLogToServer();
+        } else {
+          var config = {
+            instanceUrl: instanceUrl
+          };
+          connect.core._amazonConnectProviderData = _objectSpread(_objectSpread({}, AmazonConnectStreamsSite.init(config)), {}, {
+            isStreamsProvider: true
+          });
+          connect.getLog().info("Created AmazonConnectStreamsSite").withObject({
+            providerId: connect.core._amazonConnectProviderData.provider.id
+          }).sendInternalLogToServer();
+        }
       } catch (e) {
         connect.getLog().error("Error when setting up AmazonConnectStreamsSite").withException(e).sendInternalLogToServer();
       }
@@ -10547,16 +11128,16 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
     // This is emitted further below as event bus and customer event callbacks are not created yet.
     var acgrParamError = null;
-    if (((_params = params) === null || _params === void 0 ? void 0 : _params.enableGlobalResiliency) === true) {
-      var _params2, _params3, _params4, _params5;
-      if (typeof ((_params2 = params) === null || _params2 === void 0 ? void 0 : _params2.secondaryCCPUrl) !== 'string' || ((_params3 = params) === null || _params3 === void 0 ? void 0 : _params3.secondaryCCPUrl) === '') {
+    if (((_params3 = params) === null || _params3 === void 0 ? void 0 : _params3.enableGlobalResiliency) === true) {
+      var _params4, _params5, _params6, _params7;
+      if (typeof ((_params4 = params) === null || _params4 === void 0 ? void 0 : _params4.secondaryCCPUrl) !== 'string' || ((_params5 = params) === null || _params5 === void 0 ? void 0 : _params5.secondaryCCPUrl) === '') {
         var _log = "enableGlobalResiliency flag was enabled, but secondaryCCPUrl was not provided. Global Resiliency will not be enabled";
         connect.getLog().error(_log).sendInternalLogToServer();
         acgrParamError = {
           event: connect.GlobalResiliencyEvents.CONFIGURE_ERROR,
           data: new Error(_log)
         };
-      } else if (typeof ((_params4 = params) === null || _params4 === void 0 ? void 0 : _params4.loginUrl) !== 'string' || ((_params5 = params) === null || _params5 === void 0 ? void 0 : _params5.loginUrl) === '') {
+      } else if (typeof ((_params6 = params) === null || _params6 === void 0 ? void 0 : _params6.loginUrl) !== 'string' || ((_params7 = params) === null || _params7 === void 0 ? void 0 : _params7.loginUrl) === '') {
         var _log2 = "enableGlobalResiliency flag was enabled, but loginUrl was not provided. Global Resiliency will not be enabled";
         connect.getLog().error(_log2).sendInternalLogToServer();
         acgrParamError = {
@@ -10924,7 +11505,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     // When provider is Streams provider, sets iframe for verification when configuring Message Channel
     if ((_connect$core$_amazon = connect.core._amazonConnectProviderData) !== null && _connect$core$_amazon !== void 0 && _connect$core$_amazon.isStreamsProvider) {
       try {
-        connect.core._amazonConnectProviderData.provider.setCCPIframe(iframe);
+        var _connect$core$_amazon2;
+        (_connect$core$_amazon2 = connect.core._amazonConnectProviderData) !== null && _connect$core$_amazon2 !== void 0 && _connect$core$_amazon2.isACGREnabled ? connect.core._amazonConnectProviderData.provider.setCCPIframe({
+          iframe: iframe,
+          region: initCCPParams.globalResiliencyRegion
+        }) : connect.core._amazonConnectProviderData.provider.setCCPIframe(iframe);
       } catch (error) {
         connect.getLog().error("Error occurred when setting CCP iframe to provider").withException(error).sendInternalLogToServer();
       }
@@ -10988,12 +11573,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
   };
   connect.core.getSDKClientConfig = function () {
-    var _connect$core$_amazon2;
+    var _connect$core$_amazon3;
     if (!connect.core._amazonConnectProviderData) {
       throw new Error("Provider is not initialized");
     }
     return {
-      provider: (_connect$core$_amazon2 = connect.core._amazonConnectProviderData) === null || _connect$core$_amazon2 === void 0 ? void 0 : _connect$core$_amazon2.provider
+      provider: (_connect$core$_amazon3 = connect.core._amazonConnectProviderData) === null || _connect$core$_amazon3 === void 0 ? void 0 : _connect$core$_amazon3.provider
     };
   };
 
@@ -12173,6 +12758,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         }
       });
     }
+    try {
+      var label = grProxyConduit.iframeLabelMap[grProxyConduit.getActiveConduit().name];
+      connect.getLog().info("[GR] Setting provider active region to ".concat(label)).sendInternalLogToServer();
+      connect.core._amazonConnectProviderData.provider.setActiveRegion(label);
+    } catch (err) {
+      connect.getLog().error('[GR] Setting active region for provider failed.').withException(err).sendInternalLogToServer();
+    }
   };
   connect.globalResiliency._switchActiveRegion = function (grProxyConduit, newActiveConduitName) {
     var _grProxyConduit$getAc, _grProxyConduit$getAc2, _connect$core2, _grProxyConduit$getAc3, _grProxyConduit$getAc4;
@@ -12231,16 +12823,25 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     connect.assertNotNull(containerDiv, 'containerDiv');
     var primaryURLOrigin = new URL(params.ccpUrl).origin;
     var secondaryURLOrigin = new URL(params.secondaryCCPUrl).origin;
-    var primaryIframe = connect.core._createCCPIframe(containerDiv, params, primaryURLOrigin);
+    var primaryIframe = connect.core._createCCPIframe(containerDiv, _objectSpread(_objectSpread({}, params), {}, {
+      globalResiliencyRegion: 'primary'
+    }), primaryURLOrigin);
     var secondaryIframe = connect.core._createCCPIframe(containerDiv, _objectSpread(_objectSpread({}, params), {}, {
-      ccpUrl: params.secondaryCCPUrl
+      ccpUrl: params.secondaryCCPUrl,
+      globalResiliencyRegion: 'secondary'
     }), secondaryURLOrigin);
 
     // Create an upstream conduit communicating with all the CCP iframes.
     // This is a sort of a multiplexer of all upstream conduits, i.e.
     //   - connect.core.upstream.sendUpstream(msg) will postMessage to all iframes
     //   - connect.core.upstream.onUpstream(event, f) will register a callback to be invoked when one of the iframes postMessages us
-    var grProxyConduit = new connect.GRProxyIframeConduit(window, [primaryIframe, secondaryIframe], primaryIframe.src);
+    var grProxyConduit = new connect.GRProxyIframeConduit(window, [{
+      iframe: primaryIframe,
+      label: 'primary'
+    }, {
+      iframe: secondaryIframe,
+      label: 'secondary'
+    }], primaryIframe.src);
     connect.core.upstream = grProxyConduit;
 
     // Initialize the core event bus. The event subscriptions never get lost after failover
@@ -17272,16 +17873,21 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
   IFrameConduit.prototype = Object.create(Conduit.prototype);
   IFrameConduit.prototype.constructor = IFrameConduit;
   var GRProxyIframeConduit = /*#__PURE__*/function () {
-    function GRProxyIframeConduit(window, iframes, defaultActiveCCPUrl) {
+    function GRProxyIframeConduit(window, iframeConfigs, defaultActiveCCPUrl) {
+      var _this2 = this;
       _classCallCheck(this, GRProxyIframeConduit);
+      this.iframeLabelMap = {};
       var defaultActiveOrigin = new URL(defaultActiveCCPUrl).origin;
       this.activeRegionUrl = defaultActiveOrigin;
-      this.conduits = iframes.map(function (iframe) {
+      this.conduits = iframeConfigs.map(function (config) {
+        var iframe = config.iframe,
+          label = config.label;
         var iframeConduit = new IFrameConduit(iframe.src, window, iframe);
         iframeConduit.iframe = iframe;
         var _URL = new URL(iframe.src),
           origin = _URL.origin;
         iframeConduit.name = origin;
+        _this2.iframeLabelMap[origin] = label;
         return iframeConduit;
       });
       this.setActiveConduit(defaultActiveOrigin);
@@ -17380,7 +17986,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
     }, {
       key: "setActiveConduit",
       value: function setActiveConduit(activeRegionUrl) {
-        var _this2 = this;
+        var _this3 = this;
         var newActiveConduit = this.conduits.find(function (conduit) {
           return conduit.name === activeRegionUrl;
         });
@@ -17390,14 +17996,14 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
         }
         this.conduits.forEach(function (conduit) {
           if (conduit.name === activeRegionUrl) {
-            _this2.activeRegionUrl = activeRegionUrl;
+            _this3.activeRegionUrl = activeRegionUrl;
 
             // Update member variables in case customer directly referencing those  
-            _this2.name = conduit.name;
-            _this2.upstream = conduit.upstream;
-            _this2.downstream = conduit.downstream;
-            _this2.upstreamBus = conduit.upstreamBus;
-            _this2.downstreamBus = conduit.downstreamBus;
+            _this3.name = conduit.name;
+            _this3.upstream = conduit.upstream;
+            _this3.downstream = conduit.downstream;
+            _this3.upstreamBus = conduit.upstreamBus;
+            _this3.downstreamBus = conduit.downstreamBus;
           }
         });
         connect.getLog().info("[GR] Switched to active conduit ".concat(this.getActiveConduit().name)).sendInternalLogToServer();
@@ -17405,17 +18011,17 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
     }, {
       key: "getActiveConduit",
       value: function getActiveConduit() {
-        var _this3 = this;
+        var _this4 = this;
         return this.conduits.find(function (conduit) {
-          return conduit.name === _this3.activeRegionUrl;
+          return conduit.name === _this4.activeRegionUrl;
         });
       }
     }, {
       key: "getInactiveConduit",
       value: function getInactiveConduit() {
-        var _this4 = this;
+        var _this5 = this;
         return this.conduits.find(function (conduit) {
-          return conduit.name !== _this4.activeRegionUrl;
+          return conduit.name !== _this5.activeRegionUrl;
         });
       }
     }, {

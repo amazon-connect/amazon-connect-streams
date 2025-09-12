@@ -10,6 +10,9 @@ Streams will suppress contacts from the Amazon Connect instance in the region wh
 
 You will need to complete all prerequisites in the [Global Resiliency documentation](https://docs.aws.amazon.com/connect/latest/adminguide/get-started-connect-global-resiliency.html) before you can make use of the version of Streams that is compatible with the feature.
 
+### IMPORTANT NOTICE
+The [AmazonConnectSDK](https://github.com/amazon-connect/AmazonConnectSDK) package will only be supported with AmazonConnectStreams version 2.19.0 and above.
+
 # Usage
 
 To access the Global Resiliency APIs, you will need to download Streams off of this Github page or through npm.
