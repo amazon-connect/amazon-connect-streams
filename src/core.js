@@ -1358,17 +1358,33 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     // Add SDK via AmazonConnectStreamsSite
     if (!existingProvider) {
       try {
-        const { AmazonConnectStreamsSite } = require("@amazon-connect/site-streams");
-
+        const { AmazonConnectStreamsSite, AmazonConnectGRStreamsSite } = require("@amazon-connect/site-streams");
         var instanceUrl = new URL(params.ccpUrl).origin;
-        var config = { instanceUrl };
-        connect.core._amazonConnectProviderData = {
-          ...AmazonConnectStreamsSite.init(config),
-          isStreamsProvider: true
-        };
-        connect.getLog().info("Created AmazonConnectStreamsSite")
-          .withObject({providerId: connect.core._amazonConnectProviderData.provider.id})
-          .sendInternalLogToServer();
+
+        if(params?.enableGlobalResiliency === true && params?.secondaryCCPUrl) {
+          var config = { 
+            primaryInstanceUrl: instanceUrl, 
+            secondaryInstanceUrl: new URL(params.secondaryCCPUrl).origin 
+          };
+          connect.core._amazonConnectProviderData = {
+            ...AmazonConnectGRStreamsSite.init(config),
+            isStreamsProvider: true,
+            isACGREnabled: true
+          };
+          connect.getLog().info("[GR] Created AmazonConnectGRStreamsSite")
+            .withObject({providerId: connect.core._amazonConnectProviderData.provider.id})
+            .sendInternalLogToServer();
+        } else {
+          var config = { instanceUrl };
+          connect.core._amazonConnectProviderData = {
+            ...AmazonConnectStreamsSite.init(config),
+            isStreamsProvider: true
+          };
+          connect.getLog().info("Created AmazonConnectStreamsSite")
+            .withObject({providerId: connect.core._amazonConnectProviderData.provider.id})
+            .sendInternalLogToServer();
+        }
+        
       } catch(e) {
         connect.getLog().error("Error when setting up AmazonConnectStreamsSite")
           .withException(e)
@@ -1750,7 +1766,9 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     // When provider is Streams provider, sets iframe for verification when configuring Message Channel
     if (connect.core._amazonConnectProviderData?.isStreamsProvider) {
       try {
-        connect.core._amazonConnectProviderData.provider.setCCPIframe(iframe);
+        connect.core._amazonConnectProviderData?.isACGREnabled ?
+          connect.core._amazonConnectProviderData.provider.setCCPIframe({ iframe, region: initCCPParams.globalResiliencyRegion })
+        : connect.core._amazonConnectProviderData.provider.setCCPIframe(iframe);
       } catch (error) {
         connect.getLog().error("Error occurred when setting CCP iframe to provider")
           .withException(error)

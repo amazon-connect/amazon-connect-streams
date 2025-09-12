@@ -83,6 +83,7 @@ describe('Global Resiliency', function () {
             connect.globalResiliency._activeRegion = null;
 
             containerDiv.appendChild.resetHistory();
+            conduitParam = [{ iframe: primaryIframe, label: 'primary' }, { iframe: secondaryIframe, label: 'secondary' }];
         });
 
         afterEach(function () {
@@ -473,7 +474,7 @@ describe('Global Resiliency', function () {
         });
 
         it("Switch active region", function () {
-           var grProxyConduit = new connect.GRProxyIframeConduit(window, [primaryIframe, secondaryIframe], primaryIframe.src);
+           var grProxyConduit = new connect.GRProxyIframeConduit(window, conduitParam, primaryIframe.src);
            grProxyConduit.setActiveConduit = sinon.stub();
            grProxyConduit.getActiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() });
            grProxyConduit.getInactiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() });
@@ -496,7 +497,7 @@ describe('Global Resiliency', function () {
         });
 
         it("Switch active region only triggers once", function () {
-            var grProxyConduit = new connect.GRProxyIframeConduit(window, [primaryIframe, secondaryIframe], primaryIframe.src);
+            var grProxyConduit = new connect.GRProxyIframeConduit(window, conduitParam, primaryIframe.src);
             grProxyConduit.setActiveConduit = sinon.stub();
             grProxyConduit.getActiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub(), name: grProxyConduit.conduits[0].name });
             grProxyConduit.getInactiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() });
@@ -540,7 +541,7 @@ describe('Global Resiliency', function () {
          });
 
         it("Switch active region, trying with another region", function () {
-            var grProxyConduit = new connect.GRProxyIframeConduit(window, [primaryIframe, secondaryIframe], primaryIframe.src);
+            var grProxyConduit = new connect.GRProxyIframeConduit(window, conduitParam, primaryIframe.src);
             grProxyConduit.setActiveConduit = sinon.stub();
             grProxyConduit.getActiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub(), name: grProxyConduit.conduits[1].name });
             grProxyConduit.getInactiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() });
@@ -565,7 +566,7 @@ describe('Global Resiliency', function () {
          });
 
          it("Switch active region without region param", function () {
-            var grProxyConduit = new connect.GRProxyIframeConduit(window, [primaryIframe, secondaryIframe], primaryIframe.src);
+            var grProxyConduit = new connect.GRProxyIframeConduit(window, conduitParam, primaryIframe.src);
             grProxyConduit.setActiveConduit = sinon.stub();
             grProxyConduit.getActiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub(), name: grProxyConduit.conduits[1].name });
             grProxyConduit.getInactiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() });
@@ -587,7 +588,7 @@ describe('Global Resiliency', function () {
          });
 
          it("Switch active region does nothing if grproxyconduit invalid", function () {
-            var grProxyConduit = new connect.GRProxyIframeConduit(window, [primaryIframe, secondaryIframe], primaryIframe.src);
+            var grProxyConduit = new connect.GRProxyIframeConduit(window, conduitParam, primaryIframe.src);
             grProxyConduit.setActiveConduit = sinon.stub();
             grProxyConduit.getActiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() });
             grProxyConduit.getInactiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() });
@@ -604,7 +605,7 @@ describe('Global Resiliency', function () {
          });
 
          it("Switch active region does nothing if conduit name is invalid", function () {
-            var grProxyConduit = new connect.GRProxyIframeConduit(window, [primaryIframe, secondaryIframe], primaryIframe.src);
+            var grProxyConduit = new connect.GRProxyIframeConduit(window, conduitParam, primaryIframe.src);
             grProxyConduit.setActiveConduit = sinon.stub();
             grProxyConduit.getActiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() });
             grProxyConduit.getInactiveConduit = sinon.stub().returns({ keepalivemanager: 0, sendUpstream: sinon.stub() });

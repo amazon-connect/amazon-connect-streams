@@ -1,4 +1,8 @@
 # CHANGELOG.md
+
+## [2.19.0] - 2025-09-12
+- Adding support for [AmazonConnectSDK](https://github.com/amazon-connect/AmazonConnectSDK) for Global Resiliency setups.
+
 ## [2.18.5] - 2025-07-29
 - Add email contactType in index.d.ts
 - Added more missing type definitions 

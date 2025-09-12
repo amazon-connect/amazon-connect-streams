@@ -130,6 +130,18 @@
         data: { count: 1 },
       });
     }
+
+    try {
+      const label = grProxyConduit.iframeLabelMap[grProxyConduit.getActiveConduit().name];
+      connect.getLog().info(`[GR] Setting provider active region to ${label}`).sendInternalLogToServer();
+      connect.core._amazonConnectProviderData.provider.setActiveRegion(label);
+    } catch (err) {
+      connect
+        .getLog()
+        .error('[GR] Setting active region for provider failed.')
+        .withException(err)
+        .sendInternalLogToServer();
+    }
   };
 
   connect.globalResiliency._switchActiveRegion = function (grProxyConduit, newActiveConduitName) {
@@ -227,12 +239,17 @@
 
     const primaryURLOrigin = new URL(params.ccpUrl).origin;
     const secondaryURLOrigin = new URL(params.secondaryCCPUrl).origin;
-    const primaryIframe = connect.core._createCCPIframe(containerDiv, params, primaryURLOrigin);
+    const primaryIframe = connect.core._createCCPIframe(
+      containerDiv,
+      { ...params, globalResiliencyRegion: 'primary' },
+      primaryURLOrigin
+    );
     const secondaryIframe = connect.core._createCCPIframe(
       containerDiv,
       {
         ...params,
         ccpUrl: params.secondaryCCPUrl,
+        globalResiliencyRegion: 'secondary',
       },
       secondaryURLOrigin
     );
@@ -243,7 +260,10 @@
     //   - connect.core.upstream.onUpstream(event, f) will register a callback to be invoked when one of the iframes postMessages us
     const grProxyConduit = new connect.GRProxyIframeConduit(
       window,
-      [primaryIframe, secondaryIframe],
+      [
+        { iframe: primaryIframe, label: 'primary' },
+        { iframe: secondaryIframe, label: 'secondary' },
+      ],
       primaryIframe.src
     );
     connect.core.upstream = grProxyConduit;

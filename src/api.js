@@ -689,7 +689,7 @@
   };
   Agent.prototype.onEnqueuedNextState = function (f) {
     var bus = connect.core.getEventBus();
-    bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
+    return bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
   };
 
   Agent.prototype.setStatus = Agent.prototype.setState;
