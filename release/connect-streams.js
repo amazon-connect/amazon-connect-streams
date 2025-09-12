@@ -1,7 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 256:
+/***/ 650:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -53,6 +53,28 @@ function isConnectError(error) {
 ;// ./node_modules/@amazon-connect/core/lib-esm/error/index.js
 
 //# sourceMappingURL=index.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/utility/deep-clone.js
+
+function deepClone(object) {
+    try {
+        return structuredClone(object);
+    }
+    catch (_a) {
+        try {
+            // Falls back to JSON parse/stringify if structureClone does not exist
+            return JSON.parse(JSON.stringify(object));
+        }
+        catch (cloneError) {
+            throw new ConnectError({
+                errorKey: "deepCloneFailed",
+                details: {
+                    actualError: cloneError,
+                },
+            });
+        }
+    }
+}
+//# sourceMappingURL=deep-clone.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/utility/emitter/emitter-base.js
 
 class emitter_base_EmitterBase {
@@ -1288,6 +1310,26 @@ class Proxy {
     updateChildChannelPort(params) {
         this.channelManager.updateChannelPort(params);
     }
+    getConnectionId() {
+        if (this.connectionId)
+            return Promise.resolve(this.connectionId);
+        return new Promise((resolve, reject) => {
+            let timeout = undefined;
+            const handler = (evt) => {
+                if (evt.status === "ready") {
+                    this.offConnectionStatusChange(handler);
+                    clearInterval(timeout);
+                    resolve(evt.connectionId);
+                }
+            };
+            timeout = setTimeout(() => {
+                this.logger.error("Timeout getting connection id");
+                this.offConnectionStatusChange(handler);
+                reject(new Error("Timeout getting connectionId"));
+            }, 10 * 1000);
+            this.onConnectionStatusChange(handler);
+        });
+    }
     resetConnection(reason) {
         var _a;
         this.connectionEstablished = false;
@@ -1493,79 +1535,6 @@ class TimeoutTracker {
 
 
 
-//# sourceMappingURL=index.js.map
-;// ./node_modules/@amazon-connect/core/lib-esm/provider/provider-base.js
-
-
-
-
-class AmazonConnectProviderBase {
-    constructor({ config, proxyFactory }) {
-        this._id = generateUUID();
-        if (!proxyFactory) {
-            throw new Error("Attempted to get Proxy before setting up factory");
-        }
-        if (!config) {
-            throw new Error("Failed to include config");
-        }
-        this.proxyFactory = proxyFactory;
-        this._config = config;
-    }
-    get id() {
-        return this._id;
-    }
-    getProxy() {
-        if (!this.proxy) {
-            this.proxy = this.proxyFactory(this);
-            this.proxy.init();
-        }
-        return this.proxy;
-    }
-    get config() {
-        return Object.assign({}, this._config);
-    }
-    onError(handler) {
-        this.getProxy().onError(handler);
-    }
-    offError(handler) {
-        this.getProxy().offError(handler);
-    }
-    static initializeProvider(provider) {
-        if (this.isInitialized) {
-            const msg = "Attempted to initialize provider more than one time.";
-            const details = {};
-            try {
-                // Attempts to get the existing provider for logging
-                const existingProvider = global_provider_getGlobalProvider();
-                const logger = new connect_logger_ConnectLogger({
-                    source: "core.amazonConnectProvider.init",
-                    provider: existingProvider,
-                });
-                logger.error(msg);
-            }
-            catch (e) {
-                // In the event of a error when logging or attempting
-                // to get provider when logging, capture the message
-                // in the error being thrown
-                details.loggingError = e === null || e === void 0 ? void 0 : e.message;
-            }
-            throw new ConnectError({
-                errorKey: "attemptInitializeMultipleProviders",
-                reason: msg,
-                details,
-            });
-        }
-        setGlobalProvider(provider);
-        this.isInitialized = true;
-        // Getting the proxy sets up the connection with subject
-        provider.getProxy();
-        return provider;
-    }
-}
-AmazonConnectProviderBase.isInitialized = false;
-//# sourceMappingURL=provider-base.js.map
-;// ./node_modules/@amazon-connect/core/lib-esm/provider/index.js
-
 
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/logging/log-level.js
@@ -1579,6 +1548,7 @@ var LogLevel;
 })(LogLevel || (LogLevel = {}));
 //# sourceMappingURL=log-level.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/logging/log-data-console-writer.js
+/* eslint-disable no-console */
 
 function logToConsole(level, message, data) {
     if (data) {
@@ -1727,13 +1697,27 @@ class connect_logger_ConnectLogger {
     }
 }
 //# sourceMappingURL=connect-logger.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/logging/sanitize-data.js
+
+function sanitizeData(data) {
+    if (!data)
+        return undefined;
+    try {
+        return deepClone(data);
+    }
+    catch (_a) {
+        return {
+            error: "Data failed to sanitize. The original data is not available",
+        };
+    }
+}
+//# sourceMappingURL=sanitize-data.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/logging/log-message-factory.js
+
 function createLogMessage({ level, source, message, loggerId, data }, context, messageOrigin) {
     // Sanitize guards against a caller provided data object containing a
     // non-cloneable object which will fail if sent through a message channel
-    const sanitizedData = data
-        ? JSON.parse(JSON.stringify(data))
-        : undefined;
+    const sanitizedData = sanitizeData(data);
     return {
         type: "log",
         level,
@@ -1753,7 +1737,83 @@ function createLogMessage({ level, source, message, loggerId, data }, context, m
 
 
 //# sourceMappingURL=index.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/provider/provider-base.js
+
+
+
+
+class AmazonConnectProviderBase {
+    constructor({ config, proxyFactory }) {
+        this._id = generateUUID();
+        if (!proxyFactory) {
+            throw new Error("Attempted to get Proxy before setting up factory");
+        }
+        if (!config) {
+            throw new Error("Failed to include config");
+        }
+        this.proxyFactory = proxyFactory;
+        this._config = config;
+    }
+    get id() {
+        return this._id;
+    }
+    getProxy() {
+        if (!this.proxy) {
+            this.proxy = this.proxyFactory(this);
+            this.proxy.init();
+        }
+        return this.proxy;
+    }
+    get config() {
+        return Object.assign({}, this._config);
+    }
+    onError(handler) {
+        this.getProxy().onError(handler);
+    }
+    offError(handler) {
+        this.getProxy().offError(handler);
+    }
+    static initializeProvider(provider) {
+        if (this.isInitialized) {
+            const msg = "Attempted to initialize provider more than one time.";
+            const details = {};
+            try {
+                // Attempts to get the existing provider for logging
+                const existingProvider = global_provider_getGlobalProvider();
+                const logger = new connect_logger_ConnectLogger({
+                    source: "core.amazonConnectProvider.init",
+                    provider: existingProvider,
+                });
+                logger.error(msg);
+            }
+            catch (e) {
+                // In the event of a error when logging or attempting
+                // to get provider when logging, capture the message
+                // in the error being thrown
+                details.loggingError = e === null || e === void 0 ? void 0 : e.message;
+            }
+            throw new ConnectError({
+                errorKey: "attemptInitializeMultipleProviders",
+                reason: msg,
+                details,
+            });
+        }
+        setGlobalProvider(provider);
+        this.isInitialized = true;
+        // Getting the proxy sets up the connection with subject
+        provider.getProxy();
+        return provider;
+    }
+}
+AmazonConnectProviderBase.isInitialized = false;
+//# sourceMappingURL=provider-base.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/provider/index.js
+
+
+//# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/context/module-context.js
+
+
 
 class module_context_ModuleContext {
     constructor(engineContext, moduleNamespace) {
@@ -1762,62 +1822,54 @@ class module_context_ModuleContext {
     }
     get proxy() {
         if (!this.moduleProxy) {
-            const proxy = this.engineContext.getProxy();
+            const proxy = this.engineContext.getProvider().getProxy();
             const moduleNamespace = this.moduleNamespace;
             this.moduleProxy = createModuleProxy(proxy, moduleNamespace);
         }
         return this.moduleProxy;
     }
+    getProvider() {
+        return this.engineContext.getProvider();
+    }
     createLogger(params) {
-        return this.engineContext.createLogger(params);
+        if (typeof params === "object") {
+            return new ConnectLogger(Object.assign(Object.assign({}, params), { provider: () => this.engineContext.getProvider() }));
+        }
+        else {
+            return new ConnectLogger({
+                source: params,
+                provider: () => this.engineContext.getProvider(),
+            });
+        }
     }
     createMetricRecorder(params) {
-        return this.engineContext.createMetricRecorder(params);
+        if (typeof params === "object") {
+            return new ConnectMetricRecorder(Object.assign(Object.assign({}, params), { provider: () => this.engineContext.getProvider() }));
+        }
+        else {
+            return new ConnectMetricRecorder({
+                namespace: params,
+                provider: () => this.engineContext.getProvider(),
+            });
+        }
     }
 }
 //# sourceMappingURL=module-context.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/context/context.js
 
 
-
-
 class context_Context {
     constructor(provider) {
-        this.provider = provider;
-    }
-    getProxy() {
-        return this.getProvider().getProxy();
-    }
-    getModuleContext(moduleNamespace) {
-        return new ModuleContext(this, moduleNamespace);
+        this._provider = provider;
     }
     getProvider() {
-        if (this.provider)
-            return this.provider;
+        if (this._provider)
+            return this._provider;
         else
             return getGlobalProvider();
     }
-    createLogger(params) {
-        if (typeof params === "object") {
-            return new ConnectLogger(Object.assign(Object.assign({}, params), { provider: () => this.getProvider() }));
-        }
-        else {
-            return new ConnectLogger({
-                source: params,
-                provider: () => this.getProvider(),
-            });
-        }
-    }
-    createMetricRecorder(params) {
-        if (typeof params === "object") {
-            return new ConnectMetricRecorder(Object.assign(Object.assign({}, params), { provider: () => this.getProvider() }));
-        }
-        else {
-            return new ConnectMetricRecorder({
-                namespace: params,
-                provider: () => this.getProvider(),
-            });
-        }
+    getModuleContext(namespace) {
+        return new ModuleContext(this, namespace);
     }
 }
 //# sourceMappingURL=context.js.map
@@ -1963,6 +2015,7 @@ class StreamsSiteProxy extends SiteProxy {
     constructor(provider) {
         super(provider);
         this.ccpIFrame = null;
+        this.unexpectedIframeWarningCount = 0;
     }
     get proxyType() {
         return "streams-site";
@@ -1970,6 +2023,7 @@ class StreamsSiteProxy extends SiteProxy {
     setCCPIframe(iframe) {
         const isCcpIFrameSet = Boolean(this.ccpIFrame);
         this.ccpIFrame = iframe;
+        this.unexpectedIframeWarningCount = 0;
         if (isCcpIFrameSet)
             this.resetConnection("CCP IFrame Updated");
     }
@@ -1986,9 +2040,13 @@ class StreamsSiteProxy extends SiteProxy {
         }
         const valid = evt.source === ccpIFrame.contentWindow;
         if (!valid) {
-            this.proxyLogger.warn("Message came from unexpected iframe. Not a valid CCP. Will not connect", {
-                origin: evt.origin,
-            });
+            this.unexpectedIframeWarningCount++;
+            if (this.unexpectedIframeWarningCount < 5) {
+                this.proxyLogger.warn("Message came from unexpected iframe. Not a valid CCP. Will not connect", {
+                    origin: evt.origin,
+                    unexpectedIframeWarningCount: this.unexpectedIframeWarningCount,
+                });
+            }
         }
         return valid;
     }
@@ -9160,7 +9218,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.18.7";
+  connect.version = "2.18.8";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
@@ -10450,7 +10508,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     // Add SDK via AmazonConnectStreamsSite
     if (!existingProvider) {
       try {
-        var _require = __webpack_require__(256),
+        var _require = __webpack_require__(650),
           AmazonConnectStreamsSite = _require.AmazonConnectStreamsSite;
         var instanceUrl = new URL(params.ccpUrl).origin;
         var config = {
@@ -12153,11 +12211,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   connect.globalResiliency.initGRCCP = function (containerDiv, paramsIn) {
     // Legacy auth flow must be enabled for now to allow GR to work
-    var params = _objectSpread(_objectSpread({}, paramsIn), {}, {
-      loginOptions: {
-        legacyAuthFlow: true
-      }
-    });
+    var params = _objectSpread({}, paramsIn);
     connect.globalResiliency.params = params;
     var conduitTimerContainerMap = {};
     var hasSentFailoverPending = false;

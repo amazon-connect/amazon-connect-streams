@@ -202,9 +202,6 @@
     // Legacy auth flow must be enabled for now to allow GR to work
     const params = {
       ...paramsIn,
-      loginOptions: {
-        legacyAuthFlow: true,
-      },
     };
     connect.globalResiliency.params = params;
 
