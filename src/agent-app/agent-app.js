@@ -62,58 +62,107 @@
   }
 
   /**
-   * Initializes custom views application for a given contact. It set up the iframe for the custom view and 
+   * Initializes custom views application for a given contact. It sets up the iframe for the custom view and 
    * creates the lifecycle hook of the custom view based on the contact's status.
+   * Extended to support deduplication. 
+   * Works whether the contact ID is passed directly in config or derived from a live connect.Contact object.
    * 
    * @param {string} connectUrl - The URL for the custom view.
    * @param {string} containerDOM - The DOM container for the view iframe.
    * @param {AppOptions} config - Configuration object containing contact details and other settings.
    */
   var initCustomViewsApp = function (connectUrl, containerDOM, config) {
-    const { contact, disableAutoDestroy, iframeSuffix, terminateCustomViewOptions = {} } = config.customViewsParams;
+    const {
+      contact,
+      disableAutoDestroy,
+      iframeSuffix,
+      terminateCustomViewOptions = {},
+      deduplicate = true
+    } = config.customViewsParams;
     let { contactFlowId } = config.customViewsParams;
-    let contactId, appName;
-
-    if (contact !== undefined) {
-      contactId = extractContactId(contact);
-
-      if (contactId && disableAutoDestroy !== true && typeof contact !== 'string') {
-        contact.onDestroy((contact) => {
-          connect.core.terminateCustomView(
-            connectUrl,
-            iframeSuffix,
-            {
-              timeout: terminateCustomViewOptions.timeout || 5000,
-              hideIframe: terminateCustomViewOptions.hideIframe !== undefined ? terminateCustomViewOptions.hideIframe : true,
-              resolveIframe: terminateCustomViewOptions.resolveIframe !== undefined ? terminateCustomViewOptions.resolveIframe : true
-            });
+    let contactId = extractContactId(contact);
+    let agentConnectionId;
+    let contactStatus;
+    const resolveContactObject = (callback) => {
+      if (typeof contact === 'string') {
+        console.debug('[CustomViews] Resolving contact ID string...');
+        connect.agent((agent) => {
+          const matchedContact = agent.getContacts().find((c) => {
+            try {
+              return c.getContactId?.() === contact;
+            } catch {
+              return false;
+            }
+          });
+          if (!matchedContact) {
+            console.warn('[CustomViews] Unable to resolve contact ID to live contact object.');
+          }
+          callback(matchedContact);
         });
+      } else {
+        callback(contact);
       }
-      if (!contactFlowId) {
-        console.warn('[CustomViews]: Need to provide a contactFlowId when defining contact parameter for initalizing customviews application');
+    };
+    const bindOnDestroy = (resolvedContact) => {
+      if (disableAutoDestroy) return;
+      resolvedContact.onDestroy(() => {
+        connect.core.terminateCustomView(connectUrl, iframeSuffix, {
+          timeout: terminateCustomViewOptions.timeout ?? 5000,
+          hideIframe: terminateCustomViewOptions.hideIframe ?? true,
+          resolveIframe: terminateCustomViewOptions.resolveIframe ?? true,
+        });
+      });
+      console.debug('[CustomViews] onDestroy handler registered.');
+    };
+    const extractAgentConnectionId = (resolvedContact) => {
+      try {
+        const connections = resolvedContact.toSnapshot().contactData.connections;
+        const agentConn = connections.find((conn) => conn.type === 'agent');
+        return agentConn?.connectionId;
+      } catch (err) {
+        console.warn('[CustomViews] Failed to extract agentConnectionId.');
+        return undefined;
       }
-    }
-
-    if (iframeSuffix) {
-      appName = `${APP.GUIDES}${iframeSuffix}`;
-    } else {
-      appName = `${APP.GUIDES}`;
-    }
-    const iframeIdSelector = `iframe[id='${appName}']`;
-    const iframe = containerDOM?.querySelector(iframeIdSelector) ||
-      document.getElementById(appName) ||
-      window.top.document.getElementById(appName);
-
-    if (iframe) {
+    };
+    const extractContactStatus = (resolvedContact) => {
+      try {
+        return resolvedContact.toSnapshot().contactData.state.type;
+      } catch (err) {
+        console.warn('[CustomViews] Failed to extract contact status.');
+        return undefined;
+      }
+    };
+    const continueInit = (contactId, agentConnectionId, status) => {
+      const appName = iframeSuffix ? `${APP.GUIDES}${iframeSuffix}` : APP.GUIDES;
+      const iframe =
+        containerDOM?.querySelector(`iframe[id='${appName}']`) ||
+        document.getElementById(appName) ||
+        window.top?.document.getElementById(appName);
+      if (!iframe) {
+        throw new Error(`[CustomViews] Iframe not found for app: ${appName}`);
+      }
       const tabId = AWS.util.uuid.v4();
-      if (contactId) {
-        iframe.src = `${connectUrl}?contactFlowId=${contactFlowId}&currentContactId=${contactId}&agentAppTabId=${tabId}-tab`;
-      } else if (contactFlowId) {
-        iframe.src = `${connectUrl}?contactFlowId=${contactFlowId}&agentAppTabId=${tabId}-tab`;
+      const params = new URLSearchParams({ agentAppTabId: `${tabId}-tab` });
+      if (contactFlowId) params.set('contactFlowId', contactFlowId);
+      if (contactId) params.set('currentContactId', contactId);
+      if (agentConnectionId) params.set('agentConnectionId', agentConnectionId);
+      const dedupId = deduplicate ? (status ? status.toUpperCase() : 'DEFAULT') : 'ADHOC';
+      params.set('duplicateCustomViewsAppId', dedupId);
+      iframe.src = `${connectUrl}?${params.toString()}`;
+      console.debug('[CustomViews] Iframe source initialized with state identifier: ', dedupId);
+    };
+    resolveContactObject((resolvedContact) => {
+      if (resolvedContact) {
+        contactStatus = extractContactStatus(resolvedContact);
+        contactId = extractContactId(resolvedContact);
+        agentConnectionId = extractAgentConnectionId(resolvedContact);
+        if (agentConnectionId) {
+          console.debug('[CustomViews] Agent connection ID derived from contact object');
+        }
+        bindOnDestroy(resolvedContact);
       }
-    } else {
-      throw new Error('[CustomViews]: No iframe found for the app: ', appName);
-    }
+      continueInit(contactId, agentConnectionId, contactStatus);
+    });
   };
 
   var extractContactId = function (contact) {

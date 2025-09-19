@@ -85,6 +85,8 @@
     CRITICAL: function (text) { console.error(text); }
   };
 
+  const REDACTED_STRING = "[redacted]";
+
   /**
   * Checks if it is a valid log component enum
   */
@@ -189,18 +191,33 @@
     var sendDigtRegex = /Send digit.*/gi
     var connectionAuthTokenRegex = /ConnectionAuthenticationToken.*/gi
     var credentialRegex = /("credential":")([^"]*)"/
-    const redactedFields = ["quickconnectname", "token", "login", "credential", "internalip", "authtoken", "phonenumber", "firstname", "lastname", "emailaddress", "address", "displayname"];
+    var emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const redactedFields = ["quickconnectname", "token", "login", "credential", "internalip", "authtoken", "phonenumber", "firstname", "lastname", "emailaddress", "address", "displayname", "agentname", "description", "name", "value", "summary", "queue.name"];
     const hashedFields = ["customerid", "speakerid", "customerspeakerid", "presignedurl"];
     if(data && typeof data === 'object') {
       Object.keys(data).forEach(function(key) {
         if (typeof data[key] === 'object') {
-          redactSensitiveInfo(data[key])
+          if(key === "attributes") {
+            data[key] = REDACTED_STRING; // redact the entire attributes object
+          } else{
+            redactSensitiveInfo(data[key]);
+          }
         } else if(typeof data[key] === 'string') {
           if (key === "url" || key === "text") {
-            data[key] = data[key].replace(authTokenRegex, "[redacted]");
-          } else if (["quickConnectName"].includes(key)) {
-            data[key] = "[redacted]";
-          } else if (["customerId", "CustomerId", "SpeakerId", "CustomerSpeakerId"].includes(key)) {
+            data[key] = data[key].replace(authTokenRegex, REDACTED_STRING);
+            //to remove all traces of phone numbers
+            data[key] = data[key].replace(e164NumberFormatRegex, "phone number" + REDACTED_STRING);
+            data[key] = data[key].replace(sendDigtRegex, "send digit " + REDACTED_STRING);
+            data[key] = data[key].replace(connectionAuthTokenRegex, REDACTED_STRING);
+            data[key] = data[key].replace(emailRegex, "email address " + REDACTED_STRING);
+          } else if (redactedFields.includes(key.toLowerCase())) {
+            data[key] = REDACTED_STRING;
+          } else if ("callconfigjson"===key.toLowerCase()) {
+            // we need to redact the credential in call config json
+            data[key] = data[key].replace(credentialRegex, (match, key, value) => {
+              return key + REDACTED_STRING + '"';
+            });
+          } else if (hashedFields.includes(key.toLowerCase())) {
             data[key] = `${OBFUSCATED_PREFIX} ${md5(data[key])}`;
           }
         }

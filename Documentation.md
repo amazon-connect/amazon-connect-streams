@@ -2,7 +2,7 @@
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
 ## Global Resiliency
-For details on using Amazon Connect Streams with the Connect Global Resiliency feature, please first refer to the specific documentation [here](Documentation-GR.md).
+For details on using Amazon Connect Streams with the Connect Global Resiliency feature, please first refer to the specific documentation [here](Documentation-DR.md).
 
 ### A note on "Routability"
 Note that routability in streams is only affected by agent statuses. Voice contacts will change the agent status, and thus can affect routability. Task and chat contacts do not affect routability. However, if the other channels hit their concurrent live contact limit(s), the agent will not be routed more contacts, but they will technically be in a routable agent state.
@@ -196,7 +196,9 @@ everything set up correctly and that you are able to listen for events.
             enablePhoneTypeSettings: true //optional, defaults to 'true' 
           },
           shouldAddNamespaceToLogs: false, //optional, defaults to 'false'
-          ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms), defines how often to refresh the CCP iframe when logging in
+          ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
+          ccpSynTimeout: 3000, //optional, defaults to 1000 (ms)
+          ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms)
          });
       }
     </script>
@@ -236,12 +238,9 @@ and made available to your JS client code.
     the softphone session must not be closed during the course of a softphone
     call or the call will be disconnected. If `allowFramedSoftphone` is `true`,
     the softphone components will be allowed to be hosted in this window or tab.
-    If you are building a [split CCP](https://docs.aws.amazon.com/connect/latest/adminguide/using-ccp-vdi.html#use-split-ccp), set `allowFramedSoftphone` to `false`
-    to create a media-less CCP for use inside your VDI and run the out of the box
-    CCP on the local machine to handle the media.
-    If `allowFramedSoftphone` is `false` but you want to handle the media locally
-    please make sure you are importing the [connect-rtc.js](https://github.com/aws/connect-rtc-js) package
-    and adding `connect.core.initSoftphoneManager()` to your code after `connect.core.initCCP()`.
+    If `allowFramedSoftphone` is `false`, please make sure you are importing the
+    [lily-rtc.js](https://github.com/aws/connect-rtc-js) package and adding `connect.core.initSoftphoneManager()`
+    to your code after `connect.core.initCCP()`.
   * `disableRingtone`: This option allows you to completely disable the built-in
     ringtone audio that is played when a call is incoming.
   * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
@@ -266,9 +265,10 @@ and made available to your JS client code.
   - `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
     and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
 - `shouldAddNamespaceToLogs`: prepends `[CCP]` to all logs logged by the CCP. Important note: there are a few logs made by the CCP before the namespace is prepended.
-- `ccpLoadTimeout`: A timeout in ms used to configure the refresh rate of CCP when logging in. When an Agent loads their workspace, this timer defines how long Streams will wait for CCP to load. If the agent is unauthenticated, a login popup will open on ccpLoadTimeout. Streams will then refresh the CCP iframe at the ccpLoadTimeout interval to check if the agent is logged in. 
-  - Streams will refresh 10 times at the ccpLoadTimeout interval. The Agent will need to refresh their page if they don't login after 10 iframe refreshes.
-  - If it's taking longer for an agent to log in, try increasing the ccpLoadTimeout. CCP be authenticated but not have enough time to log initialize before the iframe refreshes. This is dependent on the network conditions of the customer's environment.
+- `ccpAckTimeout`: A timeout in ms that tells CCP how long it should wait for an `ACKNOWLEDGE` message from the shared worker after CCP has sent a `SYNCHRONIZE` message to the shared worker. This is important because an `ACKNOWLEDGE` message is only sent back to CCP if the shared worker is initialized and a shared worker is only initialized if the agent is logged in. Moreover, this check happens continuously.
+- `ccpSynTimeout`: A timeout in ms that tells CCP how long to wait before sending another `SYNCHRONIZE` message to the shared worker, which should trigger the shared worker to send back an `ACKNOWLEDGE` if initialized. This event essentially checks if the shared worker was initialized aka agent is logged in. This check happens continuously as well.
+- `ccpLoadTimeout`: A timeout in ms that tells CCP how long to wait before sending the very first `SYNCHRONIZE` message. The user experience here is that on the first CCP initialization, the login flow is delayed by this timeout.
+  - As an example, if this timeout was set to 10 seconds, then the login pop-up will not open up until 10 seconds has pass.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
@@ -614,9 +614,9 @@ agent.onError(function(agent) { /* ... */ });
 ```
 Subscribe a method to be called when the agent is put into an error state. This
 can occur if Streams is unable to get new agent data, or if the agent fails to
-accept an incoming contact, or in other error cases. It means that the agent is
+accept an incoming voice contact, or in other error cases. It means that the agent is
 not routable, and may require that the agent switch to a routable state before
-being able to be routed contacts again.
+being able to be routed contacts again. If looking to determine if a contact is missed (regardless of channel type), use `contact.onMissed()`
 
 ### `agent.onSoftphoneError()`
 ```js
@@ -1438,6 +1438,7 @@ contact.clear({
    failure: function(err) { /* ... */ }
 });
 ```
+
 This is a more generic form of `contact.complete()`. Use this for voice, chat, task, and email contacts to clear the contact
 when the contact is no longer actively being worked on (i.e. it's one of ERROR, ENDED, MISSED, REJECTED).
 It works for both monitoring and non-monitoring connections.
@@ -1482,50 +1483,6 @@ contact.addConnection(endpoint, {
 Add a new outbound third-party connection to this contact and connect it to the specified endpoint.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
-
-**This API is on deprecation path, please use either `contact.addParticipant()` or `contact.transfer()`**
-
-### `contact.addParticipant()`
-
-```js
-// endpoint: Endpoint Object
-contact.addParticipant(endpoint, {
-  success: function () {
-    /* ... */
-  },
-  failure: function (err) {
-    /* ... */
-  },
-});
-```
-
-Add a new participant to either a Voice or Chat contact, and connect it to the specified `endpoint`.
-
-Optional success and failure callbacks can be provided to determine if the operation was successfully invoked.
-
-This API is **only** supported in **Voice** and **Chat**. Will return an error if used on an unsupported contact type.
-
-### `contact.transfer()`
-
-```js
-// endpoint: Endpoint Object
-contact.transfer(endpoint, {
-  success: function () {
-    /* ... */
-  },
-  failure: function (err) {
-    /* ... */
-  },
-});
-```
-
-Transfer the contact to the specified `endpoint`.
-
-Only supports the following endpoint types: `EndpointType.QUEUE` and `EndpointType.AGENT`.
-
-Optional success and failure callbacks can be provided to determine if the operation was successfully invoked.
-
-This API is **only** supported in **Chat**, **Task**, and **Email**. Will return an error if used on an unsupported contact type.
 
 ### `contact.toggleActiveConnections()`
 ```js
@@ -1630,63 +1587,63 @@ Updates the monitor participant state to barge mode.
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
 ### `contact.getConnectSystemEndpoint()`
- 
+
 ```js
 var connectSystemEndpoint = contact.getConnectSystemEndpoint()
 ```
- 
+
 Gets the system endpoint
- 
+
 ### `contact.getCustomerEndpoint()`
- 
+
 ```js
 var customerEndpoint = contact.getCustomerEndpoint()
 ```
- 
+
 Gets the customer endpoint
- 
+
 ### `contact.getContactAssociationId()`
- 
+
 ```js
 var contactAssociationId = contact.getContactAssociationId()
 ```
- 
+
 Gets the contact association id
- 
+
 ```js
 var initiationMethod = contact.getInitiationMethod()
 ```
- 
+
 Gets the contact's initiation method
- 
+
 ### `contact.getConnectSystemEndpoint()`
- 
+
 ```js
 var connectSystemEndpoint = contact.getConnectSystemEndpoint()
 ```
- 
+
 Gets the system endpoint
- 
+
 ### `contact.getCustomerEndpoint()`
- 
+
 ```js
 var customerEndpoint = contact.getCustomerEndpoint()
 ```
- 
+
 Gets the customer endpoint
- 
+
 ### `contact.getContactAssociationId()`
- 
+
 ```js
 var contactAssociationId = contact.getContactAssociationId()
 ```
- 
+
 Gets the contact association id
- 
+
 ```js
 var initiationMethod = contact.getInitiationMethod()
 ```
- 
+
 Gets the contact's initiation method
 
 ### Task Contact APIs
@@ -2261,91 +2218,91 @@ The promise resolves to a `TaskSession` object from the `amazon-connect-taskjs` 
 See the [amazon-connect-taskjs documentation](https://github.com/amazon-connect/amazon-connect-taskjs) for more information.
 
 ## Handling Email Contacts
- 
+
 To fully implement your custom email experience, you'll **need** to integrate with the [AmazonConnectSDK](https://github.com/amazon-connect/AmazonConnectSDK). It is a 2 step process: 
- 
+
 1. Get the client configuration from Streams
 1. Use the configuration to integrate with the [`EmailClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts) and [`FileClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/file/src/file-client.ts) from the AmazonConnectSDK. You may also optionally integrate with the [`MessageTemplateClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/message-template/src/message-template-client.ts) and [`QuickResponsesClient`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/quick-responses/src/quick-responses-client.ts) to enhance your custom experience.
- 
+
 A basic example of how to set this up can be found in the Documentation under `connect.core.getSDKClientConfig()`
- 
+
 ### Creating Draft Email Contacts
 #### Example 1: Agent Initiated Outbound
 ```
 const contact = await emailClient.createDraftEmail({
    initiationMethod: "OUTBOUND",
 });
- 
+
 const { contactId } = contact;
 ```
- 
- 
+
+
 #### Example 2: Agent Reply
 ```
 const contact = await emailClient.createDraftEmail({
    initiationMethod: "AGENT_REPLY",
    relatedContactId: contactToReplyTo, // This is the contact ID of the contact on which the contact.accept() method was called
 });
- 
+
 const { contactId } = contact;
 ```
- 
+
 An agent initiated outbound or reply draft contact is created via [`createDraftEmail`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts#L52). Upon successful draft contact creation, the contact will be in `ContactStateType.CONNECTED` state.
- 
+
 See [CreateDraftEmailContact](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/types.ts#L133) type in the AmazonConnectSDK for additional properties to include in the request.
- 
+
 ### Sending Draft Email Contacts
- 
+
 ```
 const toEmailAddress = {
   emailAddress: "",
 };
- 
+
 const emailContent = {
   subject: "Hello!",
   body: "Thank you!",
   bodyType: "text/plain",
 }
- 
+
 const draftContact = {
   to: [toEmailAddress]
   emailContent,
   contactId: draftContactId, // This is the contact ID of the draft contact created via createDraftEmail()
 };
- 
+
 await emailClient.sendEmail(draftContact);
 ```
- 
+
 Both agent initiated and agent reply draft email contacts are sent via [`sendEmail`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts#L83). Upon successfully sending the email, the contact will transition to `ContactStateType.ENDED` (the ACW state).
- 
+
 ### Getting the email contacts in an email thread
 ```
 const acceptedContactId = contact.getContactId(); // `contact` is the accepted inbound email contact
 const contactAssociationId = contact.getContactAssociationId(); 
- 
+
 const emailThreadContacts = await emailClient.getEmailThread({
   contactAssociationId: contactAssociationId,
 });
- 
+
 // OPTIONAL: Filter out contacts that have been transferred to avoid displaying duplicated email content
 const previousContactIdsSet = new Set(
     emailThreadContacts
         .map(emailThreadContact => emailThreadContact.previousContactId)
         .filter(Boolean)
 );
- 
+
 const filteredEmailContactsInEmailThread = emailThreadContacts.filter(emailContact => 
     emailContact.contactId === acceptedContactId || 
     !previousContactIdsSet.includes(emailContact.contactId)
 );
 ```
 The [`getEmailThread`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts#L67) method allows you to retrieve all contacts associated with an email thread using the `contactAssociationId` from an accepted email contact. Each time an email contact is transferred, a new contact ID is created with `initiationMethod === 'TRANSFER'` and its `previousContactId` is the contact id before the transfer. You may optionally filter out these transferred contacts to avoid duplicate content when rendering the email thread. Once you have the email contacts to display in the thread, you can describe each email contact as explained below.
- 
+
 ### Describing an email contact
 #### Example 1: Agent has accepted an inbound email contact and needs to get that inbound contact's data
 ```
 const emailData = await emailClient.getEmailData({ contactId: inboundContactId, activeContactId: inboundContactId });
- 
+
 // Get the body of the email through the File Client
 const bodyLocation = emailMetadata.bodyLocation;
 if (bodyLocation) {
@@ -2362,7 +2319,7 @@ if (bodyLocation) {
 #### Example 2: Agent has accepted an inbound email contact and needs to get the data for a contact in the inbound contact's thread
 ```
 const emailData = await emailClient.getEmailData({ contactId: contactIdFromThread, activeContactId: inboundContactId });
- 
+
 // Get the body of the email through the File Client
 const bodyLocation = emailMetadata.bodyLocation;
 if (bodyLocation) {
@@ -2376,19 +2333,19 @@ if (bodyLocation) {
    const bodyContent = (await response.json()).messageContent;
 }
 ```
- 
+
 Details of an email contact are retrieved via [`getEmailData`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/email-client.ts#L31).
- 
+
 See the [EmailContact](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/email/src/types.ts#L1) type for additional properties returned from `getEmailData()` 
- 
+
 #### IMPORTANT NOTES
 1. `getEmailData()` requires an `activeContactId` in addition to the contactId of the contact you wish to describe. `activeContactId` will be the contact that is actively being handled *in the context of that email / email thread*.
 1. The `EmailContact` object may contain `bodyLocation` and `attachmentLocations`, both of which will require use of the [FileClient](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/file/src/file-client.ts#L14)’s [getAttachedFileUrl()](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/file/src/file-client.ts#L75) to get the relevant data for those objects.
- 
+
 ### Action and Subscription methods for email contacts via Streams API
- 
+
 In addition to the EmailClient methods, the existing Contact + Connection API action and event subscription methods should be used to manage the email contact lifecycle.
- 
+
 | Use Case   | Streams method | AmazonConnectSDK method |
 | -------- | ------- | ------- |
 | Subscribe to the event fired when an email contact is connecting (when the contact comes in, before accepting) | `contact.onConnecting()`|
@@ -2406,11 +2363,11 @@ In addition to the EmailClient methods, the existing Contact + Connection API ac
 | Transfer an email contact (**cannot transfer draft email contacts**) | `contact.transfer()`|
 | Reject an inbound email contact | `contact.reject()` |
 | Subscribe to the event fired when an email contact is rejected | `contact.onMissed()` or `contact.onEnded()` |
- 
- 
- 
+
+
+
 ### Useful methods to use in Streams API when handling email contacts
- 
+
 | Use Case | Method |
 | -------- | ------- |
 | Get the email address the end customer sent the email to  | `contact.getConnectSystemEndpoint()` |
@@ -2418,11 +2375,12 @@ In addition to the EmailClient methods, the existing Contact + Connection API ac
 | Get the contact association id of a contact (use this when calling `EmailClient.getEmailThread`) | `contact.getContactAssociationId()`|
 | Get the initiation method of the email contact (see `connect.ContactInitiationMethod`) | `contact.getInitiationMethod()`| 
 | Get system defined key-value pairs stored on a contact segment; includes `connect:Subtype`, `connect:Direction` and for non-draft email contacts, `connect:EmailSubject`| `contact.getSegmentAttributes()` |
- 
-### To integrate Attached Files, Message Templates and Quick Responses with your Email contact handling experience, please read the [Amazon Connect SDK API Reference](https://docs.aws.amazon.com/agentworkspace/latest/devguide/api-reference-3p-apps-events-and-requests.html)
 
+### To integrate Attached Files, Message Templates and Quick Responses with your Email contact handling experience, please read the [Amazon Connect SDK API Reference](https://docs.aws.amazon.com/agentworkspace/latest/devguide/api-reference-3p-apps-events-and-requests.html)
 ## Utility Functions
+
 ### `Endpoint.byPhoneNumber()` (static function)
+
 ```js
 var endpoint = Endpoint.byPhoneNumber('+18005550100');
 ```
@@ -2762,6 +2720,13 @@ To get latest streams file and allowlist required urls follow [these instruction
          * terminate when the connected contact is closed. 
          * WARNING: NOT PROPERLY TERMINATING THE CUSTOMVIEW WITH CONNECT.CORE.TERMINATECUSTOMVIEW() BEFORE DESTROYING YOUR IFRAME CONTEXT WILL CAUSE THE CUSTOMVIEW TO COUNT AGAINST YOUR CHAT CONCURRENCY UNTIL IT IS TERMINATED BY THE DEFAULT CHAT OR CUSTOMVIEW FLOW TIMEOUT.
          * 
+         * deduplicate (boolean, default: true): Controls whether Amazon Connect deduplicates CustomView instantiations within the same contact context.
+         *  - When true: Enables deduplication of CustomViews apps per contact lifecycle phase. 
+         *   - The system deduplicates guide instances based on the contact’s current state (“CONNECTING”, “CONNECTED”, “ACW”, etc), or defaults to “DEFAULT” if the state is unavailable. In practice, the hook used to instantiate the guide (e.g. contact.onACW, contact.onConnected, etc.) determines the deduplication key. This ensures that only one guide instance is shown per contact per state. Deduplication is scoped to the agent’s unique offer of the current contact, so even if the same customer initiates multiple contacts, each offer is treated independently.
+         * - When false: Deduplication is bypassed entirely by providing a special identifier to the iframe context.
+         *   - A fresh guide is rendered on every initApp call, regardless of contact state
+         *   - Use this when you want to forcefully show a new guide even if another was already shown in that contact context
+         * 
          * terminateCustomViewOptions (TerminateCustomViewOptions): Options around controlling the iframe's resolution behavior when disableAutoDestroy is true. 
          *  - resolveIframe (boolean): Whether to deconstruct the application iframe and clear its id in the AppRegistry, freeing the namespace of the applications id. Default true.
          * -  timeout (number): Timeout in ms. The amount of time to wait for the DOM to resolve and clear the iframe if resolveIframe is true. Default 5000.
@@ -2802,7 +2767,8 @@ To get latest streams file and allowlist required urls follow [these instruction
                       contact: contact,
                       contactFlowId: "70f643e7-7565-431b-9eb7-f5d666fc7a34",
                       iframeSuffix:`${contact.getContactId()}-70f643e7-7565-431b-9eb7-f5d666fc7a34`;
-                      disableAutoDestroy: true
+                      disableAutoDestroy: true,
+                      deduplicate: true,
                     },
                   }
               );

@@ -95,7 +95,194 @@ describe('Logger', function() {
             }];
             var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);
             assert.deepEqual(loggedObject.objects, expectedObj);
-        })
+        });
+        it('Log should be redacting sensitive information', function() {
+            var obj =  {
+                "webSocketTransport": {
+                    "url": {
+                        "text":"wss://15isv8flsl.execute-api.us-west-2.amazonaws.com/gamma/?[redacted]",
+                        "url":[]
+                    },
+                    "text":545,
+                    "transportLifeTimeInSeconds": 3869,
+                    "expiry": "2021-03-09T20:03:34.625Z"
+                },
+                "authToken": "testing_token=AFSDFAa==",
+                "presignedurl": "https://test.xyz",
+                "contacts": [ {
+                    "phonenumber": "1234567890",
+                    "attributes": {
+                        "test": "test123"
+                    },
+                    "randomContactProperty": "should not be retracted",
+                    "quickConnectName": "HideMe!",
+                    "internalIp": "123.0.1.1",
+                    "connections": [
+                        {
+                            "softphoneMediaInfo": {
+                                "callConfigJson": "{\"signalingEndpoint\":\"wss://abc.bcd.cde.amazonaws.com/LilyRTC\",\"iceServers\":[{\"urls\":[\"turn:abc.cde.com.:3478?transport=udp\"],\"username\":\"abc:cde-efg-gef-ert-wer\",\"credential\":\"3hide+Me4+please=\",\"sessionToken\":\"{\\\"internalIp\\\":\\\"10.0.0.0\\\"}\"}],\"protocol\":\"LilyRTC/1.0/WSS\",\"useWebSocketProvider\":true}"
+                            }
+                        }]
+                }]
+            };
+            var expectedObj = [{
+                "webSocketTransport": {
+                    "url": {
+                        "text":"wss://15isv8flsl.execute-api.us-west-2.amazonaws.com/gamma/?[redacted]",
+                        "url":[]
+                    },
+                    "text":545,
+                    "transportLifeTimeInSeconds": 3869,
+                    "expiry": "2021-03-09T20:03:34.625Z"
+                },
+                "authToken": "[redacted]",
+                "presignedurl": "[obfuscated value] ebb1a2ed4662431abe920657782af6a1",
+                "contacts": [ {
+                    "phonenumber": "[redacted]",
+                    "attributes": "[redacted]",
+                    "connections": [
+                        {
+                            "softphoneMediaInfo": {
+                                "callConfigJson": "{\"signalingEndpoint\":\"wss://abc.bcd.cde.amazonaws.com/LilyRTC\",\"iceServers\":[{\"urls\":[\"turn:abc.cde.com.:3478?transport=udp\"],\"username\":\"abc:cde-efg-gef-ert-wer\",\"credential\":\"[redacted]\",\"sessionToken\":\"{\\\"internalIp\\\":\\\"10.0.0.0\\\"}\"}],\"protocol\":\"LilyRTC/1.0/WSS\",\"useWebSocketProvider\":true}"
+                            }
+                        }
+                    ],
+                    "randomContactProperty": "should not be retracted",
+                    "quickConnectName": "[redacted]",
+                    "internalIp": "[redacted]"
+                }]
+            }];
+            var loggedObject = connect.getLog().trace("Testing logging string").withObject(obj);
+            assert.deepEqual(loggedObject.objects, expectedObj);
+        });
+        it('Log should now contain the agentName in the snapshot object', () => {
+            var obj =  {
+                "connectionId": "b46091ad-6f1b-490b-a58f-1a18943f2191",
+                "state": {
+                  "type": "connected",
+                  "timestamp": "2024-10-22T17:23:30.600Z"
+                },
+                "type": "outbound",
+                "initial": false,
+                "chatMediaInfo": {
+                  "chatAutoAccept": false,
+                  "connectionData": null,
+                  "customerName": null,
+                  "agentName": "TestAgent"
+                },
+                "mute": null,
+                "forcedMute": null,
+                "quickConnectName": "[redacted]",
+                "monitorStatus": null
+            };
+            var expectedObj = [{
+                "connectionId": "b46091ad-6f1b-490b-a58f-1a18943f2191",
+                "state": {
+                  "type": "connected",
+                  "timestamp": "2024-10-22T17:23:30.600Z"
+                },
+                "type": "outbound",
+                "initial": false,
+                "chatMediaInfo": {
+                  "chatAutoAccept": false,
+                  "connectionData": null,
+                  "customerName": null,
+                  "agentName": "[redacted]"
+                },
+                "mute": null,
+                "forcedMute": null,
+                "quickConnectName": "[redacted]",
+                "monitorStatus": null
+            }];
+            var loggedObject = connect.getLog().trace("AWSClient: <-- Operation '%s' succeeded.").withObject(obj);
+            assert.deepEqual(loggedObject.objects, expectedObj);
+        });
+        it('Log should handle contact data included as reference in agent snapshot (task template)', function() {
+            var obj = {
+                "agentResourceId": "abc123-def456-ghi789",
+                "instanceId": "instance-12345",
+                "accountId": "123456789",
+                "timestamp": 1234567890123,
+                "component": "ccp",
+                "level": "INFO", 
+                "text": "Contact event with email user@example.com",
+                "objects": [{
+                    "event": "ContactDestroyed",
+                    "data": {
+                        "contactId": "contact-abc123",
+                        "contactData": {
+                            "contactId": "contact-abc123",
+                            "type": "task",
+                            "queue": {
+                                "queueARN": "arn:aws:connect:us-east-1:123456789:instance/inst-123/queue/queue-456",
+                                "name": "Customer Support Queue",
+                                "queueId": "queue-456"
+                            },
+                            "name": "Support Task",
+                            "description": "Customer needs help with account issue",
+                            "references": {
+                                "Account Number": {
+                                    "value": "ACC-123456",
+                                    "type": "STRING"
+                                },
+                                "Agent Name": {
+                                    "value": "Jane Doe",
+                                    "type": "STRING"  
+                                },
+                                "Summary": {
+                                    "value": "Customer called about billing issue",
+                                    "type": "STRING"
+                                }
+                            }
+                        }
+                    }
+                }]
+            };
+            
+            var expectedObj = [{
+                "agentResourceId": "abc123-def456-ghi789",
+                "instanceId": "instance-12345", 
+                "accountId": "123456789",
+                "timestamp": 1234567890123,
+                "component": "ccp",
+                "level": "INFO",
+                "text": "Contact event with email email address [redacted]",
+                "objects": [{
+                    "event": "ContactDestroyed",
+                    "data": {
+                        "contactId": "contact-abc123",
+                        "contactData": {
+                            "contactId": "contact-abc123",
+                            "type": "task",
+                            "queue": {
+                                "queueARN": "arn:aws:connect:us-east-1:123456789:instance/inst-123/queue/queue-456",
+                                "name": "[redacted]",
+                                "queueId": "queue-456"
+                            },
+                            "name": "[redacted]",
+                            "description": "[redacted]",
+                            "references": {
+                                "Account Number": {
+                                    "value": "[redacted]",
+                                    "type": "STRING"
+                                },
+                                "Agent Name": {
+                                    "value": "[redacted]",
+                                    "type": "STRING"
+                                },
+                                "Summary": {
+                                    "value": "[redacted]",
+                                    "type": "STRING"
+                                }
+                            }
+                        }
+                    }
+                }]
+            }];
+            
+            var loggedObject = connect.getLog().trace("Testing comprehensive contact data redaction").withObject(obj);
+            assert.deepEqual(loggedObject.objects, expectedObj);
+        });
     });
     describe('Logger.withCrossOriginEventObject()', function(){
         it('Log should be empty as none of these are the right fields.', function(){
