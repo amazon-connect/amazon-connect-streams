@@ -1,5 +1,15 @@
 # CHANGELOG.md
 
+## [2.19.1] - 2025-09-10
+- Added deduplication support for CustomViews applications to prevent multiple instances from running simultaneously in the same contact context. Key changes:
+
+  - Added deduplicate boolean parameter (default: true) to control deduplication behavior
+  - Enhanced contact resolution to handle both contact objects and contact ID strings consistently
+  - Added state-based deduplication using contact lifecycle phases (CONNECTING, CONNECTED, ACW, etc.)
+  - Improved error handling and logging for contact resolution failures
+  - Logging improvements
+  - Unified the contact handling code paths for better maintainability
+
 ## [2.19.0] - 2025-09-12
 - Adding support for [AmazonConnectSDK](https://github.com/amazon-connect/AmazonConnectSDK) for Global Resiliency setups.
 

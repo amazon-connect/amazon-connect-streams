@@ -10,6 +10,10 @@ describe('agent-app', function () {
   var conduit;
 
   before(function () {
+    if (typeof extractContactId === 'undefined') {
+      global.extractContactId = contact =>
+        (typeof contact === 'string' ? contact : contact.getContactId());
+    }
     bus = new connect.EventBus();
     conduit = new connect.IFrameConduit(endpoint, window, document.createElement('iframe'));
     conduit.upstreamBus = bus;
@@ -276,163 +280,276 @@ describe('agent-app', function () {
     });
   });
 
-  describe('initCustomViewsApp()', function () {
-    var connectUrl = 'https://customview.example.com';
-    var contact = { getContactId: () => 'ContactId1', getAttributes: sandbox.stub(), onDestroy: sandbox.stub() }
-    var contactId = 'contactId3'
-    var contactConfig = { customViewsParams: { contact, disableAutoDestory: false } }
-    var contactIdConfig = { customViewsParams: { contact: contactId, disableAutoDestroy: false } }
-    var containerDOM;
-    var terminateCustomViewStub;
-    var warnSpy;
-
-    contact.getAttributes.returns({
-      DisconnectFlowForAgentUI: { value: 'DisconnectFlowForAgentUI' },
-      DefaultFlowForAgentUI: { value: 'DefaultFlowForAgentUI' }
-    })
-
+  describe('initCustomViewsApp – contact object vs. contact-id', function () {
+    const connectUrl = 'https://customview.example.com';
+    let sandbox, containerDOM, terminateSpy, warnSpy;
+    const uniqueSuffix = (label) =>
+      `suffix-${label.replace(/\W+/g, '')}-${Math.random().toString(36).substr(2, 5)}`;
+    const buildContact = (contactId = 'ContactIdObj', agentConnId = 'agentConnObj', status = 'connected') => ({
+      getContactId: () => contactId,
+      toSnapshot: () => ({
+        contactData: {
+          state: { type: status },
+          connections: [{ type: 'agent', connectionId: agentConnId }]
+        }
+      }),
+      onDestroy: sinon.stub(),
+      getAttributes: sinon.stub().returns({})
+    });
+    const cases = [
+      {
+        label: 'with live contact object',
+        makeConfig: () => {
+          const contact = buildContact();
+          return {
+            customViewsParams: {
+              contact,
+              contactFlowId: 'flow-obj',
+              iframeSuffix: uniqueSuffix('live-contact'),
+            },
+            contactObj: contact
+          };
+        },
+        expectDestroyHook: true,
+        expectedFixedParams: {
+          contactFlowId: 'flow-obj',
+          currentContactId: 'ContactIdObj',
+          agentConnectionId: 'agentConnObj',
+          duplicateCustomViewsAppId: 'CONNECTED'
+        }
+      },
+      {
+        label: 'with contact-id string (resolves successfully)',
+        makeConfig: () => {
+          sandbox.restore();
+          sandbox = sinon.createSandbox();
+          const fakeContact = buildContact('ContactIdStr', 'agentConnFromStub');
+          const fakeAgent = { getContacts: () => [fakeContact] };
+          sandbox.stub(connect, 'agent').callsFake((cb) => cb(fakeAgent));
+          return {
+            customViewsParams: {
+              contact: 'ContactIdStr',
+              contactFlowId: 'flow-str',
+              iframeSuffix: uniqueSuffix('contact-id-success'),
+            }
+          };
+        },
+        expectDestroyHook: false,
+        expectedFixedParams: {
+          contactFlowId: 'flow-str',
+          currentContactId: 'ContactIdStr',
+          agentConnectionId: 'agentConnFromStub',
+          duplicateCustomViewsAppId: 'CONNECTED'
+        }
+      },
+      {
+        label: 'with contact-id string (unresolved)',
+        makeConfig: () => {
+          sandbox.restore();
+          sandbox = sinon.createSandbox();
+          sandbox.stub(connect, 'agent').callsFake((cb) => cb({ getContacts: () => [] }));
+          return {
+            customViewsParams: {
+              contact: 'UnmatchedContactId',
+              contactFlowId: 'flow-unmatched',
+              iframeSuffix: uniqueSuffix('contact-id-unmatched'),
+            }
+          };
+        },
+        expectDestroyHook: false,
+        expectedFixedParams: {
+          contactFlowId: 'flow-unmatched',
+          currentContactId: 'UnmatchedContactId',
+          duplicateCustomViewsAppId: 'DEFAULT'
+        }
+      },
+      {
+        label: 'with undefined contact',
+        makeConfig: () => ({
+          customViewsParams: {
+            contact: undefined,
+            contactFlowId: 'flow-nocontact',
+            iframeSuffix: uniqueSuffix('no-contact'),
+          }
+        }),
+        expectDestroyHook: false,
+        expectedFixedParams: {
+          contactFlowId: 'flow-nocontact',
+          duplicateCustomViewsAppId: 'DEFAULT'
+        }
+      },
+      {
+        label: 'with malformed contact object (no getContactId)',
+        makeConfig: () => {
+          const contact = {
+            toSnapshot: () => ({
+              contactData: {
+                state: { type: 'missed' },
+                connections: [{ type: 'agent', connectionId: 'connBad' }]
+              }
+            }),
+            onDestroy: sinon.stub(),
+            getAttributes: sinon.stub().returns({})
+          };
+          return {
+            customViewsParams: {
+              contact,
+              contactFlowId: 'flow-bad',
+              iframeSuffix: uniqueSuffix('malformed-contact'),
+            },
+            contactObj: contact
+          };
+        },
+        expectDestroyHook: true,
+        expectedFixedParams: {
+          contactFlowId: 'flow-bad',
+          agentConnectionId: 'connBad',
+          duplicateCustomViewsAppId: 'MISSED'
+        }
+      },
+      {
+        label: 'with contact object but no contactFlowId',
+        makeConfig: () => {
+          const contact = buildContact('MissingFlowId', 'connMF');
+          return {
+            customViewsParams: {
+              contact,
+              iframeSuffix: uniqueSuffix('no-flowid'),
+            },
+            contactObj: contact
+          };
+        },
+        expectDestroyHook: true,
+        expectedFixedParams: {
+          currentContactId: 'MissingFlowId',
+          agentConnectionId: 'connMF',
+          duplicateCustomViewsAppId: 'CONNECTED'
+        }
+      },
+      {
+        label: 'with contact object and autoDestroy disabled',
+        makeConfig: () => {
+          const contact = buildContact('AutoDestroyOffId', 'connNoDestroy');
+          return {
+            customViewsParams: {
+              contact,
+              iframeSuffix: uniqueSuffix('autodestroy-disabled'),
+              disableAutoDestroy: true
+            },
+            contactObj: contact
+          };
+        },
+        expectDestroyHook: false,
+        expectedFixedParams: {
+          currentContactId: 'AutoDestroyOffId',
+          agentConnectionId: 'connNoDestroy',
+          duplicateCustomViewsAppId: 'CONNECTED'
+        }
+      },
+      {
+        label: 'with custom terminateCustomViewOptions',
+        makeConfig: () => {
+          const contact = buildContact('CustomTerminateOptions', 'connCustomTerm');
+          return {
+            customViewsParams: {
+              contact,
+              iframeSuffix: uniqueSuffix('custom-terminate'),
+              terminateCustomViewOptions: {
+                timeout: 7777,
+                hideIframe: false,
+                resolveIframe: false
+              }
+            },
+            contactObj: contact
+          };
+        },
+        expectDestroyHook: true,
+        expectTerminateOptions: {
+          timeout: 7777,
+          hideIframe: false,
+          resolveIframe: false
+        },
+        expectedFixedParams: {
+          currentContactId: 'CustomTerminateOptions',
+          agentConnectionId: 'connCustomTerm',
+          duplicateCustomViewsAppId: 'CONNECTED'
+        }
+      }
+    ];
     beforeEach(function () {
+      sandbox = sinon.createSandbox();
       containerDOM = document.createElement('div');
-      containerDOM.setAttribute('id', 'customviews-container');
+      containerDOM.id = 'customviews-container';
       document.body.appendChild(containerDOM);
-      terminateCustomViewStub = sandbox.stub(connect.core, 'terminateCustomView');
-      warnSpy = sinon.spy(console, 'warn');
+      terminateSpy = sandbox.spy(connect.core, 'terminateCustomView');
+      warnSpy = sandbox.spy(console, 'warn');
     });
-
     afterEach(function () {
+      const iframe = containerDOM.querySelector('iframe');
+      if (iframe) {
+        const suffix = iframe.id?.replace('customviews-', '');
+        if (suffix) {
+          connect.core.terminateCustomView(connectUrl, suffix, {
+            timeout: 0,
+            hideIframe: true,
+            resolveIframe: true
+          });
+        }
+      }
       document.body.removeChild(containerDOM);
-      contact.onDestroy.resetHistory();
-      console.warn.restore();
-    })
-
-    it('should initialize iframe with correct src with contact object with contactFlowId', function () {
-      contactConfig.customViewsParams.contactFlowId = 'abc-flow-id';
-      contactConfig.customViewsParams.iframeSuffix = 'ContactId1';
-      connect.agentApp.initApp('customviews', containerDOM, connectUrl, contactConfig);
-
-      var iframe = document.querySelector('#customviews-container iframe');
-      expect(iframe).to.not.be.null;
-      expect(iframe.src).to.include(`${connectUrl}`);
-      expect(iframe.src).to.include('contactFlowId=abc-flow-id');
-      expect(iframe.src).to.include(`currentContactId=${contact.getContactId()}`);
-      expect(iframe.src).to.include('agentAppTabId');
-      expect(iframe.id).to.include(`customviews${contactConfig.customViewsParams.iframeSuffix}`);
+      sandbox.restore();
+      warnSpy.restore();
     });
-
-    it('should not throw with contact object & no contactFlowId', function () {
-      const contactId = 'ContactId2';
-      delete contactConfig.customViewsParams.contactFlowId;
-      contactConfig.customViewsParams.iframeSuffix = contactId;
-      contact.getContactId = () => contactId;
-      expect(() => { connect.agentApp.initApp('customviews', containerDOM, connectUrl, contactConfig) }).to.not.throw();
-
-      var iframe = document.querySelector('#customviews-container iframe');
-      expect(iframe).to.not.be.null;
-      expect(iframe.src).to.include('contactFlowId');
-      expect(iframe.id).to.include('customviewsContactId2');
-      sinon.assert.calledWith(warnSpy, '[CustomViews]: Need to provide a contactFlowId when defining contact parameter for initalizing customviews application');
-    })
-
-    it('should initialize iframe with correct src with contactId & contactFlowId', function () {
-      contactIdConfig.customViewsParams.contactFlowId = 'abc-flow-id-part-2';
-      connect.agentApp.initApp('customviews', containerDOM, connectUrl, contactIdConfig);
-
-      var iframe = document.querySelector('#customviews-container iframe');
-      expect(iframe).to.not.be.null;
-      expect(iframe.src).to.include('contactFlowId=abc-flow-id-part-2');
-      expect(iframe.id).to.include('customviews');
-    })
-
-    it('should not throw with contactId & no contactFlowId', function () {
-      const contactId = 'ContactId4';
-      delete contactIdConfig.customViewsParams.contactFlowId;;
-      contactIdConfig.customViewsParams.contact = contactId;
-      contactIdConfig.customViewsParams.iframeSuffix = contactId;
-      expect(() => { connect.agentApp.initApp('customviews', containerDOM, connectUrl, contactIdConfig) }).to.not.throw();
-
-      var iframe = document.querySelector('#customviews-container iframe');
-      expect(iframe).to.not.be.null;
-      expect(iframe.id).to.include('customviewsContactId4');
-      sinon.assert.calledWith(warnSpy, '[CustomViews]: Need to provide a contactFlowId when defining contact parameter for initalizing customviews application');
-    })
-
-    it('should throw when app with name is already registered', function () {
-      contactIdConfig.customViewsParams.iframeSuffix = 'ContactId2';
-      expect(() => { connect.agentApp.initApp('customviews', containerDOM, connectUrl, contactIdConfig) }).to.throw();
-
-      var iframe = document.querySelector('#customviews-container iframe');
-      expect(iframe).to.be.null;
-    })
-
-    it('should hook an onDestroy event to a contact object when provided contactFlowId and terminateCustomViewOptions', () => {
-      const contactId = 'ContactId5';
-      const timeout = 3000;
-      const hideIframe = false;
-      const resolveIframe =false;
-      contactConfig.customViewsParams.contactFlowId = contactId;
-      contactConfig.customViewsParams.iframeSuffix = contactId;
-      contactConfig.customViewsParams.terminateCustomViewOptions = {timeout, hideIframe, resolveIframe};
-      contact.getContactId = () => contactId;
-      connect.agentApp.initApp('customviews', containerDOM, connectUrl, contactConfig);
-
-      var iframe = document.querySelector('#customviews-container iframe');
-      expect(iframe).to.not.be.null;
-      var onDestroyCallback = contact.onDestroy.getCall(0).args[0];
-      onDestroyCallback(contactId);
-      sinon.assert.calledWith(terminateCustomViewStub, connectUrl + '/', contactId, {timeout, hideIframe, resolveIframe})
-    })
-
-    it('should hook an onDestroy event to a contact object when provided contactFlowId', () => {
-      const contactId = 'ContactId5.1';
-      contactConfig.customViewsParams.contactFlowId = contactId;
-      contactConfig.customViewsParams.iframeSuffix = contactId;
-      delete contactConfig.customViewsParams.terminateCustomViewOptions;
-      contact.getContactId = () => contactId;
-      connect.agentApp.initApp('customviews', containerDOM, connectUrl, contactConfig);
-
-      var iframe = document.querySelector('#customviews-container iframe');
-      expect(iframe).to.not.be.null;
-      var onDestroyCallback = contact.onDestroy.getCall(0).args[0];
-      onDestroyCallback(contactId);
-      sinon.assert.calledWith(terminateCustomViewStub, connectUrl + '/', contactId, {timeout: 5000, hideIframe: true, resolveIframe: true})
-    })
-
-
-    it('should not hook an onDestroy event to a contact object when disableAutoDestroy is true', () => {
-      const contactId = 'ContactId6';
-      contactConfig.customViewsParams.contactFlowId = contactId;
-      contactConfig.customViewsParams.iframeSuffix = contactId;
-      contactConfig.customViewsParams.disableAutoDestroy = true;
-      contact.getContactId = () => contactId;
-      connect.agentApp.initApp('customviews', containerDOM, connectUrl, contactConfig);
-
-      var iframe = document.querySelector('#customviews-container iframe');
-      expect(iframe).to.not.be.null;
-      expect(() => { contact.onDestroy.getCall(0).args[0] }).to.Throw();
-    })
-
-    it('should not hook an onDestroy event to a contactId', () => {
-      const contactId = 'ContactId7';
-      contactIdConfig.customViewsParams.contactFlowId = contactId;
-      contactIdConfig.customViewsParams.iframeSuffix = contactId;
-      connect.agentApp.initApp('customviews', containerDOM, connectUrl, contactIdConfig);
-
-      var iframe = document.querySelector('#customviews-container iframe');
-      expect(iframe).to.not.be.null;
-      expect(() => { contact.onDestroy.getCall(0).args[0] }).to.Throw();
-    })
-
-    it('should not hook an onDestroy event to an undefined contactId', () => {
-      const contactId = 'ContactId8'
-      contactIdConfig.customViewsParams.contact = '';
-      contactIdConfig.customViewsParams.contactFlowId = contactId;
-      contactIdConfig.customViewsParams.iframeSuffix = contactId;
-      connect.agentApp.initApp('customviews', containerDOM, connectUrl, contactIdConfig);
-
-      var iframe = document.querySelector('#customviews-container iframe');
-      expect(iframe).to.not.be.null;
-      expect(() => { contact.onDestroy.getCall(0).args[0] }).to.Throw();
-    })
-  })
+    cases.forEach(tc => {
+      it(`builds iframe src correctly ${tc.label}`, function () {
+        const configBundle = tc.makeConfig();
+        const config = typeof configBundle.customViewsParams === 'object'
+          ? configBundle
+          : { customViewsParams: configBundle };
+        connect.agentApp.initApp('customviews', containerDOM, connectUrl, config);
+        const iframe = containerDOM.querySelector('iframe');
+        expect(iframe, 'iframe should exist').to.not.be.null;
+        const url = new URL(iframe.src);
+        expect(url.origin + url.pathname).to.equal(connectUrl + '/');
+        expect(url.searchParams.get('agentAppTabId')).to.match(/-tab$/);
+        const paramsObj = {};
+        url.searchParams.forEach((value, key) => {
+          paramsObj[key] = value;
+        });
+        Object.entries(tc.expectedFixedParams).forEach(([key, expectedValue]) => {
+          expect(paramsObj[key], `Expected param "${key}"`).to.equal(expectedValue);
+        });
+        const expectedKeys = Object.keys(tc.expectedFixedParams).concat('agentAppTabId');
+        expect(Object.keys(paramsObj).sort(), 'Only expected query params').to.deep.equal(expectedKeys.sort());
+        const contactObj = configBundle.contactObj;
+        if (tc.expectDestroyHook && contactObj?.onDestroy) {
+          sinon.assert.calledOnce(contactObj.onDestroy);
+          const destroyFn = contactObj.onDestroy.firstCall.args[0];
+          destroyFn();
+          if (tc.expectTerminateOptions) {
+            sinon.assert.calledWithMatch(
+              terminateSpy,
+              connectUrl,
+              config.customViewsParams.iframeSuffix,
+              tc.expectTerminateOptions
+            );
+          } else {
+            sinon.assert.calledWithMatch(
+              terminateSpy,
+              connectUrl,
+              config.customViewsParams.iframeSuffix,
+              sinon.match({
+                timeout: 5000,
+                hideIframe: true,
+                resolveIframe: true
+              })
+            );
+          }
+        } else {
+          sinon.assert.neverCalledWith(terminateSpy, connectUrl, config.customViewsParams.iframeSuffix);
+        }
+      });
+    });
+  });
 });
 

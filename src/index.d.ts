@@ -91,7 +91,7 @@ declare namespace connect {
 
   /**
    * A callback with no arguments.
-   */ 
+   */
   type Callback = () => void;
 
   /**
@@ -137,8 +137,8 @@ declare namespace connect {
     onGrant?: StorageAccessCallback
   }
 
-  interface StorageAccess { 
-    onRequest(options: StorageAccessCallbacks): {unsubscribe: Function}
+  interface StorageAccess {
+    onRequest(options: StorageAccessCallbacks): { unsubscribe: Function }
   }
 
   const storageAccess: StorageAccess;
@@ -521,11 +521,11 @@ declare namespace connect {
      */
     readonly allowFramedScreenSharingPopUp?: boolean;
 
-     /**
-     * VDI SDK support, we are currently only supporting CITRIX
-     * To specify that the VDI environment is Citrix, please set this value to `CITRIX` or 
-     * `VDIPlatformType.CITRIX`
-     */
+    /**
+    * VDI SDK support, we are currently only supporting CITRIX
+    * To specify that the VDI environment is Citrix, please set this value to `CITRIX` or 
+    * `VDIPlatformType.CITRIX`
+    */
     readonly VDIPlatform?: string;
 
     /**
@@ -662,7 +662,7 @@ declare namespace connect {
     readonly storageAccess?: StorageAccessParameters
 
     /** used to associate an existing AmazonConnectProvider */
-    readonly provider?: InstanceType<{ new (...args: any[]): any }>
+    readonly provider?: InstanceType<{ new(...args: any[]): any }>
   }
 
   interface TerminateCustomViewOptions {
@@ -707,6 +707,13 @@ declare namespace connect {
      * Options for adjusting the the auto-teardown behavior around the iframe
      */
     readonly terminateCustomViewOptions?: TerminateCustomViewOptions
+
+    /** deduplicate (boolean, default: true):
+        * When true, enables deduplication by using the contact's current state (e.g., 'CONNECTED', 'ACW')—or 'DEFAULT' if unavailable—as the identifier
+        * in duplicateCustomViewsAppId. This ensures only one guide instance per contact state. When false, bypasses deduplication by assigning a special
+        * identifier, resulting in a fresh guide instantiation on every call.
+        */
+    readonly deduplicate?: boolean
   }
 
   interface OptionalInitCCPOptions {
@@ -967,7 +974,7 @@ declare namespace connect {
     EMAIL = "email",
   }
 
-    /** This enumeration lists the different types of VDI Platform supported. */
+  /** This enumeration lists the different types of VDI Platform supported. */
   enum VDIPlatformType {
     /** Citrix. */
     CITRIX = "CITRIX",
@@ -1030,10 +1037,10 @@ declare namespace connect {
     SEND_DATA_FAILED_EXCEPTION = "SendDataFailedException",
     UNAUTHORIZED_EXCEPTION = "UnauthorizedException",
   }
-  
+
   enum MonitoringMode {
-  	SILENT_MONITOR = "SILENT_MONITOR",
-  	BARGE = "BARGE"
+    SILENT_MONITOR = "SILENT_MONITOR",
+    BARGE = "BARGE"
   }
 
   enum MasterTopics {
@@ -2080,10 +2087,10 @@ declare namespace connect {
 
     /** Determine whether this contact is a softphone call and multiparty conference feature is turned on.  */
     isMultiPartyConferenceEnabled(): boolean;
-    
+
     /** Determines if the contact is under manager's supervision */
     isUnderSupervision(): boolean;
-    
+
     /**
     * Updates the monitor participant state to switch between different monitoring modes.
     * 
@@ -2108,10 +2115,10 @@ declare namespace connect {
   }
 
   class QuickResponses {
-     /** 
-      * Determine whether Quick Responses is enabled for this instance. Should only be called once during initialization
-      * @returns A boolean, true if feature is enabled, false otherwise.
-      */
+    /** 
+     * Determine whether Quick Responses is enabled for this instance. Should only be called once during initialization
+     * @returns A boolean, true if feature is enabled, false otherwise.
+     */
     static isEnabled(): Promise<boolean>;
 
     /**
@@ -2177,7 +2184,7 @@ declare namespace connect {
 
   type CustomerAuthenticationStatus = 'AUTHENTICATED' | 'FAILED' | 'TIMEOUT';
   type CustomerAuthenticationMethod = 'CONNECT' | 'CUSTOM';
-  type CustomerAuthenticationDetails =  {
+  type CustomerAuthenticationDetails = {
     /** The identity provider that issued the authentication */
     IdentityProvider?: string;
     /** The user pool app client that authenticated your user. */
@@ -2406,16 +2413,16 @@ declare namespace connect {
     * Regular agent will not see supervisor's connection in the snapshot while it is in silent monitor state.
     */
     isSilentMonitor(): boolean;
-    
+
     /**
     * Returns true if monitorStatus is MonitoringMode.BARGE. 
     * This means the connection is in barge-in state. Regular agent will see the supervisor's connection in the list of connections in the snapshot.
     */
     isBarge(): boolean;
-    
+
     /** Returns true if agent's monitoringCapabilities contain MonitoringMode.SILENT_MONITOR type. */
     isSilentMonitorEnabled(): boolean;
-    
+
     /** Returns true if agent's monitoringCapabilities contain MonitoringMode.BARGE state type. */
     isBargeEnabled(): boolean;
 
@@ -2427,7 +2434,7 @@ declare namespace connect {
      * This value can be one of MonitoringMode enum values if the agent is supervisor, otherwise the monitorStatus will be null for the agent.
      */
     getMonitorStatus(): MonitoringMode | null;
-    
+
     /** Returns true if the connection was forced muted by the manager. */
     isForcedMute(): boolean;
   }

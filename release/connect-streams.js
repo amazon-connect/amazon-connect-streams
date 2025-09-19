@@ -2700,8 +2700,10 @@ class AmazonConnectGRStreamsSite extends AmazonConnectProviderBase {
   };
 
   /**
-   * Initializes custom views application for a given contact. It set up the iframe for the custom view and 
+   * Initializes custom views application for a given contact. It sets up the iframe for the custom view and 
    * creates the lifecycle hook of the custom view based on the contact's status.
+   * Extended to support deduplication. 
+   * Works whether the contact ID is passed directly in config or derived from a live connect.Contact object.
    * 
    * @param {string} connectUrl - The URL for the custom view.
    * @param {string} containerDOM - The DOM container for the view iframe.
@@ -2713,41 +2715,97 @@ class AmazonConnectGRStreamsSite extends AmazonConnectProviderBase {
       disableAutoDestroy = _config$customViewsPa.disableAutoDestroy,
       iframeSuffix = _config$customViewsPa.iframeSuffix,
       _config$customViewsPa2 = _config$customViewsPa.terminateCustomViewOptions,
-      terminateCustomViewOptions = _config$customViewsPa2 === void 0 ? {} : _config$customViewsPa2;
+      terminateCustomViewOptions = _config$customViewsPa2 === void 0 ? {} : _config$customViewsPa2,
+      _config$customViewsPa3 = _config$customViewsPa.deduplicate,
+      deduplicate = _config$customViewsPa3 === void 0 ? true : _config$customViewsPa3;
     var contactFlowId = config.customViewsParams.contactFlowId;
-    var contactId, appName;
-    if (contact !== undefined) {
-      contactId = extractContactId(contact);
-      if (contactId && disableAutoDestroy !== true && typeof contact !== 'string') {
-        contact.onDestroy(function (contact) {
-          connect.core.terminateCustomView(connectUrl, iframeSuffix, {
-            timeout: terminateCustomViewOptions.timeout || 5000,
-            hideIframe: terminateCustomViewOptions.hideIframe !== undefined ? terminateCustomViewOptions.hideIframe : true,
-            resolveIframe: terminateCustomViewOptions.resolveIframe !== undefined ? terminateCustomViewOptions.resolveIframe : true
+    var contactId = extractContactId(contact);
+    var agentConnectionId;
+    var contactStatus;
+    var resolveContactObject = function resolveContactObject(callback) {
+      if (typeof contact === 'string') {
+        console.debug('[CustomViews] Resolving contact ID string...');
+        connect.agent(function (agent) {
+          var matchedContact = agent.getContacts().find(function (c) {
+            try {
+              var _c$getContactId;
+              return ((_c$getContactId = c.getContactId) === null || _c$getContactId === void 0 ? void 0 : _c$getContactId.call(c)) === contact;
+            } catch (_unused) {
+              return false;
+            }
           });
+          if (!matchedContact) {
+            console.warn('[CustomViews] Unable to resolve contact ID to live contact object.');
+          }
+          callback(matchedContact);
         });
+      } else {
+        callback(contact);
       }
-      if (!contactFlowId) {
-        console.warn('[CustomViews]: Need to provide a contactFlowId when defining contact parameter for initalizing customviews application');
+    };
+    var bindOnDestroy = function bindOnDestroy(resolvedContact) {
+      if (disableAutoDestroy) return;
+      resolvedContact.onDestroy(function () {
+        var _terminateCustomViewO, _terminateCustomViewO2, _terminateCustomViewO3;
+        connect.core.terminateCustomView(connectUrl, iframeSuffix, {
+          timeout: (_terminateCustomViewO = terminateCustomViewOptions.timeout) !== null && _terminateCustomViewO !== void 0 ? _terminateCustomViewO : 5000,
+          hideIframe: (_terminateCustomViewO2 = terminateCustomViewOptions.hideIframe) !== null && _terminateCustomViewO2 !== void 0 ? _terminateCustomViewO2 : true,
+          resolveIframe: (_terminateCustomViewO3 = terminateCustomViewOptions.resolveIframe) !== null && _terminateCustomViewO3 !== void 0 ? _terminateCustomViewO3 : true
+        });
+      });
+      console.debug('[CustomViews] onDestroy handler registered.');
+    };
+    var extractAgentConnectionId = function extractAgentConnectionId(resolvedContact) {
+      try {
+        var connections = resolvedContact.toSnapshot().contactData.connections;
+        var agentConn = connections.find(function (conn) {
+          return conn.type === 'agent';
+        });
+        return agentConn === null || agentConn === void 0 ? void 0 : agentConn.connectionId;
+      } catch (err) {
+        console.warn('[CustomViews] Failed to extract agentConnectionId.');
+        return undefined;
       }
-    }
-    if (iframeSuffix) {
-      appName = "".concat(APP.GUIDES).concat(iframeSuffix);
-    } else {
-      appName = "".concat(APP.GUIDES);
-    }
-    var iframeIdSelector = "iframe[id='".concat(appName, "']");
-    var iframe = (containerDOM === null || containerDOM === void 0 ? void 0 : containerDOM.querySelector(iframeIdSelector)) || document.getElementById(appName) || window.top.document.getElementById(appName);
-    if (iframe) {
+    };
+    var extractContactStatus = function extractContactStatus(resolvedContact) {
+      try {
+        return resolvedContact.toSnapshot().contactData.state.type;
+      } catch (err) {
+        console.warn('[CustomViews] Failed to extract contact status.');
+        return undefined;
+      }
+    };
+    var continueInit = function continueInit(contactId, agentConnectionId, status) {
+      var _window$top;
+      var appName = iframeSuffix ? "".concat(APP.GUIDES).concat(iframeSuffix) : APP.GUIDES;
+      var iframe = (containerDOM === null || containerDOM === void 0 ? void 0 : containerDOM.querySelector("iframe[id='".concat(appName, "']"))) || document.getElementById(appName) || ((_window$top = window.top) === null || _window$top === void 0 ? void 0 : _window$top.document.getElementById(appName));
+      if (!iframe) {
+        throw new Error("[CustomViews] Iframe not found for app: ".concat(appName));
+      }
       var tabId = AWS.util.uuid.v4();
-      if (contactId) {
-        iframe.src = "".concat(connectUrl, "?contactFlowId=").concat(contactFlowId, "&currentContactId=").concat(contactId, "&agentAppTabId=").concat(tabId, "-tab");
-      } else if (contactFlowId) {
-        iframe.src = "".concat(connectUrl, "?contactFlowId=").concat(contactFlowId, "&agentAppTabId=").concat(tabId, "-tab");
+      var params = new URLSearchParams({
+        agentAppTabId: "".concat(tabId, "-tab")
+      });
+      if (contactFlowId) params.set('contactFlowId', contactFlowId);
+      if (contactId) params.set('currentContactId', contactId);
+      if (agentConnectionId) params.set('agentConnectionId', agentConnectionId);
+      var dedupId = deduplicate ? status ? status.toUpperCase() : 'DEFAULT' : 'ADHOC';
+      params.set('duplicateCustomViewsAppId', dedupId);
+      iframe.src = "".concat(connectUrl, "?").concat(params.toString());
+      console.debug('[CustomViews] Iframe source initialized with state identifier: ', dedupId);
+    };
+    resolveContactObject(function (resolvedContact) {
+      if (resolvedContact) {
+        contactStatus = extractContactStatus(resolvedContact);
+        contactId = extractContactId(resolvedContact);
+        agentConnectionId = extractAgentConnectionId(resolvedContact);
+        if (agentConnectionId) {
+          console.debug('[CustomViews] Agent connection ID derived from contact object');
+        }
+        bindOnDestroy(resolvedContact);
       }
-    } else {
-      throw new Error('[CustomViews]: No iframe found for the app: ', appName);
-    }
+      continueInit(contactId, agentConnectionId, contactStatus);
+    });
   };
   var extractContactId = function extractContactId(contact) {
     if (typeof contact === 'string') {
@@ -2755,7 +2813,7 @@ class AmazonConnectGRStreamsSite extends AmazonConnectProviderBase {
     }
     try {
       return contact.getContactId();
-    } catch (_unused) {
+    } catch (_unused2) {
       console.error('[CustomViews]: Invalid Contact Provided: ', contact);
       return undefined;
     }
@@ -9783,7 +9841,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.19.0";
+  connect.version = "2.19.1";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
@@ -14342,6 +14400,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       console.error(text);
     }
   };
+  var REDACTED_STRING = "[redacted]";
 
   /**
   * Checks if it is a valid log component enum
@@ -14444,18 +14503,33 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     var sendDigtRegex = /Send digit.*/gi;
     var connectionAuthTokenRegex = /ConnectionAuthenticationToken.*/gi;
     var credentialRegex = /("credential":")([^"]*)"/;
-    var redactedFields = ["quickconnectname", "token", "login", "credential", "internalip", "authtoken", "phonenumber", "firstname", "lastname", "emailaddress", "address", "displayname"];
+    var emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    var redactedFields = ["quickconnectname", "token", "login", "credential", "internalip", "authtoken", "phonenumber", "firstname", "lastname", "emailaddress", "address", "displayname", "agentname", "description", "name", "value", "summary", "queue.name"];
     var hashedFields = ["customerid", "speakerid", "customerspeakerid", "presignedurl"];
     if (data && _typeof(data) === 'object') {
       Object.keys(data).forEach(function (key) {
         if (_typeof(data[key]) === 'object') {
-          _redactSensitiveInfo(data[key]);
+          if (key === "attributes") {
+            data[key] = REDACTED_STRING; // redact the entire attributes object
+          } else {
+            _redactSensitiveInfo(data[key]);
+          }
         } else if (typeof data[key] === 'string') {
           if (key === "url" || key === "text") {
-            data[key] = data[key].replace(authTokenRegex, "[redacted]");
-          } else if (["quickConnectName"].includes(key)) {
-            data[key] = "[redacted]";
-          } else if (["customerId", "CustomerId", "SpeakerId", "CustomerSpeakerId"].includes(key)) {
+            data[key] = data[key].replace(authTokenRegex, REDACTED_STRING);
+            //to remove all traces of phone numbers
+            data[key] = data[key].replace(e164NumberFormatRegex, "phone number" + REDACTED_STRING);
+            data[key] = data[key].replace(sendDigtRegex, "send digit " + REDACTED_STRING);
+            data[key] = data[key].replace(connectionAuthTokenRegex, REDACTED_STRING);
+            data[key] = data[key].replace(emailRegex, "email address " + REDACTED_STRING);
+          } else if (redactedFields.includes(key.toLowerCase())) {
+            data[key] = REDACTED_STRING;
+          } else if ("callconfigjson" === key.toLowerCase()) {
+            // we need to redact the credential in call config json
+            data[key] = data[key].replace(credentialRegex, function (match, key, value) {
+              return key + REDACTED_STRING + '"';
+            });
+          } else if (hashedFields.includes(key.toLowerCase())) {
             data[key] = "".concat(OBFUSCATED_PREFIX, " ").concat(md5(data[key]));
           }
         }
