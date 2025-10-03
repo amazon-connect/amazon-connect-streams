@@ -19,23 +19,25 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
 
 # Important Announcements
 
-1. August 2025 - 2.18.7
+1. October 2025 - 2.19.2
+   * Re-added ccpAckTimeout as a param for configuring how long the authentication popup will take to re-occur after auth session expiration/logout.
+2. August 2025 - 2.18.7
    * Adds important stability update addressing periodic login popups that some customers experienced even when agents had valid authentication sessions. This update replaces the heartbeat mechanism used to detect changes in agent authentication status as Chrome now no longer recommends using timers for periodic state checks.
-   * Deprecates ccpSynTimeout and ccpAckTimeout init CCP Params
-2. January 2025 - 2.18.1
+   * The ACK_TIMEOUT event is still triggered on initial login. However, ACK_TIMEOUT events will no longer be triggered on logout/auth session expiration. The existing TERMINATED event for logout and AUTH_FAIL event for session expiration are used to trigger re-authentication. 
+3. January 2025 - 2.18.1
    * Provides bug fixes for chat and voice. Customers using 2.17 and 2.18 should upgrade to 2.18.1
-3. December 2024 - Major changes:
+4. December 2024 - Major changes:
    * Introducing Multiparty Chat, allowing up to 4 additional agents to join an ongoing chat conversation, making it easier to collaborate and resolve customer issues quickly.
-4. November 2024 - Major changes:
+5. November 2024 - Major changes:
    * Introducing Email
    * Storage access settings from `initCCP` are now deprecated after Google is no longer deprecating 3rd party cookies by default.
    * Global resiliency involving `connect-streams-dr.js` is now deprecated. Please reference [Documentation-GR.md](Documentation-GR.md) for the new set of APIs.
-5. July 2024 - The issue with muting while a Voice contact is on hold has been resolved. Agents can use the mute button while a contact is placed on hold. The following APIs will be available when the contact is on hold:
+6. July 2024 - The issue with muting while a Voice contact is on hold has been resolved. Agents can use the mute button while a contact is placed on hold. The following APIs will be available when the contact is on hold:
     * `voiceConnection.muteParticipant()`
     * `voiceConnection.unmuteParticipant()`
     * `agent.mute()`
     * `agent.unmute()`
-6. February 2024 - In response to a Google Chrome feature launched on 7/13/2023 called [Storage Partitioning](https://developers.google.com/privacy-sandbox/3pcd/storage-partitioning), we made a short term fix on 2/10/2024 to adjust our mute functionality and synchronize the mute state across all CCPs. However, due to current limitations, this change required us to disable muting while being on hold. As a workaround, agents should mute themselves on the call before going on hold. We are planning to address this issue by August 2024 and revert back to original mute behavior.
+7. February 2024 - In response to a Google Chrome feature launched on 7/13/2023 called [Storage Partitioning](https://developers.google.com/privacy-sandbox/3pcd/storage-partitioning), we made a short term fix on 2/10/2024 to adjust our mute functionality and synchronize the mute state across all CCPs. However, due to current limitations, this change required us to disable muting while being on hold. As a workaround, agents should mute themselves on the call before going on hold. We are planning to address this issue by August 2024 and revert back to original mute behavior.
     * At the moment, the following APIs will fail when the contact is on hold:
       * `voiceConnection.muteParticipant()`
       * `voiceConnection.unmuteParticipant()`
@@ -260,7 +262,7 @@ and made available to your JS client code.
   * `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
       and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
 * `shouldAddNamespaceToLogs`: prepends `[CCP]` to all logs logged by the CCP. Important note: there are a few logs made by the CCP before the namespace is prepended.
-* `ccpAckTimeout`: A timeout in ms that indicates how long streams will wait for the iframed CCP to respond to its `SYNCHRONIZE` event emissions. These happen continuously from the first time `initCCP` is called. They should only appear when there is a problem that requires a refresh or a re-login.
+* `ccpAckTimeout`: A timeout in ms that indicates how long streams will wait to open a popup for auth refresh or a re-login.
 * `ccpSynTimeout`: A timeout in ms that indicates how long streams will wait to send a new `SYNCHRONIZE` event to the iframed CCP. These happens continuously from the first time `initCCP` is called. 
 * `ccpLoadTimeout`: A timeout in ms that indicates how long streams will wait for the initial `ACKNOWLEDGE` event from the shared worker while the CCP is still standing itself up.
 #### A few things to note:
