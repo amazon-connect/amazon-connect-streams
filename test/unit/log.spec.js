@@ -283,6 +283,62 @@ describe('Logger', function() {
             var loggedObject = connect.getLog().trace("Testing comprehensive contact data redaction").withObject(obj);
             assert.deepEqual(loggedObject.objects, expectedObj);
         });
+
+        it('Log should NOT redact agent state name but should redact other name fields', function() {
+            var obj = {
+                "snapshot": {
+                        "state": {
+                            "agentStateARN": "arn:aws:connect:us-east-1:111111111:instance/abc123-def456-ghi789/agent-state/abc123-def456-ghi789",
+                            "type": "offline",
+                            "name": "Offline",  // This should NOT be redacted
+                            "startTimestamp": "2025-08-06T22:30:29.802Z"
+                        },
+                        "agentAvailabilityState": {
+                            "state": "Offline",
+                            "timeStamp": "2025-08-06T22:30:29.364Z"
+                        },
+                        "contacts": [{
+                            "contactId": "contact-123",
+                            "queue": {
+                                "name": "Support Queue",  // This SHOULD be redacted
+                                "queueId": "queue-456"
+                            },
+                            "name": "Customer Contact",  // This SHOULD be redacted
+                            "agentName": "John Doe"  // This SHOULD be redacted
+                        }],
+                        "snapshotTimestamp": "2025-08-06T23:58:58.802Z"
+                },
+            }
+            
+            var expectedObj = [{
+                "snapshot": {
+                    "state": {
+                        "agentStateARN": "arn:aws:connect:us-east-1:111111111:instance/abc123-def456-ghi789/agent-state/abc123-def456-ghi789",
+                        "type": "offline",
+                        "name": "Offline",  // NOT redacted - agent state name preserved
+                        "startTimestamp": "2025-08-06T22:30:29.802Z"
+                    },
+                    "agentAvailabilityState": {
+                        "state": "Offline",
+                        "timeStamp": "2025-08-06T22:30:29.364Z"
+                    },
+                    "contacts": [{
+                        "contactId": "contact-123",
+                        "queue": {
+                            "name": "[redacted]",  // Redacted - queue name
+                            "queueId": "queue-456"
+                        },
+                        "name": "[redacted]",  // Redacted - contact name
+                        "agentName": "[redacted]"  // Redacted - agent name
+                    }],
+                    "snapshotTimestamp": "2025-08-06T23:58:58.802Z"
+                },
+            }];
+            
+            
+            var loggedObject = connect.getLog().trace("Testing agent state name preservation").withObject(obj);
+            assert.deepEqual(loggedObject.objects, expectedObj);
+        });
     });
     describe('Logger.withCrossOriginEventObject()', function(){
         it('Log should be empty as none of these are the right fields.', function(){
