@@ -1807,7 +1807,7 @@ describe('Core', function () {
 
             describe('when enableAckTimeout is NOT set', function () {
                 it('should subscribe to TERMINATED event and call authenticate when triggered', function () {
-                    params.loginOptions = {};
+                    const clock = sandbox.useFakeTimers();
                     
                     connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
                     
@@ -1818,12 +1818,14 @@ describe('Core', function () {
                     
                     connect.core.getEventBus().trigger(connect.EventType.TERMINATED);
                     
+                    clock.tick(3000); // default CCP_ACK_TIMEOUT
+                    
                     sandbox.assert.calledOnce(authenticateSpy);
                     sandbox.assert.calledWith(authenticateSpy, params, containerDiv, conduit);
                 });
 
                 it('should subscribe to AUTH_FAIL event and call authenticate when triggered', function () {
-                    params.loginOptions = {};
+                    const clock = sandbox.useFakeTimers();
                     
                     connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
                     
@@ -1834,12 +1836,53 @@ describe('Core', function () {
                     
                     connect.core.getEventBus().trigger(connect.EventType.AUTH_FAIL);
                     
+                    clock.tick(3000); // default CCP_ACK_TIMEOUT
+                    
                     sandbox.assert.calledOnce(authenticateSpy);
                     sandbox.assert.calledWith(authenticateSpy, params, containerDiv, conduit);
                 });
 
-                it('should subscribe to both events when enableAckTimeout is false', function () {
-                    params.loginOptions = { enableAckTimeout: false };
+                it('TERMINATED event should call connect.core.authenticate after ack timeout init ccp param', function () {
+                    const clock = sandbox.useFakeTimers();
+                    params.ccpAckTimeout = 1000;
+                    
+                    connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
+                    
+                    const terminatedSubscription = eventBusSpy.getCalls().find(call => 
+                        call.args[0] === connect.EventType.TERMINATED
+                    );
+                    expect(terminatedSubscription).to.exist;
+                    
+                    connect.core.getEventBus().trigger(connect.EventType.TERMINATED);
+                    
+                    clock.tick(params.ccpAckTimeout); // default CCP_ACK_TIMEOUT
+                    
+                    sandbox.assert.calledOnce(authenticateSpy);
+                    sandbox.assert.calledWith(authenticateSpy, params, containerDiv, conduit);
+                });
+
+                it('AUTH_FAIL event should call connect.core.authenticate after ack timeout init ccp param', function () {
+                    const clock = sandbox.useFakeTimers();
+                    params.ccpAckTimeout = 1000;
+                    
+                    connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
+                    
+                    const authFailSubscription = eventBusSpy.getCalls().find(call => 
+                        call.args[0] === connect.EventType.AUTH_FAIL
+                    );
+                    expect(authFailSubscription).to.exist;
+                    
+                    connect.core.getEventBus().trigger(connect.EventType.AUTH_FAIL);
+                    
+                    clock.tick(params.ccpAckTimeout); // default CCP_ACK_TIMEOUT
+                    
+                    sandbox.assert.calledOnce(authenticateSpy);
+                    sandbox.assert.calledWith(authenticateSpy, params, containerDiv, conduit);
+                });
+
+
+                it('should subscribe to both events when enableAckTimer is false', function () {
+                    params.loginOptions = { enableAckTimer: false };
                     
                     connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
                     

@@ -204,7 +204,7 @@ everything setup correctly and that you will be able to listen for events.
             enablePhoneTypeSettings: true //optional, defaults to 'true' 
           },
           shouldAddNamespaceToLogs: false, //optional, defaults to 'false'
-          ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
+          ccpAckTimeout: 5000, //optional, controls popup delay, defaults to 5000 (ms)
           ccpSynTimeout: 3000, //optional, defaults to 1000 (ms)
           ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms)
          });

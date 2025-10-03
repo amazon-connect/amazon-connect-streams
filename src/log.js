@@ -198,8 +198,10 @@
       Object.keys(data).forEach(function(key) {
         if (typeof data[key] === 'object') {
           if(key === "attributes") {
-            data[key] = REDACTED_STRING; // redact the entire attributes object
-          } else{
+            data[key] = REDACTED_STRING; //we want to redact the entire attributes object
+          } else if (key === "state") {
+            return; // don't redact agent availability status name
+          } else {
             redactSensitiveInfo(data[key]);
           }
         } else if(typeof data[key] === 'string') {
