@@ -9841,7 +9841,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.19.1";
+  connect.version = "2.19.2";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
@@ -11081,11 +11081,17 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     if (!((_params$loginOptions = params.loginOptions) !== null && _params$loginOptions !== void 0 && _params$loginOptions.enableAckTimeout)) {
       connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
         connect.getLog().warn("TERMINATED occurred. Attempting to authenticate.").sendInternalLogToServer();
-        connect.core.authenticate(params, containerDiv, conduit);
+        var delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
+        setTimeout(function () {
+          connect.core.authenticate(params, containerDiv, conduit);
+        }, delay);
       });
       connect.core.getEventBus().subscribe(connect.EventType.AUTH_FAIL, function () {
         connect.getLog().warn("AUTH_FAIL occurred. Attempting to authenticate.").sendInternalLogToServer();
-        connect.core.authenticate(params, containerDiv, conduit);
+        var delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
+        setTimeout(function () {
+          connect.core.authenticate(params, containerDiv, conduit);
+        }, delay);
       });
     }
   };

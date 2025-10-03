@@ -1,4 +1,8 @@
 # CHANGELOG.md
+## [2.19.2] - 2025-10-03
+- npm audit --fix for critical security updates
+- updating core and global resiliency modules
+- added ccpacktimout delay to popup handler
 
 ## [2.19.1] - 2025-09-10
 - Added deduplication support for CustomViews applications to prevent multiple instances from running simultaneously in the same contact context. Key changes:

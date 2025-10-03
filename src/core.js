@@ -1305,12 +1305,18 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     if (!params.loginOptions?.enableAckTimeout) {
       connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
         connect.getLog().warn("TERMINATED occurred. Attempting to authenticate.").sendInternalLogToServer();
-        connect.core.authenticate(params, containerDiv, conduit);
+        const delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
+        setTimeout(() => {
+          connect.core.authenticate(params, containerDiv, conduit);
+        }, delay);
       });
 
       connect.core.getEventBus().subscribe(connect.EventType.AUTH_FAIL, function () {
         connect.getLog().warn("AUTH_FAIL occurred. Attempting to authenticate.").sendInternalLogToServer();
-        connect.core.authenticate(params, containerDiv, conduit);
+        const delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
+        setTimeout(() => {
+          connect.core.authenticate(params, containerDiv, conduit);
+        }, delay);
       });
     }
   };
