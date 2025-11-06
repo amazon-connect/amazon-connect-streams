@@ -99,6 +99,7 @@
     var getPrimaryRegionFunc = paramsIn.getPrimaryRegion;
     delete paramsIn.getPrimaryRegion;
     delete paramsIn.provider;
+    delete paramsIn.plugins;
 
     var dualCcpResources = globalConnect.extractCcpRegionParams(globalContainerDiv, paramsIn);
     getPrimaryRegionFunc(

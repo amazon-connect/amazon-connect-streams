@@ -2,7 +2,7 @@
 
 **In order to obtain access to the Global Resiliency feature, you will need to reach out to your Amazon Connect Solutions Architect or Technical Account Manager first.**
 
-**Global Resiliency is only compatible with CCPv2 and Streams releases 2.15.0 or later, and requires the use of SAML authentication. Global Resiliency can’t be used with CCPv1 or with Amazon Connect instances configured to use Amazon Connect-managed authentication (username and password).**
+**Global Resiliency is only compatible with CCPv2 and Streams releases 2.16.0 or later, and requires the use of SAML authentication. Global Resiliency can’t be used with CCPv1 or with Amazon Connect instances configured to use Amazon Connect-managed authentication (username and password).**
 
 Streams will suppress contacts from the Amazon Connect instance in the region where the agent is not currently active. In embedded use cases where the native CCP UI will be visible, Streams will show only the CCP for the region where the agent is active. In the event of a change to the agent’s active region, Streams will automatically switch over the embedded UI to display CCP for the newly active region, and hide the CCP UI for the region where the agent was previously active.
 

@@ -198,8 +198,13 @@ everything set up correctly and that you are able to listen for events.
           shouldAddNamespaceToLogs: false, //optional, defaults to 'false'
           ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
           ccpSynTimeout: 3000, //optional, defaults to 1000 (ms)
-          ccpLoadTimeout: 10000 //optional, defaults to 5000 (ms)
-         });
+          ccpLoadTimeout: 10000, //optional, defaults to 5000 (ms)
+          logConfig: { //optional logging configuration
+            logLevel: connect.LogLevel.INFO, //optional, defaults to LogLevel.INFO
+            echoLevel: connect.LogLevel.WARN, //optional, defaults to LogLevel.WARN
+          },
+          plugins: [plugin1, plugin2], //optional, can be a single plugin function or array of plugin functions
+        });
       }
     </script>
   </body>
@@ -269,6 +274,10 @@ and made available to your JS client code.
 - `ccpSynTimeout`: A timeout in ms that tells CCP how long to wait before sending another `SYNCHRONIZE` message to the shared worker, which should trigger the shared worker to send back an `ACKNOWLEDGE` if initialized. This event essentially checks if the shared worker was initialized aka agent is logged in. This check happens continuously as well.
 - `ccpLoadTimeout`: A timeout in ms that tells CCP how long to wait before sending the very first `SYNCHRONIZE` message. The user experience here is that on the first CCP initialization, the login flow is delayed by this timeout.
   - As an example, if this timeout was set to 10 seconds, then the login pop-up will not open up until 10 seconds has pass.
+- `logConfig`: Optional. An object containing logging configuration options for Amazon Connect Streams.
+  - `logLevel`: Optional. The minimum log level for file logging (available in download log file). Must be a valid LogLevel enum value such as connect.LogLevel.DEBUG, connect.LogLevel.INFO, connect.LogLevel.WARN, or connect.LogLevel.ERROR. If not specified, defaults to connect.LogLevel.INFO.
+  - `echoLevel`: Optional. The echo level for console logging output. Must be a valid LogLevel enum value such as connect.LogLevel.DEBUG, connect.LogLevel.INFO, connect.LogLevel.WARN, or connect.LogLevel.ERROR. If not specified, defaults to connect.LogLevel.WARN.
+- `plugins`: Optional. Functions that allow the provider to be updated, giving the provider in Streams additional capabilities found within the SDK. Can be a single plugin function or an array of plugin functions. These plugins enhance the functionality of the underlying provider by adding new capabilities and features. Please refer to the Amazon Connect SDK documentation for specific examples of available plugins and their usage.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
