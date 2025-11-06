@@ -9841,7 +9841,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.19.2";
+  connect.version = "2.20.0";
   connect.outerContextStreamsVersion = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
@@ -11081,14 +11081,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     if (!((_params$loginOptions = params.loginOptions) !== null && _params$loginOptions !== void 0 && _params$loginOptions.enableAckTimeout)) {
       connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
         connect.getLog().warn("TERMINATED occurred. Attempting to authenticate.").sendInternalLogToServer();
-        var delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT;
+        var delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
         setTimeout(function () {
           connect.core.authenticate(params, containerDiv, conduit);
         }, delay);
       });
       connect.core.getEventBus().subscribe(connect.EventType.AUTH_FAIL, function () {
         connect.getLog().warn("AUTH_FAIL occurred. Attempting to authenticate.").sendInternalLogToServer();
-        var delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT;
+        var delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
         setTimeout(function () {
           connect.core.authenticate(params, containerDiv, conduit);
         }, delay);
@@ -11118,6 +11118,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
     var params = {};
     var existingProvider = undefined;
+    var providerPlugins = undefined;
     // For backwards compatibility, when instead of taking a params object
     // as input we only accepted ccpUrl.
     if (typeof paramsIn === 'string') {
@@ -11129,6 +11130,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         // and provider is not cloneable
         existingProvider = params.provider;
         delete params.provider;
+      }
+      if (params.plugins) {
+        // Plugins must be removed from params as params are sent to CCP
+        // and plugins are not cloneable
+        providerPlugins = params.plugins;
+        delete params.plugins;
       }
     }
     connect.assertNotNull(containerDiv, 'containerDiv');
@@ -11180,6 +11187,18 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         }).sendInternalLogToServer();
       } catch (e) {
         connect.getLog().error("Error when setting up AmazonConnectProvider from params").withException(e).sendInternalLogToServer();
+      }
+    }
+    if (providerPlugins) {
+      try {
+        providerPlugins = Array.isArray(providerPlugins) ? providerPlugins : [providerPlugins];
+
+        // Applying plugins
+        providerPlugins.reduce(function (result, applyPlugin) {
+          return applyPlugin(result);
+        }, Object.getPrototypeOf(connect.core._amazonConnectProviderData.provider));
+      } catch (e) {
+        connect.getLog().error("Error when setting plugins for provider").withException(e).sendInternalLogToServer();
       }
     }
     connect.core.iframeStyle = params.style || "width: 100%; height: 100%;";

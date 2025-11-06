@@ -1305,7 +1305,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     if (!params.loginOptions?.enableAckTimeout) {
       connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
         connect.getLog().warn("TERMINATED occurred. Attempting to authenticate.").sendInternalLogToServer();
-        const delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT;
+        const delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
         setTimeout(() => {
           connect.core.authenticate(params, containerDiv, conduit);
         }, delay);
@@ -1313,7 +1313,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
 
       connect.core.getEventBus().subscribe(connect.EventType.AUTH_FAIL, function () {
         connect.getLog().warn("AUTH_FAIL occurred. Attempting to authenticate.").sendInternalLogToServer();
-        const delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT;
+        const delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
         setTimeout(() => {
           connect.core.authenticate(params, containerDiv, conduit);
         }, delay);
@@ -1343,6 +1343,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
 
     var params = {};
     var existingProvider = undefined;
+    var providerPlugins = undefined;
     // For backwards compatibility, when instead of taking a params object
     // as input we only accepted ccpUrl.
     if (typeof paramsIn === 'string') {
@@ -1355,6 +1356,13 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         // and provider is not cloneable
         existingProvider = params.provider;
         delete params.provider;
+      }
+
+      if (params.plugins) {
+        // Plugins must be removed from params as params are sent to CCP
+        // and plugins are not cloneable
+        providerPlugins = params.plugins;
+        delete params.plugins;
       }
     }
 
@@ -1414,6 +1422,20 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
           .withException(e)
           .sendInternalLogToServer();
       }
+    }
+
+    if (providerPlugins) {
+      try {
+        providerPlugins = Array.isArray(providerPlugins) ? providerPlugins : [providerPlugins];
+
+        // Applying plugins
+        providerPlugins.reduce((result, applyPlugin) => applyPlugin(result),
+          Object.getPrototypeOf(connect.core._amazonConnectProviderData.provider));
+      } catch (e) {
+        connect.getLog().error("Error when setting plugins for provider")
+          .withException(e)
+          .sendInternalLogToServer();
+      } 
     }
 
     connect.core.iframeStyle = params.style || "width: 100%; height: 100%;";

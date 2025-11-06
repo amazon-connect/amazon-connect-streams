@@ -662,7 +662,60 @@ declare namespace connect {
     readonly storageAccess?: StorageAccessParameters
 
     /** used to associate an existing AmazonConnectProvider */
-    readonly provider?: InstanceType<{ new(...args: any[]): any }>
+    readonly provider?: InstanceType<{ new (...args: any[]): any }>;
+
+    /** 
+     * Logging configuration options for Amazon Connect Streams.
+     * 
+     * @example
+     * logConfig: {
+     *   logLevel: connect.LogLevel.ERROR,    // File logging level
+     *   echoLevel: connect.LogLevel.INFO     // Console logging level
+     * }
+     */
+    readonly logConfig?: {
+      /**
+       * The log level for file logging (available in download log file).
+       * Must be a valid LogLevel enum value.
+       * If not specified, defaults to LogLevel.INFO.
+       * 
+       * @example connect.LogLevel.ERROR
+       */
+      readonly logLevel?: LogLevel;
+
+      /**
+       * The echo level for console logging output.
+       * Must be a valid LogLevel enum value.
+       * If not specified, defaults to LogLevel.WARN.
+       * 
+       * @example connect.LogLevel.INFO
+       */
+      readonly echoLevel?: LogLevel;
+    };
+    /** 
+     * Plugin functions to extend the AmazonConnectProvider capabilities.
+     * 
+     * Plugins are functions that receive the provider's prototype and can add new methods,
+     * modify existing ones, or enhance functionality. Each plugin function is called during
+     * provider initialization and can return the modified prototype or undefined.
+     * 
+     * Can be a single plugin function or an array of plugin functions.
+     * 
+     * @example
+     * // Single plugin
+     * plugins: (prototype) => {
+     *   prototype.customMethod = () => "Hello from plugin";
+     *   return prototype;
+     * }
+     * 
+     * @example  
+     * // Multiple plugins
+     * plugins: [
+     *   (prototype) => { prototype.feature1 = () => "Feature 1"; },
+     *   (prototype) => { prototype.feature2 = () => "Feature 2"; }
+     * ]
+     */
+    readonly plugins?: (providerPrototype: any) => any | ((providerPrototype: any) => any)[];
   }
 
   interface TerminateCustomViewOptions {

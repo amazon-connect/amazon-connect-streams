@@ -1514,6 +1514,175 @@ describe('Core', function () {
                 expect(loggerErrorSpy.calledWithExactly('Error when setting up AmazonConnectProvider from params'));
             })
         });
+
+        describe("when setting plugins in params", () => {
+            class TestProvider {
+                get id() {
+                    return "test-provider-with-plugins";
+                }
+            }
+
+            let testProvider;
+            let mockPlugin1;
+            let mockPlugin2;
+            let originalPrototype;
+
+            beforeEach(() => {
+                testProvider = new TestProvider();
+                // Save the original prototype state for cleanup
+                originalPrototype = Object.getOwnPropertyDescriptors(Object.getPrototypeOf(testProvider));
+                
+                mockPlugin1 = sandbox.spy((prototype) => {
+                    prototype.pluginMethod1 = () => "plugin1";
+                    return prototype;
+                });
+                mockPlugin2 = sandbox.spy((prototype) => {
+                    prototype.pluginMethod2 = () => "plugin2";
+                    return prototype;
+                });
+                loggerInfoSpy = sandbox.spy(connect.getLog(), "info");
+                loggerErrorSpy = sandbox.spy(connect.getLog(), "error");
+            });
+
+            afterEach(() => {
+                loggerInfoSpy.restore();
+                loggerErrorSpy.restore();
+                
+                // Clean up any plugin methods added to prototypes
+                const prototype = Object.getPrototypeOf(testProvider);
+                if (prototype.pluginMethod1) {
+                    delete prototype.pluginMethod1;
+                }
+                if (prototype.pluginMethod2) {
+                    delete prototype.pluginMethod2;
+                }
+                
+                // Also clean up streamsSiteProviderStub prototype if it was modified
+                if (streamsSiteProviderStub && Object.getPrototypeOf(streamsSiteProviderStub).pluginMethod1) {
+                    delete Object.getPrototypeOf(streamsSiteProviderStub).pluginMethod1;
+                }
+            });
+
+            it("should apply a single plugin to the provider prototype", () => {
+                const paramsWithSinglePlugin = {
+                    ...params,
+                    provider: testProvider,
+                    plugins: mockPlugin1
+                };
+
+                connect.core.initCCP(containerDiv, paramsWithSinglePlugin);
+
+                expect(mockPlugin1.calledOnce).to.be.true;
+                expect(mockPlugin1.calledWith(Object.getPrototypeOf(testProvider))).to.be.true;
+                expect(Object.getPrototypeOf(testProvider).pluginMethod1()).to.equal("plugin1");
+                expect(loggerErrorSpy.called).to.be.false;
+            });
+
+            it("should apply multiple plugins to the provider prototype", () => {
+                const paramsWithMultiplePlugins = {
+                    ...params,
+                    provider: testProvider,
+                    plugins: [mockPlugin1, mockPlugin2]
+                };
+
+                connect.core.initCCP(containerDiv, paramsWithMultiplePlugins);
+
+                expect(mockPlugin1.calledOnce).to.be.true;
+                expect(mockPlugin2.calledOnce).to.be.true;
+                expect(Object.getPrototypeOf(testProvider).pluginMethod1()).to.equal("plugin1");
+                expect(Object.getPrototypeOf(testProvider).pluginMethod2()).to.equal("plugin2");
+                expect(loggerErrorSpy.called).to.be.false;
+            });
+
+            it("should log error when plugin application fails", () => {
+                const errorThrowingPlugin = () => {
+                    throw new Error("Plugin error");
+                };
+                
+                const paramsWithBadPlugin = {
+                    ...params,
+                    provider: testProvider,
+                    plugins: errorThrowingPlugin
+                };
+
+                connect.core.initCCP(containerDiv, paramsWithBadPlugin);
+
+                expect(loggerErrorSpy.calledWithExactly('Error when setting plugins for provider')).to.be.true;
+            });
+
+            it("should handle plugins when no provider is set (uses AmazonConnectStreamsSite)", () => {
+                streamsSiteStub.init.returns({provider: streamsSiteProviderStub});
+                
+                const paramsWithPluginButNoProvider = {
+                    ...params,
+                    plugins: mockPlugin1
+                };
+
+                connect.core.initCCP(containerDiv, paramsWithPluginButNoProvider);
+
+                expect(mockPlugin1.calledOnce).to.be.true;
+                expect(mockPlugin1.calledWith(Object.getPrototypeOf(streamsSiteProviderStub))).to.be.true;
+                // Don't check for no errors as AmazonConnectStreamsSite may error in test environment
+            });
+
+            it("should handle empty plugins array gracefully", () => {
+                const paramsWithEmptyPlugins = {
+                    ...params,
+                    provider: testProvider,
+                    plugins: []
+                };
+
+                connect.core.initCCP(containerDiv, paramsWithEmptyPlugins);
+
+                expect(mockPlugin1.called).to.be.false;
+                expect(mockPlugin2.called).to.be.false;
+                expect(loggerErrorSpy.called).to.be.false;
+            });
+
+            it("should remove plugins from params to prevent sending to CCP", () => {
+                const originalParams = {
+                    ...params,
+                    provider: testProvider,
+                    plugins: [mockPlugin1, mockPlugin2]
+                };
+                
+                // Mock the upstream to capture what gets sent
+                const mockConduit = {
+                    onAllUpstream: sandbox.stub(),
+                    onUpstream: sandbox.stub(),
+                    sendUpstream: sandbox.stub()
+                };
+                sandbox.stub(connect, 'IFrameConduit').returns(mockConduit);
+
+                connect.core.initCCP(containerDiv, originalParams);
+
+                // Plugins should be removed from the params object that gets processed
+                expect(originalParams.plugins).to.be.undefined;
+                expect(mockPlugin1.calledOnce).to.be.true;
+                expect(mockPlugin2.calledOnce).to.be.true;
+            });
+
+            it("should handle plugin that returns undefined", () => {
+                const undefinedReturningPlugin = sandbox.spy((prototype) => {
+                    prototype.pluginMethod = () => "modified";
+                    // Explicitly return undefined
+                    return undefined;
+                });
+                
+                const paramsWithUndefinedPlugin = {
+                    ...params,
+                    provider: testProvider,
+                    plugins: undefinedReturningPlugin
+                };
+
+                connect.core.initCCP(containerDiv, paramsWithUndefinedPlugin);
+
+                expect(undefinedReturningPlugin.calledOnce).to.be.true;
+                expect(Object.getPrototypeOf(testProvider).pluginMethod()).to.equal("modified");
+                expect(loggerErrorSpy.called).to.be.false;
+            });
+        });
+
     })
 
     describe('#connect.core.initCCP()', function () {
