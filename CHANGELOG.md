@@ -1,4 +1,8 @@
 # CHANGELOG.md
+## [2.20.1] - 2025-11-13
+- Updated GitHub Actions to build with Node.js versions 18.x, 20.x, and 22.x
+- Fixed Voice ID, Core, and Softphone unit tests for Node.js 22.x compatibility
+
 ## [2.19.2] - 2025-10-03
 - npm audit --fix for critical security updates
 - updating core and global resiliency modules
