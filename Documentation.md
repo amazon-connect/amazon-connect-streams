@@ -194,7 +194,8 @@ everything set up correctly and that you are able to listen for events.
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
             enableVideoDeviceSettings: false, //optional, defaults to 'false'
-            enablePhoneTypeSettings: true //optional, defaults to 'true' 
+            enablePhoneTypeSettings: true, //optional, defaults to 'true' 
+            showInactivityModal: false, // optional, determines if the inactivity modal should render in the CCP iframe. Defaults to true.
           },
           shouldAddNamespaceToLogs: false, //optional, defaults to 'false'
           ccpAckTimeout: 5000, //optional, defaults to 3000 (ms)
@@ -205,7 +206,6 @@ everything set up correctly and that you are able to listen for events.
             echoLevel: connect.LogLevel.WARN, //optional, defaults to LogLevel.WARN
           },
           plugins: [plugin1, plugin2], //optional, can be a single plugin function or array of plugin functions
-          showInactivityModal: false, // optional, determines if the inactivity modal should render in the CCP iframe. Defaults to true.
         });
       }
     </script>
@@ -272,6 +272,7 @@ and made available to your JS client code.
     displayed.
   - `enablePhoneTypeSettings`: If `true`, or if `pageOptions` is not provided, the settings tab will display a section for configuring the agent's phone type
     and deskphone number. If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
+  - `showInactivityModal`: Optional. Determine if CCP should render the inactivity modal. Defaults to true.
 - `shouldAddNamespaceToLogs`: prepends `[CCP]` to all logs logged by the CCP. Important note: there are a few logs made by the CCP before the namespace is prepended.
 - `ccpAckTimeout`: A timeout in ms that tells CCP how long it should wait for an `ACKNOWLEDGE` message from the shared worker after CCP has sent a `SYNCHRONIZE` message to the shared worker. This is important because an `ACKNOWLEDGE` message is only sent back to CCP if the shared worker is initialized and a shared worker is only initialized if the agent is logged in. Moreover, this check happens continuously.
 - `ccpSynTimeout`: A timeout in ms that tells CCP how long to wait before sending another `SYNCHRONIZE` message to the shared worker, which should trigger the shared worker to send back an `ACKNOWLEDGE` if initialized. This event essentially checks if the shared worker was initialized aka agent is logged in. This check happens continuously as well.
@@ -281,7 +282,6 @@ and made available to your JS client code.
   - `logLevel`: Optional. The minimum log level for file logging (available in download log file). Must be a valid LogLevel enum value such as connect.LogLevel.DEBUG, connect.LogLevel.INFO, connect.LogLevel.WARN, or connect.LogLevel.ERROR. If not specified, defaults to connect.LogLevel.INFO.
   - `echoLevel`: Optional. The echo level for console logging output. Must be a valid LogLevel enum value such as connect.LogLevel.DEBUG, connect.LogLevel.INFO, connect.LogLevel.WARN, or connect.LogLevel.ERROR. If not specified, defaults to connect.LogLevel.WARN.
 - `plugins`: Optional. Functions that allow the provider to be updated, giving the provider in Streams additional capabilities found within the SDK. Can be a single plugin function or an array of plugin functions. These plugins enhance the functionality of the underlying provider by adding new capabilities and features. Please refer to the Amazon Connect SDK documentation for specific examples of available plugins and their usage.
-- `showInactivityModal`: Optional. Determine if CCP should render the inactivity modal. Defaults to true.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
@@ -3206,40 +3206,74 @@ Sample response:
 
 ## Handling Session Inactivity
 
+Amazon Connect now supports logging out an agent due to inactvity. By default the following actions are considered as activity in CCPUI:
+1. Key presses
+2. Mouse clicks
+3. Handling a Voice contact
+
+If an agent does not perform any of the actions above, then CCPUI will show a warning model, notifying the agent that they have been inactive. Further inactivity will log the agent out of CCPUI.
+
+More details can be found [here](https://docs.aws.amazon.com/connect/latest/adminguide/authentication-profiles.html#configure-session-timeouts).
+
 Builders will need to send a signal to Amazon Connect indicating that the agent is active in the CRM layer. If no signals are sent to Amazon Connect while the agent is interacting with the CRM, then Amazon Connect will consider the agent as inactive during this time period.
 
-Inactivity can be detected using the `SessionExpirationWarning` class. This class provides subscriptions to enable builders to hook into when inactivity is triggered, when the agent acknowledged the warning, and when sending activity fails.
+Session warning can be detected using the `connect.SessionExpirationWarningManager` class. This class provides subscriptions to enable builders to hook into when inactivity warning is triggered, when the agent acknowledged the warning, and when updating the agent's activity session fails.
+
+By default the embedded CCP will render the inactivity warning modal. To disable this, you can pass the following initCCP parameter:
+
+```js
+{
+  pageOptions: {
+    showInactivityModal: false,
+  }
+}
+```
+
+By setting `showInactivityModal` to `false`, this will disable rendering the modal in the embedded CCP.
+
+**Recommendation**: If your instance is configured to use SAML, then we would recommend also passing in the following parameter into initCCP:
+```js
+{
+  loginOptions: {
+    disableAuthPopupAfterLogout: true,
+  }
+}
+```
+
+By default, when an agent logs out of CCP, CCP opens up the login pop-up and automatically signs the agent back in, if the agent's SAML session is still active. With the session inactivity feature, there is a scenario where the agent is logged back in automatically due to this behavior. This is why we recommend setting `disableAuthPopupAfterLogout` to `true`, which will prevent triggering the login pop-up after the agent was logged out.
+
+To log the agent back into Connect after being logged out, please refer to `connect.core.reauthenticateAfterLogout()`.
 
 ### `connect.sendActivity()`
 This API is used to send signal to Amazon Connect, indicating that the agent is active.
 
 ```js
-window.addEventListener("click", () => connect.sendActivity());
+document.addEventListener("click", () => connect.sendActivity());
 ```
 
-### `SessionExpirationWarning`
-Create an instance of the `SessionExpirationWarning` class.
+### `SessionExpirationWarningManager`
+Create an instance of the `SessionExpirationWarningManager` class, which is a wrapper for the `SessionExpirationWarningClient()` from the AmazonConnectSDK.
 ```js
-const sessionExpirationWarning = new connect.SessionExpirationWarning()
+const sessionExpirationWarningManager = new connect.SessionExpirationWarningManager()
 ```
 
-#### `sessionExpirationWarning.onExpirationWarning()`
+#### `sessionExpirationWarningManager.onExpirationWarning()`
 
 Subscribe to when the inactivity warning is triggered. The handler has a callback parameter `expiration`, which is the timestamp for when the agent's session is going to end due to inactivity.
 
 ```js
-sessionExpirationWarning.onExpirationWarning((expiration) => {})
+sessionExpirationWarningManager.onExpirationWarning((expiration) => {})
 ```
 
-#### `sessionExpirationWarning.onExpirationWarningCleared()`
+#### `sessionExpirationWarningManager.onExpirationWarningCleared()`
 
 Subscribe to when the agent has acknowledged the warning or Connect has received a signal indicating that the agent is active, resulting in the agent's session being extended
 
 ```js
-sessionExpirationWarning.onExpirationWarningCleared(() => {});
+sessionExpirationWarningManager.onExpirationWarningCleared(() => {});
 ```
 
-#### `sessionExpirationWarning.onSessionExtensionError()`
+#### `sessionExpirationWarningManager.onSessionExtensionError()`
 
 Subscribe to when there is an error while attempting to mark the agent as active or when the acknowledgement of the warning fails.
 
@@ -3248,7 +3282,7 @@ The callback has two params:
 2. errorDetails - an object with details regarding the error
 
 ```js
-sessionExpirationWarning.onSessionExtensionError(
+sessionExpirationWarningManager.onSessionExtensionError(
     (isWarningActive: boolean, errorDetails: Record<string, unknown>) => {}
 )
 ```

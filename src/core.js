@@ -2570,8 +2570,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       params.task ||
       params.pageOptions ||
       params.shouldAddNamespaceToLogs ||
-      params.disasterRecoveryOn || 
-      params.showInactivityModal !== undefined
+      params.disasterRecoveryOn
     ) {      
       const config = {
         softphone: params.softphone,
@@ -2579,7 +2578,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         task: params.task,
         pageOptions: params.pageOptions,
         shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
-        showInactivityModal: params.showInactivityModal,
+        showInactivityModal: params.pageOptions?.showInactivityModal
       };
 
       if (isACGR) {

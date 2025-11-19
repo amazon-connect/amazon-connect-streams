@@ -193,10 +193,9 @@ describe('Global Resiliency', function () {
                     softphone: { allowFramedSoftphone: true },
                     chat: { enabled: true },
                     task: { enabled: false },
-                    pageOptions: { enableAudioDeviceSettings: true },
+                    pageOptions: { enableAudioDeviceSettings: true, showInactivityModal: false, },
                     shouldAddNamespaceToLogs: true,
                     enableGlobalResiliency: true,
-                    showInactivityModal: false,
                 };
 
                 sandbox.stub(connect, "isActiveConduit").returns(true);

@@ -622,6 +622,11 @@ declare namespace connect {
      * If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
      */
     readonly enablePhoneTypeSettings?: boolean;
+
+    /** Specifies whether to show the inactivity modal in embedded CCP use cases.
+     * @default true
+     */
+    readonly showInactivityModal?: boolean;
   }
 
   interface InitCCPOptions {
@@ -692,11 +697,6 @@ declare namespace connect {
 
     /** used to associate an existing AmazonConnectProvider */
     readonly provider?: InstanceType<{ new (...args: any[]): any }>;
-
-    /** Specifies whether to show the inactivity modal in embedded CCP use cases.
-     * @default true
-     */
-    readonly showInactivityModal?: boolean;
 
     /** 
      * Logging configuration options for Amazon Connect Streams.
@@ -2613,7 +2613,7 @@ declare namespace connect {
     getMediaController(): Promise<any>;
   }
 
-  class SessionExpirationWarning {  
+  class SessionExpirationWarningManager {  
     /**
      * Subscribe a method to be called when the agent's session is about to expire
      * due to inactivity

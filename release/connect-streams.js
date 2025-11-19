@@ -5570,14 +5570,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   /**
-   * Session Expiration Warning
+   * Session Expiration Warning Manager
    */
-  var SessionExpirationWarning = /*#__PURE__*/function () {
-    function SessionExpirationWarning() {
-      _classCallCheck(this, SessionExpirationWarning);
+  var SessionExpirationWarningManager = /*#__PURE__*/function () {
+    function SessionExpirationWarningManager() {
+      _classCallCheck(this, SessionExpirationWarningManager);
       this.sessionExpirationWarningClient = new SessionExpirationWarningClient(connect.core.getSDKClientConfig());
     }
-    return _createClass(SessionExpirationWarning, [{
+    return _createClass(SessionExpirationWarningManager, [{
       key: "_getSDKClient",
       value: function _getSDKClient() {
         if (this.sessionExpirationWarningClient) return this.sessionExpirationWarningClient;else {
@@ -5766,7 +5766,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.SoftphoneError = SoftphoneError;
   connect.VoiceId = VoiceId;
   connect.QuickResponses = QuickResponses;
-  connect.SessionExpirationWarning = SessionExpirationWarning;
+  connect.SessionExpirationWarningManager = SessionExpirationWarningManager;
 })();
 
 /***/ }),
@@ -12635,14 +12635,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
   /**-----------------------------------------------------------------------*/
   connect.core.sendConfigure = function (params, conduit, isACGR) {
-    if (params.softphone || params.chat || params.task || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn || params.showInactivityModal !== undefined) {
+    if (params.softphone || params.chat || params.task || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
+      var _params$pageOptions;
       var config = {
         softphone: params.softphone,
         chat: params.chat,
         task: params.task,
         pageOptions: params.pageOptions,
         shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
-        showInactivityModal: params.showInactivityModal
+        showInactivityModal: (_params$pageOptions = params.pageOptions) === null || _params$pageOptions === void 0 ? void 0 : _params$pageOptions.showInactivityModal
       };
       if (isACGR) {
         // ACGR mode: add ACGR-specific params, exclude disasterRecoveryOn

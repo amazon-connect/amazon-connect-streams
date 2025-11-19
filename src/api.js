@@ -2705,9 +2705,9 @@
   };
 
   /**
-   * Session Expiration Warning
+   * Session Expiration Warning Manager
    */
-  class SessionExpirationWarning {
+  class SessionExpirationWarningManager {
     constructor() {
       this.sessionExpirationWarningClient = new SessionExpirationWarningClient(connect.core.getSDKClientConfig()); 
     }
@@ -2899,6 +2899,6 @@
   connect.SoftphoneError = SoftphoneError;
   connect.VoiceId = VoiceId;
   connect.QuickResponses = QuickResponses;
-  connect.SessionExpirationWarning = SessionExpirationWarning;
+  connect.SessionExpirationWarningManager = SessionExpirationWarningManager;
 })();
 

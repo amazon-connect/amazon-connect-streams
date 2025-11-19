@@ -1838,7 +1838,9 @@ describe('Core', function () {
             it("should set up listener for REQUEST_CONFIGURE and respond with provided params", function () {
                 const params = { 
                     softphone: { ringtoneUrl: "test-softphone.mp3" },
-                    showInactivityModal: false
+                    pageOptions: {
+                        showInactivityModal: false
+                    }
                 };
                 
                 connect.core.listenForConfigureRequest(params, conduitStub, false);
@@ -1854,7 +1856,9 @@ describe('Core', function () {
                     softphone: { ringtoneUrl: 'test-softphone.mp3' },
                     chat: undefined,
                     task: undefined,
-                    pageOptions: undefined,
+                    pageOptions: {
+                        showInactivityModal: false
+                    },
                     shouldAddNamespaceToLogs: undefined,
                     disasterRecoveryOn: undefined,
                     showInactivityModal: false
