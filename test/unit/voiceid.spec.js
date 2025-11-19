@@ -34,7 +34,7 @@ describe('VoiceId', () => {
     initMediaController.resetHistory();
     connect.core.getAgentDataProvider.resetBehavior();
     sandbox.restore();
-    connect.agent.initialized = true;
+    connect.agent.initialized = false;
   });
 
   describe('getDomainId', () => {
