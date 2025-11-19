@@ -747,7 +747,10 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
         }
-
+        if (agent.isSoftphoneEnabled()) {
+          // get softphonePersostentConnection from agent configuration for softphone persistent connection
+          softphoneParams.isSoftphonePersistentConnectionEnabled = agent.getConfiguration().softphonePersistentConnection;
+        }
         agent.onRefresh(function () {
           var sub = this;
           connect.getLog().info("[Softphone Manager] agent refresh handler executed").sendInternalLogToServer();

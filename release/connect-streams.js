@@ -10886,6 +10886,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
         }
+        if (agent.isSoftphoneEnabled()) {
+          // get softphonePersostentConnection from agent configuration for softphone persistent connection
+          softphoneParams.isSoftphonePersistentConnectionEnabled = agent.getConfiguration().softphonePersistentConnection;
+        }
         agent.onRefresh(function () {
           var sub = this;
           connect.getLog().info("[Softphone Manager] agent refresh handler executed").sendInternalLogToServer();
@@ -13166,13 +13170,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     try {
       var _connect$core;
       if ((_connect$core = connect.core) !== null && _connect$core !== void 0 && _connect$core.softphoneManager) {
-        if (connect.core._allowSoftphonePersistentConnection) {
-          connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection manager.').sendInternalLogToServer();
-          connect.core.softphoneManager._initiateRtcPeerConnectionManager();
-        } else {
-          connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection factory.').sendInternalLogToServer();
-          connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
-        }
+        connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection manager.').sendInternalLogToServer();
+        connect.core.softphoneManager._initiateRtcPeerConnectionManager();
       } else {
         connect.getLog().info('[GR] Softphone manager not initialized or not used, not refreshing softphone manager.').sendInternalLogToServer();
       }
@@ -16794,6 +16793,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   var consecutiveNoAudioOutputPackets = 0;
   var consecutiveLowOutputAudioLevel = 0;
   var audioInputConnectedDurationSeconds = 0;
+  var consecutiveAudioOutputMuteDurationSeconds = 0;
+  var isConnected = false;
   // Time from CCP received the softphone contact till local media is added to the softphone session
   var ccpMediaReadyLatencyMillis = 0;
   var allowEarlyGum = false;
@@ -16892,31 +16893,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         var sub = a.onRefresh(function (agent) {
           if (_this.rtcPeerConnectionManager) {
             var isPPCEnabled = agent.getConfiguration().softphonePersistentConnection;
-            // if softphonePersistentConnection changed in agent configuration
-            if (_this.rtcPeerConnectionManager.isPPCEnabled !== isPPCEnabled) {
-              _this.rtcPeerConnectionManager.isPPCEnabled = isPPCEnabled;
-              // if softphonePersistentConnection changed to true, use rtcPeerConnectionManager to initiate a new persistent peer connection
-              if (_this.rtcPeerConnectionManager.isPPCEnabled) {
-                logger.info("softphonePersistentConnection changed to ture, initiate a persistent peer connection").sendInternalLogToServer();
-                _this.rtcPeerConnectionManager.rtcJsStrategy = _this.rtcJsStrategy;
-                _this.rtcPeerConnectionManager.closeEarlyMediaConnection(); // close standby peer connection
-                _this.rtcPeerConnectionManager.requestPeerConnection().then(function () {
-                  // request a new persistent peer connection
-                  _this.rtcPeerConnectionManager.createSession();
-                  _this.rtcPeerConnectionManager.connect();
-                });
-              } else {
-                // if softphonePersistentConnection changed to false, use rtcPeerConnectionManager to tear down the currentpersistent peer connection
-                logger.info("softphonePersistentConnection changed to false, destroy the existing persistent peer connection").sendInternalLogToServer();
-                _this.rtcPeerConnectionManager.destroy();
-                _this.rtcPeerConnectionManager.requestPeerConnection(); // This will create standby(early media) peer connection for supported browsers
-              }
-            }
-          } else if (connect.core._allowSoftphonePersistentConnection) {
-            // TODO: Remove else when Persistent Connection GA
-            _this._initiateRtcPeerConnectionManager();
+            _this.rtcPeerConnectionManager.handlePersistentPeerConnectionToggle(isPPCEnabled);
           } else {
-            sub.unsubscribe(); // unsubscribe the event if account is not allowlisted.
+            _this._initiateRtcPeerConnectionManager();
           }
         });
       });
@@ -16981,8 +16960,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     logger.info("[SoftphoneManager] Client Provided Strategy: ".concat(softphoneParams.VDIPlatform)).sendInternalLogToServer();
     this._setRtcJsStrategy();
     this._refreshRtcPeerConnectionFactory();
-    // if allowSoftphonePersistentConnection FAC is true, initiate RtcPeerConnectionManager
-    if (connect.core._allowSoftphonePersistentConnection && this.rtcPeerConnectionManager === null) {
+    // initiate RtcPeerConnectionManager
+    if (this.rtcPeerConnectionManager === null) {
       this._initiateRtcPeerConnectionManager();
     }
     listenAgentConfigurationUpdate();
@@ -17126,11 +17105,21 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       if (callConfig.useWebSocketProvider) {
         webSocketProvider = connect.core.getWebSocketManager();
       }
+
+      // initialize rtcPeerConnectionManager if it is not existed
+      if (this.rtcPeerConnectionManager === null) {
+        this._initiateRtcPeerConnectionManager();
+      }
       var session;
-      if (this.rtcJsStrategy) {
-        session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider, this.rtcJsStrategy);
+      // if rtcPeerConnectionManager exists, it will create rtcSession object
+      if (connect.RtcPeerConnectionManager && this.rtcPeerConnectionManager) {
+        session = this.rtcPeerConnectionManager.createSession(contact.getContactId(), callConfig.iceServers, softphoneInfo.callContextToken, agentConnectionId, webSocketProvider, this.rtcJsStrategy === null ? new connect.StandardStrategy() : this.rtcJsStrategy);
       } else {
-        session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider);
+        if (this.rtcJsStrategy) {
+          session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider, this.rtcJsStrategy);
+        } else {
+          session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider);
+        }
       }
       session.echoCancellation = !softphoneParams.disableEchoCancellation;
       rtcSessions[agentConnectionId] = session;
@@ -17181,10 +17170,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         });
       };
       session.remoteAudioElement = document.getElementById('remote-audio') || window.parent.parent.document.getElementById('remote-audio');
-      if (this.rtcPeerConnectionFactory) {
-        session.connect(this.rtcPeerConnectionFactory.get(callConfig.iceServers));
+      if (this.rtcPeerConnectionManager) {
+        this.rtcPeerConnectionManager.connect();
       } else {
-        session.connect();
+        if (this.rtcPeerConnectionFactory) {
+          session.connect(this.rtcPeerConnectionFactory.get(callConfig.iceServers));
+        } else {
+          session.connect();
+        }
       }
     };
     var onDestroyContact = function onDestroyContact(agentConnectionId) {
@@ -17437,6 +17430,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
               //Replace the audio track in the local media stream (for mute / unmute)
               softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
+              session._isUserProvidedStream = true;
               connect.getLog().info("[Audio Device Settings] Microphone device ".concat(deviceId, " successfully set to local media stream in RTCRtpSender")).sendInternalLogToServer();
             });
           }
@@ -17652,6 +17646,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       iceConnectionsFailed: report.iceConnectionsFailed || null,
       peerConnectionFailed: report.peerConnectionFailed || null,
       rtcJsVersion: report.rtcJsVersion || null,
+      firstRTPTimeMillis: report.firstRTPTimeMillis || null,
+      isMediaClusterPath: report.isMediaClusterPath,
+      isPersistentPeerConnection: report.isPersistentPeerConnection,
+      isExistingPersistentPeerConnection: report.isExistingPersistentPeerConnection || false,
       consecutiveNoAudioInputPackets: consecutiveNoAudioInputPackets,
       consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
       consecutiveNoAudioOutputPackets: consecutiveNoAudioOutputPackets,
@@ -17662,8 +17660,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       earlyGumEnabled: allowEarlyGum,
       earlyGumWorked: earlyGumWorked,
       vdiPlatform: vdiPlatform || null,
+      userAgentData: report.userAgentData || null,
+      isConnected: isConnected,
+      consecutiveAudioOutputMuteDurationSeconds: consecutiveAudioOutputMuteDurationSeconds,
       streamJsVersion: connect.version
     });
+    ccpMediaReadyLatencyMillis = 0;
+    isConnected = false;
+    consecutiveAudioOutputMuteDurationSeconds = 0;
     connect.publishSoftphoneReport({
       contactId: contact.getContactId(),
       ccpVersion: global.ccpVersion,
@@ -17673,6 +17677,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   var startStatsCollectionJob = function startStatsCollectionJob(rtcSession) {
     rtpStatsJob = window.setInterval(function () {
+      var _rtcSession$mediaStre;
       rtcSession.getUserAudioStats().then(function (stats) {
         var previousUserStats = aggregatedUserAudioStats;
         aggregatedUserAudioStats = stats;
@@ -17691,6 +17696,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       }, function (error) {
         logger.debug("Failed to get remote audio stats.", error).sendInternalLogToServer();
       });
+      if (rtcSession !== null && rtcSession !== void 0 && (_rtcSession$mediaStre = rtcSession.mediaStream) !== null && _rtcSession$mediaStre !== void 0 && (_rtcSession$mediaStre = _rtcSession$mediaStre.getAudioTracks()) !== null && _rtcSession$mediaStre !== void 0 && (_rtcSession$mediaStre = _rtcSession$mediaStre[0]) !== null && _rtcSession$mediaStre !== void 0 && _rtcSession$mediaStre.enabled) {
+        consecutiveAudioOutputMuteDurationSeconds = 0;
+      } else {
+        consecutiveAudioOutputMuteDurationSeconds++;
+      }
     }, 1000);
   };
   var startStatsReportingJob = function startStatsReportingJob(contact) {
