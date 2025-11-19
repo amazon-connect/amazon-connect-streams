@@ -1,7 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 463:
+/***/ 578:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -10,10 +10,148 @@ __webpack_require__.r(__webpack_exports__);
 
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
-  AmazonConnectGRStreamsSite: () => (/* reexport */ AmazonConnectGRStreamsSite),
-  AmazonConnectStreamsSite: () => (/* reexport */ AmazonConnectStreamsSite),
-  GlobalResiliencyRegion: () => (/* reexport */ GlobalResiliencyRegion)
+  ActivityRoutes: () => (/* reexport */ ActivityRoutes),
+  ActivityTopicKeys: () => (/* reexport */ ActivityTopicKeys),
+  SessionExpirationWarningClient: () => (/* reexport */ SessionExpirationWarningClient),
+  activityNamespace: () => (/* reexport */ activityNamespace),
+  sendActivity: () => (/* reexport */ sendActivity)
 });
+
+;// ./node_modules/@amazon-connect/activity/lib-esm/activity-namespace.js
+const activityNamespace = "aws.connect.activity";
+//# sourceMappingURL=activity-namespace.js.map
+;// ./node_modules/@amazon-connect/activity/lib-esm/routes.js
+var ActivityRoutes;
+(function (ActivityRoutes) {
+    ActivityRoutes["sendActivity"] = "sendActivity";
+})(ActivityRoutes || (ActivityRoutes = {}));
+//# sourceMappingURL=routes.js.map
+// EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 55 modules
+var lib_esm = __webpack_require__(238);
+// EXTERNAL MODULE: ./node_modules/lodash.debounce/index.js
+var lodash_debounce = __webpack_require__(181);
+var lodash_debounce_default = /*#__PURE__*/__webpack_require__.n(lodash_debounce);
+;// ./node_modules/@amazon-connect/activity/lib-esm/send-activity-callback.js
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+
+
+
+const DEFAULT_DEBOUNCE_TIME = 1000;
+let loggerCount = 0;
+let logger;
+let debouncedSendActivity;
+/**
+ * Sends activity signals to keep agent active
+ * @param provider
+ */
+function sendActivity(provider) {
+    if (!debouncedSendActivity) {
+        logger = new lib_esm/* ConnectLogger */.pg({
+            provider,
+            source: activityNamespace,
+        });
+        logger.debug("Creating activity callback..");
+        const action = () => {
+            void sendActivityRequest({ provider });
+        };
+        debouncedSendActivity = lodash_debounce_default()(action, DEFAULT_DEBOUNCE_TIME, {
+            leading: true,
+            trailing: false,
+        });
+    }
+    debouncedSendActivity();
+}
+function sendActivityRequest(_a) {
+    return __awaiter(this, arguments, void 0, function* ({ provider, }) {
+        try {
+            yield provider
+                .getProxy()
+                .request(activityNamespace, ActivityRoutes.sendActivity);
+            loggerCount = 0;
+        }
+        catch (error) {
+            if (loggerCount < 5) {
+                logger.error("Failed to record agent activity", {
+                    error,
+                    errorCount: loggerCount,
+                });
+                loggerCount++;
+            }
+        }
+    });
+}
+//# sourceMappingURL=send-activity-callback.js.map
+;// ./node_modules/@amazon-connect/activity/lib-esm/topic-keys.js
+var ActivityTopicKeys;
+(function (ActivityTopicKeys) {
+    ActivityTopicKeys["expirationWarning"] = "expiration-warning";
+    ActivityTopicKeys["expirationWarningCleared"] = "expiration-warning-cleared";
+    ActivityTopicKeys["sessionExtensionError"] = "session-extension-error";
+})(ActivityTopicKeys || (ActivityTopicKeys = {}));
+//# sourceMappingURL=topic-keys.js.map
+;// ./node_modules/@amazon-connect/activity/lib-esm/session-expiration-warning-client.js
+
+
+
+class SessionExpirationWarningClient extends lib_esm/* ConnectClient */.C$ {
+    constructor(config) {
+        super(activityNamespace, config);
+    }
+    onExpirationWarning(handler) {
+        this.context.proxy.subscribe({ key: ActivityTopicKeys.expirationWarning }, handler);
+    }
+    offExpirationWarning(handler) {
+        this.context.proxy.unsubscribe({ key: ActivityTopicKeys.expirationWarning }, handler);
+    }
+    onExpirationWarningCleared(handler) {
+        this.context.proxy.subscribe({ key: ActivityTopicKeys.expirationWarningCleared }, handler);
+    }
+    offExpirationWarningCleared(handler) {
+        this.context.proxy.unsubscribe({ key: ActivityTopicKeys.expirationWarningCleared }, handler);
+    }
+    onSessionExtensionError(handler) {
+        this.context.proxy.subscribe({ key: ActivityTopicKeys.sessionExtensionError }, handler);
+    }
+    offSessionExtensionError(handler) {
+        this.context.proxy.unsubscribe({ key: ActivityTopicKeys.sessionExtensionError }, handler);
+    }
+}
+//# sourceMappingURL=session-expiration-warning-client.js.map
+;// ./node_modules/@amazon-connect/activity/lib-esm/index.js
+
+
+
+
+
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 238:
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+
+// EXPORTS
+__webpack_require__.d(__webpack_exports__, {
+  Lt: () => (/* reexport */ AmazonConnectProviderBase),
+  C$: () => (/* reexport */ ConnectClient),
+  pg: () => (/* reexport */ connect_logger_ConnectLogger),
+  by: () => (/* reexport */ Proxy),
+  Lz: () => (/* reexport */ getGlobalProvider),
+  xQ: () => (/* reexport */ getOriginAndPath)
+});
+
+// UNUSED EXPORTS: AsyncEventEmitter, ConnectClientWithOptionalConfig, ConnectError, ConnectMetricRecorder, Context, DurationMetricRecorder, Emitter, EventEmitter, LogLevel, ModuleContext, RequestManager, SubscriptionHandlerRelay, SubscriptionMap, SubscriptionSet, TimeoutTracker, createLogMessage, createMetricMessage, createModuleProxy, createRequestMessage, deepClone, formatClientTimeoutError, generateStringId, generateUUID, handlerNotFoundResponseErrorKey, isAmazonConnectProvider, isClientTimeoutResponseError, isConnectError, isNoResultResponseError, logToConsole, noResultResponseErrorKey, resetGlobalProvider, sdkVersion
 
 ;// ./node_modules/@amazon-connect/core/lib-esm/provider/global-provider.js
 let _provider;
@@ -25,13 +163,56 @@ function setGlobalProvider(provider) {
 function resetGlobalProvider(provider) {
     _provider = provider;
 }
-function global_provider_getGlobalProvider(notSetMessage) {
+function getGlobalProvider(notSetMessage) {
     if (!_provider) {
         throw new Error(notSetMessage !== null && notSetMessage !== void 0 ? notSetMessage : "Attempted to get Global AmazonConnectProvider that has not been set.");
     }
     return _provider;
 }
 //# sourceMappingURL=global-provider.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/provider/is-provider.js
+/**
+ * Type guard to verify that a value represents an AmazonConnectProvider interface.
+ * Checks for the presence of required getters and methods without performing
+ * runtime validation of the on/off error handling functionality.
+ */
+/**
+ * Type guard function that verifies if a given value implements the
+ * basic AmazonConnectProvider interface structure.
+ *
+ * @param value - The value to check for provider interface compliance
+ * @returns True if the value has the required provider interface properties
+ *
+ * @example
+ * ```typescript
+ * const someValue = getUnknownValue();
+ * if (isAmazonConnectProvider(someValue)) {
+ *   // someValue is now typed as having provider interface
+ *   console.log(someValue.id);
+ *   const proxy = someValue.getProxy();
+ * }
+ * ```
+ */
+function isAmazonConnectProvider(value) {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+    const candidate = value;
+    // Check for id getter - should be a string
+    if (typeof candidate.id !== "string") {
+        return false;
+    }
+    // Check for config getter - should exist (any type acceptable)
+    if (!("config" in candidate)) {
+        return false;
+    }
+    // Check for getProxy method - should be a function
+    if (typeof candidate.getProxy !== "function") {
+        return false;
+    }
+    return true;
+}
+//# sourceMappingURL=is-provider.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/error/connect-error.js
 class ConnectError extends Error {
     constructor({ reason, namespace, errorKey, details, }) {
@@ -213,6 +394,21 @@ function getOriginAndPath() {
     };
 }
 //# sourceMappingURL=location-helpers.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/proxy/module-proxy-factory.js
+function module_proxy_factory_createModuleProxy(proxy, namespace) {
+    return {
+        request: (command, data) => proxy.request(namespace, command, data),
+        subscribe: (topic, handler) => proxy.subscribe(Object.assign(Object.assign({}, topic), { namespace }), handler),
+        unsubscribe: (topic, handler) => proxy.unsubscribe(Object.assign(Object.assign({}, topic), { namespace }), handler),
+        getProxyInfo: () => ({
+            connectionStatus: proxy.connectionStatus,
+            proxyType: proxy.proxyType,
+        }),
+        onConnectionStatusChange: (h) => proxy.onConnectionStatusChange(h),
+        offConnectionStatusChange: (h) => proxy.offConnectionStatusChange(h),
+    };
+}
+//# sourceMappingURL=module-proxy-factory.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/messaging/subscription/subscription-handler-id-map.js
 
 class SubscriptionHandlerIdMap {
@@ -398,6 +594,82 @@ class SubscriptionManager {
 
 
 //# sourceMappingURL=index.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/metric/duration-metric-recorder.js
+/**
+ * @classdesc DurationMetricRecorder class provides APIs to emit duration metrics based on users' need
+ */
+class DurationMetricRecorder {
+    /**
+     * Constructor for DurationMetricRecorder
+     * @param {(metric: MetricData) => void} sendMetric- The method that sends metric
+     * @param {string} metricName - The name of the duration metric
+     * @param {Record<string, string>} dimensions - The dimensions of the duration metric with keys and values (optional)
+     * @param {Record<string, string>} optionalDimensions - The optional dimensions of the duration metric with keys and values (optional)
+     */
+    constructor({ sendMetric, metricName, metricOptions, }) {
+        this.unit = "Milliseconds";
+        this.sendMetric = sendMetric;
+        this.startTime = performance.now();
+        this.metricName = metricName;
+        this.dimensions = (metricOptions === null || metricOptions === void 0 ? void 0 : metricOptions.dimensions) ? metricOptions.dimensions : {};
+        this.optionalDimensions = (metricOptions === null || metricOptions === void 0 ? void 0 : metricOptions.optionalDimensions)
+            ? metricOptions.optionalDimensions
+            : {};
+    }
+    /**
+     * Stop recording of the duration metric and emit it
+     * @returns {durationCount: number} - The duration being recorded
+     */
+    stopDurationCounter() {
+        const durationResult = Math.round(performance.now() - this.startTime);
+        this.sendMetric({
+            metricName: this.metricName,
+            unit: this.unit,
+            value: durationResult,
+            dimensions: this.dimensions,
+            optionalDimensions: this.optionalDimensions,
+        });
+        return { duration: durationResult };
+    }
+}
+//# sourceMappingURL=duration-metric-recorder.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/metric/metric-helpers.js
+const MAX_METRIC_DIMENSIONS = 30;
+/**
+ * Check if the the sum of the length of dimensions and optional dimentions is exceeding maximum dimension length acceptable by back-end
+ * @param {Record<string, string>} dimensions - The dimensions of the duration metric with keys and values
+ * @param {Record<string, string>} optionalDimensions -The optional dimensions of the duration metric with keys and values
+ */
+function checkDimensionLength(dimensions, optionalDimensions) {
+    if (Object.keys(dimensions).length +
+        Object.keys(optionalDimensions !== null && optionalDimensions !== void 0 ? optionalDimensions : {}).length >
+        MAX_METRIC_DIMENSIONS) {
+        throw new Error("Cannot add more than 30 dimensions to a metric");
+    }
+}
+/**
+ * Transform the metric message into the format acceptable by back-end
+ * @param {MetricData} metricData - The metric data
+ * @param {string} timestamp - The timestamp of the metric
+ * @param {string} namespace - The namespace of the metric
+ * @param {UpstreamMessageOrigin} messageOrigin - The origin of the metric message
+ * @return {MetricMessage} - Return a MetricMessage object
+ */
+function createMetricMessage({ metricData, time, namespace }, messageOrigin) {
+    var _a, _b;
+    return {
+        type: "metric",
+        namespace: namespace,
+        metricName: metricData.metricName,
+        unit: metricData.unit,
+        value: metricData.value,
+        time: time,
+        dimensions: (_a = metricData.dimensions) !== null && _a !== void 0 ? _a : {},
+        optionalDimensions: (_b = metricData.optionalDimensions) !== null && _b !== void 0 ? _b : {},
+        messageOrigin,
+    };
+}
+//# sourceMappingURL=metric-helpers.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/metric/connect-metric-recorder.js
 
 
@@ -405,7 +677,7 @@ class SubscriptionManager {
 /**
  * @classdesc ConnectMetricRecorder class provides APIs to emit metrics based on users' need
  */
-class connect_metric_recorder_ConnectMetricRecorder {
+class ConnectMetricRecorder {
     /**
      * Constructor for ConnectMetricRecorder
      * @param {ConnectRecorderMetricParams} params - The namespace and provider(optional)
@@ -520,43 +792,6 @@ class connect_metric_recorder_ConnectMetricRecorder {
     }
 }
 //# sourceMappingURL=connect-metric-recorder.js.map
-;// ./node_modules/@amazon-connect/core/lib-esm/metric/metric-helpers.js
-const MAX_METRIC_DIMENSIONS = 30;
-/**
- * Check if the the sum of the length of dimensions and optional dimentions is exceeding maximum dimension length acceptable by back-end
- * @param {Record<string, string>} dimensions - The dimensions of the duration metric with keys and values
- * @param {Record<string, string>} optionalDimensions -The optional dimensions of the duration metric with keys and values
- */
-function metric_helpers_checkDimensionLength(dimensions, optionalDimensions) {
-    if (Object.keys(dimensions).length +
-        Object.keys(optionalDimensions !== null && optionalDimensions !== void 0 ? optionalDimensions : {}).length >
-        MAX_METRIC_DIMENSIONS) {
-        throw new Error("Cannot add more than 30 dimensions to a metric");
-    }
-}
-/**
- * Transform the metric message into the format acceptable by back-end
- * @param {MetricData} metricData - The metric data
- * @param {string} timestamp - The timestamp of the metric
- * @param {string} namespace - The namespace of the metric
- * @param {UpstreamMessageOrigin} messageOrigin - The origin of the metric message
- * @return {MetricMessage} - Return a MetricMessage object
- */
-function createMetricMessage({ metricData, time, namespace }, messageOrigin) {
-    var _a, _b;
-    return {
-        type: "metric",
-        namespace: namespace,
-        metricName: metricData.metricName,
-        unit: metricData.unit,
-        value: metricData.value,
-        time: time,
-        dimensions: (_a = metricData.dimensions) !== null && _a !== void 0 ? _a : {},
-        optionalDimensions: (_b = metricData.optionalDimensions) !== null && _b !== void 0 ? _b : {},
-        messageOrigin,
-    };
-}
-//# sourceMappingURL=metric-helpers.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/metric/index.js
 
 
@@ -697,16 +932,13 @@ function sanitizeDownstreamMessage(message) {
             case "childDownstreamMessage":
                 return Object.assign(Object.assign({}, message), { message: sanitizeDownstreamMessage(message.message) });
             case "publish": {
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const { data } = message, other = __rest(message, ["data"]);
                 return Object.assign({}, other);
             }
             case "response": {
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 if (message.isError)
                     return Object.assign(Object.assign({}, message), { details: { command: message.details.command } });
                 else {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const { data } = message, other = __rest(message, ["data"]);
                     return Object.assign({}, other);
                 }
@@ -1421,6 +1653,11 @@ class Proxy {
     }
     handleConnectionAcknowledge(msg) {
         this.connectionId = msg.connectionId;
+        this.logger.debug("Connection acknowledged by subject", {
+            connectionId: msg.connectionId,
+            queuedMessageCount: this.upstreamMessageQueue.length,
+            status: msg.status,
+        });
         this.status.update({
             status: "ready",
             connectionId: msg.connectionId,
@@ -1432,6 +1669,9 @@ class Proxy {
             this.sendMessageToSubject(msg);
         }
         this.healthCheck.start(msg);
+        this.logger.debug("Proxy connection ready", {
+            connectionId: this.connectionId,
+        });
     }
     handleResponse(msg) {
         this.requestManager.processResponse(msg);
@@ -1452,7 +1692,6 @@ class Proxy {
     }
     handleError(msg) {
         if (msg.isFatal) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { message: reason, type: _ } = msg, details = proxy_rest(msg, ["message", "type"]);
             this.status.update({ status: "error", reason: reason, details });
         }
@@ -1627,6 +1866,10 @@ class Proxy {
         });
     }
     resetConnection(reason) {
+        this.logger.debug("Resetting connection", {
+            reason,
+            connectionId: this.connectionId,
+        });
         this.connectionEstablished = false;
         this.status.update({
             status: "reset",
@@ -1635,6 +1878,9 @@ class Proxy {
         const { subscriptionHandlerCount } = this.restoreAllHandler();
         this.logger.info("Resetting proxy", {
             reason,
+            subscriptionHandlerCount,
+        });
+        this.logger.debug("Connection reset complete, restoring handlers", {
             subscriptionHandlerCount,
         });
     }
@@ -1979,7 +2225,7 @@ class connect_logger_ConnectLogger {
         if (!this.provider) {
             this.provider = this.providerFactory
                 ? this.providerFactory()
-                : global_provider_getGlobalProvider();
+                : getGlobalProvider();
         }
         return this.provider;
     }
@@ -2090,7 +2336,7 @@ class AmazonConnectProviderBase {
             const details = {};
             try {
                 // Attempts to get the existing provider for logging
-                const existingProvider = global_provider_getGlobalProvider();
+                const existingProvider = getGlobalProvider();
                 const logger = new connect_logger_ConnectLogger({
                     source: "core.amazonConnectProvider.init",
                     provider: existingProvider,
@@ -2127,7 +2373,7 @@ AmazonConnectProviderBase.isInitialized = false;
 
 
 
-class module_context_ModuleContext {
+class ModuleContext {
     constructor(engineContext, moduleNamespace) {
         this.engineContext = engineContext;
         this.moduleNamespace = moduleNamespace;
@@ -2136,7 +2382,7 @@ class module_context_ModuleContext {
         if (!this.moduleProxy) {
             const proxy = this.engineContext.getProvider().getProxy();
             const moduleNamespace = this.moduleNamespace;
-            this.moduleProxy = createModuleProxy(proxy, moduleNamespace);
+            this.moduleProxy = module_proxy_factory_createModuleProxy(proxy, moduleNamespace);
         }
         return this.moduleProxy;
     }
@@ -2145,10 +2391,10 @@ class module_context_ModuleContext {
     }
     createLogger(params) {
         if (typeof params === "object") {
-            return new ConnectLogger(Object.assign(Object.assign({}, params), { provider: () => this.engineContext.getProvider() }));
+            return new connect_logger_ConnectLogger(Object.assign(Object.assign({}, params), { provider: () => this.engineContext.getProvider() }));
         }
         else {
-            return new ConnectLogger({
+            return new connect_logger_ConnectLogger({
                 source: params,
                 provider: () => this.engineContext.getProvider(),
             });
@@ -2170,7 +2416,7 @@ class module_context_ModuleContext {
 ;// ./node_modules/@amazon-connect/core/lib-esm/context/context.js
 
 
-class context_Context {
+class Context {
     constructor(provider) {
         this._provider = provider;
     }
@@ -2209,7 +2455,7 @@ function get_module_context_getModuleContext({ namespace, config, }) {
 class ConnectClient {
     constructor(namespace, config) {
         this.namespace = namespace;
-        this.context = getModuleContext({ namespace, config });
+        this.context = get_module_context_getModuleContext({ namespace, config });
     }
 }
 class ConnectClientWithOptionalConfig {
@@ -2236,9 +2482,28 @@ class ConnectClientWithOptionalConfig {
 
 
 //# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 275:
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+// ESM COMPAT FLAG
+__webpack_require__.r(__webpack_exports__);
+
+// EXPORTS
+__webpack_require__.d(__webpack_exports__, {
+  AmazonConnectGRStreamsSite: () => (/* reexport */ AmazonConnectGRStreamsSite),
+  AmazonConnectStreamsSite: () => (/* reexport */ AmazonConnectStreamsSite),
+  GlobalResiliencyRegion: () => (/* reexport */ GlobalResiliencyRegion)
+});
+
+// EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 55 modules
+var lib_esm = __webpack_require__(238);
 ;// ./node_modules/@amazon-connect/site/lib-esm/proxy/site-proxy.js
 
-class SiteProxy extends Proxy {
+class SiteProxy extends lib_esm/* Proxy */.by {
     constructor(provider, instanceUrl) {
         super(provider);
         if (instanceUrl !== undefined) {
@@ -2250,7 +2515,7 @@ class SiteProxy extends Proxy {
             this.instanceUrl = provider.config.instanceUrl;
         }
         this.postMessageHandler = this.listenForInitialMessage.bind(this);
-        this.proxyLogger = new connect_logger_ConnectLogger({
+        this.proxyLogger = new lib_esm/* ConnectLogger */.pg({
             source: "siteProxy",
             provider,
         });
@@ -2367,7 +2632,7 @@ class StreamsSiteProxy extends SiteProxy {
             this.resetConnection("CCP IFrame Updated");
     }
     getUpstreamMessageOrigin() {
-        return Object.assign({ _type: "streams-site", providerId: this.provider.id }, getOriginAndPath());
+        return Object.assign({ _type: "streams-site", providerId: this.provider.id }, (0,lib_esm/* getOriginAndPath */.xQ)());
     }
     verifyEventSource(evt) {
         const ccpIFrame = this.ccpIFrame;
@@ -2398,7 +2663,7 @@ class StreamsSiteProxy extends SiteProxy {
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/amazon-connect-streams-site.js
 
 
-class AmazonConnectStreamsSite extends AmazonConnectProviderBase {
+class AmazonConnectStreamsSite extends lib_esm/* AmazonConnectProviderBase */.Lt {
     constructor(config) {
         super({
             config,
@@ -2411,7 +2676,7 @@ class AmazonConnectStreamsSite extends AmazonConnectProviderBase {
         return { provider };
     }
     static get default() {
-        return global_provider_getGlobalProvider("AmazonConnectStreamsSite has not been initialized");
+        return (0,lib_esm/* getGlobalProvider */.Lz)("AmazonConnectStreamsSite has not been initialized");
     }
     setCCPIframe(iframe) {
         this.getProxy().setCCPIframe(iframe);
@@ -2507,7 +2772,7 @@ function verifyRegion(region) {
 
 
 
-class GlobalResiliencyProxy extends Proxy {
+class GlobalResiliencyProxy extends lib_esm/* Proxy */.by {
     constructor(provider) {
         super(provider);
         this.activeRegion = GlobalResiliencyRegion.Primary;
@@ -2525,7 +2790,7 @@ class GlobalResiliencyProxy extends Proxy {
                 relayToGlobalResiliencyProxy: this.handleMessageFromSubject.bind(this),
             }),
         };
-        this.proxyLogger = new connect_logger_ConnectLogger({
+        this.proxyLogger = new lib_esm/* ConnectLogger */.pg({
             source: "globalResiliencyProxy",
             provider,
         });
@@ -2599,7 +2864,7 @@ class GlobalResiliencyProxy extends Proxy {
         this.regionProxies[this.activeRegion].sendOrQueueMessageToSubject(message);
     }
     getUpstreamMessageOrigin() {
-        return Object.assign(Object.assign({ _type: "global-resiliency-streams-site", providerId: this.provider.id }, getOriginAndPath()), { activeRegion: this.activeRegion });
+        return Object.assign(Object.assign({ _type: "global-resiliency-streams-site", providerId: this.provider.id }, (0,lib_esm/* getOriginAndPath */.xQ)()), { activeRegion: this.activeRegion });
     }
     addChildIframeChannel(params) {
         this.regionProxies[this.activeRegion].addChildIframeChannel(params);
@@ -2615,7 +2880,7 @@ class GlobalResiliencyProxy extends Proxy {
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/amazon-connect-gr-streams-site.js
 
 
-class AmazonConnectGRStreamsSite extends AmazonConnectProviderBase {
+class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.Lt {
     constructor(config) {
         super({
             config,
@@ -2628,7 +2893,7 @@ class AmazonConnectGRStreamsSite extends AmazonConnectProviderBase {
         return { provider };
     }
     static get default() {
-        return global_provider_getGlobalProvider("AmazonConnectGRStreamsSite has not been initialized");
+        return (0,lib_esm/* getGlobalProvider */.Lz)("AmazonConnectGRStreamsSite has not been initialized");
     }
     // This should be called for each region on startup
     setCCPIframe(iframe) {
@@ -2989,7 +3254,7 @@ class AmazonConnectGRStreamsSite extends AmazonConnectProviderBase {
 /***/ }),
 
 /***/ 610:
-/***/ (() => {
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
 
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
@@ -3020,6 +3285,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
+  var _require = __webpack_require__(578),
+    SessionExpirationWarningClient = _require.SessionExpirationWarningClient,
+    sendActivity = _require.sendActivity;
 
   /*----------------------------------------------------------------
    * enum AgentStateType
@@ -5301,6 +5569,82 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     });
   };
 
+  /**
+   * Session Expiration Warning Manager
+   */
+  var SessionExpirationWarningManager = /*#__PURE__*/function () {
+    function SessionExpirationWarningManager() {
+      _classCallCheck(this, SessionExpirationWarningManager);
+      this.sessionExpirationWarningClient = new SessionExpirationWarningClient(connect.core.getSDKClientConfig());
+    }
+    return _createClass(SessionExpirationWarningManager, [{
+      key: "_getSDKClient",
+      value: function _getSDKClient() {
+        if (this.sessionExpirationWarningClient) return this.sessionExpirationWarningClient;else {
+          this.sessionExpirationWarningClient = new SessionExpirationWarningClient(connect.core.getSDKClientConfig());
+          return this.sessionExpirationWarningClient;
+        }
+      }
+
+      // Triggered when the agent's session is about to expire due to inactivity
+    }, {
+      key: "onExpirationWarning",
+      value: function onExpirationWarning(f) {
+        var _this = this;
+        var handler = function handler(e) {
+          f(e);
+          return Promise.resolve();
+        };
+        this._getSDKClient().onExpirationWarning(handler);
+        return {
+          unsubscribe: function unsubscribe() {
+            return _this._getSDKClient().offExpirationWarning(handler);
+          }
+        };
+      }
+
+      // Triggered when the warning has been cleared
+    }, {
+      key: "onExpirationWarningCleared",
+      value: function onExpirationWarningCleared(f) {
+        var _this2 = this;
+        var handler = function handler(e) {
+          f(e);
+          return Promise.resolve();
+        };
+        this._getSDKClient().onExpirationWarningCleared(handler);
+        return {
+          unsubscribe: function unsubscribe() {
+            return _this2._getSDKClient().offExpirationWarningCleared(handler);
+          }
+        };
+      }
+
+      /**
+       * Triggered when there is an error with updating the 
+       * agent's activity
+       */
+    }, {
+      key: "onSessionExtensionError",
+      value: function onSessionExtensionError(f) {
+        var _this3 = this;
+        var handler = function handler(e) {
+          f(e);
+          return Promise.resolve();
+        };
+        this._getSDKClient().onSessionExtensionError(handler);
+        return {
+          unsubscribe: function unsubscribe() {
+            return _this3._getSDKClient().offExpirationWarningCleared(handler);
+          }
+        };
+      }
+    }]);
+  }(); // Sends activity signals indicating that the agent is active
+  connect.sendActivity = function () {
+    return sendActivity(connect.core.getSDKClientConfig().provider);
+  };
+
   /*----------------------------------------------------------------
    * class SoftphoneError
    */
@@ -5422,6 +5766,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.SoftphoneError = SoftphoneError;
   connect.VoiceId = VoiceId;
   connect.QuickResponses = QuickResponses;
+  connect.SessionExpirationWarningManager = SessionExpirationWarningManager;
 })();
 
 /***/ }),
@@ -9841,8 +10186,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.20.1";
+  connect.version = "2.21.0";
   connect.outerContextStreamsVersion = null;
+  connect.initCCPParams = null;
+  connect.containerDiv = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
   // NOTE: These constants are currently also set in the global-resiliency file.
@@ -10539,6 +10886,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
           return;
         }
+        if (agent.isSoftphoneEnabled()) {
+          // get softphonePersostentConnection from agent configuration for softphone persistent connection
+          softphoneParams.isSoftphonePersistentConnectionEnabled = agent.getConfiguration().softphonePersistentConnection;
+        }
         agent.onRefresh(function () {
           var sub = this;
           connect.getLog().info("[Softphone Manager] agent refresh handler executed").sendInternalLogToServer();
@@ -11078,7 +11429,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       connect.getLog().warn("ACK_TIMEOUT occurred. Attempting to authenticate.").sendInternalLogToServer();
       connect.core.authenticate(params, containerDiv, conduit);
     });
-    if (!((_params$loginOptions = params.loginOptions) !== null && _params$loginOptions !== void 0 && _params$loginOptions.enableAckTimeout)) {
+    if (!((_params$loginOptions = params.loginOptions) !== null && _params$loginOptions !== void 0 && _params$loginOptions.disableAuthPopupAfterLogout)) {
       connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
         connect.getLog().warn("TERMINATED occurred. Attempting to authenticate.").sendInternalLogToServer();
         var delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
@@ -11138,6 +11489,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         delete params.plugins;
       }
     }
+    connect.initCCPParams = params;
+    connect.containerDiv = containerDiv;
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
 
@@ -11145,7 +11498,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     if (!existingProvider) {
       try {
         var _params, _params2;
-        var _require = __webpack_require__(463),
+        var _require = __webpack_require__(275),
           AmazonConnectStreamsSite = _require.AmazonConnectStreamsSite,
           AmazonConnectGRStreamsSite = _require.AmazonConnectGRStreamsSite;
         var instanceUrl = new URL(params.ccpUrl).origin;
@@ -11283,10 +11636,16 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       // Once we receive the first ACK, setup our upstream API client and establish
       // the SYN/ACK refresh flow.
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
+        var _params$loginOptions2;
         connect.getLog().info("Acknowledged by the CCP!").sendInternalLogToServer();
         connect.core.client = new connect.UpstreamConduitClient(conduit);
         connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
         connect.core.portStreamId = data.id;
+        if (connect.core.loginAckTimeoutSub && (_params$loginOptions2 = params.loginOptions) !== null && _params$loginOptions2 !== void 0 && _params$loginOptions2.disableAuthPopupAfterLogout) {
+          connect.core.loginAckTimeoutSub.unsubscribe();
+          connect.core.loginAckTimeoutSub = null;
+          connect.getLog().info("ACK_TIMEOUT subscription unsubscribed after receiving ACKNOWLEDGE due to disableAuthPopupAfterLogout").sendInternalLogToServer();
+        }
         connect.core.sendConfigure(params, conduit, false);
         connect.core.listenForConfigureRequest(params, conduit, false); // failsafe for abnormal ccp refresh
 
@@ -11622,6 +11981,24 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   // Open login popup and refresh the iframe until the user is logged in.
+  connect.core.reauthenticateAfterLogout = function () {
+    var _connect$initCCPParam;
+    // Verify that the params needed for authenticate exists
+    if (!connect.initCCPParams || !connect.containerDiv || !connect.core.upstream) {
+      connect.getLog().error("Cannot refresh CCP, missing initCCPParams, container div, and or upstream").withObject({
+        initCCPParams: connect.initCCPParams,
+        containerDiv: connect.containerDiv,
+        upstream: connect.core.upstream
+      }).sendInternalLogToServer();
+      throw new Error("Missing parameters to refresh CCP iframe");
+    }
+    if ((_connect$initCCPParam = connect.initCCPParams) !== null && _connect$initCCPParam !== void 0 && _connect$initCCPParam.enableGlobalResiliency) {
+      connect.getLog().error("Refresh CCP does not support ACGR at the moment").sendInternalLogToServer();
+      throw new Error("Not supported in ACGR instance");
+    } else {
+      connect.core.authenticate(connect.initCCPParams, connect.containerDiv, connect.core.upstream);
+    }
+  };
   connect.core.authenticate = function (params, containerDiv, conduit) {
     if (params.loginPopup !== false) {
       try {
@@ -12263,12 +12640,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**-----------------------------------------------------------------------*/
   connect.core.sendConfigure = function (params, conduit, isACGR) {
     if (params.softphone || params.chat || params.task || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
+      var _params$pageOptions;
       var config = {
         softphone: params.softphone,
         chat: params.chat,
         task: params.task,
         pageOptions: params.pageOptions,
-        shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs
+        shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
+        showInactivityModal: (_params$pageOptions = params.pageOptions) === null || _params$pageOptions === void 0 ? void 0 : _params$pageOptions.showInactivityModal
       };
       if (isACGR) {
         // ACGR mode: add ACGR-specific params, exclude disasterRecoveryOn
@@ -12791,13 +13170,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     try {
       var _connect$core;
       if ((_connect$core = connect.core) !== null && _connect$core !== void 0 && _connect$core.softphoneManager) {
-        if (connect.core._allowSoftphonePersistentConnection) {
-          connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection manager.').sendInternalLogToServer();
-          connect.core.softphoneManager._initiateRtcPeerConnectionManager();
-        } else {
-          connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection factory.').sendInternalLogToServer();
-          connect.core.softphoneManager._refreshRtcPeerConnectionFactory();
-        }
+        connect.getLog().info('[GR] Refreshing softphone manager RTC peer connection manager.').sendInternalLogToServer();
+        connect.core.softphoneManager._initiateRtcPeerConnectionManager();
       } else {
         connect.getLog().info('[GR] Softphone manager not initialized or not used, not refreshing softphone manager.').sendInternalLogToServer();
       }
@@ -16419,6 +16793,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   var consecutiveNoAudioOutputPackets = 0;
   var consecutiveLowOutputAudioLevel = 0;
   var audioInputConnectedDurationSeconds = 0;
+  var consecutiveAudioOutputMuteDurationSeconds = 0;
+  var isConnected = false;
   // Time from CCP received the softphone contact till local media is added to the softphone session
   var ccpMediaReadyLatencyMillis = 0;
   var allowEarlyGum = false;
@@ -16517,31 +16893,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         var sub = a.onRefresh(function (agent) {
           if (_this.rtcPeerConnectionManager) {
             var isPPCEnabled = agent.getConfiguration().softphonePersistentConnection;
-            // if softphonePersistentConnection changed in agent configuration
-            if (_this.rtcPeerConnectionManager.isPPCEnabled !== isPPCEnabled) {
-              _this.rtcPeerConnectionManager.isPPCEnabled = isPPCEnabled;
-              // if softphonePersistentConnection changed to true, use rtcPeerConnectionManager to initiate a new persistent peer connection
-              if (_this.rtcPeerConnectionManager.isPPCEnabled) {
-                logger.info("softphonePersistentConnection changed to ture, initiate a persistent peer connection").sendInternalLogToServer();
-                _this.rtcPeerConnectionManager.rtcJsStrategy = _this.rtcJsStrategy;
-                _this.rtcPeerConnectionManager.closeEarlyMediaConnection(); // close standby peer connection
-                _this.rtcPeerConnectionManager.requestPeerConnection().then(function () {
-                  // request a new persistent peer connection
-                  _this.rtcPeerConnectionManager.createSession();
-                  _this.rtcPeerConnectionManager.connect();
-                });
-              } else {
-                // if softphonePersistentConnection changed to false, use rtcPeerConnectionManager to tear down the currentpersistent peer connection
-                logger.info("softphonePersistentConnection changed to false, destroy the existing persistent peer connection").sendInternalLogToServer();
-                _this.rtcPeerConnectionManager.destroy();
-                _this.rtcPeerConnectionManager.requestPeerConnection(); // This will create standby(early media) peer connection for supported browsers
-              }
-            }
-          } else if (connect.core._allowSoftphonePersistentConnection) {
-            // TODO: Remove else when Persistent Connection GA
-            _this._initiateRtcPeerConnectionManager();
+            _this.rtcPeerConnectionManager.handlePersistentPeerConnectionToggle(isPPCEnabled);
           } else {
-            sub.unsubscribe(); // unsubscribe the event if account is not allowlisted.
+            _this._initiateRtcPeerConnectionManager();
           }
         });
       });
@@ -16606,8 +16960,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     logger.info("[SoftphoneManager] Client Provided Strategy: ".concat(softphoneParams.VDIPlatform)).sendInternalLogToServer();
     this._setRtcJsStrategy();
     this._refreshRtcPeerConnectionFactory();
-    // if allowSoftphonePersistentConnection FAC is true, initiate RtcPeerConnectionManager
-    if (connect.core._allowSoftphonePersistentConnection && this.rtcPeerConnectionManager === null) {
+    // initiate RtcPeerConnectionManager
+    if (this.rtcPeerConnectionManager === null) {
       this._initiateRtcPeerConnectionManager();
     }
     listenAgentConfigurationUpdate();
@@ -16751,11 +17105,21 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       if (callConfig.useWebSocketProvider) {
         webSocketProvider = connect.core.getWebSocketManager();
       }
+
+      // initialize rtcPeerConnectionManager if it is not existed
+      if (this.rtcPeerConnectionManager === null) {
+        this._initiateRtcPeerConnectionManager();
+      }
       var session;
-      if (this.rtcJsStrategy) {
-        session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider, this.rtcJsStrategy);
+      // if rtcPeerConnectionManager exists, it will create rtcSession object
+      if (connect.RtcPeerConnectionManager && this.rtcPeerConnectionManager) {
+        session = this.rtcPeerConnectionManager.createSession(contact.getContactId(), callConfig.iceServers, softphoneInfo.callContextToken, agentConnectionId, webSocketProvider, this.rtcJsStrategy === null ? new connect.StandardStrategy() : this.rtcJsStrategy);
       } else {
-        session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider);
+        if (this.rtcJsStrategy) {
+          session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider, this.rtcJsStrategy);
+        } else {
+          session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider);
+        }
       }
       session.echoCancellation = !softphoneParams.disableEchoCancellation;
       rtcSessions[agentConnectionId] = session;
@@ -16806,10 +17170,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         });
       };
       session.remoteAudioElement = document.getElementById('remote-audio') || window.parent.parent.document.getElementById('remote-audio');
-      if (this.rtcPeerConnectionFactory) {
-        session.connect(this.rtcPeerConnectionFactory.get(callConfig.iceServers));
+      if (this.rtcPeerConnectionManager) {
+        this.rtcPeerConnectionManager.connect();
       } else {
-        session.connect();
+        if (this.rtcPeerConnectionFactory) {
+          session.connect(this.rtcPeerConnectionFactory.get(callConfig.iceServers));
+        } else {
+          session.connect();
+        }
       }
     };
     var onDestroyContact = function onDestroyContact(agentConnectionId) {
@@ -17062,6 +17430,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             session._pc.getSenders()[0].replaceTrack(newMicrophoneTrack).then(function () {
               //Replace the audio track in the local media stream (for mute / unmute)
               softphoneManager.replaceLocalMediaTrack(connectionId, newMicrophoneTrack);
+              session._isUserProvidedStream = true;
               connect.getLog().info("[Audio Device Settings] Microphone device ".concat(deviceId, " successfully set to local media stream in RTCRtpSender")).sendInternalLogToServer();
             });
           }
@@ -17277,6 +17646,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       iceConnectionsFailed: report.iceConnectionsFailed || null,
       peerConnectionFailed: report.peerConnectionFailed || null,
       rtcJsVersion: report.rtcJsVersion || null,
+      firstRTPTimeMillis: report.firstRTPTimeMillis || null,
+      isMediaClusterPath: report.isMediaClusterPath,
+      isPersistentPeerConnection: report.isPersistentPeerConnection,
+      isExistingPersistentPeerConnection: report.isExistingPersistentPeerConnection || false,
       consecutiveNoAudioInputPackets: consecutiveNoAudioInputPackets,
       consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
       consecutiveNoAudioOutputPackets: consecutiveNoAudioOutputPackets,
@@ -17287,8 +17660,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       earlyGumEnabled: allowEarlyGum,
       earlyGumWorked: earlyGumWorked,
       vdiPlatform: vdiPlatform || null,
+      userAgentData: report.userAgentData || null,
+      isConnected: isConnected,
+      consecutiveAudioOutputMuteDurationSeconds: consecutiveAudioOutputMuteDurationSeconds,
       streamJsVersion: connect.version
     });
+    ccpMediaReadyLatencyMillis = 0;
+    isConnected = false;
+    consecutiveAudioOutputMuteDurationSeconds = 0;
     connect.publishSoftphoneReport({
       contactId: contact.getContactId(),
       ccpVersion: global.ccpVersion,
@@ -17298,6 +17677,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   var startStatsCollectionJob = function startStatsCollectionJob(rtcSession) {
     rtpStatsJob = window.setInterval(function () {
+      var _rtcSession$mediaStre;
       rtcSession.getUserAudioStats().then(function (stats) {
         var previousUserStats = aggregatedUserAudioStats;
         aggregatedUserAudioStats = stats;
@@ -17316,6 +17696,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       }, function (error) {
         logger.debug("Failed to get remote audio stats.", error).sendInternalLogToServer();
       });
+      if (rtcSession !== null && rtcSession !== void 0 && (_rtcSession$mediaStre = rtcSession.mediaStream) !== null && _rtcSession$mediaStre !== void 0 && (_rtcSession$mediaStre = _rtcSession$mediaStre.getAudioTracks()) !== null && _rtcSession$mediaStre !== void 0 && (_rtcSession$mediaStre = _rtcSession$mediaStre[0]) !== null && _rtcSession$mediaStre !== void 0 && _rtcSession$mediaStre.enabled) {
+        consecutiveAudioOutputMuteDurationSeconds = 0;
+      } else {
+        consecutiveAudioOutputMuteDurationSeconds++;
+      }
     }, 1000);
   };
   var startStatsReportingJob = function startStatsReportingJob(contact) {
@@ -20098,6 +20483,390 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 })();
 
+/***/ }),
+
+/***/ 181:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+/**
+ * lodash (Custom Build) <https://lodash.com/>
+ * Build: `lodash modularize exports="npm" -o ./`
+ * Copyright jQuery Foundation and other contributors <https://jquery.org/>
+ * Released under MIT license <https://lodash.com/license>
+ * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+ * Copyright Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ */
+
+/** Used as the `TypeError` message for "Functions" methods. */
+var FUNC_ERROR_TEXT = 'Expected a function';
+
+/** Used as references for various `Number` constants. */
+var NAN = 0 / 0;
+
+/** `Object#toString` result references. */
+var symbolTag = '[object Symbol]';
+
+/** Used to match leading and trailing whitespace. */
+var reTrim = /^\s+|\s+$/g;
+
+/** Used to detect bad signed hexadecimal string values. */
+var reIsBadHex = /^[-+]0x[0-9a-f]+$/i;
+
+/** Used to detect binary string values. */
+var reIsBinary = /^0b[01]+$/i;
+
+/** Used to detect octal string values. */
+var reIsOctal = /^0o[0-7]+$/i;
+
+/** Built-in method references without a dependency on `root`. */
+var freeParseInt = parseInt;
+
+/** Detect free variable `global` from Node.js. */
+var freeGlobal = typeof __webpack_require__.g == 'object' && __webpack_require__.g && __webpack_require__.g.Object === Object && __webpack_require__.g;
+
+/** Detect free variable `self`. */
+var freeSelf = typeof self == 'object' && self && self.Object === Object && self;
+
+/** Used as a reference to the global object. */
+var root = freeGlobal || freeSelf || Function('return this')();
+
+/** Used for built-in method references. */
+var objectProto = Object.prototype;
+
+/**
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
+ * of values.
+ */
+var objectToString = objectProto.toString;
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeMax = Math.max,
+    nativeMin = Math.min;
+
+/**
+ * Gets the timestamp of the number of milliseconds that have elapsed since
+ * the Unix epoch (1 January 1970 00:00:00 UTC).
+ *
+ * @static
+ * @memberOf _
+ * @since 2.4.0
+ * @category Date
+ * @returns {number} Returns the timestamp.
+ * @example
+ *
+ * _.defer(function(stamp) {
+ *   console.log(_.now() - stamp);
+ * }, _.now());
+ * // => Logs the number of milliseconds it took for the deferred invocation.
+ */
+var now = function() {
+  return root.Date.now();
+};
+
+/**
+ * Creates a debounced function that delays invoking `func` until after `wait`
+ * milliseconds have elapsed since the last time the debounced function was
+ * invoked. The debounced function comes with a `cancel` method to cancel
+ * delayed `func` invocations and a `flush` method to immediately invoke them.
+ * Provide `options` to indicate whether `func` should be invoked on the
+ * leading and/or trailing edge of the `wait` timeout. The `func` is invoked
+ * with the last arguments provided to the debounced function. Subsequent
+ * calls to the debounced function return the result of the last `func`
+ * invocation.
+ *
+ * **Note:** If `leading` and `trailing` options are `true`, `func` is
+ * invoked on the trailing edge of the timeout only if the debounced function
+ * is invoked more than once during the `wait` timeout.
+ *
+ * If `wait` is `0` and `leading` is `false`, `func` invocation is deferred
+ * until to the next tick, similar to `setTimeout` with a timeout of `0`.
+ *
+ * See [David Corbacho's article](https://css-tricks.com/debouncing-throttling-explained-examples/)
+ * for details over the differences between `_.debounce` and `_.throttle`.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Function
+ * @param {Function} func The function to debounce.
+ * @param {number} [wait=0] The number of milliseconds to delay.
+ * @param {Object} [options={}] The options object.
+ * @param {boolean} [options.leading=false]
+ *  Specify invoking on the leading edge of the timeout.
+ * @param {number} [options.maxWait]
+ *  The maximum time `func` is allowed to be delayed before it's invoked.
+ * @param {boolean} [options.trailing=true]
+ *  Specify invoking on the trailing edge of the timeout.
+ * @returns {Function} Returns the new debounced function.
+ * @example
+ *
+ * // Avoid costly calculations while the window size is in flux.
+ * jQuery(window).on('resize', _.debounce(calculateLayout, 150));
+ *
+ * // Invoke `sendMail` when clicked, debouncing subsequent calls.
+ * jQuery(element).on('click', _.debounce(sendMail, 300, {
+ *   'leading': true,
+ *   'trailing': false
+ * }));
+ *
+ * // Ensure `batchLog` is invoked once after 1 second of debounced calls.
+ * var debounced = _.debounce(batchLog, 250, { 'maxWait': 1000 });
+ * var source = new EventSource('/stream');
+ * jQuery(source).on('message', debounced);
+ *
+ * // Cancel the trailing debounced invocation.
+ * jQuery(window).on('popstate', debounced.cancel);
+ */
+function debounce(func, wait, options) {
+  var lastArgs,
+      lastThis,
+      maxWait,
+      result,
+      timerId,
+      lastCallTime,
+      lastInvokeTime = 0,
+      leading = false,
+      maxing = false,
+      trailing = true;
+
+  if (typeof func != 'function') {
+    throw new TypeError(FUNC_ERROR_TEXT);
+  }
+  wait = toNumber(wait) || 0;
+  if (isObject(options)) {
+    leading = !!options.leading;
+    maxing = 'maxWait' in options;
+    maxWait = maxing ? nativeMax(toNumber(options.maxWait) || 0, wait) : maxWait;
+    trailing = 'trailing' in options ? !!options.trailing : trailing;
+  }
+
+  function invokeFunc(time) {
+    var args = lastArgs,
+        thisArg = lastThis;
+
+    lastArgs = lastThis = undefined;
+    lastInvokeTime = time;
+    result = func.apply(thisArg, args);
+    return result;
+  }
+
+  function leadingEdge(time) {
+    // Reset any `maxWait` timer.
+    lastInvokeTime = time;
+    // Start the timer for the trailing edge.
+    timerId = setTimeout(timerExpired, wait);
+    // Invoke the leading edge.
+    return leading ? invokeFunc(time) : result;
+  }
+
+  function remainingWait(time) {
+    var timeSinceLastCall = time - lastCallTime,
+        timeSinceLastInvoke = time - lastInvokeTime,
+        result = wait - timeSinceLastCall;
+
+    return maxing ? nativeMin(result, maxWait - timeSinceLastInvoke) : result;
+  }
+
+  function shouldInvoke(time) {
+    var timeSinceLastCall = time - lastCallTime,
+        timeSinceLastInvoke = time - lastInvokeTime;
+
+    // Either this is the first call, activity has stopped and we're at the
+    // trailing edge, the system time has gone backwards and we're treating
+    // it as the trailing edge, or we've hit the `maxWait` limit.
+    return (lastCallTime === undefined || (timeSinceLastCall >= wait) ||
+      (timeSinceLastCall < 0) || (maxing && timeSinceLastInvoke >= maxWait));
+  }
+
+  function timerExpired() {
+    var time = now();
+    if (shouldInvoke(time)) {
+      return trailingEdge(time);
+    }
+    // Restart the timer.
+    timerId = setTimeout(timerExpired, remainingWait(time));
+  }
+
+  function trailingEdge(time) {
+    timerId = undefined;
+
+    // Only invoke if we have `lastArgs` which means `func` has been
+    // debounced at least once.
+    if (trailing && lastArgs) {
+      return invokeFunc(time);
+    }
+    lastArgs = lastThis = undefined;
+    return result;
+  }
+
+  function cancel() {
+    if (timerId !== undefined) {
+      clearTimeout(timerId);
+    }
+    lastInvokeTime = 0;
+    lastArgs = lastCallTime = lastThis = timerId = undefined;
+  }
+
+  function flush() {
+    return timerId === undefined ? result : trailingEdge(now());
+  }
+
+  function debounced() {
+    var time = now(),
+        isInvoking = shouldInvoke(time);
+
+    lastArgs = arguments;
+    lastThis = this;
+    lastCallTime = time;
+
+    if (isInvoking) {
+      if (timerId === undefined) {
+        return leadingEdge(lastCallTime);
+      }
+      if (maxing) {
+        // Handle invocations in a tight loop.
+        timerId = setTimeout(timerExpired, wait);
+        return invokeFunc(lastCallTime);
+      }
+    }
+    if (timerId === undefined) {
+      timerId = setTimeout(timerExpired, wait);
+    }
+    return result;
+  }
+  debounced.cancel = cancel;
+  debounced.flush = flush;
+  return debounced;
+}
+
+/**
+ * Checks if `value` is the
+ * [language type](http://www.ecma-international.org/ecma-262/7.0/#sec-ecmascript-language-types)
+ * of `Object`. (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an object, else `false`.
+ * @example
+ *
+ * _.isObject({});
+ * // => true
+ *
+ * _.isObject([1, 2, 3]);
+ * // => true
+ *
+ * _.isObject(_.noop);
+ * // => true
+ *
+ * _.isObject(null);
+ * // => false
+ */
+function isObject(value) {
+  var type = typeof value;
+  return !!value && (type == 'object' || type == 'function');
+}
+
+/**
+ * Checks if `value` is object-like. A value is object-like if it's not `null`
+ * and has a `typeof` result of "object".
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is object-like, else `false`.
+ * @example
+ *
+ * _.isObjectLike({});
+ * // => true
+ *
+ * _.isObjectLike([1, 2, 3]);
+ * // => true
+ *
+ * _.isObjectLike(_.noop);
+ * // => false
+ *
+ * _.isObjectLike(null);
+ * // => false
+ */
+function isObjectLike(value) {
+  return !!value && typeof value == 'object';
+}
+
+/**
+ * Checks if `value` is classified as a `Symbol` primitive or object.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a symbol, else `false`.
+ * @example
+ *
+ * _.isSymbol(Symbol.iterator);
+ * // => true
+ *
+ * _.isSymbol('abc');
+ * // => false
+ */
+function isSymbol(value) {
+  return typeof value == 'symbol' ||
+    (isObjectLike(value) && objectToString.call(value) == symbolTag);
+}
+
+/**
+ * Converts `value` to a number.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to process.
+ * @returns {number} Returns the number.
+ * @example
+ *
+ * _.toNumber(3.2);
+ * // => 3.2
+ *
+ * _.toNumber(Number.MIN_VALUE);
+ * // => 5e-324
+ *
+ * _.toNumber(Infinity);
+ * // => Infinity
+ *
+ * _.toNumber('3.2');
+ * // => 3.2
+ */
+function toNumber(value) {
+  if (typeof value == 'number') {
+    return value;
+  }
+  if (isSymbol(value)) {
+    return NAN;
+  }
+  if (isObject(value)) {
+    var other = typeof value.valueOf == 'function' ? value.valueOf() : value;
+    value = isObject(other) ? (other + '') : other;
+  }
+  if (typeof value != 'string') {
+    return value === 0 ? value : +value;
+  }
+  value = value.replace(reTrim, '');
+  var isBinary = reIsBinary.test(value);
+  return (isBinary || reIsOctal.test(value))
+    ? freeParseInt(value.slice(2), isBinary ? 2 : 8)
+    : (reIsBadHex.test(value) ? NAN : +value);
+}
+
+module.exports = debounce;
+
+
 /***/ })
 
 /******/ 	});
@@ -20130,6 +20899,18 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /******/ 	/* webpack/runtime/amd options */
 /******/ 	(() => {
 /******/ 		__webpack_require__.amdO = {};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/compat get default export */
+/******/ 	(() => {
+/******/ 		// getDefaultExport function for compatibility with non-harmony modules
+/******/ 		__webpack_require__.n = (module) => {
+/******/ 			var getter = module && module.__esModule ?
+/******/ 				() => (module['default']) :
+/******/ 				() => (module);
+/******/ 			__webpack_require__.d(getter, { a: getter });
+/******/ 			return getter;
+/******/ 		};
 /******/ 	})();
 /******/ 	
 /******/ 	/* webpack/runtime/define property getters */

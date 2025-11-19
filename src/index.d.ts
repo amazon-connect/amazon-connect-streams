@@ -65,6 +65,31 @@ declare namespace connect {
     onError(callback: (error: Error) => void): void;
   }
 
+  type SessionExpirationInformation = {
+    expiration: number;
+  };
+
+  /**
+   * Callback params for onSessionExtensionError
+   * 
+   * isWarningActive: the agent has been inactive for X minutes and
+   *  the warning modal is now present
+   * errorDetails: details regarding the failure
+   */
+  type SessionExtensionErrorData = {
+    isWarningActive: boolean;
+    errorDetails: Record<string, unknown>;
+  }
+
+  /**
+   * A callback to receive `SessionExpirationInformation` data
+   */
+  type OnExpirationWarningCallback = (sessionExpirationInformation: SessionExpirationInformation) => void;
+
+  type OnExpirationWarningClearedCallback = () => void;
+
+  type OnSessionExtensionErrorCallback = (SessionExtensionErrorData: SessionExtensionErrorData) => void;
+
   /**
    * Subscribe a method to be called when the agent is initialized.
    * If the agent has already been initialized, the call is synchronous and the callback is invoked immediately.
@@ -554,6 +579,10 @@ declare namespace connect {
 
   interface LoginOptions {
     /*
+    * Whether to open the login popup again after the agent logs out.
+    */
+    disableAuthPopupAfterLogout?: boolean,
+    /*
     * Whether to auto close the login prompt.
     */
     autoClose?: boolean,
@@ -593,6 +622,11 @@ declare namespace connect {
      * If `false`, the agent will not be able to change the phone type or deskphone number from the settings tab.
      */
     readonly enablePhoneTypeSettings?: boolean;
+
+    /** Specifies whether to show the inactivity modal in embedded CCP use cases.
+     * @default true
+     */
+    readonly showInactivityModal?: boolean;
   }
 
   interface InitCCPOptions {
@@ -2579,6 +2613,32 @@ declare namespace connect {
     getMediaController(): Promise<any>;
   }
 
+  class SessionExpirationWarningManager {  
+    /**
+     * Subscribe a method to be called when the agent's session is about to expire
+     * due to inactivity
+     * 
+     * @param {OnExpirationWarningCallback} 
+     */
+    onExpirationWarning(callback: OnExpirationWarningCallback): Subscription;
+
+    /**
+     * Subscribe a method to be called when the agent's session expiration warning
+     * is cleared
+     * 
+     * @param {OnExpirationWarningClearedCallback} 
+     */
+    onExpirationWarningCleared(callback: OnExpirationWarningClearedCallback): Subscription;
+
+    /**
+     * Subscribe a method to be called when attempting to extend
+     * the agent's session fails
+     * 
+     * @param {OnExpirationWarningClearedCallback} 
+     */
+    onSessionExtensionError(callback: OnSessionExtensionErrorCallback): Subscription;
+  }
+
   interface CapabilitiesDictionary {
     readonly [key: string]: string;
   }
@@ -2816,4 +2876,11 @@ declare namespace connect {
     /** Returns the `MediaType` enum value: `"email"`. */
     getMediaType(): MediaType.EMAIL;
   }
+
+  /**
+   * Sends activity signals indicating
+   * that the agent is active
+   */
+  function sendActivity(): void;
+
 }

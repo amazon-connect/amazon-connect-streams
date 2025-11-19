@@ -1,7 +1,15 @@
 # CHANGELOG.md
+## [2.21.0] - 2025-11-19
+- Adding support for managing session inactivity modal. Please see [here](https://docs.aws.amazon.com/connect/latest/adminguide/authentication-profiles.html#configure-session-timeouts) for more details regarding this feature.
+- Adding new API to reauthenticate an agent after logging out.
+- Introducing Softphone Persistent Connection
+
 ## [2.20.1] - 2025-11-13
 - Updated GitHub Actions to build with Node.js versions 18.x, 20.x, and 22.x
 - Fixed Voice ID, Core, and Softphone unit tests for Node.js 22.x compatibility
+
+## [2.20.0] - 2025-11-06
+- Added plugins support to enable SDK integration with StreamsJS
 
 ## [2.19.2] - 2025-10-03
 - npm audit --fix for critical security updates
