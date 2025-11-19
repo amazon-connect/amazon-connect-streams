@@ -13,7 +13,6 @@ describe('SoftphoneManager', () => {
     before(() => {
         clock = sandbox.useFakeTimers();
         bus = new connect.EventBus();
-        sandbox.stub(connect.core, "getEventBus").returns(bus);
         if (!navigator.mediaDevices) {
             navigator.mediaDevices = {};
         }
@@ -26,6 +25,7 @@ describe('SoftphoneManager', () => {
         if (!navigator.permissions.query) {
             navigator.permissions.query = function() {};
         }
+        sandbox.stub(connect.core, "getEventBus").returns(bus);
         sandbox.spy(bus, 'subscribe');
         sandbox.stub(connect, 'RtcPeerConnectionFactory');
         stubbedRTCSessionConnect = sandbox.stub();

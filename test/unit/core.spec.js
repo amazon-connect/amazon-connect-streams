@@ -2762,6 +2762,13 @@ describe('Core', function () {
 
         before(function () {
             clock = sinon.useFakeTimers();
+            if (!navigator.mediaDevices) {
+                navigator.mediaDevices = {};
+            }
+            if (!navigator.mediaDevices.enumerateDevices) {
+                navigator.mediaDevices.enumerateDevices =
+                function () {};
+            }
             sandbox.stub(navigator.mediaDevices, 'enumerateDevices')
                 .callsFake(() => new Promise((resolve) => {
                     setTimeout(() => {
@@ -2784,6 +2791,7 @@ describe('Core', function () {
 
         after(function () {
             clock.restore();
+            sandbox.restore();
         });
 
         beforeEach(function () {
