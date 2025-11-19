@@ -14,6 +14,8 @@
   connect.core.initialized = false;
   connect.version = process.env.npm_package_version;
   connect.outerContextStreamsVersion = null;
+  connect.initCCPParams = null;
+  connect.containerDiv = null;
   connect.DEFAULT_BATCH_SIZE = 500;
 
   // NOTE: These constants are currently also set in the global-resiliency file.
@@ -1302,7 +1304,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       connect.core.authenticate(params, containerDiv, conduit);
     });
 
-    if (!params.loginOptions?.enableAckTimeout) {
+    if (!params.loginOptions?.disableAuthPopupAfterLogout) {
       connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
         connect.getLog().warn("TERMINATED occurred. Attempting to authenticate.").sendInternalLogToServer();
         const delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
@@ -1365,6 +1367,9 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         delete params.plugins;
       }
     }
+
+    connect.initCCPParams = params;
+    connect.containerDiv = containerDiv;
 
     connect.assertNotNull(containerDiv, 'containerDiv');
     connect.assertNotNull(params.ccpUrl, 'params.ccpUrl');
@@ -1524,6 +1529,12 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         connect.core.client = new connect.UpstreamConduitClient(conduit);
         connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
         connect.core.portStreamId = data.id;
+
+        if (connect.core.loginAckTimeoutSub && params.loginOptions?.disableAuthPopupAfterLogout) {
+          connect.core.loginAckTimeoutSub.unsubscribe();
+          connect.core.loginAckTimeoutSub = null;
+          connect.getLog().info("ACK_TIMEOUT subscription unsubscribed after receiving ACKNOWLEDGE due to disableAuthPopupAfterLogout").sendInternalLogToServer();
+        }
 
         connect.core.sendConfigure(params, conduit, false);
         connect.core.listenForConfigureRequest(params, conduit, false); // failsafe for abnormal ccp refresh
@@ -1833,6 +1844,34 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
   }
 
   // Open login popup and refresh the iframe until the user is logged in.
+  connect.core.reauthenticateAfterLogout = function () {
+    // Verify that the params needed for authenticate exists
+    if (!connect.initCCPParams || 
+      !connect.containerDiv ||
+      !connect.core.upstream
+    ) {
+      connect.getLog()
+      .error("Cannot refresh CCP, missing initCCPParams, container div, and or upstream")
+      .withObject({
+        initCCPParams: connect.initCCPParams,
+        containerDiv: connect.containerDiv,
+        upstream: connect.core.upstream,
+      }).sendInternalLogToServer();
+      throw new Error("Missing parameters to refresh CCP iframe");
+    }
+
+    if (connect.initCCPParams?.enableGlobalResiliency) {
+      connect.getLog().error("Refresh CCP does not support ACGR at the moment").sendInternalLogToServer();
+      throw new Error("Not supported in ACGR instance");
+    } else {
+      connect.core.authenticate(
+        connect.initCCPParams, 
+        connect.containerDiv,
+        connect.core.upstream
+      );
+    }
+  }
+
   connect.core.authenticate = function (params, containerDiv, conduit) {
     if (params.loginPopup !== false) {
       try {
@@ -2531,7 +2570,8 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       params.task ||
       params.pageOptions ||
       params.shouldAddNamespaceToLogs ||
-      params.disasterRecoveryOn
+      params.disasterRecoveryOn || 
+      params.showInactivityModal !== undefined
     ) {      
       const config = {
         softphone: params.softphone,
@@ -2539,6 +2579,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         task: params.task,
         pageOptions: params.pageOptions,
         shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
+        showInactivityModal: params.showInactivityModal,
       };
 
       if (isACGR) {

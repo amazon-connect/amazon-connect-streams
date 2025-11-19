@@ -9,6 +9,8 @@
   global.connect = connect;
   global.lily = connect;
 
+  const { SessionExpirationWarningClient, sendActivity } = require("@amazon-connect/activity");
+
   /*----------------------------------------------------------------
    * enum AgentStateType
    */
@@ -2702,6 +2704,73 @@
     });
   };
 
+  /**
+   * Session Expiration Warning
+   */
+  class SessionExpirationWarning {
+    constructor() {
+      this.sessionExpirationWarningClient = new SessionExpirationWarningClient(connect.core.getSDKClientConfig()); 
+    }
+
+    _getSDKClient() {
+      if (this.sessionExpirationWarningClient) return this.sessionExpirationWarningClient;
+      else {
+        this.sessionExpirationWarningClient = new SessionExpirationWarningClient(connect.core.getSDKClientConfig());
+        return this.sessionExpirationWarningClient; 
+      }
+    }
+
+    // Triggered when the agent's session is about to expire due to inactivity
+    onExpirationWarning(f) {
+      const handler = (e) => {
+        f(e);
+        return Promise.resolve();
+      }
+
+      this._getSDKClient().onExpirationWarning(handler);
+
+      return {
+        unsubscribe: () => this._getSDKClient().offExpirationWarning(handler),
+      };
+    }
+
+    // Triggered when the warning has been cleared
+    onExpirationWarningCleared(f) {
+      const handler = (e) => {
+        f(e);
+        return Promise.resolve();
+      }
+      
+      this._getSDKClient().onExpirationWarningCleared(handler);
+
+      return {
+        unsubscribe: () => this._getSDKClient().offExpirationWarningCleared(handler),
+      };
+    }
+
+    /**
+     * Triggered when there is an error with updating the 
+     * agent's activity
+     */
+    onSessionExtensionError(f) {
+      const handler = (e) => {
+        f(e);
+        return Promise.resolve();
+      }
+      
+      this._getSDKClient().onSessionExtensionError(handler);
+
+      return {
+        unsubscribe: () => this._getSDKClient().offExpirationWarningCleared(handler),
+      };
+    }
+  }
+
+  // Sends activity signals indicating that the agent is active
+  connect.sendActivity = function() {
+    return sendActivity(connect.core.getSDKClientConfig().provider);
+  }
+
   /*----------------------------------------------------------------
    * class SoftphoneError
    */
@@ -2830,5 +2899,6 @@
   connect.SoftphoneError = SoftphoneError;
   connect.VoiceId = VoiceId;
   connect.QuickResponses = QuickResponses;
+  connect.SessionExpirationWarning = SessionExpirationWarning;
 })();
 

@@ -195,7 +195,8 @@ describe('Global Resiliency', function () {
                     task: { enabled: false },
                     pageOptions: { enableAudioDeviceSettings: true },
                     shouldAddNamespaceToLogs: true,
-                    enableGlobalResiliency: true
+                    enableGlobalResiliency: true,
+                    showInactivityModal: false,
                 };
 
                 sandbox.stub(connect, "isActiveConduit").returns(true);
@@ -211,7 +212,8 @@ describe('Global Resiliency', function () {
                     pageOptions: params.pageOptions,
                     shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
                     enableGlobalResiliency: params.enableGlobalResiliency,
-                    instanceState: 'active'
+                    instanceState: 'active',
+                    showInactivityModal: false
                 });
             });
 

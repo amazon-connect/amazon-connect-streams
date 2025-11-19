@@ -13,18 +13,6 @@ describe('SoftphoneManager', () => {
     before(() => {
         clock = sandbox.useFakeTimers();
         bus = new connect.EventBus();
-        if (!navigator.mediaDevices) {
-            navigator.mediaDevices = {};
-        }
-        if (!navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia = function() {};
-        }
-        if (!navigator.permissions) {
-            navigator.permissions = function() {};
-        }
-        if (!navigator.permissions.query) {
-            navigator.permissions.query = function() {};
-        }
         sandbox.stub(connect.core, "getEventBus").returns(bus);
         sandbox.spy(bus, 'subscribe');
         sandbox.stub(connect, 'RtcPeerConnectionFactory');
@@ -50,9 +38,8 @@ describe('SoftphoneManager', () => {
     });
 
     after(() => {
-        clock.restore();
         sandbox.restore();
-        connect.agent.initialized = false;
+        // connect.agent.initialized = false;
     });
 
     describe('startSession', () => {

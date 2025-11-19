@@ -1838,6 +1838,7 @@ describe('Core', function () {
             it("should set up listener for REQUEST_CONFIGURE and respond with provided params", function () {
                 const params = { 
                     softphone: { ringtoneUrl: "test-softphone.mp3" },
+                    showInactivityModal: false
                 };
                 
                 connect.core.listenForConfigureRequest(params, conduitStub, false);
@@ -1856,6 +1857,7 @@ describe('Core', function () {
                     pageOptions: undefined,
                     shouldAddNamespaceToLogs: undefined,
                     disasterRecoveryOn: undefined,
+                    showInactivityModal: false
                 });
             });
         });
@@ -1914,7 +1916,8 @@ describe('Core', function () {
                     task: taskParams,
                     pageOptions: pageOptionsParams,
                     shouldAddNamespaceToLogs: shouldAddNamespaceToLogs,
-                    disasterRecoveryOn: disasterRecoveryOn
+                    disasterRecoveryOn: disasterRecoveryOn,
+                    showInactivityModal: undefined
                 });
             });
 
@@ -1974,7 +1977,7 @@ describe('Core', function () {
                 sandbox.restore();
             });
 
-            describe('when enableAckTimeout is NOT set', function () {
+            describe('when disableAuthPopupAfterLogout is NOT set', function () {
                 it('should subscribe to TERMINATED event and call authenticate when triggered', function () {
                     const clock = sandbox.useFakeTimers();
                     
@@ -2050,8 +2053,8 @@ describe('Core', function () {
                 });
 
 
-                it('should subscribe to both events when enableAckTimer is false', function () {
-                    params.loginOptions = { enableAckTimer: false };
+                it('should subscribe to both events when disableAuthPopupAfterLogout is false', function () {
+                    params.loginOptions = { disableAuthPopupAfterLogout: false };
                     
                     connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
                     
@@ -2067,9 +2070,9 @@ describe('Core', function () {
                 });
             });
 
-            describe('when enableAckTimeout IS set', function () {
+            describe('when disableAuthPopupAfterLogout IS set', function () {
                 it('should NOT subscribe to TERMINATED or AUTH_FAIL events', function () {
-                    params.loginOptions = { enableAckTimeout: true };
+                    params.loginOptions = { disableAuthPopupAfterLogout: true };
                     
                     connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
                     
@@ -2085,17 +2088,17 @@ describe('Core', function () {
                 });
 
                 it('should NOT call authenticate when TERMINATED event is triggered', function () {
-                    params.loginOptions = { enableAckTimeout: true };
+                    params.loginOptions = { disableAuthPopupAfterLogout: true };
                     
                     connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
                     
                     connect.core.getEventBus().trigger(connect.EventType.TERMINATED);
-                    
+
                     sandbox.assert.notCalled(authenticateSpy);
                 });
 
                 it('should NOT call authenticate when AUTH_FAIL event is triggered', function () {
-                    params.loginOptions = { enableAckTimeout: true };
+                    params.loginOptions = { disableAuthPopupAfterLogout: true };
                     
                     connect.core.setupAuthenticationEventHandlers(params, containerDiv, conduit);
                     
@@ -2205,6 +2208,158 @@ describe('Core', function () {
             const data = {softFailover: true};
             connect.core.forceOffline(data);
             sinon.assert.calledWith(connect.core.getUpstream().sendUpstream, connect.DisasterRecoveryEvents.SET_OFFLINE, data);
+        });
+    });
+
+    describe('ACK_TIMEOUT subscription with disableAuthPopupAfterLogout', function () {
+        jsdom({ url: "http://localhost" });
+        let clock;
+        let containerDiv;
+        let paramsWithDisableAuthPopupAfterLogout;
+        let paramsWithoutDisableAuthPopupAfterLogout;
+        let unsubscribeSpy;
+        let subscribeSpy;
+      
+        before(function () {
+          clock = sinon.useFakeTimers();
+          containerDiv = { appendChild: sandbox.spy() };
+          
+          paramsWithDisableAuthPopupAfterLogout = {
+            ccpUrl: "url.com",
+            loginUrl: "loginUrl.com",
+            loginOptions: { 
+              autoClose: true,
+              disableAuthPopupAfterLogout: true
+            }
+          };
+          
+          paramsWithoutDisableAuthPopupAfterLogout = {
+            ccpUrl: "url.com",
+            loginUrl: "loginUrl.com",
+            loginOptions: { 
+              autoClose: true
+            }
+          };
+          
+          sandbox.stub(connect.core, "checkNotInitialized").returns(false);
+          sandbox.stub(connect, "UpstreamConduitClient");
+          sandbox.stub(connect, "UpstreamConduitMasterClient");
+          sandbox.stub(connect, "isFramed").returns(true);
+          sandbox.spy(document, "createElement");
+          sandbox.stub(connect.core, "_refreshIframeOnTimeout");
+          sandbox.stub(connect.core, "getPopupManager").returns({
+            clear: sandbox.fake(),
+            open: sandbox.fake()
+          });
+          
+          connect.agent.initialized = true;
+          sandbox.stub(connect.core, 'getAgentDataProvider').returns({
+            getAgentData: () => ({})
+          });
+        });
+      
+        after(function () {
+          connect.agent.initialized = false;
+          sandbox.restore();
+          clock.restore();
+        });
+        
+        beforeEach(function() {
+          connect.core.eventBus = new connect.EventBus({ logEvents: true });
+          subscribeSpy = sandbox.spy(connect.core.eventBus, "subscribe");
+          unsubscribeSpy = sandbox.spy();
+        });
+        
+        afterEach(function() {
+          connect.core.loginAckTimeoutSub = null;
+          connect.core.eventBus = null;
+        });
+
+        it('should not unsubscribe from ACK_TIMEOUT when disableAuthPopupAfterLogout is false', function () {
+            connect.core.initCCP(containerDiv, paramsWithoutDisableAuthPopupAfterLogout);
+            connect.core.loginAckTimeoutSub = {
+              unsubscribe: unsubscribeSpy
+            };
+                      
+            connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+            
+            expect(unsubscribeSpy.called).to.be.false;
+          });
+      
+        it('should unsubscribe from ACK_TIMEOUT when disableAuthPopupAfterLogout is true', function () {
+          connect.core.initCCP(containerDiv, paramsWithDisableAuthPopupAfterLogout);
+          connect.core.loginAckTimeoutSub = {
+            unsubscribe: unsubscribeSpy
+          };
+                    
+          connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+          
+          expect(unsubscribeSpy.called).to.be.true;
+        });
+
+      });
+
+    describe('connect.core.reauthenticateAfterLogout()', () => {
+        let container;
+        let params;
+        let authenticateSpy;
+        
+        beforeEach(() => {
+            connect.core.containerDiv = { appendChild: sandbox.spy() };
+            connect.core.upstream = { sendUpstream: sandbox.spy() };
+            
+            authenticateSpy = sandbox.stub(connect.core, 'authenticate');
+                            
+            params = {
+                ccpUrl: "url.com",
+                loginOptions: {},
+            };
+        });
+
+        afterEach(() => {
+            sandbox.restore();
+        });
+
+        it('should not call connect.core.authenticate when enableGlobalResiliency is TRUE and throw an error', () => {
+            params = {
+                ...params,
+                enableGlobalResiliency: true,
+            };
+
+            connect.initCCPParams = params;
+
+            expect(() => connect.core.reauthenticateAfterLogout()).to.throw('Not supported in ACGR instance');
+            expect(authenticateSpy.called).to.be.false;
+        });
+
+        it('should call connect.core.authenticate when enableGlobalResiliency is FALSE', () => {
+            params = {
+                ...params,
+                enableGlobalResiliency: false,
+            };
+
+            connect.initCCPParams = params;
+            connect.core.reauthenticateAfterLogout();
+            expect(authenticateSpy.called).to.be.true;
+            sandbox.assert.calledWith(authenticateSpy, connect.initCCPParams, connect.containerDiv, connect.core.upstream);
+        });
+
+        it('should throw an error when initCCPParams is missing', () => {
+            connect.initCCPParams = null;
+
+            expect(() => connect.core.reauthenticateAfterLogout()).to.throw('Missing parameters to refresh CCP iframe');
+        });
+
+        it('should throw an error when containerDiv is missing', () => {
+            connect.containerDiv = null;
+
+            expect(() => connect.core.reauthenticateAfterLogout()).to.throw('Missing parameters to refresh CCP iframe');
+        });
+
+        it('should throw an error when upstream is missing', () => {
+            connect.core.upstream = null;
+
+            expect(() => connect.core.reauthenticateAfterLogout()).to.throw('Missing parameters to refresh CCP iframe');
         });
     });
 
@@ -2603,12 +2758,6 @@ describe('Core', function () {
 
         before(function () {
             clock = sinon.useFakeTimers();
-            if (!navigator.mediaDevices) {
-                navigator.mediaDevices = {};
-            }
-            if (!navigator.mediaDevices.enumerateDevices) {
-                navigator.mediaDevices.enumerateDevices = function() {};
-            }
             sandbox.stub(navigator.mediaDevices, 'enumerateDevices')
                 .callsFake(() => new Promise((resolve) => {
                     setTimeout(() => {
@@ -2631,7 +2780,6 @@ describe('Core', function () {
 
         after(function () {
             clock.restore();
-            sandbox.restore();
         });
 
         beforeEach(function () {

@@ -171,7 +171,8 @@ everything set up correctly and that you are able to listen for events.
             height: 600,                  // optional, defaults to 578
             width: 400,                   // optional, defaults to 433
             top: 0,                       // optional, defaults to 0
-            left: 0                       // optional, defaults to 0
+            left: 0,                       // optional, defaults to 0
+            disableAuthPopupAfterLogout: false // optional, determines if CCP should trigger the login popup after being logged out. Defaults to false.
           },
           region: 'eu-central-1', // REQUIRED for `CHAT`, optional otherwise
           softphone: {
@@ -204,6 +205,7 @@ everything set up correctly and that you are able to listen for events.
             echoLevel: connect.LogLevel.WARN, //optional, defaults to LogLevel.WARN
           },
           plugins: [plugin1, plugin2], //optional, can be a single plugin function or array of plugin functions
+          showInactivityModal: false, // optional, determines if the inactivity modal should render in the CCP iframe. Defaults to true.
         });
       }
     </script>
@@ -229,6 +231,7 @@ and made available to your JS client code.
    * `width`: This allows you to define the width of the login pop-up window.
    * `top`: This allows you to define the top of the login pop-up window.
    * `left`: This allows you to define the left of the login pop-up window.
+   * `disableAuthPopupAfterLogout`: Optional. This allows you to define if the login pop-up should be automatically opened after agent has logged out. Defaults to false.
 * `loginPopupAutoClose`: Optional, defaults to `false`. Set to `true` in conjunction with the 
    `loginPopup` parameter to automatically close the login Popup window once the authentication step
    has completed. If the login page opened in a new tab, this parameter will also auto-close that
@@ -278,6 +281,7 @@ and made available to your JS client code.
   - `logLevel`: Optional. The minimum log level for file logging (available in download log file). Must be a valid LogLevel enum value such as connect.LogLevel.DEBUG, connect.LogLevel.INFO, connect.LogLevel.WARN, or connect.LogLevel.ERROR. If not specified, defaults to connect.LogLevel.INFO.
   - `echoLevel`: Optional. The echo level for console logging output. Must be a valid LogLevel enum value such as connect.LogLevel.DEBUG, connect.LogLevel.INFO, connect.LogLevel.WARN, or connect.LogLevel.ERROR. If not specified, defaults to connect.LogLevel.WARN.
 - `plugins`: Optional. Functions that allow the provider to be updated, giving the provider in Streams additional capabilities found within the SDK. Can be a single plugin function or an array of plugin functions. These plugins enhance the functionality of the underlying provider by adding new capabilities and features. Please refer to the Amazon Connect SDK documentation for specific examples of available plugins and their usage.
+- `showInactivityModal`: Optional. Determine if CCP should render the inactivity modal. Defaults to true.
 
 #### A few things to note:
 * You have the option to show or hide the pre-built UI by showing or hiding the
@@ -520,6 +524,21 @@ connect.agent(() => {
 Returns the [`ConnectClientConfig`](https://github.com/amazon-connect/AmazonConnectSDK/blob/main/core/src/client/connect-client-config.ts#L4) needed to instantiate clients from the [AmazonConnectSDK](https://github.com/amazon-connect/AmazonConnectSDK). 
 
 **IMPORTANT:** This should be invoked after the agent is initialized.
+
+### `connect.core.reauthenticateAfterLogout()`
+
+```js
+connect.core.reauthenticateAfterLogout();
+```
+
+This API is used to reauthenticate the agent after logging out.
+
+Default behavior:
+When an agent logs out of CCP, the login popup is automatically triggered and prompts the agent to log back in. If the agent has SAML configured, they are generally re-authenticated immediately and logged back in if their SAML session is still active.
+
+When `disableAuthPopupAfterLogout` is set to `true`, the SAML behavior is no longer true. After an agent logs out, the login pop-up is no longer triggered. This will prevent the agent from being automatically logged back in if their SAML session is still active. Using this API will open the login pop-up and start the authentication for the agent. This will also restart the iframe refresh process.
+
+**IMPORTANT**: This is not supported in ACGR at the moment.
 
 ## SAML Authentication
 Streams support Security Assertion Markup Language (SAML) 2.0 to enable single sign-on (SSO) which will allow users to sign in through a SAML 2.0 compatible identity provider (IdP) and gain access to the instance without having to provide separate credentials.
@@ -3183,4 +3202,53 @@ Sample response:
     //... next set of results
   ]
 }
+```
+
+## Handling Session Inactivity
+
+Builders will need to send a signal to Amazon Connect indicating that the agent is active in the CRM layer. If no signals are sent to Amazon Connect while the agent is interacting with the CRM, then Amazon Connect will consider the agent as inactive during this time period.
+
+Inactivity can be detected using the `SessionExpirationWarning` class. This class provides subscriptions to enable builders to hook into when inactivity is triggered, when the agent acknowledged the warning, and when sending activity fails.
+
+### `connect.sendActivity()`
+This API is used to send signal to Amazon Connect, indicating that the agent is active.
+
+```js
+window.addEventListener("click", () => connect.sendActivity());
+```
+
+### `SessionExpirationWarning`
+Create an instance of the `SessionExpirationWarning` class.
+```js
+const sessionExpirationWarning = new connect.SessionExpirationWarning()
+```
+
+#### `sessionExpirationWarning.onExpirationWarning()`
+
+Subscribe to when the inactivity warning is triggered. The handler has a callback parameter `expiration`, which is the timestamp for when the agent's session is going to end due to inactivity.
+
+```js
+sessionExpirationWarning.onExpirationWarning((expiration) => {})
+```
+
+#### `sessionExpirationWarning.onExpirationWarningCleared()`
+
+Subscribe to when the agent has acknowledged the warning or Connect has received a signal indicating that the agent is active, resulting in the agent's session being extended
+
+```js
+sessionExpirationWarning.onExpirationWarningCleared(() => {});
+```
+
+#### `sessionExpirationWarning.onSessionExtensionError()`
+
+Subscribe to when there is an error while attempting to mark the agent as active or when the acknowledgement of the warning fails.
+
+The callback has two params:
+1. isWarningActive - a boolean indicating if the error occurred while the warning is active
+2. errorDetails - an object with details regarding the error
+
+```js
+sessionExpirationWarning.onSessionExtensionError(
+    (isWarningActive: boolean, errorDetails: Record<string, unknown>) => {}
+)
 ```
