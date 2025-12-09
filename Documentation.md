@@ -1750,6 +1750,31 @@ Resume a paused contact.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
+### `contact.engagePreviewContact()`
+
+```js
+const participantId = await contact.engagePreviewContact(contactId);
+```
+
+When an agent is previewing a preview contact, this API will actually initiate the outbound dial to the end customer, ending the preview experience. It returns the id of the newly added participant 
+
+### `contact.getPreviewConfiguration()`
+
+```js
+const previewConfiguration = await contact.getPreviewConfiguration(contactId);
+```
+
+This gets configuration information related to the preview experience.
+
+For more information on the return type, see Output parameter section of the SDK Documentation: https://docs.aws.amazon.com/agentworkspace/latest/devguide/3p-apps-contact-requests-getpreviewconfiguration.html
+
+### `contact.isPreviewMode()`
+
+```js
+const isPreviewMode = await contact.isPreviewMode(contactId);
+```
+
+Returns a boolean indicating whether the contact is being previewed. During this time, calling engagePreviewContact will trigger the outbound dial to the end customer and end preview mode.
 
 ## Connection API
 The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state
