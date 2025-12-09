@@ -1753,7 +1753,7 @@ Optional success and failure callbacks can be provided to determine if the opera
 ### `contact.engagePreviewContact()`
 
 ```js
-const participantId = contact.engagePreviewContact(contactId);
+const participantId = await contact.engagePreviewContact(contactId);
 ```
 
 When an agent is previewing a preview contact, this API will actually initiate the outbound dial to the end customer, ending the preview experience. It returns the id of the newly added participant 
@@ -1761,7 +1761,7 @@ When an agent is previewing a preview contact, this API will actually initiate t
 ### `contact.getPreviewConfiguration()`
 
 ```js
-const previewConfiguration = contact.getPreviewConfiguration(contactId);
+const previewConfiguration = await contact.getPreviewConfiguration(contactId);
 ```
 
 This gets configuration information related to the preview experience.
@@ -1771,7 +1771,7 @@ For more information on the return type, see Output parameter section of the SDK
 ### `contact.isPreviewMode()`
 
 ```js
-const isPreviewMode = contact.isPreviewMode(contactId);
+const isPreviewMode = await contact.isPreviewMode(contactId);
 ```
 
 Returns a boolean indicating whether the contact is being previewed. During this time, calling engagePreviewContact will trigger the outbound dial to the end customer and end preview mode.
