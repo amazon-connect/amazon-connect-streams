@@ -10,7 +10,8 @@
   global.lily = connect;
 
   const { SessionExpirationWarningClient, sendActivity } = require("@amazon-connect/activity");
-
+  const { ContactClient } = require("@amazon-connect/contact");
+  
   /*----------------------------------------------------------------
    * enum AgentStateType
    */
@@ -814,6 +815,36 @@
     this.contactId = contactId;
   };
 
+  Contact.prototype._getSDKClient = function() {
+    if (this.contactClient) {
+      return this.contactClient;
+    }
+    try {
+      const providerData = {
+          providerId: connect.core?._amazonConnectProviderData?.provider?.id,
+          config: connect.core?._amazonConnectProviderData?.provider?.config,
+          isStreamsProvider: connect.core?._amazonConnectProviderData?.isStreamsProvider,
+      };
+      connect.getLog()
+        .info('Initializing Contact SDK Clients')
+        .withObject(providerData)
+        .sendInternalLogToServer();
+        this.contactClient = new ContactClient(connect.core.getSDKClientConfig());
+        return this.contactClient;
+    } catch(e) {
+      const errorData = {
+          providerId: connect.core?._amazonConnectProviderData?.provider?.id,
+          config: connect.core?._amazonConnectProviderData?.provider?.config,
+          isStreamsProvider: connect.core?._amazonConnectProviderData?.isStreamsProvider,
+          error: e
+      };
+      connect.getLog()
+        .error('Failed to initialize Contact SDK Clients')
+        .withObject(errorData)
+        .sendInternalLogToServer();
+    }
+  }
+
   Contact.prototype._getData = function () {
     return connect.core.getAgentDataProvider().getContactData(this.getContactId());
   };
@@ -893,6 +924,24 @@
 
   Contact.prototype.getContactDuration = function () {
     return this._getData().contactDuration;
+  }
+
+  Contact.prototype.engagePreviewContact = function () {
+    const contactClient = this._getSDKClient();
+    const contactId = this.getContactId();
+    return contactClient.engagePreviewContact(contactId);
+  };
+
+  Contact.prototype.getPreviewConfiguration = function () {
+    const contactClient = this._getSDKClient();
+    const contactId = this.getContactId();
+    return contactClient.getPreviewConfiguration(contactId);
+  }
+  
+  Contact.prototype.isPreviewMode = function () {
+    const contactClient = this._getSDKClient();
+    const contactId = this.getContactId();
+    return contactClient.isPreviewMode(contactId);
   }
 
   Contact.prototype.getState = function () {

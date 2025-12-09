@@ -1,4 +1,7 @@
 # CHANGELOG.md
+## [2.22.0] - 2025-12-09
+- Add contact API's for Preview Dialing feature.
+
 ## [2.21.0] - 2025-11-19
 - Adding support for managing session inactivity modal. Please see [here](https://docs.aws.amazon.com/connect/latest/adminguide/authentication-profiles.html#configure-session-timeouts) for more details regarding this feature.
 - Adding new API to reauthenticate an agent after logging out.

@@ -136,6 +136,368 @@ class SessionExpirationWarningClient extends lib_esm/* ConnectClient */.C$ {
 
 /***/ }),
 
+/***/ 791:
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+// ESM COMPAT FLAG
+__webpack_require__.r(__webpack_exports__);
+
+// EXPORTS
+__webpack_require__.d(__webpack_exports__, {
+  AgentClient: () => (/* reexport */ AgentClient),
+  AgentRoutes: () => (/* reexport */ AgentRoutes),
+  AgentTopicKey: () => (/* reexport */ AgentTopicKey),
+  ContactClient: () => (/* reexport */ ContactClient),
+  ContactLifecycleTopicKey: () => (/* reexport */ ContactLifecycleTopicKey),
+  ContactRoutes: () => (/* reexport */ ContactRoutes),
+  ContactStateType: () => (/* reexport */ ContactStateType),
+  ContactTopicKey: () => (/* reexport */ ContactTopicKey),
+  ParticipantStateType: () => (/* reexport */ ParticipantStateType),
+  contactNamespace: () => (/* reexport */ contactNamespace)
+});
+
+// EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 55 modules
+var lib_esm = __webpack_require__(238);
+;// ./node_modules/@amazon-connect/contact/lib-esm/namespace.js
+const contactNamespace = "aws.connect.contact";
+//# sourceMappingURL=namespace.js.map
+;// ./node_modules/@amazon-connect/contact/lib-esm/routes.js
+var AgentRoutes;
+(function (AgentRoutes) {
+    AgentRoutes["getARN"] = "agent/getARN";
+    AgentRoutes["getName"] = "agent/getName";
+    AgentRoutes["getState"] = "agent/getState";
+    AgentRoutes["getRoutingProfile"] = "agent/getRoutingProfile";
+    AgentRoutes["getChannelConcurrency"] = "agent/getChannelConcurrency";
+    AgentRoutes["getExtension"] = "agent/getExtension";
+    AgentRoutes["getDialableCountries"] = "agent/getDialableCountries";
+    AgentRoutes["setAvailabilityState"] = "agent/setAvailabilityState";
+    AgentRoutes["setAvailabilityStateByName"] = "agent/setAvailabilityStateByName";
+    AgentRoutes["setOffline"] = "agent/setOffline";
+    AgentRoutes["listAvailabilityStates"] = "agent/listAvailabilityStates";
+    AgentRoutes["listQuickConnects"] = "agent/listQuickConnects";
+})(AgentRoutes || (AgentRoutes = {}));
+var ContactRoutes;
+(function (ContactRoutes) {
+    ContactRoutes["getAttributes"] = "contact/getAttributes";
+    ContactRoutes["getInitialContactId"] = "contact/getInitialContactId";
+    ContactRoutes["getType"] = "contact/getType";
+    ContactRoutes["getStateDuration"] = "contact/getStateDuration";
+    ContactRoutes["getQueue"] = "contact/getQueue";
+    ContactRoutes["getQueueTimestamp"] = "contact/getQueueTimestamp";
+    ContactRoutes["getDescription"] = "contact/getDescription";
+    ContactRoutes["getReferences"] = "contact/getReferences";
+    ContactRoutes["getChannelType"] = "contact/getChannelType";
+    ContactRoutes["addParticipant"] = "contact/addParticipant";
+    ContactRoutes["transfer"] = "contact/transfer";
+    ContactRoutes["accept"] = "contact/accept";
+    ContactRoutes["clear"] = "contact/clear";
+    ContactRoutes["isPreviewMode"] = "contact/isPreviewMode";
+    ContactRoutes["getPreviewConfiguration"] = "contact/getPreviewConfiguration";
+    ContactRoutes["engagePreviewContact"] = "contact/engagePreviewContact";
+})(ContactRoutes || (ContactRoutes = {}));
+//# sourceMappingURL=routes.js.map
+;// ./node_modules/@amazon-connect/contact/lib-esm/topic-keys.js
+var ContactLifecycleTopicKey;
+(function (ContactLifecycleTopicKey) {
+    ContactLifecycleTopicKey["StartingACW"] = "contact/acw";
+    ContactLifecycleTopicKey["Connected"] = "contact/connected";
+    ContactLifecycleTopicKey["Destroyed"] = "contact/destroy";
+    ContactLifecycleTopicKey["Missed"] = "contact/missed";
+    ContactLifecycleTopicKey["Cleared"] = "contact/cleared";
+    ContactLifecycleTopicKey["Incoming"] = "contact/incoming";
+})(ContactLifecycleTopicKey || (ContactLifecycleTopicKey = {}));
+var AgentTopicKey;
+(function (AgentTopicKey) {
+    AgentTopicKey["StateChanged"] = "agent/stateChange";
+    AgentTopicKey["RoutingProfileChanged"] = "agent/routingProfileChanged";
+    AgentTopicKey["EnabledChannelListChanged"] = "agent/enabledChannelListChanged";
+})(AgentTopicKey || (AgentTopicKey = {}));
+var ContactTopicKey;
+(function (ContactTopicKey) {
+})(ContactTopicKey || (ContactTopicKey = {}));
+//# sourceMappingURL=topic-keys.js.map
+;// ./node_modules/@amazon-connect/contact/lib-esm/agent-client.js
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+
+
+
+class AgentClient extends lib_esm/* ConnectClientWithOptionalConfig */.uU {
+    constructor(config) {
+        super(contactNamespace, config);
+    }
+    getARN() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { ARN } = yield this.context.proxy.request(AgentRoutes.getARN);
+            return ARN;
+        });
+    }
+    getName() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { name } = yield this.context.proxy.request(AgentRoutes.getName);
+            return name;
+        });
+    }
+    getState() {
+        return this.context.proxy.request(AgentRoutes.getState);
+    }
+    getRoutingProfile() {
+        return this.context.proxy.request(AgentRoutes.getRoutingProfile);
+    }
+    getChannelConcurrency() {
+        return this.context.proxy.request(AgentRoutes.getChannelConcurrency);
+    }
+    getExtension() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { extension } = yield this.context.proxy.request(AgentRoutes.getExtension);
+            return extension;
+        });
+    }
+    /**
+     * @deprecated Use `VoiceClient.listDialableCountries` instead.
+     */
+    getDialableCountries() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { dialableCountries } = yield this.context.proxy.request(AgentRoutes.getDialableCountries);
+            return dialableCountries;
+        });
+    }
+    onStateChanged(handler) {
+        this.context.proxy.subscribe({ key: AgentTopicKey.StateChanged }, handler);
+    }
+    offStateChanged(handler) {
+        this.context.proxy.unsubscribe({ key: AgentTopicKey.StateChanged }, handler);
+    }
+    setAvailabilityState(agentStateARN) {
+        return this.context.proxy.request(AgentRoutes.setAvailabilityState, {
+            agentStateARN,
+        });
+    }
+    setAvailabilityStateByName(agentStateName) {
+        return this.context.proxy.request(AgentRoutes.setAvailabilityStateByName, {
+            agentStateName,
+        });
+    }
+    setOffline() {
+        return this.context.proxy.request(AgentRoutes.setOffline, {});
+    }
+    listAvailabilityStates() {
+        return this.context.proxy.request(AgentRoutes.listAvailabilityStates);
+    }
+    listQuickConnects(queueARNs, options) {
+        return this.context.proxy.request(AgentRoutes.listQuickConnects, {
+            queueARNs,
+            options,
+        });
+    }
+    onEnabledChannelListChanged(handler) {
+        this.context.proxy.subscribe({ key: AgentTopicKey.EnabledChannelListChanged }, handler);
+    }
+    offEnabledChannelListChanged(handler) {
+        this.context.proxy.unsubscribe({ key: AgentTopicKey.EnabledChannelListChanged }, handler);
+    }
+    onRoutingProfileChanged(handler) {
+        this.context.proxy.subscribe({ key: AgentTopicKey.RoutingProfileChanged }, handler);
+    }
+    offRoutingProfileChanged(handler) {
+        this.context.proxy.unsubscribe({ key: AgentTopicKey.RoutingProfileChanged }, handler);
+    }
+}
+//# sourceMappingURL=agent-client.js.map
+;// ./node_modules/@amazon-connect/contact/lib-esm/contact-client.js
+var contact_client_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+
+
+
+class ContactClient extends lib_esm/* ConnectClientWithOptionalConfig */.uU {
+    constructor(config) {
+        super(contactNamespace, config);
+    }
+    // requests
+    getAttributes(contactId, attributes) {
+        const requestData = {
+            contactId,
+            attributes,
+        };
+        return this.context.proxy.request(ContactRoutes.getAttributes, requestData);
+    }
+    getAttribute(contactId, attribute) {
+        return contact_client_awaiter(this, void 0, void 0, function* () {
+            const result = yield this.getAttributes(contactId, [attribute]);
+            return result[attribute];
+        });
+    }
+    getInitialContactId(contactId) {
+        return contact_client_awaiter(this, void 0, void 0, function* () {
+            const data = yield this.context.proxy.request(ContactRoutes.getInitialContactId, { contactId });
+            return data.initialContactId;
+        });
+    }
+    /**
+     * @deprecated Use `getChannelType` instead.
+     */
+    getType(contactId) {
+        return contact_client_awaiter(this, void 0, void 0, function* () {
+            const data = yield this.context.proxy.request(ContactRoutes.getType, { contactId });
+            return data.type;
+        });
+    }
+    getStateDuration(contactId) {
+        return contact_client_awaiter(this, void 0, void 0, function* () {
+            const data = yield this.context.proxy.request(ContactRoutes.getStateDuration, { contactId });
+            return data.stateDuration;
+        });
+    }
+    getQueue(contactId) {
+        return this.context.proxy.request(ContactRoutes.getQueue, {
+            contactId,
+        });
+    }
+    getQueueTimestamp(contactId) {
+        return contact_client_awaiter(this, void 0, void 0, function* () {
+            const data = yield this.context.proxy.request(ContactRoutes.getQueueTimestamp, { contactId });
+            return data.queueTimestamp;
+        });
+    }
+    onStartingAcw(handler, contactId) {
+        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.StartingACW, parameter: contactId }, handler);
+    }
+    /**
+     * @deprecated Use `onCleared` instead.
+     */
+    onDestroyed(handler, contactId) {
+        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.Destroyed, parameter: contactId }, handler);
+    }
+    onConnected(handler, contactId) {
+        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.Connected, parameter: contactId }, handler);
+    }
+    onMissed(handler, contactId) {
+        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.Missed, parameter: contactId }, handler);
+    }
+    onIncoming(handler, contactId) {
+        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.Incoming, parameter: contactId }, handler);
+    }
+    offStartingAcw(handler, contactId) {
+        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.StartingACW, parameter: contactId }, handler);
+    }
+    /**
+     * @deprecated Use `offCleared` instead.
+     */
+    offDestroyed(handler, contactId) {
+        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.Destroyed, parameter: contactId }, handler);
+    }
+    offMissed(handler, contactId) {
+        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.Missed, parameter: contactId }, handler);
+    }
+    offIncoming(handler, contactId) {
+        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.Incoming, parameter: contactId }, handler);
+    }
+    offConnected(handler, contactId) {
+        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.Connected, parameter: contactId }, handler);
+    }
+    getChannelType(contactId) {
+        return contact_client_awaiter(this, void 0, void 0, function* () {
+            return yield this.context.proxy.request(ContactRoutes.getChannelType, {
+                contactId,
+            });
+        });
+    }
+    addParticipant(contactId, quickConnect) {
+        return this.context.proxy.request(ContactRoutes.addParticipant, {
+            contactId,
+            quickConnect,
+        });
+    }
+    transfer(contactId, quickConnect) {
+        return this.context.proxy.request(ContactRoutes.transfer, {
+            contactId,
+            quickConnect,
+        });
+    }
+    onCleared(handler, contactId) {
+        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.Cleared, parameter: contactId }, handler);
+    }
+    offCleared(handler, contactId) {
+        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.Cleared, parameter: contactId }, handler);
+    }
+    accept(contactId) {
+        return this.context.proxy.request(ContactRoutes.accept, {
+            contactId,
+        });
+    }
+    clear(contactId) {
+        return this.context.proxy.request(ContactRoutes.clear, {
+            contactId,
+        });
+    }
+    isPreviewMode(contactId) {
+        return contact_client_awaiter(this, void 0, void 0, function* () {
+            const response = yield this.context.proxy.request(ContactRoutes.isPreviewMode, { contactId });
+            return response.isPreviewMode;
+        });
+    }
+    getPreviewConfiguration(contactId) {
+        return contact_client_awaiter(this, void 0, void 0, function* () {
+            const response = yield this.context.proxy.request(ContactRoutes.getPreviewConfiguration, {
+                contactId,
+            });
+            return response;
+        });
+    }
+    engagePreviewContact(contactId) {
+        return contact_client_awaiter(this, void 0, void 0, function* () {
+            return this.context.proxy.request(ContactRoutes.engagePreviewContact, {
+                contactId,
+            });
+        });
+    }
+}
+//# sourceMappingURL=contact-client.js.map
+;// ./node_modules/@amazon-connect/contact/lib-esm/states.js
+/**
+ * States that a contact can be in.
+ */
+var ContactStateType;
+(function (ContactStateType) {
+})(ContactStateType || (ContactStateType = {}));
+/**
+ * States that a participant can be in.
+ */
+var ParticipantStateType;
+(function (ParticipantStateType) {
+})(ParticipantStateType || (ParticipantStateType = {}));
+//# sourceMappingURL=states.js.map
+;// ./node_modules/@amazon-connect/contact/lib-esm/index.js
+
+
+
+
+
+
+
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
 /***/ 238:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
@@ -145,13 +507,14 @@ class SessionExpirationWarningClient extends lib_esm/* ConnectClient */.C$ {
 __webpack_require__.d(__webpack_exports__, {
   Lt: () => (/* reexport */ AmazonConnectProviderBase),
   C$: () => (/* reexport */ ConnectClient),
+  uU: () => (/* reexport */ ConnectClientWithOptionalConfig),
   pg: () => (/* reexport */ connect_logger_ConnectLogger),
   by: () => (/* reexport */ Proxy),
   Lz: () => (/* reexport */ getGlobalProvider),
   xQ: () => (/* reexport */ getOriginAndPath)
 });
 
-// UNUSED EXPORTS: AsyncEventEmitter, ConnectClientWithOptionalConfig, ConnectError, ConnectMetricRecorder, Context, DurationMetricRecorder, Emitter, EventEmitter, LogLevel, ModuleContext, RequestManager, SubscriptionHandlerRelay, SubscriptionMap, SubscriptionSet, TimeoutTracker, createLogMessage, createMetricMessage, createModuleProxy, createRequestMessage, deepClone, formatClientTimeoutError, generateStringId, generateUUID, handlerNotFoundResponseErrorKey, isAmazonConnectProvider, isClientTimeoutResponseError, isConnectError, isNoResultResponseError, logToConsole, noResultResponseErrorKey, resetGlobalProvider, sdkVersion
+// UNUSED EXPORTS: AsyncEventEmitter, ConnectError, ConnectMetricRecorder, Context, DurationMetricRecorder, Emitter, EventEmitter, LogLevel, ModuleContext, RequestManager, SubscriptionHandlerRelay, SubscriptionMap, SubscriptionSet, TimeoutTracker, createLogMessage, createMetricMessage, createModuleProxy, createRequestMessage, deepClone, formatClientTimeoutError, generateStringId, generateUUID, handlerNotFoundResponseErrorKey, isAmazonConnectProvider, isClientTimeoutResponseError, isConnectError, isNoResultResponseError, logToConsole, noResultResponseErrorKey, resetGlobalProvider, sdkVersion
 
 ;// ./node_modules/@amazon-connect/core/lib-esm/provider/global-provider.js
 let _provider;
@@ -2438,7 +2801,7 @@ class Context {
 ;// ./node_modules/@amazon-connect/core/lib-esm/client/get-module-context.js
 
 
-function get_module_context_getModuleContext({ namespace, config, }) {
+function getModuleContext({ namespace, config, }) {
     if (config && "context" in config && config.context) {
         return config.context;
     }
@@ -2455,7 +2818,7 @@ function get_module_context_getModuleContext({ namespace, config, }) {
 class ConnectClient {
     constructor(namespace, config) {
         this.namespace = namespace;
-        this.context = get_module_context_getModuleContext({ namespace, config });
+        this.context = getModuleContext({ namespace, config });
     }
 }
 class ConnectClientWithOptionalConfig {
@@ -3288,6 +3651,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   var _require = __webpack_require__(578),
     SessionExpirationWarningClient = _require.SessionExpirationWarningClient,
     sendActivity = _require.sendActivity;
+  var _require2 = __webpack_require__(791),
+    ContactClient = _require2.ContactClient;
 
   /*----------------------------------------------------------------
    * enum AgentStateType
@@ -3841,6 +4206,31 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   var Contact = function Contact(contactId) {
     this.contactId = contactId;
   };
+  Contact.prototype._getSDKClient = function () {
+    if (this.contactClient) {
+      return this.contactClient;
+    }
+    try {
+      var _connect$core, _connect$core2, _connect$core3;
+      var providerData = {
+        providerId: (_connect$core = connect.core) === null || _connect$core === void 0 || (_connect$core = _connect$core._amazonConnectProviderData) === null || _connect$core === void 0 || (_connect$core = _connect$core.provider) === null || _connect$core === void 0 ? void 0 : _connect$core.id,
+        config: (_connect$core2 = connect.core) === null || _connect$core2 === void 0 || (_connect$core2 = _connect$core2._amazonConnectProviderData) === null || _connect$core2 === void 0 || (_connect$core2 = _connect$core2.provider) === null || _connect$core2 === void 0 ? void 0 : _connect$core2.config,
+        isStreamsProvider: (_connect$core3 = connect.core) === null || _connect$core3 === void 0 || (_connect$core3 = _connect$core3._amazonConnectProviderData) === null || _connect$core3 === void 0 ? void 0 : _connect$core3.isStreamsProvider
+      };
+      connect.getLog().info('Initializing Contact SDK Clients').withObject(providerData).sendInternalLogToServer();
+      this.contactClient = new ContactClient(connect.core.getSDKClientConfig());
+      return this.contactClient;
+    } catch (e) {
+      var _connect$core4, _connect$core5, _connect$core6;
+      var errorData = {
+        providerId: (_connect$core4 = connect.core) === null || _connect$core4 === void 0 || (_connect$core4 = _connect$core4._amazonConnectProviderData) === null || _connect$core4 === void 0 || (_connect$core4 = _connect$core4.provider) === null || _connect$core4 === void 0 ? void 0 : _connect$core4.id,
+        config: (_connect$core5 = connect.core) === null || _connect$core5 === void 0 || (_connect$core5 = _connect$core5._amazonConnectProviderData) === null || _connect$core5 === void 0 || (_connect$core5 = _connect$core5.provider) === null || _connect$core5 === void 0 ? void 0 : _connect$core5.config,
+        isStreamsProvider: (_connect$core6 = connect.core) === null || _connect$core6 === void 0 || (_connect$core6 = _connect$core6._amazonConnectProviderData) === null || _connect$core6 === void 0 ? void 0 : _connect$core6.isStreamsProvider,
+        error: e
+      };
+      connect.getLog().error('Failed to initialize Contact SDK Clients').withObject(errorData).sendInternalLogToServer();
+    }
+  };
   Contact.prototype._getData = function () {
     return connect.core.getAgentDataProvider().getContactData(this.getContactId());
   };
@@ -3903,6 +4293,21 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   Contact.prototype.getContactDuration = function () {
     return this._getData().contactDuration;
+  };
+  Contact.prototype.engagePreviewContact = function () {
+    var contactClient = this._getSDKClient();
+    var contactId = this.getContactId();
+    return contactClient.engagePreviewContact(contactId);
+  };
+  Contact.prototype.getPreviewConfiguration = function () {
+    var contactClient = this._getSDKClient();
+    var contactId = this.getContactId();
+    return contactClient.getPreviewConfiguration(contactId);
+  };
+  Contact.prototype.isPreviewMode = function () {
+    var contactClient = this._getSDKClient();
+    var contactId = this.getContactId();
+    return contactClient.isPreviewMode(contactId);
   };
   Contact.prototype.getState = function () {
     return this._getData().state;
@@ -10186,7 +10591,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.21.0";
+  connect.version = "2.22.0";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
