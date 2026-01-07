@@ -187,6 +187,9 @@
     'configure_ccp_conduit',
     'init',
     'configure_error',
+    'validate_global_signin',
+    'global_signin_valid',
+    'global_signin_invalid',
     'failover_initiated',
     'failover_pending',
     'failover_pending_crm',
@@ -194,6 +197,14 @@
     'heartbeat_syn',
     'heartbeat_ack',
     'force_failover'
+  ]);
+
+  /**---------------------------------------------------------------
+   * enum GlobalResiliencyConfigureErrorType
+   */
+  var GlobalResiliencyConfigureErrorType = connect.makeEnum([
+    'LILY_AGENT_CONFIG_MISSING',
+    'LILY_AGENT_CONFIG_PARSE_ERROR'
   ]);
 
   /**---------------------------------------------------------------
@@ -414,4 +425,5 @@
   connect.MasterTopics = MasterTopics;
   connect.DisasterRecoveryEvents = DisasterRecoveryEvents;
   connect.GlobalResiliencyEvents = GlobalResiliencyEvents;
+  connect.GlobalResiliencyConfigureErrorType = GlobalResiliencyConfigureErrorType;
 })();
