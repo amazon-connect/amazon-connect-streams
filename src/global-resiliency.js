@@ -615,7 +615,7 @@
 
             connect.core
               .getEventBus()
-              .trigger(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE, { activeRegion: data.activeRegion });
+              .trigger(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE, { activeRegion: data.activeRegion, activeCcpUrl: newActiveConduit.name });
 
             grProxyConduit.sendUpstream(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE);
 

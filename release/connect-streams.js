@@ -13817,7 +13817,8 @@ function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = 
           const agentUpdateSub = grProxyConduit.onUpstream(connect.AgentEvents.UPDATE, () => {
             agentUpdateSub.unsubscribe();
             connect.core.getEventBus().trigger(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE, {
-              activeRegion: data.activeRegion
+              activeRegion: data.activeRegion,
+              activeCcpUrl: newActiveConduit.name
             });
             grProxyConduit.sendUpstream(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE);
             connect.getLog().info("[GR] GlobalResiliencyEvents.FAILOVER_COMPLETE emitted.").sendInternalLogToServer();
