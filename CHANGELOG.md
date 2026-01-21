@@ -1,6 +1,7 @@
 # CHANGELOG.md
 ## [2.22.1] - 2026-01-21
 - Add force failover API for Global Resiliency scenarios.
+- Fix emission of activeCcpUrl in the failover complete event.
 
 ## [2.22.0] - 2025-12-09
 - Add contact API's for Preview Dialing feature.
