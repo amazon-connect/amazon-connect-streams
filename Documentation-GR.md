@@ -188,6 +188,14 @@ The function will be called with an Object parameter with one property:
 
 Returns a function that can be called if you wish to deregister the trigger.
 
+### connect.globalResiliency.forceFailover()
+
+```js
+connect.globalResiliency.forceFailover();
+```
+
+When an active AWS Region change has been detected and the agent has at least 1 active voice or chat contact, the UI will normally wait to change over to the new AWS Region until all active voice/chat contact(s) are ended and cleared from ACW. This is called the failover pending state. When the forceFailover API is called during the failover pending state, the failover occurs immediately instead of waiting for the contacts to be ended and cleared. This can be used in scenarios where service failures render the contacts unable to be cleared. This does not trigger any change in the traffic distribution group. It only has an impact when called during the failover pending state.
+
 ## Note regarding page refresh
 
 Developers should not programmatically refresh the page in response to the `onFailoverCompleted` or `onFailoverPending` events unless absolutely necessary. Refreshing the page automatically may lead to a loss of service when a large number of agents have their pages refreshed in a short span of time. 

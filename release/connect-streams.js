@@ -3305,11 +3305,11 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
       });
     });
   };
-  var getConnectUrl = function getConnectUrl(ccpUrl) {
+  var getConnectUrl = function (ccpUrl) {
     var pos = ccpUrl.indexOf('ccp-v2');
     return ccpUrl.slice(0, pos - 1);
   };
-  var signOutThroughCCP = function signOutThroughCCP(ccpUrl) {
+  var signOutThroughCCP = function (ccpUrl) {
     var logoutUrl = getConnectUrl(ccpUrl) + '/logout';
     return connect.fetch(logoutUrl, {
       credentials: 'include'
@@ -3317,14 +3317,14 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
       var eventBus = connect.core.getEventBus();
       eventBus.trigger(connect.EventType.TERMINATE);
       return true;
-    })["catch"](function (e) {
+    }).catch(function (e) {
       connect.getLog().error('An error occured on logout.' + e).withException(e);
       window.location.href = logoutUrl;
       return false;
     });
   };
-  var removeAppData = function removeAppData(appName) {
-    connect.agentApp.AppRegistry["delete"](appName);
+  var removeAppData = function (appName) {
+    connect.agentApp.AppRegistry.delete(appName);
   };
 
   /**
@@ -3337,24 +3337,25 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
    * @param {string} containerDOM - The DOM container for the view iframe.
    * @param {AppOptions} config - Configuration object containing contact details and other settings.
    */
-  var initCustomViewsApp = function initCustomViewsApp(connectUrl, containerDOM, config) {
-    var _config$customViewsPa = config.customViewsParams,
-      contact = _config$customViewsPa.contact,
-      disableAutoDestroy = _config$customViewsPa.disableAutoDestroy,
-      iframeSuffix = _config$customViewsPa.iframeSuffix,
-      _config$customViewsPa2 = _config$customViewsPa.terminateCustomViewOptions,
-      terminateCustomViewOptions = _config$customViewsPa2 === void 0 ? {} : _config$customViewsPa2,
-      _config$customViewsPa3 = _config$customViewsPa.deduplicate,
-      deduplicate = _config$customViewsPa3 === void 0 ? true : _config$customViewsPa3;
-    var contactFlowId = config.customViewsParams.contactFlowId;
-    var contactId = extractContactId(contact);
-    var agentConnectionId;
-    var contactStatus;
-    var resolveContactObject = function resolveContactObject(callback) {
+  var initCustomViewsApp = function (connectUrl, containerDOM, config) {
+    const {
+      contact,
+      disableAutoDestroy,
+      iframeSuffix,
+      terminateCustomViewOptions = {},
+      deduplicate = true
+    } = config.customViewsParams;
+    let {
+      contactFlowId
+    } = config.customViewsParams;
+    let contactId = extractContactId(contact);
+    let agentConnectionId;
+    let contactStatus;
+    const resolveContactObject = callback => {
       if (typeof contact === 'string') {
         console.debug('[CustomViews] Resolving contact ID string...');
-        connect.agent(function (agent) {
-          var matchedContact = agent.getContacts().find(function (c) {
+        connect.agent(agent => {
+          const matchedContact = agent.getContacts().find(c => {
             try {
               var _c$getContactId;
               return ((_c$getContactId = c.getContactId) === null || _c$getContactId === void 0 ? void 0 : _c$getContactId.call(c)) === contact;
@@ -3371,9 +3372,9 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
         callback(contact);
       }
     };
-    var bindOnDestroy = function bindOnDestroy(resolvedContact) {
+    const bindOnDestroy = resolvedContact => {
       if (disableAutoDestroy) return;
-      resolvedContact.onDestroy(function () {
+      resolvedContact.onDestroy(() => {
         var _terminateCustomViewO, _terminateCustomViewO2, _terminateCustomViewO3;
         connect.core.terminateCustomView(connectUrl, iframeSuffix, {
           timeout: (_terminateCustomViewO = terminateCustomViewOptions.timeout) !== null && _terminateCustomViewO !== void 0 ? _terminateCustomViewO : 5000,
@@ -3383,19 +3384,17 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
       });
       console.debug('[CustomViews] onDestroy handler registered.');
     };
-    var extractAgentConnectionId = function extractAgentConnectionId(resolvedContact) {
+    const extractAgentConnectionId = resolvedContact => {
       try {
-        var connections = resolvedContact.toSnapshot().contactData.connections;
-        var agentConn = connections.find(function (conn) {
-          return conn.type === 'agent';
-        });
+        const connections = resolvedContact.toSnapshot().contactData.connections;
+        const agentConn = connections.find(conn => conn.type === 'agent');
         return agentConn === null || agentConn === void 0 ? void 0 : agentConn.connectionId;
       } catch (err) {
         console.warn('[CustomViews] Failed to extract agentConnectionId.');
         return undefined;
       }
     };
-    var extractContactStatus = function extractContactStatus(resolvedContact) {
+    const extractContactStatus = resolvedContact => {
       try {
         return resolvedContact.toSnapshot().contactData.state.type;
       } catch (err) {
@@ -3403,26 +3402,26 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
         return undefined;
       }
     };
-    var continueInit = function continueInit(contactId, agentConnectionId, status) {
+    const continueInit = (contactId, agentConnectionId, status) => {
       var _window$top;
-      var appName = iframeSuffix ? "".concat(APP.GUIDES).concat(iframeSuffix) : APP.GUIDES;
-      var iframe = (containerDOM === null || containerDOM === void 0 ? void 0 : containerDOM.querySelector("iframe[id='".concat(appName, "']"))) || document.getElementById(appName) || ((_window$top = window.top) === null || _window$top === void 0 ? void 0 : _window$top.document.getElementById(appName));
+      const appName = iframeSuffix ? "".concat(APP.GUIDES).concat(iframeSuffix) : APP.GUIDES;
+      const iframe = (containerDOM === null || containerDOM === void 0 ? void 0 : containerDOM.querySelector("iframe[id='".concat(appName, "']"))) || document.getElementById(appName) || ((_window$top = window.top) === null || _window$top === void 0 ? void 0 : _window$top.document.getElementById(appName));
       if (!iframe) {
         throw new Error("[CustomViews] Iframe not found for app: ".concat(appName));
       }
-      var tabId = AWS.util.uuid.v4();
-      var params = new URLSearchParams({
+      const tabId = AWS.util.uuid.v4();
+      const params = new URLSearchParams({
         agentAppTabId: "".concat(tabId, "-tab")
       });
       if (contactFlowId) params.set('contactFlowId', contactFlowId);
       if (contactId) params.set('currentContactId', contactId);
       if (agentConnectionId) params.set('agentConnectionId', agentConnectionId);
-      var dedupId = deduplicate ? status ? status.toUpperCase() : 'DEFAULT' : 'ADHOC';
+      const dedupId = deduplicate ? status ? status.toUpperCase() : 'DEFAULT' : 'ADHOC';
       params.set('duplicateCustomViewsAppId', dedupId);
       iframe.src = "".concat(connectUrl, "?").concat(params.toString());
       console.debug('[CustomViews] Iframe source initialized with state identifier: ', dedupId);
     };
-    resolveContactObject(function (resolvedContact) {
+    resolveContactObject(resolvedContact => {
       if (resolvedContact) {
         contactStatus = extractContactStatus(resolvedContact);
         contactId = extractContactId(resolvedContact);
@@ -3435,7 +3434,7 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
       continueInit(contactId, agentConnectionId, contactStatus);
     });
   };
-  var extractContactId = function extractContactId(contact) {
+  var extractContactId = function (contact) {
     if (typeof contact === 'string') {
       return contact;
     }
@@ -3446,7 +3445,7 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
       return undefined;
     }
   };
-  var signInThroughinitCCP = function signInThroughinitCCP(ccpUrl, container, config) {
+  var signInThroughinitCCP = function (ccpUrl, container, config) {
     var defaultParams = {
       ccpUrl: ccpUrl,
       ccpLoadTimeout: 10000,
@@ -3463,7 +3462,7 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
     var ccpParams = connect.merge(defaultParams, config.ccpParams);
     connect.core.initCCP(container, ccpParams);
   };
-  var hasAnySearchParameter = function hasAnySearchParameter(url) {
+  var hasAnySearchParameter = function (url) {
     var regex = /[?&]?[^=?&]+=[^=?&]+/g;
     return regex.test(url);
   };
@@ -3480,7 +3479,9 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
     if (name === APP.CCP_DR) {
       filteredName = APP.CCP;
     } else if (name === APP.GUIDES && config.customViewsParams) {
-      var iframeSuffix = config.customViewsParams.iframeSuffix;
+      const {
+        iframeSuffix
+      } = config.customViewsParams;
       if (iframeSuffix) {
         filteredName = "".concat(APP.GUIDES).concat(iframeSuffix);
       } else {
@@ -3498,7 +3499,7 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
       var endpoint = moduleData.endpoint;
       var containerDOM = moduleData.containerDOM;
       return {
-        init: function init() {
+        init: function () {
           switch (name) {
             case APP.CCP:
               config.ccpParams = config.ccpParams ? config.ccpParams : {};
@@ -3515,7 +3516,7 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
               return connect.agentApp.initAppCommunication(filteredName, endpoint, containerDOM);
           }
         },
-        destroy: function destroy() {
+        destroy: function () {
           switch (name) {
             case APP.CCP:
               return signOutThroughCCP(endpoint);
@@ -3551,7 +3552,7 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
   };
   function AppRegistry() {
     var moduleData = {};
-    var makeAppIframe = function makeAppIframe(appName, endpoint, style, onLoad) {
+    var makeAppIframe = function (appName, endpoint, style, onLoad) {
       var iframe = document.createElement('iframe');
       iframe.src = endpoint;
       iframe.style = style || 'width: 100%; height:100%;';
@@ -3565,7 +3566,7 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
       return iframe;
     };
     return {
-      register: function register(appName, config, containerDOM) {
+      register: function (appName, config, containerDOM) {
         moduleData[appName] = {
           containerDOM: containerDOM,
           endpoint: config.endpoint,
@@ -3574,7 +3575,7 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
           onLoad: config.onLoad
         };
       },
-      start: function start(appName, creator) {
+      start: function (appName, creator) {
         if (!moduleData[appName]) return;
         var containerDOM = moduleData[appName].containerDOM;
         var endpoint = moduleData[appName].endpoint;
@@ -3587,18 +3588,18 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
         moduleData[appName].instance = creator(moduleData[appName]);
         return moduleData[appName].instance.init();
       },
-      get: function get(appName) {
+      get: function (appName) {
         return moduleData[appName];
       },
-      "delete": function _delete(appName) {
+      delete: function (appName) {
         delete moduleData[appName];
       },
-      stop: function stop(appName) {
+      stop: function (appName) {
         if (!moduleData[appName]) return;
         var data = moduleData[appName];
         var app = data.containerDOM.querySelector('iframe');
         if (appName.includes('customviews')) {
-          var iframeIdSelector = "iframe[id='".concat(appName, "']");
+          const iframeIdSelector = "iframe[id='".concat(appName, "']");
           app = data.containerDOM.querySelector(iframeIdSelector);
         }
         data.containerDOM.removeChild(app);
@@ -3621,23 +3622,9 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
 
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
-function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
-function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
-function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
-function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
-function _regeneratorRuntime() { "use strict"; /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */ _regeneratorRuntime = function _regeneratorRuntime() { return e; }; var t, e = {}, r = Object.prototype, n = r.hasOwnProperty, o = Object.defineProperty || function (t, e, r) { t[e] = r.value; }, i = "function" == typeof Symbol ? Symbol : {}, a = i.iterator || "@@iterator", c = i.asyncIterator || "@@asyncIterator", u = i.toStringTag || "@@toStringTag"; function define(t, e, r) { return Object.defineProperty(t, e, { value: r, enumerable: !0, configurable: !0, writable: !0 }), t[e]; } try { define({}, ""); } catch (t) { define = function define(t, e, r) { return t[e] = r; }; } function wrap(t, e, r, n) { var i = e && e.prototype instanceof Generator ? e : Generator, a = Object.create(i.prototype), c = new Context(n || []); return o(a, "_invoke", { value: makeInvokeMethod(t, r, c) }), a; } function tryCatch(t, e, r) { try { return { type: "normal", arg: t.call(e, r) }; } catch (t) { return { type: "throw", arg: t }; } } e.wrap = wrap; var h = "suspendedStart", l = "suspendedYield", f = "executing", s = "completed", y = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} var p = {}; define(p, a, function () { return this; }); var d = Object.getPrototypeOf, v = d && d(d(values([]))); v && v !== r && n.call(v, a) && (p = v); var g = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(p); function defineIteratorMethods(t) { ["next", "throw", "return"].forEach(function (e) { define(t, e, function (t) { return this._invoke(e, t); }); }); } function AsyncIterator(t, e) { function invoke(r, o, i, a) { var c = tryCatch(t[r], t, o); if ("throw" !== c.type) { var u = c.arg, h = u.value; return h && "object" == _typeof(h) && n.call(h, "__await") ? e.resolve(h.__await).then(function (t) { invoke("next", t, i, a); }, function (t) { invoke("throw", t, i, a); }) : e.resolve(h).then(function (t) { u.value = t, i(u); }, function (t) { return invoke("throw", t, i, a); }); } a(c.arg); } var r; o(this, "_invoke", { value: function value(t, n) { function callInvokeWithMethodAndArg() { return new e(function (e, r) { invoke(t, n, e, r); }); } return r = r ? r.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg(); } }); } function makeInvokeMethod(e, r, n) { var o = h; return function (i, a) { if (o === f) throw Error("Generator is already running"); if (o === s) { if ("throw" === i) throw a; return { value: t, done: !0 }; } for (n.method = i, n.arg = a;;) { var c = n.delegate; if (c) { var u = maybeInvokeDelegate(c, n); if (u) { if (u === y) continue; return u; } } if ("next" === n.method) n.sent = n._sent = n.arg;else if ("throw" === n.method) { if (o === h) throw o = s, n.arg; n.dispatchException(n.arg); } else "return" === n.method && n.abrupt("return", n.arg); o = f; var p = tryCatch(e, r, n); if ("normal" === p.type) { if (o = n.done ? s : l, p.arg === y) continue; return { value: p.arg, done: n.done }; } "throw" === p.type && (o = s, n.method = "throw", n.arg = p.arg); } }; } function maybeInvokeDelegate(e, r) { var n = r.method, o = e.iterator[n]; if (o === t) return r.delegate = null, "throw" === n && e.iterator["return"] && (r.method = "return", r.arg = t, maybeInvokeDelegate(e, r), "throw" === r.method) || "return" !== n && (r.method = "throw", r.arg = new TypeError("The iterator does not provide a '" + n + "' method")), y; var i = tryCatch(o, e.iterator, r.arg); if ("throw" === i.type) return r.method = "throw", r.arg = i.arg, r.delegate = null, y; var a = i.arg; return a ? a.done ? (r[e.resultName] = a.value, r.next = e.nextLoc, "return" !== r.method && (r.method = "next", r.arg = t), r.delegate = null, y) : a : (r.method = "throw", r.arg = new TypeError("iterator result is not an object"), r.delegate = null, y); } function pushTryEntry(t) { var e = { tryLoc: t[0] }; 1 in t && (e.catchLoc = t[1]), 2 in t && (e.finallyLoc = t[2], e.afterLoc = t[3]), this.tryEntries.push(e); } function resetTryEntry(t) { var e = t.completion || {}; e.type = "normal", delete e.arg, t.completion = e; } function Context(t) { this.tryEntries = [{ tryLoc: "root" }], t.forEach(pushTryEntry, this), this.reset(!0); } function values(e) { if (e || "" === e) { var r = e[a]; if (r) return r.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) { var o = -1, i = function next() { for (; ++o < e.length;) if (n.call(e, o)) return next.value = e[o], next.done = !1, next; return next.value = t, next.done = !0, next; }; return i.next = i; } } throw new TypeError(_typeof(e) + " is not iterable"); } return GeneratorFunction.prototype = GeneratorFunctionPrototype, o(g, "constructor", { value: GeneratorFunctionPrototype, configurable: !0 }), o(GeneratorFunctionPrototype, "constructor", { value: GeneratorFunction, configurable: !0 }), GeneratorFunction.displayName = define(GeneratorFunctionPrototype, u, "GeneratorFunction"), e.isGeneratorFunction = function (t) { var e = "function" == typeof t && t.constructor; return !!e && (e === GeneratorFunction || "GeneratorFunction" === (e.displayName || e.name)); }, e.mark = function (t) { return Object.setPrototypeOf ? Object.setPrototypeOf(t, GeneratorFunctionPrototype) : (t.__proto__ = GeneratorFunctionPrototype, define(t, u, "GeneratorFunction")), t.prototype = Object.create(g), t; }, e.awrap = function (t) { return { __await: t }; }, defineIteratorMethods(AsyncIterator.prototype), define(AsyncIterator.prototype, c, function () { return this; }), e.AsyncIterator = AsyncIterator, e.async = function (t, r, n, o, i) { void 0 === i && (i = Promise); var a = new AsyncIterator(wrap(t, r, n, o), i); return e.isGeneratorFunction(r) ? a : a.next().then(function (t) { return t.done ? t.value : a.next(); }); }, defineIteratorMethods(g), define(g, u, "Generator"), define(g, a, function () { return this; }), define(g, "toString", function () { return "[object Generator]"; }), e.keys = function (t) { var e = Object(t), r = []; for (var n in e) r.push(n); return r.reverse(), function next() { for (; r.length;) { var t = r.pop(); if (t in e) return next.value = t, next.done = !1, next; } return next.done = !0, next; }; }, e.values = values, Context.prototype = { constructor: Context, reset: function reset(e) { if (this.prev = 0, this.next = 0, this.sent = this._sent = t, this.done = !1, this.delegate = null, this.method = "next", this.arg = t, this.tryEntries.forEach(resetTryEntry), !e) for (var r in this) "t" === r.charAt(0) && n.call(this, r) && !isNaN(+r.slice(1)) && (this[r] = t); }, stop: function stop() { this.done = !0; var t = this.tryEntries[0].completion; if ("throw" === t.type) throw t.arg; return this.rval; }, dispatchException: function dispatchException(e) { if (this.done) throw e; var r = this; function handle(n, o) { return a.type = "throw", a.arg = e, r.next = n, o && (r.method = "next", r.arg = t), !!o; } for (var o = this.tryEntries.length - 1; o >= 0; --o) { var i = this.tryEntries[o], a = i.completion; if ("root" === i.tryLoc) return handle("end"); if (i.tryLoc <= this.prev) { var c = n.call(i, "catchLoc"), u = n.call(i, "finallyLoc"); if (c && u) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } else if (c) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); } else { if (!u) throw Error("try statement without catch or finally"); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } } } }, abrupt: function abrupt(t, e) { for (var r = this.tryEntries.length - 1; r >= 0; --r) { var o = this.tryEntries[r]; if (o.tryLoc <= this.prev && n.call(o, "finallyLoc") && this.prev < o.finallyLoc) { var i = o; break; } } i && ("break" === t || "continue" === t) && i.tryLoc <= e && e <= i.finallyLoc && (i = null); var a = i ? i.completion : {}; return a.type = t, a.arg = e, i ? (this.method = "next", this.next = i.finallyLoc, y) : this.complete(a); }, complete: function complete(t, e) { if ("throw" === t.type) throw t.arg; return "break" === t.type || "continue" === t.type ? this.next = t.arg : "return" === t.type ? (this.rval = this.arg = t.arg, this.method = "return", this.next = "end") : "normal" === t.type && e && (this.next = e), y; }, finish: function finish(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.finallyLoc === t) return this.complete(r.completion, r.afterLoc), resetTryEntry(r), y; } }, "catch": function _catch(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.tryLoc === t) { var n = r.completion; if ("throw" === n.type) { var o = n.arg; resetTryEntry(r); } return o; } } throw Error("illegal catch attempt"); }, delegateYield: function delegateYield(e, r, n) { return this.delegate = { iterator: values(e), resultName: r, nextLoc: n }, "next" === this.method && (this.arg = t), y; } }, e; }
-function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
-function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
-function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
-function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
-function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
-function _defineProperties(e, r) { for (var t = 0; t < r.length; t++) { var o = r[t]; o.enumerable = o.enumerable || !1, o.configurable = !0, "value" in o && (o.writable = !0), Object.defineProperty(e, _toPropertyKey(o.key), o); } }
-function _createClass(e, r, t) { return r && _defineProperties(e.prototype, r), t && _defineProperties(e, t), Object.defineProperty(e, "prototype", { writable: !1 }), e; }
-function _classCallCheck(a, n) { if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function"); }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
-function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -3648,11 +3635,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
-  var _require = __webpack_require__(578),
-    SessionExpirationWarningClient = _require.SessionExpirationWarningClient,
-    sendActivity = _require.sendActivity;
-  var _require2 = __webpack_require__(791),
-    ContactClient = _require2.ContactClient;
+  const {
+    SessionExpirationWarningClient,
+    sendActivity
+  } = __webpack_require__(578);
+  const {
+    ContactClient
+  } = __webpack_require__(791);
 
   /*----------------------------------------------------------------
    * enum AgentStateType
@@ -3821,18 +3810,16 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /*----------------------------------------------------------------
    * Quick Responses APIs (utilizes public api proxy -- No shared worker involvement)
    */
-  var QuickResponses = /*#__PURE__*/_createClass(function QuickResponses() {
-    _classCallCheck(this, QuickResponses);
-  });
+  class QuickResponses {}
   _defineProperty(QuickResponses, "isEnabled", function () {
-    var client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
+    const client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
     return new Promise(function (resolve, reject) {
       client.call(connect.ApiProxyClientMethods.QR_INTEGRATION_EXISTS, null, {
-        success: function success(data) {
+        success: function (data) {
           connect.getLog().info("Quick Responses isEnabled succeeded").withObject(data).sendInternalLogToServer();
           resolve(data);
         },
-        failure: function failure(err) {
+        failure: function (err) {
           connect.getLog().error("Quick Responses isEnabled failed").withException(err).sendInternalLogToServer();
           reject(err);
         }
@@ -3840,17 +3827,17 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     });
   });
   _defineProperty(QuickResponses, "searchQuickResponses", function (params) {
-    var client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
-    var attributes = params !== null && params !== void 0 && params.contactId ? new Contact(params.contactId).getAttributes() : undefined;
+    const client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
+    const attributes = params !== null && params !== void 0 && params.contactId ? new Contact(params.contactId).getAttributes() : undefined;
     return new Promise(function (resolve, reject) {
       client.call(connect.ApiProxyClientMethods.QR_SEARCH_QUICK_RESPONSES, _objectSpread(_objectSpread({}, params), {}, {
-        attributes: attributes
+        attributes
       }), {
-        success: function success(data) {
+        success: function (data) {
           connect.getLog().info("searchQuickResponses succeeded").withObject(data).sendInternalLogToServer();
           resolve(data);
         },
-        failure: function failure(err) {
+        failure: function (err) {
           connect.getLog().error("searchQuickResponses failed").withException(err).sendInternalLogToServer();
           reject(err);
         }
@@ -3862,7 +3849,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /*----------------------------------------------------------------
    * class Agent
    */
-  var Agent = function Agent() {
+  var Agent = function () {
     if (!connect.agent.initialized) {
       throw new connect.StateError("The agent is not yet initialized!");
     }
@@ -4068,7 +4055,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       client.call(connect.ClientMethods.UPDATE_AGENT_CONFIGURATION, {
         configuration: connect.assertNotNull(configuration, 'configuration')
       }, {
-        success: function success(data) {
+        success: function (data) {
           // We need to ask the shared worker to reload agent config
           // once we change it so every tab has accurate config.
           var conduit = connect.core.getUpstream();
@@ -4137,7 +4124,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       nextToken: pageInfo.nextToken || null,
       maxResults: pageInfo.maxResults
     }, {
-      success: function success(data) {
+      success: function (data) {
         if (data.nextToken) {
           self.getEndpoints(queueARNs, callbacks, {
             nextToken: data.nextToken,
@@ -4163,20 +4150,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   //Internal identifier.
   Agent.prototype._getResourceId = function () {
     var queueArns = this.getAllQueueARNs();
-    var _iterator = _createForOfIteratorHelper(queueArns),
-      _step;
-    try {
-      for (_iterator.s(); !(_step = _iterator.n()).done;) {
-        var queueArn = _step.value;
-        var agentIdMatch = queueArn.match(/\/agent\/([^/]+)/);
-        if (agentIdMatch) {
-          return agentIdMatch[1];
-        }
+    for (let queueArn of queueArns) {
+      const agentIdMatch = queueArn.match(/\/agent\/([^/]+)/);
+      if (agentIdMatch) {
+        return agentIdMatch[1];
       }
-    } catch (err) {
-      _iterator.e(err);
-    } finally {
-      _iterator.f();
     }
     return new Error("Agent.prototype._getResourceId: queueArns did not contain agentResourceId: ", queueArns);
   };
@@ -4187,7 +4165,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /*----------------------------------------------------------------
    * class AgentSnapshot
    */
-  var AgentSnapshot = function AgentSnapshot(agentData) {
+  var AgentSnapshot = function (agentData) {
     connect.Agent.call(this);
     this.agentData = agentData;
   };
@@ -4203,7 +4181,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /*----------------------------------------------------------------
    * class Contact
    */
-  var Contact = function Contact(contactId) {
+  var Contact = function (contactId) {
     this.contactId = contactId;
   };
   Contact.prototype._getSDKClient = function () {
@@ -4212,7 +4190,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
     try {
       var _connect$core, _connect$core2, _connect$core3;
-      var providerData = {
+      const providerData = {
         providerId: (_connect$core = connect.core) === null || _connect$core === void 0 || (_connect$core = _connect$core._amazonConnectProviderData) === null || _connect$core === void 0 || (_connect$core = _connect$core.provider) === null || _connect$core === void 0 ? void 0 : _connect$core.id,
         config: (_connect$core2 = connect.core) === null || _connect$core2 === void 0 || (_connect$core2 = _connect$core2._amazonConnectProviderData) === null || _connect$core2 === void 0 || (_connect$core2 = _connect$core2.provider) === null || _connect$core2 === void 0 ? void 0 : _connect$core2.config,
         isStreamsProvider: (_connect$core3 = connect.core) === null || _connect$core3 === void 0 || (_connect$core3 = _connect$core3._amazonConnectProviderData) === null || _connect$core3 === void 0 ? void 0 : _connect$core3.isStreamsProvider
@@ -4222,7 +4200,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       return this.contactClient;
     } catch (e) {
       var _connect$core4, _connect$core5, _connect$core6;
-      var errorData = {
+      const errorData = {
         providerId: (_connect$core4 = connect.core) === null || _connect$core4 === void 0 || (_connect$core4 = _connect$core4._amazonConnectProviderData) === null || _connect$core4 === void 0 || (_connect$core4 = _connect$core4.provider) === null || _connect$core4 === void 0 ? void 0 : _connect$core4.id,
         config: (_connect$core5 = connect.core) === null || _connect$core5 === void 0 || (_connect$core5 = _connect$core5._amazonConnectProviderData) === null || _connect$core5 === void 0 || (_connect$core5 = _connect$core5.provider) === null || _connect$core5 === void 0 ? void 0 : _connect$core5.config,
         isStreamsProvider: (_connect$core6 = connect.core) === null || _connect$core6 === void 0 || (_connect$core6 = _connect$core6._amazonConnectProviderData) === null || _connect$core6 === void 0 ? void 0 : _connect$core6.isStreamsProvider,
@@ -4295,18 +4273,18 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     return this._getData().contactDuration;
   };
   Contact.prototype.engagePreviewContact = function () {
-    var contactClient = this._getSDKClient();
-    var contactId = this.getContactId();
+    const contactClient = this._getSDKClient();
+    const contactId = this.getContactId();
     return contactClient.engagePreviewContact(contactId);
   };
   Contact.prototype.getPreviewConfiguration = function () {
-    var contactClient = this._getSDKClient();
-    var contactId = this.getContactId();
+    const contactClient = this._getSDKClient();
+    const contactId = this.getContactId();
     return contactClient.getPreviewConfiguration(contactId);
   };
   Contact.prototype.isPreviewMode = function () {
-    var contactClient = this._getSDKClient();
-    var contactId = this.getContactId();
+    const contactClient = this._getSDKClient();
+    const contactId = this.getContactId();
     return contactClient.isPreviewMode(contactId);
   };
   Contact.prototype.getState = function () {
@@ -4367,9 +4345,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     });
   };
   Contact.prototype.getActiveConnections = function () {
-    return this.getConnections().filter(function (conn) {
-      return conn.isActive();
-    });
+    return this.getConnections().filter(conn => conn.isActive());
   };
   Contact.prototype.hasTwoActiveParticipants = function () {
     return this.getActiveConnections().length === 2;
@@ -4414,16 +4390,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     return this._getData().segmentAttributes;
   };
   Contact.prototype.getContactSubtype = function () {
-    var segmentAttributes = this.getSegmentAttributes();
+    const segmentAttributes = this.getSegmentAttributes();
     return segmentAttributes && segmentAttributes["connect:Subtype"] ? segmentAttributes["connect:Subtype"].ValueString : null;
   };
   Contact.prototype.isSoftphoneCall = function () {
     if (this.getType() !== connect.ContactType.VOICE && this.getType() !== connect.ContactType.QUEUE_CALLBACK) {
       return false;
     }
-    return Boolean(this.getConnections().find(function (conn) {
-      return conn.getSoftphoneMediaInfo();
-    }));
+    return Boolean(this.getConnections().find(conn => conn.getSoftphoneMediaInfo()));
   };
   Contact.prototype.hasVideoRTCCapabilities = function () {
     return connect.find(this.getConnections(), function (conn) {
@@ -4431,11 +4405,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }) !== null;
   };
   Contact.prototype.canAgentSendVideo = function () {
-    var agentConnection = this.getAgentConnection();
+    const agentConnection = this.getAgentConnection();
     return agentConnection.canSendVideo && agentConnection.canSendVideo();
   };
   Contact.prototype.canAgentReceiveVideo = function () {
-    var initialConn = this.getInitialConnection();
+    const initialConn = this.getInitialConnection();
     // If customer has SEND capability, then agent can receive video
     if (initialConn.canSendVideo && initialConn.canSendVideo()) {
       return true;
@@ -4443,7 +4417,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     // If customer does not have SEND capability, right now we do not populate SEND capability in third party connection
     // so if customer does not have SEND capability then use agent SEND capability to determine that agent can
     // receive videos from other parties (other agents, superiors).
-    var thirdPartyConns = this.getThirdPartyConnections();
+    const thirdPartyConns = this.getThirdPartyConnections();
     return thirdPartyConns && thirdPartyConns.length > 0 && this.canAgentSendVideo();
   };
   Contact.prototype.hasScreenShareCapability = function () {
@@ -4452,116 +4426,79 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }) !== null;
   };
   Contact.prototype.canAgentSendScreenShare = function () {
-    var agentConnection = this.getAgentConnection();
+    const agentConnection = this.getAgentConnection();
     return agentConnection.canSendScreenShare && agentConnection.canSendScreenShare();
   };
   Contact.prototype.canCustomerSendScreenShare = function () {
-    var initialConn = this.getInitialConnection();
+    const initialConn = this.getInitialConnection();
     return initialConn.canSendScreenShare && initialConn.canSendScreenShare();
   };
-  Contact.prototype.startScreenSharing = /*#__PURE__*/function () {
-    var _ref = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee(skipSessionInitiation) {
-      var contactId, client, body;
-      return _regeneratorRuntime().wrap(function _callee$(_context) {
-        while (1) switch (_context.prev = _context.next) {
-          case 0:
-            contactId = this.getContactId();
-            if (!(this.getContactSubtype() !== "connect:WebRTC")) {
-              _context.next = 3;
-              break;
-            }
-            throw new Error("Screen sharing is only supported for WebRTC contacts.");
-          case 3:
-            if (this.isConnected()) {
-              _context.next = 5;
-              break;
-            }
-            throw new connect.StateError('Contact %s is not connected.', contactId);
-          case 5:
-            if (skipSessionInitiation) {
-              _context.next = 11;
-              break;
-            }
-            client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
-            body = {
-              "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
-              "ContactId": contactId,
-              "ParticipantId": this.getAgentConnection().getConnectionId()
-            };
-            return _context.abrupt("return", new Promise(function (resolve, reject) {
-              client.call(connect.ApiProxyClientMethods.START_SCREEN_SHARING, body, {
-                success: function success(data) {
-                  connect.getLog().info("startScreenSharing succeeded").withObject(data).sendInternalLogToServer();
-                  connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-                    event: connect.ContactEvents.SCREEN_SHARING_STARTED,
-                    data: {
-                      contactId: contactId
-                    }
-                  });
-                  resolve(data);
-                },
-                failure: function failure(err) {
-                  connect.getLog().error("startScreenSharing failed").withException(err).sendInternalLogToServer();
-                  connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-                    event: connect.ContactEvents.SCREEN_SHARING_ERROR,
-                    data: {
-                      contactId: contactId
-                    }
-                  });
-                  reject(err);
-                }
-              });
-            }));
-          case 11:
+  Contact.prototype.startScreenSharing = async function (skipSessionInitiation) {
+    const contactId = this.getContactId();
+    if (this.getContactSubtype() !== "connect:WebRTC") {
+      throw new Error("Screen sharing is only supported for WebRTC contacts.");
+    }
+    if (!this.isConnected()) {
+      throw new connect.StateError('Contact %s is not connected.', contactId);
+    }
+    if (!skipSessionInitiation) {
+      const client = connect.isCRM() ? connect.core.getClient() : connect.core.getApiProxyClient();
+      const body = {
+        "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
+        "ContactId": contactId,
+        "ParticipantId": this.getAgentConnection().getConnectionId()
+      };
+      return new Promise(function (resolve, reject) {
+        client.call(connect.ApiProxyClientMethods.START_SCREEN_SHARING, body, {
+          success: function (data) {
+            connect.getLog().info("startScreenSharing succeeded").withObject(data).sendInternalLogToServer();
             connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
               event: connect.ContactEvents.SCREEN_SHARING_STARTED,
               data: {
                 contactId: contactId
               }
             });
-          case 12:
-          case "end":
-            return _context.stop();
+            resolve(data);
+          },
+          failure: function (err) {
+            connect.getLog().error("startScreenSharing failed").withException(err).sendInternalLogToServer();
+            connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+              event: connect.ContactEvents.SCREEN_SHARING_ERROR,
+              data: {
+                contactId: contactId
+              }
+            });
+            reject(err);
+          }
+        });
+      });
+    } else {
+      connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+        event: connect.ContactEvents.SCREEN_SHARING_STARTED,
+        data: {
+          contactId: contactId
         }
-      }, _callee, this);
-    }));
-    return function (_x) {
-      return _ref.apply(this, arguments);
-    };
-  }();
+      });
+    }
+  };
   Contact.prototype.onScreenSharingStarted = function (f) {
     return connect.core.getEventBus().subscribe(connect.ContactEvents.SCREEN_SHARING_STARTED, f);
   };
-  Contact.prototype.stopScreenSharing = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee2() {
-    var contactId;
-    return _regeneratorRuntime().wrap(function _callee2$(_context2) {
-      while (1) switch (_context2.prev = _context2.next) {
-        case 0:
-          contactId = this.getContactId();
-          if (!(this.getContactSubtype() !== "connect:WebRTC")) {
-            _context2.next = 3;
-            break;
-          }
-          throw new Error("Screen sharing is only supported for WebRTC contacts.");
-        case 3:
-          if (this.isConnected()) {
-            _context2.next = 5;
-            break;
-          }
-          throw new connect.StateError('Contact %s is not connected.', contactId);
-        case 5:
-          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-            event: connect.ContactEvents.SCREEN_SHARING_STOPPED,
-            data: {
-              contactId: contactId
-            }
-          });
-        case 6:
-        case "end":
-          return _context2.stop();
+  Contact.prototype.stopScreenSharing = async function () {
+    const contactId = this.getContactId();
+    if (this.getContactSubtype() !== "connect:WebRTC") {
+      throw new Error("Screen sharing is only supported for WebRTC contacts.");
+    }
+    if (!this.isConnected()) {
+      throw new connect.StateError('Contact %s is not connected.', contactId);
+    }
+    connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+      event: connect.ContactEvents.SCREEN_SHARING_STOPPED,
+      data: {
+        contactId: contactId
       }
-    }, _callee2, this);
-  }));
+    });
+  };
   Contact.prototype.onScreenSharingStopped = function (f) {
     return connect.core.getEventBus().subscribe(connect.ContactEvents.SCREEN_SHARING_STOPPED, f);
   };
@@ -4596,7 +4533,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     client.call(connect.ClientMethods.ACCEPT_CONTACT, {
       contactId: contactId
     }, {
-      success: function success(data) {
+      success: function (data) {
         var conduit = connect.core.getUpstream();
         conduit.sendUpstream(connect.EventType.BROADCAST, {
           event: connect.ContactEvents.ACCEPTED,
@@ -4621,9 +4558,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           callbacks.success(data);
         }
       },
-      failure: function failure(err, data) {
+      failure: function (err, data) {
         connect.getLog().error("Accept Contact failed").sendInternalLogToServer().withException(err).withObject({
-          data: data
+          data
         });
         connect.publishMetric({
           name: "ContactAcceptFailure",
@@ -4751,12 +4688,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
   };
   Contact.prototype.isUnderSupervision = function () {
-    var nonAgentConnections = this.getConnections().filter(function (conn) {
-      return conn.getType() !== connect.ConnectionType.AGENT;
-    });
-    var supervisorConnection = nonAgentConnections && nonAgentConnections.find(function (conn) {
-      return conn.isBarge() && conn.isActive();
-    });
+    var nonAgentConnections = this.getConnections().filter(conn => conn.getType() !== connect.ConnectionType.AGENT);
+    var supervisorConnection = nonAgentConnections && nonAgentConnections.find(conn => conn.isBarge() && conn.isActive());
     return supervisorConnection !== undefined;
   };
   Contact.prototype.silentMonitor = function (callbacks) {
@@ -4778,32 +4711,32 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }, callbacks);
   };
   Contact.prototype.addParticipant = function (endpointIn, options) {
-    var client = connect.core.getClient();
-    var endpoint = new connect.Endpoint(endpointIn);
+    const client = connect.core.getClient();
+    const endpoint = new connect.Endpoint(endpointIn);
 
     // endpointId is not defined in the API model, adding it will cause the API to reject
     delete endpoint.endpointId;
     client.call(connect.ClientMethods.ADD_NEW_CONNECTION, {
       contactId: this.getContactId(),
-      endpoint: endpoint
+      endpoint
     }, options);
   };
   Contact.prototype.transfer = function (endpointIn, options) {
-    var client = connect.core.getClient();
-    var endpoint = new connect.Endpoint(endpointIn);
+    const client = connect.core.getClient();
+    const endpoint = new connect.Endpoint(endpointIn);
 
     // endpointId is not defined in the API model, adding it will cause the API to reject
     delete endpoint.endpointId;
     client.call(connect.ClientMethods.TRANSFER_CONTACT, {
       contactId: this.getContactId(),
-      endpoint: endpoint
+      endpoint
     }, options);
   };
 
   /*----------------------------------------------------------------
    * class ContactSnapshot
    */
-  var ContactSnapshot = function ContactSnapshot(contactData) {
+  var ContactSnapshot = function (contactData) {
     connect.Contact.call(this, contactData.contactId);
     this.contactData = contactData;
   };
@@ -4819,7 +4752,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /*----------------------------------------------------------------
    * class Connection
    */
-  var Connection = function Connection(contactId, connectionId) {
+  var Connection = function (contactId, connectionId) {
     this.contactId = contactId;
     this.connectionId = connectionId;
     this._initMediaController();
@@ -4913,7 +4846,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   Connection.prototype._initMediaController = function () {
     if (this.getMediaInfo()) {
-      connect.core.mediaFactory.get(this)["catch"](function () {});
+      connect.core.mediaFactory.get(this).catch(function () {});
     }
   };
 
@@ -4938,7 +4871,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   * Voice authenticator VoiceId
   */
 
-  var VoiceId = function VoiceId(contactId) {
+  var VoiceId = function (contactId) {
     this.contactId = contactId;
   };
   VoiceId.prototype.getSpeakerId = function () {
@@ -4946,14 +4879,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     self.checkConferenceCall();
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      var params = {
+      const params = {
         "contactId": self.contactId,
         "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "awsAccountId": connect.core.getAgentDataProvider().getAWSAccountId()
       };
       connect.getLog().info("getSpeakerId called").withObject(params).sendInternalLogToServer();
       client.call(connect.AgentAppClientMethods.GET_CONTACT, params, {
-        success: function success(data) {
+        success: function (data) {
           if (data.contactData.customerId) {
             var obj = {
               speakerId: data.contactData.customerId
@@ -4965,7 +4898,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             reject(error);
           }
         },
-        failure: function failure(err) {
+        failure: function (err) {
           connect.getLog().error("Get SpeakerId failed").withObject({
             err: err
           }).sendInternalLogToServer();
@@ -4982,17 +4915,17 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function (data) {
         self.getDomainId().then(function (domainId) {
-          var params = {
+          const params = {
             "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
             "DomainId": domainId
           };
           connect.getLog().info("getSpeakerStatus called").withObject(params).sendInternalLogToServer();
           client.call(connect.AgentAppClientMethods.DESCRIBE_SPEAKER, params, {
-            success: function success(data) {
+            success: function (data) {
               connect.getLog().info("getSpeakerStatus succeeded").withObject(data).sendInternalLogToServer();
               resolve(data);
             },
-            failure: function failure(err) {
+            failure: function (err) {
               var error;
               var parsedErr = JSON.parse(err);
               switch (parsedErr.status) {
@@ -5012,10 +4945,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
               }
             }
           });
-        })["catch"](function (err) {
+        }).catch(function (err) {
           reject(err);
         });
-      })["catch"](function (err) {
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -5026,7 +4959,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      var params = {
+      const params = {
         "ContactId": self.contactId,
         "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
@@ -5038,11 +4971,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       };
       connect.getLog().info("_optOutSpeakerInLcms called").withObject(params).sendInternalLogToServer();
       client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, params, {
-        success: function success(data) {
+        success: function (data) {
           connect.getLog().info("optOutSpeakerInLcms succeeded").withObject(data).sendInternalLogToServer();
           resolve(data);
         },
-        failure: function failure(err) {
+        failure: function (err) {
           connect.getLog().error("optOutSpeakerInLcms failed").withObject({
             err: err
           }).sendInternalLogToServer();
@@ -5060,18 +4993,18 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       self.getSpeakerId().then(function (data) {
         self.getDomainId().then(function (domainId) {
           var speakerId = data.speakerId;
-          var params = {
+          const params = {
             "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
             "DomainId": domainId
           };
           connect.getLog().info("optOutSpeaker called").withObject(params).sendInternalLogToServer();
           client.call(connect.AgentAppClientMethods.OPT_OUT_SPEAKER, params, {
-            success: function success(data) {
-              self._optOutSpeakerInLcms(speakerId, data.generatedSpeakerId)["catch"](function () {});
+            success: function (data) {
+              self._optOutSpeakerInLcms(speakerId, data.generatedSpeakerId).catch(function () {});
               connect.getLog().info("optOutSpeaker succeeded").withObject(data).sendInternalLogToServer();
               resolve(data);
             },
-            failure: function failure(err) {
+            failure: function (err) {
               connect.getLog().error("optOutSpeaker failed").withObject({
                 err: err
               }).sendInternalLogToServer();
@@ -5079,10 +5012,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
               reject(error);
             }
           });
-        })["catch"](function (err) {
+        }).catch(function (err) {
           reject(err);
         });
-      })["catch"](function (err) {
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -5094,17 +5027,17 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     return new Promise(function (resolve, reject) {
       self.getSpeakerId().then(function (data) {
         self.getDomainId().then(function (domainId) {
-          var params = {
+          const params = {
             "SpeakerId": connect.assertNotNull(data.speakerId, 'speakerId'),
             "DomainId": domainId
           };
           connect.getLog().info("deleteSpeaker called").withObject(params).sendInternalLogToServer();
           client.call(connect.AgentAppClientMethods.DELETE_SPEAKER, params, {
-            success: function success(data) {
+            success: function (data) {
               connect.getLog().info("deleteSpeaker succeeded").withObject(data).sendInternalLogToServer();
               resolve(data);
             },
-            failure: function failure(err) {
+            failure: function (err) {
               connect.getLog().error("deleteSpeaker failed").withObject({
                 err: err
               }).sendInternalLogToServer();
@@ -5112,10 +5045,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
               reject(error);
             }
           });
-        })["catch"](function (err) {
+        }).catch(function (err) {
           reject(err);
         });
-      })["catch"](function (err) {
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -5126,7 +5059,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function (domainId) {
-        var params = {
+        const params = {
           "contactId": self.contactId,
           "instanceId": connect.core.getAgentDataProvider().getInstanceId(),
           "customerAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
@@ -5135,7 +5068,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         };
         connect.getLog().info("startSession called").withObject(params).sendInternalLogToServer();
         client.call(connect.AgentAppClientMethods.START_VOICE_ID_SESSION, params, {
-          success: function success(data) {
+          success: function (data) {
             if (data.sessionId) {
               resolve(data);
             } else {
@@ -5146,7 +5079,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
               reject(error);
             }
           },
-          failure: function failure(err) {
+          failure: function (err) {
             connect.getLog().error("startVoiceIdSession failed").withObject({
               err: err
             }).sendInternalLogToServer();
@@ -5154,7 +5087,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             reject(error);
           }
         });
-      })["catch"](function (err) {
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -5168,13 +5101,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     return new Promise(function (resolve, reject) {
       function evaluate() {
         self.getDomainId().then(function (domainId) {
-          var params = {
+          const params = {
             "SessionNameOrId": contactData.initialContactId || this.contactId,
             "DomainId": domainId
           };
           connect.getLog().info("evaluateSpeaker called").withObject(params).sendInternalLogToServer();
           client.call(connect.AgentAppClientMethods.EVALUATE_SESSION, params, {
-            success: function success(data) {
+            success: function (data) {
               if (++pollTimes < connect.VoiceIdConstants.EVALUATION_MAX_POLL_TIMES) {
                 if (data.StreamingStatus === connect.VoiceIdStreamingStatus.PENDING_CONFIGURATION) {
                   setTimeout(evaluate, connect.VoiceIdConstants.EVALUATION_POLLING_INTERVAL);
@@ -5253,7 +5186,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
                 reject(error);
               }
             },
-            failure: function failure(err) {
+            failure: function (err) {
               var error;
               var parsedErr = JSON.parse(err);
               switch (parsedErr.status) {
@@ -5273,14 +5206,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
               reject(error);
             }
           });
-        })["catch"](function (err) {
+        }).catch(function (err) {
           reject(err);
         });
       }
       if (!startNew) {
         self.syncSpeakerId().then(function () {
           evaluate();
-        })["catch"](function (err) {
+        }).catch(function (err) {
           connect.getLog().error("syncSpeakerId failed when session startNew=false").withObject({
             err: err
           }).sendInternalLogToServer();
@@ -5290,13 +5223,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         self.startSession().then(function (data) {
           self.syncSpeakerId().then(function (data) {
             setTimeout(evaluate, connect.VoiceIdConstants.EVALUATE_SESSION_DELAY);
-          })["catch"](function (err) {
+          }).catch(function (err) {
             connect.getLog().error("syncSpeakerId failed when session startNew=true").withObject({
               err: err
             }).sendInternalLogToServer();
             reject(err);
           });
-        })["catch"](function (err) {
+        }).catch(function (err) {
           connect.getLog().error("startSession failed when session startNew=true").withObject({
             err: err
           }).sendInternalLogToServer();
@@ -5311,16 +5244,16 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function (domainId) {
-        var params = {
+        const params = {
           "SessionNameOrId": contactData.initialContactId || this.contactId,
           "DomainId": domainId
         };
         connect.getLog().info("describeSession called").withObject(params).sendInternalLogToServer();
         client.call(connect.AgentAppClientMethods.DESCRIBE_SESSION, params, {
-          success: function success(data) {
+          success: function (data) {
             resolve(data);
           },
-          failure: function failure(err) {
+          failure: function (err) {
             connect.getLog().error("describeSession failed").withObject({
               err: err
             }).sendInternalLogToServer();
@@ -5328,7 +5261,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             reject(error);
           }
         });
-      })["catch"](function (err) {
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -5360,7 +5293,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
                   setTimeout(function () {
                     self.startSession().then(function (data) {
                       describe();
-                    })["catch"](function (err, data) {
+                    }).catch(function (err, data) {
                       reject(err);
                     });
                   }, connect.VoiceIdConstants.START_SESSION_DELAY);
@@ -5392,16 +5325,16 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           if (data.Speaker && data.Speaker.Status == connect.VoiceIdSpeakerStatus.OPTED_OUT) {
             self.deleteSpeaker().then(function () {
               self.enrollSpeakerHelper(resolve, reject, callbackOnAudioCollectionComplete);
-            })["catch"](function (err) {
+            }).catch(function (err) {
               reject(err);
             });
           } else {
             self.enrollSpeakerHelper(resolve, reject, callbackOnAudioCollectionComplete);
           }
-        })["catch"](function (err) {
+        }).catch(function (err) {
           reject(err);
         });
-      })["catch"](function (err) {
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -5411,13 +5344,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var client = connect.core.getClient();
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     self.getDomainId().then(function (domainId) {
-      var params = {
+      const params = {
         "SessionNameOrId": contactData.initialContactId || this.contactId,
         "DomainId": domainId
       };
       connect.getLog().info("enrollSpeakerHelper called").withObject(params).sendInternalLogToServer();
       client.call(connect.AgentAppClientMethods.ENROLL_BY_SESSION, params, {
-        success: function success(data) {
+        success: function (data) {
           if (data.Status === connect.VoiceIdEnrollmentRequestStatus.COMPLETED) {
             connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
             resolve(data);
@@ -5425,12 +5358,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             self.checkEnrollmentStatus(callbackOnAudioCollectionComplete).then(function (data) {
               connect.getLog().info("enrollSpeaker succeeded").withObject(data).sendInternalLogToServer();
               resolve(data);
-            })["catch"](function (err) {
+            }).catch(function (err) {
               reject(err);
             });
           }
         },
-        failure: function failure(err) {
+        failure: function (err) {
           connect.getLog().error("enrollSpeaker failed").withObject({
             err: err
           }).sendInternalLogToServer();
@@ -5438,7 +5371,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           reject(error);
         }
       });
-    })["catch"](function (err) {
+    }).catch(function (err) {
       reject(err);
     });
   };
@@ -5448,7 +5381,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var self = this;
     var client = connect.core.getClient();
     return new Promise(function (resolve, reject) {
-      var params = {
+      const params = {
         "ContactId": self.contactId,
         "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
         "AWSAccountId": connect.core.getAgentDataProvider().getAWSAccountId(),
@@ -5459,11 +5392,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       };
       connect.getLog().info("_updateSpeakerIdInLcms called").withObject(params).sendInternalLogToServer();
       client.call(connect.AgentAppClientMethods.UPDATE_VOICE_ID_DATA, params, {
-        success: function success(data) {
+        success: function (data) {
           connect.getLog().info("updateSpeakerIdInLcms succeeded").withObject(data).sendInternalLogToServer();
           resolve(data);
         },
-        failure: function failure(err) {
+        failure: function (err) {
           connect.getLog().error("updateSpeakerIdInLcms failed").withObject({
             err: err
           }).sendInternalLogToServer();
@@ -5480,23 +5413,23 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     return new Promise(function (resolve, reject) {
       self.getDomainId().then(function (domainId) {
-        var params = {
+        const params = {
           "SessionNameOrId": contactData.initialContactId || this.contactId,
           "SpeakerId": connect.assertNotNull(speakerId, 'speakerId'),
           "DomainId": domainId
         };
         connect.getLog().info("updateSpeakerIdInVoiceId called").withObject(params).sendInternalLogToServer();
         client.call(connect.AgentAppClientMethods.UPDATE_SESSION, params, {
-          success: function success(data) {
+          success: function (data) {
             connect.getLog().info("updateSpeakerIdInVoiceId succeeded").withObject(data).sendInternalLogToServer();
             var generatedSpeakerId = data && data.Session && data.Session.GeneratedSpeakerId;
             self._updateSpeakerIdInLcms(speakerId, generatedSpeakerId).then(function () {
               resolve(data);
-            })["catch"](function (err) {
+            }).catch(function (err) {
               reject(err);
             });
           },
-          failure: function failure(err) {
+          failure: function (err) {
             var error;
             var parsedErr = JSON.parse(err);
             switch (parsedErr.status) {
@@ -5516,7 +5449,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             reject(error);
           }
         });
-      })["catch"](function (err) {
+      }).catch(function (err) {
         reject(err);
       });
     });
@@ -5528,30 +5461,30 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       self.getSpeakerId().then(function (data) {
         self.updateSpeakerIdInVoiceId(data.speakerId).then(function (data) {
           resolve(data);
-        })["catch"](function (err) {
+        }).catch(function (err) {
           reject(err);
         });
-      })["catch"](function (err) {
+      }).catch(function (err) {
         reject(err);
       });
     });
   };
   VoiceId.prototype.getDomainId = function () {
     return new Promise(function (resolve, reject) {
-      var agent = new connect.Agent();
+      const agent = new connect.Agent();
       if (!agent.getPermissions().includes(connect.AgentPermissions.VOICE_ID)) {
         reject(new Error("Agent doesn't have the permission for Voice ID"));
       } else if (connect.core.voiceIdDomainId) {
         resolve(connect.core.voiceIdDomainId);
       } else {
         var client = connect.core.getClient();
-        var params = {
+        const params = {
           "InstanceId": connect.core.getAgentDataProvider().getInstanceId(),
           "IntegrationType": "VOICE_ID"
         };
         connect.getLog().info("getDomainId called").withObject(params).sendInternalLogToServer();
         client.call(connect.AgentAppClientMethods.LIST_INTEGRATION_ASSOCIATIONS, params, {
-          success: function success(data) {
+          success: function (data) {
             try {
               var domainId;
               if (data.IntegrationAssociationSummaryList.length >= 1) {
@@ -5580,7 +5513,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
               reject(error);
             }
           },
-          failure: function failure(err) {
+          failure: function (err) {
             connect.getLog().error("getDomainId failed").withObject({
               err: err
             }).sendInternalLogToServer();
@@ -5625,7 +5558,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * @param {number} connectionId
    * @description - Provides voice media specific operations
    */
-  var VoiceConnection = function VoiceConnection(contactId, connectionId) {
+  var VoiceConnection = function (contactId, connectionId) {
     this._speakerAuthenticator = new VoiceId(contactId);
     Connection.call(this, contactId, connectionId);
   };
@@ -5713,29 +5646,29 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }, callbacks);
   };
   VoiceConnection.prototype.canSendVideo = function () {
-    var capabilities = this.getCapabilities();
+    const capabilities = this.getCapabilities();
     return capabilities && capabilities.Video === connect.VideoCapability.SEND;
   };
   VoiceConnection.prototype.canSendScreenShare = function () {
-    var capabilities = this.getCapabilities();
+    const capabilities = this.getCapabilities();
     return capabilities && capabilities.ScreenShare === connect.ScreenShareCapability.SEND;
   };
   VoiceConnection.prototype.getCapabilities = function () {
     return this._getData().capabilities;
   };
   VoiceConnection.prototype.getVideoConnectionInfo = function () {
-    var client = connect.core.getClient();
-    var transportDetails = {
+    const client = connect.core.getClient();
+    const transportDetails = {
       transportType: connect.TRANSPORT_TYPES.WEB_RTC,
       contactId: this.contactId
     };
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
-        success: function success(data) {
+        success: function (data) {
           connect.getLog().info("getVideoConnectionInfo succeeded").sendInternalLogToServer();
           resolve(data.webRTCTransport);
         },
-        failure: function failure(err, data) {
+        failure: function (err, data) {
           connect.getLog().error("getVideoConnectionInfo failed").sendInternalLogToServer().withObject({
             err: err,
             data: data
@@ -5752,7 +5685,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * @param {*} connectionId
    * @description adds the chat media specific functionality
    */
-  var ChatConnection = function ChatConnection(contactId, connectionId) {
+  var ChatConnection = function (contactId, connectionId) {
     Connection.call(this, contactId, connectionId);
   };
   ChatConnection.prototype = Object.create(Connection.prototype);
@@ -5802,11 +5735,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     };
     return new Promise(function (resolve, reject) {
       client.call(connect.ClientMethods.CREATE_TRANSPORT, transportDetails, {
-        success: function success(data) {
+        success: function (data) {
           connect.getLog().info("getConnectionToken succeeded").sendInternalLogToServer();
           resolve(data);
         },
-        failure: function failure(err, data) {
+        failure: function (err, data) {
           connect.getLog().error("getConnectionToken failed").sendInternalLogToServer().withObject({
             err: err,
             data: data
@@ -5825,7 +5758,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   ChatConnection.prototype._initMediaController = function () {
     // Note that a chat media controller only needs to be produced for agent type connections.
     if (this._isAgentConnectionType()) {
-      connect.core.mediaFactory.get(this)["catch"](function () {});
+      connect.core.mediaFactory.get(this).catch(function () {});
     }
   };
   ChatConnection.prototype.isBargeEnabled = function () {
@@ -5854,15 +5787,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       //only to be used for ChatConnection
       throw new Error("Authentication details are available only for customer connection");
     }
-    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    const contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
     if (contactData !== null && contactData !== void 0 && (_contactData$segmentA = contactData.segmentAttributes) !== null && _contactData$segmentA !== void 0 && (_contactData$segmentA = _contactData$segmentA["connect:CustomerAuthentication"]) !== null && _contactData$segmentA !== void 0 && _contactData$segmentA.ValueMap) {
-      var attributesMap = contactData.segmentAttributes["connect:CustomerAuthentication"].ValueMap;
-      if (_typeof(attributesMap) === 'object' && attributesMap !== null) {
-        var returnVal = {};
-        for (var _i = 0, _Object$entries = Object.entries(attributesMap); _i < _Object$entries.length; _i++) {
-          var _Object$entries$_i = _slicedToArray(_Object$entries[_i], 2),
-            key = _Object$entries$_i[0],
-            value = _Object$entries$_i[1];
+      const attributesMap = contactData.segmentAttributes["connect:CustomerAuthentication"].ValueMap;
+      if (typeof attributesMap === 'object' && attributesMap !== null) {
+        let returnVal = {};
+        for (const [key, value] of Object.entries(attributesMap)) {
           if ((value === null || value === void 0 ? void 0 : value.ValueString) !== null) {
             returnVal[key] = value.ValueString;
           }
@@ -5873,7 +5803,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     return null;
   };
   ChatConnection.prototype.isAuthenticated = function () {
-    var authenticationDetails = this.getAuthenticationDetails();
+    const authenticationDetails = this.getAuthenticationDetails();
     return (authenticationDetails === null || authenticationDetails === void 0 ? void 0 : authenticationDetails.Status) === connect.CustomerAuthenticationStatus.AUTHENTICATED;
   };
 
@@ -5896,7 +5826,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * @param {*} connectionId
    * @description adds the task media specific functionality
    */
-  var TaskConnection = function TaskConnection(contactId, connectionId) {
+  var TaskConnection = function (contactId, connectionId) {
     Connection.call(this, contactId, connectionId);
   };
   TaskConnection.prototype = Object.create(Connection.prototype);
@@ -5922,7 +5852,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   * @param {*} connectionId
   * @description adds Email specific functionality
   */
-  var EmailConnection = function EmailConnection(contactId, connectionId) {
+  var EmailConnection = function (contactId, connectionId) {
     Connection.call(this, contactId, connectionId);
   };
   EmailConnection.prototype = Object.create(Connection.prototype);
@@ -5935,7 +5865,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /*----------------------------------------------------------------
    * class ConnectionSnapshot
    */
-  var ConnectionSnapshot = function ConnectionSnapshot(connectionData) {
+  var ConnectionSnapshot = function (connectionData) {
     connect.Connection.call(this, connectionData.contactId, connectionData.connectionId);
     this.connectionData = connectionData;
   };
@@ -5945,7 +5875,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     return this.connectionData;
   };
   ConnectionSnapshot.prototype._initMediaController = function () {};
-  var Endpoint = function Endpoint(paramsIn) {
+  var Endpoint = function (paramsIn) {
     var params = paramsIn || {};
     this.endpointARN = params.endpointId || params.endpointARN || null;
     this.endpointId = this.endpointARN;
@@ -5977,75 +5907,58 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**
    * Session Expiration Warning Manager
    */
-  var SessionExpirationWarningManager = /*#__PURE__*/function () {
-    function SessionExpirationWarningManager() {
-      _classCallCheck(this, SessionExpirationWarningManager);
+  class SessionExpirationWarningManager {
+    constructor() {
       this.sessionExpirationWarningClient = new SessionExpirationWarningClient(connect.core.getSDKClientConfig());
     }
-    return _createClass(SessionExpirationWarningManager, [{
-      key: "_getSDKClient",
-      value: function _getSDKClient() {
-        if (this.sessionExpirationWarningClient) return this.sessionExpirationWarningClient;else {
-          this.sessionExpirationWarningClient = new SessionExpirationWarningClient(connect.core.getSDKClientConfig());
-          return this.sessionExpirationWarningClient;
-        }
+    _getSDKClient() {
+      if (this.sessionExpirationWarningClient) return this.sessionExpirationWarningClient;else {
+        this.sessionExpirationWarningClient = new SessionExpirationWarningClient(connect.core.getSDKClientConfig());
+        return this.sessionExpirationWarningClient;
       }
+    }
 
-      // Triggered when the agent's session is about to expire due to inactivity
-    }, {
-      key: "onExpirationWarning",
-      value: function onExpirationWarning(f) {
-        var _this = this;
-        var handler = function handler(e) {
-          f(e);
-          return Promise.resolve();
-        };
-        this._getSDKClient().onExpirationWarning(handler);
-        return {
-          unsubscribe: function unsubscribe() {
-            return _this._getSDKClient().offExpirationWarning(handler);
-          }
-        };
-      }
+    // Triggered when the agent's session is about to expire due to inactivity
+    onExpirationWarning(f) {
+      const handler = e => {
+        f(e);
+        return Promise.resolve();
+      };
+      this._getSDKClient().onExpirationWarning(handler);
+      return {
+        unsubscribe: () => this._getSDKClient().offExpirationWarning(handler)
+      };
+    }
 
-      // Triggered when the warning has been cleared
-    }, {
-      key: "onExpirationWarningCleared",
-      value: function onExpirationWarningCleared(f) {
-        var _this2 = this;
-        var handler = function handler(e) {
-          f(e);
-          return Promise.resolve();
-        };
-        this._getSDKClient().onExpirationWarningCleared(handler);
-        return {
-          unsubscribe: function unsubscribe() {
-            return _this2._getSDKClient().offExpirationWarningCleared(handler);
-          }
-        };
-      }
+    // Triggered when the warning has been cleared
+    onExpirationWarningCleared(f) {
+      const handler = e => {
+        f(e);
+        return Promise.resolve();
+      };
+      this._getSDKClient().onExpirationWarningCleared(handler);
+      return {
+        unsubscribe: () => this._getSDKClient().offExpirationWarningCleared(handler)
+      };
+    }
 
-      /**
-       * Triggered when there is an error with updating the 
-       * agent's activity
-       */
-    }, {
-      key: "onSessionExtensionError",
-      value: function onSessionExtensionError(f) {
-        var _this3 = this;
-        var handler = function handler(e) {
-          f(e);
-          return Promise.resolve();
-        };
-        this._getSDKClient().onSessionExtensionError(handler);
-        return {
-          unsubscribe: function unsubscribe() {
-            return _this3._getSDKClient().offExpirationWarningCleared(handler);
-          }
-        };
-      }
-    }]);
-  }(); // Sends activity signals indicating that the agent is active
+    /**
+     * Triggered when there is an error with updating the 
+     * agent's activity
+     */
+    onSessionExtensionError(f) {
+      const handler = e => {
+        f(e);
+        return Promise.resolve();
+      };
+      this._getSDKClient().onSessionExtensionError(handler);
+      return {
+        unsubscribe: () => this._getSDKClient().offExpirationWarningCleared(handler)
+      };
+    }
+  }
+
+  // Sends activity signals indicating that the agent is active
   connect.sendActivity = function () {
     return sendActivity(connect.core.getSDKClientConfig().provider);
   };
@@ -6053,7 +5966,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /*----------------------------------------------------------------
    * class SoftphoneError
    */
-  var SoftphoneError = function SoftphoneError(errorType, errorMessage, endPointUrl) {
+  var SoftphoneError = function (errorType, errorMessage, endPointUrl) {
     this.errorType = errorType;
     this.errorMessage = errorMessage;
     this.endPointUrl = endPointUrl;
@@ -6120,7 +6033,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       topic: topic,
       shouldNotBecomeMasterIfNone: shouldNotBecomeMasterIfNone
     }, {
-      success: function success(data) {
+      success: function (data) {
         if (data.isMaster) {
           f_true();
         } else if (f_else) {
@@ -6146,7 +6059,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       masterClient.call(connect.MasterMethods.BECOME_MASTER, {
         topic: topic
       }, {
-        success: function success() {
+        success: function () {
           if (successCallback) {
             successCallback();
           }
@@ -6179,7 +6092,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /***/ 167:
 /***/ ((module, exports, __webpack_require__) => {
 
-var __WEBPACK_AMD_DEFINE_RESULT__;function _typeof(o){"@babel/helpers - typeof";return _typeof="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(o){return typeof o;}:function(o){return o&&"function"==typeof Symbol&&o.constructor===Symbol&&o!==Symbol.prototype?"symbol":typeof o;},_typeof(o);}// AWS SDK for JavaScript v2.1455.0
+var __WEBPACK_AMD_DEFINE_RESULT__;// AWS SDK for JavaScript v2.1455.0
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // License at https://sdk.amazonaws.com/js/BUNDLE_LICENSE.txt
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c=undefined;if(!f&&c)return require(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a;}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r);},p,p.exports,r,e,n,t);}return n[i].exports;}for(var u=undefined,i=0;i<t.length;i++)o(t[i]);return o;}return r;})()({1:[function(require,module,exports){module.exports={"version":"2.0","metadata":{"apiVersion":"2014-06-30","endpointPrefix":"cognito-identity","jsonVersion":"1.1","protocol":"json","serviceFullName":"Amazon Cognito Identity","serviceId":"Cognito Identity","signatureVersion":"v4","targetPrefix":"AWSCognitoIdentityService","uid":"cognito-identity-2014-06-30"},"operations":{"CreateIdentityPool":{"input":{"type":"structure","required":["IdentityPoolName","AllowUnauthenticatedIdentities"],"members":{"IdentityPoolName":{},"AllowUnauthenticatedIdentities":{"type":"boolean"},"AllowClassicFlow":{"type":"boolean"},"SupportedLoginProviders":{"shape":"S5"},"DeveloperProviderName":{},"OpenIdConnectProviderARNs":{"shape":"S9"},"CognitoIdentityProviders":{"shape":"Sb"},"SamlProviderARNs":{"shape":"Sg"},"IdentityPoolTags":{"shape":"Sh"}}},"output":{"shape":"Sk"}},"DeleteIdentities":{"input":{"type":"structure","required":["IdentityIdsToDelete"],"members":{"IdentityIdsToDelete":{"type":"list","member":{}}}},"output":{"type":"structure","members":{"UnprocessedIdentityIds":{"type":"list","member":{"type":"structure","members":{"IdentityId":{},"ErrorCode":{}}}}}}},"DeleteIdentityPool":{"input":{"type":"structure","required":["IdentityPoolId"],"members":{"IdentityPoolId":{}}}},"DescribeIdentity":{"input":{"type":"structure","required":["IdentityId"],"members":{"IdentityId":{}}},"output":{"shape":"Sv"}},"DescribeIdentityPool":{"input":{"type":"structure","required":["IdentityPoolId"],"members":{"IdentityPoolId":{}}},"output":{"shape":"Sk"}},"GetCredentialsForIdentity":{"input":{"type":"structure","required":["IdentityId"],"members":{"IdentityId":{},"Logins":{"shape":"S10"},"CustomRoleArn":{}}},"output":{"type":"structure","members":{"IdentityId":{},"Credentials":{"type":"structure","members":{"AccessKeyId":{},"SecretKey":{},"SessionToken":{},"Expiration":{"type":"timestamp"}}}}},"authtype":"none"},"GetId":{"input":{"type":"structure","required":["IdentityPoolId"],"members":{"AccountId":{},"IdentityPoolId":{},"Logins":{"shape":"S10"}}},"output":{"type":"structure","members":{"IdentityId":{}}},"authtype":"none"},"GetIdentityPoolRoles":{"input":{"type":"structure","required":["IdentityPoolId"],"members":{"IdentityPoolId":{}}},"output":{"type":"structure","members":{"IdentityPoolId":{},"Roles":{"shape":"S1c"},"RoleMappings":{"shape":"S1e"}}}},"GetOpenIdToken":{"input":{"type":"structure","required":["IdentityId"],"members":{"IdentityId":{},"Logins":{"shape":"S10"}}},"output":{"type":"structure","members":{"IdentityId":{},"Token":{}}},"authtype":"none"},"GetOpenIdTokenForDeveloperIdentity":{"input":{"type":"structure","required":["IdentityPoolId","Logins"],"members":{"IdentityPoolId":{},"IdentityId":{},"Logins":{"shape":"S10"},"PrincipalTags":{"shape":"S1s"},"TokenDuration":{"type":"long"}}},"output":{"type":"structure","members":{"IdentityId":{},"Token":{}}}},"GetPrincipalTagAttributeMap":{"input":{"type":"structure","required":["IdentityPoolId","IdentityProviderName"],"members":{"IdentityPoolId":{},"IdentityProviderName":{}}},"output":{"type":"structure","members":{"IdentityPoolId":{},"IdentityProviderName":{},"UseDefaults":{"type":"boolean"},"PrincipalTags":{"shape":"S1s"}}}},"ListIdentities":{"input":{"type":"structure","required":["IdentityPoolId","MaxResults"],"members":{"IdentityPoolId":{},"MaxResults":{"type":"integer"},"NextToken":{},"HideDisabled":{"type":"boolean"}}},"output":{"type":"structure","members":{"IdentityPoolId":{},"Identities":{"type":"list","member":{"shape":"Sv"}},"NextToken":{}}}},"ListIdentityPools":{"input":{"type":"structure","required":["MaxResults"],"members":{"MaxResults":{"type":"integer"},"NextToken":{}}},"output":{"type":"structure","members":{"IdentityPools":{"type":"list","member":{"type":"structure","members":{"IdentityPoolId":{},"IdentityPoolName":{}}}},"NextToken":{}}}},"ListTagsForResource":{"input":{"type":"structure","required":["ResourceArn"],"members":{"ResourceArn":{}}},"output":{"type":"structure","members":{"Tags":{"shape":"Sh"}}}},"LookupDeveloperIdentity":{"input":{"type":"structure","required":["IdentityPoolId"],"members":{"IdentityPoolId":{},"IdentityId":{},"DeveloperUserIdentifier":{},"MaxResults":{"type":"integer"},"NextToken":{}}},"output":{"type":"structure","members":{"IdentityId":{},"DeveloperUserIdentifierList":{"type":"list","member":{}},"NextToken":{}}}},"MergeDeveloperIdentities":{"input":{"type":"structure","required":["SourceUserIdentifier","DestinationUserIdentifier","DeveloperProviderName","IdentityPoolId"],"members":{"SourceUserIdentifier":{},"DestinationUserIdentifier":{},"DeveloperProviderName":{},"IdentityPoolId":{}}},"output":{"type":"structure","members":{"IdentityId":{}}}},"SetIdentityPoolRoles":{"input":{"type":"structure","required":["IdentityPoolId","Roles"],"members":{"IdentityPoolId":{},"Roles":{"shape":"S1c"},"RoleMappings":{"shape":"S1e"}}}},"SetPrincipalTagAttributeMap":{"input":{"type":"structure","required":["IdentityPoolId","IdentityProviderName"],"members":{"IdentityPoolId":{},"IdentityProviderName":{},"UseDefaults":{"type":"boolean"},"PrincipalTags":{"shape":"S1s"}}},"output":{"type":"structure","members":{"IdentityPoolId":{},"IdentityProviderName":{},"UseDefaults":{"type":"boolean"},"PrincipalTags":{"shape":"S1s"}}}},"TagResource":{"input":{"type":"structure","required":["ResourceArn","Tags"],"members":{"ResourceArn":{},"Tags":{"shape":"Sh"}}},"output":{"type":"structure","members":{}}},"UnlinkDeveloperIdentity":{"input":{"type":"structure","required":["IdentityId","IdentityPoolId","DeveloperProviderName","DeveloperUserIdentifier"],"members":{"IdentityId":{},"IdentityPoolId":{},"DeveloperProviderName":{},"DeveloperUserIdentifier":{}}}},"UnlinkIdentity":{"input":{"type":"structure","required":["IdentityId","Logins","LoginsToRemove"],"members":{"IdentityId":{},"Logins":{"shape":"S10"},"LoginsToRemove":{"shape":"Sw"}}},"authtype":"none"},"UntagResource":{"input":{"type":"structure","required":["ResourceArn","TagKeys"],"members":{"ResourceArn":{},"TagKeys":{"type":"list","member":{}}}},"output":{"type":"structure","members":{}}},"UpdateIdentityPool":{"input":{"shape":"Sk"},"output":{"shape":"Sk"}}},"shapes":{"S5":{"type":"map","key":{},"value":{}},"S9":{"type":"list","member":{}},"Sb":{"type":"list","member":{"type":"structure","members":{"ProviderName":{},"ClientId":{},"ServerSideTokenCheck":{"type":"boolean"}}}},"Sg":{"type":"list","member":{}},"Sh":{"type":"map","key":{},"value":{}},"Sk":{"type":"structure","required":["IdentityPoolId","IdentityPoolName","AllowUnauthenticatedIdentities"],"members":{"IdentityPoolId":{},"IdentityPoolName":{},"AllowUnauthenticatedIdentities":{"type":"boolean"},"AllowClassicFlow":{"type":"boolean"},"SupportedLoginProviders":{"shape":"S5"},"DeveloperProviderName":{},"OpenIdConnectProviderARNs":{"shape":"S9"},"CognitoIdentityProviders":{"shape":"Sb"},"SamlProviderARNs":{"shape":"Sg"},"IdentityPoolTags":{"shape":"Sh"}}},"Sv":{"type":"structure","members":{"IdentityId":{},"Logins":{"shape":"Sw"},"CreationDate":{"type":"timestamp"},"LastModifiedDate":{"type":"timestamp"}}},"Sw":{"type":"list","member":{}},"S10":{"type":"map","key":{},"value":{}},"S1c":{"type":"map","key":{},"value":{}},"S1e":{"type":"map","key":{},"value":{"type":"structure","required":["Type"],"members":{"Type":{},"AmbiguousRoleResolution":{},"RulesConfiguration":{"type":"structure","required":["Rules"],"members":{"Rules":{"type":"list","member":{"type":"structure","required":["Claim","MatchType","Value","RoleARN"],"members":{"Claim":{},"MatchType":{},"Value":{},"RoleARN":{}}}}}}}}},"S1s":{"type":"map","key":{},"value":{}}}};},{}],2:[function(require,module,exports){module.exports={"pagination":{"ListIdentityPools":{"input_token":"NextToken","limit_key":"MaxResults","output_token":"NextToken","result_key":"IdentityPools"}}};},{}],3:[function(require,module,exports){module.exports={"version":"2.0","metadata":{"apiVersion":"2017-02-15","endpointPrefix":"connect","jsonVersion":"1.0","protocol":"json","serviceAbbreviation":"Connect","serviceFullName":"AmazonConnectCTIService","signatureVersion":"","targetPrefix":"AmazonConnectCTIService","uid":"connect-2017-02-15"},"operations":{"AcceptContact":{"input":{"type":"structure","required":["authentication","contactId"],"members":{"authentication":{"shape":"S2"},"contactId":{}}},"output":{"type":"structure","members":{}}},"ClearContact":{"input":{"type":"structure","required":["contactId"],"members":{"contactId":{}}},"output":{"type":"structure","members":{}}},"CompleteContact":{"input":{"type":"structure","required":["contactId"],"members":{"contactId":{}}},"output":{"type":"structure","members":{}}},"ConferenceConnections":{"input":{"type":"structure","required":["authentication","contactId"],"members":{"authentication":{"shape":"S2"},"contactId":{}}},"output":{"type":"structure","members":{}}},"CreateAdditionalConnection":{"input":{"type":"structure","required":["authentication","contactId","endpoint"],"members":{"authentication":{"shape":"S2"},"contactId":{},"endpoint":{"shape":"Se"}}},"output":{"type":"structure","members":{}}},"CreateOutboundContact":{"input":{"type":"structure","required":["authentication","endpoint"],"members":{"authentication":{"shape":"S2"},"endpoint":{"shape":"Se"},"queueARN":{},"relatedContactId":{}}},"output":{"type":"structure","members":{}}},"CreateTaskContact":{"input":{"type":"structure","required":["endpoint","name"],"members":{"endpoint":{"shape":"Se"},"previousContactId":{},"name":{},"description":{},"references":{"shape":"St"},"idempotencyToken":{},"scheduledTime":{"type":"long"},"relatedContactId":{}}},"output":{"type":"structure","members":{"contactId":{}}}},"CreateTransport":{"input":{"type":"structure","required":["transportType","authentication"],"members":{"transportType":{},"participantId":{},"contactId":{},"softphoneClientId":{},"authentication":{"shape":"S2"}}},"output":{"type":"structure","members":{"webSocketTransport":{"type":"structure","required":["url","transportLifeTimeInSeconds"],"members":{"url":{},"transportLifeTimeInSeconds":{"type":"long"},"expiry":{}}},"chatTokenTransport":{"type":"structure","required":["participantToken","expiry"],"members":{"participantToken":{},"expiry":{}}},"softphoneTransport":{"type":"structure","required":["softphoneMediaConnections"],"members":{"softphoneMediaConnections":{"type":"list","member":{"type":"structure","required":["username","credential","urls"],"members":{"username":{},"credential":{},"urls":{"type":"list","member":{}}}}}}},"agentDiscoveryTransport":{"type":"structure","required":["presignedUrl"],"members":{"presignedUrl":{}}},"webRTCTransport":{"type":"structure","required":["meeting","attendee"],"members":{"meeting":{"type":"structure","members":{"meetingId":{},"mediaRegion":{},"mediaPlacement":{"type":"structure","members":{"audioHostUrl":{},"audioFallbackUrl":{},"signalingUrl":{},"turnControlUrl":{},"eventIngestionUrl":{}}},"meetingFeatures":{"type":"structure","members":{"audio":{"type":"structure","members":{"echoReduction":{}}}}}}},"attendee":{"type":"structure","members":{"attendeeId":{},"joinToken":{"type":"string","sensitive":true}}}}}}}},"DestroyConnection":{"input":{"type":"structure","required":["authentication","contactId","connectionId"],"members":{"authentication":{"shape":"S2"},"contactId":{},"connectionId":{}}},"output":{"type":"structure","members":{}}},"GetAgentConfiguration":{"input":{"type":"structure","required":["authentication"],"members":{"authentication":{"shape":"S2"}}},"output":{"type":"structure","required":["configuration"],"members":{"configuration":{"shape":"S1v"}}}},"GetAgentPermissions":{"input":{"type":"structure","required":["authentication"],"members":{"authentication":{"shape":"S2"},"nextToken":{},"maxResults":{"type":"integer"}}},"output":{"type":"structure","required":["permissions"],"members":{"permissions":{"type":"list","member":{}},"nextToken":{}}}},"GetAgentSnapshot":{"input":{"type":"structure","required":["authentication"],"members":{"authentication":{"shape":"S2"},"nextToken":{},"timeout":{"type":"long"}}},"output":{"type":"structure","required":["snapshot","nextToken"],"members":{"snapshot":{"type":"structure","required":["state","contacts","snapshotTimestamp"],"members":{"state":{"shape":"S2e"},"nextState":{"shape":"S2e"},"agentAvailabilityState":{"type":"structure","members":{"state":{},"timeStamp":{"type":"timestamp"}}},"contacts":{"type":"list","member":{"type":"structure","required":["contactId","type","state","connections","attributes"],"members":{"contactId":{},"initialContactId":{},"relatedContactId":{},"contactAssociationId":{},"type":{},"state":{"type":"structure","required":["type","timestamp"],"members":{"type":{},"timestamp":{"type":"timestamp"}}},"queue":{"shape":"Sl"},"queueTimestamp":{"type":"timestamp"},"connections":{"type":"list","member":{"type":"structure","required":["connectionId","state","type","initial"],"members":{"connectionId":{},"endpoint":{"shape":"Se"},"state":{"type":"structure","required":["type","timestamp"],"members":{"type":{},"timestamp":{"type":"timestamp"}}},"type":{},"initial":{"type":"boolean"},"softphoneMediaInfo":{"type":"structure","members":{"callType":{},"autoAccept":{"type":"boolean"},"mediaLegContextToken":{},"callContextToken":{},"callConfigJson":{}}},"chatMediaInfo":{"type":"structure","members":{"chatAutoAccept":{"type":"boolean"},"connectionData":{},"customerName":{}}},"monitoringInfo":{"type":"structure","members":{"agent":{"type":"structure","members":{"agentName":{}}},"joinTimeStamp":{"type":"timestamp"}}},"mute":{"type":"boolean"},"forcedMute":{"type":"boolean"},"quickConnectName":{},"monitorCapabilities":{"type":"list","member":{}},"monitorStatus":{},"capabilities":{"type":"structure","members":{"Video":{}}}}}},"attributes":{"type":"map","key":{},"value":{"type":"structure","required":["name"],"members":{"name":{},"value":{}}}},"contactDuration":{},"name":{},"description":{},"references":{"shape":"St"},"initiationMethod":{},"contactFeatures":{"type":"structure","members":{"attachmentsEnabled":{"type":"boolean"},"messagingMarkdownEnabled":{"type":"boolean"},"multiPartyConferenceEnabled":{"type":"boolean"},"screenRecordingEnabled":{"type":"boolean"},"screenRecordingState":{},"screenRecordingConfig":{"type":"structure","members":{"screenRecordingEnabled":{"type":"boolean"},"screenRecordingState":{}}}}},"channelContext":{"type":"structure","members":{"scheduledTime":{"type":"long"},"taskTemplateId":{},"taskTemplateVersion":{"type":"integer"}}},"segmentAttributes":{"type":"map","key":{},"value":{"type":"structure","members":{"ValueString":{}}}},"customerEndpoint":{"shape":"Se"},"connectSystemEndpoint":{"shape":"Se"},"languageCode":{},"emailRecipients":{"type":"structure","members":{"toList":{"type":"list","member":{"shape":"S3i"}},"ccList":{"type":"list","member":{"shape":"S3i"}},"fromRecipient":{"shape":"S3i"}}}}}},"snapshotTimestamp":{"type":"timestamp"}}},"nextToken":{}}}},"GetAgentStates":{"input":{"type":"structure","required":["authentication"],"members":{"authentication":{"shape":"S2"},"nextToken":{},"maxResults":{"type":"integer"}}},"output":{"type":"structure","required":["states"],"members":{"states":{"type":"list","member":{"shape":"S2e"}},"nextToken":{}}}},"GetDialableCountryCodes":{"input":{"type":"structure","required":["authentication"],"members":{"authentication":{"shape":"S2"},"nextToken":{},"maxResults":{"type":"integer"}}},"output":{"type":"structure","required":["countryCodes"],"members":{"countryCodes":{"type":"list","member":{}},"nextToken":{}}}},"GetEndpoints":{"input":{"type":"structure","required":["authentication","queueARNs"],"members":{"authentication":{"shape":"S2"},"queueARNs":{"type":"list","member":{}},"nextToken":{},"maxResults":{"type":"integer"}}},"output":{"type":"structure","members":{"endpoints":{"type":"list","member":{"shape":"Se"}},"nextToken":{}}}},"GetNewAuthToken":{"input":{"type":"structure","required":["authentication","refreshToken"],"members":{"authentication":{"shape":"S2"},"refreshToken":{}}},"output":{"type":"structure","members":{"newAuthToken":{},"expirationDateTime":{"type":"timestamp"}}}},"GetRoutingProfileQueues":{"input":{"type":"structure","required":["authentication","routingProfileARN"],"members":{"authentication":{"shape":"S2"},"routingProfileARN":{},"nextToken":{},"maxResults":{"type":"integer"}}},"output":{"type":"structure","required":["queues"],"members":{"queues":{"type":"list","member":{"shape":"Sl"}},"nextToken":{}}}},"HoldConnection":{"input":{"type":"structure","required":["authentication","contactId","connectionId"],"members":{"authentication":{"shape":"S2"},"contactId":{},"connectionId":{}}},"output":{"type":"structure","members":{}}},"MuteParticipant":{"input":{"type":"structure","required":["authentication","contactId","connectionId"],"members":{"authentication":{"shape":"S2"},"contactId":{},"connectionId":{}}},"output":{"type":"structure","members":{}}},"NotifyContactIssue":{"input":{"type":"structure","required":["authentication","contactId"],"members":{"authentication":{"shape":"S2"},"contactId":{},"issueCode":{},"description":{},"clientLogs":{}}},"output":{"type":"structure","members":{}}},"PauseContact":{"input":{"type":"structure","required":["contactId"],"members":{"contactId":{}}},"output":{"type":"structure","members":{}}},"PutAgentState":{"input":{"type":"structure","required":["authentication","state"],"members":{"authentication":{"shape":"S2"},"state":{"shape":"S2e"},"enqueueNextState":{"type":"boolean"}}},"output":{"type":"structure","members":{}}},"RejectContact":{"input":{"type":"structure","required":["contactId"],"members":{"contactId":{}}},"output":{"type":"structure","members":{}}},"ResumeConnection":{"input":{"type":"structure","required":["authentication","contactId","connectionId"],"members":{"authentication":{"shape":"S2"},"contactId":{},"connectionId":{}}},"output":{"type":"structure","members":{}}},"ResumeContact":{"input":{"type":"structure","required":["contactId"],"members":{"contactId":{}}},"output":{"type":"structure","members":{}}},"SendClientLogs":{"input":{"type":"structure","required":["authentication","logEvents"],"members":{"authentication":{"shape":"S2"},"logEvents":{"type":"list","member":{"type":"structure","members":{"timestamp":{"type":"timestamp"},"component":{},"message":{}}}}}},"output":{"type":"structure","members":{}}},"SendDigits":{"input":{"type":"structure","required":["authentication","contactId","connectionId","digits"],"members":{"authentication":{"shape":"S2"},"contactId":{},"connectionId":{},"digits":{}}},"output":{"type":"structure","members":{}}},"SendSoftphoneCallMetrics":{"input":{"type":"structure","required":["authentication","contactId","softphoneStreamStatistics"],"members":{"authentication":{"shape":"S2"},"contactId":{},"ccpVersion":{},"softphoneStreamStatistics":{"shape":"S4p"}}},"output":{"type":"structure","members":{}}},"SendSoftphoneCallReport":{"input":{"type":"structure","required":["authentication","contactId","report"],"members":{"authentication":{"shape":"S2"},"contactId":{},"ccpVersion":{},"report":{"type":"structure","members":{"callStartTime":{"type":"timestamp"},"callEndTime":{"type":"timestamp"},"softphoneStreamStatistics":{"shape":"S4p"},"gumTimeMillis":{"type":"long"},"initializationTimeMillis":{"type":"long"},"iceCollectionTimeMillis":{"type":"long"},"signallingConnectTimeMillis":{"type":"long"},"handshakeTimeMillis":{"type":"long"},"preTalkTimeMillis":{"type":"long"},"talkTimeMillis":{"type":"long"},"cleanupTimeMillis":{"type":"long"},"iceCollectionFailure":{"type":"boolean"},"signallingConnectionFailure":{"type":"boolean"},"handshakeFailure":{"type":"boolean"},"gumOtherFailure":{"type":"boolean"},"gumTimeoutFailure":{"type":"boolean"},"createOfferFailure":{"type":"boolean"},"setLocalDescriptionFailure":{"type":"boolean"},"userBusyFailure":{"type":"boolean"},"invalidRemoteSDPFailure":{"type":"boolean"},"noRemoteIceCandidateFailure":{"type":"boolean"},"setRemoteDescriptionFailure":{"type":"boolean"}}}}},"output":{"type":"structure","members":{}}},"ToggleActiveConnections":{"input":{"type":"structure","required":["authentication","contactId","connectionId"],"members":{"authentication":{"shape":"S2"},"contactId":{},"connectionId":{}}},"output":{"type":"structure","members":{}}},"UnmuteParticipant":{"input":{"type":"structure","required":["authentication","contactId","connectionId"],"members":{"authentication":{"shape":"S2"},"contactId":{},"connectionId":{}}},"output":{"type":"structure","members":{}}},"UpdateAgentConfiguration":{"input":{"type":"structure","required":["authentication","configuration"],"members":{"authentication":{"shape":"S2"},"configuration":{"shape":"S1v"}}},"output":{"type":"structure","members":{}}},"UpdateMonitorParticipantState":{"input":{"type":"structure","required":["contactId","targetMonitorMode"],"members":{"contactId":{},"targetMonitorMode":{}}},"output":{"type":"structure","members":{}}}},"shapes":{"S2":{"type":"structure","members":{"agentARN":{},"authToken":{}}},"Se":{"type":"structure","required":["type"],"members":{"endpointARN":{},"type":{},"name":{},"displayName":{},"phoneNumber":{},"agentLogin":{},"queue":{"shape":"Sl"},"emailAddress":{}}},"Sl":{"type":"structure","members":{"queueARN":{},"name":{}}},"St":{"type":"map","key":{},"value":{"type":"structure","required":["type"],"members":{"value":{},"type":{},"arn":{},"status":{},"statusReason":{}}}},"S1v":{"type":"structure","required":["name","softphoneEnabled","softphoneAutoAccept","extension","routingProfile"],"members":{"name":{},"username":{},"softphoneEnabled":{"type":"boolean"},"softphoneAutoAccept":{"type":"boolean"},"extension":{},"routingProfile":{"type":"structure","members":{"name":{},"routingProfileARN":{},"defaultOutboundQueue":{"shape":"Sl"},"channelConcurrencyMap":{"type":"map","key":{},"value":{"type":"long"}}}},"agentPreferences":{"type":"map","key":{},"value":{}},"agentARN":{}}},"S2e":{"type":"structure","required":["type","name"],"members":{"agentStateARN":{},"type":{},"name":{},"startTimestamp":{"type":"timestamp"}}},"S3i":{"type":"structure","members":{"address":{},"displayName":{}}},"S4p":{"type":"list","member":{"type":"structure","members":{"timestamp":{"type":"timestamp"},"softphoneStreamType":{},"packetCount":{"type":"long"},"packetsLost":{"type":"long"},"audioLevel":{"type":"double"},"jitterBufferMillis":{"type":"long"},"roundTripTimeMillis":{"type":"long"}}}}}};},{}],4:[function(require,module,exports){module.exports={"acm":{"name":"ACM","cors":true},"apigateway":{"name":"APIGateway","cors":true},"applicationautoscaling":{"prefix":"application-autoscaling","name":"ApplicationAutoScaling","cors":true},"appstream":{"name":"AppStream"},"autoscaling":{"name":"AutoScaling","cors":true},"batch":{"name":"Batch"},"budgets":{"name":"Budgets"},"clouddirectory":{"name":"CloudDirectory","versions":["2016-05-10*"]},"cloudformation":{"name":"CloudFormation","cors":true},"cloudfront":{"name":"CloudFront","versions":["2013-05-12*","2013-11-11*","2014-05-31*","2014-10-21*","2014-11-06*","2015-04-17*","2015-07-27*","2015-09-17*","2016-01-13*","2016-01-28*","2016-08-01*","2016-08-20*","2016-09-07*","2016-09-29*","2016-11-25*","2017-03-25*","2017-10-30*","2018-06-18*","2018-11-05*","2019-03-26*"],"cors":true},"cloudhsm":{"name":"CloudHSM","cors":true},"cloudsearch":{"name":"CloudSearch"},"cloudsearchdomain":{"name":"CloudSearchDomain"},"cloudtrail":{"name":"CloudTrail","cors":true},"cloudwatch":{"prefix":"monitoring","name":"CloudWatch","cors":true},"cloudwatchevents":{"prefix":"events","name":"CloudWatchEvents","versions":["2014-02-03*"],"cors":true},"cloudwatchlogs":{"prefix":"logs","name":"CloudWatchLogs","cors":true},"codebuild":{"name":"CodeBuild","cors":true},"codecommit":{"name":"CodeCommit","cors":true},"codedeploy":{"name":"CodeDeploy","cors":true},"codepipeline":{"name":"CodePipeline","cors":true},"cognitoidentity":{"prefix":"cognito-identity","name":"CognitoIdentity","cors":true},"cognitoidentityserviceprovider":{"prefix":"cognito-idp","name":"CognitoIdentityServiceProvider","cors":true},"cognitosync":{"prefix":"cognito-sync","name":"CognitoSync","cors":true},"configservice":{"prefix":"config","name":"ConfigService","cors":true},"cur":{"name":"CUR","cors":true},"datapipeline":{"name":"DataPipeline"},"devicefarm":{"name":"DeviceFarm","cors":true},"directconnect":{"name":"DirectConnect","cors":true},"directoryservice":{"prefix":"ds","name":"DirectoryService"},"discovery":{"name":"Discovery"},"dms":{"name":"DMS"},"dynamodb":{"name":"DynamoDB","cors":true},"dynamodbstreams":{"prefix":"streams.dynamodb","name":"DynamoDBStreams","cors":true},"ec2":{"name":"EC2","versions":["2013-06-15*","2013-10-15*","2014-02-01*","2014-05-01*","2014-06-15*","2014-09-01*","2014-10-01*","2015-03-01*","2015-04-15*","2015-10-01*","2016-04-01*","2016-09-15*"],"cors":true},"ecr":{"name":"ECR","cors":true},"ecs":{"name":"ECS","cors":true},"efs":{"prefix":"elasticfilesystem","name":"EFS","cors":true},"elasticache":{"name":"ElastiCache","versions":["2012-11-15*","2014-03-24*","2014-07-15*","2014-09-30*"],"cors":true},"elasticbeanstalk":{"name":"ElasticBeanstalk","cors":true},"elb":{"prefix":"elasticloadbalancing","name":"ELB","cors":true},"elbv2":{"prefix":"elasticloadbalancingv2","name":"ELBv2","cors":true},"emr":{"prefix":"elasticmapreduce","name":"EMR","cors":true},"es":{"name":"ES"},"elastictranscoder":{"name":"ElasticTranscoder","cors":true},"firehose":{"name":"Firehose","cors":true},"gamelift":{"name":"GameLift","cors":true},"glacier":{"name":"Glacier"},"health":{"name":"Health"},"iam":{"name":"IAM","cors":true},"importexport":{"name":"ImportExport"},"inspector":{"name":"Inspector","versions":["2015-08-18*"],"cors":true},"iot":{"name":"Iot","cors":true},"iotdata":{"prefix":"iot-data","name":"IotData","cors":true},"kinesis":{"name":"Kinesis","cors":true},"kinesisanalytics":{"name":"KinesisAnalytics"},"kms":{"name":"KMS","cors":true},"lambda":{"name":"Lambda","cors":true},"lexruntime":{"prefix":"runtime.lex","name":"LexRuntime","cors":true},"lightsail":{"name":"Lightsail"},"machinelearning":{"name":"MachineLearning","cors":true},"marketplacecommerceanalytics":{"name":"MarketplaceCommerceAnalytics","cors":true},"marketplacemetering":{"prefix":"meteringmarketplace","name":"MarketplaceMetering"},"mturk":{"prefix":"mturk-requester","name":"MTurk","cors":true},"mobileanalytics":{"name":"MobileAnalytics","cors":true},"opsworks":{"name":"OpsWorks","cors":true},"opsworkscm":{"name":"OpsWorksCM"},"organizations":{"name":"Organizations"},"pinpoint":{"name":"Pinpoint"},"polly":{"name":"Polly","cors":true},"rds":{"name":"RDS","versions":["2014-09-01*"],"cors":true},"redshift":{"name":"Redshift","cors":true},"rekognition":{"name":"Rekognition","cors":true},"resourcegroupstaggingapi":{"name":"ResourceGroupsTaggingAPI"},"route53":{"name":"Route53","cors":true},"route53domains":{"name":"Route53Domains","cors":true},"s3":{"name":"S3","dualstackAvailable":true,"cors":true},"s3control":{"name":"S3Control","dualstackAvailable":true,"xmlNoDefaultLists":true},"servicecatalog":{"name":"ServiceCatalog","cors":true},"ses":{"prefix":"email","name":"SES","cors":true},"shield":{"name":"Shield"},"simpledb":{"prefix":"sdb","name":"SimpleDB"},"sms":{"name":"SMS"},"snowball":{"name":"Snowball"},"sns":{"name":"SNS","cors":true},"sqs":{"name":"SQS","cors":true},"ssm":{"name":"SSM","cors":true},"storagegateway":{"name":"StorageGateway","cors":true},"stepfunctions":{"prefix":"states","name":"StepFunctions"},"sts":{"name":"STS","cors":true},"support":{"name":"Support"},"swf":{"name":"SWF"},"xray":{"name":"XRay","cors":true},"waf":{"name":"WAF","cors":true},"wafregional":{"prefix":"waf-regional","name":"WAFRegional"},"workdocs":{"name":"WorkDocs","cors":true},"workspaces":{"name":"WorkSpaces"},"codestar":{"name":"CodeStar"},"lexmodelbuildingservice":{"prefix":"lex-models","name":"LexModelBuildingService","cors":true},"marketplaceentitlementservice":{"prefix":"entitlement.marketplace","name":"MarketplaceEntitlementService"},"athena":{"name":"Athena","cors":true},"greengrass":{"name":"Greengrass"},"dax":{"name":"DAX"},"migrationhub":{"prefix":"AWSMigrationHub","name":"MigrationHub"},"cloudhsmv2":{"name":"CloudHSMV2","cors":true},"glue":{"name":"Glue"},"mobile":{"name":"Mobile"},"pricing":{"name":"Pricing","cors":true},"costexplorer":{"prefix":"ce","name":"CostExplorer","cors":true},"mediaconvert":{"name":"MediaConvert"},"medialive":{"name":"MediaLive"},"mediapackage":{"name":"MediaPackage"},"mediastore":{"name":"MediaStore"},"mediastoredata":{"prefix":"mediastore-data","name":"MediaStoreData","cors":true},"appsync":{"name":"AppSync"},"guardduty":{"name":"GuardDuty"},"mq":{"name":"MQ"},"comprehend":{"name":"Comprehend","cors":true},"iotjobsdataplane":{"prefix":"iot-jobs-data","name":"IoTJobsDataPlane"},"kinesisvideoarchivedmedia":{"prefix":"kinesis-video-archived-media","name":"KinesisVideoArchivedMedia","cors":true},"kinesisvideomedia":{"prefix":"kinesis-video-media","name":"KinesisVideoMedia","cors":true},"kinesisvideo":{"name":"KinesisVideo","cors":true},"sagemakerruntime":{"prefix":"runtime.sagemaker","name":"SageMakerRuntime"},"sagemaker":{"name":"SageMaker"},"translate":{"name":"Translate","cors":true},"resourcegroups":{"prefix":"resource-groups","name":"ResourceGroups","cors":true},"alexaforbusiness":{"name":"AlexaForBusiness"},"cloud9":{"name":"Cloud9"},"serverlessapplicationrepository":{"prefix":"serverlessrepo","name":"ServerlessApplicationRepository"},"servicediscovery":{"name":"ServiceDiscovery"},"workmail":{"name":"WorkMail"},"autoscalingplans":{"prefix":"autoscaling-plans","name":"AutoScalingPlans"},"transcribeservice":{"prefix":"transcribe","name":"TranscribeService"},"connect":{"name":"Connect","cors":true},"acmpca":{"prefix":"acm-pca","name":"ACMPCA"},"fms":{"name":"FMS"},"secretsmanager":{"name":"SecretsManager","cors":true},"iotanalytics":{"name":"IoTAnalytics","cors":true},"iot1clickdevicesservice":{"prefix":"iot1click-devices","name":"IoT1ClickDevicesService"},"iot1clickprojects":{"prefix":"iot1click-projects","name":"IoT1ClickProjects"},"pi":{"name":"PI"},"neptune":{"name":"Neptune"},"mediatailor":{"name":"MediaTailor"},"eks":{"name":"EKS"},"dlm":{"name":"DLM"},"signer":{"name":"Signer"},"chime":{"name":"Chime"},"pinpointemail":{"prefix":"pinpoint-email","name":"PinpointEmail"},"ram":{"name":"RAM"},"route53resolver":{"name":"Route53Resolver"},"pinpointsmsvoice":{"prefix":"sms-voice","name":"PinpointSMSVoice"},"quicksight":{"name":"QuickSight"},"rdsdataservice":{"prefix":"rds-data","name":"RDSDataService"},"amplify":{"name":"Amplify"},"datasync":{"name":"DataSync"},"robomaker":{"name":"RoboMaker"},"transfer":{"name":"Transfer"},"globalaccelerator":{"name":"GlobalAccelerator"},"comprehendmedical":{"name":"ComprehendMedical","cors":true},"kinesisanalyticsv2":{"name":"KinesisAnalyticsV2"},"mediaconnect":{"name":"MediaConnect"},"fsx":{"name":"FSx"},"securityhub":{"name":"SecurityHub"},"appmesh":{"name":"AppMesh","versions":["2018-10-01*"]},"licensemanager":{"prefix":"license-manager","name":"LicenseManager"},"kafka":{"name":"Kafka"},"apigatewaymanagementapi":{"name":"ApiGatewayManagementApi"},"apigatewayv2":{"name":"ApiGatewayV2"},"docdb":{"name":"DocDB"},"backup":{"name":"Backup"},"worklink":{"name":"WorkLink"},"textract":{"name":"Textract"},"managedblockchain":{"name":"ManagedBlockchain"},"mediapackagevod":{"prefix":"mediapackage-vod","name":"MediaPackageVod"},"groundstation":{"name":"GroundStation"},"iotthingsgraph":{"name":"IoTThingsGraph"},"iotevents":{"name":"IoTEvents"},"ioteventsdata":{"prefix":"iotevents-data","name":"IoTEventsData"},"personalize":{"name":"Personalize","cors":true},"personalizeevents":{"prefix":"personalize-events","name":"PersonalizeEvents","cors":true},"personalizeruntime":{"prefix":"personalize-runtime","name":"PersonalizeRuntime","cors":true},"applicationinsights":{"prefix":"application-insights","name":"ApplicationInsights"},"servicequotas":{"prefix":"service-quotas","name":"ServiceQuotas"},"ec2instanceconnect":{"prefix":"ec2-instance-connect","name":"EC2InstanceConnect"},"eventbridge":{"name":"EventBridge"},"lakeformation":{"name":"LakeFormation"},"forecastservice":{"prefix":"forecast","name":"ForecastService","cors":true},"forecastqueryservice":{"prefix":"forecastquery","name":"ForecastQueryService","cors":true},"qldb":{"name":"QLDB"},"qldbsession":{"prefix":"qldb-session","name":"QLDBSession"},"workmailmessageflow":{"name":"WorkMailMessageFlow"},"codestarnotifications":{"prefix":"codestar-notifications","name":"CodeStarNotifications"},"savingsplans":{"name":"SavingsPlans"},"sso":{"name":"SSO"},"ssooidc":{"prefix":"sso-oidc","name":"SSOOIDC"},"marketplacecatalog":{"prefix":"marketplace-catalog","name":"MarketplaceCatalog","cors":true},"dataexchange":{"name":"DataExchange"},"sesv2":{"name":"SESV2"},"migrationhubconfig":{"prefix":"migrationhub-config","name":"MigrationHubConfig"},"connectparticipant":{"name":"ConnectParticipant"},"appconfig":{"name":"AppConfig"},"iotsecuretunneling":{"name":"IoTSecureTunneling"},"wafv2":{"name":"WAFV2"},"elasticinference":{"prefix":"elastic-inference","name":"ElasticInference"},"imagebuilder":{"name":"Imagebuilder"},"schemas":{"name":"Schemas"},"accessanalyzer":{"name":"AccessAnalyzer"},"codegurureviewer":{"prefix":"codeguru-reviewer","name":"CodeGuruReviewer"},"codeguruprofiler":{"name":"CodeGuruProfiler"},"computeoptimizer":{"prefix":"compute-optimizer","name":"ComputeOptimizer"},"frauddetector":{"name":"FraudDetector"},"kendra":{"name":"Kendra"},"networkmanager":{"name":"NetworkManager"},"outposts":{"name":"Outposts"},"augmentedairuntime":{"prefix":"sagemaker-a2i-runtime","name":"AugmentedAIRuntime"},"ebs":{"name":"EBS"},"kinesisvideosignalingchannels":{"prefix":"kinesis-video-signaling","name":"KinesisVideoSignalingChannels","cors":true},"detective":{"name":"Detective"},"codestarconnections":{"prefix":"codestar-connections","name":"CodeStarconnections"},"synthetics":{"name":"Synthetics"},"iotsitewise":{"name":"IoTSiteWise"},"macie2":{"name":"Macie2"},"codeartifact":{"name":"CodeArtifact"},"honeycode":{"name":"Honeycode"},"ivs":{"name":"IVS"},"braket":{"name":"Braket"},"identitystore":{"name":"IdentityStore"},"appflow":{"name":"Appflow"},"redshiftdata":{"prefix":"redshift-data","name":"RedshiftData"},"ssoadmin":{"prefix":"sso-admin","name":"SSOAdmin"},"timestreamquery":{"prefix":"timestream-query","name":"TimestreamQuery"},"timestreamwrite":{"prefix":"timestream-write","name":"TimestreamWrite"},"s3outposts":{"name":"S3Outposts"},"databrew":{"name":"DataBrew"},"servicecatalogappregistry":{"prefix":"servicecatalog-appregistry","name":"ServiceCatalogAppRegistry"},"networkfirewall":{"prefix":"network-firewall","name":"NetworkFirewall"},"mwaa":{"name":"MWAA"},"amplifybackend":{"name":"AmplifyBackend"},"appintegrations":{"name":"AppIntegrations"},"connectcontactlens":{"prefix":"connect-contact-lens","name":"ConnectContactLens"},"devopsguru":{"prefix":"devops-guru","name":"DevOpsGuru"},"ecrpublic":{"prefix":"ecr-public","name":"ECRPUBLIC"},"lookoutvision":{"name":"LookoutVision"},"sagemakerfeaturestoreruntime":{"prefix":"sagemaker-featurestore-runtime","name":"SageMakerFeatureStoreRuntime"},"customerprofiles":{"prefix":"customer-profiles","name":"CustomerProfiles"},"auditmanager":{"name":"AuditManager"},"emrcontainers":{"prefix":"emr-containers","name":"EMRcontainers"},"healthlake":{"name":"HealthLake"},"sagemakeredge":{"prefix":"sagemaker-edge","name":"SagemakerEdge"},"amp":{"name":"Amp","cors":true},"greengrassv2":{"name":"GreengrassV2"},"iotdeviceadvisor":{"name":"IotDeviceAdvisor"},"iotfleethub":{"name":"IoTFleetHub"},"iotwireless":{"name":"IoTWireless"},"location":{"name":"Location","cors":true},"wellarchitected":{"name":"WellArchitected"},"lexmodelsv2":{"prefix":"models.lex.v2","name":"LexModelsV2"},"lexruntimev2":{"prefix":"runtime.lex.v2","name":"LexRuntimeV2","cors":true},"fis":{"name":"Fis"},"lookoutmetrics":{"name":"LookoutMetrics"},"mgn":{"name":"Mgn"},"lookoutequipment":{"name":"LookoutEquipment"},"nimble":{"name":"Nimble"},"finspace":{"name":"Finspace"},"finspacedata":{"prefix":"finspace-data","name":"Finspacedata"},"ssmcontacts":{"prefix":"ssm-contacts","name":"SSMContacts"},"ssmincidents":{"prefix":"ssm-incidents","name":"SSMIncidents"},"applicationcostprofiler":{"name":"ApplicationCostProfiler"},"apprunner":{"name":"AppRunner"},"proton":{"name":"Proton"},"route53recoverycluster":{"prefix":"route53-recovery-cluster","name":"Route53RecoveryCluster"},"route53recoverycontrolconfig":{"prefix":"route53-recovery-control-config","name":"Route53RecoveryControlConfig"},"route53recoveryreadiness":{"prefix":"route53-recovery-readiness","name":"Route53RecoveryReadiness"},"chimesdkidentity":{"prefix":"chime-sdk-identity","name":"ChimeSDKIdentity"},"chimesdkmessaging":{"prefix":"chime-sdk-messaging","name":"ChimeSDKMessaging"},"snowdevicemanagement":{"prefix":"snow-device-management","name":"SnowDeviceManagement"},"memorydb":{"name":"MemoryDB"},"opensearch":{"name":"OpenSearch"},"kafkaconnect":{"name":"KafkaConnect"},"voiceid":{"prefix":"voice-id","name":"VoiceID"},"wisdom":{"name":"Wisdom"},"account":{"name":"Account"},"cloudcontrol":{"name":"CloudControl"},"grafana":{"name":"Grafana"},"panorama":{"name":"Panorama"},"chimesdkmeetings":{"prefix":"chime-sdk-meetings","name":"ChimeSDKMeetings"},"resiliencehub":{"name":"Resiliencehub"},"migrationhubstrategy":{"name":"MigrationHubStrategy"},"appconfigdata":{"name":"AppConfigData"},"drs":{"name":"Drs"},"migrationhubrefactorspaces":{"prefix":"migration-hub-refactor-spaces","name":"MigrationHubRefactorSpaces"},"evidently":{"name":"Evidently"},"inspector2":{"name":"Inspector2"},"rbin":{"name":"Rbin"},"rum":{"name":"RUM"},"backupgateway":{"prefix":"backup-gateway","name":"BackupGateway"},"iottwinmaker":{"name":"IoTTwinMaker"},"workspacesweb":{"prefix":"workspaces-web","name":"WorkSpacesWeb"},"amplifyuibuilder":{"name":"AmplifyUIBuilder"},"keyspaces":{"name":"Keyspaces"},"billingconductor":{"name":"Billingconductor"},"pinpointsmsvoicev2":{"prefix":"pinpoint-sms-voice-v2","name":"PinpointSMSVoiceV2"},"ivschat":{"name":"Ivschat"},"chimesdkmediapipelines":{"prefix":"chime-sdk-media-pipelines","name":"ChimeSDKMediaPipelines"},"emrserverless":{"prefix":"emr-serverless","name":"EMRServerless"},"m2":{"name":"M2"},"connectcampaigns":{"name":"ConnectCampaigns"},"redshiftserverless":{"prefix":"redshift-serverless","name":"RedshiftServerless"},"rolesanywhere":{"name":"RolesAnywhere"},"licensemanagerusersubscriptions":{"prefix":"license-manager-user-subscriptions","name":"LicenseManagerUserSubscriptions"},"backupstorage":{"name":"BackupStorage"},"privatenetworks":{"name":"PrivateNetworks"},"supportapp":{"prefix":"support-app","name":"SupportApp"},"controltower":{"name":"ControlTower"},"iotfleetwise":{"name":"IoTFleetWise"},"migrationhuborchestrator":{"name":"MigrationHubOrchestrator"},"connectcases":{"name":"ConnectCases"},"resourceexplorer2":{"prefix":"resource-explorer-2","name":"ResourceExplorer2"},"scheduler":{"name":"Scheduler"},"chimesdkvoice":{"prefix":"chime-sdk-voice","name":"ChimeSDKVoice"},"ssmsap":{"prefix":"ssm-sap","name":"SsmSap"},"oam":{"name":"OAM"},"arczonalshift":{"prefix":"arc-zonal-shift","name":"ARCZonalShift"},"omics":{"name":"Omics"},"opensearchserverless":{"name":"OpenSearchServerless"},"securitylake":{"name":"SecurityLake"},"simspaceweaver":{"name":"SimSpaceWeaver"},"docdbelastic":{"prefix":"docdb-elastic","name":"DocDBElastic"},"sagemakergeospatial":{"prefix":"sagemaker-geospatial","name":"SageMakerGeospatial"},"codecatalyst":{"name":"CodeCatalyst"},"pipes":{"name":"Pipes"},"sagemakermetrics":{"prefix":"sagemaker-metrics","name":"SageMakerMetrics"},"kinesisvideowebrtcstorage":{"prefix":"kinesis-video-webrtc-storage","name":"KinesisVideoWebRTCStorage"},"licensemanagerlinuxsubscriptions":{"prefix":"license-manager-linux-subscriptions","name":"LicenseManagerLinuxSubscriptions"},"kendraranking":{"prefix":"kendra-ranking","name":"KendraRanking"},"cleanrooms":{"name":"CleanRooms"},"cloudtraildata":{"prefix":"cloudtrail-data","name":"CloudTrailData"},"tnb":{"name":"Tnb"},"internetmonitor":{"name":"InternetMonitor"},"ivsrealtime":{"prefix":"ivs-realtime","name":"IVSRealTime"},"vpclattice":{"prefix":"vpc-lattice","name":"VPCLattice"},"osis":{"name":"OSIS"},"mediapackagev2":{"name":"MediaPackageV2"},"paymentcryptography":{"prefix":"payment-cryptography","name":"PaymentCryptography"},"paymentcryptographydata":{"prefix":"payment-cryptography-data","name":"PaymentCryptographyData"},"codegurusecurity":{"prefix":"codeguru-security","name":"CodeGuruSecurity"},"verifiedpermissions":{"name":"VerifiedPermissions"},"appfabric":{"name":"AppFabric"},"medicalimaging":{"prefix":"medical-imaging","name":"MedicalImaging"},"entityresolution":{"name":"EntityResolution"},"managedblockchainquery":{"prefix":"managedblockchain-query","name":"ManagedBlockchainQuery"},"neptunedata":{"name":"Neptunedata"},"pcaconnectorad":{"prefix":"pca-connector-ad","name":"PcaConnectorAd"},"bedrock":{"name":"Bedrock"},"bedrockruntime":{"prefix":"bedrock-runtime","name":"BedrockRuntime"},"datazone":{"name":"DataZone"},"launchwizard":{"prefix":"launch-wizard","name":"LaunchWizard"},"trustedadvisor":{"name":"TrustedAdvisor"},"inspectorscan":{"prefix":"inspector-scan","name":"InspectorScan"},"bcmdataexports":{"prefix":"bcm-data-exports","name":"BCMDataExports"},"costoptimizationhub":{"prefix":"cost-optimization-hub","name":"CostOptimizationHub"},"eksauth":{"prefix":"eks-auth","name":"EKSAuth"},"freetier":{"name":"FreeTier"},"repostspace":{"name":"Repostspace"},"workspacesthinclient":{"prefix":"workspaces-thin-client","name":"WorkSpacesThinClient"},"b2bi":{"name":"B2bi"},"bedrockagent":{"prefix":"bedrock-agent","name":"BedrockAgent"},"bedrockagentruntime":{"prefix":"bedrock-agent-runtime","name":"BedrockAgentRuntime"},"qbusiness":{"name":"QBusiness"},"qconnect":{"name":"QConnect"},"cleanroomsml":{"name":"CleanRoomsML"},"marketplaceagreement":{"prefix":"marketplace-agreement","name":"MarketplaceAgreement"},"marketplacedeployment":{"prefix":"marketplace-deployment","name":"MarketplaceDeployment"},"networkmonitor":{"name":"NetworkMonitor"},"supplychain":{"name":"SupplyChain"},"artifact":{"name":"Artifact"},"chatbot":{"name":"Chatbot"},"timestreaminfluxdb":{"prefix":"timestream-influxdb","name":"TimestreamInfluxDB"},"codeconnections":{"name":"CodeConnections"}};},{}],5:[function(require,module,exports){module.exports={"version":"2.0","metadata":{"apiVersion":"2011-06-15","endpointPrefix":"sts","globalEndpoint":"sts.amazonaws.com","protocol":"query","serviceAbbreviation":"AWS STS","serviceFullName":"AWS Security Token Service","serviceId":"STS","signatureVersion":"v4","uid":"sts-2011-06-15","xmlNamespace":"https://sts.amazonaws.com/doc/2011-06-15/"},"operations":{"AssumeRole":{"input":{"type":"structure","required":["RoleArn","RoleSessionName"],"members":{"RoleArn":{},"RoleSessionName":{},"PolicyArns":{"shape":"S4"},"Policy":{},"DurationSeconds":{"type":"integer"},"Tags":{"shape":"S8"},"TransitiveTagKeys":{"type":"list","member":{}},"ExternalId":{},"SerialNumber":{},"TokenCode":{},"SourceIdentity":{},"ProvidedContexts":{"type":"list","member":{"type":"structure","members":{"ProviderArn":{},"ContextAssertion":{}}}}}},"output":{"resultWrapper":"AssumeRoleResult","type":"structure","members":{"Credentials":{"shape":"Sl"},"AssumedRoleUser":{"shape":"Sq"},"PackedPolicySize":{"type":"integer"},"SourceIdentity":{}}}},"AssumeRoleWithSAML":{"input":{"type":"structure","required":["RoleArn","PrincipalArn","SAMLAssertion"],"members":{"RoleArn":{},"PrincipalArn":{},"SAMLAssertion":{"type":"string","sensitive":true},"PolicyArns":{"shape":"S4"},"Policy":{},"DurationSeconds":{"type":"integer"}}},"output":{"resultWrapper":"AssumeRoleWithSAMLResult","type":"structure","members":{"Credentials":{"shape":"Sl"},"AssumedRoleUser":{"shape":"Sq"},"PackedPolicySize":{"type":"integer"},"Subject":{},"SubjectType":{},"Issuer":{},"Audience":{},"NameQualifier":{},"SourceIdentity":{}}}},"AssumeRoleWithWebIdentity":{"input":{"type":"structure","required":["RoleArn","RoleSessionName","WebIdentityToken"],"members":{"RoleArn":{},"RoleSessionName":{},"WebIdentityToken":{"type":"string","sensitive":true},"ProviderId":{},"PolicyArns":{"shape":"S4"},"Policy":{},"DurationSeconds":{"type":"integer"}}},"output":{"resultWrapper":"AssumeRoleWithWebIdentityResult","type":"structure","members":{"Credentials":{"shape":"Sl"},"SubjectFromWebIdentityToken":{},"AssumedRoleUser":{"shape":"Sq"},"PackedPolicySize":{"type":"integer"},"Provider":{},"Audience":{},"SourceIdentity":{}}}},"DecodeAuthorizationMessage":{"input":{"type":"structure","required":["EncodedMessage"],"members":{"EncodedMessage":{}}},"output":{"resultWrapper":"DecodeAuthorizationMessageResult","type":"structure","members":{"DecodedMessage":{}}}},"GetAccessKeyInfo":{"input":{"type":"structure","required":["AccessKeyId"],"members":{"AccessKeyId":{}}},"output":{"resultWrapper":"GetAccessKeyInfoResult","type":"structure","members":{"Account":{}}}},"GetCallerIdentity":{"input":{"type":"structure","members":{}},"output":{"resultWrapper":"GetCallerIdentityResult","type":"structure","members":{"UserId":{},"Account":{},"Arn":{}}}},"GetFederationToken":{"input":{"type":"structure","required":["Name"],"members":{"Name":{},"Policy":{},"PolicyArns":{"shape":"S4"},"DurationSeconds":{"type":"integer"},"Tags":{"shape":"S8"}}},"output":{"resultWrapper":"GetFederationTokenResult","type":"structure","members":{"Credentials":{"shape":"Sl"},"FederatedUser":{"type":"structure","required":["FederatedUserId","Arn"],"members":{"FederatedUserId":{},"Arn":{}}},"PackedPolicySize":{"type":"integer"}}}},"GetSessionToken":{"input":{"type":"structure","members":{"DurationSeconds":{"type":"integer"},"SerialNumber":{},"TokenCode":{}}},"output":{"resultWrapper":"GetSessionTokenResult","type":"structure","members":{"Credentials":{"shape":"Sl"}}}}},"shapes":{"S4":{"type":"list","member":{"type":"structure","members":{"arn":{}}}},"S8":{"type":"list","member":{"type":"structure","required":["Key","Value"],"members":{"Key":{},"Value":{}}}},"Sl":{"type":"structure","required":["AccessKeyId","SecretAccessKey","SessionToken","Expiration"],"members":{"AccessKeyId":{},"SecretAccessKey":{"type":"string","sensitive":true},"SessionToken":{},"Expiration":{"type":"timestamp"}}},"Sq":{"type":"structure","required":["AssumedRoleId","Arn"],"members":{"AssumedRoleId":{},"Arn":{}}}}};},{}],6:[function(require,module,exports){module.exports={"pagination":{}};},{}],7:[function(require,module,exports){require('../lib/node_loader');var AWS=require('../lib/core');var Service=AWS.Service;var apiLoader=AWS.apiLoader;apiLoader.services['cognitoidentity']={};AWS.CognitoIdentity=Service.defineService('cognitoidentity',['2014-06-30']);Object.defineProperty(apiLoader.services['cognitoidentity'],'2014-06-30',{get:function get(){var model=require('../apis/cognito-identity-2014-06-30.min.json');model.paginators=require('../apis/cognito-identity-2014-06-30.paginators.json').pagination;return model;},enumerable:true,configurable:true});module.exports=AWS.CognitoIdentity;},{"../apis/cognito-identity-2014-06-30.min.json":1,"../apis/cognito-identity-2014-06-30.paginators.json":2,"../lib/core":19,"../lib/node_loader":16}],8:[function(require,module,exports){require('../lib/node_loader');var AWS=require('../lib/core');var Service=AWS.Service;var apiLoader=AWS.apiLoader;apiLoader.services['sts']={};AWS.STS=Service.defineService('sts',['2011-06-15']);require('../lib/services/sts');Object.defineProperty(apiLoader.services['sts'],'2011-06-15',{get:function get(){var model=require('../apis/sts-2011-06-15.min.json');model.paginators=require('../apis/sts-2011-06-15.paginators.json').pagination;return model;},enumerable:true,configurable:true});module.exports=AWS.STS;},{"../apis/sts-2011-06-15.min.json":5,"../apis/sts-2011-06-15.paginators.json":6,"../lib/core":19,"../lib/node_loader":16,"../lib/services/sts":63}],9:[function(require,module,exports){function apiLoader(svc,version){if(!apiLoader.services.hasOwnProperty(svc)){throw new Error('InvalidService: Failed to load api for '+svc);}return apiLoader.services[svc][version];}/**
@@ -6191,7 +6104,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;function _typeof(o){"@babel/helpers - typeof";
      * @api private
      */module.exports=apiLoader;},{}],10:[function(require,module,exports){var Hmac=require('./browserHmac');var Md5=require('./browserMd5');var Sha1=require('./browserSha1');var Sha256=require('./browserSha256');/**
      * @api private
-     */module.exports=exports={createHash:function createHash(alg){alg=alg.toLowerCase();if(alg==='md5'){return new Md5();}else if(alg==='sha256'){return new Sha256();}else if(alg==='sha1'){return new Sha1();}throw new Error('Hash algorithm '+alg+' is not supported in the browser SDK');},createHmac:function createHmac(alg,key){alg=alg.toLowerCase();if(alg==='md5'){return new Hmac(Md5,key);}else if(alg==='sha256'){return new Hmac(Sha256,key);}else if(alg==='sha1'){return new Hmac(Sha1,key);}throw new Error('HMAC algorithm '+alg+' is not supported in the browser SDK');},createSign:function createSign(){throw new Error('createSign is not implemented in the browser');}};},{"./browserHmac":12,"./browserMd5":13,"./browserSha1":14,"./browserSha256":15}],11:[function(require,module,exports){var Buffer=require('buffer/').Buffer;/**
+     */module.exports=exports={createHash:function createHash(alg){alg=alg.toLowerCase();if(alg==='md5'){return new Md5();}else if(alg==='sha256'){return new Sha256();}else if(alg==='sha1'){return new Sha1();}throw new Error('Hash algorithm '+alg+' is not supported in the browser SDK');},createHmac:function createHmac(alg,key){alg=alg.toLowerCase();if(alg==='md5'){return new Hmac(Md5,key);}else if(alg==='sha256'){return new Hmac(Sha256,key);}else if(alg==='sha1'){return new Hmac(Sha1,key);}throw new Error('HMAC algorithm '+alg+' is not supported in the browser SDK');},createSign:function(){throw new Error('createSign is not implemented in the browser');}};},{"./browserHmac":12,"./browserMd5":13,"./browserSha1":14,"./browserSha256":15}],11:[function(require,module,exports){var Buffer=require('buffer/').Buffer;/**
      * This is a polyfill for the static method `isView` of `ArrayBuffer`, which is
      * e.g. missing in IE 10.
      *
@@ -6219,7 +6132,7 @@ if(undecoratedLength%BLOCK_SIZE>=BLOCK_SIZE-8){for(var i=this.bufferLength;i<BLO
      */function Sha1(){this.h0=0x67452301;this.h1=0xEFCDAB89;this.h2=0x98BADCFE;this.h3=0x10325476;this.h4=0xC3D2E1F0;// The first 64 bytes (16 words) is the data chunk
 this.block=new Uint32Array(80);this.offset=0;this.shift=24;this.totalLength=0;}/**
      * @api private
-     */module.exports=exports=Sha1;Sha1.BLOCK_SIZE=BLOCK_SIZE;Sha1.prototype.update=function(data){if(this.finished){throw new Error('Attempted to update an already finished hash.');}if(hashUtils.isEmptyData(data)){return this;}data=hashUtils.convertToBuffer(data);var length=data.length;this.totalLength+=length*8;for(var i=0;i<length;i++){this.write(data[i]);}return this;};Sha1.prototype.write=function write(_byte){this.block[this.offset]|=(_byte&0xff)<<this.shift;if(this.shift){this.shift-=8;}else{this.offset++;this.shift=24;}if(this.offset===16)this.processBlock();};Sha1.prototype.digest=function(encoding){// Pad
+     */module.exports=exports=Sha1;Sha1.BLOCK_SIZE=BLOCK_SIZE;Sha1.prototype.update=function(data){if(this.finished){throw new Error('Attempted to update an already finished hash.');}if(hashUtils.isEmptyData(data)){return this;}data=hashUtils.convertToBuffer(data);var length=data.length;this.totalLength+=length*8;for(var i=0;i<length;i++){this.write(data[i]);}return this;};Sha1.prototype.write=function write(byte){this.block[this.offset]|=(byte&0xff)<<this.shift;if(this.shift){this.shift-=8;}else{this.offset++;this.shift=24;}if(this.offset===16)this.processBlock();};Sha1.prototype.digest=function(encoding){// Pad
 this.write(0x80);if(this.offset>14||this.offset===14&&this.shift<24){this.processBlock();}this.offset=14;this.shift=24;// 64-bit length big-endian
 this.write(0x00);// numbers this big aren't accurate in javascript anyway
 this.write(0x00);// ..So just hard-code to zero.
@@ -6806,7 +6719,7 @@ AWS.util.memoizedProperty(AWS,'endpointCache',function(){return new AWS.Endpoint
        *       accessKeyId: 'akid', secretAccessKey: 'secret', sessionToken: 'session'
        *     });
        */constructor:function Credentials(){// hide secretAccessKey from being displayed with util.inspect
-AWS.util.hideProperties(this,['secretAccessKey']);this.expired=false;this.expireTime=null;this.refreshCallbacks=[];if(arguments.length===1&&_typeof(arguments[0])==='object'){var creds=arguments[0].credentials||arguments[0];this.accessKeyId=creds.accessKeyId;this.secretAccessKey=creds.secretAccessKey;this.sessionToken=creds.sessionToken;}else{this.accessKeyId=arguments[0];this.secretAccessKey=arguments[1];this.sessionToken=arguments[2];}},/**
+AWS.util.hideProperties(this,['secretAccessKey']);this.expired=false;this.expireTime=null;this.refreshCallbacks=[];if(arguments.length===1&&typeof arguments[0]==='object'){var creds=arguments[0].credentials||arguments[0];this.accessKeyId=creds.accessKeyId;this.secretAccessKey=creds.secretAccessKey;this.sessionToken=creds.sessionToken;}else{this.accessKeyId=arguments[0];this.secretAccessKey=arguments[1];this.sessionToken=arguments[2];}},/**
        * @return [Integer] the number of seconds before {expireTime} during which
        *   the credentials will be considered expired.
        */expiryWindow:15,/**
@@ -7118,7 +7031,7 @@ AWS.util.defer(function(){callback(err);});}});self.refreshCallbacks.length=0;})
        *   specified in the `clientConfig` to the CognitoIdentityCredentials
        *   constructor, you may encounter a 'Missing credentials in config' error
        *   when calling making a service call.
-       */constructor:function CognitoIdentityCredentials(params,clientConfig){AWS.Credentials.call(this);this.expired=true;this.params=params;this.data=null;this._identityId=null;this._clientConfig=AWS.util.copy(clientConfig||{});this.loadCachedId();var self=this;Object.defineProperty(this,'identityId',{get:function get(){self.loadCachedId();return self._identityId||self.params.IdentityId;},set:function set(identityId){self._identityId=identityId;}});},/**
+       */constructor:function CognitoIdentityCredentials(params,clientConfig){AWS.Credentials.call(this);this.expired=true;this.params=params;this.data=null;this._identityId=null;this._clientConfig=AWS.util.copy(clientConfig||{});this.loadCachedId();var self=this;Object.defineProperty(this,'identityId',{get:function(){self.loadCachedId();return self._identityId||self.params.IdentityId;},set:function(identityId){self._identityId=identityId;}});},/**
        * Refreshes credentials using {AWS.CognitoIdentity.getCredentialsForIdentity},
        * or {AWS.STS.assumeRoleWithWebIdentity}.
        *
@@ -7162,7 +7075,7 @@ AWS.util.defer(function(){callback(err);});}});self.refreshCallbacks.length=0;})
 if(AWS.util.isBrowser()&&!self.params.IdentityId){var id=self.getStorage('id');if(id&&self.params.Logins){var actualProviders=Object.keys(self.params.Logins);var cachedProviders=(self.getStorage('providers')||'').split(',');// only load ID if at least one provider used this ID before
 var intersect=cachedProviders.filter(function(n){return actualProviders.indexOf(n)!==-1;});if(intersect.length!==0){self.params.IdentityId=id;}}else if(id){self.params.IdentityId=id;}}},/**
        * @api private
-       */createClients:function createClients(){var clientConfig=this._clientConfig;this.webIdentityCredentials=this.webIdentityCredentials||new AWS.WebIdentityCredentials(this.params,clientConfig);if(!this.cognito){var cognitoConfig=AWS.util.merge({},clientConfig);cognitoConfig.params=this.params;this.cognito=new CognitoIdentity(cognitoConfig);}this.sts=this.sts||new STS(clientConfig);},/**
+       */createClients:function(){var clientConfig=this._clientConfig;this.webIdentityCredentials=this.webIdentityCredentials||new AWS.WebIdentityCredentials(this.params,clientConfig);if(!this.cognito){var cognitoConfig=AWS.util.merge({},clientConfig);cognitoConfig.params=this.params;this.cognito=new CognitoIdentity(cognitoConfig);}this.sts=this.sts||new STS(clientConfig);},/**
        * @api private
        */cacheId:function cacheId(data){this._identityId=data.IdentityId;this.params.IdentityId=this._identityId;// cache this IdentityId in browser localStorage if possible
 if(AWS.util.isBrowser()){this.setStorage('id',data.IdentityId);if(this.params.Logins){this.setStorage('providers',Object.keys(this.params.Logins).join(','));}}},/**
@@ -7171,7 +7084,7 @@ if(AWS.util.isBrowser()){this.setStorage('id',data.IdentityId);if(this.params.Lo
        * @api private
        */setStorage:function setStorage(key,val){try{this.storage[this.localStorageKey[key]+this.params.IdentityPoolId+(this.params.LoginId||'')]=val;}catch(_){}},/**
        * @api private
-       */storage:function(){try{var storage=AWS.util.isBrowser()&&window.localStorage!==null&&_typeof(window.localStorage)==='object'?window.localStorage:{};// Test set/remove which would throw an error in Safari's private browsing
+       */storage:function(){try{var storage=AWS.util.isBrowser()&&window.localStorage!==null&&typeof window.localStorage==='object'?window.localStorage:{};// Test set/remove which would throw an error in Safari's private browsing
 storage['aws.test-storage']='foobar';delete storage['aws.test-storage'];return storage;}catch(_){return{};}}()});},{"../../clients/cognitoidentity":7,"../../clients/sts":8,"../core":19}],23:[function(require,module,exports){var AWS=require('../core');/**
      * Creates a credential provider chain that searches for AWS credentials
      * in a list of credential providers specified by the {providers} property.
@@ -7250,7 +7163,7 @@ storage['aws.test-storage']='foobar';delete storage['aws.test-storage'];return s
        *   @param credentials [AWS.Credentials] the credentials object resolved
        *     by the provider chain.
        * @return [AWS.CredentialProviderChain] the provider, for chaining.
-       */resolve:function resolve(callback){var self=this;if(self.providers.length===0){callback(new Error('No providers'));return self;}if(self.resolveCallbacks.push(callback)===1){var _resolveNext=function resolveNext(err,creds){if(!err&&creds||index===providers.length){AWS.util.arrayEach(self.resolveCallbacks,function(callback){callback(err,creds);});self.resolveCallbacks.length=0;return;}var provider=providers[index++];if(typeof provider==='function'){creds=provider.call();}else{creds=provider;}if(creds.get){creds.get(function(getErr){_resolveNext(getErr,getErr?null:creds);});}else{_resolveNext(null,creds);}};var index=0;var providers=self.providers.slice(0);_resolveNext();}return self;}});/**
+       */resolve:function resolve(callback){var self=this;if(self.providers.length===0){callback(new Error('No providers'));return self;}if(self.resolveCallbacks.push(callback)===1){var index=0;var providers=self.providers.slice(0);function resolveNext(err,creds){if(!err&&creds||index===providers.length){AWS.util.arrayEach(self.resolveCallbacks,function(callback){callback(err,creds);});self.resolveCallbacks.length=0;return;}var provider=providers[index++];if(typeof provider==='function'){creds=provider.call();}else{creds=provider;}if(creds.get){creds.get(function(getErr){resolveNext(getErr,getErr?null:creds);});}else{resolveNext(null,creds);}}resolveNext();}return self;}});/**
      * The default set of providers used by a vanilla CredentialProviderChain.
      *
      * In the browser:
@@ -7336,7 +7249,7 @@ storage['aws.test-storage']='foobar';delete storage['aws.test-storage'];return s
        * @api private
        */load:function load(callback){var self=this;self.createClients();self.service.assumeRoleWithSAML(function(err,data){if(!err){self.service.credentialsFrom(data,self);}callback(err);});},/**
        * @api private
-       */createClients:function createClients(){this.service=this.service||new STS({params:this.params});}});},{"../../clients/sts":8,"../core":19}],25:[function(require,module,exports){var AWS=require('../core');var STS=require('../../clients/sts');/**
+       */createClients:function(){this.service=this.service||new STS({params:this.params});}});},{"../../clients/sts":8,"../core":19}],25:[function(require,module,exports){var AWS=require('../core');var STS=require('../../clients/sts');/**
      * Represents temporary credentials retrieved from {AWS.STS}. Without any
      * extra parameters, credentials will be fetched from the
      * {AWS.STS.getSessionToken} operation. If an IAM role is provided, the
@@ -7407,7 +7320,7 @@ storage['aws.test-storage']='foobar';delete storage['aws.test-storage'];return s
        * @api private
        */loadMasterCredentials:function loadMasterCredentials(masterCredentials){this.masterCredentials=masterCredentials||AWS.config.credentials;while(this.masterCredentials.masterCredentials){this.masterCredentials=this.masterCredentials.masterCredentials;}if(typeof this.masterCredentials.get!=='function'){this.masterCredentials=new AWS.Credentials(this.masterCredentials);}},/**
        * @api private
-       */createClients:function createClients(){this.service=this.service||new STS({params:this.params});}});},{"../../clients/sts":8,"../core":19}],26:[function(require,module,exports){var AWS=require('../core');var STS=require('../../clients/sts');/**
+       */createClients:function(){this.service=this.service||new STS({params:this.params});}});},{"../../clients/sts":8,"../core":19}],26:[function(require,module,exports){var AWS=require('../core');var STS=require('../../clients/sts');/**
      * Represents credentials retrieved from STS Web Identity Federation support.
      *
      * By default this provider gets credentials using the
@@ -7478,7 +7391,7 @@ storage['aws.test-storage']='foobar';delete storage['aws.test-storage'];return s
        * @api private
        */load:function load(callback){var self=this;self.createClients();self.service.assumeRoleWithWebIdentity(function(err,data){self.data=null;if(!err){self.data=data;self.service.credentialsFrom(data,self);}callback(err);});},/**
        * @api private
-       */createClients:function createClients(){if(!this.service){var stsConfig=AWS.util.merge({},this._clientConfig);stsConfig.params=this.params;this.service=new STS(stsConfig);}}});},{"../../clients/sts":8,"../core":19}],27:[function(require,module,exports){(function(process){(function(){var AWS=require('./core');var util=require('./util');var endpointDiscoveryEnabledEnvs=['AWS_ENABLE_ENDPOINT_DISCOVERY','AWS_ENDPOINT_DISCOVERY_ENABLED'];/**
+       */createClients:function(){if(!this.service){var stsConfig=AWS.util.merge({},this._clientConfig);stsConfig.params=this.params;this.service=new STS(stsConfig);}}});},{"../../clients/sts":8,"../core":19}],27:[function(require,module,exports){(function(process){(function(){var AWS=require('./core');var util=require('./util');var endpointDiscoveryEnabledEnvs=['AWS_ENABLE_ENDPOINT_DISCOVERY','AWS_ENDPOINT_DISCOVERY_ENABLED'];/**
          * Generate key (except resources and operation part) to index the endpoints in the cache
          * If input shape has endpointdiscoveryid trait then use
          *   accessKey + operation + resources + region + service as cache key
@@ -7822,7 +7735,7 @@ if(this.port){this.port=parseInt(this.port,10);}else{this.port=this.protocol==='
      */AWS.HttpClient.getInstance=function getInstance(){if(this.singleton===undefined){this.singleton=new this();}return this.singleton;};},{"./core":19}],36:[function(require,module,exports){var AWS=require('../core');var EventEmitter=require('events').EventEmitter;require('../http');/**
      * @api private
      */AWS.XHRClient=AWS.util.inherit({handleRequest:function handleRequest(httpRequest,httpOptions,callback,errCallback){var self=this;var endpoint=httpRequest.endpoint;var emitter=new EventEmitter();var href=endpoint.protocol+'//'+endpoint.hostname;if(endpoint.port!==80&&endpoint.port!==443){href+=':'+endpoint.port;}href+=httpRequest.path;var xhr=new XMLHttpRequest(),headersEmitted=false;httpRequest.stream=xhr;xhr.addEventListener('readystatechange',function(){try{if(xhr.status===0)return;// 0 code is invalid
-}catch(e){return;}if(this.readyState>=this.HEADERS_RECEIVED&&!headersEmitted){emitter.statusCode=xhr.status;emitter.headers=self.parseHeaders(xhr.getAllResponseHeaders());emitter.emit('headers',emitter.statusCode,emitter.headers,xhr.statusText);headersEmitted=true;}if(this.readyState===this.DONE){self.finishRequest(xhr,emitter);}},false);xhr.upload.addEventListener('progress',function(evt){emitter.emit('sendProgress',evt);});xhr.addEventListener('progress',function(evt){emitter.emit('receiveProgress',evt);},false);xhr.addEventListener('timeout',function(){errCallback(AWS.util.error(new Error('Timeout'),{code:'TimeoutError'}));},false);xhr.addEventListener('error',function(){errCallback(AWS.util.error(new Error('Network Failure'),{code:'NetworkingError'}));},false);xhr.addEventListener('abort',function(){errCallback(AWS.util.error(new Error('Request aborted'),{code:'RequestAbortedError'}));},false);callback(emitter);xhr.open(httpRequest.method,href,httpOptions.xhrAsync!==false);AWS.util.each(httpRequest.headers,function(key,value){if(key!=='Content-Length'&&key!=='User-Agent'&&key!=='Host'){xhr.setRequestHeader(key,value);}});if(httpOptions.timeout&&httpOptions.xhrAsync!==false){xhr.timeout=httpOptions.timeout;}if(httpOptions.xhrWithCredentials){xhr.withCredentials=true;}try{xhr.responseType='arraybuffer';}catch(e){}try{if(httpRequest.body){xhr.send(httpRequest.body);}else{xhr.send();}}catch(err){if(httpRequest.body&&_typeof(httpRequest.body.buffer)==='object'){xhr.send(httpRequest.body.buffer);// send ArrayBuffer directly
+}catch(e){return;}if(this.readyState>=this.HEADERS_RECEIVED&&!headersEmitted){emitter.statusCode=xhr.status;emitter.headers=self.parseHeaders(xhr.getAllResponseHeaders());emitter.emit('headers',emitter.statusCode,emitter.headers,xhr.statusText);headersEmitted=true;}if(this.readyState===this.DONE){self.finishRequest(xhr,emitter);}},false);xhr.upload.addEventListener('progress',function(evt){emitter.emit('sendProgress',evt);});xhr.addEventListener('progress',function(evt){emitter.emit('receiveProgress',evt);},false);xhr.addEventListener('timeout',function(){errCallback(AWS.util.error(new Error('Timeout'),{code:'TimeoutError'}));},false);xhr.addEventListener('error',function(){errCallback(AWS.util.error(new Error('Network Failure'),{code:'NetworkingError'}));},false);xhr.addEventListener('abort',function(){errCallback(AWS.util.error(new Error('Request aborted'),{code:'RequestAbortedError'}));},false);callback(emitter);xhr.open(httpRequest.method,href,httpOptions.xhrAsync!==false);AWS.util.each(httpRequest.headers,function(key,value){if(key!=='Content-Length'&&key!=='User-Agent'&&key!=='Host'){xhr.setRequestHeader(key,value);}});if(httpOptions.timeout&&httpOptions.xhrAsync!==false){xhr.timeout=httpOptions.timeout;}if(httpOptions.xhrWithCredentials){xhr.withCredentials=true;}try{xhr.responseType='arraybuffer';}catch(e){}try{if(httpRequest.body){xhr.send(httpRequest.body);}else{xhr.send();}}catch(err){if(httpRequest.body&&typeof httpRequest.body.buffer==='object'){xhr.send(httpRequest.body.buffer);// send ArrayBuffer directly
 }else{throw err;}}return emitter;},parseHeaders:function parseHeaders(rawHeaders){var headers={};AWS.util.arrayEach(rawHeaders.split(/\r?\n/),function(line){var key=line.split(':',1)[0];var value=line.substring(key.length+2);if(key.length>0)headers[key.toLowerCase()]=value;});return headers;},finishRequest:function finishRequest(xhr,emitter){var buffer;if(xhr.responseType==='arraybuffer'&&xhr.response){var ab=xhr.response;buffer=new AWS.util.Buffer(ab.byteLength);var view=new Uint8Array(ab);for(var i=0;i<buffer.length;++i){buffer[i]=view[i];}}try{if(!buffer&&typeof xhr.responseText==='string'){buffer=new AWS.util.Buffer(xhr.responseText);}}catch(e){}if(buffer)emitter.emit('data',buffer);emitter.emit('end');}});/**
      * @api private
      */AWS.HttpClient.prototype=AWS.XHRClient.prototype;/**
@@ -7836,7 +7749,7 @@ if(this.port){this.port=parseInt(this.port,10);}else{this.port=this.protocol==='
          * @example
          * require('aws-sdk/lib/maintenance_mode_message').suppress = true;
          */function emitWarning(){if(typeof process==='undefined')return;// Skip maintenance mode message in Lambda environments
-if(_typeof(process.env)==='object'&&typeof process.env.AWS_EXECUTION_ENV!=='undefined'&&process.env.AWS_EXECUTION_ENV.indexOf('AWS_Lambda_')===0){return;}if(_typeof(process.env)==='object'&&typeof process.env.AWS_SDK_JS_SUPPRESS_MAINTENANCE_MODE_MESSAGE!=='undefined'){return;}if(typeof process.emitWarning==='function'){process.emitWarning(warning,{type:'NOTE'});}}setTimeout(function(){if(!module.exports.suppress){emitWarning();}},0);}).call(this);}).call(this,require('_process'));},{"_process":91}],40:[function(require,module,exports){var Collection=require('./collection');var Operation=require('./operation');var Shape=require('./shape');var Paginator=require('./paginator');var ResourceWaiter=require('./resource_waiter');var metadata=require('../../apis/metadata.json');var util=require('../util');var property=util.property;var memoizedProperty=util.memoizedProperty;function Api(api,options){var self=this;api=api||{};options=options||{};options.api=this;api.metadata=api.metadata||{};var serviceIdentifier=options.serviceIdentifier;delete options.serviceIdentifier;property(this,'isApi',true,false);property(this,'apiVersion',api.metadata.apiVersion);property(this,'endpointPrefix',api.metadata.endpointPrefix);property(this,'signingName',api.metadata.signingName);property(this,'globalEndpoint',api.metadata.globalEndpoint);property(this,'signatureVersion',api.metadata.signatureVersion);property(this,'jsonVersion',api.metadata.jsonVersion);property(this,'targetPrefix',api.metadata.targetPrefix);property(this,'protocol',api.metadata.protocol);property(this,'timestampFormat',api.metadata.timestampFormat);property(this,'xmlNamespaceUri',api.metadata.xmlNamespace);property(this,'abbreviation',api.metadata.serviceAbbreviation);property(this,'fullName',api.metadata.serviceFullName);property(this,'serviceId',api.metadata.serviceId);if(serviceIdentifier&&metadata[serviceIdentifier]){property(this,'xmlNoDefaultLists',metadata[serviceIdentifier].xmlNoDefaultLists,false);}memoizedProperty(this,'className',function(){var name=api.metadata.serviceAbbreviation||api.metadata.serviceFullName;if(!name)return null;name=name.replace(/^Amazon|AWS\s*|\(.*|\s+|\W+/g,'');if(name==='ElasticLoadBalancing')name='ELB';return name;});function addEndpointOperation(name,operation){if(operation.endpointoperation===true){property(self,'endpointOperation',util.string.lowerFirst(name));}if(operation.endpointdiscovery&&!self.hasRequiredEndpointDiscovery){property(self,'hasRequiredEndpointDiscovery',operation.endpointdiscovery.required===true);}}property(this,'operations',new Collection(api.operations,options,function(name,operation){return new Operation(name,operation,options);},util.string.lowerFirst,addEndpointOperation));property(this,'shapes',new Collection(api.shapes,options,function(name,shape){return Shape.create(shape,options);}));property(this,'paginators',new Collection(api.paginators,options,function(name,paginator){return new Paginator(name,paginator,options);}));property(this,'waiters',new Collection(api.waiters,options,function(name,waiter){return new ResourceWaiter(name,waiter,options);},util.string.lowerFirst));if(options.documentation){property(this,'documentation',api.documentation);property(this,'documentationUrl',api.documentationUrl);}property(this,'awsQueryCompatible',api.metadata.awsQueryCompatible);}/**
+if(typeof process.env==='object'&&typeof process.env.AWS_EXECUTION_ENV!=='undefined'&&process.env.AWS_EXECUTION_ENV.indexOf('AWS_Lambda_')===0){return;}if(typeof process.env==='object'&&typeof process.env.AWS_SDK_JS_SUPPRESS_MAINTENANCE_MODE_MESSAGE!=='undefined'){return;}if(typeof process.emitWarning==='function'){process.emitWarning(warning,{type:'NOTE'});}}setTimeout(function(){if(!module.exports.suppress){emitWarning();}},0);}).call(this);}).call(this,require('_process'));},{"_process":91}],40:[function(require,module,exports){var Collection=require('./collection');var Operation=require('./operation');var Shape=require('./shape');var Paginator=require('./paginator');var ResourceWaiter=require('./resource_waiter');var metadata=require('../../apis/metadata.json');var util=require('../util');var property=util.property;var memoizedProperty=util.memoizedProperty;function Api(api,options){var self=this;api=api||{};options=options||{};options.api=this;api.metadata=api.metadata||{};var serviceIdentifier=options.serviceIdentifier;delete options.serviceIdentifier;property(this,'isApi',true,false);property(this,'apiVersion',api.metadata.apiVersion);property(this,'endpointPrefix',api.metadata.endpointPrefix);property(this,'signingName',api.metadata.signingName);property(this,'globalEndpoint',api.metadata.globalEndpoint);property(this,'signatureVersion',api.metadata.signatureVersion);property(this,'jsonVersion',api.metadata.jsonVersion);property(this,'targetPrefix',api.metadata.targetPrefix);property(this,'protocol',api.metadata.protocol);property(this,'timestampFormat',api.metadata.timestampFormat);property(this,'xmlNamespaceUri',api.metadata.xmlNamespace);property(this,'abbreviation',api.metadata.serviceAbbreviation);property(this,'fullName',api.metadata.serviceFullName);property(this,'serviceId',api.metadata.serviceId);if(serviceIdentifier&&metadata[serviceIdentifier]){property(this,'xmlNoDefaultLists',metadata[serviceIdentifier].xmlNoDefaultLists,false);}memoizedProperty(this,'className',function(){var name=api.metadata.serviceAbbreviation||api.metadata.serviceFullName;if(!name)return null;name=name.replace(/^Amazon|AWS\s*|\(.*|\s+|\W+/g,'');if(name==='ElasticLoadBalancing')name='ELB';return name;});function addEndpointOperation(name,operation){if(operation.endpointoperation===true){property(self,'endpointOperation',util.string.lowerFirst(name));}if(operation.endpointdiscovery&&!self.hasRequiredEndpointDiscovery){property(self,'hasRequiredEndpointDiscovery',operation.endpointdiscovery.required===true);}}property(this,'operations',new Collection(api.operations,options,function(name,operation){return new Operation(name,operation,options);},util.string.lowerFirst,addEndpointOperation));property(this,'shapes',new Collection(api.shapes,options,function(name,shape){return Shape.create(shape,options);}));property(this,'paginators',new Collection(api.paginators,options,function(name,paginator){return new Paginator(name,paginator,options);}));property(this,'waiters',new Collection(api.waiters,options,function(name,waiter){return new ResourceWaiter(name,waiter,options);},util.string.lowerFirst));if(options.documentation){property(this,'documentation',api.documentation);property(this,'documentationUrl',api.documentationUrl);}property(this,'awsQueryCompatible',api.metadata.awsQueryCompatible);}/**
      * @api private
      */module.exports=Api;},{"../../apis/metadata.json":4,"../util":74,"./collection":41,"./operation":42,"./paginator":43,"./resource_waiter":44,"./shape":45}],41:[function(require,module,exports){var memoizedProperty=require('../util').memoizedProperty;function memoize(name,value,factory,nameTr){memoizedProperty(this,nameTr(name),function(){return factory(name,value);});}function Collection(iterable,options,factory,nameTr,callback){nameTr=nameTr||String;var self=this;for(var id in iterable){if(Object.prototype.hasOwnProperty.call(iterable,id)){memoize.call(self,id,iterable[id],factory,nameTr);if(callback)callback(id,iterable[id]);}}}/**
      * @api private
@@ -7850,17 +7763,17 @@ for(var name in members){if(!members.hasOwnProperty(name)){if(members[name].isEv
      * @api private
      */module.exports=Paginator;},{"../util":74}],44:[function(require,module,exports){var util=require('../util');var property=util.property;function ResourceWaiter(name,waiter,options){options=options||{};property(this,'name',name);property(this,'api',options.api,false);if(waiter.operation){property(this,'operation',util.string.lowerFirst(waiter.operation));}var self=this;var keys=['type','description','delay','maxAttempts','acceptors'];keys.forEach(function(key){var value=waiter[key];if(value){property(self,key,value);}});}/**
      * @api private
-     */module.exports=ResourceWaiter;},{"../util":74}],45:[function(require,module,exports){var Collection=require('./collection');var util=require('../util');function property(obj,name,value){if(value!==null&&value!==undefined){util.property.apply(this,arguments);}}function memoizedProperty(obj,name){if(!obj.constructor.prototype[name]){util.memoizedProperty.apply(this,arguments);}}function Shape(shape,options,memberName){options=options||{};property(this,'shape',shape.shape);property(this,'api',options.api,false);property(this,'type',shape.type);property(this,'enum',shape["enum"]);property(this,'min',shape.min);property(this,'max',shape.max);property(this,'pattern',shape.pattern);property(this,'location',shape.location||this.location||'body');property(this,'name',this.name||shape.xmlName||shape.queryName||shape.locationName||memberName);property(this,'isStreaming',shape.streaming||this.isStreaming||false);property(this,'requiresLength',shape.requiresLength,false);property(this,'isComposite',shape.isComposite||false);property(this,'isShape',true,false);property(this,'isQueryName',Boolean(shape.queryName),false);property(this,'isLocationName',Boolean(shape.locationName),false);property(this,'isIdempotent',shape.idempotencyToken===true);property(this,'isJsonValue',shape.jsonvalue===true);property(this,'isSensitive',shape.sensitive===true||shape.prototype&&shape.prototype.sensitive===true);property(this,'isEventStream',Boolean(shape.eventstream),false);property(this,'isEvent',Boolean(shape.event),false);property(this,'isEventPayload',Boolean(shape.eventpayload),false);property(this,'isEventHeader',Boolean(shape.eventheader),false);property(this,'isTimestampFormatSet',Boolean(shape.timestampFormat)||shape.prototype&&shape.prototype.isTimestampFormatSet===true,false);property(this,'endpointDiscoveryId',Boolean(shape.endpointdiscoveryid),false);property(this,'hostLabel',Boolean(shape.hostLabel),false);if(options.documentation){property(this,'documentation',shape.documentation);property(this,'documentationUrl',shape.documentationUrl);}if(shape.xmlAttribute){property(this,'isXmlAttribute',shape.xmlAttribute||false);}// type conversion and parsing
+     */module.exports=ResourceWaiter;},{"../util":74}],45:[function(require,module,exports){var Collection=require('./collection');var util=require('../util');function property(obj,name,value){if(value!==null&&value!==undefined){util.property.apply(this,arguments);}}function memoizedProperty(obj,name){if(!obj.constructor.prototype[name]){util.memoizedProperty.apply(this,arguments);}}function Shape(shape,options,memberName){options=options||{};property(this,'shape',shape.shape);property(this,'api',options.api,false);property(this,'type',shape.type);property(this,'enum',shape.enum);property(this,'min',shape.min);property(this,'max',shape.max);property(this,'pattern',shape.pattern);property(this,'location',shape.location||this.location||'body');property(this,'name',this.name||shape.xmlName||shape.queryName||shape.locationName||memberName);property(this,'isStreaming',shape.streaming||this.isStreaming||false);property(this,'requiresLength',shape.requiresLength,false);property(this,'isComposite',shape.isComposite||false);property(this,'isShape',true,false);property(this,'isQueryName',Boolean(shape.queryName),false);property(this,'isLocationName',Boolean(shape.locationName),false);property(this,'isIdempotent',shape.idempotencyToken===true);property(this,'isJsonValue',shape.jsonvalue===true);property(this,'isSensitive',shape.sensitive===true||shape.prototype&&shape.prototype.sensitive===true);property(this,'isEventStream',Boolean(shape.eventstream),false);property(this,'isEvent',Boolean(shape.event),false);property(this,'isEventPayload',Boolean(shape.eventpayload),false);property(this,'isEventHeader',Boolean(shape.eventheader),false);property(this,'isTimestampFormatSet',Boolean(shape.timestampFormat)||shape.prototype&&shape.prototype.isTimestampFormatSet===true,false);property(this,'endpointDiscoveryId',Boolean(shape.endpointdiscoveryid),false);property(this,'hostLabel',Boolean(shape.hostLabel),false);if(options.documentation){property(this,'documentation',shape.documentation);property(this,'documentationUrl',shape.documentationUrl);}if(shape.xmlAttribute){property(this,'isXmlAttribute',shape.xmlAttribute||false);}// type conversion and parsing
 property(this,'defaultValue',null);this.toWireFormat=function(value){if(value===null||value===undefined)return'';return value;};this.toType=function(value){return value;};}/**
      * @api private
-     */Shape.normalizedTypes={character:'string',"double":'float',"long":'integer',"short":'integer',biginteger:'integer',bigdecimal:'float',blob:'binary'};/**
+     */Shape.normalizedTypes={character:'string',double:'float',long:'integer',short:'integer',biginteger:'integer',bigdecimal:'float',blob:'binary'};/**
      * @api private
      */Shape.types={'structure':StructureShape,'list':ListShape,'map':MapShape,'boolean':BooleanShape,'timestamp':TimestampShape,'float':FloatShape,'integer':IntegerShape,'string':StringShape,'base64':Base64Shape,'binary':BinaryShape};Shape.resolve=function resolve(shape,options){if(shape.shape){var refShape=options.api.shapes[shape.shape];if(!refShape){throw new Error('Cannot find shape reference: '+shape.shape);}return refShape;}else{return null;}};Shape.create=function create(shape,options,memberName){if(shape.isShape)return shape;var refShape=Shape.resolve(shape,options);if(refShape){var filteredKeys=Object.keys(shape);if(!options.documentation){filteredKeys=filteredKeys.filter(function(name){return!name.match(/documentation/);});}// create an inline shape with extra members
-var InlineShape=function InlineShape(){refShape.constructor.call(this,shape,options,memberName);};InlineShape.prototype=refShape;return new InlineShape();}else{// set type if not set
+var InlineShape=function(){refShape.constructor.call(this,shape,options,memberName);};InlineShape.prototype=refShape;return new InlineShape();}else{// set type if not set
 if(!shape.type){if(shape.members)shape.type='structure';else if(shape.member)shape.type='list';else if(shape.key)shape.type='map';else shape.type='string';}// normalize types
 var origType=shape.type;if(Shape.normalizedTypes[shape.type]){shape.type=Shape.normalizedTypes[shape.type];}if(Shape.types[shape.type]){return new Shape.types[shape.type](shape,options,memberName);}else{throw new Error('Unrecognized shape type: '+origType);}}};function CompositeShape(shape){Shape.apply(this,arguments);property(this,'isComposite',true);if(shape.flattened){property(this,'flattened',shape.flattened||false);}}function StructureShape(shape,options){var self=this;var requiredMap=null,firstInit=!this.isShape;CompositeShape.apply(this,arguments);if(firstInit){property(this,'defaultValue',function(){return{};});property(this,'members',{});property(this,'memberNames',[]);property(this,'required',[]);property(this,'isRequired',function(){return false;});property(this,'isDocument',Boolean(shape.document));}if(shape.members){property(this,'members',new Collection(shape.members,options,function(name,member){return Shape.create(member,options,name);}));memoizedProperty(this,'memberNames',function(){return shape.xmlOrder||Object.keys(shape.members);});if(shape.event){memoizedProperty(this,'eventPayloadMemberName',function(){var members=self.members;var memberNames=self.memberNames;// iterate over members to find ones that are event payloads
 for(var i=0,iLen=memberNames.length;i<iLen;i++){if(members[memberNames[i]].isEventPayload){return memberNames[i];}}});memoizedProperty(this,'eventHeaderMemberNames',function(){var members=self.members;var memberNames=self.memberNames;var eventHeaderMemberNames=[];// iterate over members to find ones that are event headers
-for(var i=0,iLen=memberNames.length;i<iLen;i++){if(members[memberNames[i]].isEventHeader){eventHeaderMemberNames.push(memberNames[i]);}}return eventHeaderMemberNames;});}}if(shape.required){property(this,'required',shape.required);property(this,'isRequired',function(name){if(!requiredMap){requiredMap={};for(var i=0;i<shape.required.length;i++){requiredMap[shape.required[i]]=true;}}return requiredMap[name];},false,true);}property(this,'resultWrapper',shape.resultWrapper||null);if(shape.payload){property(this,'payload',shape.payload);}if(typeof shape.xmlNamespace==='string'){property(this,'xmlNamespaceUri',shape.xmlNamespace);}else if(_typeof(shape.xmlNamespace)==='object'){property(this,'xmlNamespacePrefix',shape.xmlNamespace.prefix);property(this,'xmlNamespaceUri',shape.xmlNamespace.uri);}}function ListShape(shape,options){var self=this,firstInit=!this.isShape;CompositeShape.apply(this,arguments);if(firstInit){property(this,'defaultValue',function(){return[];});}if(shape.member){memoizedProperty(this,'member',function(){return Shape.create(shape.member,options);});}if(this.flattened){var oldName=this.name;memoizedProperty(this,'name',function(){return self.member.name||oldName;});}}function MapShape(shape,options){var firstInit=!this.isShape;CompositeShape.apply(this,arguments);if(firstInit){property(this,'defaultValue',function(){return{};});property(this,'key',Shape.create({type:'string'},options));property(this,'value',Shape.create({type:'string'},options));}if(shape.key){memoizedProperty(this,'key',function(){return Shape.create(shape.key,options);});}if(shape.value){memoizedProperty(this,'value',function(){return Shape.create(shape.value,options);});}}function TimestampShape(shape){var self=this;Shape.apply(this,arguments);if(shape.timestampFormat){property(this,'timestampFormat',shape.timestampFormat);}else if(self.isTimestampFormatSet&&this.timestampFormat){property(this,'timestampFormat',this.timestampFormat);}else if(this.location==='header'){property(this,'timestampFormat','rfc822');}else if(this.location==='querystring'){property(this,'timestampFormat','iso8601');}else if(this.api){switch(this.api.protocol){case'json':case'rest-json':property(this,'timestampFormat','unixTimestamp');break;case'rest-xml':case'query':case'ec2':property(this,'timestampFormat','iso8601');break;}}this.toType=function(value){if(value===null||value===undefined)return null;if(typeof value.toUTCString==='function')return value;return typeof value==='string'||typeof value==='number'?util.date.parseTimestamp(value):null;};this.toWireFormat=function(value){return util.date.format(value,self.timestampFormat);};}function StringShape(){Shape.apply(this,arguments);var nullLessProtocols=['rest-xml','query','ec2'];this.toType=function(value){value=this.api&&nullLessProtocols.indexOf(this.api.protocol)>-1?value||'':value;if(this.isJsonValue){return JSON.parse(value);}return value&&typeof value.toString==='function'?value.toString():value;};this.toWireFormat=function(value){return this.isJsonValue?JSON.stringify(value):value;};}function FloatShape(){Shape.apply(this,arguments);this.toType=function(value){if(value===null||value===undefined)return null;return parseFloat(value);};this.toWireFormat=this.toType;}function IntegerShape(){Shape.apply(this,arguments);this.toType=function(value){if(value===null||value===undefined)return null;return parseInt(value,10);};this.toWireFormat=this.toType;}function BinaryShape(){Shape.apply(this,arguments);this.toType=function(value){var buf=util.base64.decode(value);if(this.isSensitive&&util.isNode()&&typeof util.Buffer.alloc==='function'){/* Node.js can create a Buffer that is not isolated.
+for(var i=0,iLen=memberNames.length;i<iLen;i++){if(members[memberNames[i]].isEventHeader){eventHeaderMemberNames.push(memberNames[i]);}}return eventHeaderMemberNames;});}}if(shape.required){property(this,'required',shape.required);property(this,'isRequired',function(name){if(!requiredMap){requiredMap={};for(var i=0;i<shape.required.length;i++){requiredMap[shape.required[i]]=true;}}return requiredMap[name];},false,true);}property(this,'resultWrapper',shape.resultWrapper||null);if(shape.payload){property(this,'payload',shape.payload);}if(typeof shape.xmlNamespace==='string'){property(this,'xmlNamespaceUri',shape.xmlNamespace);}else if(typeof shape.xmlNamespace==='object'){property(this,'xmlNamespacePrefix',shape.xmlNamespace.prefix);property(this,'xmlNamespaceUri',shape.xmlNamespace.uri);}}function ListShape(shape,options){var self=this,firstInit=!this.isShape;CompositeShape.apply(this,arguments);if(firstInit){property(this,'defaultValue',function(){return[];});}if(shape.member){memoizedProperty(this,'member',function(){return Shape.create(shape.member,options);});}if(this.flattened){var oldName=this.name;memoizedProperty(this,'name',function(){return self.member.name||oldName;});}}function MapShape(shape,options){var firstInit=!this.isShape;CompositeShape.apply(this,arguments);if(firstInit){property(this,'defaultValue',function(){return{};});property(this,'key',Shape.create({type:'string'},options));property(this,'value',Shape.create({type:'string'},options));}if(shape.key){memoizedProperty(this,'key',function(){return Shape.create(shape.key,options);});}if(shape.value){memoizedProperty(this,'value',function(){return Shape.create(shape.value,options);});}}function TimestampShape(shape){var self=this;Shape.apply(this,arguments);if(shape.timestampFormat){property(this,'timestampFormat',shape.timestampFormat);}else if(self.isTimestampFormatSet&&this.timestampFormat){property(this,'timestampFormat',this.timestampFormat);}else if(this.location==='header'){property(this,'timestampFormat','rfc822');}else if(this.location==='querystring'){property(this,'timestampFormat','iso8601');}else if(this.api){switch(this.api.protocol){case'json':case'rest-json':property(this,'timestampFormat','unixTimestamp');break;case'rest-xml':case'query':case'ec2':property(this,'timestampFormat','iso8601');break;}}this.toType=function(value){if(value===null||value===undefined)return null;if(typeof value.toUTCString==='function')return value;return typeof value==='string'||typeof value==='number'?util.date.parseTimestamp(value):null;};this.toWireFormat=function(value){return util.date.format(value,self.timestampFormat);};}function StringShape(){Shape.apply(this,arguments);var nullLessProtocols=['rest-xml','query','ec2'];this.toType=function(value){value=this.api&&nullLessProtocols.indexOf(this.api.protocol)>-1?value||'':value;if(this.isJsonValue){return JSON.parse(value);}return value&&typeof value.toString==='function'?value.toString():value;};this.toWireFormat=function(value){return this.isJsonValue?JSON.stringify(value):value;};}function FloatShape(){Shape.apply(this,arguments);this.toType=function(value){if(value===null||value===undefined)return null;return parseFloat(value);};this.toWireFormat=this.toType;}function IntegerShape(){Shape.apply(this,arguments);this.toType=function(value){if(value===null||value===undefined)return null;return parseInt(value,10);};this.toWireFormat=this.toType;}function BinaryShape(){Shape.apply(this,arguments);this.toType=function(value){var buf=util.base64.decode(value);if(this.isSensitive&&util.isNode()&&typeof util.Buffer.alloc==='function'){/* Node.js can create a Buffer that is not isolated.
            * i.e. buf.byteLength !== buf.buffer.byteLength
            * This means that the sensitive data is accessible to anyone with access to buf.buffer.
            * If this is the node shared Buffer, then other code within this process _could_ find this secret.
@@ -7896,9 +7809,9 @@ var mapCount=0;for(var param in params){if(!Object.prototype.hasOwnProperty.call
 this.validateMember(shape.key,param,context+'[key=\''+param+'\']');this.validateMember(shape.value,params[param],context+'[\''+param+'\']');mapCount++;}this.validateRange(shape,mapCount,context,'map member count');}},validateScalar:function validateScalar(shape,value,context){switch(shape.type){case null:case undefined:case'string':return this.validateString(shape,value,context);case'base64':case'binary':return this.validatePayload(value,context);case'integer':case'float':return this.validateNumber(shape,value,context);case'boolean':return this.validateType(value,context,['boolean']);case'timestamp':return this.validateType(value,context,[Date,/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/,'number'],'Date object, ISO-8601 string, or a UNIX timestamp');default:return this.fail('UnkownType','Unhandled type '+shape.type+' for '+context);}},validateString:function validateString(shape,value,context){var validTypes=['string'];if(shape.isJsonValue){validTypes=validTypes.concat(['number','object','boolean']);}if(value!==null&&this.validateType(value,context,validTypes)){this.validateEnum(shape,value,context);this.validateRange(shape,value.length,context,'string length');this.validatePattern(shape,value,context);this.validateUri(shape,value,context);}},validateUri:function validateUri(shape,value,context){if(shape['location']==='uri'){if(value.length===0){this.fail('UriParameterError','Expected uri parameter to have length >= 1,'+' but found "'+value+'" for '+context);}}},validatePattern:function validatePattern(shape,value,context){if(this.validation['pattern']&&shape['pattern']!==undefined){if(!new RegExp(shape['pattern']).test(value)){this.fail('PatternMatchError','Provided value "'+value+'" '+'does not match regex pattern /'+shape['pattern']+'/ for '+context);}}},validateRange:function validateRange(shape,value,context,descriptor){if(this.validation['min']){if(shape['min']!==undefined&&value<shape['min']){this.fail('MinRangeError','Expected '+descriptor+' >= '+shape['min']+', but found '+value+' for '+context);}}if(this.validation['max']){if(shape['max']!==undefined&&value>shape['max']){this.fail('MaxRangeError','Expected '+descriptor+' <= '+shape['max']+', but found '+value+' for '+context);}}},validateEnum:function validateRange(shape,value,context){if(this.validation['enum']&&shape['enum']!==undefined){// Fail if the string value is not present in the enum list
 if(shape['enum'].indexOf(value)===-1){this.fail('EnumError','Found string value of '+value+', but '+'expected '+shape['enum'].join('|')+' for '+context);}}},validateType:function validateType(value,context,acceptedTypes,type){// We will not log an error for null or undefined, but we will return
 // false so that callers know that the expected type was not strictly met.
-if(value===null||value===undefined)return false;var foundInvalidType=false;for(var i=0;i<acceptedTypes.length;i++){if(typeof acceptedTypes[i]==='string'){if(_typeof(value)===acceptedTypes[i])return true;}else if(acceptedTypes[i]instanceof RegExp){if((value||'').toString().match(acceptedTypes[i]))return true;}else{if(value instanceof acceptedTypes[i])return true;if(AWS.util.isType(value,acceptedTypes[i]))return true;if(!type&&!foundInvalidType)acceptedTypes=acceptedTypes.slice();acceptedTypes[i]=AWS.util.typeName(acceptedTypes[i]);}foundInvalidType=true;}var acceptedType=type;if(!acceptedType){acceptedType=acceptedTypes.join(', ').replace(/,([^,]+)$/,', or$1');}var vowel=acceptedType.match(/^[aeiou]/i)?'n':'';this.fail('InvalidParameterType','Expected '+context+' to be a'+vowel+' '+acceptedType);return false;},validateNumber:function validateNumber(shape,value,context){if(value===null||value===undefined)return;if(typeof value==='string'){var castedValue=parseFloat(value);if(castedValue.toString()===value)value=castedValue;}if(this.validateType(value,context,['number'])){this.validateRange(shape,value,context,'numeric value');}},validatePayload:function validatePayload(value,context){if(value===null||value===undefined)return;if(typeof value==='string')return;if(value&&typeof value.byteLength==='number')return;// typed arrays
+if(value===null||value===undefined)return false;var foundInvalidType=false;for(var i=0;i<acceptedTypes.length;i++){if(typeof acceptedTypes[i]==='string'){if(typeof value===acceptedTypes[i])return true;}else if(acceptedTypes[i]instanceof RegExp){if((value||'').toString().match(acceptedTypes[i]))return true;}else{if(value instanceof acceptedTypes[i])return true;if(AWS.util.isType(value,acceptedTypes[i]))return true;if(!type&&!foundInvalidType)acceptedTypes=acceptedTypes.slice();acceptedTypes[i]=AWS.util.typeName(acceptedTypes[i]);}foundInvalidType=true;}var acceptedType=type;if(!acceptedType){acceptedType=acceptedTypes.join(', ').replace(/,([^,]+)$/,', or$1');}var vowel=acceptedType.match(/^[aeiou]/i)?'n':'';this.fail('InvalidParameterType','Expected '+context+' to be a'+vowel+' '+acceptedType);return false;},validateNumber:function validateNumber(shape,value,context){if(value===null||value===undefined)return;if(typeof value==='string'){var castedValue=parseFloat(value);if(castedValue.toString()===value)value=castedValue;}if(this.validateType(value,context,['number'])){this.validateRange(shape,value,context,'numeric value');}},validatePayload:function validatePayload(value,context){if(value===null||value===undefined)return;if(typeof value==='string')return;if(value&&typeof value.byteLength==='number')return;// typed arrays
 if(AWS.util.isNode()){// special check for buffer/stream in Node.js
-var Stream=AWS.util.stream.Stream;if(AWS.util.Buffer.isBuffer(value)||value instanceof Stream)return;}else{if((typeof Blob==="undefined"?"undefined":_typeof(Blob))!==void 0&&value instanceof Blob)return;}var types=['Buffer','Stream','File','Blob','ArrayBuffer','DataView'];if(value){for(var i=0;i<types.length;i++){if(AWS.util.isType(value,types[i]))return;if(AWS.util.typeName(value.constructor)===types[i])return;}}this.fail('InvalidParameterType','Expected '+context+' to be a '+'string, Buffer, Stream, Blob, or typed array object');}});},{"./core":19}],47:[function(require,module,exports){var util=require('../util');var AWS=require('../core');/**
+var Stream=AWS.util.stream.Stream;if(AWS.util.Buffer.isBuffer(value)||value instanceof Stream)return;}else{if(typeof Blob!==void 0&&value instanceof Blob)return;}var types=['Buffer','Stream','File','Blob','ArrayBuffer','DataView'];if(value){for(var i=0;i<types.length;i++){if(AWS.util.isType(value,types[i]))return;if(AWS.util.typeName(value.constructor)===types[i])return;}}this.fail('InvalidParameterType','Expected '+context+' to be a '+'string, Buffer, Stream, Blob, or typed array object');}});},{"./core":19}],47:[function(require,module,exports){var util=require('../util');var AWS=require('../core');/**
      * Prepend prefix defined by API model to endpoint that's already
      * constructed. This feature does not apply to operations using
      * endpoint discovery and can be disabled.
@@ -7952,7 +7865,7 @@ applyConfig(service,Object.assign({},config,{signatureVersion:useBearer?'bearer'
      * @api private
      */module.exports={configureEndpoint:configureEndpoint,getEndpointSuffix:getEndpointSuffix};},{"./region_config_data.json":57,"./util":74}],57:[function(require,module,exports){module.exports={"rules":{"*/*":{"endpoint":"{service}.{region}.amazonaws.com"},"cn-*/*":{"endpoint":"{service}.{region}.amazonaws.com.cn"},"eu-isoe-*/*":"euIsoe","us-iso-*/*":"usIso","us-isob-*/*":"usIsob","*/budgets":"globalSSL","*/cloudfront":"globalSSL","*/sts":"globalSSL","*/importexport":{"endpoint":"{service}.amazonaws.com","signatureVersion":"v2","globalEndpoint":true},"*/route53":"globalSSL","cn-*/route53":{"endpoint":"{service}.amazonaws.com.cn","globalEndpoint":true,"signingRegion":"cn-northwest-1"},"us-gov-*/route53":"globalGovCloud","us-iso-*/route53":{"endpoint":"{service}.c2s.ic.gov","globalEndpoint":true,"signingRegion":"us-iso-east-1"},"us-isob-*/route53":{"endpoint":"{service}.sc2s.sgov.gov","globalEndpoint":true,"signingRegion":"us-isob-east-1"},"*/waf":"globalSSL","*/iam":"globalSSL","cn-*/iam":{"endpoint":"{service}.cn-north-1.amazonaws.com.cn","globalEndpoint":true,"signingRegion":"cn-north-1"},"us-iso-*/iam":{"endpoint":"{service}.us-iso-east-1.c2s.ic.gov","globalEndpoint":true,"signingRegion":"us-iso-east-1"},"us-gov-*/iam":"globalGovCloud","*/ce":{"endpoint":"{service}.us-east-1.amazonaws.com","globalEndpoint":true,"signingRegion":"us-east-1"},"cn-*/ce":{"endpoint":"{service}.cn-northwest-1.amazonaws.com.cn","globalEndpoint":true,"signingRegion":"cn-northwest-1"},"us-gov-*/sts":{"endpoint":"{service}.{region}.amazonaws.com"},"us-gov-west-1/s3":"s3signature","us-west-1/s3":"s3signature","us-west-2/s3":"s3signature","eu-west-1/s3":"s3signature","ap-southeast-1/s3":"s3signature","ap-southeast-2/s3":"s3signature","ap-northeast-1/s3":"s3signature","sa-east-1/s3":"s3signature","us-east-1/s3":{"endpoint":"{service}.amazonaws.com","signatureVersion":"s3"},"us-east-1/sdb":{"endpoint":"{service}.amazonaws.com","signatureVersion":"v2"},"*/sdb":{"endpoint":"{service}.{region}.amazonaws.com","signatureVersion":"v2"},"*/resource-explorer-2":"dualstackByDefault","*/kendra-ranking":"dualstackByDefault","*/internetmonitor":"dualstackByDefault","*/codecatalyst":"globalDualstackByDefault"},"fipsRules":{"*/*":"fipsStandard","us-gov-*/*":"fipsStandard","us-iso-*/*":{"endpoint":"{service}-fips.{region}.c2s.ic.gov"},"us-iso-*/dms":"usIso","us-isob-*/*":{"endpoint":"{service}-fips.{region}.sc2s.sgov.gov"},"us-isob-*/dms":"usIsob","cn-*/*":{"endpoint":"{service}-fips.{region}.amazonaws.com.cn"},"*/api.ecr":"fips.api.ecr","*/api.sagemaker":"fips.api.sagemaker","*/batch":"fipsDotPrefix","*/eks":"fipsDotPrefix","*/models.lex":"fips.models.lex","*/runtime.lex":"fips.runtime.lex","*/runtime.sagemaker":{"endpoint":"runtime-fips.sagemaker.{region}.amazonaws.com"},"*/iam":"fipsWithoutRegion","*/route53":"fipsWithoutRegion","*/transcribe":"fipsDotPrefix","*/waf":"fipsWithoutRegion","us-gov-*/transcribe":"fipsDotPrefix","us-gov-*/api.ecr":"fips.api.ecr","us-gov-*/models.lex":"fips.models.lex","us-gov-*/runtime.lex":"fips.runtime.lex","us-gov-*/access-analyzer":"fipsWithServiceOnly","us-gov-*/acm":"fipsWithServiceOnly","us-gov-*/acm-pca":"fipsWithServiceOnly","us-gov-*/api.sagemaker":"fipsWithServiceOnly","us-gov-*/appconfig":"fipsWithServiceOnly","us-gov-*/application-autoscaling":"fipsWithServiceOnly","us-gov-*/autoscaling":"fipsWithServiceOnly","us-gov-*/autoscaling-plans":"fipsWithServiceOnly","us-gov-*/batch":"fipsWithServiceOnly","us-gov-*/cassandra":"fipsWithServiceOnly","us-gov-*/clouddirectory":"fipsWithServiceOnly","us-gov-*/cloudformation":"fipsWithServiceOnly","us-gov-*/cloudshell":"fipsWithServiceOnly","us-gov-*/cloudtrail":"fipsWithServiceOnly","us-gov-*/config":"fipsWithServiceOnly","us-gov-*/connect":"fipsWithServiceOnly","us-gov-*/databrew":"fipsWithServiceOnly","us-gov-*/dlm":"fipsWithServiceOnly","us-gov-*/dms":"fipsWithServiceOnly","us-gov-*/dynamodb":"fipsWithServiceOnly","us-gov-*/ec2":"fipsWithServiceOnly","us-gov-*/eks":"fipsWithServiceOnly","us-gov-*/elasticache":"fipsWithServiceOnly","us-gov-*/elasticbeanstalk":"fipsWithServiceOnly","us-gov-*/elasticloadbalancing":"fipsWithServiceOnly","us-gov-*/elasticmapreduce":"fipsWithServiceOnly","us-gov-*/events":"fipsWithServiceOnly","us-gov-*/fis":"fipsWithServiceOnly","us-gov-*/glacier":"fipsWithServiceOnly","us-gov-*/greengrass":"fipsWithServiceOnly","us-gov-*/guardduty":"fipsWithServiceOnly","us-gov-*/identitystore":"fipsWithServiceOnly","us-gov-*/imagebuilder":"fipsWithServiceOnly","us-gov-*/kafka":"fipsWithServiceOnly","us-gov-*/kinesis":"fipsWithServiceOnly","us-gov-*/logs":"fipsWithServiceOnly","us-gov-*/mediaconvert":"fipsWithServiceOnly","us-gov-*/monitoring":"fipsWithServiceOnly","us-gov-*/networkmanager":"fipsWithServiceOnly","us-gov-*/organizations":"fipsWithServiceOnly","us-gov-*/outposts":"fipsWithServiceOnly","us-gov-*/participant.connect":"fipsWithServiceOnly","us-gov-*/ram":"fipsWithServiceOnly","us-gov-*/rds":"fipsWithServiceOnly","us-gov-*/redshift":"fipsWithServiceOnly","us-gov-*/resource-groups":"fipsWithServiceOnly","us-gov-*/runtime.sagemaker":"fipsWithServiceOnly","us-gov-*/serverlessrepo":"fipsWithServiceOnly","us-gov-*/servicecatalog-appregistry":"fipsWithServiceOnly","us-gov-*/servicequotas":"fipsWithServiceOnly","us-gov-*/sns":"fipsWithServiceOnly","us-gov-*/sqs":"fipsWithServiceOnly","us-gov-*/ssm":"fipsWithServiceOnly","us-gov-*/streams.dynamodb":"fipsWithServiceOnly","us-gov-*/sts":"fipsWithServiceOnly","us-gov-*/support":"fipsWithServiceOnly","us-gov-*/swf":"fipsWithServiceOnly","us-gov-west-1/states":"fipsWithServiceOnly","us-iso-east-1/elasticfilesystem":{"endpoint":"elasticfilesystem-fips.{region}.c2s.ic.gov"},"us-gov-west-1/organizations":"fipsWithServiceOnly","us-gov-west-1/route53":{"endpoint":"route53.us-gov.amazonaws.com"},"*/resource-explorer-2":"fipsDualstackByDefault","*/kendra-ranking":"dualstackByDefault","*/internetmonitor":"dualstackByDefault","*/codecatalyst":"fipsGlobalDualstackByDefault"},"dualstackRules":{"*/*":{"endpoint":"{service}.{region}.api.aws"},"cn-*/*":{"endpoint":"{service}.{region}.api.amazonwebservices.com.cn"},"*/s3":"dualstackLegacy","cn-*/s3":"dualstackLegacyCn","*/s3-control":"dualstackLegacy","cn-*/s3-control":"dualstackLegacyCn","ap-south-1/ec2":"dualstackLegacyEc2","eu-west-1/ec2":"dualstackLegacyEc2","sa-east-1/ec2":"dualstackLegacyEc2","us-east-1/ec2":"dualstackLegacyEc2","us-east-2/ec2":"dualstackLegacyEc2","us-west-2/ec2":"dualstackLegacyEc2"},"dualstackFipsRules":{"*/*":{"endpoint":"{service}-fips.{region}.api.aws"},"cn-*/*":{"endpoint":"{service}-fips.{region}.api.amazonwebservices.com.cn"},"*/s3":"dualstackFipsLegacy","cn-*/s3":"dualstackFipsLegacyCn","*/s3-control":"dualstackFipsLegacy","cn-*/s3-control":"dualstackFipsLegacyCn"},"patterns":{"globalSSL":{"endpoint":"https://{service}.amazonaws.com","globalEndpoint":true,"signingRegion":"us-east-1"},"globalGovCloud":{"endpoint":"{service}.us-gov.amazonaws.com","globalEndpoint":true,"signingRegion":"us-gov-west-1"},"s3signature":{"endpoint":"{service}.{region}.amazonaws.com","signatureVersion":"s3"},"euIsoe":{"endpoint":"{service}.{region}.cloud.adc-e.uk"},"usIso":{"endpoint":"{service}.{region}.c2s.ic.gov"},"usIsob":{"endpoint":"{service}.{region}.sc2s.sgov.gov"},"fipsStandard":{"endpoint":"{service}-fips.{region}.amazonaws.com"},"fipsDotPrefix":{"endpoint":"fips.{service}.{region}.amazonaws.com"},"fipsWithoutRegion":{"endpoint":"{service}-fips.amazonaws.com"},"fips.api.ecr":{"endpoint":"ecr-fips.{region}.amazonaws.com"},"fips.api.sagemaker":{"endpoint":"api-fips.sagemaker.{region}.amazonaws.com"},"fips.models.lex":{"endpoint":"models-fips.lex.{region}.amazonaws.com"},"fips.runtime.lex":{"endpoint":"runtime-fips.lex.{region}.amazonaws.com"},"fipsWithServiceOnly":{"endpoint":"{service}.{region}.amazonaws.com"},"dualstackLegacy":{"endpoint":"{service}.dualstack.{region}.amazonaws.com"},"dualstackLegacyCn":{"endpoint":"{service}.dualstack.{region}.amazonaws.com.cn"},"dualstackFipsLegacy":{"endpoint":"{service}-fips.dualstack.{region}.amazonaws.com"},"dualstackFipsLegacyCn":{"endpoint":"{service}-fips.dualstack.{region}.amazonaws.com.cn"},"dualstackLegacyEc2":{"endpoint":"api.ec2.{region}.aws"},"dualstackByDefault":{"endpoint":"{service}.{region}.api.aws"},"fipsDualstackByDefault":{"endpoint":"{service}-fips.{region}.api.aws"},"globalDualstackByDefault":{"endpoint":"{service}.global.api.aws"},"fipsGlobalDualstackByDefault":{"endpoint":"{service}-fips.global.api.aws"}}};},{}],58:[function(require,module,exports){(function(process){(function(){var AWS=require('./core');var AcceptorStateMachine=require('./state_machine');var inherit=AWS.util.inherit;var domain=AWS.util.domain;var jmespath=require('jmespath');/**
          * @api private
-         */var hardErrorStates={success:1,error:1,complete:1};function isTerminalState(machine){return Object.prototype.hasOwnProperty.call(hardErrorStates,machine._asm.currentState);}var fsm=new AcceptorStateMachine();fsm.setupStates=function(){var transition=function transition(_,done){var self=this;self._haltHandlersOnError=false;self.emit(self._asm.currentState,function(err){if(err){if(isTerminalState(self)){if(domain&&self.domain instanceof domain.Domain){err.domainEmitter=self;err.domain=self.domain;err.domainThrown=false;self.domain.emit('error',err);}else{throw err;}}else{self.response.error=err;done(err);}}else{done(self.response.error);}});};this.addState('validate','build','error',transition);this.addState('build','afterBuild','restart',transition);this.addState('afterBuild','sign','restart',transition);this.addState('sign','send','retry',transition);this.addState('retry','afterRetry','afterRetry',transition);this.addState('afterRetry','sign','error',transition);this.addState('send','validateResponse','retry',transition);this.addState('validateResponse','extractData','extractError',transition);this.addState('extractError','extractData','retry',transition);this.addState('extractData','success','retry',transition);this.addState('restart','build','error',transition);this.addState('success','complete','complete',transition);this.addState('error','complete','complete',transition);this.addState('complete',null,null,transition);};fsm.setupStates();/**
+         */var hardErrorStates={success:1,error:1,complete:1};function isTerminalState(machine){return Object.prototype.hasOwnProperty.call(hardErrorStates,machine._asm.currentState);}var fsm=new AcceptorStateMachine();fsm.setupStates=function(){var transition=function(_,done){var self=this;self._haltHandlersOnError=false;self.emit(self._asm.currentState,function(err){if(err){if(isTerminalState(self)){if(domain&&self.domain instanceof domain.Domain){err.domainEmitter=self;err.domain=self.domain;err.domainThrown=false;self.domain.emit('error',err);}else{throw err;}}else{self.response.error=err;done(err);}}else{done(self.response.error);}});};this.addState('validate','build','error',transition);this.addState('build','afterBuild','restart',transition);this.addState('afterBuild','sign','restart',transition);this.addState('sign','send','retry',transition);this.addState('retry','afterRetry','afterRetry',transition);this.addState('afterRetry','sign','error',transition);this.addState('send','validateResponse','retry',transition);this.addState('validateResponse','extractData','extractError',transition);this.addState('extractError','extractData','retry',transition);this.addState('extractData','success','retry',transition);this.addState('restart','build','error',transition);this.addState('success','complete','complete',transition);this.addState('error','complete','complete',transition);this.addState('complete',null,null,transition);};fsm.setupStates();/**
          * ## Asynchronous Requests
          *
          * All requests made through the SDK are asynchronous and use a
@@ -8335,7 +8248,7 @@ callback=AWS.util.fn.makeAsync(callback,3);function wrappedCallback(response){ca
            * @param [Array,Response] args This should be the response object,
            *   or an array of args to send to the event.
            * @api private
-           */emitEvent:function emit(eventName,args,done){if(typeof args==='function'){done=args;args=null;}if(!done)done=function done(){};if(!args)args=this.eventParameters(eventName,this.response);var origEmit=AWS.SequentialExecutor.prototype.emit;origEmit.call(this,eventName,args,function(err){if(err)this.response.error=err;done.call(this,err);});},/**
+           */emitEvent:function emit(eventName,args,done){if(typeof args==='function'){done=args;args=null;}if(!done)done=function(){};if(!args)args=this.eventParameters(eventName,this.response);var origEmit=AWS.SequentialExecutor.prototype.emit;origEmit.call(this,eventName,args,function(err){if(err)this.response.error=err;done.call(this,err);});},/**
            * @api private
            */eventParameters:function eventParameters(eventName){switch(eventName){case'restart':case'validate':case'sign':case'build':case'afterValidate':case'afterBuild':return[this];case'error':return[this.response.error,this.response];default:return[this.response];}},/**
            * @api private
@@ -8382,7 +8295,7 @@ resolve(Object.defineProperty(resp.data||{},'$response',{value:resp}));}});self.
        * @example Create a waiter for running EC2 instances
        *   var ec2 = new AWS.EC2;
        *   var waiter = new AWS.ResourceWaiter(ec2, 'instanceRunning');
-       */constructor:function constructor(service,state){this.service=service;this.state=state;this.loadWaiterConfig(this.state);},service:null,state:null,config:null,matchers:{path:function path(resp,expected,argument){try{var result=jmespath.search(resp.data,argument);}catch(err){return false;}return jmespath.strictDeepEqual(result,expected);},pathAll:function pathAll(resp,expected,argument){try{var results=jmespath.search(resp.data,argument);}catch(err){return false;}if(!Array.isArray(results))results=[results];var numResults=results.length;if(!numResults)return false;for(var ind=0;ind<numResults;ind++){if(!jmespath.strictDeepEqual(results[ind],expected)){return false;}}return true;},pathAny:function pathAny(resp,expected,argument){try{var results=jmespath.search(resp.data,argument);}catch(err){return false;}if(!Array.isArray(results))results=[results];var numResults=results.length;for(var ind=0;ind<numResults;ind++){if(jmespath.strictDeepEqual(results[ind],expected)){return true;}}return false;},status:function status(resp,expected){var statusCode=resp.httpResponse.statusCode;return typeof statusCode==='number'&&statusCode===expected;},error:function error(resp,expected){if(typeof expected==='string'&&resp.error){return expected===resp.error.code;}// if expected is not string, can be boolean indicating presence of error
+       */constructor:function constructor(service,state){this.service=service;this.state=state;this.loadWaiterConfig(this.state);},service:null,state:null,config:null,matchers:{path:function(resp,expected,argument){try{var result=jmespath.search(resp.data,argument);}catch(err){return false;}return jmespath.strictDeepEqual(result,expected);},pathAll:function(resp,expected,argument){try{var results=jmespath.search(resp.data,argument);}catch(err){return false;}if(!Array.isArray(results))results=[results];var numResults=results.length;if(!numResults)return false;for(var ind=0;ind<numResults;ind++){if(!jmespath.strictDeepEqual(results[ind],expected)){return false;}}return true;},pathAny:function(resp,expected,argument){try{var results=jmespath.search(resp.data,argument);}catch(err){return false;}if(!Array.isArray(results))results=[results];var numResults=results.length;for(var ind=0;ind<numResults;ind++){if(jmespath.strictDeepEqual(results[ind],expected)){return true;}}return false;},status:function(resp,expected){var statusCode=resp.httpResponse.statusCode;return typeof statusCode==='number'&&statusCode===expected;},error:function(resp,expected){if(typeof expected==='string'&&resp.error){return expected===resp.error.code;}// if expected is not string, can be boolean indicating presence of error
 return expected===!!resp.error;}},listeners:new AWS.SequentialExecutor().addNamedListeners(function(add){add('RETRY_CHECK','retry',function(resp){var waiter=resp.request._waiter;if(resp.error&&resp.error.code==='ResourceNotReady'){resp.error.retryDelay=(waiter.config.delay||0)*1000;}});add('CHECK_OUTPUT','extractData',CHECK_ACCEPTORS);add('CHECK_ERROR','extractError',CHECK_ACCEPTORS);}),/**
        * @return [AWS.Request]
        */wait:function wait(params,callback){if(typeof params==='function'){callback=params;params=undefined;}if(params&&params.$waiter){params=AWS.util.copy(params);if(typeof params.$waiter.delay==='number'){this.config.delay=params.$waiter.delay;}if(typeof params.$waiter.maxAttempts==='number'){this.config.maxAttempts=params.$waiter.maxAttempts;}delete params.$waiter;}var request=this.service.makeRequest(this.config.operation,params);request._waiter=this;request.response.maxRetries=this.config.maxAttempts;request.addListeners(this.listeners);if(callback)request.send(callback);return request;},setSuccess:function setSuccess(resp){resp.error=null;resp.data=resp.data||{};resp.request.removeAllListeners('extractData');},setError:function setError(resp,retryable){resp.data=null;resp.error=AWS.util.error(resp.error||new Error(),{code:'ResourceNotReady',message:'Resource is not in the state '+this.state,retryable:retryable});},/**
@@ -8520,7 +8433,7 @@ return expected===!!resp.error;}},listeners:new AWS.SequentialExecutor().addName
        * @api private
        */listeners:function listeners(eventName){return this._events[eventName]?this._events[eventName].slice(0):[];},on:function on(eventName,listener,toHead){if(this._events[eventName]){toHead?this._events[eventName].unshift(listener):this._events[eventName].push(listener);}else{this._events[eventName]=[listener];}return this;},onAsync:function onAsync(eventName,listener,toHead){listener._isAsync=true;return this.on(eventName,listener,toHead);},removeListener:function removeListener(eventName,listener){var listeners=this._events[eventName];if(listeners){var length=listeners.length;var position=-1;for(var i=0;i<length;++i){if(listeners[i]===listener){position=i;}}if(position>-1){listeners.splice(position,1);}}return this;},removeAllListeners:function removeAllListeners(eventName){if(eventName){delete this._events[eventName];}else{this._events={};}return this;},/**
        * @api private
-       */emit:function emit(eventName,eventArgs,doneCallback){if(!doneCallback)doneCallback=function doneCallback(){};var listeners=this.listeners(eventName);var count=listeners.length;this.callListeners(listeners,eventArgs,doneCallback);return count>0;},/**
+       */emit:function emit(eventName,eventArgs,doneCallback){if(!doneCallback)doneCallback=function(){};var listeners=this.listeners(eventName);var count=listeners.length;this.callListeners(listeners,eventArgs,doneCallback);return count>0;},/**
        * @api private
        */callListeners:function callListeners(listeners,args,doneCallback,prevError){var self=this;var error=prevError||null;function callNextListener(err){if(err){error=AWS.util.error(error||new Error(),err);if(self._haltHandlersOnError){return doneCallback.call(self,error);}}self.callListeners(listeners,args,doneCallback,error);}while(listeners.length>0){var listener=listeners.shift();if(listener._isAsync){// asynchronous listener
 listener.apply(self,args.concat([callNextListener]));return;// stop here, callNextListener will continue
@@ -8605,7 +8518,7 @@ if(listeners._events)listeners=listeners._events;AWS.util.each(listeners,functio
            * Create a new service object with a configuration object
            *
            * @param config [map] a map of configuration options
-           */constructor:function Service(config){if(!this.loadServiceClass){throw AWS.util.error(new Error(),'Service must be constructed with `new\' operator');}if(config){if(config.region){var region=config.region;if(region_utils.isFipsRegion(region)){config.region=region_utils.getRealRegion(region);config.useFipsEndpoint=true;}if(region_utils.isGlobalRegion(region)){config.region=region_utils.getRealRegion(region);}}if(typeof config.useDualstack==='boolean'&&typeof config.useDualstackEndpoint!=='boolean'){config.useDualstackEndpoint=config.useDualstack;}}var ServiceClass=this.loadServiceClass(config||{});if(ServiceClass){var originalConfig=AWS.util.copy(config);var svc=new ServiceClass(config);Object.defineProperty(svc,'_originalConfig',{get:function get(){return originalConfig;},enumerable:false,configurable:true});svc._clientId=++clientCount;return svc;}this.initialize(config);},/**
+           */constructor:function Service(config){if(!this.loadServiceClass){throw AWS.util.error(new Error(),'Service must be constructed with `new\' operator');}if(config){if(config.region){var region=config.region;if(region_utils.isFipsRegion(region)){config.region=region_utils.getRealRegion(region);config.useFipsEndpoint=true;}if(region_utils.isGlobalRegion(region)){config.region=region_utils.getRealRegion(region);}}if(typeof config.useDualstack==='boolean'&&typeof config.useDualstackEndpoint!=='boolean'){config.useDualstackEndpoint=config.useDualstack;}}var ServiceClass=this.loadServiceClass(config||{});if(ServiceClass){var originalConfig=AWS.util.copy(config);var svc=new ServiceClass(config);Object.defineProperty(svc,'_originalConfig',{get:function(){return originalConfig;},enumerable:false,configurable:true});svc._clientId=++clientCount;return svc;}this.initialize(config);},/**
            * @api private
            */initialize:function initialize(config){var svcConfig=AWS.config[this.serviceIdentifier];this.config=new AWS.Config(AWS.config);if(svcConfig)this.config.update(svcConfig,true);if(config)this.config.update(config,true);this.validateService();if(!this.config.endpoint)regionConfig.configureEndpoint(this);this.config.endpoint=this.endpointFromTemplate(this.config.endpoint);this.setEndpoint(this.config.endpoint);//enable attaching listeners to service client
 AWS.SequentialExecutor.call(this);AWS.Service.addDefaultMonitoringListeners(this);if((this.config.clientSideMonitoring||AWS.Service._clientSideMonitoring)&&this.publisher){var publisher=this.publisher;this.addNamedListener('PUBLISH_API_CALL','apiCall',function PUBLISH_API_CALL(event){process.nextTick(function(){publisher.eventHandler(event);});});this.addNamedListener('PUBLISH_API_ATTEMPT','apiCallAttempt',function PUBLISH_API_ATTEMPT(event){process.nextTick(function(){publisher.eventHandler(event);});});}},/**
@@ -8624,7 +8537,7 @@ if(keys[i][keys[i].length-1]!=='*'){selectedVersion=keys[i];}if(keys[i].substr(0
            * @api private
            */defaultRetryCount:3,/**
            * @api private
-           */customizeRequests:function customizeRequests(callback){if(!callback){this.customRequestHandler=null;}else if(typeof callback==='function'){this.customRequestHandler=callback;}else{throw new Error('Invalid callback type \''+_typeof(callback)+'\' provided in customizeRequests');}},/**
+           */customizeRequests:function customizeRequests(callback){if(!callback){this.customRequestHandler=null;}else if(typeof callback==='function'){this.customRequestHandler=callback;}else{throw new Error('Invalid callback type \''+typeof callback+'\' provided in customizeRequests');}},/**
            * Calls an operation on a service with the given input parameters.
            *
            * @param operation [String] the name of the operation to call on the service.
@@ -8769,7 +8682,7 @@ AWS.Service._clientSideMonitoring=true;}}AWS.SequentialExecutor.call(svc.prototy
            * @api private
            */defineServiceApi:function defineServiceApi(superclass,version,apiConfig){var svc=inherit(superclass,{serviceIdentifier:superclass.serviceIdentifier});function setApi(api){if(api.isApi){svc.prototype.api=api;}else{svc.prototype.api=new Api(api,{serviceIdentifier:superclass.serviceIdentifier});}}if(typeof version==='string'){if(apiConfig){setApi(apiConfig);}else{try{setApi(AWS.apiLoader(superclass.serviceIdentifier,version));}catch(err){throw AWS.util.error(err,{message:'Could not find API configuration '+superclass.serviceIdentifier+'-'+version});}}if(!Object.prototype.hasOwnProperty.call(superclass.services,version)){superclass.apiVersions=superclass.apiVersions.concat(version).sort();}superclass.services[version]=svc;}else{setApi(version);}AWS.Service.defineMethods(svc);return svc;},/**
            * @api private
-           */hasService:function hasService(identifier){return Object.prototype.hasOwnProperty.call(AWS.Service._serviceMap,identifier);},/**
+           */hasService:function(identifier){return Object.prototype.hasOwnProperty.call(AWS.Service._serviceMap,identifier);},/**
            * @param attachOn attach default monitoring listeners to object
            *
            * Each monitoring event should be emitted from service client to service constructor prototype and then
@@ -8914,10 +8827,10 @@ delete cachedSecret[cacheQueue.shift()];}}return signingKey;},/**
          */var util={environment:'nodejs',engine:function engine(){if(util.isBrowser()&&typeof navigator!=='undefined'){return navigator.userAgent;}else{var engine=process.platform+'/'+process.version;if(process.env.AWS_EXECUTION_ENV){engine+=' exec-env/'+process.env.AWS_EXECUTION_ENV;}return engine;}},userAgent:function userAgent(){var name=util.environment;var agent='aws-sdk-'+name+'/'+require('./core').VERSION;if(name==='nodejs')agent+=' '+util.engine();return agent;},uriEscape:function uriEscape(string){var output=encodeURIComponent(string);output=output.replace(/[^A-Za-z0-9_.~\-%]+/g,escape);// AWS percent-encodes some extra non-standard characters in a URI
 output=output.replace(/[*]/g,function(ch){return'%'+ch.charCodeAt(0).toString(16).toUpperCase();});return output;},uriEscapePath:function uriEscapePath(string){var parts=[];util.arrayEach(string.split('/'),function(part){parts.push(util.uriEscape(part));});return parts.join('/');},urlParse:function urlParse(url){return util.url.parse(url);},urlFormat:function urlFormat(url){return util.url.format(url);},queryStringParse:function queryStringParse(qs){return util.querystring.parse(qs);},queryParamsToString:function queryParamsToString(params){var items=[];var escape=util.uriEscape;var sortedKeys=Object.keys(params).sort();util.arrayEach(sortedKeys,function(name){var value=params[name];var ename=escape(name);var result=ename+'=';if(Array.isArray(value)){var vals=[];util.arrayEach(value,function(item){vals.push(escape(item));});result=ename+'='+vals.sort().join('&'+ename+'=');}else if(value!==undefined&&value!==null){result=ename+'='+escape(value);}items.push(result);});return items.join('&');},readFileSync:function readFileSync(path){if(util.isBrowser())return null;return require('fs').readFileSync(path,'utf-8');},base64:{encode:function encode64(string){if(typeof string==='number'){throw util.error(new Error('Cannot base64 encode number '+string));}if(string===null||typeof string==='undefined'){return string;}var buf=util.buffer.toBuffer(string);return buf.toString('base64');},decode:function decode64(string){if(typeof string==='number'){throw util.error(new Error('Cannot base64 decode number '+string));}if(string===null||typeof string==='undefined'){return string;}return util.buffer.toBuffer(string,'base64');}},buffer:{/**
              * Buffer constructor for Node buffer and buffer pollyfill
-             */toBuffer:function toBuffer(data,encoding){return typeof util.Buffer.from==='function'&&util.Buffer.from!==Uint8Array.from?util.Buffer.from(data,encoding):new util.Buffer(data,encoding);},alloc:function alloc(size,fill,encoding){if(typeof size!=='number'){throw new Error('size passed to alloc must be a number.');}if(typeof util.Buffer.alloc==='function'){return util.Buffer.alloc(size,fill,encoding);}else{var buf=new util.Buffer(size);if(fill!==undefined&&typeof buf.fill==='function'){buf.fill(fill,undefined,undefined,encoding);}return buf;}},toStream:function toStream(buffer){if(!util.Buffer.isBuffer(buffer))buffer=util.buffer.toBuffer(buffer);var readable=new util.stream.Readable();var pos=0;readable._read=function(size){if(pos>=buffer.length)return readable.push(null);var end=pos+size;if(end>buffer.length)end=buffer.length;readable.push(buffer.slice(pos,end));pos=end;};return readable;},/**
+             */toBuffer:function(data,encoding){return typeof util.Buffer.from==='function'&&util.Buffer.from!==Uint8Array.from?util.Buffer.from(data,encoding):new util.Buffer(data,encoding);},alloc:function(size,fill,encoding){if(typeof size!=='number'){throw new Error('size passed to alloc must be a number.');}if(typeof util.Buffer.alloc==='function'){return util.Buffer.alloc(size,fill,encoding);}else{var buf=new util.Buffer(size);if(fill!==undefined&&typeof buf.fill==='function'){buf.fill(fill,undefined,undefined,encoding);}return buf;}},toStream:function toStream(buffer){if(!util.Buffer.isBuffer(buffer))buffer=util.buffer.toBuffer(buffer);var readable=new util.stream.Readable();var pos=0;readable._read=function(size){if(pos>=buffer.length)return readable.push(null);var end=pos+size;if(end>buffer.length)end=buffer.length;readable.push(buffer.slice(pos,end));pos=end;};return readable;},/**
              * Concatenates a list of Buffer objects.
-             */concat:function concat(buffers){var length=0,offset=0,buffer=null,i;for(i=0;i<buffers.length;i++){length+=buffers[i].length;}buffer=util.buffer.alloc(length);for(i=0;i<buffers.length;i++){buffers[i].copy(buffer,offset);offset+=buffers[i].length;}return buffer;}},string:{byteLength:function byteLength(string){if(string===null||string===undefined)return 0;if(typeof string==='string')string=util.buffer.toBuffer(string);if(typeof string.byteLength==='number'){return string.byteLength;}else if(typeof string.length==='number'){return string.length;}else if(typeof string.size==='number'){return string.size;}else if(typeof string.path==='string'){return require('fs').lstatSync(string.path).size;}else{throw util.error(new Error('Cannot determine length of '+string),{object:string});}},upperFirst:function upperFirst(string){return string[0].toUpperCase()+string.substr(1);},lowerFirst:function lowerFirst(string){return string[0].toLowerCase()+string.substr(1);}},ini:{parse:function string(ini){var currentSection,map={};util.arrayEach(ini.split(/\r?\n/),function(line){line=line.split(/(^|\s)[;#]/)[0].trim();// remove comments and trim
-var isSection=line[0]==='['&&line[line.length-1]===']';if(isSection){currentSection=line.substring(1,line.length-1);if(currentSection==='__proto__'||currentSection.split(/\s/)[1]==='__proto__'){throw util.error(new Error('Cannot load profile name \''+currentSection+'\' from shared ini file.'));}}else if(currentSection){var indexOfEqualsSign=line.indexOf('=');var start=0;var end=line.length-1;var isAssignment=indexOfEqualsSign!==-1&&indexOfEqualsSign!==start&&indexOfEqualsSign!==end;if(isAssignment){var name=line.substring(0,indexOfEqualsSign).trim();var value=line.substring(indexOfEqualsSign+1).trim();map[currentSection]=map[currentSection]||{};map[currentSection][name]=value;}}});return map;}},fn:{noop:function noop(){},callback:function callback(err){if(err)throw err;},/**
+             */concat:function(buffers){var length=0,offset=0,buffer=null,i;for(i=0;i<buffers.length;i++){length+=buffers[i].length;}buffer=util.buffer.alloc(length);for(i=0;i<buffers.length;i++){buffers[i].copy(buffer,offset);offset+=buffers[i].length;}return buffer;}},string:{byteLength:function byteLength(string){if(string===null||string===undefined)return 0;if(typeof string==='string')string=util.buffer.toBuffer(string);if(typeof string.byteLength==='number'){return string.byteLength;}else if(typeof string.length==='number'){return string.length;}else if(typeof string.size==='number'){return string.size;}else if(typeof string.path==='string'){return require('fs').lstatSync(string.path).size;}else{throw util.error(new Error('Cannot determine length of '+string),{object:string});}},upperFirst:function upperFirst(string){return string[0].toUpperCase()+string.substr(1);},lowerFirst:function lowerFirst(string){return string[0].toLowerCase()+string.substr(1);}},ini:{parse:function string(ini){var currentSection,map={};util.arrayEach(ini.split(/\r?\n/),function(line){line=line.split(/(^|\s)[;#]/)[0].trim();// remove comments and trim
+var isSection=line[0]==='['&&line[line.length-1]===']';if(isSection){currentSection=line.substring(1,line.length-1);if(currentSection==='__proto__'||currentSection.split(/\s/)[1]==='__proto__'){throw util.error(new Error('Cannot load profile name \''+currentSection+'\' from shared ini file.'));}}else if(currentSection){var indexOfEqualsSign=line.indexOf('=');var start=0;var end=line.length-1;var isAssignment=indexOfEqualsSign!==-1&&indexOfEqualsSign!==start&&indexOfEqualsSign!==end;if(isAssignment){var name=line.substring(0,indexOfEqualsSign).trim();var value=line.substring(indexOfEqualsSign+1).trim();map[currentSection]=map[currentSection]||{};map[currentSection][name]=value;}}});return map;}},fn:{noop:function(){},callback:function(err){if(err)throw err;},/**
              * Turn a synchronous function into as "async" function by making it call
              * a callback. The underlying function is called with all but the last argument,
              * which is treated as the callback. The callback is passed passed a first argument
@@ -8953,11 +8866,11 @@ return new Date(new Date().getTime()+AWS.config.systemClockOffset);}else{return 
 return new Date(value*1000);}else if(value.match(/^\d+$/)){// unix timestamp
 return new Date(value*1000);}else if(value.match(/^\d{4}/)){// iso8601
 return new Date(value);}else if(value.match(/^\w{3},/)){// rfc822
-return new Date(value);}else{throw util.error(new Error('unhandled timestamp format: '+value),{code:'TimestampParserError'});}}},crypto:{crc32Table:[0x00000000,0x77073096,0xEE0E612C,0x990951BA,0x076DC419,0x706AF48F,0xE963A535,0x9E6495A3,0x0EDB8832,0x79DCB8A4,0xE0D5E91E,0x97D2D988,0x09B64C2B,0x7EB17CBD,0xE7B82D07,0x90BF1D91,0x1DB71064,0x6AB020F2,0xF3B97148,0x84BE41DE,0x1ADAD47D,0x6DDDE4EB,0xF4D4B551,0x83D385C7,0x136C9856,0x646BA8C0,0xFD62F97A,0x8A65C9EC,0x14015C4F,0x63066CD9,0xFA0F3D63,0x8D080DF5,0x3B6E20C8,0x4C69105E,0xD56041E4,0xA2677172,0x3C03E4D1,0x4B04D447,0xD20D85FD,0xA50AB56B,0x35B5A8FA,0x42B2986C,0xDBBBC9D6,0xACBCF940,0x32D86CE3,0x45DF5C75,0xDCD60DCF,0xABD13D59,0x26D930AC,0x51DE003A,0xC8D75180,0xBFD06116,0x21B4F4B5,0x56B3C423,0xCFBA9599,0xB8BDA50F,0x2802B89E,0x5F058808,0xC60CD9B2,0xB10BE924,0x2F6F7C87,0x58684C11,0xC1611DAB,0xB6662D3D,0x76DC4190,0x01DB7106,0x98D220BC,0xEFD5102A,0x71B18589,0x06B6B51F,0x9FBFE4A5,0xE8B8D433,0x7807C9A2,0x0F00F934,0x9609A88E,0xE10E9818,0x7F6A0DBB,0x086D3D2D,0x91646C97,0xE6635C01,0x6B6B51F4,0x1C6C6162,0x856530D8,0xF262004E,0x6C0695ED,0x1B01A57B,0x8208F4C1,0xF50FC457,0x65B0D9C6,0x12B7E950,0x8BBEB8EA,0xFCB9887C,0x62DD1DDF,0x15DA2D49,0x8CD37CF3,0xFBD44C65,0x4DB26158,0x3AB551CE,0xA3BC0074,0xD4BB30E2,0x4ADFA541,0x3DD895D7,0xA4D1C46D,0xD3D6F4FB,0x4369E96A,0x346ED9FC,0xAD678846,0xDA60B8D0,0x44042D73,0x33031DE5,0xAA0A4C5F,0xDD0D7CC9,0x5005713C,0x270241AA,0xBE0B1010,0xC90C2086,0x5768B525,0x206F85B3,0xB966D409,0xCE61E49F,0x5EDEF90E,0x29D9C998,0xB0D09822,0xC7D7A8B4,0x59B33D17,0x2EB40D81,0xB7BD5C3B,0xC0BA6CAD,0xEDB88320,0x9ABFB3B6,0x03B6E20C,0x74B1D29A,0xEAD54739,0x9DD277AF,0x04DB2615,0x73DC1683,0xE3630B12,0x94643B84,0x0D6D6A3E,0x7A6A5AA8,0xE40ECF0B,0x9309FF9D,0x0A00AE27,0x7D079EB1,0xF00F9344,0x8708A3D2,0x1E01F268,0x6906C2FE,0xF762575D,0x806567CB,0x196C3671,0x6E6B06E7,0xFED41B76,0x89D32BE0,0x10DA7A5A,0x67DD4ACC,0xF9B9DF6F,0x8EBEEFF9,0x17B7BE43,0x60B08ED5,0xD6D6A3E8,0xA1D1937E,0x38D8C2C4,0x4FDFF252,0xD1BB67F1,0xA6BC5767,0x3FB506DD,0x48B2364B,0xD80D2BDA,0xAF0A1B4C,0x36034AF6,0x41047A60,0xDF60EFC3,0xA867DF55,0x316E8EEF,0x4669BE79,0xCB61B38C,0xBC66831A,0x256FD2A0,0x5268E236,0xCC0C7795,0xBB0B4703,0x220216B9,0x5505262F,0xC5BA3BBE,0xB2BD0B28,0x2BB45A92,0x5CB36A04,0xC2D7FFA7,0xB5D0CF31,0x2CD99E8B,0x5BDEAE1D,0x9B64C2B0,0xEC63F226,0x756AA39C,0x026D930A,0x9C0906A9,0xEB0E363F,0x72076785,0x05005713,0x95BF4A82,0xE2B87A14,0x7BB12BAE,0x0CB61B38,0x92D28E9B,0xE5D5BE0D,0x7CDCEFB7,0x0BDBDF21,0x86D3D2D4,0xF1D4E242,0x68DDB3F8,0x1FDA836E,0x81BE16CD,0xF6B9265B,0x6FB077E1,0x18B74777,0x88085AE6,0xFF0F6A70,0x66063BCA,0x11010B5C,0x8F659EFF,0xF862AE69,0x616BFFD3,0x166CCF45,0xA00AE278,0xD70DD2EE,0x4E048354,0x3903B3C2,0xA7672661,0xD06016F7,0x4969474D,0x3E6E77DB,0xAED16A4A,0xD9D65ADC,0x40DF0B66,0x37D83BF0,0xA9BCAE53,0xDEBB9EC5,0x47B2CF7F,0x30B5FFE9,0xBDBDF21C,0xCABAC28A,0x53B39330,0x24B4A3A6,0xBAD03605,0xCDD70693,0x54DE5729,0x23D967BF,0xB3667A2E,0xC4614AB8,0x5D681B02,0x2A6F2B94,0xB40BBE37,0xC30C8EA1,0x5A05DF1B,0x2D02EF8D],crc32:function crc32(data){var tbl=util.crypto.crc32Table;var crc=0^-1;if(typeof data==='string'){data=util.buffer.toBuffer(data);}for(var i=0;i<data.length;i++){var code=data.readUInt8(i);crc=crc>>>8^tbl[(crc^code)&0xFF];}return(crc^-1)>>>0;},hmac:function hmac(key,string,digest,fn){if(!digest)digest='binary';if(digest==='buffer'){digest=undefined;}if(!fn)fn='sha256';if(typeof string==='string')string=util.buffer.toBuffer(string);return util.crypto.lib.createHmac(fn,key).update(string).digest(digest);},md5:function md5(data,digest,callback){return util.crypto.hash('md5',data,digest,callback);},sha256:function sha256(data,digest,callback){return util.crypto.hash('sha256',data,digest,callback);},hash:function hash(algorithm,data,digest,callback){var hash=util.crypto.createHash(algorithm);if(!digest){digest='binary';}if(digest==='buffer'){digest=undefined;}if(typeof data==='string')data=util.buffer.toBuffer(data);var sliceFn=util.arraySliceFn(data);var isBuffer=util.Buffer.isBuffer(data);//Identifying objects with an ArrayBuffer as buffers
-if(util.isBrowser()&&typeof ArrayBuffer!=='undefined'&&data&&data.buffer instanceof ArrayBuffer)isBuffer=true;if(callback&&_typeof(data)==='object'&&typeof data.on==='function'&&!isBuffer){data.on('data',function(chunk){hash.update(chunk);});data.on('error',function(err){callback(err);});data.on('end',function(){callback(null,hash.digest(digest));});}else if(callback&&sliceFn&&!isBuffer&&typeof FileReader!=='undefined'){// this might be a File/Blob
-var index=0,size=1024*512;var reader=new FileReader();reader.onerror=function(){callback(new Error('Failed to read data.'));};reader.onload=function(){var buf=new util.Buffer(new Uint8Array(reader.result));hash.update(buf);index+=buf.length;reader._continueReading();};reader._continueReading=function(){if(index>=data.size){callback(null,hash.digest(digest));return;}var back=index+size;if(back>data.size)back=data.size;reader.readAsArrayBuffer(sliceFn.call(data,index,back));};reader._continueReading();}else{if(util.isBrowser()&&_typeof(data)==='object'&&!isBuffer){data=new util.Buffer(new Uint8Array(data));}var out=hash.update(data).digest(digest);if(callback)callback(null,out);return out;}},toHex:function toHex(data){var out=[];for(var i=0;i<data.length;i++){out.push(('0'+data.charCodeAt(i).toString(16)).substr(-2,2));}return out.join('');},createHash:function createHash(algorithm){return util.crypto.lib.createHash(algorithm);}},/** @!ignore *//* Abort constant */abort:{},each:function each(object,iterFunction){for(var key in object){if(Object.prototype.hasOwnProperty.call(object,key)){var ret=iterFunction.call(this,key,object[key]);if(ret===util.abort)break;}}},arrayEach:function arrayEach(array,iterFunction){for(var idx in array){if(Object.prototype.hasOwnProperty.call(array,idx)){var ret=iterFunction.call(this,array[idx],parseInt(idx,10));if(ret===util.abort)break;}}},update:function update(obj1,obj2){util.each(obj2,function iterator(key,item){obj1[key]=item;});return obj1;},merge:function merge(obj1,obj2){return util.update(util.copy(obj1),obj2);},copy:function copy(object){if(object===null||object===undefined)return object;var dupe={};// jshint forin:false
+return new Date(value);}else{throw util.error(new Error('unhandled timestamp format: '+value),{code:'TimestampParserError'});}}},crypto:{crc32Table:[0x00000000,0x77073096,0xEE0E612C,0x990951BA,0x076DC419,0x706AF48F,0xE963A535,0x9E6495A3,0x0EDB8832,0x79DCB8A4,0xE0D5E91E,0x97D2D988,0x09B64C2B,0x7EB17CBD,0xE7B82D07,0x90BF1D91,0x1DB71064,0x6AB020F2,0xF3B97148,0x84BE41DE,0x1ADAD47D,0x6DDDE4EB,0xF4D4B551,0x83D385C7,0x136C9856,0x646BA8C0,0xFD62F97A,0x8A65C9EC,0x14015C4F,0x63066CD9,0xFA0F3D63,0x8D080DF5,0x3B6E20C8,0x4C69105E,0xD56041E4,0xA2677172,0x3C03E4D1,0x4B04D447,0xD20D85FD,0xA50AB56B,0x35B5A8FA,0x42B2986C,0xDBBBC9D6,0xACBCF940,0x32D86CE3,0x45DF5C75,0xDCD60DCF,0xABD13D59,0x26D930AC,0x51DE003A,0xC8D75180,0xBFD06116,0x21B4F4B5,0x56B3C423,0xCFBA9599,0xB8BDA50F,0x2802B89E,0x5F058808,0xC60CD9B2,0xB10BE924,0x2F6F7C87,0x58684C11,0xC1611DAB,0xB6662D3D,0x76DC4190,0x01DB7106,0x98D220BC,0xEFD5102A,0x71B18589,0x06B6B51F,0x9FBFE4A5,0xE8B8D433,0x7807C9A2,0x0F00F934,0x9609A88E,0xE10E9818,0x7F6A0DBB,0x086D3D2D,0x91646C97,0xE6635C01,0x6B6B51F4,0x1C6C6162,0x856530D8,0xF262004E,0x6C0695ED,0x1B01A57B,0x8208F4C1,0xF50FC457,0x65B0D9C6,0x12B7E950,0x8BBEB8EA,0xFCB9887C,0x62DD1DDF,0x15DA2D49,0x8CD37CF3,0xFBD44C65,0x4DB26158,0x3AB551CE,0xA3BC0074,0xD4BB30E2,0x4ADFA541,0x3DD895D7,0xA4D1C46D,0xD3D6F4FB,0x4369E96A,0x346ED9FC,0xAD678846,0xDA60B8D0,0x44042D73,0x33031DE5,0xAA0A4C5F,0xDD0D7CC9,0x5005713C,0x270241AA,0xBE0B1010,0xC90C2086,0x5768B525,0x206F85B3,0xB966D409,0xCE61E49F,0x5EDEF90E,0x29D9C998,0xB0D09822,0xC7D7A8B4,0x59B33D17,0x2EB40D81,0xB7BD5C3B,0xC0BA6CAD,0xEDB88320,0x9ABFB3B6,0x03B6E20C,0x74B1D29A,0xEAD54739,0x9DD277AF,0x04DB2615,0x73DC1683,0xE3630B12,0x94643B84,0x0D6D6A3E,0x7A6A5AA8,0xE40ECF0B,0x9309FF9D,0x0A00AE27,0x7D079EB1,0xF00F9344,0x8708A3D2,0x1E01F268,0x6906C2FE,0xF762575D,0x806567CB,0x196C3671,0x6E6B06E7,0xFED41B76,0x89D32BE0,0x10DA7A5A,0x67DD4ACC,0xF9B9DF6F,0x8EBEEFF9,0x17B7BE43,0x60B08ED5,0xD6D6A3E8,0xA1D1937E,0x38D8C2C4,0x4FDFF252,0xD1BB67F1,0xA6BC5767,0x3FB506DD,0x48B2364B,0xD80D2BDA,0xAF0A1B4C,0x36034AF6,0x41047A60,0xDF60EFC3,0xA867DF55,0x316E8EEF,0x4669BE79,0xCB61B38C,0xBC66831A,0x256FD2A0,0x5268E236,0xCC0C7795,0xBB0B4703,0x220216B9,0x5505262F,0xC5BA3BBE,0xB2BD0B28,0x2BB45A92,0x5CB36A04,0xC2D7FFA7,0xB5D0CF31,0x2CD99E8B,0x5BDEAE1D,0x9B64C2B0,0xEC63F226,0x756AA39C,0x026D930A,0x9C0906A9,0xEB0E363F,0x72076785,0x05005713,0x95BF4A82,0xE2B87A14,0x7BB12BAE,0x0CB61B38,0x92D28E9B,0xE5D5BE0D,0x7CDCEFB7,0x0BDBDF21,0x86D3D2D4,0xF1D4E242,0x68DDB3F8,0x1FDA836E,0x81BE16CD,0xF6B9265B,0x6FB077E1,0x18B74777,0x88085AE6,0xFF0F6A70,0x66063BCA,0x11010B5C,0x8F659EFF,0xF862AE69,0x616BFFD3,0x166CCF45,0xA00AE278,0xD70DD2EE,0x4E048354,0x3903B3C2,0xA7672661,0xD06016F7,0x4969474D,0x3E6E77DB,0xAED16A4A,0xD9D65ADC,0x40DF0B66,0x37D83BF0,0xA9BCAE53,0xDEBB9EC5,0x47B2CF7F,0x30B5FFE9,0xBDBDF21C,0xCABAC28A,0x53B39330,0x24B4A3A6,0xBAD03605,0xCDD70693,0x54DE5729,0x23D967BF,0xB3667A2E,0xC4614AB8,0x5D681B02,0x2A6F2B94,0xB40BBE37,0xC30C8EA1,0x5A05DF1B,0x2D02EF8D],crc32:function crc32(data){var tbl=util.crypto.crc32Table;var crc=0^-1;if(typeof data==='string'){data=util.buffer.toBuffer(data);}for(var i=0;i<data.length;i++){var code=data.readUInt8(i);crc=crc>>>8^tbl[(crc^code)&0xFF];}return(crc^-1)>>>0;},hmac:function hmac(key,string,digest,fn){if(!digest)digest='binary';if(digest==='buffer'){digest=undefined;}if(!fn)fn='sha256';if(typeof string==='string')string=util.buffer.toBuffer(string);return util.crypto.lib.createHmac(fn,key).update(string).digest(digest);},md5:function md5(data,digest,callback){return util.crypto.hash('md5',data,digest,callback);},sha256:function sha256(data,digest,callback){return util.crypto.hash('sha256',data,digest,callback);},hash:function(algorithm,data,digest,callback){var hash=util.crypto.createHash(algorithm);if(!digest){digest='binary';}if(digest==='buffer'){digest=undefined;}if(typeof data==='string')data=util.buffer.toBuffer(data);var sliceFn=util.arraySliceFn(data);var isBuffer=util.Buffer.isBuffer(data);//Identifying objects with an ArrayBuffer as buffers
+if(util.isBrowser()&&typeof ArrayBuffer!=='undefined'&&data&&data.buffer instanceof ArrayBuffer)isBuffer=true;if(callback&&typeof data==='object'&&typeof data.on==='function'&&!isBuffer){data.on('data',function(chunk){hash.update(chunk);});data.on('error',function(err){callback(err);});data.on('end',function(){callback(null,hash.digest(digest));});}else if(callback&&sliceFn&&!isBuffer&&typeof FileReader!=='undefined'){// this might be a File/Blob
+var index=0,size=1024*512;var reader=new FileReader();reader.onerror=function(){callback(new Error('Failed to read data.'));};reader.onload=function(){var buf=new util.Buffer(new Uint8Array(reader.result));hash.update(buf);index+=buf.length;reader._continueReading();};reader._continueReading=function(){if(index>=data.size){callback(null,hash.digest(digest));return;}var back=index+size;if(back>data.size)back=data.size;reader.readAsArrayBuffer(sliceFn.call(data,index,back));};reader._continueReading();}else{if(util.isBrowser()&&typeof data==='object'&&!isBuffer){data=new util.Buffer(new Uint8Array(data));}var out=hash.update(data).digest(digest);if(callback)callback(null,out);return out;}},toHex:function toHex(data){var out=[];for(var i=0;i<data.length;i++){out.push(('0'+data.charCodeAt(i).toString(16)).substr(-2,2));}return out.join('');},createHash:function createHash(algorithm){return util.crypto.lib.createHash(algorithm);}},/** @!ignore *//* Abort constant */abort:{},each:function each(object,iterFunction){for(var key in object){if(Object.prototype.hasOwnProperty.call(object,key)){var ret=iterFunction.call(this,key,object[key]);if(ret===util.abort)break;}}},arrayEach:function arrayEach(array,iterFunction){for(var idx in array){if(Object.prototype.hasOwnProperty.call(array,idx)){var ret=iterFunction.call(this,array[idx],parseInt(idx,10));if(ret===util.abort)break;}}},update:function update(obj1,obj2){util.each(obj2,function iterator(key,item){obj1[key]=item;});return obj1;},merge:function merge(obj1,obj2){return util.update(util.copy(obj1),obj2);},copy:function copy(object){if(object===null||object===undefined)return object;var dupe={};// jshint forin:false
 for(var key in object){dupe[key]=object[key];}return dupe;},isEmpty:function isEmpty(obj){for(var prop in obj){if(Object.prototype.hasOwnProperty.call(obj,prop)){return false;}}return true;},arraySliceFn:function arraySliceFn(obj){var fn=obj.slice||obj.webkitSlice||obj.mozSlice;return typeof fn==='function'?fn:null;},isType:function isType(obj,type){// handle cross-"frame" objects
-if(typeof type==='function')type=util.typeName(type);return Object.prototype.toString.call(obj)==='[object '+type+']';},typeName:function typeName(type){if(Object.prototype.hasOwnProperty.call(type,'name'))return type.name;var str=type.toString();var match=str.match(/^\s*function (.+)\(/);return match?match[1]:str;},error:function error(err,options){var originalError=null;if(typeof err.message==='string'&&err.message!==''){if(typeof options==='string'||options&&options.message){originalError=util.copy(err);originalError.message=err.message;}}err.message=err.message||null;if(typeof options==='string'){err.message=options;}else if(_typeof(options)==='object'&&options!==null){util.update(err,options);if(options.message)err.message=options.message;if(options.code||options.name)err.code=options.code||options.name;if(options.stack)err.stack=options.stack;}if(typeof Object.defineProperty==='function'){Object.defineProperty(err,'name',{writable:true,enumerable:false});Object.defineProperty(err,'message',{enumerable:true});}err.name=String(options&&options.name||err.name||err.code||'Error');err.time=new Date();if(originalError){err.originalError=originalError;}for(var key in options||{}){if(key[0]==='['&&key[key.length-1]===']'){key=key.slice(1,-1);if(key==='code'||key==='message'){continue;}err['['+key+']']='See error.'+key+' for details.';Object.defineProperty(err,key,{value:err[key]||options&&options[key]||originalError&&originalError[key],enumerable:false,writable:true});}}return err;},/**
+if(typeof type==='function')type=util.typeName(type);return Object.prototype.toString.call(obj)==='[object '+type+']';},typeName:function typeName(type){if(Object.prototype.hasOwnProperty.call(type,'name'))return type.name;var str=type.toString();var match=str.match(/^\s*function (.+)\(/);return match?match[1]:str;},error:function error(err,options){var originalError=null;if(typeof err.message==='string'&&err.message!==''){if(typeof options==='string'||options&&options.message){originalError=util.copy(err);originalError.message=err.message;}}err.message=err.message||null;if(typeof options==='string'){err.message=options;}else if(typeof options==='object'&&options!==null){util.update(err,options);if(options.message)err.message=options.message;if(options.code||options.name)err.code=options.code||options.name;if(options.stack)err.stack=options.stack;}if(typeof Object.defineProperty==='function'){Object.defineProperty(err,'name',{writable:true,enumerable:false});Object.defineProperty(err,'message',{enumerable:true});}err.name=String(options&&options.name||err.name||err.code||'Error');err.time=new Date();if(originalError){err.originalError=originalError;}for(var key in options||{}){if(key[0]==='['&&key[key.length-1]===']'){key=key.slice(1,-1);if(key==='code'||key==='message'){continue;}err['['+key+']']='See error.'+key+' for details.';Object.defineProperty(err,key,{value:err[key]||options&&options[key]||originalError&&originalError[key],enumerable:false,writable:true});}}return err;},/**
            * @api private
            */inherit:function inherit(klass,features){var newObject=null;if(features===undefined){features=klass;klass=Object;newObject={};}else{var ctor=function ConstructorWrapper(){};ctor.prototype=klass.prototype;newObject=new ctor();}// constructor not supplied, create pass-through ctor
 if(features.constructor===Object){features.constructor=function(){if(klass!==Object){return klass.apply(this,arguments);}};}features.constructor.prototype=newObject;util.update(features.constructor.prototype,features);features.constructor.__super__=klass;return features.constructor;},/**
@@ -9001,14 +8914,14 @@ return done(new Error('Non-file stream objects are '+'not supported with SigV4')
            * @api private
            */calculateRetryDelay:function calculateRetryDelay(retryCount,retryDelayOptions,err){if(!retryDelayOptions)retryDelayOptions={};var customBackoff=retryDelayOptions.customBackoff||null;if(typeof customBackoff==='function'){return customBackoff(retryCount,err);}var base=typeof retryDelayOptions.base==='number'?retryDelayOptions.base:100;var delay=Math.random()*(Math.pow(2,retryCount)*base);return delay;},/**
            * @api private
-           */handleRequestWithRetries:function handleRequestWithRetries(httpRequest,options,cb){if(!options)options={};var http=AWS.HttpClient.getInstance();var httpOptions=options.httpOptions||{};var retryCount=0;var errCallback=function errCallback(err){var maxRetries=options.maxRetries||0;if(err&&err.code==='TimeoutError')err.retryable=true;// Call `calculateRetryDelay()` only when relevant, see #3401
-if(err&&err.retryable&&retryCount<maxRetries){var delay=util.calculateRetryDelay(retryCount,options.retryDelayOptions,err);if(delay>=0){retryCount++;setTimeout(sendRequest,delay+(err.retryAfter||0));return;}}cb(err);};var sendRequest=function sendRequest(){var data='';http.handleRequest(httpRequest,httpOptions,function(httpResponse){httpResponse.on('data',function(chunk){data+=chunk.toString();});httpResponse.on('end',function(){var statusCode=httpResponse.statusCode;if(statusCode<300){cb(null,data);}else{var retryAfter=parseInt(httpResponse.headers['retry-after'],10)*1000||0;var err=util.error(new Error(),{statusCode:statusCode,retryable:statusCode>=500||statusCode===429});if(retryAfter&&err.retryable)err.retryAfter=retryAfter;errCallback(err);}});},errCallback);};AWS.util.defer(sendRequest);},/**
+           */handleRequestWithRetries:function handleRequestWithRetries(httpRequest,options,cb){if(!options)options={};var http=AWS.HttpClient.getInstance();var httpOptions=options.httpOptions||{};var retryCount=0;var errCallback=function(err){var maxRetries=options.maxRetries||0;if(err&&err.code==='TimeoutError')err.retryable=true;// Call `calculateRetryDelay()` only when relevant, see #3401
+if(err&&err.retryable&&retryCount<maxRetries){var delay=util.calculateRetryDelay(retryCount,options.retryDelayOptions,err);if(delay>=0){retryCount++;setTimeout(sendRequest,delay+(err.retryAfter||0));return;}}cb(err);};var sendRequest=function(){var data='';http.handleRequest(httpRequest,httpOptions,function(httpResponse){httpResponse.on('data',function(chunk){data+=chunk.toString();});httpResponse.on('end',function(){var statusCode=httpResponse.statusCode;if(statusCode<300){cb(null,data);}else{var retryAfter=parseInt(httpResponse.headers['retry-after'],10)*1000||0;var err=util.error(new Error(),{statusCode:statusCode,retryable:statusCode>=500||statusCode===429});if(retryAfter&&err.retryable)err.retryAfter=retryAfter;errCallback(err);}});},errCallback);};AWS.util.defer(sendRequest);},/**
            * @api private
            */uuid:{v4:function uuidV4(){return require('uuid').v4();}},/**
            * @api private
            */convertPayloadToString:function convertPayloadToString(resp){var req=resp.request;var operation=req.operation;var rules=req.service.api.operations[operation].output||{};if(rules.payload&&resp.data[rules.payload]){resp.data[rules.payload]=resp.data[rules.payload].toString();}},/**
            * @api private
-           */defer:function defer(callback){if(_typeof(process)==='object'&&typeof process.nextTick==='function'){process.nextTick(callback);}else if(typeof setImmediate==='function'){setImmediate(callback);}else{setTimeout(callback,0);}},/**
+           */defer:function defer(callback){if(typeof process==='object'&&typeof process.nextTick==='function'){process.nextTick(callback);}else if(typeof setImmediate==='function'){setImmediate(callback);}else{setTimeout(callback,0);}},/**
            * @api private
            */getRequestPayloadShape:function getRequestPayloadShape(req){var operations=req.service.api.operations;if(!operations)return undefined;var operation=(operations||{})[req.operation];if(!operation||!operation.input||!operation.input.payload)return undefined;return operation.input.members[operation.input.payload];},getProfilesFromSharedConfig:function getProfilesFromSharedConfig(iniLoader,filename){var profiles={};var profilesFromConfig={};if(process.env[util.configOptInEnv]){var profilesFromConfig=iniLoader.loadFrom({isConfig:true,filename:process.env[util.sharedConfigFileEnv]});}var profilesFromCreds={};try{var profilesFromCreds=iniLoader.loadFrom({filename:filename||process.env[util.configOptInEnv]&&process.env[util.sharedCredentialsFileEnv]});}catch(error){// if using config, assume it is fully descriptive without a credentials file:
 if(!process.env[util.configOptInEnv])throw error;}for(var i=0,profileNames=Object.keys(profilesFromConfig);i<profileNames.length;i++){profiles[profileNames[i]]=objectAssign(profiles[profileNames[i]]||{},profilesFromConfig[profileNames[i]]);}for(var i=0,profileNames=Object.keys(profilesFromCreds);i<profileNames.length;i++){profiles[profileNames[i]]=objectAssign(profiles[profileNames[i]]||{},profilesFromCreds[profileNames[i]]);}return profiles;/**
@@ -9066,7 +8979,7 @@ var parts=[];var maxChunkLength=16383;// must be multiple of 3
 for(var i=0,len2=len-extraBytes;i<len2;i+=maxChunkLength){parts.push(encodeChunk(uint8,i,i+maxChunkLength>len2?len2:i+maxChunkLength));}// pad the end with zeros, but make sure to not forget the extra bytes
 if(extraBytes===1){tmp=uint8[len-1];parts.push(lookup[tmp>>2]+lookup[tmp<<4&0x3F]+'==');}else if(extraBytes===2){tmp=(uint8[len-2]<<8)+uint8[len-1];parts.push(lookup[tmp>>10]+lookup[tmp>>4&0x3F]+lookup[tmp<<2&0x3F]+'=');}return parts.join('');}},{}],82:[function(require,module,exports){},{}],83:[function(require,module,exports){if(typeof Object.create==='function'){// implementation from standard node.js 'util' module
 module.exports=function inherits(ctor,superCtor){ctor.super_=superCtor;ctor.prototype=Object.create(superCtor.prototype,{constructor:{value:ctor,enumerable:false,writable:true,configurable:true}});};}else{// old school shim for old browsers
-module.exports=function inherits(ctor,superCtor){ctor.super_=superCtor;var TempCtor=function TempCtor(){};TempCtor.prototype=superCtor.prototype;ctor.prototype=new TempCtor();ctor.prototype.constructor=ctor;};}},{}],84:[function(require,module,exports){module.exports=function isBuffer(arg){return arg&&_typeof(arg)==='object'&&typeof arg.copy==='function'&&typeof arg.fill==='function'&&typeof arg.readUInt8==='function';};},{}],85:[function(require,module,exports){(function(process,global){(function(){// Copyright Joyent, Inc. and other Node contributors.
+module.exports=function inherits(ctor,superCtor){ctor.super_=superCtor;var TempCtor=function(){};TempCtor.prototype=superCtor.prototype;ctor.prototype=new TempCtor();ctor.prototype.constructor=ctor;};}},{}],84:[function(require,module,exports){module.exports=function isBuffer(arg){return arg&&typeof arg==='object'&&typeof arg.copy==='function'&&typeof arg.fill==='function'&&typeof arg.readUInt8==='function';};},{}],85:[function(require,module,exports){(function(process,global){(function(){// Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -9104,7 +9017,7 @@ exports._extend(ctx,opts);}// set default options
 if(isUndefined(ctx.showHidden))ctx.showHidden=false;if(isUndefined(ctx.depth))ctx.depth=2;if(isUndefined(ctx.colors))ctx.colors=false;if(isUndefined(ctx.customInspect))ctx.customInspect=true;if(ctx.colors)ctx.stylize=stylizeWithColor;return formatValue(ctx,obj,ctx.depth);}exports.inspect=inspect;// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
 inspect.colors={'bold':[1,22],'italic':[3,23],'underline':[4,24],'inverse':[7,27],'white':[37,39],'grey':[90,39],'black':[30,39],'blue':[34,39],'cyan':[36,39],'green':[32,39],'magenta':[35,39],'red':[31,39],'yellow':[33,39]};// Don't use 'blue' not visible on cmd.exe
 inspect.styles={'special':'cyan','number':'yellow','boolean':'yellow','undefined':'grey','null':'bold','string':'green','date':'magenta',// "name": intentionally not styling
-'regexp':'red'};function stylizeWithColor(str,styleType){var style=inspect.styles[styleType];if(style){return"\x1B["+inspect.colors[style][0]+'m'+str+"\x1B["+inspect.colors[style][1]+'m';}else{return str;}}function stylizeNoColor(str,styleType){return str;}function arrayToHash(array){var hash={};array.forEach(function(val,idx){hash[val]=true;});return hash;}function formatValue(ctx,value,recurseTimes){// Provide a hook for user-specified inspect functions.
+'regexp':'red'};function stylizeWithColor(str,styleType){var style=inspect.styles[styleType];if(style){return'\u001b['+inspect.colors[style][0]+'m'+str+'\u001b['+inspect.colors[style][1]+'m';}else{return str;}}function stylizeNoColor(str,styleType){return str;}function arrayToHash(array){var hash={};array.forEach(function(val,idx){hash[val]=true;});return hash;}function formatValue(ctx,value,recurseTimes){// Provide a hook for user-specified inspect functions.
 // Check that value is an object with an inspect function on it
 if(ctx.customInspect&&value&&isFunction(value.inspect)&&// Filter out the util module, it's inspect function is special
 value.inspect!==exports.inspect&&// Also filter out any prototype objects using the circular check.
@@ -9121,7 +9034,7 @@ if(isDate(value)){base=' '+Date.prototype.toUTCString.call(value);}// Make error
 if(isError(value)){base=' '+formatError(value);}if(keys.length===0&&(!array||value.length==0)){return braces[0]+base+braces[1];}if(recurseTimes<0){if(isRegExp(value)){return ctx.stylize(RegExp.prototype.toString.call(value),'regexp');}else{return ctx.stylize('[Object]','special');}}ctx.seen.push(value);var output;if(array){output=formatArray(ctx,value,recurseTimes,visibleKeys,keys);}else{output=keys.map(function(key){return formatProperty(ctx,value,recurseTimes,visibleKeys,key,array);});}ctx.seen.pop();return reduceToSingleString(output,base,braces);}function formatPrimitive(ctx,value){if(isUndefined(value))return ctx.stylize('undefined','undefined');if(isString(value)){var simple='\''+JSON.stringify(value).replace(/^"|"$/g,'').replace(/'/g,"\\'").replace(/\\"/g,'"')+'\'';return ctx.stylize(simple,'string');}if(isNumber(value))return ctx.stylize(''+value,'number');if(isBoolean(value))return ctx.stylize(''+value,'boolean');// For some reason typeof null is "object", so special case here.
 if(isNull(value))return ctx.stylize('null','null');}function formatError(value){return'['+Error.prototype.toString.call(value)+']';}function formatArray(ctx,value,recurseTimes,visibleKeys,keys){var output=[];for(var i=0,l=value.length;i<l;++i){if(hasOwnProperty(value,String(i))){output.push(formatProperty(ctx,value,recurseTimes,visibleKeys,String(i),true));}else{output.push('');}}keys.forEach(function(key){if(!key.match(/^\d+$/)){output.push(formatProperty(ctx,value,recurseTimes,visibleKeys,key,true));}});return output;}function formatProperty(ctx,value,recurseTimes,visibleKeys,key,array){var name,str,desc;desc=Object.getOwnPropertyDescriptor(value,key)||{value:value[key]};if(desc.get){if(desc.set){str=ctx.stylize('[Getter/Setter]','special');}else{str=ctx.stylize('[Getter]','special');}}else{if(desc.set){str=ctx.stylize('[Setter]','special');}}if(!hasOwnProperty(visibleKeys,key)){name='['+key+']';}if(!str){if(ctx.seen.indexOf(desc.value)<0){if(isNull(recurseTimes)){str=formatValue(ctx,desc.value,null);}else{str=formatValue(ctx,desc.value,recurseTimes-1);}if(str.indexOf('\n')>-1){if(array){str=str.split('\n').map(function(line){return'  '+line;}).join('\n').substr(2);}else{str='\n'+str.split('\n').map(function(line){return'   '+line;}).join('\n');}}}else{str=ctx.stylize('[Circular]','special');}}if(isUndefined(name)){if(array&&key.match(/^\d+$/)){return str;}name=JSON.stringify(''+key);if(name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)){name=name.substr(1,name.length-2);name=ctx.stylize(name,'name');}else{name=name.replace(/'/g,"\\'").replace(/\\"/g,'"').replace(/(^"|"$)/g,"'");name=ctx.stylize(name,'string');}}return name+': '+str;}function reduceToSingleString(output,base,braces){var numLinesEst=0;var length=output.reduce(function(prev,cur){numLinesEst++;if(cur.indexOf('\n')>=0)numLinesEst++;return prev+cur.replace(/\u001b\[\d\d?m/g,'').length+1;},0);if(length>60){return braces[0]+(base===''?'':base+'\n ')+' '+output.join(',\n  ')+' '+braces[1];}return braces[0]+base+' '+output.join(', ')+' '+braces[1];}// NOTE: These type checking functions intentionally don't use `instanceof`
 // because it is fragile and can be easily faked with `Object.create()`.
-function isArray(ar){return Array.isArray(ar);}exports.isArray=isArray;function isBoolean(arg){return typeof arg==='boolean';}exports.isBoolean=isBoolean;function isNull(arg){return arg===null;}exports.isNull=isNull;function isNullOrUndefined(arg){return arg==null;}exports.isNullOrUndefined=isNullOrUndefined;function isNumber(arg){return typeof arg==='number';}exports.isNumber=isNumber;function isString(arg){return typeof arg==='string';}exports.isString=isString;function isSymbol(arg){return _typeof(arg)==='symbol';}exports.isSymbol=isSymbol;function isUndefined(arg){return arg===void 0;}exports.isUndefined=isUndefined;function isRegExp(re){return isObject(re)&&objectToString(re)==='[object RegExp]';}exports.isRegExp=isRegExp;function isObject(arg){return _typeof(arg)==='object'&&arg!==null;}exports.isObject=isObject;function isDate(d){return isObject(d)&&objectToString(d)==='[object Date]';}exports.isDate=isDate;function isError(e){return isObject(e)&&(objectToString(e)==='[object Error]'||e instanceof Error);}exports.isError=isError;function isFunction(arg){return typeof arg==='function';}exports.isFunction=isFunction;function isPrimitive(arg){return arg===null||typeof arg==='boolean'||typeof arg==='number'||typeof arg==='string'||_typeof(arg)==='symbol'||// ES6 symbol
+function isArray(ar){return Array.isArray(ar);}exports.isArray=isArray;function isBoolean(arg){return typeof arg==='boolean';}exports.isBoolean=isBoolean;function isNull(arg){return arg===null;}exports.isNull=isNull;function isNullOrUndefined(arg){return arg==null;}exports.isNullOrUndefined=isNullOrUndefined;function isNumber(arg){return typeof arg==='number';}exports.isNumber=isNumber;function isString(arg){return typeof arg==='string';}exports.isString=isString;function isSymbol(arg){return typeof arg==='symbol';}exports.isSymbol=isSymbol;function isUndefined(arg){return arg===void 0;}exports.isUndefined=isUndefined;function isRegExp(re){return isObject(re)&&objectToString(re)==='[object RegExp]';}exports.isRegExp=isRegExp;function isObject(arg){return typeof arg==='object'&&arg!==null;}exports.isObject=isObject;function isDate(d){return isObject(d)&&objectToString(d)==='[object Date]';}exports.isDate=isDate;function isError(e){return isObject(e)&&(objectToString(e)==='[object Error]'||e instanceof Error);}exports.isError=isError;function isFunction(arg){return typeof arg==='function';}exports.isFunction=isFunction;function isPrimitive(arg){return arg===null||typeof arg==='boolean'||typeof arg==='number'||typeof arg==='string'||typeof arg==='symbol'||// ES6 symbol
 typeof arg==='undefined';}exports.isPrimitive=isPrimitive;exports.isBuffer=require('./support/isBuffer');function objectToString(o){return Object.prototype.toString.call(o);}function pad(n){return n<10?'0'+n.toString(10):n.toString(10);}var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];// 26 Feb 16:19:34
 function timestamp(){var d=new Date();var time=[pad(d.getHours()),pad(d.getMinutes()),pad(d.getSeconds())].join(':');return[d.getDate(),months[d.getMonth()],time].join(' ');}// log is just a thin wrapper to console.log that prepends a timestamp
 exports.log=function(){console.log('%s - %s',timestamp(),exports.format.apply(exports,arguments));};/**
@@ -9167,7 +9080,7 @@ if(!add||!isObject(add))return origin;var keys=Object.keys(add);var i=keys.lengt
          * get the Object implementation, which is slower but behaves correctly.
          */Buffer.TYPED_ARRAY_SUPPORT=global.TYPED_ARRAY_SUPPORT!==undefined?global.TYPED_ARRAY_SUPPORT:typedArraySupport();/*
          * Export kMaxLength after typed array support is determined.
-         */exports.kMaxLength=kMaxLength();function typedArraySupport(){try{var arr=new Uint8Array(1);arr.__proto__={__proto__:Uint8Array.prototype,foo:function foo(){return 42;}};return arr.foo()===42&&// typed array instances can be augmented
+         */exports.kMaxLength=kMaxLength();function typedArraySupport(){try{var arr=new Uint8Array(1);arr.__proto__={__proto__:Uint8Array.prototype,foo:function(){return 42;}};return arr.foo()===42&&// typed array instances can be augmented
 typeof arr.subarray==='function'&&// chrome 9-10 lack `subarray`
 arr.subarray(1,1).byteLength===0;// ie10 has broken `subarray`
 }catch(e){return false;}}function kMaxLength(){return Buffer.TYPED_ARRAY_SUPPORT?0x7fffffff:0x3fffffff;}function createBuffer(that,length){if(kMaxLength()<length){throw new RangeError('Invalid typed array length');}if(Buffer.TYPED_ARRAY_SUPPORT){// Return an augmented `Uint8Array` instance, for best performance
@@ -9327,7 +9240,7 @@ console.trace();}}}return this;};EventEmitter.prototype.on=EventEmitter.prototyp
 EventEmitter.prototype.removeListener=function(type,listener){var list,position,length,i;if(!isFunction(listener))throw TypeError('listener must be a function');if(!this._events||!this._events[type])return this;list=this._events[type];length=list.length;position=-1;if(list===listener||isFunction(list.listener)&&list.listener===listener){delete this._events[type];if(this._events.removeListener)this.emit('removeListener',type,listener);}else if(isObject(list)){for(i=length;i-->0;){if(list[i]===listener||list[i].listener&&list[i].listener===listener){position=i;break;}}if(position<0)return this;if(list.length===1){list.length=0;delete this._events[type];}else{list.splice(position,1);}if(this._events.removeListener)this.emit('removeListener',type,listener);}return this;};EventEmitter.prototype.removeAllListeners=function(type){var key,listeners;if(!this._events)return this;// not listening for removeListener, no need to emit
 if(!this._events.removeListener){if(arguments.length===0)this._events={};else if(this._events[type])delete this._events[type];return this;}// emit removeListener for all listeners on all events
 if(arguments.length===0){for(key in this._events){if(key==='removeListener')continue;this.removeAllListeners(key);}this.removeAllListeners('removeListener');this._events={};return this;}listeners=this._events[type];if(isFunction(listeners)){this.removeListener(type,listeners);}else if(listeners){// LIFO order
-while(listeners.length)this.removeListener(type,listeners[listeners.length-1]);}delete this._events[type];return this;};EventEmitter.prototype.listeners=function(type){var ret;if(!this._events||!this._events[type])ret=[];else if(isFunction(this._events[type]))ret=[this._events[type]];else ret=this._events[type].slice();return ret;};EventEmitter.prototype.listenerCount=function(type){if(this._events){var evlistener=this._events[type];if(isFunction(evlistener))return 1;else if(evlistener)return evlistener.length;}return 0;};EventEmitter.listenerCount=function(emitter,type){return emitter.listenerCount(type);};function isFunction(arg){return typeof arg==='function';}function isNumber(arg){return typeof arg==='number';}function isObject(arg){return _typeof(arg)==='object'&&arg!==null;}function isUndefined(arg){return arg===void 0;}},{}],88:[function(require,module,exports){exports.read=function(buffer,offset,isLE,mLen,nBytes){var e,m;var eLen=nBytes*8-mLen-1;var eMax=(1<<eLen)-1;var eBias=eMax>>1;var nBits=-7;var i=isLE?nBytes-1:0;var d=isLE?-1:1;var s=buffer[offset+i];i+=d;e=s&(1<<-nBits)-1;s>>=-nBits;nBits+=eLen;for(;nBits>0;e=e*256+buffer[offset+i],i+=d,nBits-=8){}m=e&(1<<-nBits)-1;e>>=-nBits;nBits+=mLen;for(;nBits>0;m=m*256+buffer[offset+i],i+=d,nBits-=8){}if(e===0){e=1-eBias;}else if(e===eMax){return m?NaN:(s?-1:1)*Infinity;}else{m=m+Math.pow(2,mLen);e=e-eBias;}return(s?-1:1)*m*Math.pow(2,e-mLen);};exports.write=function(buffer,value,offset,isLE,mLen,nBytes){var e,m,c;var eLen=nBytes*8-mLen-1;var eMax=(1<<eLen)-1;var eBias=eMax>>1;var rt=mLen===23?Math.pow(2,-24)-Math.pow(2,-77):0;var i=isLE?0:nBytes-1;var d=isLE?1:-1;var s=value<0||value===0&&1/value<0?1:0;value=Math.abs(value);if(isNaN(value)||value===Infinity){m=isNaN(value)?1:0;e=eMax;}else{e=Math.floor(Math.log(value)/Math.LN2);if(value*(c=Math.pow(2,-e))<1){e--;c*=2;}if(e+eBias>=1){value+=rt/c;}else{value+=rt*Math.pow(2,1-eBias);}if(value*c>=2){e++;c/=2;}if(e+eBias>=eMax){m=0;e=eMax;}else if(e+eBias>=1){m=(value*c-1)*Math.pow(2,mLen);e=e+eBias;}else{m=value*Math.pow(2,eBias-1)*Math.pow(2,mLen);e=0;}}for(;mLen>=8;buffer[offset+i]=m&0xff,i+=d,m/=256,mLen-=8){}e=e<<mLen|m;eLen+=mLen;for(;eLen>0;buffer[offset+i]=e&0xff,i+=d,e/=256,eLen-=8){}buffer[offset+i-d]|=s*128;};},{}],89:[function(require,module,exports){var toString={}.toString;module.exports=Array.isArray||function(arr){return toString.call(arr)=='[object Array]';};},{}],90:[function(require,module,exports){(function(exports){"use strict";function isArray(obj){if(obj!==null){return Object.prototype.toString.call(obj)==="[object Array]";}else{return false;}}function isObject(obj){if(obj!==null){return Object.prototype.toString.call(obj)==="[object Object]";}else{return false;}}function strictDeepEqual(first,second){// Check the scalar case first.
+while(listeners.length)this.removeListener(type,listeners[listeners.length-1]);}delete this._events[type];return this;};EventEmitter.prototype.listeners=function(type){var ret;if(!this._events||!this._events[type])ret=[];else if(isFunction(this._events[type]))ret=[this._events[type]];else ret=this._events[type].slice();return ret;};EventEmitter.prototype.listenerCount=function(type){if(this._events){var evlistener=this._events[type];if(isFunction(evlistener))return 1;else if(evlistener)return evlistener.length;}return 0;};EventEmitter.listenerCount=function(emitter,type){return emitter.listenerCount(type);};function isFunction(arg){return typeof arg==='function';}function isNumber(arg){return typeof arg==='number';}function isObject(arg){return typeof arg==='object'&&arg!==null;}function isUndefined(arg){return arg===void 0;}},{}],88:[function(require,module,exports){exports.read=function(buffer,offset,isLE,mLen,nBytes){var e,m;var eLen=nBytes*8-mLen-1;var eMax=(1<<eLen)-1;var eBias=eMax>>1;var nBits=-7;var i=isLE?nBytes-1:0;var d=isLE?-1:1;var s=buffer[offset+i];i+=d;e=s&(1<<-nBits)-1;s>>=-nBits;nBits+=eLen;for(;nBits>0;e=e*256+buffer[offset+i],i+=d,nBits-=8){}m=e&(1<<-nBits)-1;e>>=-nBits;nBits+=mLen;for(;nBits>0;m=m*256+buffer[offset+i],i+=d,nBits-=8){}if(e===0){e=1-eBias;}else if(e===eMax){return m?NaN:(s?-1:1)*Infinity;}else{m=m+Math.pow(2,mLen);e=e-eBias;}return(s?-1:1)*m*Math.pow(2,e-mLen);};exports.write=function(buffer,value,offset,isLE,mLen,nBytes){var e,m,c;var eLen=nBytes*8-mLen-1;var eMax=(1<<eLen)-1;var eBias=eMax>>1;var rt=mLen===23?Math.pow(2,-24)-Math.pow(2,-77):0;var i=isLE?0:nBytes-1;var d=isLE?1:-1;var s=value<0||value===0&&1/value<0?1:0;value=Math.abs(value);if(isNaN(value)||value===Infinity){m=isNaN(value)?1:0;e=eMax;}else{e=Math.floor(Math.log(value)/Math.LN2);if(value*(c=Math.pow(2,-e))<1){e--;c*=2;}if(e+eBias>=1){value+=rt/c;}else{value+=rt*Math.pow(2,1-eBias);}if(value*c>=2){e++;c/=2;}if(e+eBias>=eMax){m=0;e=eMax;}else if(e+eBias>=1){m=(value*c-1)*Math.pow(2,mLen);e=e+eBias;}else{m=value*Math.pow(2,eBias-1)*Math.pow(2,mLen);e=0;}}for(;mLen>=8;buffer[offset+i]=m&0xff,i+=d,m/=256,mLen-=8){}e=e<<mLen|m;eLen+=mLen;for(;eLen>0;buffer[offset+i]=e&0xff,i+=d,e/=256,eLen-=8){}buffer[offset+i-d]|=s*128;};},{}],89:[function(require,module,exports){var toString={}.toString;module.exports=Array.isArray||function(arr){return toString.call(arr)=='[object Array]';};},{}],90:[function(require,module,exports){(function(exports){"use strict";function isArray(obj){if(obj!==null){return Object.prototype.toString.call(obj)==="[object Array]";}else{return false;}}function isObject(obj){if(obj!==null){return Object.prototype.toString.call(obj)==="[object Object]";}else{return false;}}function strictDeepEqual(first,second){// Check the scalar case first.
 if(first===second){return true;}// Check if they are the same type.
 var firstType=Object.prototype.toString.call(first);if(firstType!==Object.prototype.toString.call(second)){return false;}// We know that first and second have the same type so we can just check the
 // first type from now on.
@@ -9348,30 +9261,30 @@ return true;}else if(isObject(obj)){// Check for an empty object.
 for(var key in obj){// If there are any keys, then
 // the object is not empty so the object
 // is not false.
-if(obj.hasOwnProperty(key)){return false;}}return true;}else{return false;}}function objValues(obj){var keys=Object.keys(obj);var values=[];for(var i=0;i<keys.length;i++){values.push(obj[keys[i]]);}return values;}function merge(a,b){var merged={};for(var key in a){merged[key]=a[key];}for(var key2 in b){merged[key2]=b[key2];}return merged;}var trimLeft;if(typeof String.prototype.trimLeft==="function"){trimLeft=function trimLeft(str){return str.trimLeft();};}else{trimLeft=function trimLeft(str){return str.match(/^\s*(.*)/)[1];};}// Type constants used to define functions.
+if(obj.hasOwnProperty(key)){return false;}}return true;}else{return false;}}function objValues(obj){var keys=Object.keys(obj);var values=[];for(var i=0;i<keys.length;i++){values.push(obj[keys[i]]);}return values;}function merge(a,b){var merged={};for(var key in a){merged[key]=a[key];}for(var key2 in b){merged[key2]=b[key2];}return merged;}var trimLeft;if(typeof String.prototype.trimLeft==="function"){trimLeft=function(str){return str.trimLeft();};}else{trimLeft=function(str){return str.match(/^\s*(.*)/)[1];};}// Type constants used to define functions.
 var TYPE_NUMBER=0;var TYPE_ANY=1;var TYPE_STRING=2;var TYPE_ARRAY=3;var TYPE_OBJECT=4;var TYPE_BOOLEAN=5;var TYPE_EXPREF=6;var TYPE_NULL=7;var TYPE_ARRAY_NUMBER=8;var TYPE_ARRAY_STRING=9;var TYPE_NAME_TABLE={0:'number',1:'any',2:'string',3:'array',4:'object',5:'boolean',6:'expression',7:'null',8:'Array<number>',9:'Array<string>'};var TOK_EOF="EOF";var TOK_UNQUOTEDIDENTIFIER="UnquotedIdentifier";var TOK_QUOTEDIDENTIFIER="QuotedIdentifier";var TOK_RBRACKET="Rbracket";var TOK_RPAREN="Rparen";var TOK_COMMA="Comma";var TOK_COLON="Colon";var TOK_RBRACE="Rbrace";var TOK_NUMBER="Number";var TOK_CURRENT="Current";var TOK_EXPREF="Expref";var TOK_PIPE="Pipe";var TOK_OR="Or";var TOK_AND="And";var TOK_EQ="EQ";var TOK_GT="GT";var TOK_LT="LT";var TOK_GTE="GTE";var TOK_LTE="LTE";var TOK_NE="NE";var TOK_FLATTEN="Flatten";var TOK_STAR="Star";var TOK_FILTER="Filter";var TOK_DOT="Dot";var TOK_NOT="Not";var TOK_LBRACE="Lbrace";var TOK_LBRACKET="Lbracket";var TOK_LPAREN="Lparen";var TOK_LITERAL="Literal";// The "&", "[", "<", ">" tokens
 // are not in basicToken because
 // there are two token variants
 // ("&&", "[?", "<=", ">=").  This is specially handled
 // below.
-var basicTokens={".":TOK_DOT,"*":TOK_STAR,",":TOK_COMMA,":":TOK_COLON,"{":TOK_LBRACE,"}":TOK_RBRACE,"]":TOK_RBRACKET,"(":TOK_LPAREN,")":TOK_RPAREN,"@":TOK_CURRENT};var operatorStartToken={"<":true,">":true,"=":true,"!":true};var skipChars={" ":true,"\t":true,"\n":true};function isAlpha(ch){return ch>="a"&&ch<="z"||ch>="A"&&ch<="Z"||ch==="_";}function isNum(ch){return ch>="0"&&ch<="9"||ch==="-";}function isAlphaNum(ch){return ch>="a"&&ch<="z"||ch>="A"&&ch<="Z"||ch>="0"&&ch<="9"||ch==="_";}function Lexer(){}Lexer.prototype={tokenize:function tokenize(stream){var tokens=[];this._current=0;var start;var identifier;var token;while(this._current<stream.length){if(isAlpha(stream[this._current])){start=this._current;identifier=this._consumeUnquotedIdentifier(stream);tokens.push({type:TOK_UNQUOTEDIDENTIFIER,value:identifier,start:start});}else if(basicTokens[stream[this._current]]!==undefined){tokens.push({type:basicTokens[stream[this._current]],value:stream[this._current],start:this._current});this._current++;}else if(isNum(stream[this._current])){token=this._consumeNumber(stream);tokens.push(token);}else if(stream[this._current]==="["){// No need to increment this._current.  This happens
+var basicTokens={".":TOK_DOT,"*":TOK_STAR,",":TOK_COMMA,":":TOK_COLON,"{":TOK_LBRACE,"}":TOK_RBRACE,"]":TOK_RBRACKET,"(":TOK_LPAREN,")":TOK_RPAREN,"@":TOK_CURRENT};var operatorStartToken={"<":true,">":true,"=":true,"!":true};var skipChars={" ":true,"\t":true,"\n":true};function isAlpha(ch){return ch>="a"&&ch<="z"||ch>="A"&&ch<="Z"||ch==="_";}function isNum(ch){return ch>="0"&&ch<="9"||ch==="-";}function isAlphaNum(ch){return ch>="a"&&ch<="z"||ch>="A"&&ch<="Z"||ch>="0"&&ch<="9"||ch==="_";}function Lexer(){}Lexer.prototype={tokenize:function(stream){var tokens=[];this._current=0;var start;var identifier;var token;while(this._current<stream.length){if(isAlpha(stream[this._current])){start=this._current;identifier=this._consumeUnquotedIdentifier(stream);tokens.push({type:TOK_UNQUOTEDIDENTIFIER,value:identifier,start:start});}else if(basicTokens[stream[this._current]]!==undefined){tokens.push({type:basicTokens[stream[this._current]],value:stream[this._current],start:this._current});this._current++;}else if(isNum(stream[this._current])){token=this._consumeNumber(stream);tokens.push(token);}else if(stream[this._current]==="["){// No need to increment this._current.  This happens
 // in _consumeLBracket
 token=this._consumeLBracket(stream);tokens.push(token);}else if(stream[this._current]==="\""){start=this._current;identifier=this._consumeQuotedIdentifier(stream);tokens.push({type:TOK_QUOTEDIDENTIFIER,value:identifier,start:start});}else if(stream[this._current]==="'"){start=this._current;identifier=this._consumeRawStringLiteral(stream);tokens.push({type:TOK_LITERAL,value:identifier,start:start});}else if(stream[this._current]==="`"){start=this._current;var literal=this._consumeLiteral(stream);tokens.push({type:TOK_LITERAL,value:literal,start:start});}else if(operatorStartToken[stream[this._current]]!==undefined){tokens.push(this._consumeOperator(stream));}else if(skipChars[stream[this._current]]!==undefined){// Ignore whitespace.
-this._current++;}else if(stream[this._current]==="&"){start=this._current;this._current++;if(stream[this._current]==="&"){this._current++;tokens.push({type:TOK_AND,value:"&&",start:start});}else{tokens.push({type:TOK_EXPREF,value:"&",start:start});}}else if(stream[this._current]==="|"){start=this._current;this._current++;if(stream[this._current]==="|"){this._current++;tokens.push({type:TOK_OR,value:"||",start:start});}else{tokens.push({type:TOK_PIPE,value:"|",start:start});}}else{var error=new Error("Unknown character:"+stream[this._current]);error.name="LexerError";throw error;}}return tokens;},_consumeUnquotedIdentifier:function _consumeUnquotedIdentifier(stream){var start=this._current;this._current++;while(this._current<stream.length&&isAlphaNum(stream[this._current])){this._current++;}return stream.slice(start,this._current);},_consumeQuotedIdentifier:function _consumeQuotedIdentifier(stream){var start=this._current;this._current++;var maxLength=stream.length;while(stream[this._current]!=="\""&&this._current<maxLength){// You can escape a double quote and you can escape an escape.
-var current=this._current;if(stream[current]==="\\"&&(stream[current+1]==="\\"||stream[current+1]==="\"")){current+=2;}else{current++;}this._current=current;}this._current++;return JSON.parse(stream.slice(start,this._current));},_consumeRawStringLiteral:function _consumeRawStringLiteral(stream){var start=this._current;this._current++;var maxLength=stream.length;while(stream[this._current]!=="'"&&this._current<maxLength){// You can escape a single quote and you can escape an escape.
-var current=this._current;if(stream[current]==="\\"&&(stream[current+1]==="\\"||stream[current+1]==="'")){current+=2;}else{current++;}this._current=current;}this._current++;var literal=stream.slice(start+1,this._current-1);return literal.replace("\\'","'");},_consumeNumber:function _consumeNumber(stream){var start=this._current;this._current++;var maxLength=stream.length;while(isNum(stream[this._current])&&this._current<maxLength){this._current++;}var value=parseInt(stream.slice(start,this._current));return{type:TOK_NUMBER,value:value,start:start};},_consumeLBracket:function _consumeLBracket(stream){var start=this._current;this._current++;if(stream[this._current]==="?"){this._current++;return{type:TOK_FILTER,value:"[?",start:start};}else if(stream[this._current]==="]"){this._current++;return{type:TOK_FLATTEN,value:"[]",start:start};}else{return{type:TOK_LBRACKET,value:"[",start:start};}},_consumeOperator:function _consumeOperator(stream){var start=this._current;var startingChar=stream[start];this._current++;if(startingChar==="!"){if(stream[this._current]==="="){this._current++;return{type:TOK_NE,value:"!=",start:start};}else{return{type:TOK_NOT,value:"!",start:start};}}else if(startingChar==="<"){if(stream[this._current]==="="){this._current++;return{type:TOK_LTE,value:"<=",start:start};}else{return{type:TOK_LT,value:"<",start:start};}}else if(startingChar===">"){if(stream[this._current]==="="){this._current++;return{type:TOK_GTE,value:">=",start:start};}else{return{type:TOK_GT,value:">",start:start};}}else if(startingChar==="="){if(stream[this._current]==="="){this._current++;return{type:TOK_EQ,value:"==",start:start};}}},_consumeLiteral:function _consumeLiteral(stream){this._current++;var start=this._current;var maxLength=stream.length;var literal;while(stream[this._current]!=="`"&&this._current<maxLength){// You can escape a literal char or you can escape the escape.
+this._current++;}else if(stream[this._current]==="&"){start=this._current;this._current++;if(stream[this._current]==="&"){this._current++;tokens.push({type:TOK_AND,value:"&&",start:start});}else{tokens.push({type:TOK_EXPREF,value:"&",start:start});}}else if(stream[this._current]==="|"){start=this._current;this._current++;if(stream[this._current]==="|"){this._current++;tokens.push({type:TOK_OR,value:"||",start:start});}else{tokens.push({type:TOK_PIPE,value:"|",start:start});}}else{var error=new Error("Unknown character:"+stream[this._current]);error.name="LexerError";throw error;}}return tokens;},_consumeUnquotedIdentifier:function(stream){var start=this._current;this._current++;while(this._current<stream.length&&isAlphaNum(stream[this._current])){this._current++;}return stream.slice(start,this._current);},_consumeQuotedIdentifier:function(stream){var start=this._current;this._current++;var maxLength=stream.length;while(stream[this._current]!=="\""&&this._current<maxLength){// You can escape a double quote and you can escape an escape.
+var current=this._current;if(stream[current]==="\\"&&(stream[current+1]==="\\"||stream[current+1]==="\"")){current+=2;}else{current++;}this._current=current;}this._current++;return JSON.parse(stream.slice(start,this._current));},_consumeRawStringLiteral:function(stream){var start=this._current;this._current++;var maxLength=stream.length;while(stream[this._current]!=="'"&&this._current<maxLength){// You can escape a single quote and you can escape an escape.
+var current=this._current;if(stream[current]==="\\"&&(stream[current+1]==="\\"||stream[current+1]==="'")){current+=2;}else{current++;}this._current=current;}this._current++;var literal=stream.slice(start+1,this._current-1);return literal.replace("\\'","'");},_consumeNumber:function(stream){var start=this._current;this._current++;var maxLength=stream.length;while(isNum(stream[this._current])&&this._current<maxLength){this._current++;}var value=parseInt(stream.slice(start,this._current));return{type:TOK_NUMBER,value:value,start:start};},_consumeLBracket:function(stream){var start=this._current;this._current++;if(stream[this._current]==="?"){this._current++;return{type:TOK_FILTER,value:"[?",start:start};}else if(stream[this._current]==="]"){this._current++;return{type:TOK_FLATTEN,value:"[]",start:start};}else{return{type:TOK_LBRACKET,value:"[",start:start};}},_consumeOperator:function(stream){var start=this._current;var startingChar=stream[start];this._current++;if(startingChar==="!"){if(stream[this._current]==="="){this._current++;return{type:TOK_NE,value:"!=",start:start};}else{return{type:TOK_NOT,value:"!",start:start};}}else if(startingChar==="<"){if(stream[this._current]==="="){this._current++;return{type:TOK_LTE,value:"<=",start:start};}else{return{type:TOK_LT,value:"<",start:start};}}else if(startingChar===">"){if(stream[this._current]==="="){this._current++;return{type:TOK_GTE,value:">=",start:start};}else{return{type:TOK_GT,value:">",start:start};}}else if(startingChar==="="){if(stream[this._current]==="="){this._current++;return{type:TOK_EQ,value:"==",start:start};}}},_consumeLiteral:function(stream){this._current++;var start=this._current;var maxLength=stream.length;var literal;while(stream[this._current]!=="`"&&this._current<maxLength){// You can escape a literal char or you can escape the escape.
 var current=this._current;if(stream[current]==="\\"&&(stream[current+1]==="\\"||stream[current+1]==="`")){current+=2;}else{current++;}this._current=current;}var literalString=trimLeft(stream.slice(start,this._current));literalString=literalString.replace("\\`","`");if(this._looksLikeJSON(literalString)){literal=JSON.parse(literalString);}else{// Try to JSON parse it as "<literal>"
 literal=JSON.parse("\""+literalString+"\"");}// +1 gets us to the ending "`", +1 to move on to the next char.
-this._current++;return literal;},_looksLikeJSON:function _looksLikeJSON(literalString){var startingChars="[{\"";var jsonLiterals=["true","false","null"];var numberLooking="-0123456789";if(literalString===""){return false;}else if(startingChars.indexOf(literalString[0])>=0){return true;}else if(jsonLiterals.indexOf(literalString)>=0){return true;}else if(numberLooking.indexOf(literalString[0])>=0){try{JSON.parse(literalString);return true;}catch(ex){return false;}}else{return false;}}};var bindingPower={};bindingPower[TOK_EOF]=0;bindingPower[TOK_UNQUOTEDIDENTIFIER]=0;bindingPower[TOK_QUOTEDIDENTIFIER]=0;bindingPower[TOK_RBRACKET]=0;bindingPower[TOK_RPAREN]=0;bindingPower[TOK_COMMA]=0;bindingPower[TOK_RBRACE]=0;bindingPower[TOK_NUMBER]=0;bindingPower[TOK_CURRENT]=0;bindingPower[TOK_EXPREF]=0;bindingPower[TOK_PIPE]=1;bindingPower[TOK_OR]=2;bindingPower[TOK_AND]=3;bindingPower[TOK_EQ]=5;bindingPower[TOK_GT]=5;bindingPower[TOK_LT]=5;bindingPower[TOK_GTE]=5;bindingPower[TOK_LTE]=5;bindingPower[TOK_NE]=5;bindingPower[TOK_FLATTEN]=9;bindingPower[TOK_STAR]=20;bindingPower[TOK_FILTER]=21;bindingPower[TOK_DOT]=40;bindingPower[TOK_NOT]=45;bindingPower[TOK_LBRACE]=50;bindingPower[TOK_LBRACKET]=55;bindingPower[TOK_LPAREN]=60;function Parser(){}Parser.prototype={parse:function parse(expression){this._loadTokens(expression);this.index=0;var ast=this.expression(0);if(this._lookahead(0)!==TOK_EOF){var t=this._lookaheadToken(0);var error=new Error("Unexpected token type: "+t.type+", value: "+t.value);error.name="ParserError";throw error;}return ast;},_loadTokens:function _loadTokens(expression){var lexer=new Lexer();var tokens=lexer.tokenize(expression);tokens.push({type:TOK_EOF,value:"",start:expression.length});this.tokens=tokens;},expression:function expression(rbp){var leftToken=this._lookaheadToken(0);this._advance();var left=this.nud(leftToken);var currentToken=this._lookahead(0);while(rbp<bindingPower[currentToken]){this._advance();left=this.led(currentToken,left);currentToken=this._lookahead(0);}return left;},_lookahead:function _lookahead(number){return this.tokens[this.index+number].type;},_lookaheadToken:function _lookaheadToken(number){return this.tokens[this.index+number];},_advance:function _advance(){this.index++;},nud:function nud(token){var left;var right;var expression;switch(token.type){case TOK_LITERAL:return{type:"Literal",value:token.value};case TOK_UNQUOTEDIDENTIFIER:return{type:"Field",name:token.value};case TOK_QUOTEDIDENTIFIER:var node={type:"Field",name:token.value};if(this._lookahead(0)===TOK_LPAREN){throw new Error("Quoted identifier not allowed for function names.");}return node;case TOK_NOT:right=this.expression(bindingPower.Not);return{type:"NotExpression",children:[right]};case TOK_STAR:left={type:"Identity"};right=null;if(this._lookahead(0)===TOK_RBRACKET){// This can happen in a multiselect,
+this._current++;return literal;},_looksLikeJSON:function(literalString){var startingChars="[{\"";var jsonLiterals=["true","false","null"];var numberLooking="-0123456789";if(literalString===""){return false;}else if(startingChars.indexOf(literalString[0])>=0){return true;}else if(jsonLiterals.indexOf(literalString)>=0){return true;}else if(numberLooking.indexOf(literalString[0])>=0){try{JSON.parse(literalString);return true;}catch(ex){return false;}}else{return false;}}};var bindingPower={};bindingPower[TOK_EOF]=0;bindingPower[TOK_UNQUOTEDIDENTIFIER]=0;bindingPower[TOK_QUOTEDIDENTIFIER]=0;bindingPower[TOK_RBRACKET]=0;bindingPower[TOK_RPAREN]=0;bindingPower[TOK_COMMA]=0;bindingPower[TOK_RBRACE]=0;bindingPower[TOK_NUMBER]=0;bindingPower[TOK_CURRENT]=0;bindingPower[TOK_EXPREF]=0;bindingPower[TOK_PIPE]=1;bindingPower[TOK_OR]=2;bindingPower[TOK_AND]=3;bindingPower[TOK_EQ]=5;bindingPower[TOK_GT]=5;bindingPower[TOK_LT]=5;bindingPower[TOK_GTE]=5;bindingPower[TOK_LTE]=5;bindingPower[TOK_NE]=5;bindingPower[TOK_FLATTEN]=9;bindingPower[TOK_STAR]=20;bindingPower[TOK_FILTER]=21;bindingPower[TOK_DOT]=40;bindingPower[TOK_NOT]=45;bindingPower[TOK_LBRACE]=50;bindingPower[TOK_LBRACKET]=55;bindingPower[TOK_LPAREN]=60;function Parser(){}Parser.prototype={parse:function(expression){this._loadTokens(expression);this.index=0;var ast=this.expression(0);if(this._lookahead(0)!==TOK_EOF){var t=this._lookaheadToken(0);var error=new Error("Unexpected token type: "+t.type+", value: "+t.value);error.name="ParserError";throw error;}return ast;},_loadTokens:function(expression){var lexer=new Lexer();var tokens=lexer.tokenize(expression);tokens.push({type:TOK_EOF,value:"",start:expression.length});this.tokens=tokens;},expression:function(rbp){var leftToken=this._lookaheadToken(0);this._advance();var left=this.nud(leftToken);var currentToken=this._lookahead(0);while(rbp<bindingPower[currentToken]){this._advance();left=this.led(currentToken,left);currentToken=this._lookahead(0);}return left;},_lookahead:function(number){return this.tokens[this.index+number].type;},_lookaheadToken:function(number){return this.tokens[this.index+number];},_advance:function(){this.index++;},nud:function(token){var left;var right;var expression;switch(token.type){case TOK_LITERAL:return{type:"Literal",value:token.value};case TOK_UNQUOTEDIDENTIFIER:return{type:"Field",name:token.value};case TOK_QUOTEDIDENTIFIER:var node={type:"Field",name:token.value};if(this._lookahead(0)===TOK_LPAREN){throw new Error("Quoted identifier not allowed for function names.");}return node;case TOK_NOT:right=this.expression(bindingPower.Not);return{type:"NotExpression",children:[right]};case TOK_STAR:left={type:"Identity"};right=null;if(this._lookahead(0)===TOK_RBRACKET){// This can happen in a multiselect,
 // [a, b, *]
-right={type:"Identity"};}else{right=this._parseProjectionRHS(bindingPower.Star);}return{type:"ValueProjection",children:[left,right]};case TOK_FILTER:return this.led(token.type,{type:"Identity"});case TOK_LBRACE:return this._parseMultiselectHash();case TOK_FLATTEN:left={type:TOK_FLATTEN,children:[{type:"Identity"}]};right=this._parseProjectionRHS(bindingPower.Flatten);return{type:"Projection",children:[left,right]};case TOK_LBRACKET:if(this._lookahead(0)===TOK_NUMBER||this._lookahead(0)===TOK_COLON){right=this._parseIndexExpression();return this._projectIfSlice({type:"Identity"},right);}else if(this._lookahead(0)===TOK_STAR&&this._lookahead(1)===TOK_RBRACKET){this._advance();this._advance();right=this._parseProjectionRHS(bindingPower.Star);return{type:"Projection",children:[{type:"Identity"},right]};}return this._parseMultiselectList();case TOK_CURRENT:return{type:TOK_CURRENT};case TOK_EXPREF:expression=this.expression(bindingPower.Expref);return{type:"ExpressionReference",children:[expression]};case TOK_LPAREN:var args=[];while(this._lookahead(0)!==TOK_RPAREN){if(this._lookahead(0)===TOK_CURRENT){expression={type:TOK_CURRENT};this._advance();}else{expression=this.expression(0);}args.push(expression);}this._match(TOK_RPAREN);return args[0];default:this._errorToken(token);}},led:function led(tokenName,left){var right;switch(tokenName){case TOK_DOT:var rbp=bindingPower.Dot;if(this._lookahead(0)!==TOK_STAR){right=this._parseDotRHS(rbp);return{type:"Subexpression",children:[left,right]};}// Creating a projection.
-this._advance();right=this._parseProjectionRHS(rbp);return{type:"ValueProjection",children:[left,right]};case TOK_PIPE:right=this.expression(bindingPower.Pipe);return{type:TOK_PIPE,children:[left,right]};case TOK_OR:right=this.expression(bindingPower.Or);return{type:"OrExpression",children:[left,right]};case TOK_AND:right=this.expression(bindingPower.And);return{type:"AndExpression",children:[left,right]};case TOK_LPAREN:var name=left.name;var args=[];var expression,node;while(this._lookahead(0)!==TOK_RPAREN){if(this._lookahead(0)===TOK_CURRENT){expression={type:TOK_CURRENT};this._advance();}else{expression=this.expression(0);}if(this._lookahead(0)===TOK_COMMA){this._match(TOK_COMMA);}args.push(expression);}this._match(TOK_RPAREN);node={type:"Function",name:name,children:args};return node;case TOK_FILTER:var condition=this.expression(0);this._match(TOK_RBRACKET);if(this._lookahead(0)===TOK_FLATTEN){right={type:"Identity"};}else{right=this._parseProjectionRHS(bindingPower.Filter);}return{type:"FilterProjection",children:[left,right,condition]};case TOK_FLATTEN:var leftNode={type:TOK_FLATTEN,children:[left]};var rightNode=this._parseProjectionRHS(bindingPower.Flatten);return{type:"Projection",children:[leftNode,rightNode]};case TOK_EQ:case TOK_NE:case TOK_GT:case TOK_GTE:case TOK_LT:case TOK_LTE:return this._parseComparator(left,tokenName);case TOK_LBRACKET:var token=this._lookaheadToken(0);if(token.type===TOK_NUMBER||token.type===TOK_COLON){right=this._parseIndexExpression();return this._projectIfSlice(left,right);}this._match(TOK_STAR);this._match(TOK_RBRACKET);right=this._parseProjectionRHS(bindingPower.Star);return{type:"Projection",children:[left,right]};default:this._errorToken(this._lookaheadToken(0));}},_match:function _match(tokenType){if(this._lookahead(0)===tokenType){this._advance();}else{var t=this._lookaheadToken(0);var error=new Error("Expected "+tokenType+", got: "+t.type);error.name="ParserError";throw error;}},_errorToken:function _errorToken(token){var error=new Error("Invalid token ("+token.type+"): \""+token.value+"\"");error.name="ParserError";throw error;},_parseIndexExpression:function _parseIndexExpression(){if(this._lookahead(0)===TOK_COLON||this._lookahead(1)===TOK_COLON){return this._parseSliceExpression();}else{var node={type:"Index",value:this._lookaheadToken(0).value};this._advance();this._match(TOK_RBRACKET);return node;}},_projectIfSlice:function _projectIfSlice(left,right){var indexExpr={type:"IndexExpression",children:[left,right]};if(right.type==="Slice"){return{type:"Projection",children:[indexExpr,this._parseProjectionRHS(bindingPower.Star)]};}else{return indexExpr;}},_parseSliceExpression:function _parseSliceExpression(){// [start:end:step] where each part is optional, as well as the last
+right={type:"Identity"};}else{right=this._parseProjectionRHS(bindingPower.Star);}return{type:"ValueProjection",children:[left,right]};case TOK_FILTER:return this.led(token.type,{type:"Identity"});case TOK_LBRACE:return this._parseMultiselectHash();case TOK_FLATTEN:left={type:TOK_FLATTEN,children:[{type:"Identity"}]};right=this._parseProjectionRHS(bindingPower.Flatten);return{type:"Projection",children:[left,right]};case TOK_LBRACKET:if(this._lookahead(0)===TOK_NUMBER||this._lookahead(0)===TOK_COLON){right=this._parseIndexExpression();return this._projectIfSlice({type:"Identity"},right);}else if(this._lookahead(0)===TOK_STAR&&this._lookahead(1)===TOK_RBRACKET){this._advance();this._advance();right=this._parseProjectionRHS(bindingPower.Star);return{type:"Projection",children:[{type:"Identity"},right]};}return this._parseMultiselectList();case TOK_CURRENT:return{type:TOK_CURRENT};case TOK_EXPREF:expression=this.expression(bindingPower.Expref);return{type:"ExpressionReference",children:[expression]};case TOK_LPAREN:var args=[];while(this._lookahead(0)!==TOK_RPAREN){if(this._lookahead(0)===TOK_CURRENT){expression={type:TOK_CURRENT};this._advance();}else{expression=this.expression(0);}args.push(expression);}this._match(TOK_RPAREN);return args[0];default:this._errorToken(token);}},led:function(tokenName,left){var right;switch(tokenName){case TOK_DOT:var rbp=bindingPower.Dot;if(this._lookahead(0)!==TOK_STAR){right=this._parseDotRHS(rbp);return{type:"Subexpression",children:[left,right]};}// Creating a projection.
+this._advance();right=this._parseProjectionRHS(rbp);return{type:"ValueProjection",children:[left,right]};case TOK_PIPE:right=this.expression(bindingPower.Pipe);return{type:TOK_PIPE,children:[left,right]};case TOK_OR:right=this.expression(bindingPower.Or);return{type:"OrExpression",children:[left,right]};case TOK_AND:right=this.expression(bindingPower.And);return{type:"AndExpression",children:[left,right]};case TOK_LPAREN:var name=left.name;var args=[];var expression,node;while(this._lookahead(0)!==TOK_RPAREN){if(this._lookahead(0)===TOK_CURRENT){expression={type:TOK_CURRENT};this._advance();}else{expression=this.expression(0);}if(this._lookahead(0)===TOK_COMMA){this._match(TOK_COMMA);}args.push(expression);}this._match(TOK_RPAREN);node={type:"Function",name:name,children:args};return node;case TOK_FILTER:var condition=this.expression(0);this._match(TOK_RBRACKET);if(this._lookahead(0)===TOK_FLATTEN){right={type:"Identity"};}else{right=this._parseProjectionRHS(bindingPower.Filter);}return{type:"FilterProjection",children:[left,right,condition]};case TOK_FLATTEN:var leftNode={type:TOK_FLATTEN,children:[left]};var rightNode=this._parseProjectionRHS(bindingPower.Flatten);return{type:"Projection",children:[leftNode,rightNode]};case TOK_EQ:case TOK_NE:case TOK_GT:case TOK_GTE:case TOK_LT:case TOK_LTE:return this._parseComparator(left,tokenName);case TOK_LBRACKET:var token=this._lookaheadToken(0);if(token.type===TOK_NUMBER||token.type===TOK_COLON){right=this._parseIndexExpression();return this._projectIfSlice(left,right);}this._match(TOK_STAR);this._match(TOK_RBRACKET);right=this._parseProjectionRHS(bindingPower.Star);return{type:"Projection",children:[left,right]};default:this._errorToken(this._lookaheadToken(0));}},_match:function(tokenType){if(this._lookahead(0)===tokenType){this._advance();}else{var t=this._lookaheadToken(0);var error=new Error("Expected "+tokenType+", got: "+t.type);error.name="ParserError";throw error;}},_errorToken:function(token){var error=new Error("Invalid token ("+token.type+"): \""+token.value+"\"");error.name="ParserError";throw error;},_parseIndexExpression:function(){if(this._lookahead(0)===TOK_COLON||this._lookahead(1)===TOK_COLON){return this._parseSliceExpression();}else{var node={type:"Index",value:this._lookaheadToken(0).value};this._advance();this._match(TOK_RBRACKET);return node;}},_projectIfSlice:function(left,right){var indexExpr={type:"IndexExpression",children:[left,right]};if(right.type==="Slice"){return{type:"Projection",children:[indexExpr,this._parseProjectionRHS(bindingPower.Star)]};}else{return indexExpr;}},_parseSliceExpression:function(){// [start:end:step] where each part is optional, as well as the last
 // colon.
-var parts=[null,null,null];var index=0;var currentToken=this._lookahead(0);while(currentToken!==TOK_RBRACKET&&index<3){if(currentToken===TOK_COLON){index++;this._advance();}else if(currentToken===TOK_NUMBER){parts[index]=this._lookaheadToken(0).value;this._advance();}else{var t=this._lookahead(0);var error=new Error("Syntax error, unexpected token: "+t.value+"("+t.type+")");error.name="Parsererror";throw error;}currentToken=this._lookahead(0);}this._match(TOK_RBRACKET);return{type:"Slice",children:parts};},_parseComparator:function _parseComparator(left,comparator){var right=this.expression(bindingPower[comparator]);return{type:"Comparator",name:comparator,children:[left,right]};},_parseDotRHS:function _parseDotRHS(rbp){var lookahead=this._lookahead(0);var exprTokens=[TOK_UNQUOTEDIDENTIFIER,TOK_QUOTEDIDENTIFIER,TOK_STAR];if(exprTokens.indexOf(lookahead)>=0){return this.expression(rbp);}else if(lookahead===TOK_LBRACKET){this._match(TOK_LBRACKET);return this._parseMultiselectList();}else if(lookahead===TOK_LBRACE){this._match(TOK_LBRACE);return this._parseMultiselectHash();}},_parseProjectionRHS:function _parseProjectionRHS(rbp){var right;if(bindingPower[this._lookahead(0)]<10){right={type:"Identity"};}else if(this._lookahead(0)===TOK_LBRACKET){right=this.expression(rbp);}else if(this._lookahead(0)===TOK_FILTER){right=this.expression(rbp);}else if(this._lookahead(0)===TOK_DOT){this._match(TOK_DOT);right=this._parseDotRHS(rbp);}else{var t=this._lookaheadToken(0);var error=new Error("Sytanx error, unexpected token: "+t.value+"("+t.type+")");error.name="ParserError";throw error;}return right;},_parseMultiselectList:function _parseMultiselectList(){var expressions=[];while(this._lookahead(0)!==TOK_RBRACKET){var expression=this.expression(0);expressions.push(expression);if(this._lookahead(0)===TOK_COMMA){this._match(TOK_COMMA);if(this._lookahead(0)===TOK_RBRACKET){throw new Error("Unexpected token Rbracket");}}}this._match(TOK_RBRACKET);return{type:"MultiSelectList",children:expressions};},_parseMultiselectHash:function _parseMultiselectHash(){var pairs=[];var identifierTypes=[TOK_UNQUOTEDIDENTIFIER,TOK_QUOTEDIDENTIFIER];var keyToken,keyName,value,node;for(;;){keyToken=this._lookaheadToken(0);if(identifierTypes.indexOf(keyToken.type)<0){throw new Error("Expecting an identifier token, got: "+keyToken.type);}keyName=keyToken.value;this._advance();this._match(TOK_COLON);value=this.expression(0);node={type:"KeyValuePair",name:keyName,value:value};pairs.push(node);if(this._lookahead(0)===TOK_COMMA){this._match(TOK_COMMA);}else if(this._lookahead(0)===TOK_RBRACE){this._match(TOK_RBRACE);break;}}return{type:"MultiSelectHash",children:pairs};}};function TreeInterpreter(runtime){this.runtime=runtime;}TreeInterpreter.prototype={search:function search(node,value){return this.visit(node,value);},visit:function visit(node,value){var matched,current,result,first,second,field,left,right,collected,i;switch(node.type){case"Field":if(value!==null&&isObject(value)){field=value[node.name];if(field===undefined){return null;}else{return field;}}return null;case"Subexpression":result=this.visit(node.children[0],value);for(i=1;i<node.children.length;i++){result=this.visit(node.children[1],result);if(result===null){return null;}}return result;case"IndexExpression":left=this.visit(node.children[0],value);right=this.visit(node.children[1],left);return right;case"Index":if(!isArray(value)){return null;}var index=node.value;if(index<0){index=value.length+index;}result=value[index];if(result===undefined){result=null;}return result;case"Slice":if(!isArray(value)){return null;}var sliceParams=node.children.slice(0);var computed=this.computeSliceParams(value.length,sliceParams);var start=computed[0];var stop=computed[1];var step=computed[2];result=[];if(step>0){for(i=start;i<stop;i+=step){result.push(value[i]);}}else{for(i=start;i>stop;i+=step){result.push(value[i]);}}return result;case"Projection":// Evaluate left child.
+var parts=[null,null,null];var index=0;var currentToken=this._lookahead(0);while(currentToken!==TOK_RBRACKET&&index<3){if(currentToken===TOK_COLON){index++;this._advance();}else if(currentToken===TOK_NUMBER){parts[index]=this._lookaheadToken(0).value;this._advance();}else{var t=this._lookahead(0);var error=new Error("Syntax error, unexpected token: "+t.value+"("+t.type+")");error.name="Parsererror";throw error;}currentToken=this._lookahead(0);}this._match(TOK_RBRACKET);return{type:"Slice",children:parts};},_parseComparator:function(left,comparator){var right=this.expression(bindingPower[comparator]);return{type:"Comparator",name:comparator,children:[left,right]};},_parseDotRHS:function(rbp){var lookahead=this._lookahead(0);var exprTokens=[TOK_UNQUOTEDIDENTIFIER,TOK_QUOTEDIDENTIFIER,TOK_STAR];if(exprTokens.indexOf(lookahead)>=0){return this.expression(rbp);}else if(lookahead===TOK_LBRACKET){this._match(TOK_LBRACKET);return this._parseMultiselectList();}else if(lookahead===TOK_LBRACE){this._match(TOK_LBRACE);return this._parseMultiselectHash();}},_parseProjectionRHS:function(rbp){var right;if(bindingPower[this._lookahead(0)]<10){right={type:"Identity"};}else if(this._lookahead(0)===TOK_LBRACKET){right=this.expression(rbp);}else if(this._lookahead(0)===TOK_FILTER){right=this.expression(rbp);}else if(this._lookahead(0)===TOK_DOT){this._match(TOK_DOT);right=this._parseDotRHS(rbp);}else{var t=this._lookaheadToken(0);var error=new Error("Sytanx error, unexpected token: "+t.value+"("+t.type+")");error.name="ParserError";throw error;}return right;},_parseMultiselectList:function(){var expressions=[];while(this._lookahead(0)!==TOK_RBRACKET){var expression=this.expression(0);expressions.push(expression);if(this._lookahead(0)===TOK_COMMA){this._match(TOK_COMMA);if(this._lookahead(0)===TOK_RBRACKET){throw new Error("Unexpected token Rbracket");}}}this._match(TOK_RBRACKET);return{type:"MultiSelectList",children:expressions};},_parseMultiselectHash:function(){var pairs=[];var identifierTypes=[TOK_UNQUOTEDIDENTIFIER,TOK_QUOTEDIDENTIFIER];var keyToken,keyName,value,node;for(;;){keyToken=this._lookaheadToken(0);if(identifierTypes.indexOf(keyToken.type)<0){throw new Error("Expecting an identifier token, got: "+keyToken.type);}keyName=keyToken.value;this._advance();this._match(TOK_COLON);value=this.expression(0);node={type:"KeyValuePair",name:keyName,value:value};pairs.push(node);if(this._lookahead(0)===TOK_COMMA){this._match(TOK_COMMA);}else if(this._lookahead(0)===TOK_RBRACE){this._match(TOK_RBRACE);break;}}return{type:"MultiSelectHash",children:pairs};}};function TreeInterpreter(runtime){this.runtime=runtime;}TreeInterpreter.prototype={search:function(node,value){return this.visit(node,value);},visit:function(node,value){var matched,current,result,first,second,field,left,right,collected,i;switch(node.type){case"Field":if(value!==null&&isObject(value)){field=value[node.name];if(field===undefined){return null;}else{return field;}}return null;case"Subexpression":result=this.visit(node.children[0],value);for(i=1;i<node.children.length;i++){result=this.visit(node.children[1],result);if(result===null){return null;}}return result;case"IndexExpression":left=this.visit(node.children[0],value);right=this.visit(node.children[1],left);return right;case"Index":if(!isArray(value)){return null;}var index=node.value;if(index<0){index=value.length+index;}result=value[index];if(result===undefined){result=null;}return result;case"Slice":if(!isArray(value)){return null;}var sliceParams=node.children.slice(0);var computed=this.computeSliceParams(value.length,sliceParams);var start=computed[0];var stop=computed[1];var step=computed[2];result=[];if(step>0){for(i=start;i<stop;i+=step){result.push(value[i]);}}else{for(i=start;i>stop;i+=step){result.push(value[i]);}}return result;case"Projection":// Evaluate left child.
 var base=this.visit(node.children[0],value);if(!isArray(base)){return null;}collected=[];for(i=0;i<base.length;i++){current=this.visit(node.children[1],base[i]);if(current!==null){collected.push(current);}}return collected;case"ValueProjection":// Evaluate left child.
 base=this.visit(node.children[0],value);if(!isObject(base)){return null;}collected=[];var values=objValues(base);for(i=0;i<values.length;i++){current=this.visit(node.children[1],values[i]);if(current!==null){collected.push(current);}}return collected;case"FilterProjection":base=this.visit(node.children[0],value);if(!isArray(base)){return null;}var filtered=[];var finalResults=[];for(i=0;i<base.length;i++){matched=this.visit(node.children[2],base[i]);if(!isFalse(matched)){filtered.push(base[i]);}}for(var j=0;j<filtered.length;j++){current=this.visit(node.children[1],filtered[j]);if(current!==null){finalResults.push(current);}}return finalResults;case"Comparator":first=this.visit(node.children[0],value);second=this.visit(node.children[1],value);switch(node.name){case TOK_EQ:result=strictDeepEqual(first,second);break;case TOK_NE:result=!strictDeepEqual(first,second);break;case TOK_GT:result=first>second;break;case TOK_GTE:result=first>=second;break;case TOK_LT:result=first<second;break;case TOK_LTE:result=first<=second;break;default:throw new Error("Unknown comparator: "+node.name);}return result;case TOK_FLATTEN:var original=this.visit(node.children[0],value);if(!isArray(original)){return null;}var merged=[];for(i=0;i<original.length;i++){current=original[i];if(isArray(current)){merged.push.apply(merged,current);}else{merged.push(current);}}return merged;case"Identity":return value;case"MultiSelectList":if(value===null){return null;}collected=[];for(i=0;i<node.children.length;i++){collected.push(this.visit(node.children[i],value));}return collected;case"MultiSelectHash":if(value===null){return null;}collected={};var child;for(i=0;i<node.children.length;i++){child=node.children[i];collected[child.name]=this.visit(child.value,value);}return collected;case"OrExpression":matched=this.visit(node.children[0],value);if(isFalse(matched)){matched=this.visit(node.children[1],value);}return matched;case"AndExpression":first=this.visit(node.children[0],value);if(isFalse(first)===true){return first;}return this.visit(node.children[1],value);case"NotExpression":first=this.visit(node.children[0],value);return isFalse(first);case"Literal":return node.value;case TOK_PIPE:left=this.visit(node.children[0],value);return this.visit(node.children[1],left);case TOK_CURRENT:return value;case"Function":var resolvedArgs=[];for(i=0;i<node.children.length;i++){resolvedArgs.push(this.visit(node.children[i],value));}return this.runtime.callFunction(node.name,resolvedArgs);case"ExpressionReference":var refNode=node.children[0];// Tag the node with a specific attribute so the type
 // checker verify the type.
-refNode.jmespathType=TOK_EXPREF;return refNode;default:throw new Error("Unknown node type: "+node.type);}},computeSliceParams:function computeSliceParams(arrayLength,sliceParams){var start=sliceParams[0];var stop=sliceParams[1];var step=sliceParams[2];var computed=[null,null,null];if(step===null){step=1;}else if(step===0){var error=new Error("Invalid slice, step cannot be 0");error.name="RuntimeError";throw error;}var stepValueNegative=step<0?true:false;if(start===null){start=stepValueNegative?arrayLength-1:0;}else{start=this.capSliceRange(arrayLength,start,step);}if(stop===null){stop=stepValueNegative?-1:arrayLength;}else{stop=this.capSliceRange(arrayLength,stop,step);}computed[0]=start;computed[1]=stop;computed[2]=step;return computed;},capSliceRange:function capSliceRange(arrayLength,actualValue,step){if(actualValue<0){actualValue+=arrayLength;if(actualValue<0){actualValue=step<0?-1:0;}}else if(actualValue>=arrayLength){actualValue=step<0?arrayLength-1:arrayLength;}return actualValue;}};function Runtime(interpreter){this._interpreter=interpreter;this.functionTable={// name: [function, <signature>]
+refNode.jmespathType=TOK_EXPREF;return refNode;default:throw new Error("Unknown node type: "+node.type);}},computeSliceParams:function(arrayLength,sliceParams){var start=sliceParams[0];var stop=sliceParams[1];var step=sliceParams[2];var computed=[null,null,null];if(step===null){step=1;}else if(step===0){var error=new Error("Invalid slice, step cannot be 0");error.name="RuntimeError";throw error;}var stepValueNegative=step<0?true:false;if(start===null){start=stepValueNegative?arrayLength-1:0;}else{start=this.capSliceRange(arrayLength,start,step);}if(stop===null){stop=stepValueNegative?-1:arrayLength;}else{stop=this.capSliceRange(arrayLength,stop,step);}computed[0]=start;computed[1]=stop;computed[2]=step;return computed;},capSliceRange:function(arrayLength,actualValue,step){if(actualValue<0){actualValue+=arrayLength;if(actualValue<0){actualValue=step<0?-1:0;}}else if(actualValue>=arrayLength){actualValue=step<0?arrayLength-1:arrayLength;}return actualValue;}};function Runtime(interpreter){this._interpreter=interpreter;this.functionTable={// name: [function, <signature>]
 // The <signature> can be:
 //
 // {
@@ -9384,22 +9297,22 @@ refNode.jmespathType=TOK_EXPREF;return refNode;default:throw new Error("Unknown 
 // types.  If the type is "any" then no type checking
 // occurs on the argument.  Variadic is optional
 // and if not provided is assumed to be false.
-abs:{_func:this._functionAbs,_signature:[{types:[TYPE_NUMBER]}]},avg:{_func:this._functionAvg,_signature:[{types:[TYPE_ARRAY_NUMBER]}]},ceil:{_func:this._functionCeil,_signature:[{types:[TYPE_NUMBER]}]},contains:{_func:this._functionContains,_signature:[{types:[TYPE_STRING,TYPE_ARRAY]},{types:[TYPE_ANY]}]},"ends_with":{_func:this._functionEndsWith,_signature:[{types:[TYPE_STRING]},{types:[TYPE_STRING]}]},floor:{_func:this._functionFloor,_signature:[{types:[TYPE_NUMBER]}]},length:{_func:this._functionLength,_signature:[{types:[TYPE_STRING,TYPE_ARRAY,TYPE_OBJECT]}]},map:{_func:this._functionMap,_signature:[{types:[TYPE_EXPREF]},{types:[TYPE_ARRAY]}]},max:{_func:this._functionMax,_signature:[{types:[TYPE_ARRAY_NUMBER,TYPE_ARRAY_STRING]}]},"merge":{_func:this._functionMerge,_signature:[{types:[TYPE_OBJECT],variadic:true}]},"max_by":{_func:this._functionMaxBy,_signature:[{types:[TYPE_ARRAY]},{types:[TYPE_EXPREF]}]},sum:{_func:this._functionSum,_signature:[{types:[TYPE_ARRAY_NUMBER]}]},"starts_with":{_func:this._functionStartsWith,_signature:[{types:[TYPE_STRING]},{types:[TYPE_STRING]}]},min:{_func:this._functionMin,_signature:[{types:[TYPE_ARRAY_NUMBER,TYPE_ARRAY_STRING]}]},"min_by":{_func:this._functionMinBy,_signature:[{types:[TYPE_ARRAY]},{types:[TYPE_EXPREF]}]},type:{_func:this._functionType,_signature:[{types:[TYPE_ANY]}]},keys:{_func:this._functionKeys,_signature:[{types:[TYPE_OBJECT]}]},values:{_func:this._functionValues,_signature:[{types:[TYPE_OBJECT]}]},sort:{_func:this._functionSort,_signature:[{types:[TYPE_ARRAY_STRING,TYPE_ARRAY_NUMBER]}]},"sort_by":{_func:this._functionSortBy,_signature:[{types:[TYPE_ARRAY]},{types:[TYPE_EXPREF]}]},join:{_func:this._functionJoin,_signature:[{types:[TYPE_STRING]},{types:[TYPE_ARRAY_STRING]}]},reverse:{_func:this._functionReverse,_signature:[{types:[TYPE_STRING,TYPE_ARRAY]}]},"to_array":{_func:this._functionToArray,_signature:[{types:[TYPE_ANY]}]},"to_string":{_func:this._functionToString,_signature:[{types:[TYPE_ANY]}]},"to_number":{_func:this._functionToNumber,_signature:[{types:[TYPE_ANY]}]},"not_null":{_func:this._functionNotNull,_signature:[{types:[TYPE_ANY],variadic:true}]}};}Runtime.prototype={callFunction:function callFunction(name,resolvedArgs){var functionEntry=this.functionTable[name];if(functionEntry===undefined){throw new Error("Unknown function: "+name+"()");}this._validateArgs(name,resolvedArgs,functionEntry._signature);return functionEntry._func.call(this,resolvedArgs);},_validateArgs:function _validateArgs(name,args,signature){// Validating the args requires validating
+abs:{_func:this._functionAbs,_signature:[{types:[TYPE_NUMBER]}]},avg:{_func:this._functionAvg,_signature:[{types:[TYPE_ARRAY_NUMBER]}]},ceil:{_func:this._functionCeil,_signature:[{types:[TYPE_NUMBER]}]},contains:{_func:this._functionContains,_signature:[{types:[TYPE_STRING,TYPE_ARRAY]},{types:[TYPE_ANY]}]},"ends_with":{_func:this._functionEndsWith,_signature:[{types:[TYPE_STRING]},{types:[TYPE_STRING]}]},floor:{_func:this._functionFloor,_signature:[{types:[TYPE_NUMBER]}]},length:{_func:this._functionLength,_signature:[{types:[TYPE_STRING,TYPE_ARRAY,TYPE_OBJECT]}]},map:{_func:this._functionMap,_signature:[{types:[TYPE_EXPREF]},{types:[TYPE_ARRAY]}]},max:{_func:this._functionMax,_signature:[{types:[TYPE_ARRAY_NUMBER,TYPE_ARRAY_STRING]}]},"merge":{_func:this._functionMerge,_signature:[{types:[TYPE_OBJECT],variadic:true}]},"max_by":{_func:this._functionMaxBy,_signature:[{types:[TYPE_ARRAY]},{types:[TYPE_EXPREF]}]},sum:{_func:this._functionSum,_signature:[{types:[TYPE_ARRAY_NUMBER]}]},"starts_with":{_func:this._functionStartsWith,_signature:[{types:[TYPE_STRING]},{types:[TYPE_STRING]}]},min:{_func:this._functionMin,_signature:[{types:[TYPE_ARRAY_NUMBER,TYPE_ARRAY_STRING]}]},"min_by":{_func:this._functionMinBy,_signature:[{types:[TYPE_ARRAY]},{types:[TYPE_EXPREF]}]},type:{_func:this._functionType,_signature:[{types:[TYPE_ANY]}]},keys:{_func:this._functionKeys,_signature:[{types:[TYPE_OBJECT]}]},values:{_func:this._functionValues,_signature:[{types:[TYPE_OBJECT]}]},sort:{_func:this._functionSort,_signature:[{types:[TYPE_ARRAY_STRING,TYPE_ARRAY_NUMBER]}]},"sort_by":{_func:this._functionSortBy,_signature:[{types:[TYPE_ARRAY]},{types:[TYPE_EXPREF]}]},join:{_func:this._functionJoin,_signature:[{types:[TYPE_STRING]},{types:[TYPE_ARRAY_STRING]}]},reverse:{_func:this._functionReverse,_signature:[{types:[TYPE_STRING,TYPE_ARRAY]}]},"to_array":{_func:this._functionToArray,_signature:[{types:[TYPE_ANY]}]},"to_string":{_func:this._functionToString,_signature:[{types:[TYPE_ANY]}]},"to_number":{_func:this._functionToNumber,_signature:[{types:[TYPE_ANY]}]},"not_null":{_func:this._functionNotNull,_signature:[{types:[TYPE_ANY],variadic:true}]}};}Runtime.prototype={callFunction:function(name,resolvedArgs){var functionEntry=this.functionTable[name];if(functionEntry===undefined){throw new Error("Unknown function: "+name+"()");}this._validateArgs(name,resolvedArgs,functionEntry._signature);return functionEntry._func.call(this,resolvedArgs);},_validateArgs:function(name,args,signature){// Validating the args requires validating
 // the correct arity and the correct type of each arg.
 // If the last argument is declared as variadic, then we need
 // a minimum number of args to be required.  Otherwise it has to
 // be an exact amount.
-var pluralized;if(signature[signature.length-1].variadic){if(args.length<signature.length){pluralized=signature.length===1?" argument":" arguments";throw new Error("ArgumentError: "+name+"() "+"takes at least"+signature.length+pluralized+" but received "+args.length);}}else if(args.length!==signature.length){pluralized=signature.length===1?" argument":" arguments";throw new Error("ArgumentError: "+name+"() "+"takes "+signature.length+pluralized+" but received "+args.length);}var currentSpec;var actualType;var typeMatched;for(var i=0;i<signature.length;i++){typeMatched=false;currentSpec=signature[i].types;actualType=this._getTypeName(args[i]);for(var j=0;j<currentSpec.length;j++){if(this._typeMatches(actualType,currentSpec[j],args[i])){typeMatched=true;break;}}if(!typeMatched){var expected=currentSpec.map(function(typeIdentifier){return TYPE_NAME_TABLE[typeIdentifier];}).join(',');throw new Error("TypeError: "+name+"() "+"expected argument "+(i+1)+" to be type "+expected+" but received type "+TYPE_NAME_TABLE[actualType]+" instead.");}}},_typeMatches:function _typeMatches(actual,expected,argValue){if(expected===TYPE_ANY){return true;}if(expected===TYPE_ARRAY_STRING||expected===TYPE_ARRAY_NUMBER||expected===TYPE_ARRAY){// The expected type can either just be array,
+var pluralized;if(signature[signature.length-1].variadic){if(args.length<signature.length){pluralized=signature.length===1?" argument":" arguments";throw new Error("ArgumentError: "+name+"() "+"takes at least"+signature.length+pluralized+" but received "+args.length);}}else if(args.length!==signature.length){pluralized=signature.length===1?" argument":" arguments";throw new Error("ArgumentError: "+name+"() "+"takes "+signature.length+pluralized+" but received "+args.length);}var currentSpec;var actualType;var typeMatched;for(var i=0;i<signature.length;i++){typeMatched=false;currentSpec=signature[i].types;actualType=this._getTypeName(args[i]);for(var j=0;j<currentSpec.length;j++){if(this._typeMatches(actualType,currentSpec[j],args[i])){typeMatched=true;break;}}if(!typeMatched){var expected=currentSpec.map(function(typeIdentifier){return TYPE_NAME_TABLE[typeIdentifier];}).join(',');throw new Error("TypeError: "+name+"() "+"expected argument "+(i+1)+" to be type "+expected+" but received type "+TYPE_NAME_TABLE[actualType]+" instead.");}}},_typeMatches:function(actual,expected,argValue){if(expected===TYPE_ANY){return true;}if(expected===TYPE_ARRAY_STRING||expected===TYPE_ARRAY_NUMBER||expected===TYPE_ARRAY){// The expected type can either just be array,
 // or it can require a specific subtype (array of numbers).
 //
 // The simplest case is if "array" with no subtype is specified.
 if(expected===TYPE_ARRAY){return actual===TYPE_ARRAY;}else if(actual===TYPE_ARRAY){// Otherwise we need to check subtypes.
 // I think this has potential to be improved.
-var subtype;if(expected===TYPE_ARRAY_NUMBER){subtype=TYPE_NUMBER;}else if(expected===TYPE_ARRAY_STRING){subtype=TYPE_STRING;}for(var i=0;i<argValue.length;i++){if(!this._typeMatches(this._getTypeName(argValue[i]),subtype,argValue[i])){return false;}}return true;}}else{return actual===expected;}},_getTypeName:function _getTypeName(obj){switch(Object.prototype.toString.call(obj)){case"[object String]":return TYPE_STRING;case"[object Number]":return TYPE_NUMBER;case"[object Array]":return TYPE_ARRAY;case"[object Boolean]":return TYPE_BOOLEAN;case"[object Null]":return TYPE_NULL;case"[object Object]":// Check if it's an expref.  If it has, it's been
+var subtype;if(expected===TYPE_ARRAY_NUMBER){subtype=TYPE_NUMBER;}else if(expected===TYPE_ARRAY_STRING){subtype=TYPE_STRING;}for(var i=0;i<argValue.length;i++){if(!this._typeMatches(this._getTypeName(argValue[i]),subtype,argValue[i])){return false;}}return true;}}else{return actual===expected;}},_getTypeName:function(obj){switch(Object.prototype.toString.call(obj)){case"[object String]":return TYPE_STRING;case"[object Number]":return TYPE_NUMBER;case"[object Array]":return TYPE_ARRAY;case"[object Boolean]":return TYPE_BOOLEAN;case"[object Null]":return TYPE_NULL;case"[object Object]":// Check if it's an expref.  If it has, it's been
 // tagged with a jmespathType attr of 'Expref';
-if(obj.jmespathType===TOK_EXPREF){return TYPE_EXPREF;}else{return TYPE_OBJECT;}}},_functionStartsWith:function _functionStartsWith(resolvedArgs){return resolvedArgs[0].lastIndexOf(resolvedArgs[1])===0;},_functionEndsWith:function _functionEndsWith(resolvedArgs){var searchStr=resolvedArgs[0];var suffix=resolvedArgs[1];return searchStr.indexOf(suffix,searchStr.length-suffix.length)!==-1;},_functionReverse:function _functionReverse(resolvedArgs){var typeName=this._getTypeName(resolvedArgs[0]);if(typeName===TYPE_STRING){var originalStr=resolvedArgs[0];var reversedStr="";for(var i=originalStr.length-1;i>=0;i--){reversedStr+=originalStr[i];}return reversedStr;}else{var reversedArray=resolvedArgs[0].slice(0);reversedArray.reverse();return reversedArray;}},_functionAbs:function _functionAbs(resolvedArgs){return Math.abs(resolvedArgs[0]);},_functionCeil:function _functionCeil(resolvedArgs){return Math.ceil(resolvedArgs[0]);},_functionAvg:function _functionAvg(resolvedArgs){var sum=0;var inputArray=resolvedArgs[0];for(var i=0;i<inputArray.length;i++){sum+=inputArray[i];}return sum/inputArray.length;},_functionContains:function _functionContains(resolvedArgs){return resolvedArgs[0].indexOf(resolvedArgs[1])>=0;},_functionFloor:function _functionFloor(resolvedArgs){return Math.floor(resolvedArgs[0]);},_functionLength:function _functionLength(resolvedArgs){if(!isObject(resolvedArgs[0])){return resolvedArgs[0].length;}else{// As far as I can tell, there's no way to get the length
+if(obj.jmespathType===TOK_EXPREF){return TYPE_EXPREF;}else{return TYPE_OBJECT;}}},_functionStartsWith:function(resolvedArgs){return resolvedArgs[0].lastIndexOf(resolvedArgs[1])===0;},_functionEndsWith:function(resolvedArgs){var searchStr=resolvedArgs[0];var suffix=resolvedArgs[1];return searchStr.indexOf(suffix,searchStr.length-suffix.length)!==-1;},_functionReverse:function(resolvedArgs){var typeName=this._getTypeName(resolvedArgs[0]);if(typeName===TYPE_STRING){var originalStr=resolvedArgs[0];var reversedStr="";for(var i=originalStr.length-1;i>=0;i--){reversedStr+=originalStr[i];}return reversedStr;}else{var reversedArray=resolvedArgs[0].slice(0);reversedArray.reverse();return reversedArray;}},_functionAbs:function(resolvedArgs){return Math.abs(resolvedArgs[0]);},_functionCeil:function(resolvedArgs){return Math.ceil(resolvedArgs[0]);},_functionAvg:function(resolvedArgs){var sum=0;var inputArray=resolvedArgs[0];for(var i=0;i<inputArray.length;i++){sum+=inputArray[i];}return sum/inputArray.length;},_functionContains:function(resolvedArgs){return resolvedArgs[0].indexOf(resolvedArgs[1])>=0;},_functionFloor:function(resolvedArgs){return Math.floor(resolvedArgs[0]);},_functionLength:function(resolvedArgs){if(!isObject(resolvedArgs[0])){return resolvedArgs[0].length;}else{// As far as I can tell, there's no way to get the length
 // of an object without O(n) iteration through the object.
-return Object.keys(resolvedArgs[0]).length;}},_functionMap:function _functionMap(resolvedArgs){var mapped=[];var interpreter=this._interpreter;var exprefNode=resolvedArgs[0];var elements=resolvedArgs[1];for(var i=0;i<elements.length;i++){mapped.push(interpreter.visit(exprefNode,elements[i]));}return mapped;},_functionMerge:function _functionMerge(resolvedArgs){var merged={};for(var i=0;i<resolvedArgs.length;i++){var current=resolvedArgs[i];for(var key in current){merged[key]=current[key];}}return merged;},_functionMax:function _functionMax(resolvedArgs){if(resolvedArgs[0].length>0){var typeName=this._getTypeName(resolvedArgs[0][0]);if(typeName===TYPE_NUMBER){return Math.max.apply(Math,resolvedArgs[0]);}else{var elements=resolvedArgs[0];var maxElement=elements[0];for(var i=1;i<elements.length;i++){if(maxElement.localeCompare(elements[i])<0){maxElement=elements[i];}}return maxElement;}}else{return null;}},_functionMin:function _functionMin(resolvedArgs){if(resolvedArgs[0].length>0){var typeName=this._getTypeName(resolvedArgs[0][0]);if(typeName===TYPE_NUMBER){return Math.min.apply(Math,resolvedArgs[0]);}else{var elements=resolvedArgs[0];var minElement=elements[0];for(var i=1;i<elements.length;i++){if(elements[i].localeCompare(minElement)<0){minElement=elements[i];}}return minElement;}}else{return null;}},_functionSum:function _functionSum(resolvedArgs){var sum=0;var listToSum=resolvedArgs[0];for(var i=0;i<listToSum.length;i++){sum+=listToSum[i];}return sum;},_functionType:function _functionType(resolvedArgs){switch(this._getTypeName(resolvedArgs[0])){case TYPE_NUMBER:return"number";case TYPE_STRING:return"string";case TYPE_ARRAY:return"array";case TYPE_OBJECT:return"object";case TYPE_BOOLEAN:return"boolean";case TYPE_EXPREF:return"expref";case TYPE_NULL:return"null";}},_functionKeys:function _functionKeys(resolvedArgs){return Object.keys(resolvedArgs[0]);},_functionValues:function _functionValues(resolvedArgs){var obj=resolvedArgs[0];var keys=Object.keys(obj);var values=[];for(var i=0;i<keys.length;i++){values.push(obj[keys[i]]);}return values;},_functionJoin:function _functionJoin(resolvedArgs){var joinChar=resolvedArgs[0];var listJoin=resolvedArgs[1];return listJoin.join(joinChar);},_functionToArray:function _functionToArray(resolvedArgs){if(this._getTypeName(resolvedArgs[0])===TYPE_ARRAY){return resolvedArgs[0];}else{return[resolvedArgs[0]];}},_functionToString:function _functionToString(resolvedArgs){if(this._getTypeName(resolvedArgs[0])===TYPE_STRING){return resolvedArgs[0];}else{return JSON.stringify(resolvedArgs[0]);}},_functionToNumber:function _functionToNumber(resolvedArgs){var typeName=this._getTypeName(resolvedArgs[0]);var convertedValue;if(typeName===TYPE_NUMBER){return resolvedArgs[0];}else if(typeName===TYPE_STRING){convertedValue=+resolvedArgs[0];if(!isNaN(convertedValue)){return convertedValue;}}return null;},_functionNotNull:function _functionNotNull(resolvedArgs){for(var i=0;i<resolvedArgs.length;i++){if(this._getTypeName(resolvedArgs[i])!==TYPE_NULL){return resolvedArgs[i];}}return null;},_functionSort:function _functionSort(resolvedArgs){var sortedArray=resolvedArgs[0].slice(0);sortedArray.sort();return sortedArray;},_functionSortBy:function _functionSortBy(resolvedArgs){var sortedArray=resolvedArgs[0].slice(0);if(sortedArray.length===0){return sortedArray;}var interpreter=this._interpreter;var exprefNode=resolvedArgs[1];var requiredType=this._getTypeName(interpreter.visit(exprefNode,sortedArray[0]));if([TYPE_NUMBER,TYPE_STRING].indexOf(requiredType)<0){throw new Error("TypeError");}var that=this;// In order to get a stable sort out of an unstable
+return Object.keys(resolvedArgs[0]).length;}},_functionMap:function(resolvedArgs){var mapped=[];var interpreter=this._interpreter;var exprefNode=resolvedArgs[0];var elements=resolvedArgs[1];for(var i=0;i<elements.length;i++){mapped.push(interpreter.visit(exprefNode,elements[i]));}return mapped;},_functionMerge:function(resolvedArgs){var merged={};for(var i=0;i<resolvedArgs.length;i++){var current=resolvedArgs[i];for(var key in current){merged[key]=current[key];}}return merged;},_functionMax:function(resolvedArgs){if(resolvedArgs[0].length>0){var typeName=this._getTypeName(resolvedArgs[0][0]);if(typeName===TYPE_NUMBER){return Math.max.apply(Math,resolvedArgs[0]);}else{var elements=resolvedArgs[0];var maxElement=elements[0];for(var i=1;i<elements.length;i++){if(maxElement.localeCompare(elements[i])<0){maxElement=elements[i];}}return maxElement;}}else{return null;}},_functionMin:function(resolvedArgs){if(resolvedArgs[0].length>0){var typeName=this._getTypeName(resolvedArgs[0][0]);if(typeName===TYPE_NUMBER){return Math.min.apply(Math,resolvedArgs[0]);}else{var elements=resolvedArgs[0];var minElement=elements[0];for(var i=1;i<elements.length;i++){if(elements[i].localeCompare(minElement)<0){minElement=elements[i];}}return minElement;}}else{return null;}},_functionSum:function(resolvedArgs){var sum=0;var listToSum=resolvedArgs[0];for(var i=0;i<listToSum.length;i++){sum+=listToSum[i];}return sum;},_functionType:function(resolvedArgs){switch(this._getTypeName(resolvedArgs[0])){case TYPE_NUMBER:return"number";case TYPE_STRING:return"string";case TYPE_ARRAY:return"array";case TYPE_OBJECT:return"object";case TYPE_BOOLEAN:return"boolean";case TYPE_EXPREF:return"expref";case TYPE_NULL:return"null";}},_functionKeys:function(resolvedArgs){return Object.keys(resolvedArgs[0]);},_functionValues:function(resolvedArgs){var obj=resolvedArgs[0];var keys=Object.keys(obj);var values=[];for(var i=0;i<keys.length;i++){values.push(obj[keys[i]]);}return values;},_functionJoin:function(resolvedArgs){var joinChar=resolvedArgs[0];var listJoin=resolvedArgs[1];return listJoin.join(joinChar);},_functionToArray:function(resolvedArgs){if(this._getTypeName(resolvedArgs[0])===TYPE_ARRAY){return resolvedArgs[0];}else{return[resolvedArgs[0]];}},_functionToString:function(resolvedArgs){if(this._getTypeName(resolvedArgs[0])===TYPE_STRING){return resolvedArgs[0];}else{return JSON.stringify(resolvedArgs[0]);}},_functionToNumber:function(resolvedArgs){var typeName=this._getTypeName(resolvedArgs[0]);var convertedValue;if(typeName===TYPE_NUMBER){return resolvedArgs[0];}else if(typeName===TYPE_STRING){convertedValue=+resolvedArgs[0];if(!isNaN(convertedValue)){return convertedValue;}}return null;},_functionNotNull:function(resolvedArgs){for(var i=0;i<resolvedArgs.length;i++){if(this._getTypeName(resolvedArgs[i])!==TYPE_NULL){return resolvedArgs[i];}}return null;},_functionSort:function(resolvedArgs){var sortedArray=resolvedArgs[0].slice(0);sortedArray.sort();return sortedArray;},_functionSortBy:function(resolvedArgs){var sortedArray=resolvedArgs[0].slice(0);if(sortedArray.length===0){return sortedArray;}var interpreter=this._interpreter;var exprefNode=resolvedArgs[1];var requiredType=this._getTypeName(interpreter.visit(exprefNode,sortedArray[0]));if([TYPE_NUMBER,TYPE_STRING].indexOf(requiredType)<0){throw new Error("TypeError");}var that=this;// In order to get a stable sort out of an unstable
 // sort algorithm, we decorate/sort/undecorate (DSU)
 // by creating a new list of [index, element] pairs.
 // In the cmp function, if the evaluated elements are
@@ -9410,7 +9323,7 @@ var decorated=[];for(var i=0;i<sortedArray.length;i++){decorated.push([i,sortedA
 // order to maintain relative order of equal keys
 // (i.e. to get a stable sort).
 return a[0]-b[0];}});// Undecorate: extract out the original list elements.
-for(var j=0;j<decorated.length;j++){sortedArray[j]=decorated[j][1];}return sortedArray;},_functionMaxBy:function _functionMaxBy(resolvedArgs){var exprefNode=resolvedArgs[1];var resolvedArray=resolvedArgs[0];var keyFunction=this.createKeyFunction(exprefNode,[TYPE_NUMBER,TYPE_STRING]);var maxNumber=-Infinity;var maxRecord;var current;for(var i=0;i<resolvedArray.length;i++){current=keyFunction(resolvedArray[i]);if(current>maxNumber){maxNumber=current;maxRecord=resolvedArray[i];}}return maxRecord;},_functionMinBy:function _functionMinBy(resolvedArgs){var exprefNode=resolvedArgs[1];var resolvedArray=resolvedArgs[0];var keyFunction=this.createKeyFunction(exprefNode,[TYPE_NUMBER,TYPE_STRING]);var minNumber=Infinity;var minRecord;var current;for(var i=0;i<resolvedArray.length;i++){current=keyFunction(resolvedArray[i]);if(current<minNumber){minNumber=current;minRecord=resolvedArray[i];}}return minRecord;},createKeyFunction:function createKeyFunction(exprefNode,allowedTypes){var that=this;var interpreter=this._interpreter;var keyFunc=function keyFunc(x){var current=interpreter.visit(exprefNode,x);if(allowedTypes.indexOf(that._getTypeName(current))<0){var msg="TypeError: expected one of "+allowedTypes+", received "+that._getTypeName(current);throw new Error(msg);}return current;};return keyFunc;}};function compile(stream){var parser=new Parser();var ast=parser.parse(stream);return ast;}function tokenize(stream){var lexer=new Lexer();return lexer.tokenize(stream);}function search(data,expression){var parser=new Parser();// This needs to be improved.  Both the interpreter and runtime depend on
+for(var j=0;j<decorated.length;j++){sortedArray[j]=decorated[j][1];}return sortedArray;},_functionMaxBy:function(resolvedArgs){var exprefNode=resolvedArgs[1];var resolvedArray=resolvedArgs[0];var keyFunction=this.createKeyFunction(exprefNode,[TYPE_NUMBER,TYPE_STRING]);var maxNumber=-Infinity;var maxRecord;var current;for(var i=0;i<resolvedArray.length;i++){current=keyFunction(resolvedArray[i]);if(current>maxNumber){maxNumber=current;maxRecord=resolvedArray[i];}}return maxRecord;},_functionMinBy:function(resolvedArgs){var exprefNode=resolvedArgs[1];var resolvedArray=resolvedArgs[0];var keyFunction=this.createKeyFunction(exprefNode,[TYPE_NUMBER,TYPE_STRING]);var minNumber=Infinity;var minRecord;var current;for(var i=0;i<resolvedArray.length;i++){current=keyFunction(resolvedArray[i]);if(current<minNumber){minNumber=current;minRecord=resolvedArray[i];}}return minRecord;},createKeyFunction:function(exprefNode,allowedTypes){var that=this;var interpreter=this._interpreter;var keyFunc=function(x){var current=interpreter.visit(exprefNode,x);if(allowedTypes.indexOf(that._getTypeName(current))<0){var msg="TypeError: expected one of "+allowedTypes+", received "+that._getTypeName(current);throw new Error(msg);}return current;};return keyFunc;}};function compile(stream){var parser=new Parser();var ast=parser.parse(stream);return ast;}function tokenize(stream){var lexer=new Lexer();return lexer.tokenize(stream);}function search(data,expression){var parser=new Parser();// This needs to be improved.  Both the interpreter and runtime depend on
 // each other.  The runtime needs the interpreter to support exprefs.
 // There's likely a clean way to avoid the cyclic dependency.
 var runtime=new Runtime();var interpreter=new TreeInterpreter(runtime);runtime._interpreter=interpreter;var node=parser.parse(expression);return interpreter.search(node,data);}exports.tokenize=tokenize;exports.compile=compile;exports.search=search;exports.strictDeepEqual=strictDeepEqual;})(typeof exports==="undefined"?this.jmespath={}:exports);},{}],91:[function(require,module,exports){// shim for using process in browser
@@ -9431,7 +9344,7 @@ return cachedClearTimeout.call(null,marker);}catch(e){// same as above but when 
 // Some versions of I.E. have different rules for clearTimeout vs setTimeout
 return cachedClearTimeout.call(this,marker);}}}var queue=[];var draining=false;var currentQueue;var queueIndex=-1;function cleanUpNextTick(){if(!draining||!currentQueue){return;}draining=false;if(currentQueue.length){queue=currentQueue.concat(queue);}else{queueIndex=-1;}if(queue.length){drainQueue();}}function drainQueue(){if(draining){return;}var timeout=runTimeout(cleanUpNextTick);draining=true;var len=queue.length;while(len){currentQueue=queue;queue=[];while(++queueIndex<len){if(currentQueue){currentQueue[queueIndex].run();}}queueIndex=-1;len=queue.length;}currentQueue=null;draining=false;runClearTimeout(timeout);}process.nextTick=function(fun){var args=new Array(arguments.length-1);if(arguments.length>1){for(var i=1;i<arguments.length;i++){args[i-1]=arguments[i];}}queue.push(new Item(fun,args));if(queue.length===1&&!draining){runTimeout(drainQueue);}};// v8 likes predictible objects
 function Item(fun,array){this.fun=fun;this.array=array;}Item.prototype.run=function(){this.fun.apply(null,this.array);};process.title='browser';process.browser=true;process.env={};process.argv=[];process.version='';// empty string to avoid regexp issues
-process.versions={};function noop(){}process.on=noop;process.addListener=noop;process.once=noop;process.off=noop;process.removeListener=noop;process.removeAllListeners=noop;process.emit=noop;process.prependListener=noop;process.prependOnceListener=noop;process.listeners=function(name){return[];};process.binding=function(name){throw new Error('process.binding is not supported');};process.cwd=function(){return'/';};process.chdir=function(dir){throw new Error('process.chdir is not supported');};process.umask=function(){return 0;};},{}],92:[function(require,module,exports){(function(global){(function(){/*! https://mths.be/punycode v1.4.1 by @mathias */;(function(root){/** Detect free variables */var freeExports=_typeof(exports)=='object'&&exports&&!exports.nodeType&&exports;var freeModule=_typeof(module)=='object'&&module&&!module.nodeType&&module;var freeGlobal=_typeof(global)=='object'&&global;if(freeGlobal.global===freeGlobal||freeGlobal.window===freeGlobal||freeGlobal.self===freeGlobal){root=freeGlobal;}/**
+process.versions={};function noop(){}process.on=noop;process.addListener=noop;process.once=noop;process.off=noop;process.removeListener=noop;process.removeAllListeners=noop;process.emit=noop;process.prependListener=noop;process.prependOnceListener=noop;process.listeners=function(name){return[];};process.binding=function(name){throw new Error('process.binding is not supported');};process.cwd=function(){return'/';};process.chdir=function(dir){throw new Error('process.chdir is not supported');};process.umask=function(){return 0;};},{}],92:[function(require,module,exports){(function(global){(function(){/*! https://mths.be/punycode v1.4.1 by @mathias */;(function(root){/** Detect free variables */var freeExports=typeof exports=='object'&&exports&&!exports.nodeType&&exports;var freeModule=typeof module=='object'&&module&&!module.nodeType&&module;var freeGlobal=typeof global=='object'&&global;if(freeGlobal.global===freeGlobal||freeGlobal.window===freeGlobal||freeGlobal.self===freeGlobal){root=freeGlobal;}/**
            * The `punycode` object.
            * @name punycode
            * @type Object
@@ -9583,11 +9496,8 @@ for/* no condition */(q=delta,k=base;;k+=base){t=k<=bias?tMin:k>=bias+tMax?tMax:
              * @type Object
              */'ucs2':{'decode':ucs2decode,'encode':ucs2encode},'decode':decode,'encode':encode,'toASCII':toASCII,'toUnicode':toUnicode};/** Expose `punycode` */// Some AMD build optimizers, like r.js, check for specific condition patterns
 // like the following:
-if( true&&_typeof(__webpack_require__.amdO)=='object'&&__webpack_require__.amdO){!(__WEBPACK_AMD_DEFINE_RESULT__ = (function(){return punycode;}).call(exports, __webpack_require__, exports, module),
-		__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));}else if(freeExports&&freeModule){if(module.exports==freeExports){// in Node.js, io.js, or RingoJS v0.8.0+
-freeModule.exports=punycode;}else{// in Narwhal or RingoJS v0.7.0-
-for(key in punycode){punycode.hasOwnProperty(key)&&(freeExports[key]=punycode[key]);}}}else{// in Rhino or a web browser
-root.punycode=punycode;}})(this);}).call(this);}).call(this,typeof __webpack_require__.g!=="undefined"?__webpack_require__.g:typeof self!=="undefined"?self:typeof window!=="undefined"?window:{});},{}],93:[function(require,module,exports){// Copyright Joyent, Inc. and other Node contributors.
+if(true){!(__WEBPACK_AMD_DEFINE_RESULT__ = (function(){return punycode;}).call(exports, __webpack_require__, exports, module),
+		__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));}else {}})(this);}).call(this);}).call(this,typeof __webpack_require__.g!=="undefined"?__webpack_require__.g:typeof self!=="undefined"?self:typeof window!=="undefined"?window:{});},{}],93:[function(require,module,exports){// Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -9631,7 +9541,7 @@ if(maxKeys>0&&len>maxKeys){len=maxKeys;}for(var i=0;i<len;++i){var x=qs[i].repla
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-'use strict';var stringifyPrimitive=function stringifyPrimitive(v){switch(_typeof(v)){case'string':return v;case'boolean':return v?'true':'false';case'number':return isFinite(v)?v:'';default:return'';}};module.exports=function(obj,sep,eq,name){sep=sep||'&';eq=eq||'=';if(obj===null){obj=undefined;}if(_typeof(obj)==='object'){return map(objectKeys(obj),function(k){var ks=encodeURIComponent(stringifyPrimitive(k))+eq;if(isArray(obj[k])){return map(obj[k],function(v){return ks+encodeURIComponent(stringifyPrimitive(v));}).join(sep);}else{return ks+encodeURIComponent(stringifyPrimitive(obj[k]));}}).join(sep);}if(!name)return'';return encodeURIComponent(stringifyPrimitive(name))+eq+encodeURIComponent(stringifyPrimitive(obj));};var isArray=Array.isArray||function(xs){return Object.prototype.toString.call(xs)==='[object Array]';};function map(xs,f){if(xs.map)return xs.map(f);var res=[];for(var i=0;i<xs.length;i++){res.push(f(xs[i],i));}return res;}var objectKeys=Object.keys||function(obj){var res=[];for(var key in obj){if(Object.prototype.hasOwnProperty.call(obj,key))res.push(key);}return res;};},{}],95:[function(require,module,exports){'use strict';exports.decode=exports.parse=require('./decode');exports.encode=exports.stringify=require('./encode');},{"./decode":93,"./encode":94}],96:[function(require,module,exports){// Copyright Joyent, Inc. and other Node contributors.
+'use strict';var stringifyPrimitive=function(v){switch(typeof v){case'string':return v;case'boolean':return v?'true':'false';case'number':return isFinite(v)?v:'';default:return'';}};module.exports=function(obj,sep,eq,name){sep=sep||'&';eq=eq||'=';if(obj===null){obj=undefined;}if(typeof obj==='object'){return map(objectKeys(obj),function(k){var ks=encodeURIComponent(stringifyPrimitive(k))+eq;if(isArray(obj[k])){return map(obj[k],function(v){return ks+encodeURIComponent(stringifyPrimitive(v));}).join(sep);}else{return ks+encodeURIComponent(stringifyPrimitive(obj[k]));}}).join(sep);}if(!name)return'';return encodeURIComponent(stringifyPrimitive(name))+eq+encodeURIComponent(stringifyPrimitive(obj));};var isArray=Array.isArray||function(xs){return Object.prototype.toString.call(xs)==='[object Array]';};function map(xs,f){if(xs.map)return xs.map(f);var res=[];for(var i=0;i<xs.length;i++){res.push(f(xs[i],i));}return res;}var objectKeys=Object.keys||function(obj){var res=[];for(var key in obj){if(Object.prototype.hasOwnProperty.call(obj,key))res.push(key);}return res;};},{}],95:[function(require,module,exports){'use strict';exports.decode=exports.parse=require('./decode');exports.encode=exports.stringify=require('./encode');},{"./decode":93,"./encode":94}],96:[function(require,module,exports){// Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -9675,7 +9585,7 @@ if(maxKeys>0&&len>maxKeys){len=maxKeys;}for(var i=0;i<len;++i){var x=qs[i].repla
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-'use strict';var stringifyPrimitive=function stringifyPrimitive(v){switch(_typeof(v)){case'string':return v;case'boolean':return v?'true':'false';case'number':return isFinite(v)?v:'';default:return'';}};module.exports=function(obj,sep,eq,name){sep=sep||'&';eq=eq||'=';if(obj===null){obj=undefined;}if(_typeof(obj)==='object'){return Object.keys(obj).map(function(k){var ks=encodeURIComponent(stringifyPrimitive(k))+eq;if(Array.isArray(obj[k])){return obj[k].map(function(v){return ks+encodeURIComponent(stringifyPrimitive(v));}).join(sep);}else{return ks+encodeURIComponent(stringifyPrimitive(obj[k]));}}).join(sep);}if(!name)return'';return encodeURIComponent(stringifyPrimitive(name))+eq+encodeURIComponent(stringifyPrimitive(obj));};},{}],98:[function(require,module,exports){arguments[4][95][0].apply(exports,arguments);},{"./decode":96,"./encode":97,"dup":95}],99:[function(require,module,exports){(function(setImmediate,clearImmediate){(function(){var nextTick=require('process/browser.js').nextTick;var apply=Function.prototype.apply;var slice=Array.prototype.slice;var immediateIds={};var nextImmediateId=0;// DOM APIs, for completeness
+'use strict';var stringifyPrimitive=function(v){switch(typeof v){case'string':return v;case'boolean':return v?'true':'false';case'number':return isFinite(v)?v:'';default:return'';}};module.exports=function(obj,sep,eq,name){sep=sep||'&';eq=eq||'=';if(obj===null){obj=undefined;}if(typeof obj==='object'){return Object.keys(obj).map(function(k){var ks=encodeURIComponent(stringifyPrimitive(k))+eq;if(Array.isArray(obj[k])){return obj[k].map(function(v){return ks+encodeURIComponent(stringifyPrimitive(v));}).join(sep);}else{return ks+encodeURIComponent(stringifyPrimitive(obj[k]));}}).join(sep);}if(!name)return'';return encodeURIComponent(stringifyPrimitive(name))+eq+encodeURIComponent(stringifyPrimitive(obj));};},{}],98:[function(require,module,exports){arguments[4][95][0].apply(exports,arguments);},{"./decode":96,"./encode":97,"dup":95}],99:[function(require,module,exports){(function(setImmediate,clearImmediate){(function(){var nextTick=require('process/browser.js').nextTick;var apply=Function.prototype.apply;var slice=Array.prototype.slice;var immediateIds={};var nextImmediateId=0;// DOM APIs, for completeness
 exports.setTimeout=function(){return new Timeout(apply.call(setTimeout,window,arguments),clearTimeout);};exports.setInterval=function(){return new Timeout(apply.call(setInterval,window,arguments),clearInterval);};exports.clearTimeout=exports.clearInterval=function(timeout){timeout.close();};function Timeout(id,clearFn){this._id=id;this._clearFn=clearFn;}Timeout.prototype.unref=Timeout.prototype.ref=function(){};Timeout.prototype.close=function(){this._clearFn.call(window,this._id);};// Does not start the time, just sets up the members needed.
 exports.enroll=function(item,msecs){clearTimeout(item._idleTimeoutId);item._idleTimeout=msecs;};exports.unenroll=function(item){clearTimeout(item._idleTimeoutId);item._idleTimeout=-1;};exports._unrefActive=exports.active=function(item){clearTimeout(item._idleTimeoutId);var msecs=item._idleTimeout;if(msecs>=0){item._idleTimeoutId=setTimeout(function onTimeout(){if(item._onTimeout)item._onTimeout();},msecs);}};// That's not how node.js implements it but the exposed api is the same.
 exports.setImmediate=typeof setImmediate==="function"?setImmediate:function(fn){var id=nextImmediateId++;var args=arguments.length<2?false:slice.call(arguments,1);immediateIds[id]=true;nextTick(function onNextTick(){if(immediateIds[id]){// fn.call() is faster so we optimize for the common use-case
@@ -9715,7 +9625,7 @@ autoEscape=['\''].concat(unwise),// Characters that are never ever allowed in a 
 nonHostChars=['%','/','?',';','#'].concat(autoEscape),hostEndingChars=['/','?','#'],hostnameMaxLen=255,hostnamePartPattern=/^[a-z0-9A-Z_-]{0,63}$/,hostnamePartStart=/^([a-z0-9A-Z_-]{0,63})(.*)$/,// protocols that can allow "unsafe" and "unwise" chars.
 unsafeProtocol={'javascript':true,'javascript:':true},// protocols that never have a hostname.
 hostlessProtocol={'javascript':true,'javascript:':true},// protocols that always contain a // bit.
-slashedProtocol={'http':true,'https':true,'ftp':true,'gopher':true,'file':true,'http:':true,'https:':true,'ftp:':true,'gopher:':true,'file:':true},querystring=require('querystring');function urlParse(url,parseQueryString,slashesDenoteHost){if(url&&isObject(url)&&url instanceof Url)return url;var u=new Url();u.parse(url,parseQueryString,slashesDenoteHost);return u;}Url.prototype.parse=function(url,parseQueryString,slashesDenoteHost){if(!isString(url)){throw new TypeError("Parameter 'url' must be a string, not "+_typeof(url));}var rest=url;// trim before proceeding.
+slashedProtocol={'http':true,'https':true,'ftp':true,'gopher':true,'file':true,'http:':true,'https:':true,'ftp:':true,'gopher:':true,'file:':true},querystring=require('querystring');function urlParse(url,parseQueryString,slashesDenoteHost){if(url&&isObject(url)&&url instanceof Url)return url;var u=new Url();u.parse(url,parseQueryString,slashesDenoteHost);return u;}Url.prototype.parse=function(url,parseQueryString,slashesDenoteHost){if(!isString(url)){throw new TypeError("Parameter 'url' must be a string, not "+typeof url);}var rest=url;// trim before proceeding.
 // This is to support parse stuff like "  http://foo.com  \n"
 rest=rest.trim();var proto=protocolPattern.exec(rest);if(proto){proto=proto[0];var lowerProto=proto.toLowerCase();this.protocol=lowerProto;rest=rest.substr(proto.length);}// figure out if it's got a host
 // user@server is *always* interpreted as a hostname, and url
@@ -9823,11 +9733,11 @@ if(psychotic){result.hostname=result.host=isAbsolute?'':srcPath.length?srcPath.s
 //this especialy happens in cases like
 //url.resolveObject('mailto:local1@domain1', 'local2@domain2')
 var authInHost=result.host&&result.host.indexOf('@')>0?result.host.split('@'):false;if(authInHost){result.auth=authInHost.shift();result.host=result.hostname=authInHost.shift();}}mustEndAbs=mustEndAbs||result.host&&srcPath.length;if(mustEndAbs&&!isAbsolute){srcPath.unshift('');}if(!srcPath.length){result.pathname=null;result.path=null;}else{result.pathname=srcPath.join('/');}//to support request.http
-if(!isNull(result.pathname)||!isNull(result.search)){result.path=(result.pathname?result.pathname:'')+(result.search?result.search:'');}result.auth=relative.auth||result.auth;result.slashes=result.slashes||relative.slashes;result.href=result.format();return result;};Url.prototype.parseHost=function(){var host=this.host;var port=portPattern.exec(host);if(port){port=port[0];if(port!==':'){this.port=port.substr(1);}host=host.substr(0,host.length-port.length);}if(host)this.hostname=host;};function isString(arg){return typeof arg==="string";}function isObject(arg){return _typeof(arg)==='object'&&arg!==null;}function isNull(arg){return arg===null;}function isNullOrUndefined(arg){return arg==null;}},{"punycode":92,"querystring":95}],101:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports["default"]=void 0;/**
+if(!isNull(result.pathname)||!isNull(result.search)){result.path=(result.pathname?result.pathname:'')+(result.search?result.search:'');}result.auth=relative.auth||result.auth;result.slashes=result.slashes||relative.slashes;result.href=result.format();return result;};Url.prototype.parseHost=function(){var host=this.host;var port=portPattern.exec(host);if(port){port=port[0];if(port!==':'){this.port=port.substr(1);}host=host.substr(0,host.length-port.length);}if(host)this.hostname=host;};function isString(arg){return typeof arg==="string";}function isObject(arg){return typeof arg==='object'&&arg!==null;}function isNull(arg){return arg===null;}function isNullOrUndefined(arg){return arg==null;}},{"punycode":92,"querystring":95}],101:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports.default=void 0;/**
      * Convert array of 16 byte values to UUID string format of the form:
      * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
      */var byteToHex=[];for(var i=0;i<256;++i){byteToHex[i]=(i+0x100).toString(16).substr(1);}function bytesToUuid(buf,offset){var i=offset||0;var bth=byteToHex;// join used to fix memory issue caused by concatenation: https://bugs.chromium.org/p/v8/issues/detail?id=3175#c4
-return[bth[buf[i++]],bth[buf[i++]],bth[buf[i++]],bth[buf[i++]],'-',bth[buf[i++]],bth[buf[i++]],'-',bth[buf[i++]],bth[buf[i++]],'-',bth[buf[i++]],bth[buf[i++]],'-',bth[buf[i++]],bth[buf[i++]],bth[buf[i++]],bth[buf[i++]],bth[buf[i++]],bth[buf[i++]]].join('');}var _default=bytesToUuid;exports["default"]=_default;},{}],102:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});Object.defineProperty(exports,"v1",{enumerable:true,get:function get(){return _v["default"];}});Object.defineProperty(exports,"v3",{enumerable:true,get:function get(){return _v2["default"];}});Object.defineProperty(exports,"v4",{enumerable:true,get:function get(){return _v3["default"];}});Object.defineProperty(exports,"v5",{enumerable:true,get:function get(){return _v4["default"];}});var _v=_interopRequireDefault(require("./v1.js"));var _v2=_interopRequireDefault(require("./v3.js"));var _v3=_interopRequireDefault(require("./v4.js"));var _v4=_interopRequireDefault(require("./v5.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{"default":obj};}},{"./v1.js":106,"./v3.js":107,"./v4.js":109,"./v5.js":110}],103:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports["default"]=void 0;/*
+return[bth[buf[i++]],bth[buf[i++]],bth[buf[i++]],bth[buf[i++]],'-',bth[buf[i++]],bth[buf[i++]],'-',bth[buf[i++]],bth[buf[i++]],'-',bth[buf[i++]],bth[buf[i++]],'-',bth[buf[i++]],bth[buf[i++]],bth[buf[i++]],bth[buf[i++]],bth[buf[i++]],bth[buf[i++]]].join('');}var _default=bytesToUuid;exports.default=_default;},{}],102:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});Object.defineProperty(exports,"v1",{enumerable:true,get:function(){return _v.default;}});Object.defineProperty(exports,"v3",{enumerable:true,get:function(){return _v2.default;}});Object.defineProperty(exports,"v4",{enumerable:true,get:function(){return _v3.default;}});Object.defineProperty(exports,"v5",{enumerable:true,get:function(){return _v4.default;}});var _v=_interopRequireDefault(require("./v1.js"));var _v2=_interopRequireDefault(require("./v3.js"));var _v3=_interopRequireDefault(require("./v4.js"));var _v4=_interopRequireDefault(require("./v5.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}},{"./v1.js":106,"./v3.js":107,"./v4.js":109,"./v5.js":110}],103:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports.default=void 0;/*
      * Browser-compatible JavaScript MD5
      *
      * Modification of JavaScript MD5
@@ -9861,16 +9771,16 @@ bytes=new Array(msg.length);for(var i=0;i<msg.length;i++)bytes[i]=msg.charCodeAt
      * Bitwise rotate a 32-bit number to the left.
      */function bitRotateLeft(num,cnt){return num<<cnt|num>>>32-cnt;}/*
      * These functions implement the four basic operations the algorithm uses.
-     */function md5cmn(q,a,b,x,s,t){return safeAdd(bitRotateLeft(safeAdd(safeAdd(a,q),safeAdd(x,t)),s),b);}function md5ff(a,b,c,d,x,s,t){return md5cmn(b&c|~b&d,a,b,x,s,t);}function md5gg(a,b,c,d,x,s,t){return md5cmn(b&d|c&~d,a,b,x,s,t);}function md5hh(a,b,c,d,x,s,t){return md5cmn(b^c^d,a,b,x,s,t);}function md5ii(a,b,c,d,x,s,t){return md5cmn(c^(b|~d),a,b,x,s,t);}var _default=md5;exports["default"]=_default;},{}],104:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports["default"]=rng;// Unique ID creation requires a high quality random # generator. In the browser we therefore
+     */function md5cmn(q,a,b,x,s,t){return safeAdd(bitRotateLeft(safeAdd(safeAdd(a,q),safeAdd(x,t)),s),b);}function md5ff(a,b,c,d,x,s,t){return md5cmn(b&c|~b&d,a,b,x,s,t);}function md5gg(a,b,c,d,x,s,t){return md5cmn(b&d|c&~d,a,b,x,s,t);}function md5hh(a,b,c,d,x,s,t){return md5cmn(b^c^d,a,b,x,s,t);}function md5ii(a,b,c,d,x,s,t){return md5cmn(c^(b|~d),a,b,x,s,t);}var _default=md5;exports.default=_default;},{}],104:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports.default=rng;// Unique ID creation requires a high quality random # generator. In the browser we therefore
 // require the crypto API and do not support built-in fallback to lower quality random number
 // generators (like Math.random()).
 // getRandomValues needs to be invoked in a context where "this" is a Crypto implementation. Also,
 // find the complete implementation of crypto (msCrypto) on IE11.
 var getRandomValues=typeof crypto!='undefined'&&crypto.getRandomValues&&crypto.getRandomValues.bind(crypto)||typeof msCrypto!='undefined'&&typeof msCrypto.getRandomValues=='function'&&msCrypto.getRandomValues.bind(msCrypto);var rnds8=new Uint8Array(16);// eslint-disable-line no-undef
-function rng(){if(!getRandomValues){throw new Error('crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported');}return getRandomValues(rnds8);}},{}],105:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports["default"]=void 0;// Adapted from Chris Veness' SHA1 code at
+function rng(){if(!getRandomValues){throw new Error('crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported');}return getRandomValues(rnds8);}},{}],105:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports.default=void 0;// Adapted from Chris Veness' SHA1 code at
 // http://www.movable-type.co.uk/scripts/sha1.html
 function f(s,x,y,z){switch(s){case 0:return x&y^~x&z;case 1:return x^y^z;case 2:return x&y^x&z^y&z;case 3:return x^y^z;}}function ROTL(x,n){return x<<n|x>>>32-n;}function sha1(bytes){var K=[0x5a827999,0x6ed9eba1,0x8f1bbcdc,0xca62c1d6];var H=[0x67452301,0xefcdab89,0x98badcfe,0x10325476,0xc3d2e1f0];if(typeof bytes=='string'){var msg=unescape(encodeURIComponent(bytes));// UTF8 escape
-bytes=new Array(msg.length);for(var i=0;i<msg.length;i++)bytes[i]=msg.charCodeAt(i);}bytes.push(0x80);var l=bytes.length/4+2;var N=Math.ceil(l/16);var M=new Array(N);for(var i=0;i<N;i++){M[i]=new Array(16);for(var j=0;j<16;j++){M[i][j]=bytes[i*64+j*4]<<24|bytes[i*64+j*4+1]<<16|bytes[i*64+j*4+2]<<8|bytes[i*64+j*4+3];}}M[N-1][14]=(bytes.length-1)*8/Math.pow(2,32);M[N-1][14]=Math.floor(M[N-1][14]);M[N-1][15]=(bytes.length-1)*8&0xffffffff;for(var i=0;i<N;i++){var W=new Array(80);for(var t=0;t<16;t++)W[t]=M[i][t];for(var t=16;t<80;t++){W[t]=ROTL(W[t-3]^W[t-8]^W[t-14]^W[t-16],1);}var a=H[0];var b=H[1];var c=H[2];var d=H[3];var e=H[4];for(var t=0;t<80;t++){var s=Math.floor(t/20);var T=ROTL(a,5)+f(s,b,c,d)+e+K[s]+W[t]>>>0;e=d;d=c;c=ROTL(b,30)>>>0;b=a;a=T;}H[0]=H[0]+a>>>0;H[1]=H[1]+b>>>0;H[2]=H[2]+c>>>0;H[3]=H[3]+d>>>0;H[4]=H[4]+e>>>0;}return[H[0]>>24&0xff,H[0]>>16&0xff,H[0]>>8&0xff,H[0]&0xff,H[1]>>24&0xff,H[1]>>16&0xff,H[1]>>8&0xff,H[1]&0xff,H[2]>>24&0xff,H[2]>>16&0xff,H[2]>>8&0xff,H[2]&0xff,H[3]>>24&0xff,H[3]>>16&0xff,H[3]>>8&0xff,H[3]&0xff,H[4]>>24&0xff,H[4]>>16&0xff,H[4]>>8&0xff,H[4]&0xff];}var _default=sha1;exports["default"]=_default;},{}],106:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports["default"]=void 0;var _rng=_interopRequireDefault(require("./rng.js"));var _bytesToUuid=_interopRequireDefault(require("./bytesToUuid.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{"default":obj};}// **`v1()` - Generate time-based UUID**
+bytes=new Array(msg.length);for(var i=0;i<msg.length;i++)bytes[i]=msg.charCodeAt(i);}bytes.push(0x80);var l=bytes.length/4+2;var N=Math.ceil(l/16);var M=new Array(N);for(var i=0;i<N;i++){M[i]=new Array(16);for(var j=0;j<16;j++){M[i][j]=bytes[i*64+j*4]<<24|bytes[i*64+j*4+1]<<16|bytes[i*64+j*4+2]<<8|bytes[i*64+j*4+3];}}M[N-1][14]=(bytes.length-1)*8/Math.pow(2,32);M[N-1][14]=Math.floor(M[N-1][14]);M[N-1][15]=(bytes.length-1)*8&0xffffffff;for(var i=0;i<N;i++){var W=new Array(80);for(var t=0;t<16;t++)W[t]=M[i][t];for(var t=16;t<80;t++){W[t]=ROTL(W[t-3]^W[t-8]^W[t-14]^W[t-16],1);}var a=H[0];var b=H[1];var c=H[2];var d=H[3];var e=H[4];for(var t=0;t<80;t++){var s=Math.floor(t/20);var T=ROTL(a,5)+f(s,b,c,d)+e+K[s]+W[t]>>>0;e=d;d=c;c=ROTL(b,30)>>>0;b=a;a=T;}H[0]=H[0]+a>>>0;H[1]=H[1]+b>>>0;H[2]=H[2]+c>>>0;H[3]=H[3]+d>>>0;H[4]=H[4]+e>>>0;}return[H[0]>>24&0xff,H[0]>>16&0xff,H[0]>>8&0xff,H[0]&0xff,H[1]>>24&0xff,H[1]>>16&0xff,H[1]>>8&0xff,H[1]&0xff,H[2]>>24&0xff,H[2]>>16&0xff,H[2]>>8&0xff,H[2]&0xff,H[3]>>24&0xff,H[3]>>16&0xff,H[3]>>8&0xff,H[3]&0xff,H[4]>>24&0xff,H[4]>>16&0xff,H[4]>>8&0xff,H[4]&0xff];}var _default=sha1;exports.default=_default;},{}],106:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports.default=void 0;var _rng=_interopRequireDefault(require("./rng.js"));var _bytesToUuid=_interopRequireDefault(require("./bytesToUuid.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}// **`v1()` - Generate time-based UUID**
 //
 // Inspired by https://github.com/LiosK/UUID.js
 // and http://docs.python.org/library/uuid.html
@@ -9879,7 +9789,7 @@ var _lastMSecs=0;var _lastNSecs=0;// See https://github.com/uuidjs/uuid for API 
 function v1(options,buf,offset){var i=buf&&offset||0;var b=buf||[];options=options||{};var node=options.node||_nodeId;var clockseq=options.clockseq!==undefined?options.clockseq:_clockseq;// node and clockseq need to be initialized to random values if they're not
 // specified.  We do this lazily to minimize issues related to insufficient
 // system entropy.  See #189
-if(node==null||clockseq==null){var seedBytes=options.random||(options.rng||_rng["default"])();if(node==null){// Per 4.5, create and 48-bit node id, (47 random bits + multicast bit = 1)
+if(node==null||clockseq==null){var seedBytes=options.random||(options.rng||_rng.default)();if(node==null){// Per 4.5, create and 48-bit node id, (47 random bits + multicast bit = 1)
 node=_nodeId=[seedBytes[0]|0x01,seedBytes[1],seedBytes[2],seedBytes[3],seedBytes[4],seedBytes[5]];}if(clockseq==null){// Per 4.2.2, randomize (14 bit) clockseq
 clockseq=_clockseq=(seedBytes[6]<<8|seedBytes[7])&0x3fff;}}// UUID timestamps are 100 nano-second units since the Gregorian epoch,
 // (1582-10-15 00:00).  JSNumbers aren't precise enough for this, so
@@ -9900,16 +9810,16 @@ b[i++]=tmh>>>24&0xf|0x10;// include version
 b[i++]=tmh>>>16&0xff;// `clock_seq_hi_and_reserved` (Per 4.2.2 - include variant)
 b[i++]=clockseq>>>8|0x80;// `clock_seq_low`
 b[i++]=clockseq&0xff;// `node`
-for(var n=0;n<6;++n){b[i+n]=node[n];}return buf?buf:(0,_bytesToUuid["default"])(b);}var _default=v1;exports["default"]=_default;},{"./bytesToUuid.js":101,"./rng.js":104}],107:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports["default"]=void 0;var _v=_interopRequireDefault(require("./v35.js"));var _md=_interopRequireDefault(require("./md5.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{"default":obj};}var v3=(0,_v["default"])('v3',0x30,_md["default"]);var _default=v3;exports["default"]=_default;},{"./md5.js":103,"./v35.js":108}],108:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports["default"]=_default;exports.URL=exports.DNS=void 0;var _bytesToUuid=_interopRequireDefault(require("./bytesToUuid.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{"default":obj};}function uuidToBytes(uuid){// Note: We assume we're being passed a valid uuid string
+for(var n=0;n<6;++n){b[i+n]=node[n];}return buf?buf:(0,_bytesToUuid.default)(b);}var _default=v1;exports.default=_default;},{"./bytesToUuid.js":101,"./rng.js":104}],107:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports.default=void 0;var _v=_interopRequireDefault(require("./v35.js"));var _md=_interopRequireDefault(require("./md5.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}const v3=(0,_v.default)('v3',0x30,_md.default);var _default=v3;exports.default=_default;},{"./md5.js":103,"./v35.js":108}],108:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports.default=_default;exports.URL=exports.DNS=void 0;var _bytesToUuid=_interopRequireDefault(require("./bytesToUuid.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}function uuidToBytes(uuid){// Note: We assume we're being passed a valid uuid string
 var bytes=[];uuid.replace(/[a-fA-F0-9]{2}/g,function(hex){bytes.push(parseInt(hex,16));});return bytes;}function stringToBytes(str){str=unescape(encodeURIComponent(str));// UTF8 escape
-var bytes=new Array(str.length);for(var i=0;i<str.length;i++){bytes[i]=str.charCodeAt(i);}return bytes;}var DNS='6ba7b810-9dad-11d1-80b4-00c04fd430c8';exports.DNS=DNS;var URL='6ba7b811-9dad-11d1-80b4-00c04fd430c8';exports.URL=URL;function _default(name,version,hashfunc){var generateUUID=function generateUUID(value,namespace,buf,offset){var off=buf&&offset||0;if(typeof value=='string')value=stringToBytes(value);if(typeof namespace=='string')namespace=uuidToBytes(namespace);if(!Array.isArray(value))throw TypeError('value must be an array of bytes');if(!Array.isArray(namespace)||namespace.length!==16)throw TypeError('namespace must be uuid string or an Array of 16 byte values');// Per 4.3
-var bytes=hashfunc(namespace.concat(value));bytes[6]=bytes[6]&0x0f|version;bytes[8]=bytes[8]&0x3f|0x80;if(buf){for(var idx=0;idx<16;++idx){buf[off+idx]=bytes[idx];}}return buf||(0,_bytesToUuid["default"])(bytes);};// Function#name is not settable on some platforms (#270)
+var bytes=new Array(str.length);for(var i=0;i<str.length;i++){bytes[i]=str.charCodeAt(i);}return bytes;}const DNS='6ba7b810-9dad-11d1-80b4-00c04fd430c8';exports.DNS=DNS;const URL='6ba7b811-9dad-11d1-80b4-00c04fd430c8';exports.URL=URL;function _default(name,version,hashfunc){var generateUUID=function(value,namespace,buf,offset){var off=buf&&offset||0;if(typeof value=='string')value=stringToBytes(value);if(typeof namespace=='string')namespace=uuidToBytes(namespace);if(!Array.isArray(value))throw TypeError('value must be an array of bytes');if(!Array.isArray(namespace)||namespace.length!==16)throw TypeError('namespace must be uuid string or an Array of 16 byte values');// Per 4.3
+var bytes=hashfunc(namespace.concat(value));bytes[6]=bytes[6]&0x0f|version;bytes[8]=bytes[8]&0x3f|0x80;if(buf){for(var idx=0;idx<16;++idx){buf[off+idx]=bytes[idx];}}return buf||(0,_bytesToUuid.default)(bytes);};// Function#name is not settable on some platforms (#270)
 try{generateUUID.name=name;}catch(err){}// For CommonJS default export support
-generateUUID.DNS=DNS;generateUUID.URL=URL;return generateUUID;}},{"./bytesToUuid.js":101}],109:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports["default"]=void 0;var _rng=_interopRequireDefault(require("./rng.js"));var _bytesToUuid=_interopRequireDefault(require("./bytesToUuid.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{"default":obj};}function v4(options,buf,offset){var i=buf&&offset||0;if(typeof options=='string'){buf=options==='binary'?new Array(16):null;options=null;}options=options||{};var rnds=options.random||(options.rng||_rng["default"])();// Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
+generateUUID.DNS=DNS;generateUUID.URL=URL;return generateUUID;}},{"./bytesToUuid.js":101}],109:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports.default=void 0;var _rng=_interopRequireDefault(require("./rng.js"));var _bytesToUuid=_interopRequireDefault(require("./bytesToUuid.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}function v4(options,buf,offset){var i=buf&&offset||0;if(typeof options=='string'){buf=options==='binary'?new Array(16):null;options=null;}options=options||{};var rnds=options.random||(options.rng||_rng.default)();// Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
 rnds[6]=rnds[6]&0x0f|0x40;rnds[8]=rnds[8]&0x3f|0x80;// Copy bytes to buffer, if provided
-if(buf){for(var ii=0;ii<16;++ii){buf[i+ii]=rnds[ii];}}return buf||(0,_bytesToUuid["default"])(rnds);}var _default=v4;exports["default"]=_default;},{"./bytesToUuid.js":101,"./rng.js":104}],110:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports["default"]=void 0;var _v=_interopRequireDefault(require("./v35.js"));var _sha=_interopRequireDefault(require("./sha1.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{"default":obj};}var v5=(0,_v["default"])('v5',0x50,_sha["default"]);var _default=v5;exports["default"]=_default;},{"./sha1.js":105,"./v35.js":108}],111:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});var LRU_1=require("./utils/LRU");var CACHE_SIZE=1000;/**
+if(buf){for(var ii=0;ii<16;++ii){buf[i+ii]=rnds[ii];}}return buf||(0,_bytesToUuid.default)(rnds);}var _default=v4;exports.default=_default;},{"./bytesToUuid.js":101,"./rng.js":104}],110:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});exports.default=void 0;var _v=_interopRequireDefault(require("./v35.js"));var _sha=_interopRequireDefault(require("./sha1.js"));function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}const v5=(0,_v.default)('v5',0x50,_sha.default);var _default=v5;exports.default=_default;},{"./sha1.js":105,"./v35.js":108}],111:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});var LRU_1=require("./utils/LRU");var CACHE_SIZE=1000;/**
      * Inspired node-lru-cache[https://github.com/isaacs/node-lru-cache]
-     */var EndpointCache=/** @class */function(){function EndpointCache(maxSize){if(maxSize===void 0){maxSize=CACHE_SIZE;}this.maxSize=maxSize;this.cache=new LRU_1.LRUCache(maxSize);};Object.defineProperty(EndpointCache.prototype,"size",{get:function get(){return this.cache.length;},enumerable:true,configurable:true});EndpointCache.prototype.put=function(key,value){var keyString=typeof key!=='string'?EndpointCache.getKeyString(key):key;var endpointRecord=this.populateValue(value);this.cache.put(keyString,endpointRecord);};EndpointCache.prototype.get=function(key){var keyString=typeof key!=='string'?EndpointCache.getKeyString(key):key;var now=Date.now();var records=this.cache.get(keyString);if(records){for(var i=records.length-1;i>=0;i--){var record=records[i];if(record.Expire<now){records.splice(i,1);}}if(records.length===0){this.cache.remove(keyString);return undefined;}}return records;};EndpointCache.getKeyString=function(key){var identifiers=[];var identifierNames=Object.keys(key).sort();for(var i=0;i<identifierNames.length;i++){var identifierName=identifierNames[i];if(key[identifierName]===undefined)continue;identifiers.push(key[identifierName]);}return identifiers.join(' ');};EndpointCache.prototype.populateValue=function(endpoints){var now=Date.now();return endpoints.map(function(endpoint){return{Address:endpoint.Address||'',Expire:now+(endpoint.CachePeriodInMinutes||1)*60*1000};});};EndpointCache.prototype.empty=function(){this.cache.empty();};EndpointCache.prototype.remove=function(key){var keyString=typeof key!=='string'?EndpointCache.getKeyString(key):key;this.cache.remove(keyString);};return EndpointCache;}();exports.EndpointCache=EndpointCache;},{"./utils/LRU":112}],112:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});var LinkedListNode=/** @class */function(){function LinkedListNode(key,value){this.key=key;this.value=value;}return LinkedListNode;}();var LRUCache=/** @class */function(){function LRUCache(size){this.nodeMap={};this.size=0;if(typeof size!=='number'||size<1){throw new Error('Cache size can only be positive number');}this.sizeLimit=size;}Object.defineProperty(LRUCache.prototype,"length",{get:function get(){return this.size;},enumerable:true,configurable:true});LRUCache.prototype.prependToList=function(node){if(!this.headerNode){this.tailNode=node;}else{this.headerNode.prev=node;node.next=this.headerNode;}this.headerNode=node;this.size++;};LRUCache.prototype.removeFromTail=function(){if(!this.tailNode){return undefined;}var node=this.tailNode;var prevNode=node.prev;if(prevNode){prevNode.next=undefined;}node.prev=undefined;this.tailNode=prevNode;this.size--;return node;};LRUCache.prototype.detachFromList=function(node){if(this.headerNode===node){this.headerNode=node.next;}if(this.tailNode===node){this.tailNode=node.prev;}if(node.prev){node.prev.next=node.next;}if(node.next){node.next.prev=node.prev;}node.next=undefined;node.prev=undefined;this.size--;};LRUCache.prototype.get=function(key){if(this.nodeMap[key]){var node=this.nodeMap[key];this.detachFromList(node);this.prependToList(node);return node.value;}};LRUCache.prototype.remove=function(key){if(this.nodeMap[key]){var node=this.nodeMap[key];this.detachFromList(node);delete this.nodeMap[key];}};LRUCache.prototype.put=function(key,value){if(this.nodeMap[key]){this.remove(key);}else if(this.size===this.sizeLimit){var tailNode=this.removeFromTail();var key_1=tailNode.key;delete this.nodeMap[key_1];}var newNode=new LinkedListNode(key,value);this.nodeMap[key]=newNode;this.prependToList(newNode);};LRUCache.prototype.empty=function(){var keys=Object.keys(this.nodeMap);for(var i=0;i<keys.length;i++){var key=keys[i];var node=this.nodeMap[key];this.detachFromList(node);delete this.nodeMap[key];}};return LRUCache;}();exports.LRUCache=LRUCache;},{}],113:[function(require,module,exports){// AWS SDK for JavaScript v2.1589.0
+     */var EndpointCache=/** @class */function(){function EndpointCache(maxSize){if(maxSize===void 0){maxSize=CACHE_SIZE;}this.maxSize=maxSize;this.cache=new LRU_1.LRUCache(maxSize);};Object.defineProperty(EndpointCache.prototype,"size",{get:function(){return this.cache.length;},enumerable:true,configurable:true});EndpointCache.prototype.put=function(key,value){var keyString=typeof key!=='string'?EndpointCache.getKeyString(key):key;var endpointRecord=this.populateValue(value);this.cache.put(keyString,endpointRecord);};EndpointCache.prototype.get=function(key){var keyString=typeof key!=='string'?EndpointCache.getKeyString(key):key;var now=Date.now();var records=this.cache.get(keyString);if(records){for(var i=records.length-1;i>=0;i--){var record=records[i];if(record.Expire<now){records.splice(i,1);}}if(records.length===0){this.cache.remove(keyString);return undefined;}}return records;};EndpointCache.getKeyString=function(key){var identifiers=[];var identifierNames=Object.keys(key).sort();for(var i=0;i<identifierNames.length;i++){var identifierName=identifierNames[i];if(key[identifierName]===undefined)continue;identifiers.push(key[identifierName]);}return identifiers.join(' ');};EndpointCache.prototype.populateValue=function(endpoints){var now=Date.now();return endpoints.map(function(endpoint){return{Address:endpoint.Address||'',Expire:now+(endpoint.CachePeriodInMinutes||1)*60*1000};});};EndpointCache.prototype.empty=function(){this.cache.empty();};EndpointCache.prototype.remove=function(key){var keyString=typeof key!=='string'?EndpointCache.getKeyString(key):key;this.cache.remove(keyString);};return EndpointCache;}();exports.EndpointCache=EndpointCache;},{"./utils/LRU":112}],112:[function(require,module,exports){"use strict";Object.defineProperty(exports,"__esModule",{value:true});var LinkedListNode=/** @class */function(){function LinkedListNode(key,value){this.key=key;this.value=value;}return LinkedListNode;}();var LRUCache=/** @class */function(){function LRUCache(size){this.nodeMap={};this.size=0;if(typeof size!=='number'||size<1){throw new Error('Cache size can only be positive number');}this.sizeLimit=size;}Object.defineProperty(LRUCache.prototype,"length",{get:function(){return this.size;},enumerable:true,configurable:true});LRUCache.prototype.prependToList=function(node){if(!this.headerNode){this.tailNode=node;}else{this.headerNode.prev=node;node.next=this.headerNode;}this.headerNode=node;this.size++;};LRUCache.prototype.removeFromTail=function(){if(!this.tailNode){return undefined;}var node=this.tailNode;var prevNode=node.prev;if(prevNode){prevNode.next=undefined;}node.prev=undefined;this.tailNode=prevNode;this.size--;return node;};LRUCache.prototype.detachFromList=function(node){if(this.headerNode===node){this.headerNode=node.next;}if(this.tailNode===node){this.tailNode=node.prev;}if(node.prev){node.prev.next=node.next;}if(node.next){node.next.prev=node.prev;}node.next=undefined;node.prev=undefined;this.size--;};LRUCache.prototype.get=function(key){if(this.nodeMap[key]){var node=this.nodeMap[key];this.detachFromList(node);this.prependToList(node);return node.value;}};LRUCache.prototype.remove=function(key){if(this.nodeMap[key]){var node=this.nodeMap[key];this.detachFromList(node);delete this.nodeMap[key];}};LRUCache.prototype.put=function(key,value){if(this.nodeMap[key]){this.remove(key);}else if(this.size===this.sizeLimit){var tailNode=this.removeFromTail();var key_1=tailNode.key;delete this.nodeMap[key_1];}var newNode=new LinkedListNode(key,value);this.nodeMap[key]=newNode;this.prependToList(newNode);};LRUCache.prototype.empty=function(){var keys=Object.keys(this.nodeMap);for(var i=0;i<keys.length;i++){var key=keys[i];var node=this.nodeMap[key];this.detachFromList(node);delete this.nodeMap[key];}};return LRUCache;}();exports.LRUCache=LRUCache;},{}],113:[function(require,module,exports){// AWS SDK for JavaScript v2.1589.0
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // License at https://sdk.amazonaws.com/js/BUNDLE_LICENSE.txt
 require('./browser_loader');var AWS=require('./core');if(typeof window!=='undefined')window.AWS=AWS;if(typeof module!=='undefined'){/**
@@ -9925,12 +9835,11 @@ require('./browser_loader');var AWS=require('./core');if(typeof window!=='undefi
 /***/ 555:
 /***/ (() => {
 
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
-function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -10003,10 +9912,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
    * abstract class ClientBase
    */
-  var ClientBase = function ClientBase() {};
+  var ClientBase = function () {};
   ClientBase.EMPTY_CALLBACKS = {
-    success: function success() {},
-    failure: function failure() {}
+    success: function () {},
+    failure: function () {}
   };
   ClientBase.prototype.call = function (method, paramsIn, callbacksIn) {
     connect.assertNotNull(method, 'method');
@@ -10021,7 +9930,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
    * class NullClient extends ClientBase
    */
-  var NullClient = function NullClient() {
+  var NullClient = function () {
     ClientBase.call(this);
   };
   NullClient.prototype = Object.create(ClientBase.prototype);
@@ -10038,7 +9947,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
    * abstract class UpstreamConduitClientBase extends ClientBase
    */
-  var UpstreamConduitClientBase = function UpstreamConduitClientBase(conduit, requestEvent, responseEvent) {
+  var UpstreamConduitClientBase = function (conduit, requestEvent, responseEvent) {
     ClientBase.call(this);
     this.conduit = conduit;
     this.requestEvent = requestEvent;
@@ -10051,7 +9960,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   UpstreamConduitClientBase.prototype._callImpl = function (method, params, callbacks) {
     var request = connect.EventFactory.createRequest(this.requestEvent, method, params);
     this._requestIdCallbacksMap[request.requestId] = callbacks;
-    var methodsToSkip = [connect.ClientMethods.SEND_CLIENT_LOGS, connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS, connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT];
+    const methodsToSkip = [connect.ClientMethods.SEND_CLIENT_LOGS, connect.ClientMethods.SEND_SOFTPHONE_CALL_METRICS, connect.ClientMethods.SEND_SOFTPHONE_CALL_REPORT];
     try {
       if (request.event === connect.EventType.API_REQUEST && !methodsToSkip.includes(request.method)) {
         connect.getLog().trace("Sending API_REQUEST event for ".concat(request.method, " to upstream")).withObject({
@@ -10062,7 +9971,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       }
     } catch (err) {
       connect.getLog().error("Stack trace Log Failed").withObject({
-        err: err
+        err
       }).sendInternalLogToServer();
     }
     this.conduit.sendUpstream(request.event, request);
@@ -10089,7 +9998,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
    * class UpstreamConduitClient extends ClientBase
    */
-  var UpstreamConduitClient = function UpstreamConduitClient(conduit) {
+  var UpstreamConduitClient = function (conduit) {
     UpstreamConduitClientBase.call(this, conduit, connect.EventType.API_REQUEST, connect.EventType.API_RESPONSE);
   };
   UpstreamConduitClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
@@ -10098,9 +10007,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
    * class ApiProxyClient extends ClientBase
    */
-  var ApiProxyClient = function ApiProxyClient() {
+  var ApiProxyClient = function () {
     ClientBase.call(this);
-    var bus = connect.core.getEventBus();
+    const bus = connect.core.getEventBus();
     bus.subscribe(connect.EventType.API_PROXY_RESPONSE, connect.hitch(this, this._handleResponse));
     this._requestIdCallbacksMap = {};
   };
@@ -10137,7 +10046,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
    * class UpstreamConduitMasterClient extends ClientBase
    */
-  var UpstreamConduitMasterClient = function UpstreamConduitMasterClient(conduit) {
+  var UpstreamConduitMasterClient = function (conduit) {
     UpstreamConduitClientBase.call(this, conduit, connect.EventType.MASTER_REQUEST, connect.EventType.MASTER_RESPONSE);
   };
   UpstreamConduitMasterClient.prototype = Object.create(UpstreamConduitClientBase.prototype);
@@ -10146,7 +10055,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
   * class AgentAppClient extends ClientBase
   */
-  var AgentAppClient = function AgentAppClient(authCookieName, authToken, endpoint) {
+  var AgentAppClient = function (authCookieName, authToken, endpoint) {
     connect.assertNotNull(authCookieName, 'authCookieName');
     connect.assertNotNull(authToken, 'authToken');
     connect.assertNotNull(endpoint, 'endpoint');
@@ -10173,13 +10082,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     };
     connect.fetch(self.endpointUrl, options).then(function (res) {
       callbacks.success(res);
-    })["catch"](function (err) {
-      var reader = err.body.getReader();
-      var body = '';
-      var decoder = new TextDecoder();
+    }).catch(function (err) {
+      const reader = err.body.getReader();
+      let body = '';
+      const decoder = new TextDecoder();
       reader.read().then(function processText(_ref) {
-        var done = _ref.done,
-          value = _ref.value;
+        let {
+          done,
+          value
+        } = _ref;
         if (done) {
           var error = JSON.parse(body);
           error.status = err.status;
@@ -10194,7 +10105,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
    * class AWSClient extends ClientBase
    */
-  var AWSClient = function AWSClient(authToken, region, endpointIn) {
+  var AWSClient = function (authToken, region, endpointIn) {
     connect.assertNotNull(authToken, 'authToken');
     connect.assertNotNull(region, 'region');
     ClientBase.call(this);
@@ -10246,7 +10157,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             }
             log.trace("AWSClient: <-- Operation '%s' failed: %s", method, JSON.stringify(err)).sendInternalLogToServer();
           } else {
-            var dataAttribute = {};
+            let dataAttribute = {};
             log.trace("AWSClient: <-- Operation '%s' succeeded.", method).withObject(data).sendInternalLogToServer();
             self.unauthorizedFailCounter = 0;
             self.accessDeniedFailCounter = 0;
@@ -10267,26 +10178,16 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   AWSClient.prototype._retryMethod = function (method, callbacks, err, data, retryableError) {
     var self = this;
     var log = connect.getLog();
-    var formatRetryError = function formatRetryError(err) {
-      return self._formatCallError(self._addStatusCodeToError(err));
-    };
-    var retryParams = {
+    const formatRetryError = err => self._formatCallError(self._addStatusCodeToError(err));
+    let retryParams = {
       maxCount: connect.core.MAX_UNAUTHORIZED_RETRY_COUNT,
       failCounter: self.unauthorizedFailCounter,
-      increaseCounter: function increaseCounter() {
-        return self.unauthorizedFailCounter += 1;
-      },
-      resetCounter: function resetCounter() {
-        return self.unauthorizedFailCounter = 0;
-      },
+      increaseCounter: () => self.unauthorizedFailCounter += 1,
+      resetCounter: () => self.unauthorizedFailCounter = 0,
       errorMessage: 'unauthorized',
       exhaustedRetries: self.unauthorizedFailCounter >= connect.core.MAX_UNAUTHORIZED_RETRY_COUNT,
-      retryCallback: function retryCallback(err, data) {
-        return callbacks.failure(formatRetryError(err), data);
-      },
-      defaultCallback: function defaultCallback(err, data) {
-        return callbacks.authFailure(formatRetryError(err), data);
-      }
+      retryCallback: (err, data) => callbacks.failure(formatRetryError(err), data),
+      defaultCallback: (err, data) => callbacks.authFailure(formatRetryError(err), data)
     };
     switch (retryableError) {
       case connect.RetryableErrors.UNAUTHORIZED:
@@ -10295,21 +10196,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         retryParams = _objectSpread(_objectSpread({}, retryParams), {}, {
           maxCount: connect.core.MAX_ACCESS_DENIED_RETRY_COUNT,
           failCounter: self.accessDeniedFailCounter,
-          increaseCounter: function increaseCounter() {
-            return self.accessDeniedFailCounter += 1;
-          },
-          resetCounter: function resetCounter() {
-            return self.accessDeniedFailCounter = 0;
-          },
+          increaseCounter: () => self.accessDeniedFailCounter += 1,
+          resetCounter: () => self.accessDeniedFailCounter = 0,
           errorMessage: 'access denied',
           exhaustedRetries: self.accessDeniedFailCounter >= connect.core.MAX_ACCESS_DENIED_RETRY_COUNT,
-          defaultCallback: function defaultCallback(err, data) {
-            return callbacks.accessDenied(formatRetryError(err), data);
-          }
+          defaultCallback: (err, data) => callbacks.accessDenied(formatRetryError(err), data)
         });
         break;
     }
-    var errWithRetry = _objectSpread(_objectSpread({}, err), {}, {
+    let errWithRetry = _objectSpread(_objectSpread({}, err), {}, {
       retryStatus: connect.RetryStatus.NONE
     });
     if (self._isRetryableMethod(method)) {
@@ -10339,7 +10234,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   // postMessage() tries to clone the err object and failed.
   // Refer to https://github.com/goatslacker/alt-devtool/issues/5
   AWSClient.prototype._formatCallError = function (err) {
-    var error = _objectSpread({
+    const error = _objectSpread({
       type: err.code,
       message: err.message,
       stack: [],
@@ -10351,7 +10246,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       try {
         if (Array.isArray(err.stack)) {
           error.stack = err.stack;
-        } else if (_typeof(err.stack) === 'object') {
+        } else if (typeof err.stack === 'object') {
           error.stack = [JSON.stringify(err.stack)];
         } else if (typeof err.stack === 'string') {
           error.stack = err.stack.split('\n');
@@ -10362,7 +10257,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   AWSClient.prototype._addStatusCodeToError = function (err) {
     if (err.statusCode) return err;
-    var error = _objectSpread({}, err);
+    const error = _objectSpread({}, err);
     if (!err.code) {
       error.statusCode = 400;
     } else {
@@ -10458,7 +10353,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
   * class TaskTemplatesClient extends ClientBase
   */
-  var TaskTemplatesClient = function TaskTemplatesClient(endpoint) {
+  var TaskTemplatesClient = function (endpoint) {
     connect.assertNotNull(endpoint, 'endpoint');
     ClientBase.call(this);
     if (endpoint.includes('/task-templates')) {
@@ -10496,7 +10391,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       case methods.LIST_TASK_TEMPLATES:
         url += "/proxy/instance/".concat(instanceId, "/task/template");
         if (params.queryParams) {
-          var queryString = new URLSearchParams(params.queryParams).toString();
+          const queryString = new URLSearchParams(params.queryParams).toString();
           if (queryString) {
             url += "?".concat(queryString);
           }
@@ -10504,8 +10399,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         break;
       case methods.GET_TASK_TEMPLATE:
         connect.assertNotNull(params.templateParams, 'params.templateParams');
-        var id = connect.assertNotNull(params.templateParams.id, 'params.templateParams.id');
-        var version = params.templateParams.version;
+        const id = connect.assertNotNull(params.templateParams.id, 'params.templateParams.id');
+        const version = params.templateParams.version;
         url += "/proxy/instance/".concat(instanceId, "/task/template/").concat(id);
         if (version) {
           url += "?snapshotVersion=".concat(version);
@@ -10523,13 +10418,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
     connect.fetch(url, options).then(function (res) {
       callbacks.success(res);
-    })["catch"](function (err) {
-      var reader = err.body.getReader();
-      var body = '';
-      var decoder = new TextDecoder();
+    }).catch(function (err) {
+      const reader = err.body.getReader();
+      let body = '';
+      const decoder = new TextDecoder();
       reader.read().then(function processText(_ref2) {
-        var done = _ref2.done,
-          value = _ref2.value;
+        let {
+          done,
+          value
+        } = _ref2;
         if (done) {
           var error = JSON.parse(body);
           error.status = err.status;
@@ -10556,28 +10453,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /***/ 399:
 /***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
 
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
-function _regeneratorRuntime() { "use strict"; /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */ _regeneratorRuntime = function _regeneratorRuntime() { return e; }; var t, e = {}, r = Object.prototype, n = r.hasOwnProperty, o = Object.defineProperty || function (t, e, r) { t[e] = r.value; }, i = "function" == typeof Symbol ? Symbol : {}, a = i.iterator || "@@iterator", c = i.asyncIterator || "@@asyncIterator", u = i.toStringTag || "@@toStringTag"; function define(t, e, r) { return Object.defineProperty(t, e, { value: r, enumerable: !0, configurable: !0, writable: !0 }), t[e]; } try { define({}, ""); } catch (t) { define = function define(t, e, r) { return t[e] = r; }; } function wrap(t, e, r, n) { var i = e && e.prototype instanceof Generator ? e : Generator, a = Object.create(i.prototype), c = new Context(n || []); return o(a, "_invoke", { value: makeInvokeMethod(t, r, c) }), a; } function tryCatch(t, e, r) { try { return { type: "normal", arg: t.call(e, r) }; } catch (t) { return { type: "throw", arg: t }; } } e.wrap = wrap; var h = "suspendedStart", l = "suspendedYield", f = "executing", s = "completed", y = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} var p = {}; define(p, a, function () { return this; }); var d = Object.getPrototypeOf, v = d && d(d(values([]))); v && v !== r && n.call(v, a) && (p = v); var g = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(p); function defineIteratorMethods(t) { ["next", "throw", "return"].forEach(function (e) { define(t, e, function (t) { return this._invoke(e, t); }); }); } function AsyncIterator(t, e) { function invoke(r, o, i, a) { var c = tryCatch(t[r], t, o); if ("throw" !== c.type) { var u = c.arg, h = u.value; return h && "object" == _typeof(h) && n.call(h, "__await") ? e.resolve(h.__await).then(function (t) { invoke("next", t, i, a); }, function (t) { invoke("throw", t, i, a); }) : e.resolve(h).then(function (t) { u.value = t, i(u); }, function (t) { return invoke("throw", t, i, a); }); } a(c.arg); } var r; o(this, "_invoke", { value: function value(t, n) { function callInvokeWithMethodAndArg() { return new e(function (e, r) { invoke(t, n, e, r); }); } return r = r ? r.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg(); } }); } function makeInvokeMethod(e, r, n) { var o = h; return function (i, a) { if (o === f) throw Error("Generator is already running"); if (o === s) { if ("throw" === i) throw a; return { value: t, done: !0 }; } for (n.method = i, n.arg = a;;) { var c = n.delegate; if (c) { var u = maybeInvokeDelegate(c, n); if (u) { if (u === y) continue; return u; } } if ("next" === n.method) n.sent = n._sent = n.arg;else if ("throw" === n.method) { if (o === h) throw o = s, n.arg; n.dispatchException(n.arg); } else "return" === n.method && n.abrupt("return", n.arg); o = f; var p = tryCatch(e, r, n); if ("normal" === p.type) { if (o = n.done ? s : l, p.arg === y) continue; return { value: p.arg, done: n.done }; } "throw" === p.type && (o = s, n.method = "throw", n.arg = p.arg); } }; } function maybeInvokeDelegate(e, r) { var n = r.method, o = e.iterator[n]; if (o === t) return r.delegate = null, "throw" === n && e.iterator["return"] && (r.method = "return", r.arg = t, maybeInvokeDelegate(e, r), "throw" === r.method) || "return" !== n && (r.method = "throw", r.arg = new TypeError("The iterator does not provide a '" + n + "' method")), y; var i = tryCatch(o, e.iterator, r.arg); if ("throw" === i.type) return r.method = "throw", r.arg = i.arg, r.delegate = null, y; var a = i.arg; return a ? a.done ? (r[e.resultName] = a.value, r.next = e.nextLoc, "return" !== r.method && (r.method = "next", r.arg = t), r.delegate = null, y) : a : (r.method = "throw", r.arg = new TypeError("iterator result is not an object"), r.delegate = null, y); } function pushTryEntry(t) { var e = { tryLoc: t[0] }; 1 in t && (e.catchLoc = t[1]), 2 in t && (e.finallyLoc = t[2], e.afterLoc = t[3]), this.tryEntries.push(e); } function resetTryEntry(t) { var e = t.completion || {}; e.type = "normal", delete e.arg, t.completion = e; } function Context(t) { this.tryEntries = [{ tryLoc: "root" }], t.forEach(pushTryEntry, this), this.reset(!0); } function values(e) { if (e || "" === e) { var r = e[a]; if (r) return r.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) { var o = -1, i = function next() { for (; ++o < e.length;) if (n.call(e, o)) return next.value = e[o], next.done = !1, next; return next.value = t, next.done = !0, next; }; return i.next = i; } } throw new TypeError(_typeof(e) + " is not iterable"); } return GeneratorFunction.prototype = GeneratorFunctionPrototype, o(g, "constructor", { value: GeneratorFunctionPrototype, configurable: !0 }), o(GeneratorFunctionPrototype, "constructor", { value: GeneratorFunction, configurable: !0 }), GeneratorFunction.displayName = define(GeneratorFunctionPrototype, u, "GeneratorFunction"), e.isGeneratorFunction = function (t) { var e = "function" == typeof t && t.constructor; return !!e && (e === GeneratorFunction || "GeneratorFunction" === (e.displayName || e.name)); }, e.mark = function (t) { return Object.setPrototypeOf ? Object.setPrototypeOf(t, GeneratorFunctionPrototype) : (t.__proto__ = GeneratorFunctionPrototype, define(t, u, "GeneratorFunction")), t.prototype = Object.create(g), t; }, e.awrap = function (t) { return { __await: t }; }, defineIteratorMethods(AsyncIterator.prototype), define(AsyncIterator.prototype, c, function () { return this; }), e.AsyncIterator = AsyncIterator, e.async = function (t, r, n, o, i) { void 0 === i && (i = Promise); var a = new AsyncIterator(wrap(t, r, n, o), i); return e.isGeneratorFunction(r) ? a : a.next().then(function (t) { return t.done ? t.value : a.next(); }); }, defineIteratorMethods(g), define(g, u, "Generator"), define(g, a, function () { return this; }), define(g, "toString", function () { return "[object Generator]"; }), e.keys = function (t) { var e = Object(t), r = []; for (var n in e) r.push(n); return r.reverse(), function next() { for (; r.length;) { var t = r.pop(); if (t in e) return next.value = t, next.done = !1, next; } return next.done = !0, next; }; }, e.values = values, Context.prototype = { constructor: Context, reset: function reset(e) { if (this.prev = 0, this.next = 0, this.sent = this._sent = t, this.done = !1, this.delegate = null, this.method = "next", this.arg = t, this.tryEntries.forEach(resetTryEntry), !e) for (var r in this) "t" === r.charAt(0) && n.call(this, r) && !isNaN(+r.slice(1)) && (this[r] = t); }, stop: function stop() { this.done = !0; var t = this.tryEntries[0].completion; if ("throw" === t.type) throw t.arg; return this.rval; }, dispatchException: function dispatchException(e) { if (this.done) throw e; var r = this; function handle(n, o) { return a.type = "throw", a.arg = e, r.next = n, o && (r.method = "next", r.arg = t), !!o; } for (var o = this.tryEntries.length - 1; o >= 0; --o) { var i = this.tryEntries[o], a = i.completion; if ("root" === i.tryLoc) return handle("end"); if (i.tryLoc <= this.prev) { var c = n.call(i, "catchLoc"), u = n.call(i, "finallyLoc"); if (c && u) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } else if (c) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); } else { if (!u) throw Error("try statement without catch or finally"); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } } } }, abrupt: function abrupt(t, e) { for (var r = this.tryEntries.length - 1; r >= 0; --r) { var o = this.tryEntries[r]; if (o.tryLoc <= this.prev && n.call(o, "finallyLoc") && this.prev < o.finallyLoc) { var i = o; break; } } i && ("break" === t || "continue" === t) && i.tryLoc <= e && e <= i.finallyLoc && (i = null); var a = i ? i.completion : {}; return a.type = t, a.arg = e, i ? (this.method = "next", this.next = i.finallyLoc, y) : this.complete(a); }, complete: function complete(t, e) { if ("throw" === t.type) throw t.arg; return "break" === t.type || "continue" === t.type ? this.next = t.arg : "return" === t.type ? (this.rval = this.arg = t.arg, this.method = "return", this.next = "end") : "normal" === t.type && e && (this.next = e), y; }, finish: function finish(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.finallyLoc === t) return this.complete(r.completion, r.afterLoc), resetTryEntry(r), y; } }, "catch": function _catch(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.tryLoc === t) { var n = r.completion; if ("throw" === n.type) { var o = n.arg; resetTryEntry(r); } return o; } } throw Error("illegal catch attempt"); }, delegateYield: function delegateYield(e, r, n) { return this.delegate = { iterator: values(e), resultName: r, nextLoc: n }, "next" === this.method && (this.arg = t), y; } }, e; }
-function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
-function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e && r && "number" == typeof r.length) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = !0, u = !1; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = !0, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
-function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
-function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
-function _callSuper(t, o, e) { return o = _getPrototypeOf(o), _possibleConstructorReturn(t, _isNativeReflectConstruct() ? Reflect.construct(o, e || [], _getPrototypeOf(t).constructor) : o.apply(t, e)); }
-function _possibleConstructorReturn(t, e) { if (e && ("object" == _typeof(e) || "function" == typeof e)) return e; if (void 0 !== e) throw new TypeError("Derived constructors may only return object or undefined"); return _assertThisInitialized(t); }
-function _assertThisInitialized(e) { if (void 0 === e) throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); return e; }
-function _isNativeReflectConstruct() { try { var t = !Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); } catch (t) {} return (_isNativeReflectConstruct = function _isNativeReflectConstruct() { return !!t; })(); }
-function _getPrototypeOf(t) { return _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf.bind() : function (t) { return t.__proto__ || Object.getPrototypeOf(t); }, _getPrototypeOf(t); }
-function _inherits(t, e) { if ("function" != typeof e && null !== e) throw new TypeError("Super expression must either be null or a function"); t.prototype = Object.create(e && e.prototype, { constructor: { value: t, writable: !0, configurable: !0 } }), Object.defineProperty(t, "prototype", { writable: !1 }), e && _setPrototypeOf(t, e); }
-function _setPrototypeOf(t, e) { return _setPrototypeOf = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function (t, e) { return t.__proto__ = e, t; }, _setPrototypeOf(t, e); }
-function _classCallCheck(a, n) { if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function"); }
-function _defineProperties(e, r) { for (var t = 0; t < r.length; t++) { var o = r[t]; o.enumerable = o.enumerable || !1, o.configurable = !0, "value" in o && (o.writable = !0), Object.defineProperty(e, _toPropertyKey(o.key), o); } }
-function _createClass(e, r, t) { return r && _defineProperties(e.prototype, r), t && _defineProperties(e, t), Object.defineProperty(e, "prototype", { writable: !1 }), e; }
-function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
-function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -10591,7 +10471,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.22.0";
+  connect.version = "2.22.1";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
@@ -10629,10 +10509,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   var CCP_TABS_ACROSS_BROWSER_COUNT = 'CCPTabsAcrossBrowserCount';
   var MULTIPLE_INIT_SOFTPHONE_MANAGER_CALLS = 'MultipleInitSoftphoneManagerCalls';
   var CHECK_LOGIN_POPUP_INTERVAL_MS = 1000;
-  var APP = {
+  const APP = {
     GUIDES: 'customviews'
   };
-  var inactiveContactState = ['ended', 'missed', 'error', 'rejected', 'acw'];
+  const inactiveContactState = ['ended', 'missed', 'error', 'rejected', 'acw'];
   connect.numberOfConnectedCCPs = 0;
   connect.numberOfConnectedCCPsInThisTab = 0;
   connect.core.MAX_AUTHORIZE_RETRY_COUNT_FOR_SESSION = 3;
@@ -10657,7 +10537,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * The name is misleading for what it should do.
    * Internally we have replaced its usage with `getLoginUrl`.
    */
-  var createLoginUrl = function createLoginUrl(params) {
+  var createLoginUrl = function (params) {
     var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
     connect.assertNotNull(redirect);
     if (params.loginUrl) {
@@ -10674,7 +10554,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * Replaces `createLoginUrl`, as that function's name was misleading.
    * The `params.alias` parameter is deprecated. Please refrain from using it.
    */
-  var getLoginUrl = function getLoginUrl(params) {
+  var getLoginUrl = function (params) {
     var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
     connect.assertNotNull(redirect);
     if (params.loginUrl) {
@@ -10694,82 +10574,66 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    *  as we want to limit scope to use by internal functions for now)
    * @returns {Object}
    */
-  var BaseParamsStorage = /*#__PURE__*/function () {
-    function BaseParamsStorage(moduleName) {
-      _classCallCheck(this, BaseParamsStorage);
+  class BaseParamsStorage {
+    constructor(moduleName) {
       this.key = "".concat(moduleName, "ParamsStorage::").concat(global.location.origin);
     }
-    return _createClass(BaseParamsStorage, [{
-      key: "get",
-      value: function get() {
-        try {
-          var item = global.localStorage.getItem(this.key);
-          return item && JSON.parse(item);
-        } catch (e) {
-          connect.getLog().error("".concat(this.key, ":: Failed to get softphone params from local storage!")).withException(e).sendInternalLogToServer();
-        }
-        return null;
+    get() {
+      try {
+        const item = global.localStorage.getItem(this.key);
+        return item && JSON.parse(item);
+      } catch (e) {
+        connect.getLog().error("".concat(this.key, ":: Failed to get softphone params from local storage!")).withException(e).sendInternalLogToServer();
       }
-    }, {
-      key: "set",
-      value: function set(value) {
-        try {
-          value && global.localStorage.setItem(this.key, JSON.stringify(value));
-        } catch (e) {
-          connect.getLog().error("".concat(this.key, ":: Failed to set softphone params to local storage!")).withException(e).sendInternalLogToServer();
-        }
+      return null;
+    }
+    set(value) {
+      try {
+        value && global.localStorage.setItem(this.key, JSON.stringify(value));
+      } catch (e) {
+        connect.getLog().error("".concat(this.key, ":: Failed to set softphone params to local storage!")).withException(e).sendInternalLogToServer();
       }
-    }, {
-      key: "clean",
-      value: function clean() {
-        global.localStorage.removeItem(this.key);
-      }
-    }]);
-  }();
+    }
+    clean() {
+      global.localStorage.removeItem(this.key);
+    }
+  }
+
   /**
    * softphoneParamsStorage module to store necessary softphone params in local storage
    * Used mainly for cases where embedded CCP gets refreshed.
    * @returns {Object}
    */
-  var SoftphoneParamsStorage = /*#__PURE__*/function (_BaseParamsStorage) {
-    function SoftphoneParamsStorage() {
-      _classCallCheck(this, SoftphoneParamsStorage);
-      return _callSuper(this, SoftphoneParamsStorage, ['Softphone']);
+  class SoftphoneParamsStorage extends BaseParamsStorage {
+    constructor() {
+      super('Softphone');
     }
-    _inherits(SoftphoneParamsStorage, _BaseParamsStorage);
-    return _createClass(SoftphoneParamsStorage);
-  }(BaseParamsStorage);
-  var softphoneParamsStorage = new SoftphoneParamsStorage();
+  }
+  const softphoneParamsStorage = new SoftphoneParamsStorage();
 
   /**
    * ringtoneParamsStorage module to store necessary ringtone params in local storage
    * Used mainly for cases where embedded CCP gets refreshed.
    * @returns {Object}
    */
-  var RingtoneParamsStorage = /*#__PURE__*/function (_BaseParamsStorage2) {
-    function RingtoneParamsStorage() {
-      _classCallCheck(this, RingtoneParamsStorage);
-      return _callSuper(this, RingtoneParamsStorage, ['Ringtone']);
+  class RingtoneParamsStorage extends BaseParamsStorage {
+    constructor() {
+      super('Ringtone');
     }
-    _inherits(RingtoneParamsStorage, _BaseParamsStorage2);
-    return _createClass(RingtoneParamsStorage);
-  }(BaseParamsStorage);
-  var ringtoneParamsStorage = new RingtoneParamsStorage();
+  }
+  const ringtoneParamsStorage = new RingtoneParamsStorage();
 
   /**
    * globalResiliencyParamsStorage module to store necessary global resiliency params in local storage
    * Used mainly for cases where embedded CCP gets refreshed.
    * @returns {Object}
    */
-  var GlobalResiliencyParamsStorage = /*#__PURE__*/function (_BaseParamsStorage3) {
-    function GlobalResiliencyParamsStorage() {
-      _classCallCheck(this, GlobalResiliencyParamsStorage);
-      return _callSuper(this, GlobalResiliencyParamsStorage, ['GlobalResiliency']);
+  class GlobalResiliencyParamsStorage extends BaseParamsStorage {
+    constructor() {
+      super('GlobalResiliency');
     }
-    _inherits(GlobalResiliencyParamsStorage, _BaseParamsStorage3);
-    return _createClass(GlobalResiliencyParamsStorage);
-  }(BaseParamsStorage);
-  var globalResiliencyParamsStorage = new GlobalResiliencyParamsStorage();
+  }
+  const globalResiliencyParamsStorage = new GlobalResiliencyParamsStorage();
 
   /**-------------------------------------------------------------------------
    * Returns scheme://host:port for a given url
@@ -10793,7 +10657,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * DISASTER RECOVERY
    */
 
-  var makeAgentOffline = function makeAgentOffline(agent, callbacks) {
+  var makeAgentOffline = function (agent, callbacks) {
     var offlineState = agent.getAgentStates().find(function (state) {
       return state.type === connect.AgentStateType.OFFLINE;
     });
@@ -10803,18 +10667,18 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   // Suppress Contacts function
   // This is used by Disaster Recovery as a safeguard to not surface incoming calls/chats to UI
   //
-  var suppressContacts = function suppressContacts(isSuppressed) {
+  var suppressContacts = function (isSuppressed) {
     connect.getLog().info("[Disaster Recovery] Signal sharedworker to set contacts suppressor to %s for instance %s.", isSuppressed, connect.core.region).sendInternalLogToServer();
     connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.SUPPRESS, {
       suppress: isSuppressed,
       shouldSendFailoverDownstream: false
     });
   };
-  var setForceOfflineUpstream = function setForceOfflineUpstream(offline, nextActiveArn) {
+  var setForceOfflineUpstream = function (offline, nextActiveArn) {
     connect.getLog().info("[DISASTER RECOVERY] Signal sharedworker to set forceOffline to %s for instance %s.", offline, connect.core.region).sendInternalLogToServer();
     connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, {
-      offline: offline,
-      nextActiveArn: nextActiveArn
+      offline,
+      nextActiveArn
     });
   };
 
@@ -10823,59 +10687,50 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   // is in progress, the contact will be allowed to complete, and the agent will be set offline once the contact is destroyed (i.e. ACW is cleared).
   // If there is no voice contact in progress, or if `shouldSoftFailover` is missing/untruthy, this will disconnect all contacts and set the agent offline immediately.
   // If any of these requests fail (i.e. the backend is down/inaccessible), the shared worker will be signaled to invoke this function again once the region recovers.
-  var _forceOffline2 = function forceOffline(shouldSoftFailover, nextActiveArn) {
+  var forceOffline = function (shouldSoftFailover, nextActiveArn) {
     var log = connect.getLog();
     // if agent is still initializing, we can't get instance ID; fall back to logging the region, else getInstanceId() will throw
-    var instanceIdentifier = connect.agent.initialized ? connect.core.getAgentDataProvider().getInstanceId() : connect.core.region;
+    const instanceIdentifier = connect.agent.initialized ? connect.core.getAgentDataProvider().getInstanceId() : connect.core.region;
     log.info("[Disaster Recovery] Attempting to force instance ".concat(instanceIdentifier, " offline using ").concat(shouldSoftFailover ? 'soft' : 'hard', " failover")).sendInternalLogToServer();
     connect.agent(function (agent) {
       var contactClosed = 0;
       var contacts = agent.getContacts();
       var failureEncountered = false;
       if (contacts.length) {
-        var _iterator = _createForOfIteratorHelper(contacts),
-          _step;
-        try {
-          for (_iterator.s(); !(_step = _iterator.n()).done;) {
-            var contact = _step.value;
-            if (failureEncountered) {
-              break; // stop after first failure to avoid triggering UI failover multiple times
-            } else if (shouldSoftFailover && (contact.getType() === connect.ContactType.QUEUE_CALLBACK || contact.getType() === connect.ContactType.VOICE)) {
-              log.info("[Disaster Recovery] Will wait to complete failover of instance %s until voice contact with ID %s is destroyed", connect.core.region, contact.getContactId()).sendInternalLogToServer();
-              connect.core.getUpstream().sendDownstream(connect.DisasterRecoveryEvents.FAILOVER_PENDING, {
-                nextActiveArn: nextActiveArn
-              });
-              contact.onDestroy(function (contact) {
-                log.info("[Disaster Recovery] Voice contact with ID %s destroyed, continuing with failover in instance %s", contact.getContactId(), connect.core.region);
-                _forceOffline2(true, nextActiveArn);
-              });
-            } else {
-              contact.getAgentConnection().destroy({
-                success: function success() {
-                  // check if all active contacts are closed
-                  if (++contactClosed === contacts.length) {
-                    setForceOfflineUpstream(false, nextActiveArn);
-                    // It's ok if we're not able to put the agent offline.
-                    // since we're suppressing the agents contacts already.
-                    makeAgentOffline(agent);
-                    log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
-                  }
-                },
-                failure: function failure(err) {
-                  log.warn("[Disaster Recovery] An error occured while attempting to force this instance to offline in region %s", connect.core.region).sendInternalLogToServer();
-                  log.warn(err).sendInternalLogToServer();
-                  // signal the sharedworker to call forceOffline again when network connection
-                  // has been re-established (this happens in case of network or backend failures)
-                  setForceOfflineUpstream(true, nextActiveArn);
-                  failureEncountered = true;
+        for (let contact of contacts) {
+          if (failureEncountered) {
+            break; // stop after first failure to avoid triggering UI failover multiple times
+          } else if (shouldSoftFailover && (contact.getType() === connect.ContactType.QUEUE_CALLBACK || contact.getType() === connect.ContactType.VOICE)) {
+            log.info("[Disaster Recovery] Will wait to complete failover of instance %s until voice contact with ID %s is destroyed", connect.core.region, contact.getContactId()).sendInternalLogToServer();
+            connect.core.getUpstream().sendDownstream(connect.DisasterRecoveryEvents.FAILOVER_PENDING, {
+              nextActiveArn
+            });
+            contact.onDestroy(function (contact) {
+              log.info("[Disaster Recovery] Voice contact with ID %s destroyed, continuing with failover in instance %s", contact.getContactId(), connect.core.region);
+              forceOffline(true, nextActiveArn);
+            });
+          } else {
+            contact.getAgentConnection().destroy({
+              success: function () {
+                // check if all active contacts are closed
+                if (++contactClosed === contacts.length) {
+                  setForceOfflineUpstream(false, nextActiveArn);
+                  // It's ok if we're not able to put the agent offline.
+                  // since we're suppressing the agents contacts already.
+                  makeAgentOffline(agent);
+                  log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
                 }
-              });
-            }
+              },
+              failure: function (err) {
+                log.warn("[Disaster Recovery] An error occured while attempting to force this instance to offline in region %s", connect.core.region).sendInternalLogToServer();
+                log.warn(err).sendInternalLogToServer();
+                // signal the sharedworker to call forceOffline again when network connection
+                // has been re-established (this happens in case of network or backend failures)
+                setForceOfflineUpstream(true, nextActiveArn);
+                failureEncountered = true;
+              }
+            });
           }
-        } catch (err) {
-          _iterator.e(err);
-        } finally {
-          _iterator.f();
         }
       } else {
         setForceOfflineUpstream(false, nextActiveArn);
@@ -10896,16 +10751,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    */
   connect.core.terminateCustomView = function (connectUrl) {
     var _connect$agentApp$App;
-    var iframeSuffix = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
-    var _ref = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {},
-      _ref$resolveIframe = _ref.resolveIframe,
-      resolveIframe = _ref$resolveIframe === void 0 ? true : _ref$resolveIframe,
-      _ref$timeout = _ref.timeout,
-      timeout = _ref$timeout === void 0 ? 5000 : _ref$timeout,
-      _ref$hideIframe = _ref.hideIframe,
-      hideIframe = _ref$hideIframe === void 0 ? true : _ref$hideIframe;
-    var appName;
-    var getIframe = function getIframe(appName, containerDOM, iframeIdSelector) {
+    let iframeSuffix = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
+    let {
+      resolveIframe = true,
+      timeout = 5000,
+      hideIframe = true
+    } = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+    let appName;
+    const getIframe = function (appName, containerDOM, iframeIdSelector) {
       return (containerDOM === null || containerDOM === void 0 ? void 0 : containerDOM.querySelector(iframeIdSelector)) || document.getElementById(appName) || window.top.document.getElementById(appName);
     };
     if (!iframeSuffix) {
@@ -10913,15 +10766,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     } else {
       appName = "".concat(APP.GUIDES).concat(iframeSuffix);
     }
-    var containerDOM = (_connect$agentApp$App = connect.agentApp.AppRegistry.get(appName)) === null || _connect$agentApp$App === void 0 ? void 0 : _connect$agentApp$App.containerDOM;
-    var iframeIdSelector = "iframe[id='".concat(appName, "']");
-    var iframe = getIframe(appName, containerDOM, iframeIdSelector);
+    const containerDOM = (_connect$agentApp$App = connect.agentApp.AppRegistry.get(appName)) === null || _connect$agentApp$App === void 0 ? void 0 : _connect$agentApp$App.containerDOM;
+    const iframeIdSelector = "iframe[id='".concat(appName, "']");
+    const iframe = getIframe(appName, containerDOM, iframeIdSelector);
     if (!iframe) {
       console.warn('[CustomViews] terminateCustomView operation failed due to iframe not found');
       return;
     }
     try {
-      var message = {
+      const message = {
         topic: 'lifecycle.terminated'
       };
       iframe.contentWindow.postMessage(message, connectUrl);
@@ -10933,7 +10786,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         console.info('[CustomViews] customviews iframe hidden for resolution during termination');
         setTimeout(function () {
           connect.agentApp.stopApp(appName);
-          var iframe = getIframe(appName, containerDOM, iframeIdSelector);
+          const iframe = getIframe(appName, containerDOM, iframeIdSelector);
           if (!iframe) {
             console.info('[CustomViews] customviews application successfully stopped');
           } else {
@@ -10951,7 +10804,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var log = connect.getLog();
     connect.core.region = params.region;
     connect.core.suppressContacts = _suppressContacts || suppressContacts;
-    connect.core.forceOffline = _forceOffline || _forceOffline2;
+    connect.core.forceOffline = _forceOffline || forceOffline;
 
     //Register iframe listener to set native CCP offline
     connect.core.getUpstream().onDownstream(connect.DisasterRecoveryEvents.SET_OFFLINE, function (data) {
@@ -11067,11 +10920,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   connect.core.initRingtoneEngines = function (params, _setRingerDevice) {
     connect.getLog().info("[Ringtone Engine] initRingtoneEngine started").withObject({
-      params: params
+      params
     }).sendInternalLogToServer();
     connect.assertNotNull(params, "params");
-    var setRingerDeviceFunc = _setRingerDevice || setRingerDevice;
-    var setupRingtoneEngines = function setupRingtoneEngines(ringtoneSettings) {
+    const setRingerDeviceFunc = _setRingerDevice || setRingerDevice;
+    var setupRingtoneEngines = function (ringtoneSettings) {
       connect.assertNotNull(ringtoneSettings, "ringtoneSettings");
       connect.assertNotNull(ringtoneSettings.voice, "ringtoneSettings.voice");
       connect.assertTrue(ringtoneSettings.voice.ringtoneUrl || ringtoneSettings.voice.disabled, "ringtoneSettings.voice.ringtoneUrl must be provided or ringtoneSettings.voice.disabled must be true");
@@ -11081,7 +10934,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       connect.agent(function (agent) {
         agent.onRefresh(function () {
           connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
-            var isInitializedAnyEngine = false;
+            let isInitializedAnyEngine = false;
             if (!ringtoneSettings.voice.disabled && !connect.core.ringtoneEngines.voice) {
               connect.core.ringtoneEngines.voice = new connect.VoiceRingtoneEngine(ringtoneSettings.voice);
               isInitializedAnyEngine = true;
@@ -11118,7 +10971,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       });
       handleRingerDeviceChange();
     };
-    var mergeParams = function mergeParams(params, otherParams) {
+    var mergeParams = function (params, otherParams) {
       // For backwards compatibility: support pulling disabled flag and ringtoneUrl
       // from softphone config if it exists from downstream into the ringtone config.
       params.ringtone = params.ringtone || {};
@@ -11188,7 +11041,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
      * All other use cases don't wait for the CONFIGURE message.
      */
     if (connect.isFramed()) {
-      var configureMessageTimer; // used for re-initializing the ringtone engine
+      let configureMessageTimer; // used for re-initializing the ringtone engine
       var bus = connect.core.getEventBus();
 
       // CONFIGURE handler triggers ringtone engine initialization
@@ -11211,15 +11064,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
        * This snippet needs at least one initCCP invocation which sets the params to the store
        * and waits for CCP to load succesfully to apply the same to setup ringtone engine
        */
-      var ringtoneParamsFromLocalStorage = ringtoneParamsStorage.get();
+      const ringtoneParamsFromLocalStorage = ringtoneParamsStorage.get();
       if (ringtoneParamsFromLocalStorage) {
         connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function (args) {
           // only care about shared worker ACK which indicates CCP successfull load
-          var ackFromSharedWorker = args && args.id;
+          const ackFromSharedWorker = args && args.id;
           if (ackFromSharedWorker) {
             connect.getLog().info("[RingtoneEngine] Embedded CCP is refreshed successfully and waiting for configure Message handler to execute").sendInternalLogToServer();
             this.unsubscribe();
-            configureMessageTimer = global.setTimeout(function () {
+            configureMessageTimer = global.setTimeout(() => {
               connect.getLog().info("[RingtoneEngine] Embedded CCP is refreshed without configure message & Initializing setupRingtoneEngines (Ringtone Engine) from localStorage ringtone params. ").withObject({
                 ringtone: ringtoneParamsFromLocalStorage
               }).sendInternalLogToServer();
@@ -11236,13 +11089,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       setupRingtoneEngines(params.ringtone);
     }
   };
-  var handleRingerDeviceChange = function handleRingerDeviceChange() {
+  var handleRingerDeviceChange = function () {
     var bus = connect.core.getEventBus();
     bus.subscribe(connect.ConfigurationEvents.SET_RINGER_DEVICE, setRingerDevice);
   };
-  var setRingerDevice = function setRingerDevice() {
-    var data = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-    var deviceId = data.deviceId || '';
+  var setRingerDevice = function () {
+    let data = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    const deviceId = data.deviceId || '';
     connect.getLog().info("[Audio Device Settings] Attempting to set ringer device ".concat(deviceId)).sendInternalLogToServer();
     if (connect.keys(connect.core.ringtoneEngines).length === 0) {
       connect.getLog().info("[Audio Device Settings] setRingerDevice called before ringtone engine is initialized").sendInternalLogToServer();
@@ -11262,15 +11115,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       connect.getLog().warn("[Audio Device Settings] Setting ringer device cancelled due to missing deviceId").sendInternalLogToServer();
       return;
     }
-    var _loop = function _loop(ringtoneType) {
+    for (let ringtoneType in connect.core.ringtoneEngines) {
       connect.core.ringtoneEngines[ringtoneType].setOutputDevice(deviceId).then(function (res) {
         connect.getLog().info("[Audio Device Settings] ringtoneType ".concat(ringtoneType, " successfully set to deviceid ").concat(res)).sendInternalLogToServer();
-      })["catch"](function (err) {
+      }).catch(function (err) {
         connect.getLog().error(err);
       });
-    };
-    for (var ringtoneType in connect.core.ringtoneEngines) {
-      _loop(ringtoneType);
     }
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.ConfigurationEvents.RINGER_DEVICE_CHANGED,
@@ -11282,10 +11132,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core.initSoftphoneManager = function (paramsIn) {
     var params = paramsIn || {};
     connect.getLog().info("[Softphone Manager] initSoftphoneManager started").sendInternalLogToServer();
-    var competeForMasterOnAgentUpdate = function competeForMasterOnAgentUpdate(softphoneParamsIn) {
+    var competeForMasterOnAgentUpdate = function (softphoneParamsIn) {
       var softphoneParams = connect.merge(params.softphone || {}, softphoneParamsIn);
       connect.getLog().info("[Softphone Manager] competeForMasterOnAgentUpdate executed").withObject({
-        softphoneParams: softphoneParams
+        softphoneParams
       }).sendInternalLogToServer();
       connect.agent(function (agent) {
         if (!agent.getChannelConcurrency(connect.ChannelType.VOICE)) {
@@ -11316,7 +11166,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
      */
 
     if (connect.isFramed() && connect.isCCP()) {
-      var configureMessageTimer; // used for re-initing the softphone manager
+      let configureMessageTimer; // used for re-initing the softphone manager
       var bus = connect.core.getEventBus();
 
       // Configure handler triggers the softphone manager initiation.
@@ -11324,7 +11174,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       bus.subscribe(connect.EventType.CONFIGURE, function (data) {
         global.clearTimeout(configureMessageTimer); // we don't need to re-init softphone manager as we recieved configure event
         connect.getLog().info("[Softphone Manager] Configure event handler executed").withObject({
-          data: data
+          data
         }).sendInternalLogToServer();
         // always overwrite/store the softphone params value if there is a configure event
         softphoneParamsStorage.set(data.softphone);
@@ -11340,17 +11190,17 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
        * This snippet needs at least one initCCP invocation which sets the params to the store
        * and waits for CCP to load successfully to apply the same to init Softphone manager
        */
-      var softphoneParamsFromLocalStorage = softphoneParamsStorage.get();
+      let softphoneParamsFromLocalStorage = softphoneParamsStorage.get();
       if (softphoneParamsFromLocalStorage) {
         connect.core.getUpstream().onUpstream(connect.EventType.ACKNOWLEDGE, function (args) {
           // only care about shared worker ACK which indicates CCP successfull load
-          var ackFromSharedWorker = args && args.id;
+          let ackFromSharedWorker = args && args.id;
           if (ackFromSharedWorker) {
             connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed successfully and waiting for configure Message handler to execute").sendInternalLogToServer();
             this.unsubscribe();
-            configureMessageTimer = global.setTimeout(function () {
+            configureMessageTimer = global.setTimeout(() => {
               connect.getLog().info("[Softphone Manager] Embedded CCP is refreshed without configure message handler execution").withObject({
-                softphoneParamsFromLocalStorage: softphoneParamsFromLocalStorage
+                softphoneParamsFromLocalStorage
               }).sendInternalLogToServer();
               connect.publishMetric({
                 name: "EmbeddedCCPRefreshedWithoutInitCCP",
@@ -11488,7 +11338,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
               return d.toJSON();
             });
             sendDevices(devices);
-          })["catch"](function (err) {
+          }).catch(function (err) {
             sendDevices({
               error: err.message
             });
@@ -11508,21 +11358,21 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     if (connect.isFramed()) {
       connect.core.handleApiProxyRequest = function (request) {
         if (!(request !== null && request !== void 0 && request.method)) return;
-        var successCB = function successCB(data) {
-          var response = {
-            data: data,
+        const successCB = function (data) {
+          const response = {
+            data,
             requestId: request.requestId
           };
           connect.core.getUpstream().sendDownstream(connect.EventType.API_RESPONSE, response);
         };
-        var failureCB = function failureCB(err) {
-          var response = {
-            err: err,
+        const failureCB = function (err) {
+          const response = {
+            err,
             requestId: request.requestId
           };
           connect.core.getUpstream().sendDownstream(connect.EventType.API_RESPONSE, response);
         };
-        var client = connect.core.getApiProxyClient();
+        const client = connect.core.getApiProxyClient();
         client.call(request.method, request.params, {
           success: successCB,
           failure: failureCB
@@ -11569,7 +11419,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         connect.core.getUpstream().sendUpstream(connect.EventType.MEDIA_DEVICE_REQUEST);
       }
     });
-    return Promise.race([mediaDevicesPromise, timeoutPromise])["finally"](function () {
+    return Promise.race([mediaDevicesPromise, timeoutPromise]).finally(function () {
       if (sub) {
         sub.unsubscribe();
       }
@@ -11761,17 +11611,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           }
         }
         if (data.tabId && data.streamsTabsAcrossBrowser) {
-          connect.ifMaster(connect.MasterTopics.METRICS, function () {
-            return connect.agent(function () {
-              return connect.publishMetric({
-                name: CCP_TABS_ACROSS_BROWSER_COUNT,
-                data: {
-                  tabId: data.tabId,
-                  count: data.streamsTabsAcrossBrowser
-                }
-              });
-            });
-          });
+          connect.ifMaster(connect.MasterTopics.METRICS, () => connect.agent(() => connect.publishMetric({
+            name: CCP_TABS_ACROSS_BROWSER_COUNT,
+            data: {
+              tabId: data.tabId,
+              count: data.streamsTabsAcrossBrowser
+            }
+          })));
         }
       });
       connect.core.client = new connect.UpstreamConduitClient(conduit);
@@ -11797,7 +11643,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         var voiceId = new connect.VoiceId();
         voiceId.getDomainId().then(function (domainId) {
           connect.getLog().info("voiceId domainId successfully fetched at agent initialization: " + domainId).sendInternalLogToServer();
-        })["catch"](function (err) {
+        }).catch(function (err) {
           connect.getLog().info("voiceId domainId not fetched at agent initialization").withObject({
             err: err
           }).sendInternalLogToServer();
@@ -11837,15 +11683,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     if (!((_params$loginOptions = params.loginOptions) !== null && _params$loginOptions !== void 0 && _params$loginOptions.disableAuthPopupAfterLogout)) {
       connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, function () {
         connect.getLog().warn("TERMINATED occurred. Attempting to authenticate.").sendInternalLogToServer();
-        var delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
-        setTimeout(function () {
+        const delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
+        setTimeout(() => {
           connect.core.authenticate(params, containerDiv, conduit);
         }, delay);
       });
       connect.core.getEventBus().subscribe(connect.EventType.AUTH_FAIL, function () {
         connect.getLog().warn("AUTH_FAIL occurred. Attempting to authenticate.").sendInternalLogToServer();
-        var delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
-        setTimeout(function () {
+        const delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
+        setTimeout(() => {
           connect.core.authenticate(params, containerDiv, conduit);
         }, delay);
       });
@@ -11903,9 +11749,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     if (!existingProvider) {
       try {
         var _params, _params2;
-        var _require = __webpack_require__(275),
-          AmazonConnectStreamsSite = _require.AmazonConnectStreamsSite,
-          AmazonConnectGRStreamsSite = _require.AmazonConnectGRStreamsSite;
+        const {
+          AmazonConnectStreamsSite,
+          AmazonConnectGRStreamsSite
+        } = __webpack_require__(275);
         var instanceUrl = new URL(params.ccpUrl).origin;
         if (((_params = params) === null || _params === void 0 ? void 0 : _params.enableGlobalResiliency) === true && (_params2 = params) !== null && _params2 !== void 0 && _params2.secondaryCCPUrl) {
           var config = {
@@ -11921,7 +11768,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           }).sendInternalLogToServer();
         } else {
           var config = {
-            instanceUrl: instanceUrl
+            instanceUrl
           };
           connect.core._amazonConnectProviderData = _objectSpread(_objectSpread({}, AmazonConnectStreamsSite.init(config)), {}, {
             isStreamsProvider: true
@@ -11952,9 +11799,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         providerPlugins = Array.isArray(providerPlugins) ? providerPlugins : [providerPlugins];
 
         // Applying plugins
-        providerPlugins.reduce(function (result, applyPlugin) {
-          return applyPlugin(result);
-        }, Object.getPrototypeOf(connect.core._amazonConnectProviderData.provider));
+        providerPlugins.reduce((result, applyPlugin) => applyPlugin(result), Object.getPrototypeOf(connect.core._amazonConnectProviderData.provider));
       } catch (e) {
         connect.getLog().error("Error when setting plugins for provider").withException(e).sendInternalLogToServer();
       }
@@ -11968,22 +11813,22 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
 
     // This is emitted further below as event bus and customer event callbacks are not created yet.
-    var acgrParamError = null;
+    let acgrParamError = null;
     if (((_params3 = params) === null || _params3 === void 0 ? void 0 : _params3.enableGlobalResiliency) === true) {
       var _params4, _params5, _params6, _params7;
       if (typeof ((_params4 = params) === null || _params4 === void 0 ? void 0 : _params4.secondaryCCPUrl) !== 'string' || ((_params5 = params) === null || _params5 === void 0 ? void 0 : _params5.secondaryCCPUrl) === '') {
-        var _log = "enableGlobalResiliency flag was enabled, but secondaryCCPUrl was not provided. Global Resiliency will not be enabled";
-        connect.getLog().error(_log).sendInternalLogToServer();
+        const log = "enableGlobalResiliency flag was enabled, but secondaryCCPUrl was not provided. Global Resiliency will not be enabled";
+        connect.getLog().error(log).sendInternalLogToServer();
         acgrParamError = {
           event: connect.GlobalResiliencyEvents.CONFIGURE_ERROR,
-          data: new Error(_log)
+          data: new Error(log)
         };
       } else if (typeof ((_params6 = params) === null || _params6 === void 0 ? void 0 : _params6.loginUrl) !== 'string' || ((_params7 = params) === null || _params7 === void 0 ? void 0 : _params7.loginUrl) === '') {
-        var _log2 = "enableGlobalResiliency flag was enabled, but loginUrl was not provided. Global Resiliency will not be enabled";
-        connect.getLog().error(_log2).sendInternalLogToServer();
+        const log = "enableGlobalResiliency flag was enabled, but loginUrl was not provided. Global Resiliency will not be enabled";
+        connect.getLog().error(log).sendInternalLogToServer();
         acgrParamError = {
           event: connect.GlobalResiliencyEvents.CONFIGURE_ERROR,
-          data: new Error(_log2)
+          data: new Error(log)
         };
       } else {
         connect.getLog().info("enableGlobalResiliency flag was enabled and secondaryCCPUrl and loginUrl was provided. Global Resiliency will be enabled").sendInternalLogToServer();
@@ -12070,8 +11915,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, {
           streamsVersion: connect.version
         });
-        var _ref2 = params.loginOptions || {},
-          enableAckTimeout = _ref2.enableAckTimeout;
+        const {
+          enableAckTimeout
+        } = params.loginOptions || {};
         if (enableAckTimeout) {
           connect.core.keepaliveManager.enableAckTimeout(enableAckTimeout);
         }
@@ -12088,7 +11934,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
           connect.getLog().info("Iframe initialization time ".concat(initTime)).sendInternalLogToServer();
           connect.getLog().info("Iframe refresh attempts ".concat(refreshAttempts)).sendInternalLogToServer();
-          setTimeout(function () {
+          setTimeout(() => {
             connect.publishMetric({
               name: CSM_IFRAME_REFRESH_ATTEMPTS,
               data: {
@@ -12193,59 +12039,34 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     ;
   };
   connect.core._openPopupWithLock = function (loginUrl, loginOptions) {
-    var lockName = "connect-login-popup-lock" + loginUrl;
+    const lockName = "connect-login-popup-lock" + loginUrl;
     try {
       navigator.locks.request(lockName, {
         mode: 'exclusive',
         ifAvailable: true
-      }, /*#__PURE__*/function () {
-        var _ref3 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee(lock) {
-          var checkPopupInterval;
-          return _regeneratorRuntime().wrap(function _callee$(_context) {
-            while (1) switch (_context.prev = _context.next) {
-              case 0:
-                if (lock) {
-                  _context.next = 3;
-                  break;
-                }
-                connect.getLog().info("Popup already opened by another tab.").sendInternalLogToServer();
-                return _context.abrupt("return");
-              case 3:
-                connect.getLog().info("Opening popup window with weblock.").sendInternalLogToServer();
-                connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, loginOptions);
-                connect.core._shouldHoldPopupLock = true;
-                checkPopupInterval = setInterval(function () {
-                  var _connect$core$loginWi;
-                  if (!connect.core.loginWindow || (_connect$core$loginWi = connect.core.loginWindow) !== null && _connect$core$loginWi !== void 0 && _connect$core$loginWi.closed) {
-                    clearInterval(checkPopupInterval);
-                    connect.core._shouldHoldPopupLock = false;
-                    connect.getLog().info("Cleared check popup interval.").sendInternalLogToServer();
-                  }
-                }, CHECK_LOGIN_POPUP_INTERVAL_MS); // hold the lock until the popup is closed
-              case 7:
-                if (!connect.core._shouldHoldPopupLock) {
-                  _context.next = 12;
-                  break;
-                }
-                _context.next = 10;
-                return new Promise(function (resolve) {
-                  return setTimeout(resolve, 1000);
-                });
-              case 10:
-                _context.next = 7;
-                break;
-              case 12:
-                connect.getLog().info("Releasing weblock for opening login popup.").sendInternalLogToServer();
-              case 13:
-              case "end":
-                return _context.stop();
-            }
-          }, _callee);
-        }));
-        return function (_x) {
-          return _ref3.apply(this, arguments);
-        };
-      }());
+      }, async lock => {
+        if (!lock) {
+          connect.getLog().info("Popup already opened by another tab.").sendInternalLogToServer();
+          return;
+        }
+        connect.getLog().info("Opening popup window with weblock.").sendInternalLogToServer();
+        connect.core.loginWindow = connect.core.getPopupManager().open(loginUrl, connect.MasterTopics.LOGIN_POPUP, loginOptions);
+        connect.core._shouldHoldPopupLock = true;
+        const checkPopupInterval = setInterval(function () {
+          var _connect$core$loginWi;
+          if (!connect.core.loginWindow || (_connect$core$loginWi = connect.core.loginWindow) !== null && _connect$core$loginWi !== void 0 && _connect$core$loginWi.closed) {
+            clearInterval(checkPopupInterval);
+            connect.core._shouldHoldPopupLock = false;
+            connect.getLog().info("Cleared check popup interval.").sendInternalLogToServer();
+          }
+        }, CHECK_LOGIN_POPUP_INTERVAL_MS);
+
+        // hold the lock until the popup is closed
+        while (connect.core._shouldHoldPopupLock) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        connect.getLog().info("Releasing weblock for opening login popup.").sendInternalLogToServer();
+      });
     } catch (e) {
       connect.getLog().error("Failed to use weblock to open popup. Your browser may be out of date.").withException(e).sendInternalLogToServer();
       if (!connect.core.loginWindow) {
@@ -12259,7 +12080,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core._refreshIframeOnTimeout = function (initCCPParams, containerDiv, timerContainer, identifier) {
     connect.assertNotNull(initCCPParams, 'initCCPParams');
     connect.assertNotNull(containerDiv, 'containerDiv');
-    var obj = timerContainer || connect.core;
+    const obj = timerContainer || connect.core;
 
     // ccpIframeRefreshInterval is the ccpLoadTimeout passed into initCCP
     // if no ccpLoadTimeout is passed in, the interval is the default, which depends on if disaster recovery is on
@@ -12293,8 +12114,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         newIframe.style = iframeStyle.cssText;
       }
       if (connect.core.getUpstream() instanceof connect.GRProxyIframeConduit) {
-        var grProxyConduit = connect.core.upstream;
-        grProxyConduit.getAllConduits().forEach(function (conduit) {
+        const grProxyConduit = connect.core.upstream;
+        grProxyConduit.getAllConduits().forEach(conduit => {
           if (conduit.iframe.dataset.identifier === identifier) {
             conduit.upstream.output = newIframe.contentWindow;
             conduit.iframe = newIframe;
@@ -12309,24 +12130,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
   };
   connect.core._getCCPIframe = function (identifier) {
-    var _iterator2 = _createForOfIteratorHelper(window.document.getElementsByTagName('iframe')),
-      _step2;
-    try {
-      for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
-        var iframe = _step2.value;
-        if (iframe.name === CCP_IFRAME_NAME) {
-          var _iframe$dataset;
-          if (!identifier || ((_iframe$dataset = iframe.dataset) === null || _iframe$dataset === void 0 ? void 0 : _iframe$dataset.identifier) === identifier) {
-            // For global resiliency, there can be multiple CCP iframes with the same name.
-            // Return iframe only if the iframe's data-region value matches the specified region.
-            return iframe;
-          }
+    for (var iframe of window.document.getElementsByTagName('iframe')) {
+      if (iframe.name === CCP_IFRAME_NAME) {
+        var _iframe$dataset;
+        if (!identifier || ((_iframe$dataset = iframe.dataset) === null || _iframe$dataset === void 0 ? void 0 : _iframe$dataset.identifier) === identifier) {
+          // For global resiliency, there can be multiple CCP iframes with the same name.
+          // Return iframe only if the iframe's data-region value matches the specified region.
+          return iframe;
         }
       }
-    } catch (err) {
-      _iterator2.e(err);
-    } finally {
-      _iterator2.f();
     }
     return null;
   };
@@ -12354,7 +12166,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       try {
         var _connect$core$_amazon2;
         (_connect$core$_amazon2 = connect.core._amazonConnectProviderData) !== null && _connect$core$_amazon2 !== void 0 && _connect$core$_amazon2.isACGREnabled ? connect.core._amazonConnectProviderData.provider.setCCPIframe({
-          iframe: iframe,
+          iframe,
           region: initCCPParams.globalResiliencyRegion
         }) : connect.core._amazonConnectProviderData.provider.setCCPIframe(iframe);
       } catch (error) {
@@ -12448,7 +12260,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   /**-----------------------------------------------------------------------*/
-  var KeepaliveManager = function KeepaliveManager(conduit, eventBus, synTimeout, ackTimeout) {
+  var KeepaliveManager = function (conduit, eventBus, synTimeout, ackTimeout) {
     this.conduit = conduit;
     this.eventBus = eventBus;
     this.synTimeout = synTimeout;
@@ -12495,7 +12307,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
   /**-----------------------------------------------------------------------*/
 
-  var WebSocketProvider = function WebSocketProvider() {
+  var WebSocketProvider = function () {
     var callbacks = {
       initFailure: new Set(),
       subscriptionUpdate: new Set(),
@@ -12510,7 +12322,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       deepHeartbeatFailure: new Set(),
       topicFailure: new Set()
     };
-    var invokeCallbacks = function invokeCallbacks(callbacks, response) {
+    var invokeCallbacks = function (callbacks, response) {
       callbacks.forEach(function (callback) {
         callback(response);
       });
@@ -12549,49 +12361,49 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.initFailure.add(cb);
       return function () {
-        return callbacks.initFailure["delete"](cb);
+        return callbacks.initFailure.delete(cb);
       };
     };
     this.onConnectionOpen = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.connectionOpen.add(cb);
       return function () {
-        return callbacks.connectionOpen["delete"](cb);
+        return callbacks.connectionOpen.delete(cb);
       };
     };
     this.onConnectionClose = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.connectionClose.add(cb);
       return function () {
-        return callbacks.connectionClose["delete"](cb);
+        return callbacks.connectionClose.delete(cb);
       };
     };
     this.onConnectionGain = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.connectionGain.add(cb);
       return function () {
-        return callbacks.connectionGain["delete"](cb);
+        return callbacks.connectionGain.delete(cb);
       };
     };
     this.onConnectionLost = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.connectionLost.add(cb);
       return function () {
-        return callbacks.connectionLost["delete"](cb);
+        return callbacks.connectionLost.delete(cb);
       };
     };
     this.onSubscriptionUpdate = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.subscriptionUpdate.add(cb);
       return function () {
-        return callbacks.subscriptionUpdate["delete"](cb);
+        return callbacks.subscriptionUpdate.delete(cb);
       };
     };
     this.onSubscriptionFailure = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.subscriptionFailure.add(cb);
       return function () {
-        return callbacks.subscriptionFailure["delete"](cb);
+        return callbacks.subscriptionFailure.delete(cb);
       };
     };
     this.subscribeTopics = function (topics) {
@@ -12608,35 +12420,35 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         callbacks.topic.set(topicName, new Set([cb]));
       }
       return function () {
-        return callbacks.topic.get(topicName)["delete"](cb);
+        return callbacks.topic.get(topicName).delete(cb);
       };
     };
     this.onAllMessage = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.allMessage.add(cb);
       return function () {
-        return callbacks.allMessage["delete"](cb);
+        return callbacks.allMessage.delete(cb);
       };
     };
     this.onDeepHeartbeatSuccess = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.deepHeartbeatSuccess.add(cb);
       return function () {
-        return callbacks.deepHeartbeatSuccess["delete"](cb);
+        return callbacks.deepHeartbeatSuccess.delete(cb);
       };
     };
     this.onDeepHeartbeatFailure = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.deepHeartbeatFailure.add(cb);
       return function () {
-        return callbacks.deepHeartbeatFailure["delete"](cb);
+        return callbacks.deepHeartbeatFailure.delete(cb);
       };
     };
     this.onTopicFailure = function (cb) {
       connect.assertTrue(connect.isFunction(cb), 'method must be a function');
       callbacks.topicFailure.add(cb);
       return function () {
-        return callbacks.topicFailure["delete"](cb);
+        return callbacks.topicFailure.delete(cb);
       };
     };
   };
@@ -12645,7 +12457,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       connect.getLog().info("[ContactEvent] Removing contact from ENDED event tracker").withObject({
         contactId: contactId
       }).sendInternalLogToServer();
-      connect.core.endedEventTracker["delete"](contactId);
+      connect.core.endedEventTracker.delete(contactId);
       connect.getLog().info("[ContactEvent] Removed contact from ENDED event tracker").withObject(connect.core.endedEventTracker.entries()).sendInternalLogToServer();
     } catch (e) {
       connect.getLog().error("[ContactEvent] Failed to remove contact from ENDED event tracker").withObject({
@@ -12681,7 +12493,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   /**-----------------------------------------------------------------------*/
-  var AgentDataProvider = function AgentDataProvider(bus) {
+  var AgentDataProvider = function (bus) {
     var agentData = null;
     this.bus = bus;
     this.agentUpdateSubscriber = this.bus.subscribe(connect.AgentEvents.UPDATE, connect.hitch(this, this.updateAgentData));
@@ -12878,9 +12690,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    *   
    */
   connect.core.activateChannelWithViewType = function (viewType, mediaType, source, caseId, clientToken) {
-    var data = {
-      viewType: viewType,
-      mediaType: mediaType
+    const data = {
+      viewType,
+      mediaType
     };
     if (source) {
       data.source = source;
@@ -12895,7 +12707,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.ChannelViewEvents.ACTIVATE_CHANNEL_WITH_VIEW_TYPE,
-      data: data
+      data
     });
   };
 
@@ -12943,14 +12755,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
   };
   connect.core._handleAuthorizeFail = function (loginUrl) {
-    var authRetryCount = connect.core._getAuthRetryCount();
+    let authRetryCount = connect.core._getAuthRetryCount();
     if (!connect.core.authorizeTimeoutId) {
       if (authRetryCount < connect.core.MAX_AUTHORIZE_RETRY_COUNT_FOR_SESSION) {
         connect.core._incrementAuthRetryCount();
-        var retryDelay = AWS.util.calculateRetryDelay(authRetryCount + 1 || 0, {
+        let retryDelay = AWS.util.calculateRetryDelay(authRetryCount + 1 || 0, {
           base: 2000
         });
-        connect.core.authorizeTimeoutId = setTimeout(function () {
+        connect.core.authorizeTimeoutId = setTimeout(() => {
           connect.core._redirectToLogin(loginUrl);
         }, retryDelay); //We don't have to clear the timeoutId because we are redirecting away from this origin once the timeout completes.
       } else {
@@ -12970,11 +12782,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     if (!connect.core.ctiTimeoutId) {
       if (connect.core.ctiAuthRetryCount < connect.core.MAX_CTI_AUTH_RETRY_COUNT) {
         connect.core.ctiAuthRetryCount++;
-        var retryDelay = AWS.util.calculateRetryDelay(connect.core.ctiAuthRetryCount || 0, {
+        let retryDelay = AWS.util.calculateRetryDelay(connect.core.ctiAuthRetryCount || 0, {
           base: 500
         });
-        connect.core.ctiTimeoutId = setTimeout(function () {
-          connect.core.authorize(authorizeEndpoint).then(connect.core._triggerAuthorizeSuccess.bind(connect.core))["catch"](connect.core._triggerAuthFail.bind(connect.core, {
+        connect.core.ctiTimeoutId = setTimeout(() => {
+          connect.core.authorize(authorizeEndpoint).then(connect.core._triggerAuthorizeSuccess.bind(connect.core)).catch(connect.core._triggerAuthFail.bind(connect.core, {
             authorize: true
           }));
           connect.core.ctiTimeoutId = null;
@@ -12992,7 +12804,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     connect.core.getUpstream().upstreamBus.trigger(connect.EventType.AUTH_FAIL, data);
   };
   connect.core._getAuthRetryCount = function () {
-    var item = window.sessionStorage.getItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT);
+    let item = window.sessionStorage.getItem(connect.SessionStorageKeys.AUTHORIZE_RETRY_COUNT);
     if (item !== null) {
       if (!isNaN(parseInt(item))) {
         return parseInt(item);
@@ -13046,7 +12858,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core.sendConfigure = function (params, conduit, isACGR) {
     if (params.softphone || params.chat || params.task || params.pageOptions || params.shouldAddNamespaceToLogs || params.disasterRecoveryOn) {
       var _params$pageOptions;
-      var config = {
+      const config = {
         softphone: params.softphone,
         chat: params.chat,
         task: params.task,
@@ -13069,7 +12881,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
   /**-----------------------------------------------------------------------*/
   connect.core.listenForConfigureRequest = function (params, conduit, isACGR) {
-    conduit.onUpstream(connect.EventType.REQUEST_CONFIGURE, function () {
+    conduit.onUpstream(connect.EventType.REQUEST_CONFIGURE, () => {
       connect.core.sendConfigure(params, conduit, isACGR);
     });
   };
@@ -13079,7 +12891,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   // This is in case iframed CCP is refreshed abnormally
   connect.core.checkIfConfigureReceived = function (conduit) {
     if (connect.isFramed()) {
-      global.setTimeout(function () {
+      global.setTimeout(() => {
         if (!connect.core.hasReceivedCRMConfigure) {
           connect.getLog().warn("CCP has not received a configure message. Sending request to CRM for configuration.").sendInternalLogToServer();
           conduit.sendDownstream(connect.EventType.REQUEST_CONFIGURE);
@@ -13237,6 +13049,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   /**-----------------------------------------------------------------------*/
+  connect.globalResiliency.forceFailover = function () {
+    connect.core.getUpstream().sendUpstream(connect.GlobalResiliencyEvents.FORCE_FAILOVER);
+  };
+
+  /**-----------------------------------------------------------------------*/
   connect.core.AgentDataProvider = AgentDataProvider;
   connect.WebSocketProvider = WebSocketProvider;
   connect.KeepaliveManager = KeepaliveManager;
@@ -13310,7 +13127,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   'init_dr_polling']);
 
   // New Global Resiliency implementation
-  var GlobalResiliencyEvents = connect.makeNamespacedEnum('globalResiliency', ['configure', 'configure_ccp_conduit', 'init', 'configure_error', 'failover_initiated', 'failover_pending', 'failover_pending_crm', 'failover_complete', 'heartbeat_syn', 'heartbeat_ack']);
+  var GlobalResiliencyEvents = connect.makeNamespacedEnum('globalResiliency', ['configure', 'configure_ccp_conduit', 'init', 'configure_error', 'failover_initiated', 'failover_pending', 'failover_pending_crm', 'failover_complete', 'heartbeat_syn', 'heartbeat_ack', 'force_failover']);
 
   /**---------------------------------------------------------------
    * enum VoiceId Events
@@ -13320,7 +13137,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
    * class EventFactory
    */
-  var EventFactory = function EventFactory() {};
+  var EventFactory = function () {};
   EventFactory.createRequest = function (type, method, params) {
     return {
       event: type,
@@ -13341,7 +13158,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**
    * An object representing an event subscription in an EventBus.
    */
-  var Subscription = function Subscription(subMap, eventName, f) {
+  var Subscription = function (subMap, eventName, f) {
     this.subMap = subMap;
     this.id = connect.randomId();
     this.eventName = eventName;
@@ -13359,7 +13176,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**
    * A map of event subscriptions, used by the EventBus.
    */
-  var SubscriptionMap = function SubscriptionMap() {
+  var SubscriptionMap = function () {
     this.subIdMap = {};
     this.subEventNameMap = {};
   };
@@ -13415,7 +13232,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * An object which maintains a map of subscriptions and serves as the
    * mechanism for triggering events to be handled by subscribers.
    */
-  var EventBus = function EventBus(paramsIn) {
+  var EventBus = function (paramsIn) {
     var params = paramsIn || {};
     this.subMap = new SubscriptionMap();
     this.logEvents = params.logEvents || false;
@@ -13518,28 +13335,27 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /***/ 949:
 /***/ (() => {
 
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
-function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 (function () {
-  var global = this || globalThis;
-  var connect = global.connect || {};
+  const global = this || globalThis;
+  const connect = global.connect || {};
   global.connect = connect;
-  var CCP_SYN_TIMEOUT = 1000; // 1 sec
-  var CCP_ACK_TIMEOUT = 3000; // 3 sec
-  var CCP_LOAD_TIMEOUT = 5000; // 5 sec
+  const CCP_SYN_TIMEOUT = 1000; // 1 sec
+  const CCP_ACK_TIMEOUT = 3000; // 3 sec
+  const CCP_LOAD_TIMEOUT = 5000; // 5 sec
 
-  var CSM_IFRAME_REFRESH_ATTEMPTS = 'IframeRefreshAttempts';
-  var CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
-  var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
+  const CSM_IFRAME_REFRESH_ATTEMPTS = 'IframeRefreshAttempts';
+  const CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
+  const CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
   connect.globalResiliency._downloadCCPLogs = function () {
     connect.core.getEventBus().trigger(connect.EventType.DOWNLOAD_LOG_FROM_CCP);
   };
@@ -13621,7 +13437,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       });
     }
     try {
-      var label = grProxyConduit.iframeLabelMap[grProxyConduit.getActiveConduit().name];
+      const label = grProxyConduit.iframeLabelMap[grProxyConduit.getActiveConduit().name];
       connect.getLog().info("[GR] Setting provider active region to ".concat(label)).sendInternalLogToServer();
       connect.core._amazonConnectProviderData.provider.setActiveRegion(label);
     } catch (err) {
@@ -13632,14 +13448,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var _grProxyConduit$getAc, _grProxyConduit$getAc2, _connect$core2, _grProxyConduit$getAc3, _grProxyConduit$getAc4;
     if (!(grProxyConduit instanceof connect.GRProxyIframeConduit)) {
       connect.getLog().error('[GR] Tried to switch over active region, but proxy conduit was not of expected type.').withObject({
-        type: _typeof(grProxyConduit)
+        type: typeof grProxyConduit
       }).sendInternalLogToServer();
       return false;
     }
-    var newActiveConduit = grProxyConduit.getConduitByName(newActiveConduitName);
+    const newActiveConduit = grProxyConduit.getConduitByName(newActiveConduitName);
     if (!(newActiveConduit instanceof connect.IFrameConduit)) {
       connect.getLog().error('[GR] Tried to switch over active region, but conduit name was invalid').withObject({
-        newActiveConduitName: newActiveConduitName
+        newActiveConduitName
       }).sendInternalLogToServer();
       return false;
     }
@@ -13665,15 +13481,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   connect.globalResiliency.initGRCCP = function (containerDiv, paramsIn) {
     // Legacy auth flow must be enabled for now to allow GR to work
-    var params = _objectSpread({}, paramsIn);
+    const params = _objectSpread({}, paramsIn);
     connect.globalResiliency.params = params;
-    var conduitTimerContainerMap = {};
-    var hasSentFailoverPending = false;
+    const conduitTimerContainerMap = {};
+    let hasSentFailoverPending = false;
     connect.globalResiliency._activeRegion = null;
     connect.globalResiliency.globalResiliencyEnabled = true;
-    var LAST_FAILOVER_PENDING_TIME;
-    var LAST_FAILOVER_INITIATED_TIME;
-    var LAST_FAILOVER_COMPLETED_TIME;
+    let LAST_FAILOVER_PENDING_TIME;
+    let LAST_FAILOVER_INITIATED_TIME;
+    let LAST_FAILOVER_COMPLETED_TIME;
     connect.core.checkNotInitialized();
     if (connect.core.initialized) {
       return;
@@ -13681,14 +13497,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
     // The initialization metric works only for the active region
     connect.getLog().info('[GR] Iframe initialization started').sendInternalLogToServer();
-    var initStartTime = Date.now();
+    let initStartTime = Date.now();
     connect.assertNotNull(containerDiv, 'containerDiv');
-    var primaryURLOrigin = new URL(params.ccpUrl).origin;
-    var secondaryURLOrigin = new URL(params.secondaryCCPUrl).origin;
-    var primaryIframe = connect.core._createCCPIframe(containerDiv, _objectSpread(_objectSpread({}, params), {}, {
+    const primaryURLOrigin = new URL(params.ccpUrl).origin;
+    const secondaryURLOrigin = new URL(params.secondaryCCPUrl).origin;
+    const primaryIframe = connect.core._createCCPIframe(containerDiv, _objectSpread(_objectSpread({}, params), {}, {
       globalResiliencyRegion: 'primary'
     }), primaryURLOrigin);
-    var secondaryIframe = connect.core._createCCPIframe(containerDiv, _objectSpread(_objectSpread({}, params), {}, {
+    const secondaryIframe = connect.core._createCCPIframe(containerDiv, _objectSpread(_objectSpread({}, params), {}, {
       ccpUrl: params.secondaryCCPUrl,
       globalResiliencyRegion: 'secondary'
     }), secondaryURLOrigin);
@@ -13697,7 +13513,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     // This is a sort of a multiplexer of all upstream conduits, i.e.
     //   - connect.core.upstream.sendUpstream(msg) will postMessage to all iframes
     //   - connect.core.upstream.onUpstream(event, f) will register a callback to be invoked when one of the iframes postMessages us
-    var grProxyConduit = new connect.GRProxyIframeConduit(window, [{
+    const grProxyConduit = new connect.GRProxyIframeConduit(window, [{
       iframe: primaryIframe,
       label: 'primary'
     }, {
@@ -13719,7 +13535,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     });
 
     // Let each CCP know if the iframe is visible to users or not
-    grProxyConduit.getAllConduits().forEach(function (conduit) {
+    grProxyConduit.getAllConduits().forEach(conduit => {
       connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(conduit.iframe, conduit);
     });
 
@@ -13733,7 +13549,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     grProxyConduit.onAllUpstream(connect.core.getEventBus().bridge());
 
     // Initialize a keep alive manager for each conduit, that sends back a SYN event in response to ACK event from its shared worker
-    grProxyConduit.getAllConduits().forEach(function (conduit) {
+    grProxyConduit.getAllConduits().forEach(conduit => {
       // set it to conduit for later use
       conduit.keepaliveManager = new connect.KeepaliveManager(conduit, connect.core.getEventBus(), params.ccpSynTimeout || CCP_SYN_TIMEOUT, params.ccpAckTimeout || CCP_ACK_TIMEOUT);
     });
@@ -13743,7 +13559,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(grProxyConduit);
 
     // After switching over, we need to grab the agent data of the new CCP
-    grProxyConduit.onUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP, function (agentData) {
+    grProxyConduit.onUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP, agentData => {
       if (connect.core.agentDataProviderBackup) {
         connect.core.agentDataProviderBackup.updateAgentData(agentData);
         connect.core.agentDataProvider = connect.core.agentDataProviderBackup;
@@ -13756,11 +13572,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
     // Trigger ACK_TIMEOUT event if there's no ACK from the primary CCP for 5 sec.
     // Ignore and just emit a log for non-primary CCPs.
-    grProxyConduit.getAllConduits().forEach(function (conduit) {
+    grProxyConduit.getAllConduits().forEach(conduit => {
       conduitTimerContainerMap[conduit.name] = {
         iframeRefreshTimeout: null
       };
-      conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = setTimeout(function () {
+      conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = setTimeout(() => {
         conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = null;
         if (connect.isActiveConduit(conduit)) {
           connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
@@ -13772,10 +13588,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     });
 
     // Listen to the first ACK event sent from each conduit.
-    grProxyConduit.getAllConduits().forEach(function (conduit) {
+    grProxyConduit.getAllConduits().forEach(conduit => {
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
         connect.getLog().info("Acknowledged by the CCP! ".concat(conduit.name)).sendInternalLogToServer();
-        var isACGR = true;
+        const isACGR = true;
         connect.core.sendConfigure(params, conduit, isACGR);
         connect.core.listenForConfigureRequest(params, conduit, isACGR); // fallback in case of abnormal CCP refresh
 
@@ -13790,8 +13606,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           streamsVersion: connect.version,
           initCCPParams: params
         });
-        var _ref = params.loginOptions || {},
-          enableAckTimeout = _ref.enableAckTimeout;
+        const {
+          enableAckTimeout
+        } = params.loginOptions || {};
         if (enableAckTimeout) {
           conduit.keepaliveManager.enableAckTimeout(enableAckTimeout);
         }
@@ -13804,12 +13621,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
           // Only active conduit emits these metircs since we don't allow non-active conduits to broadcast events
           if (initStartTime) {
-            var initTime = Date.now() - initStartTime;
-            var refreshAttempts = conduitTimerContainerMap[conduit.name].iframeRefreshAttempt || 0;
+            const initTime = Date.now() - initStartTime;
+            const refreshAttempts = conduitTimerContainerMap[conduit.name].iframeRefreshAttempt || 0;
             connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
             connect.getLog().info("Iframe initialization time ".concat(initTime)).sendInternalLogToServer();
             connect.getLog().info("Iframe refresh attempts ".concat(refreshAttempts)).sendInternalLogToServer();
-            setTimeout(function () {
+            setTimeout(() => {
               connect.publishMetric({
                 name: CSM_IFRAME_REFRESH_ATTEMPTS,
                 data: {
@@ -13840,7 +13657,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     });
 
     // Add logs from the active upstream conduit to our own logger.
-    grProxyConduit.onUpstream(connect.EventType.LOG, function (logEntry) {
+    grProxyConduit.onUpstream(connect.EventType.LOG, logEntry => {
       if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
         connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
       }
@@ -13848,13 +13665,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
     // Pop a login page when we encounter an ACK_TIMEOUT event.
     // The event can only be triggered from active region.
-    connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, function () {
+    connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, () => {
       // loginPopup is true by default, only false if explicitly set to false.
       if (params.loginPopup !== false) {
         try {
           // For GR, we assume getLoginUrl() always returns the loginUrl for global sign-in page.
           // LoginUrl existence was checked before calling initGRCCP
-          var loginUrl = params.loginUrl;
+          const {
+            loginUrl
+          } = params;
           connect.getLog().warn('ACK_TIMEOUT occurred, attempting to pop the login page if not already open.').sendInternalLogToServer();
           // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
           connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
@@ -13865,7 +13684,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       }
 
       // Start iframe refresh for each region's CCP
-      grProxyConduit.getAllConduits().forEach(function (conduit) {
+      grProxyConduit.getAllConduits().forEach(conduit => {
         if (conduitTimerContainerMap[conduit.name].iframeRefreshTimeout === null) {
           try {
             // Stop the iframe refresh when ACK event is sent from upstream
@@ -13890,18 +13709,18 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         }
       });
     });
-    grProxyConduit.getAllConduits().forEach(function (conduit) {
-      conduit.onUpstream(connect.GlobalResiliencyEvents.INIT, function (data) {
+    grProxyConduit.getAllConduits().forEach(conduit => {
+      conduit.onUpstream(connect.GlobalResiliencyEvents.INIT, data => {
         if (!(data !== null && data !== void 0 && data.instanceRegion) || !(data !== null && data !== void 0 && data.instanceState) || !(data !== null && data !== void 0 && data.activeRegion)) {
           connect.getLog().error("[GR] Expected GlobalResiliencyEvents.INIT to have instance region, state, and current active region, but did not find it.").withObject({
-            data: data
+            data
           }).sendInternalLogToServer();
           return;
         }
         connect.getLog().info("[GR] Received GlobalResiliencyEvents.INIT indicating ".concat(conduit.name, " in region ").concat(data === null || data === void 0 ? void 0 : data.instanceRegion, " is ").concat(data === null || data === void 0 ? void 0 : data.instanceState, ".")).withObject({
-          data: data
+          data
         }).sendInternalLogToServer();
-        var initialConduit = data.instanceRegion === data.activeRegion ? conduit : grProxyConduit.getOtherConduit(conduit);
+        const initialConduit = data.instanceRegion === data.activeRegion ? conduit : grProxyConduit.getOtherConduit(conduit);
         if (!conduit.region || !initialConduit.region) {
           conduit.region = data.instanceRegion;
           initialConduit.region = data.activeRegion;
@@ -13942,7 +13761,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           connect.getLog().log("[GR] Deduping GlobalResiliencyEvents.INIT - Core is already initialized.").sendInternalLogToServer();
         }
       });
-      conduit.onUpstream(connect.GlobalResiliencyEvents.FAILOVER_INITIATED, function (data) {
+      conduit.onUpstream(connect.GlobalResiliencyEvents.FAILOVER_INITIATED, data => {
         LAST_FAILOVER_INITIATED_TIME = Date.now();
         connect.publishMetric({
           name: 'GlobalResiliencyFailoverInitiatedReceived',
@@ -13960,22 +13779,22 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         }
         if (!(data !== null && data !== void 0 && data.activeRegion)) {
           connect.getLog().error("[GR] Expected GlobalResiliencyEvents.FAILOVER_INITIATED to have new active region, but did not find it.").withObject({
-            data: data
+            data
           }).sendInternalLogToServer();
           return;
         }
         connect.getLog().info("[GR] Received GlobalResiliencyEvents.FAILOVER_INITIATED indicating the activeRegion is ".concat(data.activeRegion, "."));
-        var newActiveConduit = grProxyConduit.getConduitByRegion(data.activeRegion);
+        let newActiveConduit = grProxyConduit.getConduitByRegion(data.activeRegion);
         if (!newActiveConduit) {
           connect.getLog().debug("[GR] A conduit did not received GLOBAL_RESILIENCY.INIT event, leading to the region field being unpopulated.");
-          grProxyConduit.getAllConduits().forEach(function (searchConduit) {
+          grProxyConduit.getAllConduits().forEach(searchConduit => {
             if (searchConduit.region === undefined || searchConduit.region === null) {
               searchConduit.region = data.activeRegion;
               newActiveConduit = searchConduit;
             }
           });
         }
-        var didSwitch;
+        let didSwitch;
         try {
           didSwitch = connect.globalResiliency._switchActiveRegion(grProxyConduit, newActiveConduit.name);
           connect.publishMetric({
@@ -13995,10 +13814,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         }
         if (didSwitch) {
           hasSentFailoverPending = false;
-          var agentUpdateSub = grProxyConduit.onUpstream(connect.AgentEvents.UPDATE, function () {
+          const agentUpdateSub = grProxyConduit.onUpstream(connect.AgentEvents.UPDATE, () => {
             agentUpdateSub.unsubscribe();
             connect.core.getEventBus().trigger(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE, {
-              activeRegion: data.activeRegion
+              activeRegion: data.activeRegion,
+              activeCcpUrl: newActiveConduit.name
             });
             grProxyConduit.sendUpstream(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE);
             connect.getLog().info("[GR] GlobalResiliencyEvents.FAILOVER_COMPLETE emitted.").sendInternalLogToServer();
@@ -14027,14 +13847,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
     // Update the numberOfConnectedCCPs value when sent from upstream.
     // On CRM layer, this information is not used by any other component in Streams.
-    grProxyConduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, function (data) {
+    grProxyConduit.onUpstream(connect.EventType.UPDATE_CONNECTED_CCPS, data => {
       connect.numberOfConnectedCCPs = data.length;
     });
 
     // Update and cache the voiceIdDomainId value when sent from each upstream conduit.
     // The value needs to be updated when switching the active region as each region might have a different VoiceId domain associated.
-    grProxyConduit.getAllConduits().forEach(function (conduit) {
-      conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, function (data) {
+    grProxyConduit.getAllConduits().forEach(conduit => {
+      conduit.onUpstream(connect.VoiceIdEvents.UPDATE_DOMAIN_ID, data => {
         if (data && data.domainId) {
           conduit.voiceIdDomainId = data.domainId;
           if (connect.isActiveConduit(conduit)) {
@@ -14043,13 +13863,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         }
       });
     });
-    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, function (conduitName) {
+    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, conduitName => {
       if (conduitName !== grProxyConduit.getActiveConduit().name) {
         // Ignore IFRAME_RETRIES_EXHAUSTED event from non-active region
         return;
       }
       if (initStartTime) {
-        var refreshAttempts = conduitTimerContainerMap[grProxyConduit.getActiveConduit().name].iframeRefreshAttempt - 1;
+        const refreshAttempts = conduitTimerContainerMap[grProxyConduit.getActiveConduit().name].iframeRefreshAttempt - 1;
         connect.getLog().info('Iframe initialization failed').sendInternalLogToServer();
         connect.getLog().info("Time after iframe initialization started ".concat(Date.now() - initStartTime)).sendInternalLogToServer();
         connect.getLog().info("Iframe refresh attempts ".concat(refreshAttempts)).sendInternalLogToServer();
@@ -14071,19 +13891,19 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
     // keep the softphone params for external use
     connect.core.softphoneParams = params.softphone;
-    grProxyConduit.getAllConduits().forEach(function (conduit) {
-      conduit.onUpstream(connect.GlobalResiliencyEvents.FAILOVER_PENDING, function (data) {
+    grProxyConduit.getAllConduits().forEach(conduit => {
+      conduit.onUpstream(connect.GlobalResiliencyEvents.FAILOVER_PENDING, data => {
         if (!connect.isActiveConduit(conduit)) {
           return;
         }
         if (hasSentFailoverPending) {
           connect.getLog().info("[GR] Received FAILOVER_PENDING - deduping, will not trigger event subscription.").withObject({
-            data: data
+            data
           }).sendInternalLogToServer();
           return;
         }
         connect.getLog().info("[GR] Received FAILOVER_PENDING").withObject({
-          data: data
+          data
         }).sendInternalLogToServer();
         connect.core.getEventBus().trigger(connect.GlobalResiliencyEvents.FAILOVER_PENDING_CRM, {
           nextActiveRegion: data.activeRegion
@@ -14103,17 +13923,17 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     grProxyConduit.relayUpstream(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE);
     grProxyConduit.relayUpstream(connect.GlobalResiliencyEvents.HEARTBEAT_SYN);
     grProxyConduit.relayUpstream(connect.GlobalResiliencyEvents.HEARTBEAT_ACK);
-    connect.core.getEventBus().subscribe(connect.EventType.DOWNLOAD_LOG_FROM_CCP, function () {
-      grProxyConduit.getAllConduits().forEach(function (conduit) {
-        var region = conduit.region || 'region';
+    connect.core.getEventBus().subscribe(connect.EventType.DOWNLOAD_LOG_FROM_CCP, () => {
+      grProxyConduit.getAllConduits().forEach(conduit => {
+        const region = conduit.region || 'region';
         conduit.sendUpstream(connect.EventType.DOWNLOAD_LOG_FROM_CCP, {
           logName: "ccp-".concat(region, "-agent-log")
         });
       });
     });
-    setTimeout(function () {
-      var count = 0;
-      grProxyConduit.getAllConduits().forEach(function (conduit) {
+    setTimeout(() => {
+      let count = 0;
+      grProxyConduit.getAllConduits().forEach(conduit => {
         if (conduit.region) {
           count += 1;
         }
@@ -14141,7 +13961,6 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /***/ 95:
 /***/ (() => {
 
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 !function (e) {
   var n = {};
   function t(o) {
@@ -14166,7 +13985,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     });
   }, t.t = function (e, n) {
     if (1 & n && (e = t(e)), 8 & n) return e;
-    if (4 & n && "object" == _typeof(e) && e && e.__esModule) return e;
+    if (4 & n && "object" == typeof e && e && e.__esModule) return e;
     var o = Object.create(null);
     if (t.r(o), Object.defineProperty(o, "default", {
       enumerable: !0,
@@ -14177,7 +13996,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     return o;
   }, t.n = function (e) {
     var n = e && e.__esModule ? function () {
-      return e["default"];
+      return e.default;
     } : function () {
       return e;
     };
@@ -14230,35 +14049,35 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     H = "connected",
     U = "disconnected";
   function q(e) {
-    return (q = "function" == typeof Symbol && "symbol" == _typeof(Symbol.iterator) ? function (e) {
-      return _typeof(e);
+    return (q = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (e) {
+      return typeof e;
     } : function (e) {
-      return e && "function" == typeof Symbol && e.constructor === Symbol && e !== Symbol.prototype ? "symbol" : _typeof(e);
+      return e && "function" == typeof Symbol && e.constructor === Symbol && e !== Symbol.prototype ? "symbol" : typeof e;
     })(e);
   }
   var J = {
-      assertTrue: function assertTrue(e, n) {
+      assertTrue: function (e, n) {
         if (!e) throw new Error(n);
       },
-      assertNotNull: function assertNotNull(e, n) {
+      assertNotNull: function (e, n) {
         return J.assertTrue(null !== e && void 0 !== q(e), Object(o.sprintf)("%s must be provided", n || "A value")), e;
       },
-      isNonEmptyString: function isNonEmptyString(e) {
+      isNonEmptyString: function (e) {
         return "string" == typeof e && e.length > 0;
       },
-      assertIsList: function assertIsList(e, n) {
+      assertIsList: function (e, n) {
         if (!Array.isArray(e)) throw new Error(n + " is not an array");
       },
-      isFunction: function isFunction(e) {
+      isFunction: function (e) {
         return !!(e && e.constructor && e.call && e.apply);
       },
-      isObject: function isObject(e) {
+      isObject: function (e) {
         return !("object" !== q(e) || null === e);
       },
-      isString: function isString(e) {
+      isString: function (e) {
         return "string" == typeof e;
       },
-      isNumber: function isNumber(e) {
+      isNumber: function (e) {
         return "number" == typeof e;
       }
     },
@@ -14303,10 +14122,10 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     })(e, n);
   }
   function Z(e) {
-    return (Z = "function" == typeof Symbol && "symbol" == _typeof(Symbol.iterator) ? function (e) {
-      return _typeof(e);
+    return (Z = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (e) {
+      return typeof e;
     } : function (e) {
-      return e && "function" == typeof Symbol && e.constructor === Symbol && e !== Symbol.prototype ? "symbol" : _typeof(e);
+      return e && "function" == typeof Symbol && e.constructor === Symbol && e !== Symbol.prototype ? "symbol" : typeof e;
     })(e);
   }
   function Q(e, n) {
@@ -14327,19 +14146,19 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       }
       return ee(e, [{
         key: "debug",
-        value: function value(e) {}
+        value: function (e) {}
       }, {
         key: "info",
-        value: function value(e) {}
+        value: function (e) {}
       }, {
         key: "warn",
-        value: function value(e) {}
+        value: function (e) {}
       }, {
         key: "error",
-        value: function value(e) {}
+        value: function (e) {}
       }, {
         key: "advancedLog",
-        value: function value(e) {}
+        value: function (e) {}
       }]), e;
     }(),
     te = s,
@@ -14356,7 +14175,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       }
       return ee(e, [{
         key: "writeToClientLogger",
-        value: function value(e, n) {
+        value: function (e, n) {
           if (this.hasClientLogger()) switch (e) {
             case oe.DEBUG:
               return this._clientLogger.debug(n) || n;
@@ -14372,29 +14191,29 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
         }
       }, {
         key: "isLevelEnabled",
-        value: function value(e) {
+        value: function (e) {
           return e >= this._level;
         }
       }, {
         key: "hasClientLogger",
-        value: function value() {
+        value: function () {
           return null !== this._clientLogger;
         }
       }, {
         key: "getLogger",
-        value: function value(e) {
+        value: function (e) {
           var n = e.prefix || te;
           return this._logsDestination === c ? this.consoleLoggerWrapper : new ce(n);
         }
       }, {
         key: "updateLoggerConfig",
-        value: function value(e) {
+        value: function (e) {
           var n = e || {};
           this._level = n.level || oe.INFO, this._advancedLogWriter = "warn", n.advancedLogWriter && (this._advancedLogWriter = n.advancedLogWriter), n.customizedLogger && "object" === Z(n.customizedLogger) && (this.useClientLogger = !0), this._clientLogger = n.logger || this.selectLogger(n), this._logsDestination = r, n.debug && (this._logsDestination = c), n.logger && (this._logsDestination = i);
         }
       }, {
         key: "selectLogger",
-        value: function value(e) {
+        value: function (e) {
           return e.customizedLogger && "object" === Z(e.customizedLogger) ? e.customizedLogger : e.useDefaultLogger ? (this.consoleLoggerWrapper = ae(), this.consoleLoggerWrapper) : null;
         }
       }]), e;
@@ -14405,19 +14224,19 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       }
       return ee(e, [{
         key: "debug",
-        value: function value() {}
+        value: function () {}
       }, {
         key: "info",
-        value: function value() {}
+        value: function () {}
       }, {
         key: "warn",
-        value: function value() {}
+        value: function () {}
       }, {
         key: "error",
-        value: function value() {}
+        value: function () {}
       }, {
         key: "advancedLog",
-        value: function value() {}
+        value: function () {}
       }]), e;
     }(),
     ce = function (e) {
@@ -14436,47 +14255,47 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
         }), n && K(e, n);
       }(n, ie), ee(n, [{
         key: "debug",
-        value: function value() {
+        value: function () {
           for (var e = arguments.length, n = new Array(e), t = 0; t < e; t++) n[t] = arguments[t];
           return this._log(oe.DEBUG, n);
         }
       }, {
         key: "info",
-        value: function value() {
+        value: function () {
           for (var e = arguments.length, n = new Array(e), t = 0; t < e; t++) n[t] = arguments[t];
           return this._log(oe.INFO, n);
         }
       }, {
         key: "warn",
-        value: function value() {
+        value: function () {
           for (var e = arguments.length, n = new Array(e), t = 0; t < e; t++) n[t] = arguments[t];
           return this._log(oe.WARN, n);
         }
       }, {
         key: "error",
-        value: function value() {
+        value: function () {
           for (var e = arguments.length, n = new Array(e), t = 0; t < e; t++) n[t] = arguments[t];
           return this._log(oe.ERROR, n);
         }
       }, {
         key: "advancedLog",
-        value: function value() {
+        value: function () {
           for (var e = arguments.length, n = new Array(e), t = 0; t < e; t++) n[t] = arguments[t];
           return this._log(oe.ADVANCED_LOG, n);
         }
       }, {
         key: "_shouldLog",
-        value: function value(e) {
+        value: function (e) {
           return se.hasClientLogger() && se.isLevelEnabled(e);
         }
       }, {
         key: "_writeToClientLogger",
-        value: function value(e, n) {
+        value: function (e, n) {
           return se.writeToClientLogger(e, n);
         }
       }, {
         key: "_log",
-        value: function value(e, n) {
+        value: function (e, n) {
           if (this._shouldLog(e)) {
             var t = se.useClientLogger ? n : this._convertToSingleStatement(n, e);
             return this._writeToClientLogger(e, t);
@@ -14484,7 +14303,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
         }
       }, {
         key: "_convertToSingleStatement",
-        value: function value(e, n) {
+        value: function (e, n) {
           var t = new Date(Date.now()).toISOString(),
             o = this._getLogLevelByValue(n),
             r = "[".concat(t, "][").concat(o, "]");
@@ -14497,7 +14316,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
         }
       }, {
         key: "_getLogLevelByValue",
-        value: function value(e) {
+        value: function (e) {
           switch (e) {
             case 10:
               return "DEBUG";
@@ -14513,7 +14332,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
         }
       }, {
         key: "_convertToString",
-        value: function value(e) {
+        value: function (e) {
           try {
             if (!e) return "";
             if (V.isString(e)) return e;
@@ -14528,7 +14347,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
         }
       }]), n;
     }(),
-    ae = function ae() {
+    ae = function () {
       var e = new ie();
       return e.debug = function () {
         for (var e = arguments.length, n = new Array(e), t = 0; t < e; t++) n[t] = arguments[t];
@@ -14561,7 +14380,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     var n, t, o;
     return n = e, (t = [{
       key: "retry",
-      value: function value() {
+      value: function () {
         var e = this;
         this.hasActiveReconnection || (this.hasActiveReconnection = !0, setTimeout(function () {
           e._execute();
@@ -14569,23 +14388,23 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       }
     }, {
       key: "_execute",
-      value: function value() {
+      value: function () {
         this.hasActiveReconnection = !1, this.executor(), this.numAttempts++;
       }
     }, {
       key: "connected",
-      value: function value() {
+      value: function () {
         this.numAttempts = 0;
       }
     }, {
       key: "_getDelay",
-      value: function value() {
+      value: function () {
         var e = Math.pow(2, this.numAttempts) * this.defaultRetry;
         return e <= 3e4 ? e : 3e4;
       }
     }, {
       key: "getIsConnected",
-      value: function value() {
+      value: function () {
         return !this.numAttempts;
       }
     }]) && ue(n.prototype, t), o && ue(n, o), e;
@@ -14593,7 +14412,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   t.d(n, "a", function () {
     return de;
   });
-  var fe = function fe() {
+  var fe = function () {
       var e = se.getLogger({
           prefix: s
         }),
@@ -14660,7 +14479,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
             n && (!t || Y(t, WebSocket.CLOSING) || Y(t, WebSocket.CLOSED)) && (e.advancedLog(l), Ce(e.info(l)), he());
           }
         }, 250),
-        K = function K(n, t) {
+        K = function (n, t) {
           n.forEach(function (n) {
             try {
               n(t);
@@ -14669,7 +14488,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
             }
           });
         },
-        Z = function Z(e) {
+        Z = function (e) {
           if (null === e) return "NULL";
           switch (e.readyState) {
             case WebSocket.CONNECTING:
@@ -14684,39 +14503,39 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
               return "UNDEFINED";
           }
         },
-        Q = function Q() {
+        Q = function () {
           var n = arguments.length > 0 && void 0 !== arguments[0] ? arguments[0] : "";
           Ce(e.debug("[" + n + "] Primary WebSocket: " + Z(t.primary) + " | Secondary WebSocket: " + Z(t.secondary)));
         },
-        Y = function Y(e, n) {
+        Y = function (e, n) {
           return e && e.readyState === n;
         },
-        ee = function ee(e) {
+        ee = function (e) {
           return Y(e, WebSocket.OPEN);
         },
-        ne = function ne(e) {
+        ne = function (e) {
           return null === e || void 0 === e.readyState || Y(e, WebSocket.CLOSED);
         },
-        te = function te() {
+        te = function () {
           return null !== t.secondary ? t.secondary : t.primary;
         },
-        oe = function oe() {
+        oe = function () {
           return ee(te());
         },
-        re = function re() {
+        re = function () {
           if (i.pendingResponse) return e.advancedLog(d), Ce(e.warn(d)), clearInterval(i.intervalHandle), i.pendingResponse = !1, void he();
           oe() ? (Ce(e.debug(g)), te().send(ve(P)), i.pendingResponse = !0) : (e.advancedLog(b), Ce(e.warn(b)), Q("sendHeartBeat"), he());
         },
-        ie = function ie() {
+        ie = function () {
           e.advancedLog(R), o.exponentialBackOffTime = 1e3, i.pendingResponse = !1, o.reconnectWebSocket = !0, clearTimeout(o.lifeTimeTimeoutHandle), clearInterval(i.intervalHandle), clearTimeout(o.exponentialTimeoutHandle), clearTimeout(o.webSocketInitCheckerTimeoutId);
         },
-        ce = function ce() {
+        ce = function () {
           J.consecutiveFailedSubscribeAttempts = 0, J.consecutiveNoResponseRequest = 0, clearInterval(J.responseCheckIntervalId), clearInterval(J.reSubscribeIntervalId);
         },
-        ae = function ae() {
+        ae = function () {
           r.connectWebSocketRetryCount = 0, r.connectionAttemptStartTime = null, r.noOpenConnectionsTimestamp = null;
         },
-        ue = function ue() {
+        ue = function () {
           B.connected();
           try {
             e.advancedLog(y), Ce(e.info(y)), Q("webSocketOnOpen"), null !== o.connState && o.connState !== U || K(c.connectionGain), o.connState = H;
@@ -14739,15 +14558,15 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
             Ce(e.error("Error after establishing WebSocket connection", n));
           }
         },
-        fe = function fe(n) {
+        fe = function (n) {
           Q("webSocketOnError"), e.advancedLog(v, JSON.stringify(n)), Ce(e.error(v, JSON.stringify(n))), B.getIsConnected() ? he() : B.retry();
         },
-        de = function de(n) {
+        de = function (n) {
           var o = JSON.parse(n.data);
           switch (o.topic) {
             case G:
               if (Ce(e.debug("Subscription Message received from webSocket server", n.data)), J.requestCompleted = !0, J.consecutiveNoResponseRequest = 0, "success" === o.content.status) J.consecutiveFailedSubscribeAttempts = 0, o.content.topics.forEach(function (e) {
-                q.subscriptionHistory["delete"](e), q.pending["delete"](e), q.subscribed.add(e);
+                q.subscriptionHistory.delete(e), q.pending.delete(e), q.subscribed.add(e);
               }), 0 === q.subscriptionHistory.size ? ee(t.secondary) && (Ce(e.info("Successfully subscribed secondary websocket to all topics of primary websocket")), ge(t.primary, "[Primary WebSocket] Closing WebSocket")) : pe(), K(c.subscriptionUpdate, o);else {
                 if (clearInterval(J.reSubscribeIntervalId), ++J.consecutiveFailedSubscribeAttempts, 5 === J.consecutiveFailedSubscribeAttempts) return K(c.subscriptionFailure, o), void (J.consecutiveFailedSubscribeAttempts = 0);
                 J.reSubscribeIntervalId = setInterval(function () {
@@ -14774,36 +14593,36 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
             J.requestCompleted || (++J.consecutiveNoResponseRequest, n());
           }, 1e3)) : Ce(e.warn("Ignoring subscribePendingTopics call since Default WebSocket is not open"));
         },
-        ge = function ge(n, t) {
+        ge = function (n, t) {
           Y(n, WebSocket.CONNECTING) || Y(n, WebSocket.OPEN) ? n.close(1e3, t) : Ce(e.warn("Ignoring WebSocket Close request, WebSocket State: " + Z(n)));
         },
-        be = function be(e) {
+        be = function (e) {
           ge(t.primary, "[Primary] WebSocket " + e), ge(t.secondary, "[Secondary] WebSocket " + e);
         },
-        ye = function ye() {
+        ye = function () {
           r.connectWebSocketRetryCount++;
           var n = V.addJitter(o.exponentialBackOffTime, .3);
           Date.now() + n <= a.connConfig.urlConnValidTime ? (e.advancedLog(S), Ce(e.debug(S + n + " ms")), o.exponentialTimeoutHandle = setTimeout(function () {
             return ke();
           }, n), o.exponentialBackOffTime *= 2) : (e.advancedLog(h), Ce(e.warn(h)), he());
         },
-        me = function me(n) {
+        me = function (n) {
           ie(), ce(), e.advancedLog(k, n), Ce(e.error(k)), o.websocketInitFailed = !0, be(w), clearInterval($), K(c.initFailure, {
             connectWebSocketRetryCount: r.connectWebSocketRetryCount,
             connectionAttemptStartTime: r.connectionAttemptStartTime,
             reason: n
           }), ae();
         },
-        ve = function ve(e, n) {
+        ve = function (e, n) {
           return JSON.stringify({
             topic: e,
             content: n
           });
         },
-        Se = function Se(n) {
+        Se = function (n) {
           return !!(V.isObject(n) && V.isObject(n.webSocketTransport) && V.isNonEmptyString(n.webSocketTransport.url) && V.validWSUrl(n.webSocketTransport.url) && 1e3 * n.webSocketTransport.transportLifeTimeInSeconds >= 3e5) || (Ce(e.error("Invalid WebSocket Connection Configuration", n)), !1);
         },
-        he = function he() {
+        he = function () {
           if (!V.isNetworkOnline()) return e.advancedLog(f), void Ce(e.info(f));
           if (o.websocketInitFailed) Ce(e.debug("WebSocket Init had failed, ignoring this getWebSocketConnConfig request"));else {
             if (a.promiseCompleted) return ie(), e.advancedLog(C), Ce(e.info(C)), r.connectionAttemptStartTime = r.connectionAttemptStartTime || Date.now(), a.promiseCompleted = !1, a.promiseHandle = c.getWebSocketTransport(), a.promiseHandle.then(function (n) {
@@ -14818,7 +14637,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
             Ce(e.debug("There is an ongoing getWebSocketConnConfig request, this request will be ignored"));
           }
         },
-        ke = function ke() {
+        ke = function () {
           if (o.websocketInitFailed) return Ce(e.info("web-socket initializing had failed, aborting re-init")), {
             webSocketConnectionFailed: !0
           };
@@ -14841,7 +14660,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
             };
           }
         },
-        we = function we() {
+        we = function () {
           var n = new WebSocket(a.connConfig.webSocketTransport.url);
           return n.addEventListener("open", ue), n.addEventListener("message", de), n.addEventListener("error", fe), n.addEventListener("close", function (i) {
             return function (n, i) {
@@ -14861,7 +14680,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
             }(i, n);
           }), n;
         },
-        Ce = function Ce(e) {
+        Ce = function (e) {
           return e && "function" == typeof e.sendInternalLogToServer && e.sendInternalLogToServer(), e;
         };
       this.init = function (n) {
@@ -14869,39 +14688,39 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
         Ce(e.warn("Web Socket Manager was already initialized"));
       }, this.onInitFailure = function (n) {
         return e.advancedLog(I), V.assertTrue(V.isFunction(n), "cb must be a function"), c.initFailure.add(n), o.websocketInitFailed && n(), function () {
-          return c.initFailure["delete"](n);
+          return c.initFailure.delete(n);
         };
       }, this.onConnectionOpen = function (n) {
         return e.advancedLog(N), V.assertTrue(V.isFunction(n), "cb must be a function"), c.connectionOpen.add(n), function () {
-          return c.connectionOpen["delete"](n);
+          return c.connectionOpen.delete(n);
         };
       }, this.onConnectionClose = function (n) {
         return e.advancedLog(_), V.assertTrue(V.isFunction(n), "cb must be a function"), c.connectionClose.add(n), function () {
-          return c.connectionClose["delete"](n);
+          return c.connectionClose.delete(n);
         };
       }, this.onConnectionGain = function (n) {
         return e.advancedLog(E), V.assertTrue(V.isFunction(n), "cb must be a function"), c.connectionGain.add(n), oe() && n(), function () {
-          return c.connectionGain["delete"](n);
+          return c.connectionGain.delete(n);
         };
       }, this.onConnectionLost = function (n) {
         return e.advancedLog(F), V.assertTrue(V.isFunction(n), "cb must be a function"), c.connectionLost.add(n), o.connState === U && n(), function () {
-          return c.connectionLost["delete"](n);
+          return c.connectionLost.delete(n);
         };
       }, this.onSubscriptionUpdate = function (e) {
         return V.assertTrue(V.isFunction(e), "cb must be a function"), c.subscriptionUpdate.add(e), function () {
-          return c.subscriptionUpdate["delete"](e);
+          return c.subscriptionUpdate.delete(e);
         };
       }, this.onSubscriptionFailure = function (n) {
         return e.advancedLog(A), V.assertTrue(V.isFunction(n), "cb must be a function"), c.subscriptionFailure.add(n), function () {
-          return c.subscriptionFailure["delete"](n);
+          return c.subscriptionFailure.delete(n);
         };
       }, this.onMessage = function (e, n) {
         return V.assertNotNull(e, "topicName"), V.assertTrue(V.isFunction(n), "cb must be a function"), c.topic.has(e) ? c.topic.get(e).add(n) : c.topic.set(e, new Set([n])), function () {
-          return c.topic.get(e)["delete"](n);
+          return c.topic.get(e).delete(n);
         };
       }, this.onAllMessage = function (e) {
         return V.assertTrue(V.isFunction(e), "cb must be a function"), c.allMessage.add(e), function () {
-          return c.allMessage["delete"](e);
+          return c.allMessage.delete(e);
         };
       }, this.subscribeTopics = function (e) {
         V.assertNotNull(e, "topics"), V.assertIsList(e), e.forEach(function (e) {
@@ -14921,10 +14740,10 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       }, this.terminateWebSocketManager = me;
     },
     de = {
-      create: function create() {
+      create: function () {
         return new fe();
       },
-      setGlobalConfig: function setGlobalConfig(e) {
+      setGlobalConfig: function (e) {
         var n = e && e.loggerConfig;
         se.updateLoggerConfig(n);
       },
@@ -14967,7 +14786,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
           p = 1,
           g = e.length,
           b = "";
-        for (o = 0; o < g; o++) if ("string" == typeof e[o]) b += e[o];else if ("object" == _typeof(e[o])) {
+        for (o = 0; o < g; o++) if ("string" == typeof e[o]) b += e[o];else if ("object" == typeof e[o]) {
           if ((a = e[o]).keys) for (t = n[p], c = 0; c < a.keys.length; c++) {
             if (null == t) throw new Error(i('[sprintf] Cannot access property "%s" of undefined value "%s"', a.keys[c], a.keys[c - 1]));
             t = t[a.keys[c]];
@@ -15092,7 +14911,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   try {
     t = t || new Function("return this")();
   } catch (e) {
-    "object" == (typeof window === "undefined" ? "undefined" : _typeof(window)) && (t = window);
+    "object" == typeof window && (t = window);
   }
   e.exports = t;
 }]);
@@ -15102,7 +14921,6 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
 /***/ 144:
 /***/ (() => {
 
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -15179,45 +14997,45 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
    * A map from log level to console logger function.
    */
   var CONSOLE_LOGGER_MAP = {
-    TRACE: function TRACE(text) {
+    TRACE: function (text) {
       console.info(text);
     },
-    DEBUG: function DEBUG(text) {
+    DEBUG: function (text) {
       console.info(text);
     },
-    INFO: function INFO(text) {
+    INFO: function (text) {
       console.info(text);
     },
-    LOG: function LOG(text) {
+    LOG: function (text) {
       console.log(text);
     },
-    TEST: function TEST(text) {
+    TEST: function (text) {
       console.log(text);
     },
-    WARN: function WARN(text) {
+    WARN: function (text) {
       console.warn(text);
     },
-    ERROR: function ERROR(text) {
+    ERROR: function (text) {
       console.error(text);
     },
-    CRITICAL: function CRITICAL(text) {
+    CRITICAL: function (text) {
       console.error(text);
     }
   };
-  var REDACTED_STRING = "[redacted]";
+  const REDACTED_STRING = "[redacted]";
 
   /**
   * Checks if it is a valid log component enum
   */
 
-  var isValidLogComponent = function isValidLogComponent(component) {
+  var isValidLogComponent = function (component) {
     return Object.values(LogComponent).indexOf(component) !== -1;
   };
 
   /**
   * Extract the custom arguments as required by the logger
   */
-  var extractLoggerArgs = function extractLoggerArgs(loggerArgs) {
+  var extractLoggerArgs = function (loggerArgs) {
     var args = Array.prototype.slice.call(loggerArgs, 0);
     var firstArg = args.shift();
     var format;
@@ -15248,7 +15066,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
    * Log entries are aware of their timestamp, order,
    * and can contain objects and exception stack traces.
    */
-  var LogEntry = function LogEntry(component, level, text, loggerId, tabId, contextLayer) {
+  var LogEntry = function (component, level, text, loggerId, tabId, contextLayer) {
     this.component = component;
     this.level = level;
     this.text = text;
@@ -15301,24 +15119,24 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   /**
    * Private method to remove sensitive info from client log
    */
-  var _redactSensitiveInfo = function redactSensitiveInfo(data) {
+  var redactSensitiveInfo = function (data) {
     var authTokenRegex = /(AuthToken.*)/gi;
     var e164NumberFormatRegex = /Phone number.*/gi;
     var sendDigtRegex = /Send digit.*/gi;
     var connectionAuthTokenRegex = /ConnectionAuthenticationToken.*/gi;
     var credentialRegex = /("credential":")([^"]*)"/;
     var emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    var redactedFields = ["quickconnectname", "token", "login", "credential", "internalip", "authtoken", "phonenumber", "firstname", "lastname", "emailaddress", "address", "displayname", "agentname", "description", "name", "value", "summary", "queue.name"];
-    var hashedFields = ["customerid", "speakerid", "customerspeakerid", "presignedurl"];
-    if (data && _typeof(data) === 'object') {
+    const redactedFields = ["quickconnectname", "token", "login", "credential", "internalip", "authtoken", "phonenumber", "firstname", "lastname", "emailaddress", "address", "displayname", "agentname", "description", "name", "value", "summary", "queue.name"];
+    const hashedFields = ["customerid", "speakerid", "customerspeakerid", "presignedurl"];
+    if (data && typeof data === 'object') {
       Object.keys(data).forEach(function (key) {
-        if (_typeof(data[key]) === 'object') {
+        if (typeof data[key] === 'object') {
           if (key === "attributes") {
             data[key] = REDACTED_STRING; //we want to redact the entire attributes object
           } else if (key === "state") {
             return; // don't redact agent availability status name
           } else {
-            _redactSensitiveInfo(data[key]);
+            redactSensitiveInfo(data[key]);
           }
         } else if (typeof data[key] === 'string') {
           if (key === "url" || key === "text") {
@@ -15332,7 +15150,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
             data[key] = REDACTED_STRING;
           } else if ("callconfigjson" === key.toLowerCase()) {
             // we need to redact the credential in call config json
-            data[key] = data[key].replace(credentialRegex, function (match, key, value) {
+            data[key] = data[key].replace(credentialRegex, (match, key, value) => {
               return key + REDACTED_STRING + '"';
             });
           } else if (hashedFields.includes(key.toLowerCase())) {
@@ -15347,7 +15165,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
    * Pulls the type, message, and stack trace
    * out of the given exception for JSON serialization.
    */
-  var LoggedException = function LoggedException(e) {
+  var LoggedException = function (e) {
     this.type = e instanceof Error ? e.name : e.code || Object.prototype.toString.call(e);
     this.message = e.message;
     this.stack = [];
@@ -15355,7 +15173,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       try {
         if (Array.isArray(e.stack)) {
           this.stack = e.stack;
-        } else if (_typeof(e.stack) === 'object') {
+        } else if (typeof e.stack === 'object') {
           this.stack = [JSON.stringify(e.stack)];
         } else if (typeof e.stack === 'string') {
           this.stack = e.stack.split('\n');
@@ -15424,7 +15242,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
    */
   LogEntry.prototype.withObject = function (obj) {
     var copiedObj = connect.deepcopy(obj);
-    _redactSensitiveInfo(copiedObj);
+    redactSensitiveInfo(copiedObj);
     this.objects.push(copiedObj);
     return this;
   };
@@ -15435,7 +15253,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
    */
   LogEntry.prototype.withCrossOriginEventObject = function (obj) {
     var copiedObj = connect.deepcopyCrossOriginEvent(obj);
-    _redactSensitiveInfo(copiedObj);
+    redactSensitiveInfo(copiedObj);
     this.objects.push(copiedObj);
     return this;
   };
@@ -15452,7 +15270,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   /**
    * The logger instance.
    */
-  var Logger = function Logger() {
+  var Logger = function () {
     this._logs = [];
     this._rolledLogs = [];
     this._logsToPush = [];
@@ -15524,13 +15342,13 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
    */
   Logger.prototype.write = function (component, level, text) {
     var logEntry = new LogEntry(component, level, text, this.getLoggerId());
-    _redactSensitiveInfo(logEntry);
+    redactSensitiveInfo(logEntry);
     this.addLogEntry(logEntry);
     return logEntry;
   };
   Logger.prototype.addLogEntry = function (logEntry) {
     // Call this second time as in some places this function is called directly
-    _redactSensitiveInfo(logEntry);
+    redactSensitiveInfo(logEntry);
     this._logs.push(logEntry);
 
     //For now only send softphone logs only.
@@ -15639,7 +15457,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     var filterByLogLevel = false;
     // This will only be set to true on the CRM layer when GlobalResiliency is enabled
     var isGlobalResiliency = ((_connect = connect) === null || _connect === void 0 || (_connect = _connect.globalResiliency) === null || _connect === void 0 ? void 0 : _connect.globalResiliencyEnabled) === true;
-    if (_typeof(options) === 'object' && options !== null) {
+    if (typeof options === 'object' && options !== null) {
       logName = options.logName || logName;
       filterByLogLevel = options.filterByLogLevel || filterByLogLevel;
     } else if (typeof options === 'string') {
@@ -15732,10 +15550,10 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     }
     connect.publishClientSideLogs(logs);
   };
-  var _DownstreamConduitLogger = function DownstreamConduitLogger(conduit) {
+  var DownstreamConduitLogger = function (conduit) {
     Logger.call(this);
     this.conduit = conduit;
-    global.setInterval(connect.hitch(this, this._pushLogsDownstream), _DownstreamConduitLogger.LOG_PUSH_INTERVAL);
+    global.setInterval(connect.hitch(this, this._pushLogsDownstream), DownstreamConduitLogger.LOG_PUSH_INTERVAL);
 
     // Disable log rolling, we will purge our own logs once they have
     // been pushed downstream.
@@ -15743,16 +15561,16 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     this._logRollTimer = null;
   };
   // How frequently logs should be collected and delivered downstream.
-  _DownstreamConduitLogger.LOG_PUSH_INTERVAL = 1000;
-  _DownstreamConduitLogger.prototype = Object.create(Logger.prototype);
-  _DownstreamConduitLogger.prototype.constructor = _DownstreamConduitLogger;
-  _DownstreamConduitLogger.prototype.pushLogsDownstream = function (logs) {
+  DownstreamConduitLogger.LOG_PUSH_INTERVAL = 1000;
+  DownstreamConduitLogger.prototype = Object.create(Logger.prototype);
+  DownstreamConduitLogger.prototype.constructor = DownstreamConduitLogger;
+  DownstreamConduitLogger.prototype.pushLogsDownstream = function (logs) {
     var self = this;
     logs.forEach(function (log) {
       self.conduit.sendDownstream(connect.EventType.LOG, log);
     });
   };
-  _DownstreamConduitLogger.prototype._pushLogsDownstream = function () {
+  DownstreamConduitLogger.prototype._pushLogsDownstream = function () {
     var self = this;
     this._logs.forEach(function (log) {
       self.conduit.sendDownstream(connect.EventType.LOG, log);
@@ -15767,8 +15585,8 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   /**
    * Wrap a function with try catch block
    */
-  var tryCatchWrapperMethod = function tryCatchWrapperMethod(fn) {
-    var wrappedfunction = function wrappedfunction() {
+  var tryCatchWrapperMethod = function (fn) {
+    var wrappedfunction = function () {
       try {
         return fn.apply(this, arguments);
       } catch (e) {
@@ -15782,7 +15600,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
    * This is a wrapper method to wrap each function
    * in an object with try catch block.
    */
-  var tryCatchWrapperObject = function tryCatchWrapperObject(obj) {
+  var tryCatchWrapperObject = function (obj) {
     for (var method in obj) {
       if (typeof obj[method] === 'function') {
         obj[method] = tryCatchWrapperMethod(obj[method]);
@@ -15795,7 +15613,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   tryCatchWrapperObject(connect.rootLogger);
 
   /** Fetch the singleton logger instance. */
-  var getLog = function getLog() {
+  var getLog = function () {
     return connect.rootLogger;
   };
   connect = connect || {};
@@ -15804,7 +15622,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   connect.Logger = Logger;
   connect.LogLevel = LogLevel;
   connect.LogComponent = LogComponent;
-  connect.DownstreamConduitLogger = _DownstreamConduitLogger;
+  connect.DownstreamConduitLogger = DownstreamConduitLogger;
 })();
 
 /***/ }),
@@ -16227,7 +16045,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   connect.ChatMediaController = function (mediaInfo, metadata) {
     var logger = connect.getLog();
     var logComponent = connect.LogComponent.CHAT;
-    var createMediaInstance = function createMediaInstance() {
+    var createMediaInstance = function () {
       publishTelemetryEvent('Chat media controller init', mediaInfo.contactId);
       logger.info(logComponent, 'Chat media controller init').withObject(mediaInfo).sendInternalLogToServer();
       connect.ChatSession.setGlobalConfig({
@@ -16248,20 +16066,20 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
         logger.info(logComponent, 'Chat Session Successfully established for contactId %s', mediaInfo.contactId).sendInternalLogToServer();
         publishTelemetryEvent('Chat Session Successfully established', mediaInfo.contactId);
         return controller;
-      })["catch"](function (error) {
+      }).catch(function (error) {
         logger.error(logComponent, 'Chat Session establishement failed for contact %s', mediaInfo.contactId).withException(error).sendInternalLogToServer();
         publishTelemetryEvent('Chat Session establishement failed', mediaInfo.contactId, error);
         throw error;
       });
     };
-    var publishTelemetryEvent = function publishTelemetryEvent(eventName, data) {
+    var publishTelemetryEvent = function (eventName, data) {
       connect.publishMetric({
         name: eventName,
         contactId: mediaInfo.contactId,
         data: data || mediaInfo
       });
     };
-    var trackChatConnectionStatus = function trackChatConnectionStatus(controller) {
+    var trackChatConnectionStatus = function (controller) {
       controller.onConnectionBroken(function (data) {
         logger.error(logComponent, 'Chat Session connection broken').withException(data).sendInternalLogToServer();
         publishTelemetryEvent('Chat Session connection broken', data);
@@ -16272,7 +16090,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       });
     };
     return {
-      get: function get() {
+      get: function () {
         return createMediaInstance();
       }
     };
@@ -16312,7 +16130,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     var metadata = connect.merge({}, params) || {};
     metadata.region = metadata.region || 'us-west-2'; // Default it to us-west-2
 
-    var getMediaController = function getMediaController(connectionObj) {
+    var getMediaController = function (connectionObj) {
       var connectionId = connectionObj.getConnectionId();
       var mediaInfo = connectionObj.getMediaInfo();
       /** if we do not have the media info then just reject the request */
@@ -16339,10 +16157,10 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     };
 
     /** Check all the active states for the connection */
-    var ifConnectionActive = function ifConnectionActive(connectionObj) {
+    var ifConnectionActive = function (connectionObj) {
       return connectionObj.isActive();
     };
-    var get = function get(connectionObj) {
+    var get = function (connectionObj) {
       if (ifConnectionActive(connectionObj)) {
         return getMediaController(connectionObj);
       } else {
@@ -16350,17 +16168,17 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
         return Promise.reject('Media Controller is no longer available for this connection');
       }
     };
-    var destroy = function destroy(connectionId) {
+    var destroy = function (connectionId) {
       if (mediaControllers[connectionId] && !toBeDestroyed.has(connectionId)) {
         logger.info(logComponent, 'Destroying mediaController for %s', connectionId);
         toBeDestroyed.add(connectionId);
         mediaControllers[connectionId].then(function (controller) {
           if (typeof controller.cleanUp === 'function') controller.cleanUp();
           delete mediaControllers[connectionId];
-          toBeDestroyed["delete"](connectionId);
-        })["catch"](function () {
+          toBeDestroyed.delete(connectionId);
+        }).catch(function () {
           delete mediaControllers[connectionId];
-          toBeDestroyed["delete"](connectionId);
+          toBeDestroyed.delete(connectionId);
         });
       }
     };
@@ -16399,7 +16217,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   // TODO move softphone implementations here - Wil do this for GA
   connect.SoftphoneMediaController = function (mediaInfo) {
     return {
-      get: function get() {
+      get: function () {
         return Promise.resolve(mediaInfo);
       }
     };
@@ -16433,7 +16251,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   connect.TaskMediaController = function (mediaInfo) {
     var logger = connect.getLog();
     var logComponent = connect.LogComponent.TASK;
-    var createMediaInstance = function createMediaInstance() {
+    var createMediaInstance = function () {
       publishTelemetryEvent('Task media controller init', mediaInfo.contactId);
       logger.info(logComponent, 'Task media controller init').withObject(mediaInfo);
       var controller = connect.TaskSession.create({
@@ -16446,20 +16264,20 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
         logger.info(logComponent, 'Task Session Successfully established for contactId %s', mediaInfo.contactId);
         publishTelemetryEvent('Task Session Successfully established', mediaInfo.contactId);
         return controller;
-      })["catch"](function (error) {
+      }).catch(function (error) {
         logger.error(logComponent, 'Task Session establishement failed for contact %s', mediaInfo.contactId).withException(error);
         publishTelemetryEvent('Chat Session establishement failed', mediaInfo.contactId, error);
         throw error;
       });
     };
-    var publishTelemetryEvent = function publishTelemetryEvent(eventName, data) {
+    var publishTelemetryEvent = function (eventName, data) {
       connect.publishMetric({
         name: eventName,
         contactId: mediaInfo.contactId,
         data: data || mediaInfo
       });
     };
-    var trackTaskConnectionStatus = function trackTaskConnectionStatus(controller) {
+    var trackTaskConnectionStatus = function (controller) {
       controller.onConnectionBroken(function (data) {
         logger.error(logComponent, 'Task Session connection broken').withException(data);
         publishTelemetryEvent('Task Session connection broken', data);
@@ -16470,7 +16288,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       });
     };
     return {
-      get: function get() {
+      get: function () {
         return createMediaInstance();
       }
     };
@@ -16482,12 +16300,11 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
 /***/ 414:
 /***/ (() => {
 
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
-function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 /**
  * Module which gets used for the Request storage access
  * Exposes init, hasAccess, request and onRequest methods.
@@ -16515,16 +16332,16 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
  * Chrome Implementation of RSA API can be found here - https://github.com/cfredric/chrome-storage-access-api
  */
 (function () {
-  var global = this || globalThis;
-  var connect = global.connect || {};
+  const global = this || globalThis;
+  const connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
-  var requestStorageAccessPath = '/request-storage-access';
+  const requestStorageAccessPath = '/request-storage-access';
   /**
    * Configurable options exposed via initCCP
    * By default canRequest will be set to false to make this as a explicit opt in
    */
-  var defaultStorageAccessParams = {
+  const defaultStorageAccessParams = {
     /* Config which controls the opt out/in - we expect customers to explicitely opt out. */
     canRequest: false,
     /* ["custom", "default"] - decides the rsa page view */
@@ -16540,26 +16357,26 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
        */
     }
   };
-  var storageParams = {};
-  var originalCCPUrl = '';
-  var rsaContainer = null;
-  var onGrantCallbackInvoked = false;
-  var requesthandlerUnsubscriber;
-  var storageAccessEvents = {
+  let storageParams = {};
+  let originalCCPUrl = '';
+  let rsaContainer = null;
+  let onGrantCallbackInvoked = false;
+  let requesthandlerUnsubscriber;
+  const storageAccessEvents = {
     INIT: 'storageAccess::init',
     GRANTED: 'storageAccess::granted',
     DENIED: 'storageAccess::denied',
     REQUEST: 'storageAccess::request'
   };
-  var initStorageParams = function initStorageParams() {
-    var params = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+  const initStorageParams = function () {
+    let params = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
     params.custom = params.custom || {};
     storageParams = _objectSpread(_objectSpread(_objectSpread({}, defaultStorageAccessParams), params), {}, {
       custom: _objectSpread(_objectSpread({}, defaultStorageAccessParams.custom), params.custom)
     });
     storageParams.canRequest = !(storageParams.canRequest === 'false' || storageParams.canRequest === false);
   };
-  var resetStorageAccessState = function resetStorageAccessState() {
+  const resetStorageAccessState = () => {
     storageParams = {};
     originalCCPUrl = '';
     rsaContainer = null;
@@ -16570,48 +16387,43 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * Handle display none/block properties for the RTSA container, if customer have different settings like height, opacity, positions etc configured they are encouraged to use
    * onRequest Callback handle to reset the same.
    * */
-  var getRSAContainer = function getRSAContainer() {
-    return {
-      show: function show() {
-        rsaContainer.style.display = 'block';
-      },
-      hide: function hide() {
-        rsaContainer.style.display = 'none';
-      }
-    };
-  };
+  const getRSAContainer = () => ({
+    show: () => {
+      rsaContainer.style.display = 'block';
+    },
+    hide: () => {
+      rsaContainer.style.display = 'none';
+    }
+  });
 
   /**
    * Custom Mode will show minimalistic UI - without any Connect references or Connect headers
    *  This will allow fully Custom CCPs to use banner and use minimal real estate to show the storage access Content
    * */
-  var isCustomRequestAccessMode = function isCustomRequestAccessMode() {
-    return storageParams && storageParams.mode === 'custom';
-  };
+  const isCustomRequestAccessMode = () => storageParams && storageParams.mode === 'custom';
 
   /**
    * Check if the user wants to hide CCP
    * By default this is true
    */
-  var hideCCP = function hideCCP() {
+  const hideCCP = () => {
     var _storageParams;
     return (_storageParams = storageParams) === null || _storageParams === void 0 || (_storageParams = _storageParams.custom) === null || _storageParams === void 0 ? void 0 : _storageParams.hideCCP;
   };
-  var isConnectDomain = function isConnectDomain(origin) {
-    return origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
-  };
+  const isConnectDomain = origin => origin.match(/.connect.aws.a2z.com|.my.connect.aws|.govcloud.connect.aws|.awsapps.com/);
 
   /**
    * Given the URL, this method generates the prefixed connect domain request storage access URL
    * @param {string} url
    * @returns {string}
    */
-  var getRsaUrlWithprefix = function getRsaUrlWithprefix(url) {
-    var _URL = new URL(url),
-      origin = _URL.origin,
-      pathname = _URL.pathname;
+  const getRsaUrlWithprefix = url => {
+    const {
+      origin,
+      pathname
+    } = new URL(url);
     if (origin.match(/.awsapps.com/)) {
-      var prefix = 'connect';
+      let prefix = 'connect';
       if (pathname.startsWith('/connect-gamma')) {
         prefix = 'connect-gamma';
       }
@@ -16620,21 +16432,20 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       return "".concat(origin).concat(requestStorageAccessPath);
     }
   };
-  var isLocalhost = function isLocalhost(url) {
-    return url.match(/^https?:\/\/localhost/);
-  };
+  const isLocalhost = url => url.match(/^https?:\/\/localhost/);
 
   /**
    * Fetches the landat path for request storage access page to navigate. This is typically CCP path or channel view
    * @returns {string}
    */
-  var getlandAtPath = function getlandAtPath() {
+  const getlandAtPath = () => {
     if (!originalCCPUrl) {
       throw new Error('[StorageAccess] [getlandAtPath] Invoke connect.storageAccess.init first');
     }
     if (isConnectDomain(originalCCPUrl) || isLocalhost(originalCCPUrl)) {
-      var _URL2 = new URL(originalCCPUrl),
-        pathname = _URL2.pathname;
+      const {
+        pathname
+      } = new URL(originalCCPUrl);
       return pathname;
     }
     return '/connect/ccp-v2';
@@ -16646,7 +16457,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * Validates against localhost and connect domains and returns prefixed path
    * @returns {string}
    */
-  var getRequestStorageAccessUrl = function getRequestStorageAccessUrl() {
+  const getRequestStorageAccessUrl = () => {
     // ccpUrl may contain non standard direct SSO URLs in which case we may ask customers to provide instanceUrl as part of storage access params
 
     if (!originalCCPUrl) {
@@ -16674,14 +16485,18 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * Method which allows customers to listen on Storage access request and it's state changes
    * @param {Object} consists of callbacks for the onInit, onDeny and onGrants
    */
-  var onRequestHandler = function onRequestHandler(_ref) {
-    var onInit = _ref.onInit,
-      onDeny = _ref.onDeny,
-      onGrant = _ref.onGrant;
+  const onRequestHandler = _ref => {
+    let {
+      onInit,
+      onDeny,
+      onGrant
+    } = _ref;
     function handleUpstreamMessages(_ref2) {
-      var data = _ref2.data,
-        source = _ref2.source;
-      var iframeContainer = connect.core._getCCPIframe();
+      let {
+        data,
+        source
+      } = _ref2;
+      const iframeContainer = connect.core._getCCPIframe();
       if (iframeContainer.contentWindow !== source) {
         // disabling the logs for now
         // connect.getLog().error('[StorageAccess][onRequestHandler] Request Coming from unknown domain %s', origin);
@@ -16730,7 +16545,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       window.addEventListener('message', handleUpstreamMessages);
     }
     return {
-      unsubscribe: function unsubscribe() {
+      unsubscribe: () => {
         window.removeEventListener('message', handleUpstreamMessages);
       }
     };
@@ -16741,27 +16556,29 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * In case of custom CCPs - it also does hide/show the container.
    * @param {*} param0
    */
-  var setupRequestHandlers = function setupRequestHandlers(_ref3) {
-    var onGrantCallback = _ref3.onGrant;
+  const setupRequestHandlers = _ref3 => {
+    let {
+      onGrant: onGrantCallback
+    } = _ref3;
     if (requesthandlerUnsubscriber) {
       requesthandlerUnsubscriber.unsubscribe();
     }
     requesthandlerUnsubscriber = onRequestHandler({
-      onInit: function onInit(messageData) {
+      onInit: messageData => {
         console.log('%c[StorageAccess][INIT]', 'background:yellow; color:black; font-size:large');
         connect.getLog().info("[StorageAccess][onInit] callback executed").withObject(messageData === null || messageData === void 0 ? void 0 : messageData.data);
         if (!(messageData !== null && messageData !== void 0 && messageData.data.hasAccess) && isCustomRequestAccessMode()) {
           getRSAContainer().show();
         }
       },
-      onDeny: function onDeny() {
+      onDeny: () => {
         console.log('%c[StorageAccess][DENIED]', 'background:red; color:black; font-size:large');
         connect.getLog().info("[StorageAccess][onDeny] callback executed");
         if (isCustomRequestAccessMode()) {
           getRSAContainer().show();
         }
       },
-      onGrant: function onGrant() {
+      onGrant: () => {
         console.log('%c[StorageAccess][GRANTED]', 'background:lime; color:black; font-size:large');
         connect.getLog().info("[StorageAccess][onGrant] callback executed");
         if (isCustomRequestAccessMode() && hideCCP()) {
@@ -16780,19 +16597,17 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
      * Checks wther user has opted out for storage Access checks or not
      * @returns {boolean}
      */
-    canRequest: function canRequest() {
-      return storageParams.canRequest;
-    },
+    canRequest: () => storageParams.canRequest,
     /**
      * Mainly used by Tests, by default storage access is enabled for all
      */
-    optOutFromRequestAccess: function optOutFromRequestAccess() {
+    optOutFromRequestAccess: () => {
       defaultStorageAccessParams.canRequest = false;
     },
     /**
      * Mainly used by Tests
      */
-    optInForRequestAccess: function optInForRequestAccess() {
+    optInForRequestAccess: () => {
       defaultStorageAccessParams.canRequest = true;
     },
     /**
@@ -16802,8 +16617,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
      * @param {*} container - Container where CCP is being shown
      * @returns {{canRequest, requestAccessPageurl}}
      */
-    init: function init(ccpUrl, containerDiv) {
-      var params = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+    init: function (ccpUrl, containerDiv) {
+      let params = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
       connect.assertNotNull(ccpUrl, 'ccpUrl');
       connect.assertNotNull(containerDiv, 'container');
       rsaContainer = containerDiv;
@@ -16811,19 +16626,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       initStorageParams(params);
       connect.getLog().info("[StorageAccess][init] Request Storage Acccess init called with ccpUrl - ".concat(ccpUrl, " - ").concat(!storageParams.canRequest ? 'user has opted out, skipping request storage access' : 'Proceeding with requesting storage access')).withObject(storageParams);
     },
-    setupRequestHandlers: setupRequestHandlers,
-    getRequestStorageAccessUrl: getRequestStorageAccessUrl,
-    storageAccessEvents: storageAccessEvents,
-    resetStorageAccessState: resetStorageAccessState,
-    getOnGrantCallbackInvoked: function getOnGrantCallbackInvoked() {
-      return onGrantCallbackInvoked;
-    },
-    getStorageAccessParams: function getStorageAccessParams() {
-      return storageParams;
-    },
+    setupRequestHandlers,
+    getRequestStorageAccessUrl,
+    storageAccessEvents,
+    resetStorageAccessState,
+    getOnGrantCallbackInvoked: () => onGrantCallbackInvoked,
+    getStorageAccessParams: () => storageParams,
     onRequest: onRequestHandler,
-    request: function request() {
-      var iframeContainer = connect.core._getCCPIframe();
+    request: () => {
+      const iframeContainer = connect.core._getCCPIframe();
       iframeContainer.contentWindow.postMessage({
         event: storageAccessEvents.REQUEST,
         data: _objectSpread(_objectSpread({}, storageParams), {}, {
@@ -16839,10 +16650,6 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /***/ 906:
 /***/ (() => {
 
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
-function _regeneratorRuntime() { "use strict"; /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */ _regeneratorRuntime = function _regeneratorRuntime() { return e; }; var t, e = {}, r = Object.prototype, n = r.hasOwnProperty, o = Object.defineProperty || function (t, e, r) { t[e] = r.value; }, i = "function" == typeof Symbol ? Symbol : {}, a = i.iterator || "@@iterator", c = i.asyncIterator || "@@asyncIterator", u = i.toStringTag || "@@toStringTag"; function define(t, e, r) { return Object.defineProperty(t, e, { value: r, enumerable: !0, configurable: !0, writable: !0 }), t[e]; } try { define({}, ""); } catch (t) { define = function define(t, e, r) { return t[e] = r; }; } function wrap(t, e, r, n) { var i = e && e.prototype instanceof Generator ? e : Generator, a = Object.create(i.prototype), c = new Context(n || []); return o(a, "_invoke", { value: makeInvokeMethod(t, r, c) }), a; } function tryCatch(t, e, r) { try { return { type: "normal", arg: t.call(e, r) }; } catch (t) { return { type: "throw", arg: t }; } } e.wrap = wrap; var h = "suspendedStart", l = "suspendedYield", f = "executing", s = "completed", y = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} var p = {}; define(p, a, function () { return this; }); var d = Object.getPrototypeOf, v = d && d(d(values([]))); v && v !== r && n.call(v, a) && (p = v); var g = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(p); function defineIteratorMethods(t) { ["next", "throw", "return"].forEach(function (e) { define(t, e, function (t) { return this._invoke(e, t); }); }); } function AsyncIterator(t, e) { function invoke(r, o, i, a) { var c = tryCatch(t[r], t, o); if ("throw" !== c.type) { var u = c.arg, h = u.value; return h && "object" == _typeof(h) && n.call(h, "__await") ? e.resolve(h.__await).then(function (t) { invoke("next", t, i, a); }, function (t) { invoke("throw", t, i, a); }) : e.resolve(h).then(function (t) { u.value = t, i(u); }, function (t) { return invoke("throw", t, i, a); }); } a(c.arg); } var r; o(this, "_invoke", { value: function value(t, n) { function callInvokeWithMethodAndArg() { return new e(function (e, r) { invoke(t, n, e, r); }); } return r = r ? r.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg(); } }); } function makeInvokeMethod(e, r, n) { var o = h; return function (i, a) { if (o === f) throw Error("Generator is already running"); if (o === s) { if ("throw" === i) throw a; return { value: t, done: !0 }; } for (n.method = i, n.arg = a;;) { var c = n.delegate; if (c) { var u = maybeInvokeDelegate(c, n); if (u) { if (u === y) continue; return u; } } if ("next" === n.method) n.sent = n._sent = n.arg;else if ("throw" === n.method) { if (o === h) throw o = s, n.arg; n.dispatchException(n.arg); } else "return" === n.method && n.abrupt("return", n.arg); o = f; var p = tryCatch(e, r, n); if ("normal" === p.type) { if (o = n.done ? s : l, p.arg === y) continue; return { value: p.arg, done: n.done }; } "throw" === p.type && (o = s, n.method = "throw", n.arg = p.arg); } }; } function maybeInvokeDelegate(e, r) { var n = r.method, o = e.iterator[n]; if (o === t) return r.delegate = null, "throw" === n && e.iterator["return"] && (r.method = "return", r.arg = t, maybeInvokeDelegate(e, r), "throw" === r.method) || "return" !== n && (r.method = "throw", r.arg = new TypeError("The iterator does not provide a '" + n + "' method")), y; var i = tryCatch(o, e.iterator, r.arg); if ("throw" === i.type) return r.method = "throw", r.arg = i.arg, r.delegate = null, y; var a = i.arg; return a ? a.done ? (r[e.resultName] = a.value, r.next = e.nextLoc, "return" !== r.method && (r.method = "next", r.arg = t), r.delegate = null, y) : a : (r.method = "throw", r.arg = new TypeError("iterator result is not an object"), r.delegate = null, y); } function pushTryEntry(t) { var e = { tryLoc: t[0] }; 1 in t && (e.catchLoc = t[1]), 2 in t && (e.finallyLoc = t[2], e.afterLoc = t[3]), this.tryEntries.push(e); } function resetTryEntry(t) { var e = t.completion || {}; e.type = "normal", delete e.arg, t.completion = e; } function Context(t) { this.tryEntries = [{ tryLoc: "root" }], t.forEach(pushTryEntry, this), this.reset(!0); } function values(e) { if (e || "" === e) { var r = e[a]; if (r) return r.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) { var o = -1, i = function next() { for (; ++o < e.length;) if (n.call(e, o)) return next.value = e[o], next.done = !1, next; return next.value = t, next.done = !0, next; }; return i.next = i; } } throw new TypeError(_typeof(e) + " is not iterable"); } return GeneratorFunction.prototype = GeneratorFunctionPrototype, o(g, "constructor", { value: GeneratorFunctionPrototype, configurable: !0 }), o(GeneratorFunctionPrototype, "constructor", { value: GeneratorFunction, configurable: !0 }), GeneratorFunction.displayName = define(GeneratorFunctionPrototype, u, "GeneratorFunction"), e.isGeneratorFunction = function (t) { var e = "function" == typeof t && t.constructor; return !!e && (e === GeneratorFunction || "GeneratorFunction" === (e.displayName || e.name)); }, e.mark = function (t) { return Object.setPrototypeOf ? Object.setPrototypeOf(t, GeneratorFunctionPrototype) : (t.__proto__ = GeneratorFunctionPrototype, define(t, u, "GeneratorFunction")), t.prototype = Object.create(g), t; }, e.awrap = function (t) { return { __await: t }; }, defineIteratorMethods(AsyncIterator.prototype), define(AsyncIterator.prototype, c, function () { return this; }), e.AsyncIterator = AsyncIterator, e.async = function (t, r, n, o, i) { void 0 === i && (i = Promise); var a = new AsyncIterator(wrap(t, r, n, o), i); return e.isGeneratorFunction(r) ? a : a.next().then(function (t) { return t.done ? t.value : a.next(); }); }, defineIteratorMethods(g), define(g, u, "Generator"), define(g, a, function () { return this; }), define(g, "toString", function () { return "[object Generator]"; }), e.keys = function (t) { var e = Object(t), r = []; for (var n in e) r.push(n); return r.reverse(), function next() { for (; r.length;) { var t = r.pop(); if (t in e) return next.value = t, next.done = !1, next; } return next.done = !0, next; }; }, e.values = values, Context.prototype = { constructor: Context, reset: function reset(e) { if (this.prev = 0, this.next = 0, this.sent = this._sent = t, this.done = !1, this.delegate = null, this.method = "next", this.arg = t, this.tryEntries.forEach(resetTryEntry), !e) for (var r in this) "t" === r.charAt(0) && n.call(this, r) && !isNaN(+r.slice(1)) && (this[r] = t); }, stop: function stop() { this.done = !0; var t = this.tryEntries[0].completion; if ("throw" === t.type) throw t.arg; return this.rval; }, dispatchException: function dispatchException(e) { if (this.done) throw e; var r = this; function handle(n, o) { return a.type = "throw", a.arg = e, r.next = n, o && (r.method = "next", r.arg = t), !!o; } for (var o = this.tryEntries.length - 1; o >= 0; --o) { var i = this.tryEntries[o], a = i.completion; if ("root" === i.tryLoc) return handle("end"); if (i.tryLoc <= this.prev) { var c = n.call(i, "catchLoc"), u = n.call(i, "finallyLoc"); if (c && u) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } else if (c) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); } else { if (!u) throw Error("try statement without catch or finally"); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } } } }, abrupt: function abrupt(t, e) { for (var r = this.tryEntries.length - 1; r >= 0; --r) { var o = this.tryEntries[r]; if (o.tryLoc <= this.prev && n.call(o, "finallyLoc") && this.prev < o.finallyLoc) { var i = o; break; } } i && ("break" === t || "continue" === t) && i.tryLoc <= e && e <= i.finallyLoc && (i = null); var a = i ? i.completion : {}; return a.type = t, a.arg = e, i ? (this.method = "next", this.next = i.finallyLoc, y) : this.complete(a); }, complete: function complete(t, e) { if ("throw" === t.type) throw t.arg; return "break" === t.type || "continue" === t.type ? this.next = t.arg : "return" === t.type ? (this.rval = this.arg = t.arg, this.method = "return", this.next = "end") : "normal" === t.type && e && (this.next = e), y; }, finish: function finish(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.finallyLoc === t) return this.complete(r.completion, r.afterLoc), resetTryEntry(r), y; } }, "catch": function _catch(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.tryLoc === t) { var n = r.completion; if ("throw" === n.type) { var o = n.arg; resetTryEntry(r); } return o; } } throw Error("illegal catch attempt"); }, delegateYield: function delegateYield(e, r, n) { return this.delegate = { iterator: values(e), resultName: r, nextLoc: n }, "next" === this.method && (this.arg = t), y; } }, e; }
-function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
-function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -16853,37 +16660,36 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
-  var RingtoneEngineBase = function RingtoneEngineBase(ringtoneConfig) {
+  var RingtoneEngineBase = function (ringtoneConfig) {
     connect.assertNotNull(ringtoneConfig, "ringtoneConfig");
     this._audio = null;
     this._deviceId = '';
     this._ringtoneUrl = ringtoneConfig.ringtoneUrl;
-    this._loadRingtone(this._ringtoneUrl)["catch"](function () {}); // NEXT TODO: trigger ringtone load failure event
+    this._loadRingtone(this._ringtoneUrl).catch(() => {}); // NEXT TODO: trigger ringtone load failure event
     this._driveRingtone();
   };
 
   // loading audio is async, but browser can handle audio operation like audio.play() or audio.setSinkId() before load complete
   RingtoneEngineBase.prototype._loadRingtone = function (ringtoneUrl) {
-    var _this = this;
-    return new Promise(function (resolve, reject) {
+    return new Promise((resolve, reject) => {
       if (!ringtoneUrl) {
         reject(Error('ringtoneUrl is required!'));
       }
-      _this._audio = new Audio(ringtoneUrl);
-      _this._audio.loop = true;
-      _this.setOutputDevice(_this._deviceId); // re-applying deviceId for audio reloading scenario
+      this._audio = new Audio(ringtoneUrl);
+      this._audio.loop = true;
+      this.setOutputDevice(this._deviceId); // re-applying deviceId for audio reloading scenario
 
       // just in case "canplay" doesn't fire at all for some reasons
-      var timerId = setTimeout(function () {
+      const timerId = setTimeout(() => {
         connect.getLog().warn("Ringtone isn't loaded in 1 second but proceeding: ", +ringtoneUrl).sendInternalLogToServer();
         resolve();
       }, 1000);
-      _this._audio.addEventListener('canplay', function () {
+      this._audio.addEventListener('canplay', () => {
         connect.getLog().info("Ringtone is ready to play: ", +ringtoneUrl).sendInternalLogToServer();
         clearTimeout(timerId);
         resolve();
       });
-      _this._audio.addEventListener('error', function () {
+      this._audio.addEventListener('error', () => {
         connect.getLog().error("Ringtone load error: ", +ringtoneUrl).sendInternalLogToServer();
         clearTimeout(timerId);
         reject(Error('Ringtone load error: ' + ringtoneUrl));
@@ -16893,83 +16699,43 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
   RingtoneEngineBase.prototype._driveRingtone = function () {
     throw new Error("Not implemented.");
   };
-  RingtoneEngineBase.prototype._startRingtone = /*#__PURE__*/function () {
-    var _ref = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee2(contact) {
-      var _this2 = this;
-      var retries,
-        errorList,
-        _args2 = arguments;
-      return _regeneratorRuntime().wrap(function _callee2$(_context2) {
-        while (1) switch (_context2.prev = _context2.next) {
-          case 0:
-            retries = _args2.length > 1 && _args2[1] !== undefined ? _args2[1] : 0;
-            errorList = _args2.length > 2 && _args2[2] !== undefined ? _args2[2] : [];
-            return _context2.abrupt("return", new Promise(function (resolve, reject) {
-              if (!_this2._audio) reject(Error('No audio object found'));
+  RingtoneEngineBase.prototype._startRingtone = async function (contact) {
+    let retries = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+    let errorList = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
+    return new Promise((resolve, reject) => {
+      if (!this._audio) reject(Error('No audio object found'));
 
-              // Empty string as sinkId means audio gets sent to the default device
-              connect.getLog().info("Attempting to start ringtone to device ".concat(_this2._audio.sinkId || "''")).sendInternalLogToServer();
-              _this2._audio.play().then(function () {
-                _this2._publishTelemetryEvent("Ringtone Start", contact);
-                connect.getLog().info("Ringtone Start: Succeeded with ".concat(retries, " retries remaining")).withObject({
-                  errorList: errorList,
-                  contactId: contact.getContactId()
-                }).sendInternalLogToServer();
-                resolve();
-              })["catch"](/*#__PURE__*/function () {
-                var _ref2 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee(e) {
-                  return _regeneratorRuntime().wrap(function _callee$(_context) {
-                    while (1) switch (_context.prev = _context.next) {
-                      case 0:
-                        _this2._publishTelemetryEvent("Ringtone Playback Failure", contact);
-                        connect.getLog().error("Ringtone Playback Failure: ".concat(retries, " retries remaining.")).withException(e).withObject({
-                          currentSrc: _this2._audio.currentSrc,
-                          sinkId: _this2._audio.sinkId,
-                          volume: _this2._audio.volume,
-                          contactId: contact.getContactId()
-                        }).sendInternalLogToServer();
-                        errorList.push(e.toString());
-                        if (!(retries > 0)) {
-                          _context.next = 10;
-                          break;
-                        }
-                        _context.next = 6;
-                        return _this2._loadRingtone(_this2._ringtoneUrl)["catch"](function () {});
-                      case 6:
-                        _context.next = 8;
-                        return _this2._startRingtone(contact, retries - 1, errorList).then(resolve)["catch"](function () {
-                          return reject(errorList);
-                        });
-                      case 8:
-                        _context.next = 12;
-                        break;
-                      case 10:
-                        connect.getLog().error("Ringtone Retries Exhausted").withObject({
-                          errorList: errorList,
-                          contactId: contact.getContactId()
-                        }).sendInternalLogToServer();
-                        reject(errorList);
-                      case 12:
-                      case "end":
-                        return _context.stop();
-                    }
-                  }, _callee);
-                }));
-                return function (_x2) {
-                  return _ref2.apply(this, arguments);
-                };
-              }());
-            }));
-          case 3:
-          case "end":
-            return _context2.stop();
+      // Empty string as sinkId means audio gets sent to the default device
+      connect.getLog().info("Attempting to start ringtone to device ".concat(this._audio.sinkId || "''")).sendInternalLogToServer();
+      this._audio.play().then(() => {
+        this._publishTelemetryEvent("Ringtone Start", contact);
+        connect.getLog().info("Ringtone Start: Succeeded with ".concat(retries, " retries remaining")).withObject({
+          errorList: errorList,
+          contactId: contact.getContactId()
+        }).sendInternalLogToServer();
+        resolve();
+      }).catch(async e => {
+        this._publishTelemetryEvent("Ringtone Playback Failure", contact);
+        connect.getLog().error("Ringtone Playback Failure: ".concat(retries, " retries remaining.")).withException(e).withObject({
+          currentSrc: this._audio.currentSrc,
+          sinkId: this._audio.sinkId,
+          volume: this._audio.volume,
+          contactId: contact.getContactId()
+        }).sendInternalLogToServer();
+        errorList.push(e.toString());
+        if (retries > 0) {
+          await this._loadRingtone(this._ringtoneUrl).catch(() => {}); // move on no matter if it has succeeded or not
+          await this._startRingtone(contact, retries - 1, errorList).then(resolve).catch(() => reject(errorList));
+        } else {
+          connect.getLog().error("Ringtone Retries Exhausted").withObject({
+            errorList,
+            contactId: contact.getContactId()
+          }).sendInternalLogToServer();
+          reject(errorList);
         }
-      }, _callee2);
-    }));
-    return function (_x) {
-      return _ref.apply(this, arguments);
-    };
-  }();
+      });
+    });
+  };
   RingtoneEngineBase.prototype._stopRingtone = function (contact) {
     if (this._audio) {
       this._audio.pause();
@@ -16988,7 +16754,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
   RingtoneEngineBase.prototype._ringtoneSetup = function (contact) {
     var self = this;
     connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
-      self._startRingtone(contact, 2)["catch"](function () {}); // NEXT TODO: trigger ringtone playback failure event with error type
+      self._startRingtone(contact, 2).catch(() => {}); // NEXT TODO: trigger ringtone playback failure event with error type
 
       contact.onConnected(lily.hitch(self, self._stopRingtone));
       contact.onAccepted(lily.hitch(self, self._stopRingtone));
@@ -17017,57 +16783,53 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
    * Return a Promise that indicates the result of changing output device.
    */
   RingtoneEngineBase.prototype.setOutputDevice = function (deviceId) {
-    var _this3 = this;
-    return new Promise(function (resolve, reject) {
-      if (_this3._audio && _this3._audio.setSinkId) {
-        _this3._audio.setSinkId(deviceId).then(function () {
-          _this3._deviceId = deviceId;
+    return new Promise((resolve, reject) => {
+      if (this._audio && this._audio.setSinkId) {
+        this._audio.setSinkId(deviceId).then(() => {
+          this._deviceId = deviceId;
           resolve(deviceId);
-        })["catch"](function (err) {
+        }).catch(err => {
           reject("RingtoneEngineBase.setOutputDevice failed: audio.setSinkId() failed with error ".concat(err));
         });
       } else {
-        reject("RingtoneEngineBase.setOutputDevice failed: ".concat(_this3._audio ? "audio" : "audio.setSinkId", " not found."));
+        reject("RingtoneEngineBase.setOutputDevice failed: ".concat(this._audio ? "audio" : "audio.setSinkId", " not found."));
       }
     });
   };
-  var VoiceRingtoneEngine = function VoiceRingtoneEngine(ringtoneConfig) {
+  var VoiceRingtoneEngine = function (ringtoneConfig) {
     RingtoneEngineBase.call(this, ringtoneConfig);
   };
   VoiceRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
   VoiceRingtoneEngine.prototype.constructor = VoiceRingtoneEngine;
   VoiceRingtoneEngine.prototype._driveRingtone = function () {
-    var _this4 = this;
-    var onContactConnect = function onContactConnect(contact) {
+    const onContactConnect = contact => {
       if (contact.getType() === connect.ContactType.VOICE && contact.isSoftphoneCall() && contact.isInbound()) {
-        _this4._ringtoneSetup(contact);
-        _this4._publishTelemetryEvent("Ringtone Connecting", contact);
+        this._ringtoneSetup(contact);
+        this._publishTelemetryEvent("Ringtone Connecting", contact);
         connect.getLog().info("Ringtone Connecting").sendInternalLogToServer();
       }
     };
-    connect.contact(function (contact) {
+    connect.contact(contact => {
       contact.onConnecting(onContactConnect);
     });
 
     // handle the case where there's a contact already in connecting state at initialization
-    new connect.Agent().getContacts().forEach(function (contact) {
+    new connect.Agent().getContacts().forEach(contact => {
       if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
         onContactConnect(contact);
       }
     });
   };
-  var ChatRingtoneEngine = function ChatRingtoneEngine(ringtoneConfig) {
+  var ChatRingtoneEngine = function (ringtoneConfig) {
     RingtoneEngineBase.call(this, ringtoneConfig);
   };
   ChatRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
   ChatRingtoneEngine.prototype.constructor = ChatRingtoneEngine;
   ChatRingtoneEngine.prototype._driveRingtone = function () {
     var self = this;
-    var onContactConnect = function onContactConnect(contact) {
+    var onContactConnect = function (contact) {
       if (contact.getType() === lily.ContactType.CHAT && contact.isInbound()) {
-        var supervisorConnection = contact.getConnections().filter(function (conn) {
-          return conn.getType() === connect.ConnectionType.AGENT && conn.isSilentMonitor();
-        });
+        var supervisorConnection = contact.getConnections().filter(conn => conn.getType() === connect.ConnectionType.AGENT && conn.isSilentMonitor());
         if (supervisorConnection.length === 0) {
           self._ringtoneSetup(contact);
           self._publishTelemetryEvent("Chat Ringtone Connecting", contact);
@@ -17079,14 +16841,14 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       contact.onConnecting(onContactConnect);
     });
   };
-  var TaskRingtoneEngine = function TaskRingtoneEngine(ringtoneConfig) {
+  var TaskRingtoneEngine = function (ringtoneConfig) {
     RingtoneEngineBase.call(this, ringtoneConfig);
   };
   TaskRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
   TaskRingtoneEngine.prototype.constructor = TaskRingtoneEngine;
   TaskRingtoneEngine.prototype._driveRingtone = function () {
     var self = this;
-    var onContactConnect = function onContactConnect(contact) {
+    var onContactConnect = function (contact) {
       if (contact.getType() === lily.ContactType.TASK && contact.isInbound()) {
         self._ringtoneSetup(contact);
         self._publishTelemetryEvent("Task Ringtone Connecting", contact);
@@ -17102,14 +16864,14 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
    * Extends the Base ringtone engine and enables the email ringtone engine.
    * @param {*} ringtoneConfig 
    */
-  var EmailRingtoneEngine = function EmailRingtoneEngine(ringtoneConfig) {
+  var EmailRingtoneEngine = function (ringtoneConfig) {
     RingtoneEngineBase.call(this, ringtoneConfig);
   };
   EmailRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
   EmailRingtoneEngine.prototype.constructor = EmailRingtoneEngine;
   EmailRingtoneEngine.prototype._driveRingtone = function () {
     var self = this;
-    var onContactConnect = function onContactConnect(contact) {
+    var onContactConnect = function (contact) {
       if (contact.getType() === connect.ContactType.EMAIL && contact.isInbound()) {
         self._ringtoneSetup(contact);
         self._publishTelemetryEvent("Email Ringtone Connecting", contact);
@@ -17120,7 +16882,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       contact.onConnecting(onContactConnect);
     });
   };
-  var QueueCallbackRingtoneEngine = function QueueCallbackRingtoneEngine(ringtoneConfig) {
+  var QueueCallbackRingtoneEngine = function (ringtoneConfig) {
     RingtoneEngineBase.call(this, ringtoneConfig);
   };
   QueueCallbackRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
@@ -17151,12 +16913,11 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 /***/ 806:
 /***/ (() => {
 
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
-function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -17168,11 +16929,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   global.connect = connect;
   global.lily = connect;
   global.ccpVersion = "V2";
-  var VDIPlatformType = {
+  const VDIPlatformType = {
     CITRIX: "CITRIX",
     AWS_WORKSPACE: "AWS_WORKSPACE"
   };
-  var BROWSER_ID = "browserId"; // A key which is used for storing browser id value in local storage
+  const BROWSER_ID = "browserId"; // A key which is used for storing browser id value in local storage
 
   var statsReportingJobIntervalMs = 30000;
   var CallTypeMap = {};
@@ -17214,30 +16975,29 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   var ECHO_CANCELLATION_CHECK = "echoCancellationCheck";
   var localMediaStream = {};
   var softphoneClientId = connect.randomId();
-  var requestIceAccess = function requestIceAccess(transport) {
+  var requestIceAccess = function (transport) {
     return new Promise(function (resolve, reject) {
       connect.core.getClient().call(connect.ClientMethods.CREATE_TRANSPORT, transport, {
-        success: function success(data) {
+        success: function (data) {
           resolve(data.softphoneTransport.softphoneMediaConnections);
         },
-        failure: function failure(reason) {
+        failure: function (reason) {
           if (reason.message && reason.message.includes("SoftphoneConnectionLimitBreachedException")) {
             publishError("multiple_softphone_active_sessions", "Number of active sessions are more then allowed limit.", "");
           }
           reject(Error("requestIceAccess failed"));
         },
-        authFailure: function authFailure() {
+        authFailure: function () {
           reject(Error("Authentication failed while requestIceAccess"));
         },
-        accessDenied: function accessDenied() {
+        accessDenied: function () {
           reject(Error("Access Denied while requestIceAccess"));
         }
       });
     });
   };
-  var _SoftphoneManager = function SoftphoneManager() {
-    var _this = this;
-    var softphoneParams = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+  var SoftphoneManager = function () {
+    let softphoneParams = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
     var self = this;
     this.rtcPeerConnectionFactory = null;
     this.rtcJsStrategy = null;
@@ -17293,14 +17053,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     };
 
     // destroy or initiate persistent peer connection based on agent configuration change
-    var listenAgentConfigurationUpdate = function listenAgentConfigurationUpdate() {
-      connect.agent(function (a) {
-        var sub = a.onRefresh(function (agent) {
-          if (_this.rtcPeerConnectionManager) {
-            var isPPCEnabled = agent.getConfiguration().softphonePersistentConnection;
-            _this.rtcPeerConnectionManager.handlePersistentPeerConnectionToggle(isPPCEnabled);
+    const listenAgentConfigurationUpdate = () => {
+      connect.agent(a => {
+        const sub = a.onRefresh(agent => {
+          if (this.rtcPeerConnectionManager) {
+            const isPPCEnabled = agent.getConfiguration().softphonePersistentConnection;
+            this.rtcPeerConnectionManager.handlePersistentPeerConnectionToggle(isPPCEnabled);
           } else {
-            _this._initiateRtcPeerConnectionManager();
+            this._initiateRtcPeerConnectionManager();
           }
         });
       });
@@ -17370,12 +17130,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       this._initiateRtcPeerConnectionManager();
     }
     listenAgentConfigurationUpdate();
-    if (!_SoftphoneManager.isBrowserSoftPhoneSupported()) {
+    if (!SoftphoneManager.isBrowserSoftPhoneSupported()) {
       publishError(SoftphoneErrorTypes.UNSUPPORTED_BROWSER, "Connect does not support this browser. Some functionality may not work. ", "");
     }
     if (softphoneParams.VDIPlatform !== VDIPlatformType.AWS_WORKSPACE) {
       var gumPromise = fetchUserMedia({
-        success: function success(stream) {
+        success: function (stream) {
           publishTelemetryEvent("ConnectivityCheckResult", null, {
             connectivityCheckType: "MicrophonePermission",
             status: "granted"
@@ -17384,7 +17144,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             context: "Initializing Softphone Manager"
           }, true);
         },
-        failure: function failure(err) {
+        failure: function (err) {
           publishError(err, "Your microphone is not enabled in your browser. ", "");
           publishTelemetryEvent("ConnectivityCheckResult", null, {
             connectivityCheckType: "MicrophonePermission",
@@ -17396,9 +17156,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         }
       });
     }
-    var onMuteSub = handleSoftPhoneMuteToggle();
-    var onSetSpeakerDeviceSub = handleSpeakerDeviceChange();
-    var onSetMicrophoneDeviceSub = handleMicrophoneDeviceChange(!softphoneParams.disableEchoCancellation);
+    const onMuteSub = handleSoftPhoneMuteToggle();
+    const onSetSpeakerDeviceSub = handleSpeakerDeviceChange();
+    const onSetMicrophoneDeviceSub = handleMicrophoneDeviceChange(!softphoneParams.disableEchoCancellation);
     monitorMicrophonePermission();
     this.ringtoneEngine = null;
     var rtcSessions = {};
@@ -17409,12 +17169,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var isSessionPending = false;
     var pendingContact = null;
     var pendingAgentConnectionId = null;
-    var postponeStartingSession = function postponeStartingSession(contact, agentConnectionId) {
+    var postponeStartingSession = function (contact, agentConnectionId) {
       isSessionPending = true;
       pendingContact = contact;
       pendingAgentConnectionId = agentConnectionId;
     };
-    var cancelPendingSession = function cancelPendingSession() {
+    var cancelPendingSession = function () {
       isSessionPending = false;
       pendingContact = null;
       pendingAgentConnectionId = null;
@@ -17437,24 +17197,24 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         stream.addTrack(track);
       }
     };
-    var isContactTerminated = function isContactTerminated(contact) {
+    var isContactTerminated = function (contact) {
       return contact.getStatus().type === connect.ContactStatusType.ENDED || contact.getStatus().type === connect.ContactStatusType.ERROR || contact.getStatus().type === connect.ContactStatusType.MISSED;
     };
-    var destroySession = function destroySession(agentConnectionId) {
+    var destroySession = agentConnectionId => {
       if (rtcSessions.hasOwnProperty(agentConnectionId)) {
         var session = rtcSessions[agentConnectionId];
         // Currently the assumption is it will throw an exception only and if only it already has been hung up.
         // TODO: Update once the hangup API does not throw exceptions
-        new Promise(function (resolve, reject) {
+        new Promise((resolve, reject) => {
           delete rtcSessions[agentConnectionId];
           delete callsDetected[agentConnectionId];
           // if rtcPeerConnectionManager exists, it will hang up the session
-          if (_this.rtcPeerConnectionManager) {
-            _this.rtcPeerConnectionManager.hangup();
+          if (this.rtcPeerConnectionManager) {
+            this.rtcPeerConnectionManager.hangup();
           } else {
             session.hangup();
           }
-        })["catch"](function (err) {
+        }).catch(function (err) {
           lily.getLog().warn("There was an error destroying the softphone session for connection ID ".concat(agentConnectionId, " : ").concat(err.message)).withObject({
             agentConnectionId: agentConnectionId,
             errorMessage: err.message
@@ -17465,7 +17225,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
     // When multiple RTC sessions detected, ignore the new call and hang up the previous sessions.
     // TODO: Update when connect-rtc exposes an API to detect session status.
-    var sanityCheckActiveSessions = function sanityCheckActiveSessions(rtcSessions) {
+    var sanityCheckActiveSessions = function (rtcSessions) {
       if (Object.keys(rtcSessions).length > 0) {
         // Error! our state doesn't match, tear it all down.
         for (var connectionId in rtcSessions) {
@@ -17585,13 +17345,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         }
       }
     };
-    var onDestroyContact = function onDestroyContact(agentConnectionId) {
+    var onDestroyContact = function (agentConnectionId) {
       // handle an edge case where a connecting contact gets cleared and the next agent snapshot doesn't contain the contact thus the onRefreshContact callback below can't properly clean up the stale session.
       if (rtcSessions[agentConnectionId]) {
         destroySession(agentConnectionId);
       }
     };
-    var onRefreshContact = function onRefreshContact(contact, agentConnectionId) {
+    var onRefreshContact = function (contact, agentConnectionId) {
       if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
         destroySession(agentConnectionId);
         cancelPendingSession();
@@ -17617,7 +17377,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         }
       }
     };
-    var onInitContact = function onInitContact(contact) {
+    var onInitContact = function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
       logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
       if (!callsDetected[agentConnectionId]) {
@@ -17631,7 +17391,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         });
       }
     };
-    var onInitContactSub = connect.contact(onInitContact);
+    const onInitContactSub = connect.contact(onInitContact);
 
     // Contact already in connecting state scenario - In this case contact INIT is missed hence the OnRefresh callback is missed.
     new connect.Agent().getContacts().forEach(function (contact) {
@@ -17640,24 +17400,24 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       onInitContact(contact);
       onRefreshContact(contact, agentConnectionId);
     });
-    this.terminate = function () {
+    this.terminate = () => {
       onInitContactSub && onInitContactSub.unsubscribe && onInitContactSub.unsubscribe();
       onMuteSub && onMuteSub.unsubscribe && onMuteSub.unsubscribe();
       onSetSpeakerDeviceSub && onSetSpeakerDeviceSub.unsubscribe && onSetSpeakerDeviceSub.unsubscribe();
       onSetMicrophoneDeviceSub && onSetMicrophoneDeviceSub.unsubscribe && onSetMicrophoneDeviceSub.unsubscribe();
-      if (_this.rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId) {
+      if (this.rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId) {
         // This method needs to be called when destroying the softphone manager instance.
         // Otherwise the refresh loop in rtcPeerConnectionFactory will keep spawning WebRTCConnections every 60 seconds
         // and you will eventually get SoftphoneConnectionLimitBreachedException later.
-        _this.rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
+        this.rtcPeerConnectionFactory.clearIdleRtcPeerConnectionTimerId();
       }
-      _this.rtcPeerConnectionFactory = null;
-      if (_this.rtcPeerConnectionManager && _this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId) {
-        _this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId();
+      this.rtcPeerConnectionFactory = null;
+      if (this.rtcPeerConnectionManager && this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId) {
+        this.rtcPeerConnectionManager.clearIdleRtcPeerConnectionTimerId();
       }
     };
   };
-  var fireContactAcceptedEvent = function fireContactAcceptedEvent(contact) {
+  var fireContactAcceptedEvent = function (contact) {
     var conduit = connect.core.getUpstream();
     var agentConnection = contact.getAgentConnection();
     if (!agentConnection) {
@@ -17685,23 +17445,21 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   // Bind events for mute
-  var handleSoftPhoneMuteToggle = function handleSoftPhoneMuteToggle() {
+  var handleSoftPhoneMuteToggle = function () {
     var bus = connect.core.getEventBus();
     return bus.subscribe(connect.EventType.MUTE, muteToggle);
   };
-  var handleSpeakerDeviceChange = function handleSpeakerDeviceChange() {
+  var handleSpeakerDeviceChange = function () {
     var bus = connect.core.getEventBus();
     return bus.subscribe(connect.ConfigurationEvents.SET_SPEAKER_DEVICE, setSpeakerDevice);
   };
-  var handleMicrophoneDeviceChange = function handleMicrophoneDeviceChange(enableEchoCancellation) {
+  var handleMicrophoneDeviceChange = function (enableEchoCancellation) {
     var bus = connect.core.getEventBus();
-    return bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, function (data) {
-      return setMicrophoneDevice(_objectSpread(_objectSpread({}, data), {}, {
-        enableEchoCancellation: enableEchoCancellation
-      }));
-    });
+    return bus.subscribe(connect.ConfigurationEvents.SET_MICROPHONE_DEVICE, data => setMicrophoneDevice(_objectSpread(_objectSpread({}, data), {}, {
+      enableEchoCancellation
+    })));
   };
-  var monitorMicrophonePermission = function monitorMicrophonePermission() {
+  var monitorMicrophonePermission = function () {
     try {
       if (connect.isChromeBrowser() && connect.getChromeBrowserVersion() > 43) {
         navigator.permissions.query({
@@ -17725,7 +17483,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   // Make sure once we disconnected we get the mute state back to normal
-  var deleteLocalMediaStream = function deleteLocalMediaStream(connectionId) {
+  var deleteLocalMediaStream = function (connectionId) {
     delete localMediaStream[connectionId];
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.AgentEvents.MUTE_TOGGLE,
@@ -17737,7 +17495,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
   // Check for the local streams if exists  -  revert it
   // And inform other clients about the change 
-  var muteToggle = function muteToggle(data) {
+  var muteToggle = function (data) {
     var status;
     if (connect.keys(localMediaStream).length === 0) {
       return;
@@ -17771,9 +17529,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       }
     });
   };
-  var setSpeakerDevice = function setSpeakerDevice() {
-    var data = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-    var deviceId = data.deviceId || '';
+  var setSpeakerDevice = function () {
+    let data = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    const deviceId = data.deviceId || '';
     connect.getLog().info("[Audio Device Settings] Attempting to set speaker device ".concat(deviceId)).sendInternalLogToServer();
     if (!deviceId) {
       connect.getLog().warn("[Audio Device Settings] Setting speaker device cancelled due to missing deviceId").sendInternalLogToServer();
@@ -17781,7 +17539,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
     var remoteAudioElement = document.getElementById('remote-audio') || window.parent.parent.document.getElementById('remote-audio');
     if (remoteAudioElement && typeof remoteAudioElement.setSinkId === 'function') {
-      remoteAudioElement.setSinkId(deviceId).then(function () {
+      remoteAudioElement.setSinkId(deviceId).then(() => {
         connect.getLog().info("[Audio Device Settings] Speaker device ".concat(deviceId, " successfully set to speaker audio element")).sendInternalLogToServer();
         connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
           event: connect.ConfigurationEvents.SPEAKER_DEVICE_CHANGED,
@@ -17789,16 +17547,16 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             deviceId: deviceId
           }
         });
-      })["catch"](function (e) {
+      }).catch(e => {
         connect.getLog().error("[Audio Device Settings] Failed to set speaker device " + deviceId).withException(e).sendInternalLogToServer();
       });
     } else {
       connect.getLog().warn("[Audio Device Settings] Setting speaker device cancelled due to missing remoteAudioElement").sendInternalLogToServer();
     }
   };
-  var setMicrophoneDevice = function setMicrophoneDevice() {
-    var data = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-    var deviceId = data.deviceId || '';
+  var setMicrophoneDevice = function () {
+    let data = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    const deviceId = data.deviceId || '';
     connect.getLog().info("[Audio Device Settings] Attempting to set microphone device ".concat(deviceId)).sendInternalLogToServer();
     if (connect.keys(localMediaStream).length === 0) {
       connect.getLog().warn("[Audio Device Settings] Setting microphone device cancelled due to missing localMediaStream").sendInternalLogToServer();
@@ -17824,7 +17582,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         disableEchoCancellation: !data.enableEchoCancellation
       }
     });
-    navigator.mediaDevices.getUserMedia(CONSTRAINT).then(function (newMicrophoneStream) {
+    navigator.mediaDevices.getUserMedia(CONSTRAINT).then(newMicrophoneStream => {
       try {
         var newMicrophoneTrack = newMicrophoneStream.getAudioTracks()[0];
         for (var connectionId in localMediaStream) {
@@ -17850,11 +17608,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           deviceId: deviceId
         }
       });
-    })["catch"](function (e) {
+    }).catch(e => {
       connect.getLog().error("[Audio Device Settings] Failed to set microphone device " + deviceId).withException(e).sendInternalLogToServer();
     });
   };
-  var publishSoftphoneFailureLogs = function publishSoftphoneFailureLogs(rtcSession, reason) {
+  var publishSoftphoneFailureLogs = function (rtcSession, reason) {
     if (reason === connect.RTCErrors.ICE_COLLECTION_TIMEOUT) {
       var endPointUrl = "\n";
       for (var i = 0; i < rtcSession._iceServers.length; i++) {
@@ -17880,13 +17638,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   /** Parse the JSON encoded web call config into the data it represents. */
-  var parseCallConfig = function parseCallConfig(serializedConfig) {
+  var parseCallConfig = function (serializedConfig) {
     // Our underscore is too old for unescape
     // https://issues.amazon.com/issues/CSWF-1467
     var decodedJSON = serializedConfig.replace(/&quot;/g, '"');
     return JSON.parse(decodedJSON);
   };
-  var fetchUserMedia = function fetchUserMedia(callbacksIn) {
+  var fetchUserMedia = function (callbacksIn) {
     var callbacks = callbacksIn || {};
     callbacks.success = callbacks.success || function () {};
     callbacks.failure = callbacks.failure || function () {};
@@ -17898,7 +17656,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       callbacks.failure(SoftphoneErrorTypes.UNSUPPORTED_BROWSER);
       return;
     }
-    if (_typeof(navigator.mediaDevices) === "object" && typeof navigator.mediaDevices.getUserMedia === "function") {
+    if (typeof navigator.mediaDevices === "object" && typeof navigator.mediaDevices.getUserMedia === "function") {
       promise = navigator.mediaDevices.getUserMedia(CONSTRAINT);
     } else if (typeof navigator.webkitGetUserMedia === "function") {
       promise = new Promise(function (resolve, reject) {
@@ -17920,19 +17678,19 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     });
     return promise;
   };
-  var publishError = function publishError(errorType, message, endPointUrl) {
+  var publishError = function (errorType, message, endPointUrl) {
     logger.error("Softphone error occurred : ", errorType, message || "").sendInternalLogToServer();
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
       event: connect.AgentEvents.SOFTPHONE_ERROR,
       data: new connect.SoftphoneError(errorType, message, endPointUrl)
     });
   };
-  var publishSessionFailureTelemetryEvent = function publishSessionFailureTelemetryEvent(contactId, reason) {
+  var publishSessionFailureTelemetryEvent = function (contactId, reason) {
     publishTelemetryEvent("Softphone Session Failed", contactId, {
       failedReason: reason
     });
   };
-  var publishTelemetryEvent = function publishTelemetryEvent(eventName, contactId, data) {
+  var publishTelemetryEvent = function (eventName, contactId, data) {
     connect.publishMetric({
       name: eventName,
       contactId: contactId,
@@ -17941,14 +17699,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   // Publish the contact and agent information in a multiple sessions scenarios
-  var publishMultipleSessionsEvent = function publishMultipleSessionsEvent(eventName, contactId, agentConnectionId) {
+  var publishMultipleSessionsEvent = function (eventName, contactId, agentConnectionId) {
     publishTelemetryEvent(eventName, contactId, [{
       name: "AgentConnectionId",
       value: agentConnectionId
     }]);
     logger.info("Publish multiple session error metrics", eventName, "contactId " + contactId, "agent connectionId " + agentConnectionId).sendInternalLogToServer();
   };
-  _SoftphoneManager.isBrowserSoftPhoneSupported = function () {
+  SoftphoneManager.isBrowserSoftPhoneSupported = function () {
     // In Opera, the true version is after "Opera" or after "Version"
     if (connect.isOperaBrowser() && connect.getOperaBrowserVersion() > 17) {
       return true;
@@ -17964,21 +17722,21 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       return false;
     }
   };
-  var sendSoftphoneMetrics = function sendSoftphoneMetrics(contact) {
+  var sendSoftphoneMetrics = function (contact) {
     var streamStats = timeSeriesStreamStatsBuffer.slice();
     timeSeriesStreamStatsBuffer = [];
     if (streamStats.length > 0) {
       contact.sendSoftphoneMetrics(streamStats, {
-        success: function success() {
+        success: function () {
           logger.info("sendSoftphoneMetrics success" + JSON.stringify(streamStats)).sendInternalLogToServer();
         },
-        failure: function failure(data) {
+        failure: function (data) {
           logger.error("sendSoftphoneMetrics failed.").withObject(data).sendInternalLogToServer();
         }
       });
     }
   };
-  var sendSoftphoneReport = function sendSoftphoneReport(contact, report, userAudioStats, remoteAudioStats) {
+  var sendSoftphoneReport = function (contact, report, userAudioStats, remoteAudioStats) {
     report.streamStats = [addStreamTypeToStats(userAudioStats, AUDIO_INPUT), addStreamTypeToStats(remoteAudioStats, AUDIO_OUTPUT)];
     var callReport = {
       callStartTime: report.sessionStartTime,
@@ -18005,44 +17763,26 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       softphoneStreamStatistics: report.streamStats
     };
     contact.sendSoftphoneReport(callReport, {
-      success: function success() {
+      success: function () {
         logger.info("sendSoftphoneReport success" + JSON.stringify(callReport)).sendInternalLogToServer();
       },
-      failure: function failure(data) {
+      failure: function (data) {
         logger.error("sendSoftphoneReport failed.").withObject(data).sendInternalLogToServer();
       }
     });
     var streamPerSecondStats = {
       AUDIO_INPUT: {
-        packetsCount: inputRTPStreamStatsBuffer.map(function (stats) {
-          return stats.packetsCount;
-        }),
-        packetsLost: inputRTPStreamStatsBuffer.map(function (stats) {
-          return stats.packetsLost;
-        }),
-        audioLevel: inputRTPStreamStatsBuffer.map(function (stats) {
-          return stats.audioLevel;
-        }),
-        jitterBufferMillis: inputRTPStreamStatsBuffer.map(function (stats) {
-          return stats.jitterBufferMillis;
-        })
+        packetsCount: inputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
+        packetsLost: inputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
+        audioLevel: inputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
+        jitterBufferMillis: inputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis)
       },
       AUDIO_OUTPUT: {
-        packetsCount: outputRTPStreamStatsBuffer.map(function (stats) {
-          return stats.packetsCount;
-        }),
-        packetsLost: outputRTPStreamStatsBuffer.map(function (stats) {
-          return stats.packetsLost;
-        }),
-        audioLevel: outputRTPStreamStatsBuffer.map(function (stats) {
-          return stats.audioLevel;
-        }),
-        jitterBufferMillis: outputRTPStreamStatsBuffer.map(function (stats) {
-          return stats.jitterBufferMillis;
-        }),
-        roundTripTimeMillis: outputRTPStreamStatsBuffer.map(function (stats) {
-          return stats.roundTripTimeMillis;
-        })
+        packetsCount: outputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
+        packetsLost: outputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
+        audioLevel: outputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
+        jitterBufferMillis: outputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis),
+        roundTripTimeMillis: outputRTPStreamStatsBuffer.map(stats => stats.roundTripTimeMillis)
       }
     };
     var telemetryCallReport = _objectSpread(_objectSpread({}, callReport), {}, {
@@ -18080,7 +17820,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     });
     logger.info("sent TelemetryCallReport " + JSON.stringify(telemetryCallReport)).sendInternalLogToServer();
   };
-  var startStatsCollectionJob = function startStatsCollectionJob(rtcSession) {
+  var startStatsCollectionJob = function (rtcSession) {
     rtpStatsJob = window.setInterval(function () {
       var _rtcSession$mediaStre;
       rtcSession.getUserAudioStats().then(function (stats) {
@@ -18108,12 +17848,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       }
     }, 1000);
   };
-  var startStatsReportingJob = function startStatsReportingJob(contact) {
+  var startStatsReportingJob = function (contact) {
     reportStatsJob = window.setInterval(function () {
       sendSoftphoneMetrics(contact);
     }, statsReportingJobIntervalMs);
   };
-  var initializeParams = function initializeParams() {
+  var initializeParams = function () {
     aggregatedUserAudioStats = null;
     aggregatedRemoteAudioStats = null;
     timeSeriesStreamStatsBuffer = [];
@@ -18127,7 +17867,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     consecutiveLowOutputAudioLevel = 0;
     audioInputConnectedDurationSeconds = 0;
   };
-  var getTimeSeriesStats = function getTimeSeriesStats(currentStats, previousStats, streamType) {
+  var getTimeSeriesStats = function (currentStats, previousStats, streamType) {
     if (previousStats && currentStats) {
       var packetsLost = currentStats.packetsLost > previousStats.packetsLost ? currentStats.packetsLost - previousStats.packetsLost : 0;
       var packetsCount = currentStats.packetsCount > previousStats.packetsCount ? currentStats.packetsCount - previousStats.packetsCount : 0;
@@ -18138,7 +17878,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       return new RTPStreamStats(currentStats.timestamp, currentStats.packetsLost, currentStats.packetsCount, streamType, currentStats.audioLevel, currentStats.jbMilliseconds, currentStats.rttMilliseconds);
     }
   };
-  var telemetryCallReportRTPStreamStatsBuffer = function telemetryCallReportRTPStreamStatsBuffer(rtpStreamStats) {
+  var telemetryCallReportRTPStreamStatsBuffer = function (rtpStreamStats) {
     if (rtpStreamStats.softphoneStreamType === AUDIO_INPUT) {
       while (inputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
         inputRTPStreamStatsBuffer.shift();
@@ -18151,7 +17891,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       outputRTPStreamStatsBuffer.push(rtpStreamStats);
     }
   };
-  var checkConsecutiveNoPackets = function checkConsecutiveNoPackets(packetsCount, streamType) {
+  var checkConsecutiveNoPackets = function (packetsCount, streamType) {
     if (streamType === AUDIO_INPUT) {
       audioInputConnectedDurationSeconds++;
       if (packetsCount <= 0) {
@@ -18167,7 +17907,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       }
     }
   };
-  var checkConsecutiveNoAudio = function checkConsecutiveNoAudio(audioLevel, streamType) {
+  var checkConsecutiveNoAudio = function (audioLevel, streamType) {
     if (streamType === AUDIO_INPUT) {
       if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD) {
         consecutiveLowInputAudioLevel++;
@@ -18182,13 +17922,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       }
     }
   };
-  var stopJob = function stopJob(task) {
+  var stopJob = function (task) {
     if (task !== null) {
       window.clearInterval(task);
     }
     return null;
   };
-  var stopJobsAndReport = function stopJobsAndReport(contact, sessionReport) {
+  var stopJobsAndReport = function (contact, sessionReport) {
     rtpStatsJob = stopJob(rtpStatsJob);
     reportStatsJob = stopJob(reportStatsJob);
     sendSoftphoneReport(contact, sessionReport, addStreamTypeToStats(aggregatedUserAudioStats, AUDIO_INPUT), addStreamTypeToStats(aggregatedRemoteAudioStats, AUDIO_OUTPUT));
@@ -18198,7 +17938,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**
   *   Adding streamtype parameter on top of RTCJS RTStats object.
   */
-  var RTPStreamStats = function RTPStreamStats(timestamp, packetsLost, packetsCount, streamType, audioLevel, jitterBufferMillis, roundTripTimeMillis) {
+  var RTPStreamStats = function (timestamp, packetsLost, packetsCount, streamType, audioLevel, jitterBufferMillis, roundTripTimeMillis) {
     this.softphoneStreamType = streamType;
     this.timestamp = timestamp;
     this.packetsLost = packetsLost;
@@ -18207,11 +17947,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     this.jitterBufferMillis = jitterBufferMillis;
     this.roundTripTimeMillis = roundTripTimeMillis;
   };
-  var addStreamTypeToStats = function addStreamTypeToStats(stats, streamType) {
+  var addStreamTypeToStats = function (stats, streamType) {
     stats = stats || {};
     return new RTPStreamStats(stats.timestamp, stats.packetsLost, stats.packetsCount, streamType, stats.audioLevel);
   };
-  var SoftphoneLogger = function SoftphoneLogger(logger) {
+  var SoftphoneLogger = function (logger) {
     this._originalLogger = logger;
     var self = this;
     this._tee = function (level, method) {
@@ -18242,7 +17982,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   SoftphoneLogger.prototype.error = function () {
     return this._tee(5, this._originalLogger.error)(arguments);
   };
-  connect.SoftphoneManager = _SoftphoneManager;
+  connect.SoftphoneManager = SoftphoneManager;
 })();
 
 /***/ }),
@@ -18254,13 +17994,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
 (function () {
   var ctx = this || globalThis;
-  var _sprintf = function sprintf() {
-    if (!_sprintf.cache.hasOwnProperty(arguments[0])) {
-      _sprintf.cache[arguments[0]] = _sprintf.parse(arguments[0]);
+  var sprintf = function () {
+    if (!sprintf.cache.hasOwnProperty(arguments[0])) {
+      sprintf.cache[arguments[0]] = sprintf.parse(arguments[0]);
     }
-    return _sprintf.format.call(null, _sprintf.cache[arguments[0]], arguments);
+    return sprintf.format.call(null, sprintf.cache[arguments[0]], arguments);
   };
-  _sprintf.format = function (parse_tree, argv) {
+  sprintf.format = function (parse_tree, argv) {
     var cursor = 1,
       tree_length = parse_tree.length,
       node_type = '',
@@ -18283,7 +18023,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           arg = argv[cursor];
           for (k = 0; k < match[2].length; k++) {
             if (!arg.hasOwnProperty(match[2][k])) {
-              throw _sprintf('[sprintf] property "%s" does not exist', match[2][k]);
+              throw sprintf('[sprintf] property "%s" does not exist', match[2][k]);
             }
             arg = arg[match[2][k]];
           }
@@ -18295,7 +18035,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           arg = argv[cursor++];
         }
         if (/[^s]/.test(match[8]) && get_type(arg) != 'number') {
-          throw _sprintf('[sprintf] expecting number but found %s', get_type(arg));
+          throw sprintf('[sprintf] expecting number but found %s', get_type(arg));
         }
         switch (match[8]) {
           case 'b':
@@ -18338,8 +18078,8 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
     return output.join('');
   };
-  _sprintf.cache = {};
-  _sprintf.parse = function (fmt) {
+  sprintf.cache = {};
+  sprintf.parse = function (fmt) {
     var _fmt = fmt,
       match = [],
       parse_tree = [],
@@ -18384,10 +18124,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
     return parse_tree;
   };
-  var vsprintf = function vsprintf(fmt, argv, _argv) {
+  var vsprintf = function (fmt, argv, _argv) {
     _argv = argv.slice(0);
     _argv.splice(0, 0, fmt);
-    return _sprintf.apply(null, _argv);
+    return sprintf.apply(null, _argv);
   };
 
   /**
@@ -18404,7 +18144,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**
    * export to either browser or node.js
    */
-  ctx.sprintf = _sprintf;
+  ctx.sprintf = sprintf;
   ctx.vsprintf = vsprintf;
 })();
 
@@ -18413,18 +18153,6 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 /***/ 431:
 /***/ (() => {
 
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
-function _classCallCheck(a, n) { if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function"); }
-function _defineProperties(e, r) { for (var t = 0; t < r.length; t++) { var o = r[t]; o.enumerable = o.enumerable || !1, o.configurable = !0, "value" in o && (o.writable = !0), Object.defineProperty(e, _toPropertyKey(o.key), o); } }
-function _createClass(e, r, t) { return r && _defineProperties(e.prototype, r), t && _defineProperties(e, t), Object.defineProperty(e, "prototype", { writable: !1 }), e; }
-function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
-function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
-function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
-function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
-function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
-function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
-function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
-function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -18442,7 +18170,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    * Represents an object from which messages can be read and to which
    * messages can be sent.
    */
-  var Stream = function Stream() {};
+  var Stream = function () {};
 
   /**
    * Send a message to the stream.  This method must be implemented by subclasses.
@@ -18464,7 +18192,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    *
    * A null stream which provides no message sending or receiving facilities.
    */
-  var NullStream = function NullStream() {
+  var NullStream = function () {
     Stream.call(this);
   };
   NullStream.prototype = Object.create(Stream.prototype);
@@ -18480,7 +18208,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    * or messages will be rejected, see https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage
    * for more info.
    */
-  var WindowStream = function WindowStream(win, domain) {
+  var WindowStream = function (win, domain) {
     Stream.call(this);
     this.window = win;
     this.domain = domain || '*';
@@ -18504,7 +18232,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    * arrive on different windows and allows this to be managed as a single
    * Stream object.
    */
-  var WindowIOStream = function WindowIOStream(inputwin, outputwin, domain) {
+  var WindowIOStream = function (inputwin, outputwin, domain) {
     Stream.call(this);
     this.input = inputwin;
     this.output = outputwin;
@@ -18516,9 +18244,8 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
     this.output.postMessage(message, this.domain);
   };
   WindowIOStream.prototype.onMessage = function (f) {
-    var _this = this;
-    this.input.addEventListener("message", function (message) {
-      if (message.source === _this.output) {
+    this.input.addEventListener("message", message => {
+      if (message.source === this.output) {
         f(message);
       }
     });
@@ -18532,7 +18259,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    * made available to a SharedWorker for communication back to
    * its connected clients.
    */
-  var PortStream = function PortStream(port) {
+  var PortStream = function (port) {
     Stream.call(this);
     this.port = port;
     this.id = connect.randomId();
@@ -18556,7 +18283,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    * multiple streams at once.  Mainly useful for the SharedWorker to
    * broadcast events to many PortStream objects at once.
    */
-  var StreamMultiplexer = function StreamMultiplexer(streams) {
+  var StreamMultiplexer = function (streams) {
     Stream.call(this);
     this.streamMap = streams ? connect.index(streams, function (s) {
       return s.getId();
@@ -18639,7 +18366,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    * to be passed to and from each and providing an event bus for event
    * subscriptions to be made upstream and downstream.
    */
-  var Conduit = function Conduit(name, upstream, downstream) {
+  var Conduit = function (name, upstream, downstream) {
     this.name = name;
     this.upstream = upstream || new NullStream();
     this.downstream = downstream || new NullStream();
@@ -18650,9 +18377,9 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
 
     // Only relevant for Global Resiliency
     this.active = true;
-    this.allowedEvents = [].concat(_toConsumableArray(Object.entries(connect.GlobalResiliencyEvents).map(function (keyValue) {
+    this.allowedEvents = [...Object.entries(connect.GlobalResiliencyEvents).map(keyValue => {
       return keyValue[1];
-    })), [connect.EventType.CONFIGURE, connect.EventType.SYNCHRONIZE, connect.EventType.ACKNOWLEDGE, connect.EventType.LOG, connect.EventType.SERVER_BOUND_INTERNAL_LOG, connect.EventType.DOWNLOAD_LOG_FROM_CCP]);
+    }), connect.EventType.CONFIGURE, connect.EventType.SYNCHRONIZE, connect.EventType.ACKNOWLEDGE, connect.EventType.LOG, connect.EventType.SERVER_BOUND_INTERNAL_LOG, connect.EventType.DOWNLOAD_LOG_FROM_CCP];
   };
   Conduit.prototype.onUpstream = function (eventName, f) {
     connect.assertNotNull(eventName, 'eventName');
@@ -18758,186 +18485,127 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    *
    * Creates a conduit for the given IFrame element.
    */
-  var IFrameConduit = function IFrameConduit(name, window, iframe, domain) {
+  var IFrameConduit = function (name, window, iframe, domain) {
     Conduit.call(this, name, new WindowIOStream(window, iframe.contentWindow, domain || '*'), null);
   };
   IFrameConduit.prototype = Object.create(Conduit.prototype);
   IFrameConduit.prototype.constructor = IFrameConduit;
-  var GRProxyIframeConduit = /*#__PURE__*/function () {
-    function GRProxyIframeConduit(window, iframeConfigs, defaultActiveCCPUrl) {
-      var _this2 = this;
-      _classCallCheck(this, GRProxyIframeConduit);
+  class GRProxyIframeConduit {
+    constructor(window, iframeConfigs, defaultActiveCCPUrl) {
       this.iframeLabelMap = {};
-      var defaultActiveOrigin = new URL(defaultActiveCCPUrl).origin;
+      const defaultActiveOrigin = new URL(defaultActiveCCPUrl).origin;
       this.activeRegionUrl = defaultActiveOrigin;
-      this.conduits = iframeConfigs.map(function (config) {
-        var iframe = config.iframe,
-          label = config.label;
-        var iframeConduit = new IFrameConduit(iframe.src, window, iframe);
+      this.conduits = iframeConfigs.map(config => {
+        const {
+          iframe,
+          label
+        } = config;
+        const iframeConduit = new IFrameConduit(iframe.src, window, iframe);
         iframeConduit.iframe = iframe;
-        var _URL = new URL(iframe.src),
-          origin = _URL.origin;
+        const {
+          origin
+        } = new URL(iframe.src);
         iframeConduit.name = origin;
-        _this2.iframeLabelMap[origin] = label;
+        this.iframeLabelMap[origin] = label;
         return iframeConduit;
       });
       this.setActiveConduit(defaultActiveOrigin);
     }
-    return _createClass(GRProxyIframeConduit, [{
-      key: "onUpstream",
-      value: function onUpstream(eventName, f) {
-        var subs = this.conduits.map(function (conduit) {
-          return conduit.onUpstream(eventName, f);
-        });
-        return {
-          unsubscribe: function unsubscribe() {
-            return subs.forEach(function (sub) {
-              return sub.unsubscribe();
-            });
-          }
-        };
-      }
-    }, {
-      key: "onAllUpstream",
-      value: function onAllUpstream(f) {
-        var subs = this.conduits.map(function (conduit) {
-          return conduit.onAllUpstream(f);
-        });
-        return {
-          unsubscribe: function unsubscribe() {
-            return subs.forEach(function (sub) {
-              return sub.unsubscribe();
-            });
-          }
-        };
-      }
-    }, {
-      key: "onDownstream",
-      value: function onDownstream(eventName, f) {
-        var subs = this.conduits.map(function (conduit) {
-          return conduit.onDownstream(eventName, f);
-        });
-        return {
-          unsubscribe: function unsubscribe() {
-            return subs.forEach(function (sub) {
-              return sub.unsubscribe();
-            });
-          }
-        };
-      }
-    }, {
-      key: "onAllDownstream",
-      value: function onAllDownstream(f) {
-        var subs = this.conduits.map(function (conduit) {
-          return conduit.onAllDownstream(f);
-        });
-        return {
-          unsubscribe: function unsubscribe() {
-            return subs.forEach(function (sub) {
-              return sub.unsubscribe();
-            });
-          }
-        };
-      }
-    }, {
-      key: "sendUpstream",
-      value: function sendUpstream(eventName, data) {
-        this.conduits.forEach(function (conduit) {
-          conduit.sendUpstream(eventName, data);
-        });
-      }
-    }, {
-      key: "sendDownstream",
-      value: function sendDownstream(eventName, data) {
-        this.conduits.forEach(function (conduit) {
-          conduit.sendDownstream(eventName, data);
-        });
-      }
+    onUpstream(eventName, f) {
+      const subs = this.conduits.map(conduit => {
+        return conduit.onUpstream(eventName, f);
+      });
+      return {
+        unsubscribe: () => subs.forEach(sub => sub.unsubscribe())
+      };
+    }
+    onAllUpstream(f) {
+      const subs = this.conduits.map(conduit => {
+        return conduit.onAllUpstream(f);
+      });
+      return {
+        unsubscribe: () => subs.forEach(sub => sub.unsubscribe())
+      };
+    }
+    onDownstream(eventName, f) {
+      const subs = this.conduits.map(conduit => {
+        return conduit.onDownstream(eventName, f);
+      });
+      return {
+        unsubscribe: () => subs.forEach(sub => sub.unsubscribe())
+      };
+    }
+    onAllDownstream(f) {
+      const subs = this.conduits.map(conduit => {
+        return conduit.onAllDownstream(f);
+      });
+      return {
+        unsubscribe: () => subs.forEach(sub => sub.unsubscribe())
+      };
+    }
+    sendUpstream(eventName, data) {
+      this.conduits.forEach(conduit => {
+        conduit.sendUpstream(eventName, data);
+      });
+    }
+    sendDownstream(eventName, data) {
+      this.conduits.forEach(conduit => {
+        conduit.sendDownstream(eventName, data);
+      });
+    }
 
-      // Relay an event from one shared worker to another
-    }, {
-      key: "relayUpstream",
-      value: function relayUpstream(eventName) {
-        var self = this;
-        this.conduits.forEach(function (conduit) {
-          conduit.onUpstream(eventName, function (data) {
-            var otherConduit = self.getOtherConduit(conduit);
-            otherConduit.sendUpstream(eventName, data);
-            connect.getLog().info("Relayed event ".concat(eventName, " from ").concat(conduit.name, " to ").concat(otherConduit.name, " shared worker")).withObject({
-              data: data
-            }).sendInternalLogToServer();
-          });
+    // Relay an event from one shared worker to another
+    relayUpstream(eventName) {
+      var self = this;
+      this.conduits.forEach(conduit => {
+        conduit.onUpstream(eventName, function (data) {
+          const otherConduit = self.getOtherConduit(conduit);
+          otherConduit.sendUpstream(eventName, data);
+          connect.getLog().info("Relayed event ".concat(eventName, " from ").concat(conduit.name, " to ").concat(otherConduit.name, " shared worker")).withObject({
+            data
+          }).sendInternalLogToServer();
         });
+      });
+    }
+    getAllConduits() {
+      return this.conduits;
+    }
+    setActiveConduit(activeRegionUrl) {
+      const newActiveConduit = this.conduits.find(conduit => conduit.name === activeRegionUrl);
+      if (!newActiveConduit) {
+        connect.getLog().error("[GR] No conduit found with the given ccpUrl: ".concat(activeRegionUrl)).sendInternalLogToServer();
+        return;
       }
-    }, {
-      key: "getAllConduits",
-      value: function getAllConduits() {
-        return this.conduits;
-      }
-    }, {
-      key: "setActiveConduit",
-      value: function setActiveConduit(activeRegionUrl) {
-        var _this3 = this;
-        var newActiveConduit = this.conduits.find(function (conduit) {
-          return conduit.name === activeRegionUrl;
-        });
-        if (!newActiveConduit) {
-          connect.getLog().error("[GR] No conduit found with the given ccpUrl: ".concat(activeRegionUrl)).sendInternalLogToServer();
-          return;
+      this.conduits.forEach(conduit => {
+        if (conduit.name === activeRegionUrl) {
+          this.activeRegionUrl = activeRegionUrl;
+
+          // Update member variables in case customer directly referencing those  
+          this.name = conduit.name;
+          this.upstream = conduit.upstream;
+          this.downstream = conduit.downstream;
+          this.upstreamBus = conduit.upstreamBus;
+          this.downstreamBus = conduit.downstreamBus;
         }
-        this.conduits.forEach(function (conduit) {
-          if (conduit.name === activeRegionUrl) {
-            _this3.activeRegionUrl = activeRegionUrl;
-
-            // Update member variables in case customer directly referencing those  
-            _this3.name = conduit.name;
-            _this3.upstream = conduit.upstream;
-            _this3.downstream = conduit.downstream;
-            _this3.upstreamBus = conduit.upstreamBus;
-            _this3.downstreamBus = conduit.downstreamBus;
-          }
-        });
-        connect.getLog().info("[GR] Switched to active conduit ".concat(this.getActiveConduit().name)).sendInternalLogToServer();
-      }
-    }, {
-      key: "getActiveConduit",
-      value: function getActiveConduit() {
-        var _this4 = this;
-        return this.conduits.find(function (conduit) {
-          return conduit.name === _this4.activeRegionUrl;
-        });
-      }
-    }, {
-      key: "getInactiveConduit",
-      value: function getInactiveConduit() {
-        var _this5 = this;
-        return this.conduits.find(function (conduit) {
-          return conduit.name !== _this5.activeRegionUrl;
-        });
-      }
-    }, {
-      key: "getOtherConduit",
-      value: function getOtherConduit(conduit) {
-        return this.conduits.find(function (otherConduit) {
-          return conduit.name !== otherConduit.name;
-        });
-      }
-    }, {
-      key: "getConduitByRegion",
-      value: function getConduitByRegion(region) {
-        return this.conduits.find(function (conduit) {
-          return conduit.region === region;
-        });
-      }
-    }, {
-      key: "getConduitByName",
-      value: function getConduitByName(name) {
-        return this.conduits.find(function (conduit) {
-          return conduit.name === name;
-        });
-      }
-    }]);
-  }();
+      });
+      connect.getLog().info("[GR] Switched to active conduit ".concat(this.getActiveConduit().name)).sendInternalLogToServer();
+    }
+    getActiveConduit() {
+      return this.conduits.find(conduit => conduit.name === this.activeRegionUrl);
+    }
+    getInactiveConduit() {
+      return this.conduits.find(conduit => conduit.name !== this.activeRegionUrl);
+    }
+    getOtherConduit(conduit) {
+      return this.conduits.find(otherConduit => conduit.name !== otherConduit.name);
+    }
+    getConduitByRegion(region) {
+      return this.conduits.find(conduit => conduit.region === region);
+    }
+    getConduitByName(name) {
+      return this.conduits.find(conduit => conduit.name === name);
+    }
+  }
   connect.Stream = Stream;
   connect.NullStream = NullStream;
   connect.WindowStream = WindowStream;
@@ -18970,7 +18638,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    *
    * Represents the association of one or more attributes to a state transition.
    */
-  var GraphLink = function GraphLink(fromState, toState) {
+  var GraphLink = function (fromState, toState) {
     connect.assertNotNull(fromState, 'fromState');
     connect.assertNotNull(toState, 'toState');
     this.fromState = fromState;
@@ -18992,7 +18660,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    * Represents the by-value representation of one or more attributes to a
    * state transition.
    */
-  var DirectGraphLink = function DirectGraphLink(fromState, toState, associations) {
+  var DirectGraphLink = function (fromState, toState, associations) {
     connect.assertNotNull(fromState, 'fromState');
     connect.assertNotNull(toState, 'toState');
     connect.assertNotNull(associations, 'associations');
@@ -19011,7 +18679,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    * Represents a functional association of one or more attributes to a
    * state transition.
    */
-  var FunctionalGraphLink = function FunctionalGraphLink(fromState, toState, closure) {
+  var FunctionalGraphLink = function (fromState, toState, closure) {
     connect.assertNotNull(fromState, 'fromState');
     connect.assertNotNull(toState, 'toState');
     connect.assertNotNull(closure, 'closure');
@@ -19033,7 +18701,7 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
    * or functional (a method returning one or more values), and are used to
    * provide additional contextual event hooks for the UI to consume.
    */
-  var EventGraph = function EventGraph() {
+  var EventGraph = function () {
     this.fromMap = {};
   };
   EventGraph.ANY = "<<any>>";
@@ -19102,15 +18770,11 @@ function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length)
 /***/ 60:
 /***/ (() => {
 
-function _regeneratorRuntime() { "use strict"; /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */ _regeneratorRuntime = function _regeneratorRuntime() { return e; }; var t, e = {}, r = Object.prototype, n = r.hasOwnProperty, o = Object.defineProperty || function (t, e, r) { t[e] = r.value; }, i = "function" == typeof Symbol ? Symbol : {}, a = i.iterator || "@@iterator", c = i.asyncIterator || "@@asyncIterator", u = i.toStringTag || "@@toStringTag"; function define(t, e, r) { return Object.defineProperty(t, e, { value: r, enumerable: !0, configurable: !0, writable: !0 }), t[e]; } try { define({}, ""); } catch (t) { define = function define(t, e, r) { return t[e] = r; }; } function wrap(t, e, r, n) { var i = e && e.prototype instanceof Generator ? e : Generator, a = Object.create(i.prototype), c = new Context(n || []); return o(a, "_invoke", { value: makeInvokeMethod(t, r, c) }), a; } function tryCatch(t, e, r) { try { return { type: "normal", arg: t.call(e, r) }; } catch (t) { return { type: "throw", arg: t }; } } e.wrap = wrap; var h = "suspendedStart", l = "suspendedYield", f = "executing", s = "completed", y = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} var p = {}; define(p, a, function () { return this; }); var d = Object.getPrototypeOf, v = d && d(d(values([]))); v && v !== r && n.call(v, a) && (p = v); var g = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(p); function defineIteratorMethods(t) { ["next", "throw", "return"].forEach(function (e) { define(t, e, function (t) { return this._invoke(e, t); }); }); } function AsyncIterator(t, e) { function invoke(r, o, i, a) { var c = tryCatch(t[r], t, o); if ("throw" !== c.type) { var u = c.arg, h = u.value; return h && "object" == _typeof(h) && n.call(h, "__await") ? e.resolve(h.__await).then(function (t) { invoke("next", t, i, a); }, function (t) { invoke("throw", t, i, a); }) : e.resolve(h).then(function (t) { u.value = t, i(u); }, function (t) { return invoke("throw", t, i, a); }); } a(c.arg); } var r; o(this, "_invoke", { value: function value(t, n) { function callInvokeWithMethodAndArg() { return new e(function (e, r) { invoke(t, n, e, r); }); } return r = r ? r.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg(); } }); } function makeInvokeMethod(e, r, n) { var o = h; return function (i, a) { if (o === f) throw Error("Generator is already running"); if (o === s) { if ("throw" === i) throw a; return { value: t, done: !0 }; } for (n.method = i, n.arg = a;;) { var c = n.delegate; if (c) { var u = maybeInvokeDelegate(c, n); if (u) { if (u === y) continue; return u; } } if ("next" === n.method) n.sent = n._sent = n.arg;else if ("throw" === n.method) { if (o === h) throw o = s, n.arg; n.dispatchException(n.arg); } else "return" === n.method && n.abrupt("return", n.arg); o = f; var p = tryCatch(e, r, n); if ("normal" === p.type) { if (o = n.done ? s : l, p.arg === y) continue; return { value: p.arg, done: n.done }; } "throw" === p.type && (o = s, n.method = "throw", n.arg = p.arg); } }; } function maybeInvokeDelegate(e, r) { var n = r.method, o = e.iterator[n]; if (o === t) return r.delegate = null, "throw" === n && e.iterator["return"] && (r.method = "return", r.arg = t, maybeInvokeDelegate(e, r), "throw" === r.method) || "return" !== n && (r.method = "throw", r.arg = new TypeError("The iterator does not provide a '" + n + "' method")), y; var i = tryCatch(o, e.iterator, r.arg); if ("throw" === i.type) return r.method = "throw", r.arg = i.arg, r.delegate = null, y; var a = i.arg; return a ? a.done ? (r[e.resultName] = a.value, r.next = e.nextLoc, "return" !== r.method && (r.method = "next", r.arg = t), r.delegate = null, y) : a : (r.method = "throw", r.arg = new TypeError("iterator result is not an object"), r.delegate = null, y); } function pushTryEntry(t) { var e = { tryLoc: t[0] }; 1 in t && (e.catchLoc = t[1]), 2 in t && (e.finallyLoc = t[2], e.afterLoc = t[3]), this.tryEntries.push(e); } function resetTryEntry(t) { var e = t.completion || {}; e.type = "normal", delete e.arg, t.completion = e; } function Context(t) { this.tryEntries = [{ tryLoc: "root" }], t.forEach(pushTryEntry, this), this.reset(!0); } function values(e) { if (e || "" === e) { var r = e[a]; if (r) return r.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) { var o = -1, i = function next() { for (; ++o < e.length;) if (n.call(e, o)) return next.value = e[o], next.done = !1, next; return next.value = t, next.done = !0, next; }; return i.next = i; } } throw new TypeError(_typeof(e) + " is not iterable"); } return GeneratorFunction.prototype = GeneratorFunctionPrototype, o(g, "constructor", { value: GeneratorFunctionPrototype, configurable: !0 }), o(GeneratorFunctionPrototype, "constructor", { value: GeneratorFunction, configurable: !0 }), GeneratorFunction.displayName = define(GeneratorFunctionPrototype, u, "GeneratorFunction"), e.isGeneratorFunction = function (t) { var e = "function" == typeof t && t.constructor; return !!e && (e === GeneratorFunction || "GeneratorFunction" === (e.displayName || e.name)); }, e.mark = function (t) { return Object.setPrototypeOf ? Object.setPrototypeOf(t, GeneratorFunctionPrototype) : (t.__proto__ = GeneratorFunctionPrototype, define(t, u, "GeneratorFunction")), t.prototype = Object.create(g), t; }, e.awrap = function (t) { return { __await: t }; }, defineIteratorMethods(AsyncIterator.prototype), define(AsyncIterator.prototype, c, function () { return this; }), e.AsyncIterator = AsyncIterator, e.async = function (t, r, n, o, i) { void 0 === i && (i = Promise); var a = new AsyncIterator(wrap(t, r, n, o), i); return e.isGeneratorFunction(r) ? a : a.next().then(function (t) { return t.done ? t.value : a.next(); }); }, defineIteratorMethods(g), define(g, u, "Generator"), define(g, a, function () { return this; }), define(g, "toString", function () { return "[object Generator]"; }), e.keys = function (t) { var e = Object(t), r = []; for (var n in e) r.push(n); return r.reverse(), function next() { for (; r.length;) { var t = r.pop(); if (t in e) return next.value = t, next.done = !1, next; } return next.done = !0, next; }; }, e.values = values, Context.prototype = { constructor: Context, reset: function reset(e) { if (this.prev = 0, this.next = 0, this.sent = this._sent = t, this.done = !1, this.delegate = null, this.method = "next", this.arg = t, this.tryEntries.forEach(resetTryEntry), !e) for (var r in this) "t" === r.charAt(0) && n.call(this, r) && !isNaN(+r.slice(1)) && (this[r] = t); }, stop: function stop() { this.done = !0; var t = this.tryEntries[0].completion; if ("throw" === t.type) throw t.arg; return this.rval; }, dispatchException: function dispatchException(e) { if (this.done) throw e; var r = this; function handle(n, o) { return a.type = "throw", a.arg = e, r.next = n, o && (r.method = "next", r.arg = t), !!o; } for (var o = this.tryEntries.length - 1; o >= 0; --o) { var i = this.tryEntries[o], a = i.completion; if ("root" === i.tryLoc) return handle("end"); if (i.tryLoc <= this.prev) { var c = n.call(i, "catchLoc"), u = n.call(i, "finallyLoc"); if (c && u) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } else if (c) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); } else { if (!u) throw Error("try statement without catch or finally"); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } } } }, abrupt: function abrupt(t, e) { for (var r = this.tryEntries.length - 1; r >= 0; --r) { var o = this.tryEntries[r]; if (o.tryLoc <= this.prev && n.call(o, "finallyLoc") && this.prev < o.finallyLoc) { var i = o; break; } } i && ("break" === t || "continue" === t) && i.tryLoc <= e && e <= i.finallyLoc && (i = null); var a = i ? i.completion : {}; return a.type = t, a.arg = e, i ? (this.method = "next", this.next = i.finallyLoc, y) : this.complete(a); }, complete: function complete(t, e) { if ("throw" === t.type) throw t.arg; return "break" === t.type || "continue" === t.type ? this.next = t.arg : "return" === t.type ? (this.rval = this.arg = t.arg, this.method = "return", this.next = "end") : "normal" === t.type && e && (this.next = e), y; }, finish: function finish(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.finallyLoc === t) return this.complete(r.completion, r.afterLoc), resetTryEntry(r), y; } }, "catch": function _catch(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.tryLoc === t) { var n = r.completion; if ("throw" === n.type) { var o = n.arg; resetTryEntry(r); } return o; } } throw Error("illegal catch attempt"); }, delegateYield: function delegateYield(e, r, n) { return this.delegate = { iterator: values(e), resultName: r, nextLoc: n }, "next" === this.method && (this.arg = t), y; } }, e; }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
-function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
-function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
-function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -19455,16 +19119,16 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
    * Asserts that a value is not null or undefined.
    */
   connect.assertNotNull = function (value, name) {
-    connect.assertTrue(value != null && _typeof(value) !== undefined, connect.sprintf("%s must be provided", name || 'A value'));
+    connect.assertTrue(value != null && typeof value !== undefined, connect.sprintf("%s must be provided", name || 'A value'));
     return value;
   };
   connect.deepcopy = function (src) {
     return JSON.parse(JSON.stringify(src));
   };
   connect.deepcopyCrossOriginEvent = function (event) {
-    var obj = {};
-    var listOfAcceptableKeys = COPYABLE_EVENT_FIELDS;
-    listOfAcceptableKeys.forEach(function (key) {
+    const obj = {};
+    const listOfAcceptableKeys = COPYABLE_EVENT_FIELDS;
+    listOfAcceptableKeys.forEach(key => {
       try {
         obj[key] = event[key];
       } catch (e) {
@@ -19512,11 +19176,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       function fetchData(maxRetry) {
         fetch(endpoint, options).then(function (res) {
           if (res.status === connect.HTTP_STATUS_CODES.SUCCESS) {
-            res.json().then(function (json) {
-              return resolve(json);
-            })["catch"](function () {
-              return resolve({});
-            });
+            res.json().then(json => resolve(json)).catch(() => resolve({}));
           } else if (maxRetry !== 1 && (res.status >= connect.HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR || res.status === connect.HTTP_STATUS_CODES.TOO_MANY_REQUESTS)) {
             setTimeout(function () {
               fetchData(--maxRetry);
@@ -19524,48 +19184,26 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
           } else {
             reject(res);
           }
-        })["catch"](function (e) {
+        }).catch(function (e) {
           reject(e);
         });
       }
       fetchData(maxRetry);
     });
   };
-  connect.fetchWithTimeout = /*#__PURE__*/function () {
-    var _ref = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee(endpoint, timeoutMs, options, milliInterval, maxRetry) {
-      var controller, id, response;
-      return _regeneratorRuntime().wrap(function _callee$(_context) {
-        while (1) switch (_context.prev = _context.next) {
-          case 0:
-            options = options || {};
-            if (timeoutMs) {
-              _context.next = 3;
-              break;
-            }
-            return _context.abrupt("return", connect.fetch(endpoint, options, milliInterval, maxRetry));
-          case 3:
-            controller = new AbortController();
-            id = setTimeout(function () {
-              return controller.abort();
-            }, timeoutMs);
-            _context.next = 7;
-            return connect.fetch(endpoint, _objectSpread(_objectSpread({}, options), {}, {
-              signal: controller.signal
-            }), milliInterval, maxRetry);
-          case 7:
-            response = _context.sent;
-            clearTimeout(id);
-            return _context.abrupt("return", response);
-          case 10:
-          case "end":
-            return _context.stop();
-        }
-      }, _callee);
-    }));
-    return function (_x, _x2, _x3, _x4, _x5) {
-      return _ref.apply(this, arguments);
-    };
-  }();
+  connect.fetchWithTimeout = async function (endpoint, timeoutMs, options, milliInterval, maxRetry) {
+    options = options || {};
+    if (!timeoutMs) {
+      return connect.fetch(endpoint, options, milliInterval, maxRetry);
+    }
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await connect.fetch(endpoint, _objectSpread(_objectSpread({}, options), {}, {
+      signal: controller.signal
+    }), milliInterval, maxRetry);
+    clearTimeout(id);
+    return response;
+  };
 
   /**
    * Calling a function with exponential backoff with full jitter retry strategy
@@ -19578,12 +19216,12 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     var self = this;
     var ratio = 2;
     func({
-      success: function success(data) {
+      success: function (data) {
         if (callbacks && callbacks.success) {
           callbacks.success(data);
         }
       },
-      failure: function failure(err, data) {
+      failure: function (err, data) {
         if (maxRetry > 0) {
           var interval = milliInterval * 2 * Math.random();
           global.setTimeout(function () {
@@ -19626,11 +19264,11 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     bus.trigger(connect.EventType.CLIENT_SIDE_LOGS, logs);
   };
   connect.addNamespaceToLogs = function (namespace) {
-    var methods = ['log', 'error', 'warn', 'info', 'debug'];
-    methods.forEach(function (method) {
-      var consoleMethod = window.console[method];
+    const methods = ['log', 'error', 'warn', 'info', 'debug'];
+    methods.forEach(method => {
+      const consoleMethod = window.console[method];
       window.console[method] = function () {
-        var args = Array.from(arguments);
+        const args = Array.from(arguments);
         args.unshift("[".concat(namespace, "]"));
         consoleMethod.apply(window.console, args);
       };
@@ -19810,7 +19448,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
 
   // internal use only
   connect.isActiveConduit = function (conduit) {
-    var grProxyConduit = connect.core.getUpstream();
+    const grProxyConduit = connect.core.getUpstream();
     if (grProxyConduit instanceof connect.GRProxyIframeConduit) {
       return conduit.name === grProxyConduit.activeRegionUrl;
     } else {
@@ -19825,12 +19463,11 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
 /***/ 354:
 /***/ (() => {
 
-function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
 function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
 function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
 function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
-function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 /*
  * Copyright 2014-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -19853,14 +19490,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   var GET_AGENT_CONFIGURATION_INTERVAL_MS = 30000;
   var GET_AGENT_CONFIGURATION_TIMEOUT_MS = 10000;
   var POLL_FOR_ACTIVE_REGION_METHOD = "LADS.GetAgentFailoverConfiguration";
-  var relatedContactIdMethods = {
+  const relatedContactIdMethods = {
     createTaskContact: "createTaskContact",
     createOutboundContact: "createOutboundContact",
     createTemplatedTask: "createTemplatedTask"
   };
 
   /**-----------------------------------------------------------------------*/
-  var MasterTopicCoordinator = function MasterTopicCoordinator() {
+  var MasterTopicCoordinator = function () {
     this.topicMasterMap = {};
   };
   MasterTopicCoordinator.prototype.getMaster = function (topic) {
@@ -19885,7 +19522,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /**---------------------------------------------------------------
    * class WorkerClient extends ClientBase
    */
-  var WorkerClient = function WorkerClient(conduit) {
+  var WorkerClient = function (conduit) {
     connect.ClientBase.call(this);
     this.conduit = conduit;
   };
@@ -19896,41 +19533,41 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var request_start = new Date().getTime();
     if (connect.containsValue(connect.AgentAppClientMethods, method)) {
       connect.core.getAgentAppClient()._callImpl(method, params, {
-        success: function success(data) {
+        success: function (data) {
           self._recordAPILatency(method, request_start, params);
           callbacks.success(data);
         },
-        failure: function failure(error) {
+        failure: function (error) {
           self._recordAPILatency(method, request_start, params, error);
           callbacks.failure(error);
         }
       });
     } else if (connect.containsValue(connect.TaskTemplatesClientMethods, method)) {
       connect.core.getTaskTemplatesClient()._callImpl(method, params, {
-        success: function success(data) {
+        success: function (data) {
           self._recordAPILatency(method, request_start, params);
           callbacks.success(data);
         },
-        failure: function failure(error) {
+        failure: function (error) {
           self._recordAPILatency(method, request_start, params, error);
           callbacks.failure(error);
         }
       });
     } else {
       connect.core.getClient()._callImpl(method, params, {
-        success: function success(data, dataAttribute) {
+        success: function (data, dataAttribute) {
           self._recordAPILatency(method, request_start, params);
           callbacks.success(data, dataAttribute);
         },
-        failure: function failure(error, data) {
+        failure: function (error, data) {
           self._recordAPILatency(method, request_start, params, error);
           callbacks.failure(error, data);
         },
-        authFailure: function authFailure(error, data) {
+        authFailure: function (error, data) {
           self._recordAPILatency(method, request_start, params, error);
           callbacks.authFailure();
         },
-        accessDenied: function accessDenied(error, data) {
+        accessDenied: function (error, data) {
           self._recordAPILatency(method, request_start, params, error);
           callbacks.accessDenied && callbacks.accessDenied();
         }
@@ -19943,19 +19580,19 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     this._sendAPIMetrics(method, request_time, params, err);
   };
   WorkerClient.prototype._sendAPIMetrics = function (method, time, params, err) {
-    var eventData = {
+    let eventData = {
       name: method,
-      time: time,
+      time,
       error: err,
       error5xx: 0
     };
-    var dimensions = [{
+    const dimensions = [{
       name: 'Category',
       value: 'API'
     }];
-    var statusCode = err && err.statusCode || 200;
-    var retryStatus = err && err.retryStatus || connect.RetryStatus.NONE;
-    var optionalDimensions = [{
+    const statusCode = err && err.statusCode || 200;
+    const retryStatus = err && err.retryStatus || connect.RetryStatus.NONE;
+    const optionalDimensions = [{
       name: 'HttpStatusCode',
       value: statusCode
     }, {
@@ -19978,20 +19615,20 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
     // Subset Metrics for distinguishing when we use relatedContactId
     if (relatedContactIdMethods[method] && params && params.relatedContactId) {
-      var relatedEventData = {
+      let relatedEventData = {
         name: "".concat(method, "WithRelatedContactId"),
         time: eventData.time,
         error: eventData.error,
         error5xx: eventData.error5xx
       };
       this.conduit.sendDownstream(connect.EventType.API_METRIC, _objectSpread(_objectSpread({}, relatedEventData), {}, {
-        dimensions: dimensions,
-        optionalDimensions: optionalDimensions
+        dimensions,
+        optionalDimensions
       }));
     }
     this.conduit.sendDownstream(connect.EventType.API_METRIC, _objectSpread(_objectSpread({}, eventData), {}, {
-      dimensions: dimensions,
-      optionalDimensions: optionalDimensions
+      dimensions,
+      optionalDimensions
     }));
   };
 
@@ -19999,7 +19636,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * The object responsible for polling and passing data downstream to all
    * consumer ports.
    */
-  var ClientEngine = function ClientEngine() {
+  var ClientEngine = function () {
     var self = this;
     this.multiplexer = new connect.StreamMultiplexer();
     this.conduit = new connect.Conduit("AmazonConnectSharedWorker", null, this.multiplexer);
@@ -20042,7 +19679,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       //shouldSendFailoverDownstream is undefined iff suppressContacts was called from the old DR artifact,
       //but it is false for the suppressContacts calls made when CCP initializes DR without DR polling enabled,
       //and for all suppressContacts calls made from the new DR artifact.
-      var shouldSendFailoverDownstream = typeof data.shouldSendFailoverDownstream === 'undefined' || data.shouldSendFailoverDownstream;
+      const shouldSendFailoverDownstream = typeof data.shouldSendFailoverDownstream === 'undefined' || data.shouldSendFailoverDownstream;
       //signal other windows that a failover happened, if following the old behavior pattern
       if (shouldSendFailoverDownstream) {
         self.conduit.sendDownstream(connect.DisasterRecoveryEvents.FAILOVER, {
@@ -20071,10 +19708,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         log.info("[Disaster Recovery] Initializing active region polling for instance ".concat(data.instanceArn)).sendInternalLogToServer();
         self.thisArn = data.instanceArn;
         self.otherArn = data.otherArn;
-        self.getPresignedDiscoveryUrl().then(function (presignedUrl) {
+        self.getPresignedDiscoveryUrl().then(presignedUrl => {
           self.drPollingUrl = presignedUrl;
           self.pollForActiveRegion(true, true);
-        }, function (err) {
+        }, err => {
           // Each worker is responsible for suppressing itself when needed. If this worker couldn't get a presigned URL,
           // it won't be able to detect whether it needs to be suppressed, but it may still be able to receive contacts.
           // If this should actually be the primary region after all, the other worker will trigger a force offline that will unsuppress this worker.
@@ -20154,7 +19791,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
                   global.setInterval(connect.hitch(self, self.checkAuthToken), CHECK_AUTH_TOKEN_INTERVAL_MS);
                 } else {
                   if (!connect.webSocketInitFailed) {
-                    var event = connect.WebSocketEvents.INIT_FAILURE;
+                    const event = connect.WebSocketEvents.INIT_FAILURE;
                     self.conduit.sendDownstream(event);
                     connect.webSocketInitFailed = true;
                     throw new Error(event);
@@ -20244,16 +19881,16 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
     log.debug("[Disaster Recovery] Polling for failover with presigned URL for instance ".concat(self.thisArn)).sendInternalLogToServer();
     var request_start = new Date().getTime();
-    return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS)["catch"](function (response) {
+    return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS).catch(response => {
       if (response.status) {
         self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, {
           statusCode: response.status
         });
         if ([connect.HTTP_STATUS_CODES.ACCESS_DENIED, connect.HTTP_STATUS_CODES.UNAUTHORIZED].includes(response.status)) {
           log.info("[Disaster Recovery] Active region polling failed; trying to get a new URL for polling.").withObject(response).sendInternalLogToServer();
-          return self.getPresignedDiscoveryUrl().then(function (presignedUrl) {
+          return self.getPresignedDiscoveryUrl().then(presignedUrl => {
             self.drPollingUrl = presignedUrl;
-          }).then(function () {
+          }).then(() => {
             request_start = new Date().getTime(); // reset request start marker if we had to get a new polling URL
             return connect.fetchWithTimeout(self.drPollingUrl, GET_AGENT_CONFIGURATION_TIMEOUT_MS);
           });
@@ -20270,7 +19907,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         log.error(errMsg).withObject(response).sendInternalLogToServer();
         throw new Error(errMsg);
       }
-    }).then(function (response) {
+    }).then(response => {
       self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start);
       if (typeof response.TerminateActiveContacts !== 'boolean') {
         log.error("[Disaster Recovery] DR polling response did not contain a valid value for TerminateActiveContacts.").withObject(response).sendInternalLogToServer();
@@ -20300,7 +19937,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         }
         if (!self.suppress) {
           self.suppress = true;
-          var willSoftFailover = softFailover && !isFirstPollForWorker;
+          const willSoftFailover = softFailover && !isFirstPollForWorker;
           if (willSoftFailover) {
             self.pendingFailover = true;
             log.debug("[Disaster Recovery] Instance ".concat(self.thisArn, " will be set to stand-by using soft failover")).sendInternalLogToServer();
@@ -20315,14 +19952,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       } else if (![self.thisArn, self.otherArn].includes(response.InstanceArn)) {
         log.error("[Disaster Recovery] The current primary instance in this agent's failover group ".concat(response.InstanceArn, " ") + "doesn't match this instance ".concat(self.thisArn, " or the other instance ").concat(self.otherArn)).sendInternalLogToServer();
       }
-    })["catch"](function (response) {
+    }).catch(response => {
       if (response.status) {
         self.client._recordAPILatency(POLL_FOR_ACTIVE_REGION_METHOD, request_start, _objectSpread(_objectSpread({}, response), {}, {
           statusCode: response.status
         }));
       }
       log.error("[Disaster Recovery] Active region polling failed for instance ".concat(self.thisArn, ".")).withObject(response).sendInternalLogToServer();
-    })["finally"](function () {
+    }).finally(() => {
       // This polling run should only schedule another poll if the worker has just started, or if this poll was triggered by schedule
       // otherwise, the polling performed when opening each additional CCP window will create its own polling schedule
       if (isFirstPollForWorker || !isFirstPollForCCP) {
@@ -20333,14 +19970,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
 
   // Retrieve pre-signed URL to poll for agent discovery status
   ClientEngine.prototype.getPresignedDiscoveryUrl = function () {
-    var _this = this;
     var self = this;
-    return new Promise(function (resolve, reject) {
+    return new Promise((resolve, reject) => {
       connect.getLog().info("[Disaster Recovery] Getting presigned URL for instance ".concat(self.thisArn)).sendInternalLogToServer();
-      _this.client.call(connect.ClientMethods.CREATE_TRANSPORT, {
+      this.client.call(connect.ClientMethods.CREATE_TRANSPORT, {
         transportType: connect.TRANSPORT_TYPES.AGENT_DISCOVERY
       }, {
-        success: function success(data) {
+        success: function (data) {
           if (data && data.agentDiscoveryTransport && data.agentDiscoveryTransport.presignedUrl) {
             connect.getLog().info("getPresignedDiscoveryUrl succeeded").sendInternalLogToServer();
             resolve(data.agentDiscoveryTransport.presignedUrl);
@@ -20349,15 +19985,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             reject(Error("getPresignedDiscoveryUrl received empty/invalid data"));
           }
         },
-        failure: function failure(err, data) {
+        failure: function (err, data) {
           connect.getLog().error("[Disaster Recovery] Failed to get presigned URL for instance ".concat(self.thisArn)).withException(err).withObject(data).sendInternalLogToServer();
           reject(new Error('Failed to get presigned URL'));
         },
-        authFailure: function authFailure() {
+        authFailure: function () {
           connect.hitch(self, self.handleAuthFail)();
           reject(new Error('Encountered auth failure when getting presigned URL'));
         },
-        accessDenied: function accessDenied() {
+        accessDenied: function () {
           connect.hitch(self, self.handleAccessDenied)();
           reject(new Error('Encountered access denied when getting presigned URL'));
         }
@@ -20371,7 +20007,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       nextToken: self.nextToken,
       timeout: GET_AGENT_TIMEOUT_MS
     }, {
-      success: function success(data, dataAttribute) {
+      success: function (data, dataAttribute) {
         try {
           self.agent = self.agent || {};
           self.agent.snapshot = data.snapshot;
@@ -20389,7 +20025,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_SUCCESS_TIMEOUT_MS);
         }
       },
-      failure: function failure(err, data) {
+      failure: function (err, data) {
         try {
           connect.getLog().error("Failed to get agent data.").sendInternalLogToServer().withObject({
             err: err,
@@ -20399,7 +20035,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           global.setTimeout(connect.hitch(self, self.pollForAgent), GET_AGENT_RECOVERY_TIMEOUT_MS);
         }
       },
-      authFailure: function authFailure() {
+      authFailure: function () {
         onAuthFail();
       },
       accessDenied: connect.hitch(self, self.handleAccessDenied)
@@ -20410,7 +20046,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var params = paramsIn || {};
     var onAuthFail = connect.hitch(self, self.handlePollingAuthFail);
     this.client.call(connect.ClientMethods.GET_AGENT_CONFIGURATION, {}, {
-      success: function success(data) {
+      success: function (data) {
         var configuration = data.configuration;
         self.pollForAgentPermissions(configuration);
         self.pollForAgentStates(configuration);
@@ -20420,7 +20056,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           global.setTimeout(connect.hitch(self, self.pollForAgentConfiguration, params), GET_AGENT_CONFIGURATION_INTERVAL_MS);
         }
       },
-      failure: function failure(err, data) {
+      failure: function (err, data) {
         try {
           connect.getLog().error("Failed to fetch agent configuration data.").sendInternalLogToServer().withObject({
             err: err,
@@ -20432,7 +20068,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           }
         }
       },
-      authFailure: function authFailure() {
+      authFailure: function () {
         onAuthFail();
       },
       accessDenied: connect.hitch(self, self.handleAccessDenied)
@@ -20446,7 +20082,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       nextToken: params.nextToken || null,
       maxResults: params.maxResults
     }, {
-      success: function success(data) {
+      success: function (data) {
         if (data.nextToken) {
           self.pollForAgentStates(configuration, {
             states: (params.states || []).concat(data.states),
@@ -20458,7 +20094,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           self.updateAgentConfiguration(configuration);
         }
       },
-      failure: function failure(err, data) {
+      failure: function (err, data) {
         connect.getLog().error("Failed to fetch agent states list.").sendInternalLogToServer().withObject({
           err: err,
           data: data
@@ -20476,7 +20112,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       nextToken: params.nextToken || null,
       maxResults: params.maxResults
     }, {
-      success: function success(data) {
+      success: function (data) {
         if (data.nextToken) {
           self.pollForAgentPermissions(configuration, {
             permissions: (params.permissions || []).concat(data.permissions),
@@ -20488,7 +20124,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           self.updateAgentConfiguration(configuration);
         }
       },
-      failure: function failure(err, data) {
+      failure: function (err, data) {
         connect.getLog().error("Failed to fetch agent permissions list.").sendInternalLogToServer().withObject({
           err: err,
           data: data
@@ -20506,7 +20142,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       nextToken: params.nextToken || null,
       maxResults: params.maxResults
     }, {
-      success: function success(data) {
+      success: function (data) {
         if (data.nextToken) {
           self.pollForDialableCountryCodes(configuration, {
             countryCodes: (params.countryCodes || []).concat(data.countryCodes),
@@ -20518,7 +20154,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           self.updateAgentConfiguration(configuration);
         }
       },
-      failure: function failure(err, data) {
+      failure: function (err, data) {
         connect.getLog().error("Failed to fetch dialable country codes list.").sendInternalLogToServer().withObject({
           err: err,
           data: data
@@ -20537,7 +20173,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       nextToken: params.nextToken || null,
       maxResults: params.maxResults
     }, {
-      success: function success(data) {
+      success: function (data) {
         if (data.nextToken) {
           self.pollForRoutingProfileQueues(configuration, {
             countryCodes: (params.queues || []).concat(data.queues),
@@ -20549,7 +20185,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           self.updateAgentConfiguration(configuration);
         }
       },
-      failure: function failure(err, data) {
+      failure: function (err, data) {
         connect.getLog().error("Failed to fetch routing profile queues list.").sendInternalLogToServer().withObject({
           err: err,
           data: data
@@ -20562,11 +20198,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   ClientEngine.prototype.handleAPIRequest = function (portConduit, request) {
     var self = this;
     this.client.call(request.method, request.params, {
-      success: function success(data) {
+      success: function (data) {
         var response = connect.EventFactory.createResponse(connect.EventType.API_RESPONSE, request, data);
         portConduit.sendDownstream(response.event, response);
       },
-      failure: function failure(err, data) {
+      failure: function (err, data) {
         var response = connect.EventFactory.createResponse(connect.EventType.API_RESPONSE, request, data, JSON.stringify(err));
         portConduit.sendDownstream(response.event, response);
         connect.getLog().error("'%s' API request failed", request.method).withObject({
@@ -20620,20 +20256,18 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   ClientEngine.prototype.handleTabIdEvent = function (stream, data) {
     var self = this;
     try {
-      var tabId = data.tabId;
-      var streamsInThisTab = self.streamMapByTabId[tabId];
-      var currentStreamId = stream.getId();
-      var tabIds = Object.keys(self.streamMapByTabId);
-      var streamsTabsAcrossBrowser = tabIds.filter(function (tabId) {
-        return self.streamMapByTabId[tabId].length > 0;
-      }).length;
+      let tabId = data.tabId;
+      let streamsInThisTab = self.streamMapByTabId[tabId];
+      let currentStreamId = stream.getId();
+      let tabIds = Object.keys(self.streamMapByTabId);
+      let streamsTabsAcrossBrowser = tabIds.filter(tabId => self.streamMapByTabId[tabId].length > 0).length;
       if (streamsInThisTab && streamsInThisTab.length > 0) {
         if (!streamsInThisTab.includes(currentStreamId)) {
           self.streamMapByTabId[tabId].push(currentStreamId);
-          var updateObject = {
+          let updateObject = {
             length: Object.keys(self.portConduitMap).length,
-            tabId: tabId,
-            streamsTabsAcrossBrowser: streamsTabsAcrossBrowser
+            tabId,
+            streamsTabsAcrossBrowser
           };
           updateObject[tabId] = {
             length: streamsInThisTab.length
@@ -20642,15 +20276,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         }
       } else {
         self.streamMapByTabId[tabId] = [stream.getId()];
-        var _updateObject = {
+        let updateObject = {
           length: Object.keys(self.portConduitMap).length,
-          tabId: tabId,
+          tabId,
           streamsTabsAcrossBrowser: streamsTabsAcrossBrowser + 1
         };
-        _updateObject[tabId] = {
+        updateObject[tabId] = {
           length: self.streamMapByTabId[tabId].length
         };
-        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, _updateObject);
+        self.conduit.sendDownstream(connect.EventType.UPDATE_CONNECTED_CCPS, updateObject);
       }
     } catch (e) {
       connect.getLog().error("[Tab Ids] Issue updating connected CCPs within the same tab").withException(e).sendInternalLogToServer();
@@ -20661,28 +20295,22 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     self.multiplexer.removeStream(stream);
     delete self.portConduitMap[stream.getId()];
     self.masterCoord.removeMaster(stream.getId());
-    var updateObject = {
+    let updateObject = {
       length: Object.keys(self.portConduitMap).length
     };
-    var tabIds = Object.keys(self.streamMapByTabId);
+    let tabIds = Object.keys(self.streamMapByTabId);
     try {
-      var tabId = tabIds.find(function (key) {
-        return self.streamMapByTabId[key].includes(stream.getId());
-      });
+      let tabId = tabIds.find(key => self.streamMapByTabId[key].includes(stream.getId()));
       if (tabId) {
-        var streamIndexInMap = self.streamMapByTabId[tabId].findIndex(function (value) {
-          return stream.getId() === value;
-        });
+        let streamIndexInMap = self.streamMapByTabId[tabId].findIndex(value => stream.getId() === value);
         self.streamMapByTabId[tabId].splice(streamIndexInMap, 1);
-        var tabLength = self.streamMapByTabId[tabId] ? self.streamMapByTabId[tabId].length : 0;
+        let tabLength = self.streamMapByTabId[tabId] ? self.streamMapByTabId[tabId].length : 0;
         updateObject[tabId] = {
           length: tabLength
         };
         updateObject.tabId = tabId;
       }
-      var streamsTabsAcrossBrowser = tabIds.filter(function (tabId) {
-        return self.streamMapByTabId[tabId].length > 0;
-      }).length;
+      let streamsTabsAcrossBrowser = tabIds.filter(tabId => self.streamMapByTabId[tabId].length > 0).length;
       updateObject.streamsTabsAcrossBrowser = streamsTabsAcrossBrowser;
     } catch (e) {
       connect.getLog().error("[Tab Ids] Issue updating tabId-specific stream data").withException(e).sendInternalLogToServer();
@@ -20757,11 +20385,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       client.call(connect.ClientMethods.CREATE_TRANSPORT, {
         transportType: connect.TRANSPORT_TYPES.WEB_SOCKET
       }, {
-        success: function success(data) {
+        success: function (data) {
           connect.getLog().info("getWebSocketUrl succeeded").sendInternalLogToServer();
           resolve(data);
         },
-        failure: function failure(err, data) {
+        failure: function (err, data) {
           connect.getLog().error("getWebSocketUrl failed").sendInternalLogToServer().withObject({
             err: err,
             data: data
@@ -20771,12 +20399,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
             _debug: err
           });
         },
-        authFailure: function authFailure() {
+        authFailure: function () {
           connect.getLog().error("getWebSocketUrl Auth Failure").sendInternalLogToServer();
           reject(Error("Authentication failed while getting getWebSocketUrl"));
           onAuthFail();
         },
-        accessDenied: function accessDenied() {
+        accessDenied: function () {
           connect.getLog().error("getWebSocketUrl Access Denied Failure").sendInternalLogToServer();
           reject(Error("Access Denied Failure while getting getWebSocketUrl"));
           onAccessDenied();
@@ -20804,10 +20432,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     this.client.call(connect.ClientMethods.SEND_CLIENT_LOGS, {
       logEvents: logEvents
     }, {
-      success: function success(data) {
+      success: function (data) {
         connect.getLog().info("SendLogs request succeeded.").sendInternalLogToServer();
       },
-      failure: function failure(err, data) {
+      failure: function (err, data) {
         connect.getLog().error("SendLogs request failed.").withObject(data).withException(err).sendInternalLogToServer();
       },
       authFailure: connect.hitch(self, self.handleAuthFail)
@@ -20851,7 +20479,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       connect.core.initClient(self.initData);
       connect.core.initAgentAppClient(self.initData);
       callbacks.success();
-    })["catch"](function (response) {
+    }).catch(function (response) {
       connect.getLog().error("Authorization failed with code %s", response.status).sendInternalLogToServer();
       if (response.status === 401) {
         self.handleAuthFail();
@@ -21301,11 +20929,6 @@ module.exports = debounce;
 /******/ 	}
 /******/ 	
 /************************************************************************/
-/******/ 	/* webpack/runtime/amd options */
-/******/ 	(() => {
-/******/ 		__webpack_require__.amdO = {};
-/******/ 	})();
-/******/ 	
 /******/ 	/* webpack/runtime/compat get default export */
 /******/ 	(() => {
 /******/ 		// getDefaultExport function for compatibility with non-harmony modules

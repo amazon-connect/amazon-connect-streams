@@ -193,6 +193,7 @@
     'failover_complete',
     'heartbeat_syn',
     'heartbeat_ack',
+    'force_failover'
   ]);
 
   /**---------------------------------------------------------------
