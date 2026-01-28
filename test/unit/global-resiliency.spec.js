@@ -301,8 +301,6 @@ describe('Global Resiliency', function () {
             sandbox.stub(connect.core.AgentDataProvider.prototype, "_fireAgentUpdateEvents");
             // sandbox.stub(connect.Conduit.prototype, 'sendUpstream').returns(null);
             // sandbox.stub(connect.Conduit.prototype, 'sendDownstream');
-            sandbox.stub(connect.getLog(), 'scheduleUpstreamOuterContextCCPLogsPush');
-            sandbox.stub(connect.getLog(), 'scheduleUpstreamOuterContextCCPserverBoundLogsPush');
             connect.core.checkNotInitialized.restore();
 
             connect.core.initCCP(containerDiv, params);
@@ -326,8 +324,6 @@ describe('Global Resiliency', function () {
             // sinon.assert.calledTwice(connect.core.getEventBus().bridge());
             assert.isTrue(!!fakeActiveConduit.keepaliveManager);
             assert.isTrue(!!fakeInactiveConduit.keepaliveManager);
-            sinon.assert.calledWithExactly(connect.getLog().scheduleUpstreamOuterContextCCPLogsPush, fakeGrProxyConduit);
-            sinon.assert.calledWithExactly(connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush, fakeGrProxyConduit);
             
             sinon.assert.calledWith(fakeActiveConduit.onUpstream, connect.EventType.ACKNOWLEDGE);
             sinon.assert.calledWith(fakeInactiveConduit.onUpstream, connect.EventType.ACKNOWLEDGE);

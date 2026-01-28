@@ -295,10 +295,6 @@
       );
     });
 
-    // The CRM layer CCP logs are sent to each CCP
-    connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(grProxyConduit);
-    connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(grProxyConduit);
-
     // After switching over, we need to grab the agent data of the new CCP
     grProxyConduit.onUpstream(connect.AgentEvents.FETCH_AGENT_DATA_FROM_CCP, (agentData) => {
       if (connect.core.agentDataProviderBackup) {
