@@ -1113,7 +1113,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     var agentAppEndpoint = params.agentAppEndpoint || null;
     var taskTemplatesEndpoint = params.taskTemplatesEndpoint || null;
     var authCookieName = params.authCookieName || null;
- 
+
     try {
       // Initialize the event bus and agent data providers.
       connect.core.eventBus = new connect.EventBus({ logEvents: true });
@@ -1129,7 +1129,10 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       // Set the global upstream conduit for external use.
       connect.core.upstream = conduit;
       connect.core.webSocketProvider = new WebSocketProvider();
- 
+
+      // Initialize ACGR validation listener
+      connect.core.listenForAcgrValidation(conduit);
+
       // Close our port to the shared worker before the window closes.
       global.onunload = function () {
         conduit.sendUpstream(connect.EventType.CLOSE);
@@ -1743,6 +1746,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         iframeStyle = iframe.style;
         iframe.parentNode.removeChild(iframe); // The only way to force a synchronous reload of the iframe without the old iframe continuing to function is to remove the old iframe entirely.
       }
+          
       var newIframe = connect.core._createCCPIframe(containerDiv, initCCPParams, identifier);
 
       // Needed as show and hide iframe functions may modify iframe style
@@ -1751,22 +1755,22 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       }
 
       if (connect.core.getUpstream() instanceof connect.GRProxyIframeConduit){
-        const grProxyConduit = connect.core.upstream;
-        grProxyConduit.getAllConduits().forEach((conduit) => {
-          if (conduit.iframe.dataset.identifier === identifier){
-            conduit.upstream.output = newIframe.contentWindow;
-            conduit.iframe = newIframe;
-          }
-        });
-      } else {
-        connect.core.getUpstream().upstream.output = newIframe.contentWindow; //replaces the output window (old iframe's contentWindow) of the WindowIOStream (within the IFrameConduit) with the new iframe's contentWindow.
-      }
+	      const grProxyConduit = connect.core.upstream;
+	  
+	      grProxyConduit.getAllConduits().forEach((conduit) => {
+	        if (conduit.iframe.dataset.identifier === identifier){
+	          conduit.upstream.output = newIframe.contentWindow;
+	          conduit.iframe = newIframe;
+	        }
+	      });
+	    } else {
+	      connect.core.getUpstream().upstream.output = newIframe.contentWindow; //replaces the output window (old iframe's contentWindow) of the WindowIOStream (within the IFrameConduit) with the new iframe's contentWindow.
+	    }          
       connect.core._sendIframeStyleDataUpstreamAfterReasonableWaitTime(newIframe, connect.core.upstream);
     } catch (e) {
       connect.getLog().error('Error while checking for, and recreating, the CCP IFrame').withException(e).sendInternalLogToServer();
     }
   }
-
 
   connect.core._getCCPIframe = function (identifier) {
     for (var iframe of window.document.getElementsByTagName('iframe')) {
@@ -2176,6 +2180,88 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     }
     return false;
   }
+
+  connect.core.getLilyAgentConfig = () => {
+    const lilyAgentConfigRawContent = connect._getCookie('lily-agent-config');
+
+    if (!lilyAgentConfigRawContent || lilyAgentConfigRawContent === '') {
+      connect.getLog().debug("[GR] lilyAgentConfig Cookie was not found. No further action will be taken.").sendInternalLogToServer();
+      return null;
+    }
+
+    connect.getLog().info("[GR] lilyAgentConfig Cookie was found.").withObject(lilyAgentConfigRawContent).sendInternalLogToServer();
+
+    const lilyAgentConfigUnpackedString = atob(lilyAgentConfigRawContent);
+    const lilyAgentConfigObject = JSON.parse(lilyAgentConfigUnpackedString);
+
+    if (connect._isEmpty(lilyAgentConfigObject)) {
+      throw new Error("[GR] Lily agent config object was empty");
+    }
+
+    return lilyAgentConfigObject;
+  }
+
+  /**
+   * Validates global signin authentication for ACGR initialization.
+   * Currently validates via lily-agent-config cookie, but implementation can evolve
+   * (e.g., API-based validation) without changing the interface.
+   * Sends explicit GLOBAL_SIGNIN_VALID or GLOBAL_SIGNIN_INVALID response.
+   * 
+   * @param {Conduit} conduit - The conduit to send response through
+   */
+  connect.core.validateGlobalSignin = function(conduit) {
+    connect.getLog().info("[GR] Starting global signin validation").sendInternalLogToServer();
+    
+    try {
+      const lilyAgentConfig = connect.core.getLilyAgentConfig();
+      
+      if (!lilyAgentConfig) {
+        // Authentication not found - send error
+        connect.getLog().error("[GR] Global signin validation failed - authentication not found").sendInternalLogToServer();
+        
+        
+        conduit.sendDownstream(connect.GlobalResiliencyEvents.GLOBAL_SIGNIN_INVALID, { 
+          errorType: connect.GlobalResiliencyConfigureErrorType.LILY_AGENT_CONFIG_MISSING,
+          error: "[GR] Global signin authentication not found"
+        });
+        return;
+      }
+      
+      // Authentication exists and validated successfully - send success
+      connect.getLog().info("[GR] Global signin validation succeeded").sendInternalLogToServer();
+      
+      conduit.sendDownstream(connect.GlobalResiliencyEvents.GLOBAL_SIGNIN_VALID, {
+        message: "[GR] Global signin validated successfully"
+      });
+      
+    } catch (e) {
+      // Validation error - send error
+      connect.getLog().error("[GR] Global signin validation failed - error during validation").withException(e).sendInternalLogToServer();
+      
+      conduit.sendDownstream(connect.GlobalResiliencyEvents.GLOBAL_SIGNIN_INVALID, { 
+        errorType: connect.GlobalResiliencyConfigureErrorType.LILY_AGENT_CONFIG_PARSE_ERROR,
+        error: "[GR] Error validating global signin authentication"
+      });
+    }
+  };
+
+  /**
+   * Sets up listener for ACGR global signin validation requests.
+   * @param {Conduit} conduit - The conduit to listen on
+   */
+  connect.core.listenForAcgrValidation = function(conduit) {
+    // Guard against multiple registrations
+    if (connect.core._acgrValidationListenerRegistered) {
+      return;
+    }
+    connect.core._acgrValidationListenerRegistered = true;
+    
+    conduit.onDownstream(connect.GlobalResiliencyEvents.VALIDATE_GLOBAL_SIGNIN, () => {
+      connect.core.validateGlobalSignin(conduit);
+    });
+    
+    connect.getLog().info("[GR] ACGR global signin validation listener registered").sendInternalLogToServer();
+  };
 
   /**-----------------------------------------------------------------------*/
   var AgentDataProvider = function (bus) {

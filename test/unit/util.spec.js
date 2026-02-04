@@ -170,6 +170,239 @@ describe('Utils', function () {
         });
     });
 
+    describe('PopupManager', function () {
+        var sandbox;
+        var popupManager;
+        var mockWindow;
+
+        beforeEach(function () {
+            sandbox = sinon.createSandbox();
+            popupManager = new connect.PopupManager();
+            
+            // Ensure window and window.open exist in test environment
+            global.window = global.window || {};
+            global.window.open = global.window.open || function() {};
+            
+            // Mock window.open
+            mockWindow = {
+                closed: false,
+                focus: sandbox.stub(),
+                opener: global.window,
+                location: { href: 'https://example.com' }
+            };
+            
+            sandbox.stub(global.window, 'open').returns(mockWindow);
+            sandbox.stub(connect, 'getLog').returns({
+                info: sandbox.stub().returnsThis(),
+                warn: sandbox.stub().returnsThis(),
+                sendInternalLogToServer: sandbox.stub(),
+                withObject: sandbox.stub().returnsThis(),
+                withException: sandbox.stub().returnsThis()
+            });
+        });
+
+        afterEach(function () {
+            sandbox.restore();
+        });
+
+        describe('#open - Window Reuse', function () {
+            it('should reuse existing window when called with same URL and name', function () {
+                var win1 = popupManager.open('https://example.com', 'test', { width: 500, height: 600 });
+                var win2 = popupManager.open('https://example.com', 'test', { width: 500, height: 600 });
+                
+                assert.strictEqual(global.window.open.callCount, 1, 'window.open should only be called once');
+                assert.isTrue(mockWindow.focus.called, 'focus should be called on reused window');
+            });
+
+            it('should NOT reload page when reusing window', function () {
+                popupManager.open('https://example.com', 'test');
+                var initialLocation = mockWindow.location.href;
+                
+                popupManager.open('https://example.com', 'test');
+                
+                assert.strictEqual(mockWindow.location.href, initialLocation, 'location should not change');
+            });
+
+            it('should open new window if cached window is closed', function () {
+                popupManager.open('https://example.com', 'test');
+                
+                mockWindow.closed = true;
+                var mockWindow2 = { closed: false, focus: sandbox.stub(), opener: global.window };
+                global.window.open.returns(mockWindow2);
+                
+                popupManager.open('https://example.com', 'test');
+                
+                assert.strictEqual(global.window.open.callCount, 2, 'window.open should be called twice');
+            });
+
+            it('should clean up cached window reference when window is closed', function () {
+                popupManager.open('https://example.com', 'test');
+                
+                mockWindow.closed = true;
+                popupManager.open('https://example.com', 'test');
+                
+                assert.isUndefined(popupManager.windows['test'], 'windows map should not have test');
+                assert.isUndefined(popupManager.windowUrls['test'], 'windowUrls map should not have test');
+            });
+        });
+
+        describe('#open - Cross-Origin Handling', function () {
+            it('should handle cross-origin errors when checking window.closed', function () {
+                popupManager.open('https://example.com', 'test');
+                
+                Object.defineProperty(mockWindow, 'closed', {
+                    get: function () {
+                        throw new Error('Cross-origin');
+                    }
+                });
+                
+                var mockWindow2 = { closed: false, focus: sandbox.stub(), opener: global.window };
+                global.window.open.returns(mockWindow2);
+                
+                assert.doesNotThrow(function () {
+                    popupManager.open('https://example.com', 'test');
+                }, 'should not throw on cross-origin error');
+                
+                assert.strictEqual(global.window.open.callCount, 2, 'should open new window after cross-origin error');
+            });
+
+            it('should handle errors when calling focus()', function () {
+                mockWindow.focus = sandbox.stub().throws(new Error('Cannot focus'));
+                
+                popupManager.open('https://example.com', 'test');
+                
+                assert.doesNotThrow(function () {
+                    popupManager.open('https://example.com', 'test');
+                }, 'should not throw when focus fails');
+            });
+        });
+
+        describe('#open - Popup Blocking', function () {
+            it('should handle when window.open returns null (popup blocked)', function () {
+                global.window.open.returns(null);
+                
+                var result = popupManager.open('https://example.com', 'test');
+                
+                assert.isNull(result, 'should return null');
+                assert.isUndefined(popupManager.windows['test'], 'should not cache null window');
+            });
+        });
+
+        describe('#open - Window Tracking', function () {
+            it('should track window reference in windows map', function () {
+                var win = popupManager.open('https://example.com', 'test');
+                
+                assert.strictEqual(popupManager.windows['test'], mockWindow, 'should track window');
+            });
+
+            it('should track window URL in windowUrls map', function () {
+                popupManager.open('https://example.com', 'test');
+                
+                assert.strictEqual(popupManager.windowUrls['test'], 'https://example.com', 'should track URL');
+            });
+
+            it('should maintain separate tracking for different window names', function () {
+                var mockWindow2 = { closed: false, focus: sandbox.stub(), opener: global.window };
+                
+                popupManager.open('https://example.com', 'test1');
+                
+                global.window.open.returns(mockWindow2);
+                popupManager.open('https://example.com', 'test2');
+                
+                assert.strictEqual(popupManager.windows['test1'], mockWindow, 'test1 should be tracked');
+                assert.strictEqual(popupManager.windows['test2'], mockWindow2, 'test2 should be tracked');
+            });
+        });
+
+        describe('#open - Feature String', function () {
+            it('should include dimensions in feature string when options provided', function () {
+                popupManager.open('https://example.com', 'test', { 
+                    width: 500, 
+                    height: 600, 
+                    top: 10, 
+                    left: 20 
+                });
+                
+                var features = global.window.open.getCall(0).args[2];
+                assert.include(features, 'width=500', 'should include width');
+                assert.include(features, 'height=600', 'should include height');
+                assert.include(features, 'top=10', 'should include top');
+                assert.include(features, 'left=20', 'should include left');
+            });
+
+            it('should use default dimensions when not provided', function () {
+                popupManager.open('https://example.com', 'test', {});
+                
+                var features = global.window.open.getCall(0).args[2];
+                assert.include(features, 'width=433', 'should include default width');
+                assert.include(features, 'height=578', 'should include default height');
+            });
+
+            it('should pass empty string when no options provided', function () {
+                popupManager.open('https://example.com', 'test');
+                
+                var features = global.window.open.getCall(0).args[2];
+                assert.strictEqual(features, '', 'features should be empty string');
+            });
+        });
+
+        describe('#clear', function () {
+            it('should remove window from tracking when cleared', function () {
+                popupManager.open('https://example.com', 'test');
+                
+                popupManager.clear('test');
+                
+                assert.isUndefined(popupManager.windows['test'], 'windows should not have test');
+                assert.isUndefined(popupManager.windowUrls['test'], 'windowUrls should not have test');
+            });
+
+            it('should remove from localStorage when cleared', function () {
+                sandbox.stub(global.localStorage, 'removeItem');
+                
+                popupManager.clear('test');
+                
+                assert.isTrue(global.localStorage.removeItem.calledWith('connectPopupManager::test'));
+            });
+        });
+
+        describe('#open - Direct URL Navigation', function () {
+            it('should open window directly to target URL', function () {
+                popupManager.open('https://example.com/login', 'test');
+                
+                var url = global.window.open.getCall(0).args[0];
+                assert.strictEqual(url, 'https://example.com/login', 'should open directly to URL');
+            });
+
+            it('should not open to blank first', function () {
+                popupManager.open('https://example.com/login', 'test');
+                
+                assert.strictEqual(global.window.open.callCount, 1, 'should only call window.open once');
+                var url = global.window.open.getCall(0).args[0];
+                assert.notStrictEqual(url, '', 'should not open to blank');
+                assert.notStrictEqual(url, 'about:blank', 'should not open to about:blank');
+            });
+        });
+
+        describe('#open - Logging', function () {
+            it('should log when opening new popup', function () {
+                var logger = connect.getLog();
+                
+                popupManager.open('https://example.com', 'test');
+                
+                assert.isTrue(logger.info.calledWith('[PopupManager] Opened popup window'));
+            });
+
+            it('should log when reusing existing popup', function () {
+                var logger = connect.getLog();
+                
+                popupManager.open('https://example.com', 'test');
+                popupManager.open('https://example.com', 'test');
+                
+                assert.isTrue(logger.info.calledWith('[PopupManager] Reusing existing popup window'));
+            });
+        });
+    });
+
     describe('TODO', function () {
         it("include test cases for all the remaining methods");
     });

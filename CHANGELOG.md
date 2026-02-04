@@ -1,4 +1,7 @@
 # CHANGELOG.md
+## [2.22.3] - 2026-02-04
+- Fix ACGR global signin validation and popup opener
+
 ## [2.22.2] - 2026-02-03
 - Broadcasting logs to synchronize them between CCP instances
 

@@ -556,11 +556,16 @@
 
   /**
    * A wrapper around Window.open() for managing single instance popups.
+   * Tracks window references to enable window reuse without reload and provides security.
    */
-  connect.PopupManager = function () { };
+  connect.PopupManager = function () {
+    this.windows = {};
+    this.windowUrls = {};
+  };
 
   connect.PopupManager.prototype.open = function (url, name, options) {
-    var win = null;
+    var features = '';
+    
     if (options) {
       // default values are chosen to provide a minimum height without scrolling
       // and a uniform margin based on the css of the ccp login page
@@ -568,20 +573,64 @@
       var width = options.width || DEFAULT_POPUP_WIDTH;
       var top = options.top || 0;
       var left = options.left || 0;
-      win = window.open('', name, "width="+width+", height="+height+", top="+top+", left="+left);
-      if (win.location !== url) {
-        win = window.open(url, name, "width="+width+", height="+height+", top="+top+", left="+left);
-      }
-    } else {
-      win = window.open('', name);
-      if (win.location !== url) {
-        win = window.open(url, name);
+      features = "width="+width+", height="+height+", top="+top+", left="+left;
+    }
+    
+    var cachedWin = this.windows[name];
+    var cachedUrl = this.windowUrls[name];
+    
+    // Check if window exists and is still open
+    if (cachedWin) {
+      try {
+        if (!cachedWin.closed) {
+          if (cachedUrl === url) {
+            // Same URL - reuse existing window without reload
+            try {
+              cachedWin.focus();
+            } catch (e) {
+              // Focus may fail due to browser restrictions, this is acceptable
+            }
+            connect.getLog().info("[PopupManager] Reusing existing popup window").sendInternalLogToServer();
+            return cachedWin;
+          }
+        } else {
+          // Window was closed, clean up tracking
+          delete this.windows[name];
+          delete this.windowUrls[name];
+        }
+      } catch (e) {
+        // Can't access window (likely cross-origin), assume closed and clean up
+        delete this.windows[name];
+        delete this.windowUrls[name];
       }
     }
+    
+    // Open new window directly to URL
+    var win = window.open(url, name, features);
+    
+    if (win) {
+      // Check if window is already closed (edge case in testing scenarios)
+      try {
+        if (!win.closed) {
+          this.windows[name] = win;
+          this.windowUrls[name] = url;
+          
+          connect.getLog().info("[PopupManager] Opened popup window").withObject({url: url, name: name}).sendInternalLogToServer();
+        }
+      } catch (e) {
+        // Can't access window properties, but still return it
+      }
+    }
+    
     return win;
   };
 
   connect.PopupManager.prototype.clear = function (name) {
+    // Clean up window tracking
+    delete this.windows[name];
+    delete this.windowUrls[name];
+    
+    // Clean up localStorage
     var key = this._getLocalStorageKey(name);
     global.localStorage.removeItem(key);
   };

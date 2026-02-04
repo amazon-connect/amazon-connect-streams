@@ -20,6 +20,160 @@
     connect.core.getEventBus().trigger(connect.EventType.DOWNLOAD_LOG_FROM_CCP);
   };
 
+  /**
+   * Helper function to validate global signin for ACGR initialization.
+   * Sends VALIDATE_GLOBAL_SIGNIN to CCP iframe and waits for explicit response.
+   * Calls onSuccess if global signin valid, onFailure if regional login detected.
+  
+   * - Sends VALIDATE_GLOBAL_SIGNIN event to request validation
+   * - Waits for either GLOBAL_SIGNIN_VALID or GLOBAL_SIGNIN_INVALID response
+   * - Has 250 ms timeout as fallback 
+   */
+  connect.globalResiliency._validateGlobalSignin = function (conduit, params, data, onSuccess, onFailure) {
+    connect.getLog().info(`[GR] Starting global signin validation for ${conduit.name}`).sendInternalLogToServer();
+
+    let validationCompleted = false;
+    let validationTimeout;
+    let signinValidSub;
+    let signinInvalidSub;
+
+    const completeValidation = (success, context) => {
+      if (validationCompleted) {
+        connect
+          .getLog()
+          .warn(`[GR] Global signin validation already completed for ${conduit.name}, ignoring duplicate response`)
+          .sendInternalLogToServer();
+        return;
+      }
+      validationCompleted = true;
+
+      clearTimeout(validationTimeout);
+      signinValidSub?.unsubscribe();
+      signinInvalidSub?.unsubscribe();
+
+      if (success) {
+        connect
+          .getLog()
+          .info(`[GR] Global signin validation succeeded for ${conduit.name}`)
+          .withObject(context)
+          .sendInternalLogToServer();
+        onSuccess();
+      } else {
+        connect
+          .getLog()
+          .warn(`[GR] Global signin validation failed - regional login detected for ${conduit.name}`)
+          .withObject(context)
+          .sendInternalLogToServer();
+
+        // Publish metric for both regional login error types
+        if (
+          context.errorType === connect.GlobalResiliencyConfigureErrorType.LILY_AGENT_CONFIG_MISSING ||
+          context.errorType === connect.GlobalResiliencyConfigureErrorType.LILY_AGENT_CONFIG_PARSE_ERROR
+        ) {
+          connect.publishMetric({
+            name: 'GlobalResiliencyRegionalLoginAttempt',
+            data: { count: 1 },
+          });
+        }
+
+        onFailure();
+      }
+    };
+
+    // Set up timeout fallback (250ms - local iframe validation is fast, allows margin for edge cases)
+    validationTimeout = setTimeout(() => {
+      connect
+        .getLog()
+        .warn(`[GR] Global signin validation timeout for ${conduit.name} - assuming valid`)
+        .sendInternalLogToServer();
+      completeValidation(true, { reason: 'timeout' });
+    }, 250);
+
+    // Listen for success response
+    signinValidSub = conduit.onUpstream(connect.GlobalResiliencyEvents.GLOBAL_SIGNIN_VALID, (successData) => {
+      completeValidation(true, { reason: 'global_signin_valid', data: successData });
+    });
+
+    // Listen for error response
+    signinInvalidSub = conduit.onUpstream(connect.GlobalResiliencyEvents.GLOBAL_SIGNIN_INVALID, (errorData) => {
+      completeValidation(false, {
+        reason: 'global_signin_invalid',
+        error: errorData?.error,
+        errorType: errorData?.errorType,
+      });
+    });
+
+    // Send validation request to CCP iframe
+    conduit.sendUpstream(connect.GlobalResiliencyEvents.VALIDATE_GLOBAL_SIGNIN);
+    connect.getLog().info(`[GR] Sent VALIDATE_GLOBAL_SIGNIN request to ${conduit.name}`).sendInternalLogToServer();
+  };
+
+  /**
+   * Helper function to complete ACKNOWLEDGE initialization after cookie validation.
+   * Performs all setup needed once we confirm authentication is valid.
+   */
+  connect.globalResiliency._completeAcknowledgeInitialization = function (
+    conduit,
+    params,
+    data,
+    conduitTimerContainerMap,
+    initStartTime
+  ) {
+    connect.getLog().info(`[GR] Completing ACKNOWLEDGE initialization for ${conduit.name}`).sendInternalLogToServer();
+
+    connect.getLog().info(`Acknowledged by the CCP! ${conduit.name}`).sendInternalLogToServer();
+    connect.core.sendConfigure(params, conduit, true);
+    connect.core.listenForConfigureRequest(params, conduit, true); // fallback in case of abnormal CCP refresh
+
+    // Clear the load timeout timer
+    if (conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance) {
+      global.clearTimeout(conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance);
+      conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = null;
+    }
+
+    // Send outer context info to each CCP
+    conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, {
+      streamsVersion: connect.version,
+      initCCPParams: params,
+    });
+
+    // Start keepalive
+    conduit.keepaliveManager.start();
+
+    // Active conduit specific initialization
+    if (connect.isActiveConduit(conduit)) {
+      // Only active conduit initialize these since we only need one instance
+      connect.core.client = new connect.UpstreamConduitClient(conduit);
+      connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
+      connect.core.portStreamId = data.id;
+
+      // Only active conduit emits these metrics
+      if (initStartTime) {
+        const initTime = Date.now() - initStartTime;
+        const refreshAttempts = conduitTimerContainerMap[conduit.name].iframeRefreshAttempt || 0;
+        connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
+        connect.getLog().info(`Iframe initialization time ${initTime}`).sendInternalLogToServer();
+        connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
+        setTimeout(() => {
+          connect.publishMetric({
+            name: CSM_IFRAME_REFRESH_ATTEMPTS,
+            data: { count: refreshAttempts },
+          });
+          connect.publishMetric({
+            name: CSM_IFRAME_INITIALIZATION_SUCCESS,
+            data: { count: 1 },
+          });
+          connect.publishMetric({
+            name: CSM_IFRAME_INITIALIZATION_TIME,
+            data: { count: initTime },
+          });
+        }, 1000);
+      }
+    }
+
+    conduit.portStreamId = data.id;
+  };
+
   connect.globalResiliency._initializeActiveRegion = function (grProxyConduit, region) {
     // agentDataProvider needs to be reinitialized in order to avoid side effects from the drastic agent snapshot change
     try {
@@ -207,10 +361,11 @@
     const params = {
       ...paramsIn,
     };
-    connect.globalResiliency.params = params;
 
-    const conduitTimerContainerMap = {};
     let hasSentFailoverPending = false;
+
+    connect.globalResiliency.params = params;
+    connect.globalResiliency.conduitTimerContainerMap = {};
     connect.globalResiliency._activeRegion = null;
     connect.globalResiliency.globalResiliencyEnabled = true;
 
@@ -310,10 +465,10 @@
     // Trigger ACK_TIMEOUT event if there's no ACK from the primary CCP for 5 sec.
     // Ignore and just emit a log for non-primary CCPs.
     grProxyConduit.getAllConduits().forEach((conduit) => {
-      conduitTimerContainerMap[conduit.name] = { iframeRefreshTimeout: null };
+      connect.globalResiliency.conduitTimerContainerMap[conduit.name] = { iframeRefreshTimeout: null };
 
-      conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = setTimeout(() => {
-        conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = null;
+      connect.globalResiliency.conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = setTimeout(() => {
+        connect.globalResiliency.conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = null;
 
         if (connect.isActiveConduit(conduit)) {
           connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
@@ -329,135 +484,49 @@
 
     // Listen to the first ACK event sent from each conduit.
     grProxyConduit.getAllConduits().forEach((conduit) => {
-      conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {
-        connect.getLog().info(`Acknowledged by the CCP! ${conduit.name}`).sendInternalLogToServer();
-
-        const isACGR = true;
-        connect.core.sendConfigure(params, conduit, isACGR);
-        connect.core.listenForConfigureRequest(params, conduit, isACGR); // fallback in case of abnormal CCP refresh
-
-        // Clear the load timeout timer
-        if (conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance) {
-          global.clearTimeout(conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance);
-          conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = null;
-        }
-
-        // Send outer context info to each CCP
-        conduit.sendUpstream(connect.EventType.OUTER_CONTEXT_INFO, {
-          streamsVersion: connect.version,
-          initCCPParams: params,
-        });
-
-        const { enableAckTimeout } = params.loginOptions || {};
-        if (enableAckTimeout) {
-          conduit.keepaliveManager.enableAckTimeout(enableAckTimeout);
-        }
-        conduit.keepaliveManager.start();
-
-        if (connect.isActiveConduit(conduit)) {
-          // Only active conduit initialize these since we only need one instance
-          connect.core.client = new connect.UpstreamConduitClient(conduit);
-          connect.core.masterClient = new connect.UpstreamConduitMasterClient(conduit);
-          connect.core.portStreamId = data.id; // We should update this at failover
-
-          // Only active conduit emits these metircs since we don't allow non-active conduits to broadcast events
-          if (initStartTime) {
-            const initTime = Date.now() - initStartTime;
-            const refreshAttempts = conduitTimerContainerMap[conduit.name].iframeRefreshAttempt || 0;
-            connect.getLog().info('Iframe initialization succeeded').sendInternalLogToServer();
-            connect.getLog().info(`Iframe initialization time ${initTime}`).sendInternalLogToServer();
-            connect.getLog().info(`Iframe refresh attempts ${refreshAttempts}`).sendInternalLogToServer();
-            setTimeout(() => {
-              connect.publishMetric({
-                name: CSM_IFRAME_REFRESH_ATTEMPTS,
-                data: { count: refreshAttempts },
-              });
-              connect.publishMetric({
-                name: CSM_IFRAME_INITIALIZATION_SUCCESS,
-                data: { count: 1 },
-              });
-              connect.publishMetric({
-                name: CSM_IFRAME_INITIALIZATION_TIME,
-                data: { count: initTime },
-              });
-              // to avoid metric emission after initialization
-              initStartTime = null;
-            }, 1000);
+      // Using arrow function to properly capture conduit in closure
+      // Capture subscription for proper unsubscribe handling
+      const acgrHandler = conduit.onUpstream(connect.EventType.ACKNOWLEDGE, (data) => {
+        // Validate global signin before proceeding with initialization
+        connect.globalResiliency._validateGlobalSignin(
+          conduit,
+          params,
+          data,
+          // onSuccess: Global signin valid, proceed with initialization
+          () => {
+            acgrHandler.unsubscribe();
+            connect.globalResiliency._completeAcknowledgeInitialization(
+              conduit,
+              params,
+              data,
+              connect.globalResiliency.conduitTimerContainerMap,
+              initStartTime
+            );
+          },
+          // onFailure: Regional login detected, trigger retry
+          () => {
+            if (connect.isActiveConduit(conduit)) {
+              // Clear the load timeout to prevent duplicate trigger
+              if (connect.globalResiliency.conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance) {
+                global.clearTimeout(
+                  connect.globalResiliency.conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance
+                );
+                connect.globalResiliency.conduitTimerContainerMap[conduit.name].ccpLoadTimeoutInstance = null;
+              }
+              connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
+            }
           }
-        }
-        conduit.portStreamId = data.id; // keep this id for future failover
-
-        this.unsubscribe();
+        );
       });
     });
+
+    connect.globalResiliency.setupAcgrAuthHandlers(params, containerDiv, grProxyConduit);
 
     // Add logs from the active upstream conduit to our own logger.
     grProxyConduit.onUpstream(connect.EventType.LOG, (logEntry) => {
       if (logEntry.loggerId !== connect.getLog().getLoggerId()) {
         connect.getLog().addLogEntry(connect.LogEntry.fromObject(logEntry));
       }
-    });
-
-    // Pop a login page when we encounter an ACK_TIMEOUT event.
-    // The event can only be triggered from active region.
-    connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, () => {
-      // loginPopup is true by default, only false if explicitly set to false.
-      if (params.loginPopup !== false) {
-        try {
-          // For GR, we assume getLoginUrl() always returns the loginUrl for global sign-in page.
-          // LoginUrl existence was checked before calling initGRCCP
-          const { loginUrl } = params;
-
-          connect
-            .getLog()
-            .warn('ACK_TIMEOUT occurred, attempting to pop the login page if not already open.')
-            .sendInternalLogToServer();
-          // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
-          connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-
-          connect.core._openPopupWithLock(loginUrl, params.loginOptions);
-        } catch (e) {
-          connect
-            .getLog()
-            .error('ACK_TIMEOUT occurred but we are unable to open the login popup.')
-            .withException(e)
-            .sendInternalLogToServer();
-        }
-      }
-
-      // Start iframe refresh for each region's CCP
-      grProxyConduit.getAllConduits().forEach((conduit) => {
-        if (conduitTimerContainerMap[conduit.name].iframeRefreshTimeout === null) {
-          try {
-            // Stop the iframe refresh when ACK event is sent from upstream
-            conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function () {
-              this.unsubscribe();
-              global.clearTimeout(conduitTimerContainerMap[conduit.name].iframeRefreshTimeout);
-              conduitTimerContainerMap[conduit.name].iframeRefreshTimeout = null;
-
-              connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
-
-              if (
-                (params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) &&
-                connect.core.loginWindow
-              ) {
-                connect.core.loginWindow.close();
-                connect.core.loginWindow = null;
-              }
-            });
-
-            // Kick off the iframe refresh
-            connect.core._refreshIframeOnTimeout(
-              { ...params, ccpUrl: conduit.iframe.src },
-              containerDiv,
-              conduitTimerContainerMap[conduit.name],
-              conduit.name
-            );
-          } catch (e) {
-            connect.getLog().error('Error occurred while refreshing iframe').withException(e).sendInternalLogToServer();
-          }
-        }
-      });
     });
 
     grProxyConduit.getAllConduits().forEach((conduit) => {
@@ -664,7 +733,8 @@
       }
       if (initStartTime) {
         const refreshAttempts =
-          conduitTimerContainerMap[grProxyConduit.getActiveConduit().name].iframeRefreshAttempt - 1;
+          connect.globalResiliency.conduitTimerContainerMap[grProxyConduit.getActiveConduit().name]
+            .iframeRefreshAttempt - 1;
         connect.getLog().info('Iframe initialization failed').sendInternalLogToServer();
         connect
           .getLog()
@@ -758,5 +828,155 @@
         });
       }
     }, 30000);
+  };
+
+  connect.globalResiliency.setupAcgrAuthHandlers = function (params, containerDiv, grProxyConduit) {
+    // Track validation-specific failures from active conduit only
+    let validationFailureCount = 0;
+
+    // Subscribe to GLOBAL_SIGNIN_INVALID from active conduit
+    grProxyConduit.getActiveConduit().onUpstream(connect.GlobalResiliencyEvents.GLOBAL_SIGNIN_INVALID, () => {
+      validationFailureCount += 1;
+      connect
+        .getLog()
+        .warn('[GR] Global signin validation failed - regional login detected')
+        .withObject({ attempts: validationFailureCount })
+        .sendInternalLogToServer();
+    });
+
+    // Handle retries exhausted - differentiate error types
+    connect.core.getEventBus().subscribe(connect.EventType.IFRAME_RETRIES_EXHAUSTED, (conduitName) => {
+      if (conduitName !== grProxyConduit.getActiveConduit().name) {
+        return;
+      }
+
+      if (validationFailureCount > 0) {
+        // REGIONAL LOGIN FAILURE
+        connect
+          .getLog()
+          .error('[GR] Global signin validation failed - retries exhausted')
+          .withObject({ conduitName, validationFailures: validationFailureCount })
+          .sendInternalLogToServer();
+
+        connect.publishMetric({
+          name: 'GlobalResiliencySigninValidationRetriesExhausted',
+          data: { count: validationFailureCount },
+        });
+      } else {
+        // NETWORK/TIMEOUT FAILURE
+        connect
+          .getLog()
+          .error('[GR] Iframe initialization failed - retries exhausted')
+          .withObject({ conduitName })
+          .sendInternalLogToServer();
+      }
+    });
+    connect.core.loginAckTimeoutSub = connect.core.getEventBus().subscribe(connect.EventType.ACK_TIMEOUT, () => {
+      connect.getLog().warn('ACK_TIMEOUT occurred. Attempting to authenticate.').sendInternalLogToServer();
+      connect.globalResiliency.authenticateAcgr(params, containerDiv, grProxyConduit);
+    });
+
+    if (!params.loginOptions?.disableAuthPopupAfterLogout) {
+      connect.core.getEventBus().subscribe(connect.EventType.TERMINATED, () => {
+        connect.getLog().warn('TERMINATED occurred. Attempting to authenticate.').sendInternalLogToServer();
+        const delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
+        setTimeout(() => {
+          connect.globalResiliency.authenticateAcgr(params, containerDiv, grProxyConduit);
+        }, delay);
+      });
+
+      connect.core.getEventBus().subscribe(connect.EventType.AUTH_FAIL, () => {
+        connect.getLog().warn('AUTH_FAIL occurred. Attempting to authenticate.').sendInternalLogToServer();
+        const delay = params.ccpAckTimeout || CCP_ACK_TIMEOUT; // Adding a small delay to avoid immediately logging the agent back in
+        setTimeout(() => {
+          connect.globalResiliency.authenticateAcgr(params, containerDiv, grProxyConduit);
+        }, delay);
+      });
+    }
+  };
+
+  // Pop a login page when we encounter an ACK_TIMEOUT event.
+  // The event can only be triggered from active region.
+  connect.globalResiliency.authenticateAcgr = (params, containerDiv, grProxyConduit) => {
+    // loginPopup is true by default, only false if explicitly set to false.
+    if (params.loginPopup !== false) {
+      try {
+        // For GR, we assume getLoginUrl() always returns the loginUrl for global sign-in page.
+        // LoginUrl existence was checked before calling initGRCCP
+        const { loginUrl } = params;
+
+        connect.getLog().warn('Attempting to pop the login page if not already open.').sendInternalLogToServer();
+        // clear out last opened timestamp for SAML authentication when there is ACK_TIMEOUT
+        connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+
+        connect.core._openPopupWithLock(loginUrl, params.loginOptions);
+      } catch (e) {
+        connect.getLog().error('Unable to open the login popup.').withException(e).sendInternalLogToServer();
+      }
+    }
+
+    // Start iframe refresh for each region's CCP
+    grProxyConduit.getAllConduits().forEach((conduit) => {
+      if (connect.globalResiliency.conduitTimerContainerMap[conduit.name].iframeRefreshTimeout === null) {
+        try {
+          // Stop the iframe refresh when ACK event is sent from upstream
+          // Using arrow function to properly capture conduit in closure
+          const acgrHandler = conduit.onUpstream(connect.EventType.ACKNOWLEDGE, (data) => {
+            // Validate global signin before completing retry
+            connect.globalResiliency._validateGlobalSignin(
+              conduit,
+              params,
+              data,
+              // onSuccess: Global signin valid, complete retry
+              () => {
+                acgrHandler.unsubscribe();
+                global.clearTimeout(
+                  connect.globalResiliency.conduitTimerContainerMap[conduit.name].iframeRefreshTimeout
+                );
+                connect.globalResiliency.conduitTimerContainerMap[conduit.name].iframeRefreshTimeout = null;
+                connect.globalResiliency.conduitTimerContainerMap[conduit.name].iframeRefreshAttempt = 0;
+
+                connect.core.getPopupManager().clear(connect.MasterTopics.LOGIN_POPUP);
+
+                if (
+                  (params.loginPopupAutoClose || (params.loginOptions && params.loginOptions.autoClose)) &&
+                  connect.core.loginWindow
+                ) {
+                  connect.core.loginWindow.close();
+                  connect.core.loginWindow = null;
+                }
+              },
+              // onFailure: Regional login detected, let existing iframe refresh timeout handle retry
+              () => {
+                if (connect.isActiveConduit(conduit)) {
+                  connect
+                    .getLog()
+                    .warn(`[GR] Retry validation failed for ${conduit.name} - will retry via iframe refresh timeout`)
+                    .sendInternalLogToServer();
+                }
+              }
+            );
+          });
+
+          const globalResiliencyRegion = connect.isActiveConduit(conduit) ? 'primary' : 'secondary';
+
+          const refreshParams = {
+            ...params,
+            ccpUrl: conduit.iframe.src,
+            globalResiliencyRegion,
+          };
+
+          // Kick off the iframe refresh
+          connect.core._refreshIframeOnTimeout(
+            refreshParams,
+            containerDiv,
+            connect.globalResiliency.conduitTimerContainerMap[conduit.name],
+            conduit.name
+          );
+        } catch (e) {
+          connect.getLog().error('Error occurred while refreshing iframe').withException(e).sendInternalLogToServer();
+        }
+      }
+    });
   };
 })();
