@@ -1,4 +1,7 @@
 # CHANGELOG.md
+## [2.22.2] - 2026-02-03
+- Broadcasting logs to synchronize them between CCP instances
+
 ## [2.22.1] - 2026-01-21
 - Add force failover API for Global Resiliency scenarios.
 - Fix emission of activeCcpUrl in the failover complete event.

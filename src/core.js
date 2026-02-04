@@ -1522,9 +1522,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         connect.getLog().info("CCP LoadTimeout triggered").sendInternalLogToServer();
       }, params.ccpLoadTimeout || CCP_LOAD_TIMEOUT);
 
-      connect.getLog().scheduleUpstreamOuterContextCCPLogsPush(conduit);
-      connect.getLog().scheduleUpstreamOuterContextCCPserverBoundLogsPush(conduit);
-
       // Once we receive the first ACK, setup our upstream API client and establish
       // the SYN/ACK refresh flow.
       conduit.onUpstream(connect.EventType.ACKNOWLEDGE, function (data) {

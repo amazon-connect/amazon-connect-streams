@@ -95,6 +95,16 @@ describe('Utils', function () {
     });
     
     describe('#connect.isSharedWorker', function () {
+        var originalClientEngine;
+        
+        before(function() {
+            originalClientEngine = connect.worker.clientEngine;
+        });
+        
+        after(function() {
+            connect.worker.clientEngine = originalClientEngine;
+        });
+        
         it('should return true when the upstream.name is ConnectSharedWorkerConduit', function () {
             connect.worker.clientEngine = true;
             assert.isTrue(connect.isSharedWorker());

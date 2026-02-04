@@ -337,6 +337,19 @@
    */
   LogEntry.prototype.sendInternalLogToServer = function () {
     connect.getLog()._serverBoundInternalLogs.push(this);
+
+    // BROADCAST: Sync server-bound logs for backend publishing
+    if (connect.isCRM() && this.loggerId === connect.getLog().getLoggerId()) {
+      try {
+        connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+          event: connect.EventType.SERVER_BOUND_INTERNAL_LOG,
+          data: this
+        });
+      } catch (e) {
+        // Silently ignore broadcast failures - log is already stored locally
+      }
+    }
+
     return this;
   };
 
@@ -425,6 +438,18 @@
     // Call this second time as in some places this function is called directly
     redactSensitiveInfo(logEntry);
     this._logs.push(logEntry);
+
+    // BROADCAST: Sync CRM layer logs between CCPs
+    if (connect.isCRM() && logEntry.loggerId === this.getLoggerId()) {
+      try {
+        connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+          event: connect.EventType.LOG,
+          data: logEntry
+        });
+      } catch (e) {
+        // Silently ignore broadcast failures - log is already stored locally
+      }
+    }
 
     //For now only send softphone logs only.
     //TODO add CCP logs once we are sure that no sensitive data is being logged.
@@ -603,35 +628,6 @@
       }
     });
   };
-
-  Logger.prototype.scheduleUpstreamOuterContextCCPserverBoundLogsPush = function(conduit) {
-    global.setInterval(connect.hitch(this, this.pushOuterContextCCPserverBoundLogsUpstream, conduit), 1000);
-  }
-
-  Logger.prototype.scheduleUpstreamOuterContextCCPLogsPush = function(conduit) {
-    global.setInterval(connect.hitch(this, this.pushOuterContextCCPLogsUpstream, conduit), 1000);
-  }
-
-  Logger.prototype.pushOuterContextCCPserverBoundLogsUpstream = function(conduit) {
-    if (this._serverBoundInternalLogs.length > 0) {
-      for (var i = 0; i < this._serverBoundInternalLogs.length; i++) {
-        this._serverBoundInternalLogs[i].text = this._serverBoundInternalLogs[i].text;
-      }
-
-      conduit.sendUpstream(connect.EventType.SERVER_BOUND_INTERNAL_LOG, this._serverBoundInternalLogs);
-      this._serverBoundInternalLogs = [];
-    }
-  }
-
-  Logger.prototype.pushOuterContextCCPLogsUpstream = function(conduit) {
-    for (var i = this._startLogIndexToPush; i < this._logs.length; i++) {
-      if (this._logs[i].loggerId !== this._loggerId) {
-        continue;
-      }
-      conduit.sendUpstream(connect.EventType.LOG, this._logs[i]);
-    }
-    this._startLogIndexToPush = this._logs.length;
-  }
 
   Logger.prototype.getLoggerId = function () {
     return this._loggerId;
