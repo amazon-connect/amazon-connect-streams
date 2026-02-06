@@ -13,6 +13,8 @@
   const VDIPlatformType = {
     CITRIX: "CITRIX",
     AWS_WORKSPACE: "AWS_WORKSPACE",
+    OMNISSA: "OMNISSA",
+    CITRIX_413 : "CITRIX_413"
   }
 
   const BROWSER_ID = "browserId" // A key which is used for storing browser id value in local storage
@@ -95,16 +97,21 @@
       if (softphoneParams.VDIPlatform) {
         vdiPlatform = softphoneParams.VDIPlatform;
         try {
-          if (softphoneParams.VDIPlatform === VDIPlatformType.CITRIX) {
-            this.rtcJsStrategy = new connect.CitrixVDIStrategy();
-            logger.info(`[SoftphoneManager] Strategy constructor retrieved: ${this.rtcJsStrategy}`).sendInternalLogToServer();
+          switch (vdiPlatform) {
+            case VDIPlatformType.CITRIX:
+            case VDIPlatformType.CITRIX_413: // intentional fallthrough
+              this.rtcJsStrategy = new connect.CitrixVDIStrategy(vdiPlatform, true);
+              break;
+            case VDIPlatformType.AWS_WORKSPACE:
+              this.rtcJsStrategy = new connect.DCVWebRTCStrategy();
+              break;
+            case VDIPlatformType.OMNISSA:
+              this.rtcJsStrategy = new connect.OmnissaVDIStrategy();
+              break;
+            default:
+              publishError(SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED, "VDI Strategy not supported", "");
           }
-          else if (softphoneParams.VDIPlatform === VDIPlatformType.AWS_WORKSPACE) {
-            this.rtcJsStrategy = new connect.DCVWebRTCStrategy();
-            logger.info(`[SoftphoneManager] Strategy constructor retrieved: ${this.rtcJsStrategy}`).sendInternalLogToServer();
-          } else {
-            throw new Error("VDI Strategy not supported");
-          }
+          logger.info(`[SoftphoneManager] Strategy constructor retrieved: ${this.rtcJsStrategy}`).sendInternalLogToServer();
         } catch (error) {
           if (error.message === "VDI Strategy not supported") {
             publishError(SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED, error.message, "");

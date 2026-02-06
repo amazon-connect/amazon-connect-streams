@@ -1,4 +1,7 @@
 # CHANGELOG.md
+## [2.23.0] - 2026-02-06
+- Support Citrix UCSDK 4.1 integration. Please see https://github.com/aws/connect-rtc-js release note for more details
+
 ## [2.22.3] - 2026-02-04
 - Fix ACGR global signin validation and popup opener
 

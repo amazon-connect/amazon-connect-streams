@@ -1066,6 +1066,8 @@ declare namespace connect {
     /** Citrix. */
     CITRIX = "CITRIX",
     AWS_WORKSPACE = "AWS_WORKSPACE",
+    OMNISSA = "OMNISSA",
+    CITRIX_413 = "CITRIX_413",
   }
 
   /** This enumeration lists the different types of contact channels. */
