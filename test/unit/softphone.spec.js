@@ -4,6 +4,13 @@ const mochaJsdom = require("mocha-jsdom");
 
 require("../unit/test-setup.js");
 
+const VDI_PLATFORMS = {
+    OMNISSA: 'OMNISSA',
+    AWS_WORKSPACE: 'AWS_WORKSPACE',
+    CITRIX: 'CITRIX',
+    CITRIX_413: 'CITRIX_413'
+};
+
 // TODO: Make these work as standalone, for some reason they require a initCCP call to not fail
 describe('SoftphoneManager', () => {
     jsdom({ url: "http://localhost" });
@@ -13,23 +20,27 @@ describe('SoftphoneManager', () => {
     before(() => {
         clock = sandbox.useFakeTimers();
         bus = new connect.EventBus();
-        if (!navigator.mediaDevices) {
-            navigator.mediaDevices = {};
-        }
-        if (!navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia = function() {};
-        }
-        if (!navigator.permissions) {
-            navigator.permissions = function() {};
-        }
-        if (!navigator.permissions.query) {
-            navigator.permissions.query = function() {};
-        }
         sandbox.stub(connect.core, "getEventBus").returns(bus);
         sandbox.spy(bus, 'subscribe');
         sandbox.stub(connect, 'RtcPeerConnectionFactory');
         stubbedRTCSessionConnect = sandbox.stub();
         stubbedReplaceTrack = sandbox.stub();
+        sandbox.stub(connect, 'RtcPeerConnectionManager').returns({
+            close: sandbox.stub(),
+            connect: stubbedRTCSessionConnect,
+            hangup: sandbox.stub(),
+            createSession: sandbox.stub().returns({
+                echoCancellation: false,
+                onSessionFailed: null,
+                onSessionConnected: null,
+                onSessionCompleted: null,
+                onLocalStreamAdded: null,
+                remoteAudioElement: null,
+                _pc: {
+                    getSenders: () => [{ replaceTrack: stubbedReplaceTrack.resolves() }]
+                }
+            })
+        });
         sandbox.stub(connect, 'RTCSession').returns({
             connect: stubbedRTCSessionConnect,
             _pc: {
@@ -50,9 +61,8 @@ describe('SoftphoneManager', () => {
     });
 
     after(() => {
-        clock.restore();
         sandbox.restore();
-        connect.agent.initialized = false;
+        // connect.agent.initialized = false;
     });
 
     describe('startSession', () => {
@@ -75,11 +85,18 @@ describe('SoftphoneManager', () => {
             stubbedGetStatus = sandbox.stub(contact, 'getStatus');
         });
 
+        beforeEach(() => {
+            stubbedRTCSessionConnect.resetHistory();
+        });
+
         describe('chrome', () => {
             before(() => {
                 stubbedIsChromeBrowser.returns(true);
                 stubbedIsFirefoxBrowser.returns(false);
                 stubbedHasOtherConnectedCCPs.returns(false);
+            });
+            beforeEach(() => {
+                stubbedRTCSessionConnect.resetHistory();
             });
             afterEach(() => {
                 sandbox.resetHistory();
@@ -105,6 +122,9 @@ describe('SoftphoneManager', () => {
             before(() => {
                 stubbedIsChromeBrowser.returns(false);
                 stubbedIsFirefoxBrowser.returns(true);
+            });
+            beforeEach(() => {
+                stubbedRTCSessionConnect.resetHistory();
             });
             afterEach(() => {
                 sandbox.resetHistory();
@@ -136,6 +156,9 @@ describe('SoftphoneManager', () => {
                 stubbedIsFirefoxBrowser.returns(false);
                 stubbedIsFirefoxBrowser.returns(false);
             });
+            beforeEach(() => {
+                stubbedRTCSessionConnect.resetHistory();
+            });
             afterEach(() => {
                 sandbox.resetHistory();
             });
@@ -159,14 +182,6 @@ describe('SoftphoneManager', () => {
                 sinon.assert.calledOnce(stubbedRTCSessionConnect);
                 expect(error).not.to.be.undefined;
             });
-            // it('should set userMedia to session object if passed in', () => {
-            //     const softphoneManager = new connect.SoftphoneManager({ VDIPlatform: "CITRIX" });
-            //     stubbedGetStatus.returns({ type: connect.ContactStatusType.CONNECTING });
-            //     const dummyUserMedia = { id: 'dummy' };
-            //     softphoneManager.startSession(contact, agentConnectionId, dummyUserMedia);
-            //     const session = softphoneManager.getSession('abcdefg');
-            //     expect(session.mediaStream).to.equal(dummyUserMedia);
-            // });
         });
 
             describe('VDIPlatform: AWS_WORKSPACE', () => {
@@ -174,6 +189,9 @@ describe('SoftphoneManager', () => {
                     connect.isChromeBrowser.returns(true);
                     connect.isFirefoxBrowser.returns(false);
                     connect.hasOtherConnectedCCPs.returns(false);
+                });
+                beforeEach(() => {
+                    stubbedRTCSessionConnect.resetHistory();
                 });
                 afterEach(() => {
                     sandbox.resetHistory();
@@ -186,6 +204,40 @@ describe('SoftphoneManager', () => {
                 });
                 it('should NOT create another RTC session if startSession is called twice', function () {
                     const softphoneManager = new connect.SoftphoneManager({ VDIPlatform: "AWS_WORKSPACE" });
+                    stubbedGetStatus.returns({ type: connect.ContactStatusType.CONNECTING });
+                    softphoneManager.startSession(contact, agentConnectionId);
+                    stubbedGetStatus.returns({ type: connect.ContactStatusType.CONNECTED });
+                    let error;
+                    try {
+                        softphoneManager.startSession(contact, agentConnectionId);
+                    } catch (e) {
+                        error = e;
+                    }
+                    sinon.assert.calledOnce(stubbedRTCSessionConnect);
+                    expect(error).not.to.be.undefined;
+                });
+            });
+
+            describe(`VDIPlatform: ${VDI_PLATFORMS.CITRIX_413}`, () => {
+                before(() => {
+                    connect.isChromeBrowser.returns(true);
+                    connect.isFirefoxBrowser.returns(false);
+                    connect.hasOtherConnectedCCPs.returns(false);
+                });
+                beforeEach(() => {
+                    stubbedRTCSessionConnect.resetHistory();
+                });
+                afterEach(() => {
+                    sandbox.resetHistory();
+                });
+                it('should create RTC session and call pcm.connect()', function () {
+                    const softphoneManager = new connect.SoftphoneManager({ VDIPlatform: VDI_PLATFORMS.CITRIX_413 });
+                    stubbedGetStatus.returns({ type: connect.ContactStatusType.CONNECTING });
+                    softphoneManager.startSession(contact, agentConnectionId);
+                    sinon.assert.calledOnce(stubbedRTCSessionConnect);
+                });
+                it('should NOT create another RTC session if startSession is called twice', function () {
+                    const softphoneManager = new connect.SoftphoneManager({ VDIPlatform: VDI_PLATFORMS.CITRIX_413 });
                     stubbedGetStatus.returns({ type: connect.ContactStatusType.CONNECTING });
                     softphoneManager.startSession(contact, agentConnectionId);
                     stubbedGetStatus.returns({ type: connect.ContactStatusType.CONNECTED });
@@ -216,6 +268,92 @@ describe('SoftphoneManager', () => {
                 softphoneManager.startSession(contact, agentConnectionId);
                 const session = softphoneManager.getSession(agentConnectionId);
                 expect(session.echoCancellation).to.equal(!disableEchoCancellation);
+            });
+        });
+    });
+
+    describe('initialization', () => {
+        beforeEach(() => {
+            connect.SoftphoneManager.isBrowserSoftPhoneSupported.returns(true);
+            connect.isChromeBrowser.returns(true);
+            navigator.mediaDevices.getUserMedia.resolves({ getAudioTracks: () => [{ kind: "audio", enabled: true }] });
+            connect.Agent.prototype.getContacts.returns([]);
+        });
+        afterEach(() => {
+            sandbox.resetHistory();
+            stubbedRTCSessionConnect.resetHistory();
+        });
+
+        describe('VDI strategy selection', () => {
+            let citrixStub, dcvStub, omnissaStub;
+            
+            beforeEach(() => {
+                citrixStub = sandbox.stub(connect, 'CitrixVDIStrategy').returns({
+                    getStrategyName: () => 'CitrixVDIStrategy'
+                });
+                dcvStub = sandbox.stub(connect, 'DCVWebRTCStrategy').returns({
+                    getStrategyName: () => 'DCVStrategy'
+                });
+                omnissaStub = sandbox.stub(connect, 'OmnissaVDIStrategy').returns({
+                    getStrategyName: () => 'OmnissaVDIStrategy'
+                });
+            });
+            
+            afterEach(() => {
+                citrixStub.restore();
+                dcvStub.restore();
+                omnissaStub.restore();
+            });
+            
+            it('should select CitrixVDIStrategy when VDIPlatform is CITRIX', () => {
+                const softphoneManager = new connect.SoftphoneManager({ VDIPlatform: VDI_PLATFORMS.CITRIX });
+                expect(softphoneManager.rtcJsStrategy.getStrategyName()).to.equal('CitrixVDIStrategy');
+                sinon.assert.calledWithNew(connect.CitrixVDIStrategy);
+                sinon.assert.calledWith(citrixStub, VDI_PLATFORMS.CITRIX, true);
+                sinon.assert.notCalled(dcvStub);
+                sinon.assert.notCalled(omnissaStub);
+            });
+            
+            it('should select CitrixVDIStrategy when VDIPlatform is CITRIX_413', () => {
+                const softphoneManager = new connect.SoftphoneManager({ VDIPlatform: VDI_PLATFORMS.CITRIX_413 });
+                expect(softphoneManager.rtcJsStrategy.getStrategyName()).to.equal('CitrixVDIStrategy');
+                sinon.assert.calledWithNew(connect.CitrixVDIStrategy);
+                sinon.assert.calledWith(citrixStub, VDI_PLATFORMS.CITRIX_413, true);
+                sinon.assert.notCalled(dcvStub);
+                sinon.assert.notCalled(omnissaStub);
+            });
+            
+            it('should select DCVStrategy when VDIPlatform is AWS_WORKSPACE', () => {
+                const softphoneManager = new connect.SoftphoneManager({ VDIPlatform: VDI_PLATFORMS.AWS_WORKSPACE });
+                expect(softphoneManager.rtcJsStrategy.getStrategyName()).to.equal('DCVStrategy');
+                sinon.assert.calledWithNew(connect.DCVWebRTCStrategy);
+                sinon.assert.notCalled(citrixStub);
+                sinon.assert.notCalled(omnissaStub);
+            });
+            
+            it('should select OmnissaVDIStrategy when VDIPlatform is OMNISSA', () => {
+                const softphoneManager = new connect.SoftphoneManager({ VDIPlatform: VDI_PLATFORMS.OMNISSA });
+                expect(softphoneManager.rtcJsStrategy.getStrategyName()).to.equal('OmnissaVDIStrategy');
+                sinon.assert.calledWithNew(connect.OmnissaVDIStrategy);
+                sinon.assert.notCalled(citrixStub);
+                sinon.assert.notCalled(dcvStub);
+            });
+            
+            it('should publish VDI_STRATEGY_NOT_SUPPORTED error for unsupported VDIPlatform', () => {
+                const softphoneManager = new connect.SoftphoneManager({ VDIPlatform: 'UNSUPPORTED_PLATFORM' });
+                expect(softphoneManager.rtcJsStrategy).to.be.null;
+                sinon.assert.calledWith(connect.SoftphoneError, connect.SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED);
+                sinon.assert.notCalled(citrixStub);
+                sinon.assert.notCalled(dcvStub);
+                sinon.assert.notCalled(omnissaStub);
+            });
+            
+            it('should have no VDI strategy when VDIPlatform is not provided', () => {
+                const softphoneManager = new connect.SoftphoneManager({});
+                expect(softphoneManager.rtcJsStrategy).to.be.null;
+                sinon.assert.notCalled(citrixStub);
+                sinon.assert.notCalled(dcvStub);
+                sinon.assert.notCalled(omnissaStub);
             });
         });
     });
@@ -373,7 +511,6 @@ describe('SoftphoneManager', () => {
             sandbox.assert.calledWith(navigator.mediaDevices.getUserMedia, { audio: { deviceId : {exact : sampleDeviceId}, echoCancellation : false}});
             connect.core.softphoneManager.terminate();
             connect.core.softphoneManager = null;
-
         });
     });
 });

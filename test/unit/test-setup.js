@@ -41,8 +41,10 @@ require('../../release/connect-streams.js');
 global.connect.StandardStrategy = function () {};
 global.connect.CitrixVDIStrategy = function () {};
 global.connect.DCVWebRTCStrategy = function () {};
+global.connect.OmnissaVDIStrategy = function () {};
 global.connect.RTCSession = function () {};
 global.connect.RtcPeerConnectionFactory = function () {};
+global.connect.RtcPeerConnectionManager = function () {};
 global.AWS = {
   util: {
     uuid: {

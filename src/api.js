@@ -11,7 +11,7 @@
 
   const { SessionExpirationWarningClient, sendActivity } = require("@amazon-connect/activity");
   const { ContactClient } = require("@amazon-connect/contact");
-  
+
   /*----------------------------------------------------------------
    * enum AgentStateType
    */

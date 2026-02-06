@@ -2900,12 +2900,12 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
   connect.globalResiliency.getActiveRegion = function () {
     return connect.globalResiliency._activeRegion;
   };
-  
+
   /**-----------------------------------------------------------------------*/
   connect.globalResiliency.forceFailover = function () {
     connect.core.getUpstream().sendUpstream(connect.GlobalResiliencyEvents.FORCE_FAILOVER);
   };
-  
+
   /**-----------------------------------------------------------------------*/
   connect.core.AgentDataProvider = AgentDataProvider;
   connect.WebSocketProvider = WebSocketProvider;
