@@ -308,6 +308,109 @@
       return rtcSessions[connectionId];
     }
 
+    /**
+     * Replace the media stream in RTC session with enhanced version when VE feature is enabled.
+     * We expect the first invocation is always from the `onLocalStreamAdded` callback. This sets the mic to the best suitable default device.
+     * However, if the AudioDeviceSettings is enabled on the Security Profile, we expect a second invocation from the `setMicrophoneDevice` callback
+     * which supplies 'newDeviceId' and reflects the device chosen on the CCP itself.
+     * 
+     * @param {*} newDeviceId The exact microphone device id to get media from browser.
+     */
+    this.replaceAudioTracksInRTCSessionWithVoiceEnhancedMedia = async function (newDeviceId) {
+      try {
+          if (softphoneParams.VDIPlatform != null) {
+            logger.info(`[Softphone Manager] Skipping media stream replace with enhanced media for VDI: ${softphoneParams.VDIPlatform}`);
+            return;
+          }
+          let audioConstraint = {
+            audio: {
+              echoCancellation: true,
+            }
+          };
+          if (newDeviceId) {
+            audioConstraint.audio.deviceId = { exact: newDeviceId };
+          }
+          if (softphoneParams.disableEchoCancellation) {
+            audioConstraint.audio.echoCancellation = false;
+            audioConstraint.audio.autoGainControl = true; // Enable autoGainControl to fix the low mic issue.
+          }
+          connect.publishMetric({ 
+            name: "IsEchoCancellationEnabled",
+            data: {
+              count: audioConstraint.audio.echoCancellation ? 1 : 0,
+            }
+          });
+          const sourceStream = await navigator.mediaDevices.getUserMedia(audioConstraint);
+          logger.info(`[Softphone Manager] Got stream ${sourceStream?.id} for device ${audioConstraint.audio.deviceId}`);
+
+          const enhancedAudioStream = await connect.VoiceFocusProvider.getVoiceEnhancedUserMedia(sourceStream, {
+            onError: () => publishError('audio_enhancement_failure', 'Failed to enhance audio stream', '')
+          });
+          await this.replaceMediaStreamInRTCSession(enhancedAudioStream);
+          logger.info(`[Softphone Manager] Replaced local audio stream ${sourceStream.id} with audio stream: ${enhancedAudioStream.id}`).sendInternalLogToServer();
+      } catch (error) {
+          logger.error(`[Softphone Manager] Failed to replace media stream in rtc session`)
+            .withException(error)
+            .sendInternalLogToServer();
+      }
+    }
+
+    /**
+     * Replaces the audio track in all active RTC connections with a new track from the provided media stream
+     * @param {MediaStream} mediaStream - The media stream containing the new audio track
+     * @returns {Promise<void>} Resolves when all track replacements are complete
+     * @throws {Error} If mediaStream is invalid or track replacement fails
+     */
+    this.replaceMediaStreamInRTCSession = async function (mediaStream) {
+      try {
+        if (!mediaStream || !mediaStream.getAudioTracks || !mediaStream.getAudioTracks().length) {
+          throw new Error('Invalid media stream or no audio tracks available');
+        }
+
+        const newAudioTrack = mediaStream.getAudioTracks()[0];
+        const trackReplacements = [];
+
+        for (const connectionId in localMediaStream) {
+          if (localMediaStream.hasOwnProperty(connectionId)) {
+
+            const session = this.getSession(connectionId);
+            if (!session || !session._pc || !session._pc.getSenders) {
+              logger.warn(`[Softphone Manager] Invalid session or peer connection for connectionId: ${connectionId}`).sendInternalLogToServer();
+              continue;
+            }
+
+            const sender = session._pc.getSenders()[0];
+            if (!sender) {
+              logger.warn(`[Softphone Manager] No RTP sender found for connectionId: ${connectionId}`).sendInternalLogToServer();
+              continue;
+            }
+
+            const trackReplacement = sender.replaceTrack(newAudioTrack)
+              .then(() => {
+                this.replaceLocalMediaTrack(connectionId, newAudioTrack);
+                session._isUserProvidedStream = true;
+                logger.info(`[Softphone Manager] Audio track successfully replaced for connectionId: ${connectionId}`).sendInternalLogToServer();
+                logger.info(`[Softphone Manager] Audio track settings: ${JSON.stringify(newAudioTrack.getSettings())}`).sendInternalLogToServer();
+              })
+              .catch(error => {
+                logger.error(`[Softphone Manager] Failed to replace track for connectionId: ${connectionId}`)
+                  .withException(error)
+                  .sendInternalLogToServer();
+              });
+
+            trackReplacements.push(trackReplacement);
+          }
+        }
+
+        await Promise.all(trackReplacements);
+        logger.info('[Softphone Manager] Successfully replaced all audio tracks').sendInternalLogToServer();
+      } catch (error) {
+          logger.error('[Softphone Manager] Failed to replace media stream in rtc session')
+            .withException(error)
+            .sendInternalLogToServer();
+      }
+    };
+
     this.replaceLocalMediaTrack = function (connectionId, track) {
       var stream = localMediaStream[connectionId].stream;
       if (stream) {
@@ -465,7 +568,12 @@
         publishSoftphoneFailureLogs(rtcSession, reason);
         publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
         stopJobsAndReport(contact, rtcSession.sessionReport);
+        // publish voice focus metrics
+        connect.VoiceFocusProvider.publishMetrics({ contactId });
+        // clean voice focus models
+        connect.VoiceFocusProvider.cleanVoiceFocus();
       };
+
       session.onSessionConnected = function (rtcSession) {
         publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
         // Become master to send logs, since we need logs from softphone tab.
@@ -486,6 +594,11 @@
 
         // Cleanup the cached streams
         deleteLocalMediaStream(agentConnectionId);
+
+        // publish voice focus metrics
+        connect.VoiceFocusProvider.publishMetrics({ contactId });
+        // clean voice focus models
+        connect.VoiceFocusProvider.cleanVoiceFocus();
       };
 
       session.onLocalStreamAdded = function (rtcSession, stream) {
@@ -493,11 +606,23 @@
         localMediaStream[agentConnectionId] = {
           stream: stream
         };
-        connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
-          event: connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED,
-          data: {
-            connectionId: agentConnectionId
-          }
+
+        logger.info(`[Softphone Manager] On local media stream set, call voice enhancement for stream: ${stream.id}`);
+        self.replaceAudioTracksInRTCSessionWithVoiceEnhancedMedia().then(() => {
+          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED,
+            data: {
+              connectionId: agentConnectionId
+            }
+          });
+        }).catch((error) => {
+          logger.error("[Softphone Manager] Failed to replace audio tracks in RTC session.").withException(error).sendInternalLogToServer();
+          connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST, {
+            event: connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED,
+            data: {
+              connectionId: agentConnectionId
+            }
+          });
         });
       };
 

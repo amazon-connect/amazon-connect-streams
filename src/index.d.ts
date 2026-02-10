@@ -38,6 +38,13 @@ declare namespace connect {
    */
   type UserBackgroundBlurChangeCallback = (UserBackgroundBlurChange: UserBackgroundBlurChange) => void;
 
+ /**
+   * A callback to receive 'VoiceEnhancementModeChange' API object instances
+   *
+   * @param VoiceEnhancementModeChange The 'VoiceEnhancementModeChange' API object instance
+   */
+  type VoiceEnhancementModeChangeCallback = (voiceEnhancementModeChange: VoiceEnhancementModeChange) => void;
+
   /**
    * A callback to receive `SoftphoneError` errors.
    *
@@ -1346,6 +1353,9 @@ declare namespace connect {
     /** Gets the agent's routing profile. */
     getRoutingProfile(): AgentRoutingProfile;
 
+    /** Gets the agent's voice enhancement mode */
+    getVoiceEnhancementMode(): VoiceEnhancementMode;
+
     /**
      * Gets a map of channel type to 1 or 0.
      * 1 represents an enabled channel.
@@ -1507,6 +1517,13 @@ declare namespace connect {
     setBackgroundBlur(isBackgroundBlurEnabled: boolean): void;
 
     /**
+     * Sets the voice enhancement mode for the agent.
+     *
+     * @param mode The desired voice enhancement mode.
+     */
+    setVoiceEnhancementMode(mode: VoiceEnhancementMode): Promise<void>;
+
+    /**
      * Subscribe a method to be called when the agent updates the mute status, meaning that agents mute/unmute APIs are called and the local media stream is successfully updated with the new status.
      *
      * @param callback A callback to receive updates on agent mute state
@@ -1613,6 +1630,10 @@ declare namespace connect {
     readonly isBackgroundBlurEnabled: boolean;
   }
 
+  interface VoiceEnhancementModeChange {
+    readonly voiceEnhancementMode: VoiceEnhancementMode;
+  }
+
   interface TaskContactDefinition {
     /** The  endpoint to assign to */
     readonly endpoint: Endpoint;
@@ -1674,6 +1695,9 @@ declare namespace connect {
 
     readonly agentPreferences?: AgentPreferences;
 
+    /** The voice enhancement mode the agent has set */
+    readonly voiceEnhancementMode?: VoiceEnhancementMode;
+
     /** See `agent.getDialableCountries()` for more info. */
     readonly dialableCountries: string[];
 
@@ -1701,6 +1725,8 @@ declare namespace connect {
     /** The ARN of the agent */
     readonly agentARN: string;
   }
+
+  type VoiceEnhancementMode = "VOICE_ISOLATION" | "NOISE_SUPPRESSION" | "NONE";
 
   interface AgentRoutingProfile {
     /** See `agent.getChannelConcurrency()` for more info. */

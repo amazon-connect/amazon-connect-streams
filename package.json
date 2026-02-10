@@ -1,6 +1,6 @@
 {
   "name": "amazon-connect-streams",
-  "version": "2.23.0",
+  "version": "2.24.0",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
@@ -43,7 +43,9 @@
     "@amazon-connect/core": "1.0.9",
     "@amazon-connect/contact": "1.0.9",
     "@amazon-connect/site": "1.0.9",
-    "@amazon-connect/site-streams": "1.0.9"
+    "@amazon-connect/site-streams": "1.0.9",
+    "@amazon-connect/voice": "1.0.9",
+    "amazon-chime-sdk-js": "^3.29.0"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.24.5",

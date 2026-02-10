@@ -11,6 +11,7 @@
 
   const { SessionExpirationWarningClient, sendActivity } = require("@amazon-connect/activity");
   const { ContactClient } = require("@amazon-connect/contact");
+  const { VoiceClient } = require("@amazon-connect/voice");
 
   /*----------------------------------------------------------------
    * enum AgentStateType
@@ -436,6 +437,13 @@
     }
   };
 
+  Agent.prototype._getSDKVoiceClient = function() {
+    if (!this.voiceClient) {
+      this.voiceClient = new VoiceClient(connect.core.getSDKClientConfig());
+    }
+    return this.voiceClient;
+  }
+
   Agent.prototype._getData = function () {
     return connect.core.getAgentDataProvider().getAgentData();
   };
@@ -512,6 +520,17 @@
     return connect.core.getEventBus().subscribe(connect.ConfigurationEvents.BACKGROUND_BLUR_CHANGED, f);
   }
 
+  Agent.prototype.onVoiceEnhancementModeChanged = function (f) {
+    const handler = ({ voiceEnhancementMode }) => {
+      f({ voiceEnhancementMode });
+      return Promise.resolve();
+    }
+    this._getSDKVoiceClient().onVoiceEnhancementModeChanged(handler);
+    return {
+      unsubscribe: () => this._getSDKVoiceClient().offVoiceEnhancementModeChanged(handler)
+    };
+  }
+
   Agent.prototype.mute = function () {
     connect.core.getUpstream().sendUpstream(connect.EventType.BROADCAST,
       {
@@ -562,6 +581,14 @@
       event: connect.ConfigurationEvents.BACKGROUND_BLUR_CHANGED,
       data: { isBackgroundBlurEnabled: isBackgroundBlurEnabled }
     });
+  };
+
+  Agent.prototype.setVoiceEnhancementMode = function (mode) {
+    if (!(new Set(["VOICE_ISOLATION", "NOISE_SUPPRESSION", "NONE"]).has(mode))) {
+      throw new Error(`Invalid voice enhancement mode ${mode}`);
+    }
+
+    return this._getSDKVoiceClient().setVoiceEnhancementMode(mode);
   };
 
   /**
@@ -615,6 +642,10 @@
 
   Agent.prototype.getRoutingProfile = function () {
     return this.getConfiguration().routingProfile;
+  };
+  
+  Agent.prototype.getVoiceEnhancementMode = function () {
+    return this.getConfiguration().voiceEnhancementMode;
   };
 
   Agent.prototype.getChannelConcurrency = function (channel) {
