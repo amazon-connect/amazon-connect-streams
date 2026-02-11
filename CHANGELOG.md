@@ -75,6 +75,7 @@ Added:
 (Deprecated)
 
 ## [2.17.0] - 2024-11-29
+(Deprecated)
 Added:
 - Email
 

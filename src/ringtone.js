@@ -207,13 +207,6 @@
     connect.contact(function (contact) {
       contact.onConnecting(onContactConnect);
 
-      /**
-       * There is a race condition where when auto-accept is enabled for chat,
-       * the ACCEPTED event is sent before the _ringtoneSetup is triggered
-       * so the onAccepted event handler misses the event. Thus,
-       * subscribing to onAccepted in _driveRingtone, to stop the ringtone if
-       * auto-accept is enabled for the contact.
-       */
       contact.onAccepted((_contact) => {
         if (_contact.isAutoAcceptEnabled()) {
           connect.ifMaster(connect.MasterTopics.RINGTONE, () => {
