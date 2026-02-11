@@ -553,6 +553,15 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
               isInitializedAnyEngine = true;
               connect.getLog().info("QueueCallbackRingtoneEngine initialized.").sendInternalLogToServer();
             }
+
+            if (!ringtoneSettings.autoAcceptTone.disabled && !connect.core.ringtoneEngines.autoAccept) {
+              connect.core.ringtoneEngines.autoAccept = new connect.AutoAcceptedRingtoneEngine(
+                ringtoneSettings.autoAcceptTone
+              );
+              isInitializedAnyEngine = true;
+              connect.getLog().info('AutoAcceptedRingtoneEngine initialized.').sendInternalLogToServer();
+            }
+
             // Once any of the Ringtone Engines are initialized, set ringer device with latest device id from _ringerDeviceId.
             if (isInitializedAnyEngine && connect.core._ringerDeviceId) {
               setRingerDeviceFunc({ deviceId: connect.core._ringerDeviceId });
@@ -573,7 +582,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       params.ringtone.chat = params.ringtone.chat || { disabled: true };
       params.ringtone.task = params.ringtone.task || { disabled: true };
       params.ringtone.email = params.ringtone.email || { disabled: true };
-
+      params.ringtone.autoAcceptTone = params.ringtone.autoAcceptTone || { disabled: true };
 
 
       if (otherParams.softphone) {
@@ -619,6 +628,16 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         }
       }
 
+      if (otherParams.autoAcceptTone) {
+        if (otherParams.autoAcceptTone.disableRingtone) {
+          params.ringtone.autoAcceptTone.disabled = true;
+        }
+
+        if (otherParams.autoAcceptTone.ringtoneUrl) {
+          params.ringtone.autoAcceptTone.ringtoneUrl = otherParams.autoAcceptTone.ringtoneUrl;
+        }
+      }
+
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
@@ -631,6 +650,10 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
           otherParams.ringtone.task || {});
         params.ringtone.email = connect.merge(params.ringtone.email,
           otherParams.ringtone.email || {});
+        params.ringtone.autoAcceptTone = connect.merge(
+          params.ringtone.autoAcceptTone,
+          otherParams.ringtone.autoAcceptTone || {}
+        );
       }
     };
 
@@ -2662,6 +2685,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         softphone: params.softphone,
         chat: params.chat,
         task: params.task,
+        autoAcceptTone: params.autoAcceptTone,
         pageOptions: params.pageOptions,
         shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
         showInactivityModal: params.pageOptions?.showInactivityModal

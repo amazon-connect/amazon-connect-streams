@@ -193,6 +193,7 @@ describe('Global Resiliency', function () {
                     softphone: { allowFramedSoftphone: true },
                     chat: { enabled: true },
                     task: { enabled: false },
+                    autoAcceptTone: { enabled: true },
                     pageOptions: { enableAudioDeviceSettings: true, showInactivityModal: false, },
                     shouldAddNamespaceToLogs: true,
                     enableGlobalResiliency: true,
@@ -208,11 +209,12 @@ describe('Global Resiliency', function () {
                     softphone: params.softphone,
                     chat: params.chat,
                     task: params.task,
+                    autoAcceptTone: params.autoAcceptTone,
                     pageOptions: params.pageOptions,
                     shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
+                    showInactivityModal: false,
                     enableGlobalResiliency: params.enableGlobalResiliency,
                     instanceState: 'active',
-                    showInactivityModal: false
                 });
             });
 

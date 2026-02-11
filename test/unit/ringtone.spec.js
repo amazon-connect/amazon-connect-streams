@@ -366,7 +366,7 @@ describe('RingtoneEngine', () => {
     });
 
     describe('#connect.ChatRingtoneEngine', function () {
-        before(function () {
+        beforeEach(function () {
             sandbox.stub(connect.core, "getEventBus").returns(bus);
             this.chatRingtoneEngine = new connect.ChatRingtoneEngine(ringtoneObj);
             this.ringtoneSetup = sandbox.stub(this.chatRingtoneEngine, "_ringtoneSetup");
@@ -384,7 +384,8 @@ describe('RingtoneEngine', () => {
             });
         });
 
-        after(function () {
+        afterEach(function () {
+            sandbox.resetHistory();
             sandbox.restore();
         });
 
@@ -392,6 +393,25 @@ describe('RingtoneEngine', () => {
             bus.trigger(connect.ContactEvents.INIT, contact);
             bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
             assert.isTrue(this.ringtoneSetup.withArgs(contact).calledOnce);
+        });
+
+        it('validate the ChatRingtoneEngine should call _stopRingtone for auto-accept contacts', function () {
+            sandbox.resetHistory();
+            sandbox.stub(contact, 'isAutoAcceptEnabled').returns(true);
+            sandbox.stub(connect, 'ifMaster');
+            connect.ifMaster.callsFake((topic, successCallback) => successCallback());
+
+            const chatRingtoneEngine = new connect.ChatRingtoneEngine(ringtoneObj);
+            sandbox.stub(chatRingtoneEngine, '_startRingtone').resolves();
+            sandbox.stub(chatRingtoneEngine, '_stopRingtone');
+
+            bus.trigger(connect.ContactEvents.INIT, contact);
+            bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
+            assert.isTrue(this.ringtoneSetup.calledOnce);
+
+            bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contactId), contact);
+
+            assert.isTrue(chatRingtoneEngine._stopRingtone.calledOnce);
         });
 
         it('validate the ChatRingtoneEngine should not call the _ringtoneSetup for Voice calls ', function () {
@@ -490,6 +510,231 @@ describe('RingtoneEngine', () => {
             // verify
             assert.isTrue(this.ringtoneSetup.notCalled);
         });
+    });
+
+    describe('#connect.AutoAcceptedRingtoneEngine', () => {
+
+      let ringtoneEngine, ringtoneSetup;
+      let isAutoAcceptEnabledMock;
+
+      before(() => {
+        sandbox.resetHistory();
+      });
+
+      beforeEach(function () {
+        sandbox.stub(connect.core, 'getEventBus').returns(bus);
+        sandbox.stub(connect.Agent.prototype, "getContacts");
+        sandbox.stub(contact, "getStatus");
+        sandbox.stub(connect, 'ifMaster');
+        sandbox.stub(contact, "getAgentConnection");
+        isAutoAcceptEnabledMock = sandbox.stub(contact, 'isAutoAcceptEnabled');
+        isAutoAcceptEnabledMock.callsFake(() => true);
+        connect.Agent.prototype.getContacts.returns([]);
+        connect.ifMaster.callsFake((topic, successCallback) => successCallback());
+        contact.getStatus.returns({ type: connect.ContactStatusType.ACCEPTED });
+
+        ringtoneEngine = new connect.AutoAcceptedRingtoneEngine(ringtoneObj);
+        ringtoneSetup = sandbox.stub(ringtoneEngine, '_ringtoneSetup');
+
+        sandbox.stub(connect.AutoAcceptedRingtoneEngine.prototype, '_publishTelemetryEvent');
+
+        assert.doesNotThrow(ringtoneEngine._driveRingtone, Error, 'Not implemented.');
+      });
+
+      afterEach(function () {
+        bus.unsubscribeAll();
+        sandbox.restore();
+        sandbox.resetHistory();
+      });
+
+      it('validate the AutoAcceptedRingtoneEngine implemements the _driveRingtone method and calls the  _ringtoneSetup for TASK contacts', function () {
+        // setup
+        contactStubHelper({
+          contactType: connect.ContactType.TASK,
+          isInbound: true,
+        });
+
+        sandbox.stub(contact, 'getState').returns({ type: connect.ContactStatusType.CONNECTING, timestamp: new Date() });
+
+        // enact
+        bus.trigger(connect.ContactEvents.INIT, contact);
+        bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contactId), contact);
+
+        // verify
+        assert.isTrue(ringtoneSetup.withArgs(contact).calledOnce);
+      });
+
+      it('validate the AutoAcceptedRingtoneEngine implemements the _driveRingtone method and calls the  _ringtoneSetup for CHAT contacts', function () {
+        // setup
+        contactStubHelper({
+          contactType: connect.ContactType.CHAT,
+          isSoftphoneCall: false,
+          isInbound: true,
+        });
+
+        sandbox.stub(contact, 'getState').returns({ type: connect.ContactStatusType.CONNECTING, timestamp: new Date() });
+
+        // enact
+        bus.trigger(connect.ContactEvents.INIT, contact);
+        bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contactId), contact);
+
+        // verify
+        assert.isTrue(ringtoneSetup.withArgs(contact).calledOnce);
+      });
+
+      it('validate the AutoAcceptedRingtoneEngine implemements the _driveRingtone method and calls the  _ringtoneSetup for VOICE contacts', function () {
+        // setup
+        contactStubHelper({
+          contactType: connect.ContactType.VOICE,
+          isSoftphoneCall: true,
+          isInbound: true,
+        });
+
+        sandbox.stub(contact, 'getState').returns({ type: connect.ContactStatusType.CONNECTING, timestamp: new Date() });
+
+        // enact
+        bus.trigger(connect.ContactEvents.INIT, contact);
+        bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contactId), contact);
+
+        // verify
+        assert.isTrue(ringtoneSetup.withArgs(contact).calledOnce);
+      });
+
+      it('validate the AutoAcceptedRingtoneEngine implemements the _driveRingtone method and calls the  _ringtoneSetup for QCB contacts', function () {
+        // setup
+        contactStubHelper({
+          contactType: connect.ContactType.QUEUE_CALLBACK,
+          isSoftphoneCall: true,
+          isInbound: true,
+        });
+
+        sandbox
+          .stub(contact, 'getState')
+          .returns({ type: connect.ContactStatusType.INCOMING, timestamp: new Date() });
+
+        // enact
+        bus.trigger(connect.ContactEvents.INIT, contact);
+        bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contactId), contact);
+
+        // verify
+        assert.isTrue(ringtoneSetup.withArgs(contact).calledOnce);
+      });
+
+      it('should not trigger ringtone for accepted contacts if not ringtone master', () => {
+        connect.ifMaster
+            .callsFake((topic, successCallback, failureCallback) => failureCallback());
+        sandbox.stub(ringtoneEngine, '_startRingtone');
+        contactStubHelper({
+            contactType: connect.ContactType.CHAT,
+            isSoftphoneCall: false,
+            isInbound: true,
+        });
+
+        bus.trigger(connect.ContactEvents.INIT, contact);
+        bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contactId), contact);
+
+        sinon.assert.notCalled(ringtoneEngine._startRingtone);
+      });
+
+      it('should trigger ringtone for accepted contacts if ringtone master', () => {
+        ringtoneSetup.restore();
+        connect.ifMaster.restore();
+        sandbox.stub(connect, 'ifMaster');
+        connect.ifMaster.callsFake((topic, successCallback) => successCallback());
+        
+        contactStubHelper({
+            contactType: connect.ContactType.CHAT,
+            isSoftphoneCall: false,
+            isInbound: true,
+            state: { type: 'connecting' }
+        });
+        sandbox.stub(contact, 'getState'); 
+        contact.getState.returns({ type: 'connecting' });
+
+        const startSpy = sandbox.spy(ringtoneEngine, '_startRingtone');
+
+        bus.trigger(connect.ContactEvents.INIT, contact);
+        bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contactId), contact);
+
+        assert.isTrue(startSpy.calledOnce);
+      });
+
+      it('should trigger stopRingtone for connected contacts if ringtone master and auto-accept is enabled', () => {
+        ringtoneSetup.restore();
+        connect.ifMaster.restore();
+        sandbox.stub(connect, 'ifMaster');
+        connect.ifMaster.callsFake((topic, successCallback) => successCallback());
+        
+        contactStubHelper({
+            contactType: connect.ContactType.CHAT,
+            isSoftphoneCall: false,
+            isInbound: true,
+            state: { type: 'connected' }
+        });
+        sandbox.stub(contact, 'getState'); 
+        contact.getState.returns({ type: 'connecting' });
+
+        sandbox.stub(ringtoneEngine, '_startRingtone').resolves();
+        sandbox.stub(ringtoneEngine, '_stopRingtone');
+
+        bus.trigger(connect.ContactEvents.INIT, contact);
+        bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contactId), contact);
+        bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTED, contactId), contact);
+
+
+        assert.isTrue(ringtoneEngine._stopRingtone.calledOnce);
+      });
+
+      it('should not trigger stopRingtone for connected contacts if ringtone master and auto-accept is disabled', () => {
+        ringtoneSetup.restore();
+        connect.ifMaster.restore();
+        sandbox.stub(connect, 'ifMaster');
+        connect.ifMaster.callsFake((topic, successCallback) => successCallback());
+
+        isAutoAcceptEnabledMock.restore();
+        isAutoAcceptEnabledMock.callsFake(() => false);
+
+        contactStubHelper({
+            contactType: connect.ContactType.CHAT,
+            isSoftphoneCall: false,
+            isInbound: true,
+            state: { type: 'connected' },
+        });
+        sandbox.stub(contact, 'getState');
+        contact.getState.returns({ type: 'connecting' });
+
+        sandbox.stub(ringtoneEngine, '_startRingtone').resolves();
+        sandbox.stub(ringtoneEngine, '_stopRingtone');
+
+        bus.trigger(connect.ContactEvents.INIT, contact);
+        bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contactId), contact);
+        bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTED, contactId), contact);
+
+        sinon.assert.notCalled(ringtoneEngine._stopRingtone);
+      });
+
+    it('_canStartRingtone should return false if voice contact', () => {
+        const autoAcceptedRingtoneEngine = new connect.AutoAcceptedRingtoneEngine(ringtoneObj);
+        ringtoneSetup.restore();
+        connect.ifMaster.restore();
+        sandbox.stub(connect, 'ifMaster');
+        connect.ifMaster.callsFake((topic, successCallback) => successCallback());
+        
+        contactStubHelper({
+            contactType: connect.ContactType.VOICE,
+            isSoftphoneCall: false,
+            isCampaignPreview: false,
+            isInbound: true,
+            state: { type: 'connecting' }
+        });
+        sandbox.stub(contact, 'getState'); 
+        contact.getState.returns({ type: 'connecting' });
+
+        bus.trigger(connect.ContactEvents.INIT, contact);
+        bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ACCEPTED, contactId), contact);
+
+        assert.isTrue(autoAcceptedRingtoneEngine._canStartRingtone(contact) === false);
+      });
     });
 
 });

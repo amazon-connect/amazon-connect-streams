@@ -1,4 +1,7 @@
 # CHANGELOG.md
+## [2.25.0] - 2026-02-11
+- Introducing contact level auto-accept configuration that can be accessed via `contact.isAutoAcceptEnabled()` as part of the launch to support auto-accept for all channels. Learn more [here](https://docs.aws.amazon.com/connect/latest/adminguide/configure-agents.html).
+
 ## [2.24.0] - 2026-02-11
 - Introducing Voice Enhancement feature. Please see [here](https://docs.aws.amazon.com/connect/latest/adminguide/audio-enhancement.html) for more details.
 

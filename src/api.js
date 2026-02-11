@@ -1454,6 +1454,32 @@
     return supervisorConnection !== undefined;
   }
 
+  /**
+   * Checks if auto accept is enabled for the contact.
+   * If true, then the agent would not need to manually accept the contact.
+   *
+   * @returns { boolean } Returns true if enabled; false otherwise.
+   */
+  Contact.prototype.isAutoAcceptEnabled = function () {
+    try {
+      const contactType = this.getType();
+      const contact = this._getData();
+      if (contact.agentContactHandlingConfig) {
+        return contact.agentContactHandlingConfig?.autoAccept ?? false;
+      } else if (contactType === connect.ContactType.VOICE) {
+        const agentConnection = this.getAgentConnection();
+        return agentConnection.getSoftphoneMediaInfo()?.autoAccept ?? false;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      connect.getLog().error("Error while checking if auto accept is enabled for the contact.")
+        .withException(e)
+        .sendInternalLogToServer();
+      return false;
+    }
+  };
+
   Contact.prototype.silentMonitor = function (callbacks) {
     return this.updateMonitorParticipantState(connect.MonitoringMode.SILENT_MONITOR, callbacks);
   }

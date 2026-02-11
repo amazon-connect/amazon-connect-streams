@@ -19,13 +19,13 @@
   };
 
   // loading audio is async, but browser can handle audio operation like audio.play() or audio.setSinkId() before load complete
-  RingtoneEngineBase.prototype._loadRingtone = function (ringtoneUrl) {
+  RingtoneEngineBase.prototype._loadRingtone = function (ringtoneUrl, loop = true) {
     return new Promise((resolve, reject) => {
       if (!ringtoneUrl) {
         reject(Error('ringtoneUrl is required!'));
       }
       this._audio = new Audio(ringtoneUrl);
-      this._audio.loop = true;
+      this._audio.loop = loop;
       this.setOutputDevice(this._deviceId); // re-applying deviceId for audio reloading scenario
 
       // just in case "canplay" doesn't fire at all for some reasons
@@ -206,6 +206,14 @@
 
     connect.contact(function (contact) {
       contact.onConnecting(onContactConnect);
+
+      contact.onAccepted((_contact) => {
+        if (_contact.isAutoAcceptEnabled()) {
+          connect.ifMaster(connect.MasterTopics.RINGTONE, () => {
+            this._stopRingtone();
+          });
+        }
+      });
     });
   };
 
@@ -278,10 +286,137 @@
     });
   };
 
+  QueueCallbackRingtoneEngine.prototype._canStartRingtone = (contact) => {
+    if (contact instanceof connect.Contact && contact.getStatus().type === connect.ContactStatusType.INCOMING) {
+      return true;
+    } else {
+      connect.getLog().info("Ringtone Start skipped because the contact is already accepted").sendInternalLogToServer();
+      return false;
+    }
+  };
+
+  QueueCallbackRingtoneEngine.prototype._ringtoneSetup = function (contact) {
+    connect.ifMaster(connect.MasterTopics.RINGTONE, () => {
+      this._startRingtone(contact, 2).catch(() => {});
+
+      // Stop the ringtone when the contact is accepted
+      contact.onAccepted(connect.hitch(this, this._stopRingtone));
+
+      // Stop the ringtone upon every state update just in case.
+      // This is also helpful for split CCP model where onAccepted isn't triggered.
+      contact.onConnected(connect.hitch(this, this._stopRingtone));
+      contact.onEnded(connect.hitch(this, this._stopRingtone));
+      contact.onDestroy(connect.hitch(this, this._stopRingtone));
+
+      // To stop ringtone as early as possible for split CCP users,
+      // for QCB contacts we can listen to onPending and onConnecting.
+      contact.onPending(connect.hitch(this, this._stopRingtone));
+      contact.onConnecting(connect.hitch(this, this._stopRingtone));
+
+      // Stop the ringtone when the agent connection turns into CONNECTED or contact status is not INCOMING
+      contact.onRefresh((contact) => {
+        if (
+          contact.getStatus().type !== connect.ContactStatusType.INCOMING  ||  
+          contact.getAgentConnection().getStatus().type === connect.ConnectionStateType.CONNECTED
+        ) {
+          connect.getLog().info("Contact onRefresh - _stopRingtone is invoked").sendInternalLogToServer();
+          this._stopRingtone();
+        }
+      });
+    });
+  };
+
+  const AutoAcceptedRingtoneEngine = function (ringtoneConfig) {
+    RingtoneEngineBase.call(this, ringtoneConfig);
+  };
+
+  AutoAcceptedRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
+
+  AutoAcceptedRingtoneEngine.prototype.constructor = AutoAcceptedRingtoneEngine;
+
+  AutoAcceptedRingtoneEngine.prototype._canStartRingtone = (contact) => {    
+    connect
+      .getLog()
+      .info('Checking if auto-accept tone can be played')
+      .sendInternalLogToServer();
+
+    const { type: contactState } = contact.getState();
+    const contactType = contact.getType();
+
+    if (
+      (contactState === connect.ContactStatusType.INCOMING && contactType === connect.ContactType.QUEUE_CALLBACK) ||
+      (contactState === connect.ContactStatusType.CONNECTING && contactType !== connect.ContactType.QUEUE_CALLBACK)
+    ) {
+      if (contactType === connect.ContactType.VOICE) {
+        connect
+          .getLog()
+          .info('Skipping auto-accept tone for Voice contacts')
+          .withObject({ contactState, contactType })
+          .sendInternalLogToServer();
+        return false;
+      }
+
+      connect
+        .getLog()
+        .info('Contact is in the expected state')
+        .withObject({ contactState, contactType })
+        .sendInternalLogToServer();
+
+      const isAutoAcceptEnabled = contact.isAutoAcceptEnabled() ?? false;
+      const isInbound = contact.isInbound() ?? false;
+
+      connect
+        .getLog()
+        .info('Checking if the tone should play')
+        .withObject({ isAutoAcceptEnabled, isInbound })
+        .sendInternalLogToServer();
+      return isAutoAcceptEnabled && isInbound;
+    }
+
+    return false;
+  };
+
+  AutoAcceptedRingtoneEngine.prototype._loadRingtone = function (ringtoneUrl) {
+    return RingtoneEngineBase.prototype._loadRingtone.call(this, ringtoneUrl, false);
+  };
+
+  AutoAcceptedRingtoneEngine.prototype._ringtoneSetup = function (contact) {
+    connect.ifMaster(connect.MasterTopics.RINGTONE, () => {
+      this._startRingtone(contact, 1);
+    });
+  };
+
+  AutoAcceptedRingtoneEngine.prototype._driveRingtone = function () {
+    const onAcceptedContactHandler = (contact) => {
+      this._ringtoneSetup(contact);
+      this._publishTelemetryEvent('AutoAccept tone Connecting', contact);
+      connect.getLog().info('AutoAccept tone Connecting').sendInternalLogToServer();
+    };
+
+    const onConnectedContactHandler = (contact) => {
+      connect.ifMaster(connect.MasterTopics.RINGTONE, () => {
+        if (contact.isAutoAcceptEnabled()) {
+          connect
+            .getLog()
+            .info('Stopping auto accept tone')
+            .withObject({ contactId: contact.getContactId() })
+            .sendInternalLogToServer();
+            this._stopRingtone();
+        }
+      });
+    }
+
+    connect.contact((contact) => {
+      contact.onAccepted(onAcceptedContactHandler);
+      contact.onConnected(onConnectedContactHandler);
+    });
+  };
+
   /* export connect.RingtoneEngine */
   connect.VoiceRingtoneEngine = VoiceRingtoneEngine;
   connect.ChatRingtoneEngine = ChatRingtoneEngine;
   connect.TaskRingtoneEngine = TaskRingtoneEngine;
   connect.QueueCallbackRingtoneEngine = QueueCallbackRingtoneEngine;
   connect.EmailRingtoneEngine = EmailRingtoneEngine;
+  connect.AutoAcceptedRingtoneEngine = AutoAcceptedRingtoneEngine;
 })();

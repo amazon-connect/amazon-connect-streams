@@ -201,6 +201,104 @@ describe('Contact APIs', () => {
       const result = contact._isInbound();
       expect(result).to.equal(true);
     });
+
+    describe('isAutoAcceptEnabled', () => {
+
+      let getAgentConnectionStub;
+
+      before(() => {
+        sandbox.restore();
+      })
+
+      beforeEach(() => {
+        getAgentConnectionStub = sandbox.stub(contact, 'getAgentConnection');
+      });
+
+      afterEach(() => {
+        sandbox.restore();
+      })
+
+      it('should return true when agentContactHandlingConfig.autoAccept is true', () => {
+        sandbox.stub(contact, 'getType').returns('chat');
+        contact._getData.returns({
+            contactId: 'test-contact-id',
+            type: 'chat',
+            agentContactHandlingConfig: {
+              autoAccept: true,
+            },
+          });
+
+        const result = contact.isAutoAcceptEnabled();
+        
+        expect(result).to.equal(true);
+      });
+
+      it('should return false when agentContactHandlingConfig.autoAccept is false', () => {
+        sandbox.stub(contact, 'getType').returns('chat');
+        contact._getData.returns({
+          contactId: 'test-contact-id',
+          type: 'task',
+          agentContactHandlingConfig: {
+            autoAccept: false,
+          },
+        });
+
+        const result = contact.isAutoAcceptEnabled();
+
+        expect(result).to.equal(false);
+      });
+
+      it('should return softphoneMediaInfo.autoAccept when agentContactHandlingConfig does not exist and contact is type Voice', () => {
+        sandbox.stub(contact, 'getType').returns('voice');
+        contact._getData.returns({
+          contactId: 'test-contact-id',
+          type: 'voice',
+        });
+
+        getAgentConnectionStub.returns({
+          getSoftphoneMediaInfo: () => ({
+            autoAccept: true,
+          }),
+        });
+
+        const result = contact.isAutoAcceptEnabled();
+
+        expect(result).to.equal(true);
+      });
+
+      it('should return agentContactHandlingConfig even if softphoneMediaInfo exists and contact is type Voice', () => {
+        sandbox.stub(contact, 'getType').returns('voice');
+        contact._getData.returns({
+          contactId: 'test-contact-id',
+          type: 'voice',
+          agentContactHandlingConfig: {
+            autoAccept: false,
+          },
+        });
+        getAgentConnectionStub.returns({
+          getSoftphoneMediaInfo: () => ({
+              softphoneMediaInfo: {
+                autoAccept: true,
+              },
+          })
+        });
+
+        const result = contact.isAutoAcceptEnabled();
+
+        expect(result).to.equal(false);
+      });
+
+      it('should return false if agentContactHandlingConfig does not exists and contact is not type Voice', () => {
+        sandbox.stub(contact, 'getType').returns('chat');
+        getAgentConnectionStub.returns({
+
+        });
+
+        const result = contact.isAutoAcceptEnabled();
+
+        expect(result).to.equal(false);
+      });
+    });
   });
 
 
