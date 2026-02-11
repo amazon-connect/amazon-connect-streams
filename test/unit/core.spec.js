@@ -1028,7 +1028,8 @@ describe('Core', function () {
             beforeEach(function () {
                 defaultRingtone = {
                     voice: { ringtoneUrl: defaultRingtoneUrl },
-                    queue_callback: { ringtoneUrl: defaultRingtoneUrl }
+                    queue_callback: { ringtoneUrl: defaultRingtoneUrl },
+                    autoAcceptTone: { ringtoneUrl: defaultRingtoneUrl },
                 };
                 sandbox.stub(connect, "ifMaster");
                 sandbox.stub(connect, "VoiceRingtoneEngine");
@@ -1036,6 +1037,7 @@ describe('Core', function () {
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
                 sandbox.stub(connect, "EmailRingtoneEngine");
+                sandbox.stub(connect, 'AutoAcceptedRingtoneEngine');
                 connect.core.initRingtoneEngines({ ringtone: defaultRingtone });
             });
 
@@ -1084,6 +1086,7 @@ describe('Core', function () {
                     chat: { ringtoneUrl: defaultRingtoneUrl },
                     task: { ringtoneUrl: defaultRingtoneUrl },
                     email: { ringtoneUrl: defaultRingtoneUrl },
+                    autoAcceptTone: { ringtoneUrl: 'autoAcceptRingTone' },
                 };
                 sandbox.stub(connect, "ifMaster");
                 sandbox.stub(connect, "VoiceRingtoneEngine");
@@ -1091,6 +1094,7 @@ describe('Core', function () {
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
                 sandbox.stub(connect, "EmailRingtoneEngine");
+                sandbox.stub(connect, 'AutoAcceptedRingtoneEngine');
                 connect.core.initRingtoneEngines({ ringtone: extraRingtone });
             });
 
@@ -1130,6 +1134,13 @@ describe('Core', function () {
                 connect.ifMaster.callArg(1);
                 assert.isTrue(connect.EmailRingtoneEngine.calledWithNew(extraRingtone.email));
             });
+
+            it("Ringtone init with AutoAcceptedRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.AutoAcceptedRingtoneEngine.calledWithNew(extraRingtone.autoAcceptTone));
+            });
         });
 
         describe("initRingtoneEngines with stored ringer device ID", function () {
@@ -1152,6 +1163,7 @@ describe('Core', function () {
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
                 sandbox.stub(connect, "EmailRingtoneEngine");
+                sandbox.stub(connect, 'AutoAcceptedRingtoneEngine');
             });
 
             afterEach(function () {
@@ -1190,7 +1202,7 @@ describe('Core', function () {
                     chat: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                     task: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                     email: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
-
+                    autoAcceptTone: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                 };
                 ringtoneParams =  { ringtone: defaultRingtones };
                 ringtoneParamsKey = `RingtoneParamsStorage::${global.location.origin}`;
@@ -1210,6 +1222,7 @@ describe('Core', function () {
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
                 sandbox.stub(connect, "EmailRingtoneEngine");
+                sandbox.stub(connect, 'AutoAcceptedRingtoneEngine');
 
                 sandbox.stub(connect, 'isFramed').returns(true);
                 stubbedGetItem = sandbox.stub(global.localStorage, "getItem");
@@ -1254,7 +1267,7 @@ describe('Core', function () {
                     assert.isTrue(connect.TaskRingtoneEngine.calledOnceWith(defaultRingtones.task));
                     assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(defaultRingtones.queue_callback));
                     assert.isTrue(connect.EmailRingtoneEngine.calledOnceWith(defaultRingtones.email));
-
+                    assert.isTrue(connect.AutoAcceptedRingtoneEngine.calledOnceWith(defaultRingtones.autoAcceptTone));
                 });
 
                 it('initializes ringtone engines WITHOUT using stored ringtone params when CONFIGURE message IS delivered', () => {
@@ -1266,7 +1279,7 @@ describe('Core', function () {
                             chat: { disabled: false, ringtoneUrl: otherRingtoneUrl },
                             task: { disabled: false, ringtoneUrl: otherRingtoneUrl },
                             email: { disabled: false, ringtoneUrl: otherRingtoneUrl },
-
+                            autoAcceptTone: { disabled: false, ringtoneUrl: otherRingtoneUrl },
                         }
                     }
                     connect.core.initRingtoneEngines(usedRingtoneParams);
@@ -1284,7 +1297,7 @@ describe('Core', function () {
                     assert.isTrue(connect.TaskRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.task));
                     assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
                     assert.isTrue(connect.EmailRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.email));
-
+                    assert.isTrue(connect.AutoAcceptedRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.autoAcceptTone));
                 });
 
                 it('initializes ringtone engines WITHOUT using stored ringtone params when CONFIGURE message IS delivered, for disabled ringtone', () => {
@@ -1296,6 +1309,7 @@ describe('Core', function () {
                             chat: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                             task: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                             email: { disabled: true, ringtoneUrl: otherRingtoneUrl },
+                            autoAcceptTone: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                         }
                     }
                     connect.core.initRingtoneEngines(usedRingtoneParams);
@@ -1313,6 +1327,7 @@ describe('Core', function () {
                     assert.isFalse(connect.TaskRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.task));
                     assert.isFalse(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
                     assert.isFalse(connect.EmailRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.email));
+                    assert.isFalse(connect.AutoAcceptedRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.autoAcceptTone));
                 });
             });
 
@@ -1693,6 +1708,7 @@ describe('Core', function () {
         const softphoneParams = { ringtoneUrl: "customVoiceRingtone.amazon.com" };
         const chatParams = { ringtoneUrl: "customChatRingtone.amazon.com" };
         const taskParams = { ringtoneUrl: "customTaskRingtone.amazon.com" };
+        const autoAcceptToneParams = { ringtoneUrl: 'customAutoAcceptTone.amazon.com' };
         const pageOptionsParams = {
             enableAudioDeviceSettings: false,
             enableVideoDeviceSettings: false,
@@ -1710,6 +1726,7 @@ describe('Core', function () {
                 softphone: softphoneParams,
                 chat: chatParams,
                 task: taskParams,
+                autoAcceptTone: autoAcceptToneParams,
                 loginOptions: { autoClose: true },
                 pageOptions: pageOptionsParams,
                 shouldAddNamespaceToLogs: shouldAddNamespaceToLogs
@@ -1856,12 +1873,13 @@ describe('Core', function () {
                     softphone: { ringtoneUrl: 'test-softphone.mp3' },
                     chat: undefined,
                     task: undefined,
+                    autoAcceptTone: undefined,
                     pageOptions: {
                         showInactivityModal: false
                     },
                     shouldAddNamespaceToLogs: undefined,
+                    showInactivityModal: false,
                     disasterRecoveryOn: undefined,
-                    showInactivityModal: false
                 });
             });
         });
@@ -1918,6 +1936,7 @@ describe('Core', function () {
                     softphone: softphoneParams,
                     chat: chatParams,
                     task: taskParams,
+                    autoAcceptTone: autoAcceptToneParams,
                     pageOptions: pageOptionsParams,
                     shouldAddNamespaceToLogs: shouldAddNamespaceToLogs,
                     disasterRecoveryOn: disasterRecoveryOn,

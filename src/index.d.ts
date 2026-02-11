@@ -584,6 +584,14 @@ declare namespace connect {
     readonly ringtoneUrl?: string;
   }
 
+  interface AutoAcceptToneOption {
+    /** This option allows you to completely disable the built-in audio that is played when a contact is auto-accepted. */
+    readonly disableRingtone?: boolean;
+
+    /** If the ringtone is not disabled, this allows for overriding the ringtone with any browser-supported audio file accessible by the user. */
+    readonly ringtoneUrl?: string;
+  }
+
   interface LoginOptions {
     /*
     * Whether to open the login popup again after the agent logs out.
@@ -681,6 +689,9 @@ declare namespace connect {
     /** Allows you to specify ringtone settings for Task. */
     readonly task?: TaskOptions;
 
+    /** Allows you to specify ringtone settings for AutoAccept enabled contacts. */
+    readonly autoAcceptTone?: AutoAcceptToneOption;
+
     /**
      * Allows you to customize the title attribute of the CCP iframe.
      * @example "Contact Control Panel"
@@ -700,7 +711,7 @@ declare namespace connect {
     readonly ccpLoadTimeout?: number;
 
     /** used for request storage access implementations */
-    readonly storageAccess?: StorageAccessParameters
+    readonly storageAccess?: StorageAccessParameters;
 
     /** used to associate an existing AmazonConnectProvider */
     readonly provider?: InstanceType<{ new (...args: any[]): any }>;
@@ -1911,11 +1922,11 @@ declare namespace connect {
 
     /**
      * Initiates the screen sharing session for the contact.
-     * 
+     *
      * The method first verifies that the contact is a web calling contact (contact subtype must be `connect:WebRTC`) and that the contact is in a connected state (`this.isConnected()` is `true`). If either condition is not met, an error is thrown.
      *
      * Once these conditions are satisfied, the `StartScreenSharing` API in Amazon Connect Service is called to initiate the screen sharing session.
-     * 
+     *
      * @param skipSessionInitiation If `true`, the screen sharing session initiation process is skipped, and the screen sharing started event is sent immediately. Defaults to `false`.
      * @throws An error if the contact type is not supported for screen sharing (only WebRTC contacts are supported).
      * @throws A `StateError` if the contact is not in a connected state.
@@ -1925,11 +1936,11 @@ declare namespace connect {
 
     /**
      * Stops the ongoing screen sharing session for the contact.
-     * 
+     *
      * The method first verifies that the contact is a web calling contact (contact subtype must be `connect:WebRTC`) and that the contact is in a connected state (`this.isConnected()` is `true`). If either condition is not met, an error is thrown.
      *
      * Once these conditions are satisfied, it fires `contact.onScreenSharingStopped` event.
-     * 
+     *
      * @throws An error if the contact type does not support screen sharing (only WebRTC contacts are supported).
      * @throws A `StateError` if the contact is not in a connected state.
      */
@@ -2039,9 +2050,9 @@ declare namespace connect {
     /** Gets a list of all active connections, i.e. connections that have not been disconnected. */
     getActiveConnections(): BaseConnection[];
 
-    /** 
+    /**
      * Determines if there are exactly two active participants on a contact.
-     * When using enhanced monitoring & barge, if there are only two active participants on a contact, 
+     * When using enhanced monitoring & barge, if there are only two active participants on a contact,
      * and one of them is the manager who has barged in, the manager cannot switch back to monitoring mode.
      */
     hasTwoActiveParticipants(): boolean;
@@ -2150,11 +2161,7 @@ declare namespace connect {
      * @param description A description to associate with the diagnostic report.
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
      */
-    notifyIssue(
-      issueCode: string,
-      description: string,
-      callbacks?: SuccessFailOptions
-    ): void;
+    notifyIssue(issueCode: string, description: string, callbacks?: SuccessFailOptions): void;
 
     /**
      * Add a new outbound third-party connection to this contact and connect it to the specified endpoint.
@@ -2227,6 +2234,14 @@ declare namespace connect {
      * @param callbacks Success and failure callbacks to determine whether the operation was successful
      */
     bargeIn(callbacks?: SuccessFailOptions): void;
+
+    /**
+     * Checks if auto accept is enabled for the contact.
+     * If true, then the agent would not need to manually accept the contact.
+     *
+     * @returns { boolean } Returns true if enabled; false otherwise.
+     */
+    isAutoAcceptEnabled(): boolean;
   }
 
   class QuickResponses {

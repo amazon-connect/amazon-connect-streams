@@ -725,13 +725,8 @@
       logger.info("Not able to retrieve the auto-accept setting from null AgentConnection, ignoring event publish..").sendInternalLogToServer();
       return;
     }
-    var softphoneMediaInfo = agentConnection.getSoftphoneMediaInfo();
-    if (!softphoneMediaInfo) {
-      logger.info("Not able to retrieve the auto-accept setting from null SoftphoneMediaInfo, ignoring event publish..").sendInternalLogToServer();
-      return;
-    }
-    if (softphoneMediaInfo.autoAccept === true) {
-      logger.info("Auto-accept is enabled, sending out Accepted event to stop ringtone..").sendInternalLogToServer();
+    if (contact.isAutoAcceptEnabled() && contact.getType() === connect.ContactType.VOICE) {
+      logger.info('Auto-accept is enabled, sending out Accepted event to stop ringtone..').sendInternalLogToServer();
       conduit.sendUpstream(connect.EventType.BROADCAST, {
         event: connect.ContactEvents.ACCEPTED,
         data: new connect.Contact(contact.contactId)

@@ -4893,6 +4893,32 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     });
     return supervisorConnection !== undefined;
   };
+
+  /**
+   * Checks if auto accept is enabled for the contact.
+   * If true, then the agent would not need to manually accept the contact.
+   *
+   * @returns { boolean } Returns true if enabled; false otherwise.
+   */
+  Contact.prototype.isAutoAcceptEnabled = function () {
+    try {
+      var contactType = this.getType();
+      var contact = this._getData();
+      if (contact.agentContactHandlingConfig) {
+        var _contact$agentContact, _contact$agentContact2;
+        return (_contact$agentContact = (_contact$agentContact2 = contact.agentContactHandlingConfig) === null || _contact$agentContact2 === void 0 ? void 0 : _contact$agentContact2.autoAccept) !== null && _contact$agentContact !== void 0 ? _contact$agentContact : false;
+      } else if (contactType === connect.ContactType.VOICE) {
+        var _agentConnection$getS, _agentConnection$getS2;
+        var agentConnection = this.getAgentConnection();
+        return (_agentConnection$getS = (_agentConnection$getS2 = agentConnection.getSoftphoneMediaInfo()) === null || _agentConnection$getS2 === void 0 ? void 0 : _agentConnection$getS2.autoAccept) !== null && _agentConnection$getS !== void 0 ? _agentConnection$getS : false;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      connect.getLog().error("Error while checking if auto accept is enabled for the contact.").withException(e).sendInternalLogToServer();
+      return false;
+    }
+  };
   Contact.prototype.silentMonitor = function (callbacks) {
     return this.updateMonitorParticipantState(connect.MonitoringMode.SILENT_MONITOR, callbacks);
   };
@@ -10726,7 +10752,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.24.0";
+  connect.version = "2.25.0";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
@@ -11242,6 +11268,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
               isInitializedAnyEngine = true;
               connect.getLog().info("QueueCallbackRingtoneEngine initialized.").sendInternalLogToServer();
             }
+            if (!ringtoneSettings.autoAcceptTone.disabled && !connect.core.ringtoneEngines.autoAccept) {
+              connect.core.ringtoneEngines.autoAccept = new connect.AutoAcceptedRingtoneEngine(ringtoneSettings.autoAcceptTone);
+              isInitializedAnyEngine = true;
+              connect.getLog().info('AutoAcceptedRingtoneEngine initialized.').sendInternalLogToServer();
+            }
+
             // Once any of the Ringtone Engines are initialized, set ringer device with latest device id from _ringerDeviceId.
             if (isInitializedAnyEngine && connect.core._ringerDeviceId) {
               setRingerDeviceFunc({
@@ -11266,6 +11298,9 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         disabled: true
       };
       params.ringtone.email = params.ringtone.email || {
+        disabled: true
+      };
+      params.ringtone.autoAcceptTone = params.ringtone.autoAcceptTone || {
         disabled: true
       };
       if (otherParams.softphone) {
@@ -11302,6 +11337,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
           params.ringtone.email.ringtoneUrl = otherParams.email.ringtoneUrl;
         }
       }
+      if (otherParams.autoAcceptTone) {
+        if (otherParams.autoAcceptTone.disableRingtone) {
+          params.ringtone.autoAcceptTone.disabled = true;
+        }
+        if (otherParams.autoAcceptTone.ringtoneUrl) {
+          params.ringtone.autoAcceptTone.ringtoneUrl = otherParams.autoAcceptTone.ringtoneUrl;
+        }
+      }
 
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
@@ -11310,6 +11353,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         params.ringtone.chat = connect.merge(params.ringtone.chat, otherParams.ringtone.chat || {});
         params.ringtone.task = connect.merge(params.ringtone.task, otherParams.ringtone.task || {});
         params.ringtone.email = connect.merge(params.ringtone.email, otherParams.ringtone.email || {});
+        params.ringtone.autoAcceptTone = connect.merge(params.ringtone.autoAcceptTone, otherParams.ringtone.autoAcceptTone || {});
       }
     };
 
@@ -13253,6 +13297,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         softphone: params.softphone,
         chat: params.chat,
         task: params.task,
+        autoAcceptTone: params.autoAcceptTone,
         pageOptions: params.pageOptions,
         shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
         showInactivityModal: (_params$pageOptions = params.pageOptions) === null || _params$pageOptions === void 0 ? void 0 : _params$pageOptions.showInactivityModal
@@ -17247,12 +17292,13 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
   // loading audio is async, but browser can handle audio operation like audio.play() or audio.setSinkId() before load complete
   RingtoneEngineBase.prototype._loadRingtone = function (ringtoneUrl) {
     var _this = this;
+    var loop = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
     return new Promise(function (resolve, reject) {
       if (!ringtoneUrl) {
         reject(Error('ringtoneUrl is required!'));
       }
       _this._audio = new Audio(ringtoneUrl);
-      _this._audio.loop = true;
+      _this._audio.loop = loop;
       _this.setOutputDevice(_this._deviceId); // re-applying deviceId for audio reloading scenario
 
       // just in case "canplay" doesn't fire at all for some reasons
@@ -17458,7 +17504,23 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       }
     };
     connect.contact(function (contact) {
+      var _this5 = this;
       contact.onConnecting(onContactConnect);
+
+      /**
+       * There is a race condition where when auto-accept is enabled for chat,
+       * the ACCEPTED event is sent before the _ringtoneSetup is triggered
+       * so the onAccepted event handler misses the event. Thus,
+       * subscribing to onAccepted in _driveRingtone, to stop the ringtone if
+       * auto-accept is enabled for the contact.
+       */
+      contact.onAccepted(function (_contact) {
+        if (_contact.isAutoAcceptEnabled()) {
+          connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
+            _this5._stopRingtone();
+          });
+        }
+      });
     });
   };
   var TaskRingtoneEngine = function TaskRingtoneEngine(ringtoneConfig) {
@@ -17519,6 +17581,106 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       });
     });
   };
+  QueueCallbackRingtoneEngine.prototype._canStartRingtone = function (contact) {
+    if (contact instanceof connect.Contact && contact.getStatus().type === connect.ContactStatusType.INCOMING) {
+      return true;
+    } else {
+      connect.getLog().info("Ringtone Start skipped because the contact is already accepted").sendInternalLogToServer();
+      return false;
+    }
+  };
+  QueueCallbackRingtoneEngine.prototype._ringtoneSetup = function (contact) {
+    var _this6 = this;
+    connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
+      _this6._startRingtone(contact, 2)["catch"](function () {});
+
+      // Stop the ringtone when the contact is accepted
+      contact.onAccepted(connect.hitch(_this6, _this6._stopRingtone));
+
+      // Stop the ringtone upon every state update just in case.
+      // This is also helpful for split CCP model where onAccepted isn't triggered.
+      contact.onConnected(connect.hitch(_this6, _this6._stopRingtone));
+      contact.onEnded(connect.hitch(_this6, _this6._stopRingtone));
+      contact.onDestroy(connect.hitch(_this6, _this6._stopRingtone));
+
+      // To stop ringtone as early as possible for split CCP users,
+      // for QCB contacts we can listen to onPending and onConnecting.
+      contact.onPending(connect.hitch(_this6, _this6._stopRingtone));
+      contact.onConnecting(connect.hitch(_this6, _this6._stopRingtone));
+
+      // Stop the ringtone when the agent connection turns into CONNECTED or contact status is not INCOMING
+      contact.onRefresh(function (contact) {
+        if (contact.getStatus().type !== connect.ContactStatusType.INCOMING || contact.getAgentConnection().getStatus().type === connect.ConnectionStateType.CONNECTED) {
+          connect.getLog().info("Contact onRefresh - _stopRingtone is invoked").sendInternalLogToServer();
+          _this6._stopRingtone();
+        }
+      });
+    });
+  };
+  var AutoAcceptedRingtoneEngine = function AutoAcceptedRingtoneEngine(ringtoneConfig) {
+    RingtoneEngineBase.call(this, ringtoneConfig);
+  };
+  AutoAcceptedRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
+  AutoAcceptedRingtoneEngine.prototype.constructor = AutoAcceptedRingtoneEngine;
+  AutoAcceptedRingtoneEngine.prototype._canStartRingtone = function (contact) {
+    connect.getLog().info('Checking if auto-accept tone can be played').sendInternalLogToServer();
+    var _contact$getState = contact.getState(),
+      contactState = _contact$getState.type;
+    var contactType = contact.getType();
+    if (contactState === connect.ContactStatusType.INCOMING && contactType === connect.ContactType.QUEUE_CALLBACK || contactState === connect.ContactStatusType.CONNECTING && contactType !== connect.ContactType.QUEUE_CALLBACK) {
+      var _contact$isAutoAccept, _contact$isInbound;
+      if (contactType === connect.ContactType.VOICE) {
+        connect.getLog().info('Skipping auto-accept tone for Voice contacts').withObject({
+          contactState: contactState,
+          contactType: contactType
+        }).sendInternalLogToServer();
+        return false;
+      }
+      connect.getLog().info('Contact is in the expected state').withObject({
+        contactState: contactState,
+        contactType: contactType
+      }).sendInternalLogToServer();
+      var isAutoAcceptEnabled = (_contact$isAutoAccept = contact.isAutoAcceptEnabled()) !== null && _contact$isAutoAccept !== void 0 ? _contact$isAutoAccept : false;
+      var isInbound = (_contact$isInbound = contact.isInbound()) !== null && _contact$isInbound !== void 0 ? _contact$isInbound : false;
+      connect.getLog().info('Checking if the tone should play').withObject({
+        isAutoAcceptEnabled: isAutoAcceptEnabled,
+        isInbound: isInbound
+      }).sendInternalLogToServer();
+      return isAutoAcceptEnabled && isInbound;
+    }
+    return false;
+  };
+  AutoAcceptedRingtoneEngine.prototype._loadRingtone = function (ringtoneUrl) {
+    return RingtoneEngineBase.prototype._loadRingtone.call(this, ringtoneUrl, false);
+  };
+  AutoAcceptedRingtoneEngine.prototype._ringtoneSetup = function (contact) {
+    var _this7 = this;
+    connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
+      _this7._startRingtone(contact, 1);
+    });
+  };
+  AutoAcceptedRingtoneEngine.prototype._driveRingtone = function () {
+    var _this8 = this;
+    var onAcceptedContactHandler = function onAcceptedContactHandler(contact) {
+      _this8._ringtoneSetup(contact);
+      _this8._publishTelemetryEvent('AutoAccept tone Connecting', contact);
+      connect.getLog().info('AutoAccept tone Connecting').sendInternalLogToServer();
+    };
+    var onConnectedContactHandler = function onConnectedContactHandler(contact) {
+      connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
+        if (contact.isAutoAcceptEnabled()) {
+          connect.getLog().info('Stopping auto accept tone').withObject({
+            contactId: contact.getContactId()
+          }).sendInternalLogToServer();
+          _this8._stopRingtone();
+        }
+      });
+    };
+    connect.contact(function (contact) {
+      contact.onAccepted(onAcceptedContactHandler);
+      contact.onConnected(onConnectedContactHandler);
+    });
+  };
 
   /* export connect.RingtoneEngine */
   connect.VoiceRingtoneEngine = VoiceRingtoneEngine;
@@ -17526,6 +17688,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
   connect.TaskRingtoneEngine = TaskRingtoneEngine;
   connect.QueueCallbackRingtoneEngine = QueueCallbackRingtoneEngine;
   connect.EmailRingtoneEngine = EmailRingtoneEngine;
+  connect.AutoAcceptedRingtoneEngine = AutoAcceptedRingtoneEngine;
 })();
 
 /***/ }),
@@ -18260,13 +18423,8 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       logger.info("Not able to retrieve the auto-accept setting from null AgentConnection, ignoring event publish..").sendInternalLogToServer();
       return;
     }
-    var softphoneMediaInfo = agentConnection.getSoftphoneMediaInfo();
-    if (!softphoneMediaInfo) {
-      logger.info("Not able to retrieve the auto-accept setting from null SoftphoneMediaInfo, ignoring event publish..").sendInternalLogToServer();
-      return;
-    }
-    if (softphoneMediaInfo.autoAccept === true) {
-      logger.info("Auto-accept is enabled, sending out Accepted event to stop ringtone..").sendInternalLogToServer();
+    if (contact.isAutoAcceptEnabled() && contact.getType() === connect.ContactType.VOICE) {
+      logger.info('Auto-accept is enabled, sending out Accepted event to stop ringtone..').sendInternalLogToServer();
       conduit.sendUpstream(connect.EventType.BROADCAST, {
         event: connect.ContactEvents.ACCEPTED,
         data: new connect.Contact(contact.contactId)

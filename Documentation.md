@@ -191,6 +191,10 @@ everything set up correctly and that you are able to listen for events.
             disableRingtone: false, // optional, defaults to false
             ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP's default ringtone if a falsy value is set
           },
+          autoAcceptTone: {
+            disableRingtone: false, // optional, defaults to false
+            ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP's default ringtone if a falsy value is set
+          },
           pageOptions: { //optional
             enableAudioDeviceSettings: false, //optional, defaults to 'false'
             enableVideoDeviceSettings: false, //optional, defaults to 'false'
@@ -261,6 +265,11 @@ and made available to your JS client code.
   - `allowFramedScreenSharingPopUp`: If `true`, clicking the screen sharing button in the embedded CCP will launch the screen sharing app in a new window. If `false` or not provided, clicking the button will not launch the screen sharing app.
   - `VDIPlatform`: This option is only applicable for virtual desktop interface integrations. If set, it will configure CCP to optimize softphone audio configuration for the VDI. Options can be provided by using enum `VDIPlatformType`. If `allowFramedSoftphone` is `false` and `VDIPlatform` is going to be set, please make sure you are passing this parameter into `connect.core.initSoftphoneManager()`. For example, `connect.core.initSoftphoneManager({ VDIPlatform: "CITRIX" })`
   - `allowEarlyGum`: If `true` or not provided, CCP will capture the agent’s browser microphone media stream before the contact arrives to reduce the call setup latency. If `false`, CCP will only capture agent media stream after the contact arrives.
+- `autoAcceptTone`: This object is optional and allows you to configure the tone that is played for auto-accepted contacts (excluding Voice contact).
+  - `disableRingtone`: This option allows you to completely disable the built-in
+    audio that is played when a contact has auto-accept enabled.
+  * `ringtoneUrl`: If the ringtone is not disabled, this allows for overriding
+    the ringtone with any browser-supported audio file accessible by the user.
 - `pageOptions`: This object is optional and allows you to configure which configuration sections are displayed in the settings tab.
   - `enableAudioDeviceSettings`: If `true`, the settings tab will display a section for configuring audio input and output devices for the agent's local
     machine. If `false`, or if `pageOptions` is not provided, the agent will not be able to change audio device settings from the settings tab. will not be
@@ -728,6 +737,7 @@ Gets the full `AgentConfiguration` object for the agent. This object contains th
 - `permissions`: See `agent.getPermissions()` for more info.
 - `routingProfile`: See `agent.getRoutingProfile()` for more info.
 - `softphoneAutoAccept`: Indicates whether auto accept soft phone calls is enabled.
+  - We recommend updating to `contact.isAutoAcceptEnabled()`, which covers all contact types.
 - `softphoneEnabled`: See `agent.isSoftphoneEnabled()` for more info.
 - `username`: The username for the agent as entered in their Amazon Connect user account.
 - `agentARN`: See `agent.getAgentARN()` for more info.
@@ -1395,6 +1405,12 @@ if (contact.isSoftphoneCall()) { /* ... */ }
 ```
 Determine whether this contact is a softphone call.
 
+### `contact.isAutoAcceptEnabled()`
+```js
+if (contact.isAutoAcceptEnabled()) { /* ... */ }
+```
+Determine whether this contact has auto-accept enabled.
+
 ### `contact.hasVideoRTCCapabilities()`
 
 ```js
@@ -1789,7 +1805,7 @@ Optional success and failure callbacks can be provided to determine if the opera
 ### `contact.engagePreviewContact()`
 
 ```js
-const participantId = await contact.engagePreviewContact(contactId);
+const participantId = contact.engagePreviewContact(contactId);
 ```
 
 When an agent is previewing a preview contact, this API will actually initiate the outbound dial to the end customer, ending the preview experience. It returns the id of the newly added participant 
@@ -1797,7 +1813,7 @@ When an agent is previewing a preview contact, this API will actually initiate t
 ### `contact.getPreviewConfiguration()`
 
 ```js
-const previewConfiguration = await contact.getPreviewConfiguration(contactId);
+const previewConfiguration = contact.getPreviewConfiguration(contactId);
 ```
 
 This gets configuration information related to the preview experience.
@@ -1807,10 +1823,11 @@ For more information on the return type, see Output parameter section of the SDK
 ### `contact.isPreviewMode()`
 
 ```js
-const isPreviewMode = await contact.isPreviewMode(contactId);
+const isPreviewMode = contact.isPreviewMode(contactId);
 ```
 
 Returns a boolean indicating whether the contact is being previewed. During this time, calling engagePreviewContact will trigger the outbound dial to the end customer and end preview mode.
+
 
 ## Connection API
 The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state
