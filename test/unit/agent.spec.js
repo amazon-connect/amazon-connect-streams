@@ -153,4 +153,50 @@ describe('Agent APIs', () => {
 
     connect.core.eventBus = null;
   });
+
+  describe('Voice Enhancement', () => {
+    let agent;
+
+    beforeEach(() => {
+      agent = new connect.Agent();
+    });
+
+    it('should throw an error if the mode is not valid', () => {
+      expect(() => agent.setVoiceEnhancementMode('invalid')).to.throw();
+    });
+
+    for (var mode of ["VOICE_ISOLATION", "NOISE_SUPPRESSION", "NONE"]) {
+      it(`should invoke SDK if the mode is ${mode}`, () => {
+        const setVoiceEnhancementMode =  sinon.stub();
+        sinon.stub(agent, '_getSDKVoiceClient').returns({
+          setVoiceEnhancementMode
+        });
+
+        agent.setVoiceEnhancementMode(mode);
+
+        expect(setVoiceEnhancementMode.calledWith(mode)).to.be.true;
+      });
+    }
+
+    it('should subscribe to Voice Enhancement mode changed', () => {
+      const mockCallback = sinon.stub();
+      const mockOnVoiceEnhancementModeChanged = sinon.stub();
+      sinon.stub(agent, '_getSDKVoiceClient').returns({
+        onVoiceEnhancementModeChanged: mockOnVoiceEnhancementModeChanged
+      });
+      
+      agent.onVoiceEnhancementModeChanged(mockCallback);
+
+      expect(mockOnVoiceEnhancementModeChanged.calledOnce).to.be.true;
+
+      const sdkCallback = mockOnVoiceEnhancementModeChanged.firstCall.args[0];
+      
+      // Simulate the SDK client calling the callback with voice enhancement mode data
+      const testVoiceEnhancementMode = 'VOICE_ISOLATION';
+      sdkCallback({ voiceEnhancementMode: testVoiceEnhancementMode });
+      
+      expect(mockCallback.calledOnce).to.be.true;
+      expect(mockCallback.firstCall.args[0]).to.deep.equal({ voiceEnhancementMode: testVoiceEnhancementMode });
+    })
+  });
 });

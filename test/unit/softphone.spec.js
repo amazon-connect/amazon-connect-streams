@@ -20,6 +20,18 @@ describe('SoftphoneManager', () => {
     before(() => {
         clock = sandbox.useFakeTimers();
         bus = new connect.EventBus();
+        if (!navigator.mediaDevices) {
+            navigator.mediaDevices = {};
+        }
+        if (!navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia = function () {};
+        }
+        if (!navigator.permissions) {
+            navigator.permissions = function () {};
+        }
+        if (!navigator.permissions.query) {
+            navigator.permissions.query = function () {};
+        }
         sandbox.stub(connect.core, "getEventBus").returns(bus);
         sandbox.spy(bus, 'subscribe');
         sandbox.stub(connect, 'RtcPeerConnectionFactory');
@@ -58,6 +70,16 @@ describe('SoftphoneManager', () => {
         stubbedIsFirefoxBrowser = sandbox.stub(connect, 'isFirefoxBrowser');
         stubbedHasOtherConnectedCCPs = sandbox.stub(connect, 'hasOtherConnectedCCPs');
         connect.agent.initialized = true;
+        
+        // Stub VoiceFocusProvider to prevent voice enhancement calls
+        if (!connect.core.voiceFocus) {
+            connect.core.voiceFocus = {};
+        }
+        if (!connect.VoiceFocusProvider) {
+            connect.VoiceFocusProvider = {};
+        }
+        connect.VoiceFocusProvider.publishMetrics = sandbox.stub();
+        connect.VoiceFocusProvider.cleanVoiceFocus = sandbox.stub();
     });
 
     after(() => {

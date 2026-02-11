@@ -583,7 +583,8 @@
          softphoneAutoAccept: config.softphoneAutoAccept,
          extension: config.extension,
          routingProfile: this._translateRoutingProfile(config.routingProfile),
-         agentPreferences: config.agentPreferences
+         agentPreferences: config.agentPreferences,
+         voiceEnhancementMode: config.voiceEnhancementMode
       };
    };
 

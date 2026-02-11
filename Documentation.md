@@ -815,6 +815,19 @@ const agentARN = agent.getAgentARN();
 
 Gets the agent's ARN.
 
+### `agent.getVoiceEnhancementMode`
+```js
+const voiceEnhancementMode = agent.getVoiceEnhancementMode();
+```
+Gets the voice/audio enhancement mode of the user that's currently logged in. The voice enhancement has one of the below values:
+
+- `VOICE_ISOLATION`: it suppresses background noise and isolates the agent's voice. This mode should only be enabled if the agent uses a wired headsets. 
+- `NOISE_SUPPRESSION`: it suppresses the background noise. We recommend using this mode with any type of headset.
+- `NONE`: no voice enhancement applies.
+
+For more details on the feature, follow the documentation here: [1](https://docs.aws.amazon.com/connect/latest/adminguide/audio-enhancement.html), [2](https://docs.aws.amazon.com/agentworkspace/latest/devguide/3P-apps-voice-requests-setvoiceenhancementmode.html). 
+
+
 ### `agent.setConfiguration()`
 ```js
 var config = agent.getConfiguration();
@@ -991,6 +1004,13 @@ agent.setRingerDevice(deviceId);
 ```
 Sets the ringer device (output device for ringtone)
 
+### `agent.setVoiceEnhancementMode`
+```js
+agent.setVoiceEnhancementMode(voiceEnhancementMode)
+```
+
+Sets the voice/audio enhancement mode of the user that's currently logged into CCP. Values accepted for `voiceEnhancementMode` are `VOICE_ISOLATION`, `NOISE_SUPPRESSION`, `NONE`. 
+
 ### `agent.onLocalMediaStreamCreated()`
 
 ```js
@@ -1041,6 +1061,22 @@ agent.onBackgroundBlurChanged(function(obj) { /* ... */ });
 ```
 
 Subscribe a method to be called when the agent enables or disables Background Blur for the camera device (input device for call video).
+
+
+### `agent.onVoiceEnhancementModeChanged`
+```js
+agent.onVoiceEnhancementModeChanged(({ voiceEnhancementMode }) => { /* ... */ });
+
+```
+
+Subscribes a callback function to be called whenever voice/audio enhancements mode is changed in user's profile. Callback gets the current mode set in user profile:
+```js
+{
+  voiceEnhancementMode: string
+}
+```
+
+
 
 ## Contact API
 The Contact API provides event subscription methods and action methods which can be called on behalf of a specific

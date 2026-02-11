@@ -1,4 +1,7 @@
 # CHANGELOG.md
+## [2.24.0] - 2026-02-11
+- Introducing Voice Enhancement feature. Please see [here](https://docs.aws.amazon.com/connect/latest/adminguide/audio-enhancement.html) for more details.
+
 ## [2.23.0] - 2026-02-06
 - Support Citrix UCSDK 4.1 integration. Please see https://github.com/aws/connect-rtc-js release note for more details
 
