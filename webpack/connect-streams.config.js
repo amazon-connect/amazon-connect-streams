@@ -27,6 +27,7 @@ const config = Object.assign({}, commonConfig, {
     './src/agent-app/agent-app.js',
     './src/agent-app/app-registry.js',
     './src/global-resiliency.js',
+    './src/voiceEnhancementProvider.js'
   ],
   output: {
     path: path.resolve(__dirname, '../release'),
