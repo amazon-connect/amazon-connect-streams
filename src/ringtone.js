@@ -52,9 +52,26 @@
     throw new Error("Not implemented.");
   };
 
+  RingtoneEngineBase.prototype._canStartRingtone = (contact) => {
+    if (contact instanceof connect.Contact && contact.isCampaignPreview() && contact.getStatus().type === connect.ContactStatusType.INCOMING){
+      return true;
+    }
+    else if (contact instanceof connect.Contact && !contact.isCampaignPreview() && contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
+      return true;
+    }
+
+    connect.getLog().info("Ringtone Start skipped because the contact is already accepted").sendInternalLogToServer();
+    return false;
+  };
+
   RingtoneEngineBase.prototype._startRingtone = async function (contact, retries = 0, errorList = []) {
     return new Promise((resolve, reject) => {
       if (!this._audio) reject(Error('No audio object found'));
+
+      if (!this._canStartRingtone(contact)) {
+        resolve();
+        return;
+      }
 
       // Empty string as sinkId means audio gets sent to the default device
       connect.getLog().info(`Attempting to start ringtone to device ${this._audio.sinkId || "''"}`).sendInternalLogToServer();
@@ -161,6 +178,31 @@
   VoiceRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
   VoiceRingtoneEngine.prototype.constructor = VoiceRingtoneEngine;
 
+  VoiceRingtoneEngine.prototype._canStartRingtone = (contact) => {
+    if (!(contact instanceof connect.Contact)) {
+      return false;
+    }
+
+    const contacts = new connect.Agent().getContacts();
+    const isAdditionalVoiceContact =
+      contacts?.filter((contact) => connect.voiceContactTypes.includes(contact.getType())).length > 1;
+
+    const expectedType = 
+      contact.isCampaignPreview()
+      ? connect.ContactStatusType.INCOMING
+      : connect.ContactStatusType.CONNECTING;
+
+    if (
+      !isAdditionalVoiceContact &&
+      contact.getStatus().type === expectedType
+    ) {
+      return true;
+    }
+
+    connect.getLog().info("Voice contact ringtone skipped").sendInternalLogToServer();
+    return false;
+  };
+
   VoiceRingtoneEngine.prototype._driveRingtone = function () {
     const onContactConnect = (contact) => {
       if (contact.getType() === connect.ContactType.VOICE && contact.isSoftphoneCall() && contact.isInbound()) {
@@ -207,6 +249,13 @@
     connect.contact(function (contact) {
       contact.onConnecting(onContactConnect);
 
+      /**
+       * There is a race condition where when auto-accept is enabled for chat,
+       * the ACCEPTED event is sent before the _ringtoneSetup is triggered
+       * so the onAccepted event handler misses the event. Thus,
+       * subscribing to onAccepted in _driveRingtone, to stop the ringtone if
+       * auto-accept is enabled for the contact.
+       */
       contact.onAccepted((_contact) => {
         if (_contact.isAutoAcceptEnabled()) {
           connect.ifMaster(connect.MasterTopics.RINGTONE, () => {
@@ -411,9 +460,43 @@
       contact.onConnected(onConnectedContactHandler);
     });
   };
+  
+  const AdditionalVoiceRingtoneEngine = function (ringtoneConfig) {
+    VoiceRingtoneEngine.call(this, ringtoneConfig);
+  };
+
+  AdditionalVoiceRingtoneEngine.prototype = Object.create(VoiceRingtoneEngine.prototype);
+
+  AdditionalVoiceRingtoneEngine.prototype.constructor = AdditionalVoiceRingtoneEngine;
+
+  AdditionalVoiceRingtoneEngine.prototype._canStartRingtone = (contact) => {
+    if (!(contact instanceof connect.Contact)) {
+      return false;
+    }
+
+    const contacts = new connect.Agent().getContacts();
+    const isAdditionalVoiceContact =
+      contacts?.filter((contact) => connect.voiceContactTypes.includes(contact.getType())).length > 1;
+
+    const expectedType = 
+      contact.isCampaignPreview()
+      ? connect.ContactStatusType.INCOMING
+      : connect.ContactStatusType.CONNECTING;
+
+    if (
+      isAdditionalVoiceContact &&
+      contact.getStatus().type === expectedType
+    ) {
+      return true;
+    }
+
+    connect.getLog().info("Additional voice contact ringtone skipped").sendInternalLogToServer();
+    return false;
+  };
 
   /* export connect.RingtoneEngine */
   connect.VoiceRingtoneEngine = VoiceRingtoneEngine;
+  connect.AdditionalVoiceRingtoneEngine = AdditionalVoiceRingtoneEngine;
   connect.ChatRingtoneEngine = ChatRingtoneEngine;
   connect.TaskRingtoneEngine = TaskRingtoneEngine;
   connect.QueueCallbackRingtoneEngine = QueueCallbackRingtoneEngine;

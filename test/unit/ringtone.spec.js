@@ -36,6 +36,7 @@ describe('RingtoneEngine', () => {
 
     describe('#connect.VoiceRingtoneEngine', () => {
         let voiceRingtoneEngine;
+        let agentConnectionStatusStub;
 
         before(() => {
             sandbox.stub(connect.core, "getEventBus").returns(bus);
@@ -43,18 +44,24 @@ describe('RingtoneEngine', () => {
             sandbox.stub(connect.VoiceRingtoneEngine.prototype, '_publishTelemetryEvent');
             sandbox.stub(contact, "getType");
             sandbox.stub(contact, "isSoftphoneCall");
+            sandbox.stub(contact, "isCampaignPreview");
             sandbox.stub(contact, "isInbound");
             sandbox.stub(contact, "getStatus");
             sandbox.stub(connect, 'ifMaster');
+            sandbox.stub(contact, "getAgentConnection");
+            agentConnectionStatusStub = sandbox.stub();
         });
 
         beforeEach(() => {
             connect.Agent.prototype.getContacts.returns([]);
             contact.getType.returns(connect.ContactType.VOICE);
             contact.isSoftphoneCall.returns(true);
+            contact.isCampaignPreview.returns(false);
             contact.isInbound.returns(true);
             connect.ifMaster.callsFake((topic, successCallback) => successCallback());
             contact.getStatus.returns({ type: connect.ContactStatusType.CONNECTING });
+            agentConnectionStatusStub.returns({ type: connect.ContactStatusType.CONNECTING });
+            contact.getAgentConnection.returns({ getStatus: agentConnectionStatusStub });
             createFakeAudio();
         });
 
@@ -162,6 +169,23 @@ describe('RingtoneEngine', () => {
 
             sinon.assert.calledOnce(voiceRingtoneEngine._startRingtone);
             connect.VoiceRingtoneEngine.prototype._startRingtone.restore();
+        });
+
+        it('should not trigger ringtone for second voice contact', async () => {
+            createFakeAudio({
+                fakePlay: sinon.fake.resolves(),
+                fakeAddEventListener: sinon.fake(((eventType, callback) => {
+                    if (eventType === 'canplay') callback();
+                }))
+            });
+            connect.Agent.prototype.getContacts.returns([contact, contact]);
+            voiceRingtoneEngine = new connect.VoiceRingtoneEngine(ringtoneObj);
+            global.Audio.resetHistory();
+
+            await voiceRingtoneEngine._startRingtone(contact, 2);
+
+            sinon.assert.notCalled(voiceRingtoneEngine._audio.play);
+            sinon.assert.notCalled(global.Audio);
         });
 
         it('should not start ringtone when not ringtone master', () => {
@@ -737,4 +761,119 @@ describe('RingtoneEngine', () => {
       });
     });
 
+    describe('#connect.AdditionalVoiceRingtoneEngine', () => {
+        let additionalVoiceRingtoneEngine;
+        let agentConnectionStatusStub;
+
+        before(() => {
+            sandbox.stub(connect.core, "getEventBus").returns(bus);
+            sandbox.stub(connect.Agent.prototype, "getContacts");
+            sandbox.stub(connect.AdditionalVoiceRingtoneEngine.prototype, '_publishTelemetryEvent');
+            sandbox.stub(contact, "getType");
+            sandbox.stub(contact, "isSoftphoneCall");
+            sandbox.stub(contact, "isCampaignPreview");
+            sandbox.stub(contact, "isInbound");
+            sandbox.stub(contact, "getStatus");
+            sandbox.stub(connect, 'ifMaster');
+            sandbox.stub(contact, "getAgentConnection");
+            agentConnectionStatusStub = sandbox.stub();
+        });
+
+        beforeEach(() => {
+            connect.Agent.prototype.getContacts.returns([]);
+            contact.getType.returns(connect.ContactType.VOICE);
+            contact.isSoftphoneCall.returns(true);
+            contact.isCampaignPreview.returns(false);
+            contact.isInbound.returns(true);
+            connect.ifMaster.callsFake((topic, successCallback) => successCallback());
+            contact.getStatus.returns({ type: connect.ContactStatusType.CONNECTING });
+            agentConnectionStatusStub.returns({ type: connect.ContactStatusType.CONNECTING });
+            contact.getAgentConnection.returns({ getStatus: agentConnectionStatusStub });
+            createFakeAudio();
+        });
+
+        afterEach(() => {
+            bus.unsubscribeAll();
+            sandbox.resetHistory();
+        });
+
+        after(() => {
+            sandbox.restore();
+            clock.restore();
+        });
+
+        it('should NOT trigger ringtone for the first voice contact', () => {
+            additionalVoiceRingtoneEngine = new connect.AdditionalVoiceRingtoneEngine(ringtoneObj);
+
+            contact.getStatus.returns({ type: connect.ContactStatusType.CONNECTING });
+            agentConnectionStatusStub.returns({ type: connect.ConnectionStateType.CONNECTING });
+
+            bus.trigger(connect.ContactEvents.INIT, contact);
+
+            bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
+            sinon.assert.notCalled(additionalVoiceRingtoneEngine._audio.play);
+            sandbox.resetHistory();
+        });
+
+        it('should trigger ringtone for the second voice contact', async () => {
+            createFakeAudio({
+                fakePlay: sinon.fake.resolves(),
+                fakeAddEventListener: sinon.fake(((eventType, callback) => {
+                    if (eventType === 'canplay') callback();
+                }))
+            });
+
+            connect.Agent.prototype.getContacts.returns([contact, contact]);
+            additionalVoiceRingtoneEngine = new connect.AdditionalVoiceRingtoneEngine(ringtoneObj);
+            global.Audio.resetHistory();
+
+            await additionalVoiceRingtoneEngine._startRingtone(contact, 2);
+
+            sinon.assert.calledThrice(additionalVoiceRingtoneEngine._audio.play);
+            sinon.assert.notCalled(global.Audio);
+        });
+
+        it('_canStartRingtone should return false for first contact', () => {
+            additionalVoiceRingtoneEngine = new connect.AdditionalVoiceRingtoneEngine(ringtoneObj);
+
+            contact.getStatus.returns({ type: connect.ContactStatusType.CONNECTING });
+            agentConnectionStatusStub.returns({ type: connect.ConnectionStateType.CONNECTING });
+
+            bus.trigger(connect.ContactEvents.INIT, contact);
+
+            bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
+            sinon.assert.match(additionalVoiceRingtoneEngine._canStartRingtone(contact), false);
+            sandbox.resetHistory();
+        });
+
+        it('_canStartRingtone should return true for second contact', () => {
+            additionalVoiceRingtoneEngine = new connect.AdditionalVoiceRingtoneEngine(ringtoneObj);
+
+            contact.getStatus.returns({ type: connect.ContactStatusType.CONNECTING });
+            agentConnectionStatusStub.returns({ type: connect.ConnectionStateType.CONNECTING });
+
+            bus.trigger(connect.ContactEvents.INIT, contact);
+            bus.trigger(connect.core.getContactEventName(connect.ContactEvents.CONNECTING, contactId), contact);
+            connect.Agent.prototype.getContacts.returns([contact, contact]);
+            
+            sinon.assert.match(additionalVoiceRingtoneEngine._canStartRingtone(contact), true);
+            sandbox.resetHistory();
+        });
+
+        it ('checks for correct contact state for preview contacts', () => {
+            additionalVoiceRingtoneEngine = new connect.AdditionalVoiceRingtoneEngine(ringtoneObj);
+
+            contact.isCampaignPreview.returns(true);
+
+            contact.getStatus.returns({ type: connect.ContactStatusType.INCOMING });
+            agentConnectionStatusStub.returns({ type: connect.ConnectionStateType.INCOMING });
+            
+            bus.trigger(connect.ContactEvents.INIT, contact);
+            bus.trigger(connect.core.getContactEventName(connect.ContactEvents.INCOMING, contactId), contact);
+            connect.Agent.prototype.getContacts.returns([contact, contact]);
+
+            sinon.assert.match(additionalVoiceRingtoneEngine._canStartRingtone(contact), true);
+            sandbox.resetHistory();
+        })
+    });
 });

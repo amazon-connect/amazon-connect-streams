@@ -19,28 +19,21 @@ __webpack_require__.d(__webpack_exports__, {
 
 ;// ./node_modules/@amazon-connect/activity/lib-esm/activity-namespace.js
 const activityNamespace = "aws.connect.activity";
+
 //# sourceMappingURL=activity-namespace.js.map
 ;// ./node_modules/@amazon-connect/activity/lib-esm/routes.js
-var ActivityRoutes;
-(function (ActivityRoutes) {
+var ActivityRoutes = /*#__PURE__*/ function(ActivityRoutes) {
     ActivityRoutes["sendActivity"] = "sendActivity";
-})(ActivityRoutes || (ActivityRoutes = {}));
+    return ActivityRoutes;
+}({});
+
 //# sourceMappingURL=routes.js.map
-// EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 55 modules
-var lib_esm = __webpack_require__(238);
+// EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 54 modules
+var lib_esm = __webpack_require__(650);
 // EXTERNAL MODULE: ./node_modules/lodash.debounce/index.js
 var lodash_debounce = __webpack_require__(181);
 var lodash_debounce_default = /*#__PURE__*/__webpack_require__.n(lodash_debounce);
 ;// ./node_modules/@amazon-connect/activity/lib-esm/send-activity-callback.js
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 
 
 
@@ -52,81 +45,93 @@ let debouncedSendActivity;
 /**
  * Sends activity signals to keep agent active
  * @param provider
- */
-function sendActivity(provider) {
+ */ function sendActivity(provider) {
     if (!debouncedSendActivity) {
         logger = new lib_esm/* ConnectLogger */.pg({
             provider,
-            source: activityNamespace,
+            source: activityNamespace
         });
         logger.debug("Creating activity callback..");
-        const action = () => {
-            void sendActivityRequest({ provider });
+        const action = ()=>{
+            void sendActivityRequest({
+                provider
+            });
         };
         debouncedSendActivity = lodash_debounce_default()(action, DEFAULT_DEBOUNCE_TIME, {
             leading: true,
-            trailing: false,
+            trailing: false
         });
     }
     debouncedSendActivity();
 }
-function sendActivityRequest(_a) {
-    return __awaiter(this, arguments, void 0, function* ({ provider, }) {
-        try {
-            yield provider
-                .getProxy()
-                .request(activityNamespace, ActivityRoutes.sendActivity);
-            loggerCount = 0;
+async function sendActivityRequest({ provider }) {
+    try {
+        await provider.getProxy().request(activityNamespace, ActivityRoutes.sendActivity);
+        loggerCount = 0;
+    } catch (error) {
+        if (loggerCount < 5) {
+            logger.error("Failed to record agent activity", {
+                error,
+                errorCount: loggerCount
+            });
+            loggerCount++;
         }
-        catch (error) {
-            if (loggerCount < 5) {
-                logger.error("Failed to record agent activity", {
-                    error,
-                    errorCount: loggerCount,
-                });
-                loggerCount++;
-            }
-        }
-    });
+    }
 }
+
 //# sourceMappingURL=send-activity-callback.js.map
 ;// ./node_modules/@amazon-connect/activity/lib-esm/topic-keys.js
-var ActivityTopicKeys;
-(function (ActivityTopicKeys) {
+var ActivityTopicKeys = /*#__PURE__*/ function(ActivityTopicKeys) {
     ActivityTopicKeys["expirationWarning"] = "expiration-warning";
     ActivityTopicKeys["expirationWarningCleared"] = "expiration-warning-cleared";
     ActivityTopicKeys["sessionExtensionError"] = "session-extension-error";
-})(ActivityTopicKeys || (ActivityTopicKeys = {}));
+    return ActivityTopicKeys;
+}({});
+
 //# sourceMappingURL=topic-keys.js.map
 ;// ./node_modules/@amazon-connect/activity/lib-esm/session-expiration-warning-client.js
 
 
 
 class SessionExpirationWarningClient extends lib_esm/* ConnectClient */.C$ {
-    constructor(config) {
-        super(activityNamespace, config);
-    }
     onExpirationWarning(handler) {
-        this.context.proxy.subscribe({ key: ActivityTopicKeys.expirationWarning }, handler);
+        this.context.proxy.subscribe({
+            key: ActivityTopicKeys.expirationWarning
+        }, handler);
     }
     offExpirationWarning(handler) {
-        this.context.proxy.unsubscribe({ key: ActivityTopicKeys.expirationWarning }, handler);
+        this.context.proxy.unsubscribe({
+            key: ActivityTopicKeys.expirationWarning
+        }, handler);
     }
     onExpirationWarningCleared(handler) {
-        this.context.proxy.subscribe({ key: ActivityTopicKeys.expirationWarningCleared }, handler);
+        this.context.proxy.subscribe({
+            key: ActivityTopicKeys.expirationWarningCleared
+        }, handler);
     }
     offExpirationWarningCleared(handler) {
-        this.context.proxy.unsubscribe({ key: ActivityTopicKeys.expirationWarningCleared }, handler);
+        this.context.proxy.unsubscribe({
+            key: ActivityTopicKeys.expirationWarningCleared
+        }, handler);
     }
     onSessionExtensionError(handler) {
-        this.context.proxy.subscribe({ key: ActivityTopicKeys.sessionExtensionError }, handler);
+        this.context.proxy.subscribe({
+            key: ActivityTopicKeys.sessionExtensionError
+        }, handler);
     }
     offSessionExtensionError(handler) {
-        this.context.proxy.unsubscribe({ key: ActivityTopicKeys.sessionExtensionError }, handler);
+        this.context.proxy.unsubscribe({
+            key: ActivityTopicKeys.sessionExtensionError
+        }, handler);
+    }
+    constructor(config){
+        super(activityNamespace, config);
     }
 }
+
 //# sourceMappingURL=session-expiration-warning-client.js.map
 ;// ./node_modules/@amazon-connect/activity/lib-esm/index.js
+
 
 
 
@@ -157,14 +162,14 @@ __webpack_require__.d(__webpack_exports__, {
   contactNamespace: () => (/* reexport */ contactNamespace)
 });
 
-// EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 55 modules
-var lib_esm = __webpack_require__(238);
+// EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 54 modules
+var lib_esm = __webpack_require__(650);
 ;// ./node_modules/@amazon-connect/contact/lib-esm/namespace.js
 const contactNamespace = "aws.connect.contact";
+
 //# sourceMappingURL=namespace.js.map
 ;// ./node_modules/@amazon-connect/contact/lib-esm/routes.js
-var AgentRoutes;
-(function (AgentRoutes) {
+var AgentRoutes = /*#__PURE__*/ function(AgentRoutes) {
     AgentRoutes["getARN"] = "agent/getARN";
     AgentRoutes["getName"] = "agent/getName";
     AgentRoutes["getState"] = "agent/getState";
@@ -177,9 +182,14 @@ var AgentRoutes;
     AgentRoutes["setOffline"] = "agent/setOffline";
     AgentRoutes["listAvailabilityStates"] = "agent/listAvailabilityStates";
     AgentRoutes["listQuickConnects"] = "agent/listQuickConnects";
-})(AgentRoutes || (AgentRoutes = {}));
-var ContactRoutes;
-(function (ContactRoutes) {
+    AgentRoutes["getNetworkConnectionStatus"] = "agent/getNetworkConnectionStatus";
+    AgentRoutes["getDefaultOutboundQueue"] = "agent/getDefaultOutboundQueue";
+    AgentRoutes["getRoutingProfileQueues"] = "agent/getRoutingProfileQueues";
+    AgentRoutes["getAvailabilityState"] = "agent/getAvailabilityState";
+    AgentRoutes["listSecurityProfilePermissions"] = "agent/listSecurityProfilePermissions";
+    return AgentRoutes;
+}({});
+var ContactRoutes = /*#__PURE__*/ function(ContactRoutes) {
     ContactRoutes["getAttributes"] = "contact/getAttributes";
     ContactRoutes["getInitialContactId"] = "contact/getInitialContactId";
     ContactRoutes["getType"] = "contact/getType";
@@ -193,6 +203,9 @@ var ContactRoutes;
     ContactRoutes["transfer"] = "contact/transfer";
     ContactRoutes["accept"] = "contact/accept";
     ContactRoutes["clear"] = "contact/clear";
+    ContactRoutes["reject"] = "contact/reject";
+    ContactRoutes["disconnectSelf"] = "contact/disconnectSelf";
+    ContactRoutes["isAutoAcceptEnabled"] = "contact/isAutoAcceptEnabled";
     ContactRoutes["isPreviewMode"] = "contact/isPreviewMode";
     ContactRoutes["getPreviewConfiguration"] = "contact/getPreviewConfiguration";
     ContactRoutes["engagePreviewContact"] = "contact/engagePreviewContact";
@@ -204,62 +217,57 @@ var ContactRoutes;
     ContactRoutes["disconnectParticipant"] = "contact/disconnectParticipant";
     ContactRoutes["getContact"] = "contact/getContact";
     ContactRoutes["listContacts"] = "contact/listContacts";
-})(ContactRoutes || (ContactRoutes = {}));
+    return ContactRoutes;
+}({});
+
 //# sourceMappingURL=routes.js.map
 ;// ./node_modules/@amazon-connect/contact/lib-esm/topic-keys.js
-var ContactLifecycleTopicKey;
-(function (ContactLifecycleTopicKey) {
+var ContactLifecycleTopicKey = /*#__PURE__*/ function(ContactLifecycleTopicKey) {
     ContactLifecycleTopicKey["StartingACW"] = "contact/acw";
     ContactLifecycleTopicKey["Connected"] = "contact/connected";
     ContactLifecycleTopicKey["Destroyed"] = "contact/destroy";
     ContactLifecycleTopicKey["Missed"] = "contact/missed";
     ContactLifecycleTopicKey["Cleared"] = "contact/cleared";
     ContactLifecycleTopicKey["Incoming"] = "contact/incoming";
-})(ContactLifecycleTopicKey || (ContactLifecycleTopicKey = {}));
-var AgentTopicKey;
-(function (AgentTopicKey) {
+    ContactLifecycleTopicKey["Connecting"] = "contact/connecting";
+    ContactLifecycleTopicKey["Error"] = "contact/error";
+    ContactLifecycleTopicKey["Pending"] = "contact/pending";
+    return ContactLifecycleTopicKey;
+}({});
+var AgentTopicKey = /*#__PURE__*/ function(AgentTopicKey) {
     AgentTopicKey["StateChanged"] = "agent/stateChange";
     AgentTopicKey["RoutingProfileChanged"] = "agent/routingProfileChanged";
     AgentTopicKey["EnabledChannelListChanged"] = "agent/enabledChannelListChanged";
-})(AgentTopicKey || (AgentTopicKey = {}));
-var ContactTopicKey;
-(function (ContactTopicKey) {
+    AgentTopicKey["NetworkConnectionStatusChanged"] = "agent/networkConnectionStatusChanged";
+    AgentTopicKey["AvailabilityStateChanged"] = "agent/availabilityStateChanged";
+    AgentTopicKey["NextAvailabilityStateChanged"] = "agent/nextAvailabilityStateChanged";
+    return AgentTopicKey;
+}({});
+var ContactTopicKey = /*#__PURE__*/ function(ContactTopicKey) {
     ContactTopicKey["ParticipantAdded"] = "contact/participantAdded";
     ContactTopicKey["ParticipantDisconnected"] = "contact/participantDisconnected";
     ContactTopicKey["ParticipantStateChanged"] = "contact/participantStateChanged";
-})(ContactTopicKey || (ContactTopicKey = {}));
+    return ContactTopicKey;
+}({});
+
 //# sourceMappingURL=topic-keys.js.map
 ;// ./node_modules/@amazon-connect/contact/lib-esm/agent-client.js
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 
 
 
 
 class AgentClient extends lib_esm/* ConnectClientWithOptionalConfig */.uU {
-    constructor(config) {
-        super(contactNamespace, config);
+    async getARN() {
+        const { ARN } = await this.context.proxy.request(AgentRoutes.getARN);
+        return ARN;
     }
-    getARN() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { ARN } = yield this.context.proxy.request(AgentRoutes.getARN);
-            return ARN;
-        });
+    async getName() {
+        const { name } = await this.context.proxy.request(AgentRoutes.getName);
+        return name;
     }
-    getName() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { name } = yield this.context.proxy.request(AgentRoutes.getName);
-            return name;
-        });
-    }
-    getState() {
+    /**
+   * @deprecated Use `getAvailabilityState` instead. Will be removed in a future major version.
+   */ getState() {
         return this.context.proxy.request(AgentRoutes.getState);
     }
     getRoutingProfile() {
@@ -268,35 +276,66 @@ class AgentClient extends lib_esm/* ConnectClientWithOptionalConfig */.uU {
     getChannelConcurrency() {
         return this.context.proxy.request(AgentRoutes.getChannelConcurrency);
     }
-    getExtension() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { extension } = yield this.context.proxy.request(AgentRoutes.getExtension);
-            return extension;
-        });
+    async getExtension() {
+        const { extension } = await this.context.proxy.request(AgentRoutes.getExtension);
+        return extension;
     }
     /**
-     * @deprecated Use `VoiceClient.listDialableCountries` instead.
-     */
-    getDialableCountries() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { dialableCountries } = yield this.context.proxy.request(AgentRoutes.getDialableCountries);
-            return dialableCountries;
-        });
+   * @deprecated Use `VoiceClient.listDialableCountries` instead.
+   */ async getDialableCountries() {
+        const { dialableCountries } = await this.context.proxy.request(AgentRoutes.getDialableCountries);
+        return dialableCountries;
     }
-    onStateChanged(handler) {
-        this.context.proxy.subscribe({ key: AgentTopicKey.StateChanged }, handler);
+    /**
+   * @deprecated Use `onAvailabilityStateChanged` instead. Will be removed in a future major version.
+   */ onStateChanged(handler) {
+        this.context.proxy.subscribe({
+            key: AgentTopicKey.StateChanged
+        }, handler);
     }
-    offStateChanged(handler) {
-        this.context.proxy.unsubscribe({ key: AgentTopicKey.StateChanged }, handler);
+    /**
+   * @deprecated Use `offAvailabilityStateChanged` instead. Will be removed in a future major version.
+   */ offStateChanged(handler) {
+        this.context.proxy.unsubscribe({
+            key: AgentTopicKey.StateChanged
+        }, handler);
+    }
+    /**
+   * Subscribes to connection health status change events.
+   *
+   * @param handler - The handler function to invoke when the connection status changes.
+   */ onNetworkConnectionStatusChanged(handler) {
+        this.context.proxy.subscribe({
+            key: AgentTopicKey.NetworkConnectionStatusChanged
+        }, handler);
+    }
+    /**
+   * Unsubscribes from connection health status change events.
+   *
+   * @param handler - The handler function to remove from the subscription.
+   */ offNetworkConnectionStatusChanged(handler) {
+        this.context.proxy.unsubscribe({
+            key: AgentTopicKey.NetworkConnectionStatusChanged
+        }, handler);
+    }
+    /**
+   * Returns the current connection health status.
+   *
+   * Use this to check the connection status at any point,
+   * regardless of when event subscriptions were registered.
+   *
+   * @returns The current connection status and timestamp.
+   */ getNetworkConnectionStatus() {
+        return this.context.proxy.request(AgentRoutes.getNetworkConnectionStatus);
     }
     setAvailabilityState(agentStateARN) {
         return this.context.proxy.request(AgentRoutes.setAvailabilityState, {
-            agentStateARN,
+            agentStateARN
         });
     }
     setAvailabilityStateByName(agentStateName) {
         return this.context.proxy.request(AgentRoutes.setAvailabilityStateByName, {
-            agentStateName,
+            agentStateName
         });
     }
     setOffline() {
@@ -308,325 +347,480 @@ class AgentClient extends lib_esm/* ConnectClientWithOptionalConfig */.uU {
     listQuickConnects(queueARNs, options) {
         return this.context.proxy.request(AgentRoutes.listQuickConnects, {
             queueARNs,
-            options,
+            options
         });
     }
     onEnabledChannelListChanged(handler) {
-        this.context.proxy.subscribe({ key: AgentTopicKey.EnabledChannelListChanged }, handler);
+        this.context.proxy.subscribe({
+            key: AgentTopicKey.EnabledChannelListChanged
+        }, handler);
     }
     offEnabledChannelListChanged(handler) {
-        this.context.proxy.unsubscribe({ key: AgentTopicKey.EnabledChannelListChanged }, handler);
+        this.context.proxy.unsubscribe({
+            key: AgentTopicKey.EnabledChannelListChanged
+        }, handler);
     }
     onRoutingProfileChanged(handler) {
-        this.context.proxy.subscribe({ key: AgentTopicKey.RoutingProfileChanged }, handler);
+        this.context.proxy.subscribe({
+            key: AgentTopicKey.RoutingProfileChanged
+        }, handler);
     }
     offRoutingProfileChanged(handler) {
-        this.context.proxy.unsubscribe({ key: AgentTopicKey.RoutingProfileChanged }, handler);
+        this.context.proxy.unsubscribe({
+            key: AgentTopicKey.RoutingProfileChanged
+        }, handler);
+    }
+    /**
+   * Returns the agent's default outbound queue from their routing profile.
+   */ getDefaultOutboundQueue() {
+        return this.context.proxy.request(AgentRoutes.getDefaultOutboundQueue);
+    }
+    /**
+   * Returns all queues in the agent's current routing profile.
+   */ getRoutingProfileQueues() {
+        return this.context.proxy.request(AgentRoutes.getRoutingProfileQueues);
+    }
+    /**
+   * Returns the agent's current availability state, plus an optional `nextState`
+   * if the backend has queued a pending state transition until contacts clear.
+   */ getAvailabilityState() {
+        return this.context.proxy.request(AgentRoutes.getAvailabilityState);
+    }
+    /**
+   * Returns the list of security profile permissions for the current agent.
+   */ async listSecurityProfilePermissions() {
+        const { permissions } = await this.context.proxy.request(AgentRoutes.listSecurityProfilePermissions);
+        return permissions;
+    }
+    /**
+   * Subscribes to availability state change events.
+   */ onAvailabilityStateChanged(handler) {
+        this.context.proxy.subscribe({
+            key: AgentTopicKey.AvailabilityStateChanged
+        }, handler);
+    }
+    /**
+   * Unsubscribes from availability state change events.
+   */ offAvailabilityStateChanged(handler) {
+        this.context.proxy.unsubscribe({
+            key: AgentTopicKey.AvailabilityStateChanged
+        }, handler);
+    }
+    /**
+   * Subscribes to next-availability-state change events. Fires when the
+   * agent has a pending state transition queued and that pending state changes.
+   */ onNextAvailabilityStateChanged(handler) {
+        this.context.proxy.subscribe({
+            key: AgentTopicKey.NextAvailabilityStateChanged
+        }, handler);
+    }
+    /**
+   * Unsubscribes from next-availability-state change events.
+   */ offNextAvailabilityStateChanged(handler) {
+        this.context.proxy.unsubscribe({
+            key: AgentTopicKey.NextAvailabilityStateChanged
+        }, handler);
+    }
+    constructor(config){
+        super(contactNamespace, config);
     }
 }
+
 //# sourceMappingURL=agent-client.js.map
 ;// ./node_modules/@amazon-connect/contact/lib-esm/contact-client.js
-var contact_client_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 
 
 
 
 class ContactClient extends lib_esm/* ConnectClientWithOptionalConfig */.uU {
-    constructor(config) {
-        super(contactNamespace, config);
-    }
     // requests
     getAttributes(contactId, attributes) {
         const requestData = {
             contactId,
-            attributes,
+            attributes
         };
         return this.context.proxy.request(ContactRoutes.getAttributes, requestData);
     }
-    getAttribute(contactId, attribute) {
-        return contact_client_awaiter(this, void 0, void 0, function* () {
-            const result = yield this.getAttributes(contactId, [attribute]);
-            return result[attribute];
-        });
+    async getAttribute(contactId, attribute) {
+        const result = await this.getAttributes(contactId, [
+            attribute
+        ]);
+        return result[attribute];
     }
-    getInitialContactId(contactId) {
-        return contact_client_awaiter(this, void 0, void 0, function* () {
-            const data = yield this.context.proxy.request(ContactRoutes.getInitialContactId, { contactId });
-            return data.initialContactId;
+    async getInitialContactId(contactId) {
+        const data = await this.context.proxy.request(ContactRoutes.getInitialContactId, {
+            contactId
         });
+        return data.initialContactId;
     }
     /**
-     * @deprecated Use `getChannelType` instead.
-     */
-    getType(contactId) {
-        return contact_client_awaiter(this, void 0, void 0, function* () {
-            const data = yield this.context.proxy.request(ContactRoutes.getType, { contactId });
-            return data.type;
+   * @deprecated Use `getChannelType` instead.
+   */ async getType(contactId) {
+        const data = await this.context.proxy.request(ContactRoutes.getType, {
+            contactId
         });
+        return data.type;
     }
-    getStateDuration(contactId) {
-        return contact_client_awaiter(this, void 0, void 0, function* () {
-            const data = yield this.context.proxy.request(ContactRoutes.getStateDuration, { contactId });
-            return data.stateDuration;
+    async getStateDuration(contactId) {
+        const data = await this.context.proxy.request(ContactRoutes.getStateDuration, {
+            contactId
         });
+        return data.stateDuration;
     }
     getQueue(contactId) {
         return this.context.proxy.request(ContactRoutes.getQueue, {
-            contactId,
+            contactId
         });
     }
-    getQueueTimestamp(contactId) {
-        return contact_client_awaiter(this, void 0, void 0, function* () {
-            const data = yield this.context.proxy.request(ContactRoutes.getQueueTimestamp, { contactId });
-            return data.queueTimestamp;
+    async getQueueTimestamp(contactId) {
+        const data = await this.context.proxy.request(ContactRoutes.getQueueTimestamp, {
+            contactId
         });
+        return data.queueTimestamp;
     }
     onStartingAcw(handler, contactId) {
-        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.StartingACW, parameter: contactId }, handler);
+        this.context.proxy.subscribe({
+            key: ContactLifecycleTopicKey.StartingACW,
+            parameter: contactId
+        }, handler);
     }
     /**
-     * @deprecated Use `onCleared` instead.
-     */
-    onDestroyed(handler, contactId) {
-        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.Destroyed, parameter: contactId }, handler);
+   * @deprecated Use `onCleared` instead.
+   */ onDestroyed(handler, contactId) {
+        this.context.proxy.subscribe({
+            key: ContactLifecycleTopicKey.Destroyed,
+            parameter: contactId
+        }, handler);
     }
     onConnected(handler, contactId) {
-        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.Connected, parameter: contactId }, handler);
+        this.context.proxy.subscribe({
+            key: ContactLifecycleTopicKey.Connected,
+            parameter: contactId
+        }, handler);
     }
     onMissed(handler, contactId) {
-        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.Missed, parameter: contactId }, handler);
+        this.context.proxy.subscribe({
+            key: ContactLifecycleTopicKey.Missed,
+            parameter: contactId
+        }, handler);
     }
     onIncoming(handler, contactId) {
-        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.Incoming, parameter: contactId }, handler);
+        this.context.proxy.subscribe({
+            key: ContactLifecycleTopicKey.Incoming,
+            parameter: contactId
+        }, handler);
     }
     offStartingAcw(handler, contactId) {
-        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.StartingACW, parameter: contactId }, handler);
+        this.context.proxy.unsubscribe({
+            key: ContactLifecycleTopicKey.StartingACW,
+            parameter: contactId
+        }, handler);
     }
     /**
-     * @deprecated Use `offCleared` instead.
-     */
-    offDestroyed(handler, contactId) {
-        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.Destroyed, parameter: contactId }, handler);
+   * @deprecated Use `offCleared` instead.
+   */ offDestroyed(handler, contactId) {
+        this.context.proxy.unsubscribe({
+            key: ContactLifecycleTopicKey.Destroyed,
+            parameter: contactId
+        }, handler);
     }
     offMissed(handler, contactId) {
-        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.Missed, parameter: contactId }, handler);
+        this.context.proxy.unsubscribe({
+            key: ContactLifecycleTopicKey.Missed,
+            parameter: contactId
+        }, handler);
     }
     offIncoming(handler, contactId) {
-        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.Incoming, parameter: contactId }, handler);
+        this.context.proxy.unsubscribe({
+            key: ContactLifecycleTopicKey.Incoming,
+            parameter: contactId
+        }, handler);
     }
     offConnected(handler, contactId) {
-        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.Connected, parameter: contactId }, handler);
+        this.context.proxy.unsubscribe({
+            key: ContactLifecycleTopicKey.Connected,
+            parameter: contactId
+        }, handler);
     }
-    getChannelType(contactId) {
-        return contact_client_awaiter(this, void 0, void 0, function* () {
-            return yield this.context.proxy.request(ContactRoutes.getChannelType, {
-                contactId,
-            });
+    /**
+   * Subscribes to events fired while a contact is being connected.
+   *
+   * @param handler - Event handler invoked when a contact transitions into the connecting state
+   * @param contactId - Optional contact ID to filter events for a specific contact
+   */ onConnecting(handler, contactId) {
+        this.context.proxy.subscribe({
+            key: ContactLifecycleTopicKey.Connecting,
+            parameter: contactId
+        }, handler);
+    }
+    /**
+   * Unsubscribes from contact connecting events.
+   */ offConnecting(handler, contactId) {
+        this.context.proxy.unsubscribe({
+            key: ContactLifecycleTopicKey.Connecting,
+            parameter: contactId
+        }, handler);
+    }
+    /**
+   * Subscribes to events fired when a contact enters the error state.
+   *
+   * @param handler - Event handler invoked when a contact transitions into the error state
+   * @param contactId - Optional contact ID to filter events for a specific contact
+   */ onError(handler, contactId) {
+        this.context.proxy.subscribe({
+            key: ContactLifecycleTopicKey.Error,
+            parameter: contactId
+        }, handler);
+    }
+    /**
+   * Unsubscribes from contact error events.
+   */ offError(handler, contactId) {
+        this.context.proxy.unsubscribe({
+            key: ContactLifecycleTopicKey.Error,
+            parameter: contactId
+        }, handler);
+    }
+    /**
+   * Subscribes to events fired when a contact enters the pending state.
+   *
+   * @param handler - Event handler invoked when a contact transitions into the pending state
+   * @param contactId - Optional contact ID to filter events for a specific contact
+   */ onPending(handler, contactId) {
+        this.context.proxy.subscribe({
+            key: ContactLifecycleTopicKey.Pending,
+            parameter: contactId
+        }, handler);
+    }
+    /**
+   * Unsubscribes from contact pending events.
+   */ offPending(handler, contactId) {
+        this.context.proxy.unsubscribe({
+            key: ContactLifecycleTopicKey.Pending,
+            parameter: contactId
+        }, handler);
+    }
+    async getChannelType(contactId) {
+        return await this.context.proxy.request(ContactRoutes.getChannelType, {
+            contactId
         });
     }
     addParticipant(contactId, quickConnect) {
         return this.context.proxy.request(ContactRoutes.addParticipant, {
             contactId,
-            quickConnect,
+            quickConnect
         });
     }
     transfer(contactId, quickConnect) {
         return this.context.proxy.request(ContactRoutes.transfer, {
             contactId,
-            quickConnect,
+            quickConnect
         });
     }
     onCleared(handler, contactId) {
-        this.context.proxy.subscribe({ key: ContactLifecycleTopicKey.Cleared, parameter: contactId }, handler);
+        this.context.proxy.subscribe({
+            key: ContactLifecycleTopicKey.Cleared,
+            parameter: contactId
+        }, handler);
     }
     offCleared(handler, contactId) {
-        this.context.proxy.unsubscribe({ key: ContactLifecycleTopicKey.Cleared, parameter: contactId }, handler);
+        this.context.proxy.unsubscribe({
+            key: ContactLifecycleTopicKey.Cleared,
+            parameter: contactId
+        }, handler);
     }
     accept(contactId) {
         return this.context.proxy.request(ContactRoutes.accept, {
-            contactId,
+            contactId
         });
+    }
+    /**
+   * Rejects an incoming contact.
+   *
+   * @param contactId - The unique identifier for the contact
+   */ reject(contactId) {
+        return this.context.proxy.request(ContactRoutes.reject, {
+            contactId
+        });
+    }
+    /**
+   * Disconnects the current user from the contact.
+   *
+   * @param contactId - The unique identifier for the contact
+   */ disconnectSelf(contactId) {
+        return this.context.proxy.request(ContactRoutes.disconnectSelf, {
+            contactId
+        });
+    }
+    /**
+   * Returns whether the contact is configured for auto-accept.
+   *
+   * @param contactId - The unique identifier for the contact
+   * @returns Promise resolving to `true` when auto-accept is enabled
+   */ async isAutoAcceptEnabled(contactId) {
+        const { isAutoAcceptEnabled } = await this.context.proxy.request(ContactRoutes.isAutoAcceptEnabled, {
+            contactId
+        });
+        return isAutoAcceptEnabled;
     }
     clear(contactId) {
         return this.context.proxy.request(ContactRoutes.clear, {
-            contactId,
+            contactId
         });
     }
-    isPreviewMode(contactId) {
-        return contact_client_awaiter(this, void 0, void 0, function* () {
-            const response = yield this.context.proxy.request(ContactRoutes.isPreviewMode, { contactId });
-            return response.isPreviewMode;
+    async isPreviewMode(contactId) {
+        const response = await this.context.proxy.request(ContactRoutes.isPreviewMode, {
+            contactId
+        });
+        return response.isPreviewMode;
+    }
+    async getPreviewConfiguration(contactId) {
+        const response = await this.context.proxy.request(ContactRoutes.getPreviewConfiguration, {
+            contactId
+        });
+        return response;
+    }
+    async engagePreviewContact(contactId) {
+        return this.context.proxy.request(ContactRoutes.engagePreviewContact, {
+            contactId
         });
     }
-    getPreviewConfiguration(contactId) {
-        return contact_client_awaiter(this, void 0, void 0, function* () {
-            const response = yield this.context.proxy.request(ContactRoutes.getPreviewConfiguration, {
-                contactId,
-            });
-            return response;
+    async getContactRegion(contactId) {
+        const { region } = await this.context.proxy.request(ContactRoutes.getContactRegion, {
+            contactId
         });
+        return region;
     }
-    engagePreviewContact(contactId) {
-        return contact_client_awaiter(this, void 0, void 0, function* () {
-            return this.context.proxy.request(ContactRoutes.engagePreviewContact, {
-                contactId,
-            });
-        });
-    }
-    getContactRegion(contactId) {
-        return contact_client_awaiter(this, void 0, void 0, function* () {
-            const { region } = yield this.context.proxy.request(ContactRoutes.getContactRegion, {
-                contactId,
-            });
-            return region;
-        });
-    }
-    getInstanceDetails(contactId) {
-        return contact_client_awaiter(this, void 0, void 0, function* () {
-            return yield this.context.proxy.request(ContactRoutes.getInstanceDetails, {
-                contactId,
-            });
+    async getInstanceDetails(contactId) {
+        return await this.context.proxy.request(ContactRoutes.getInstanceDetails, {
+            contactId
         });
     }
     /**
-     * Retrieves all participants associated with a specific contact.
-     * @param contactId - The unique identifier for the contact
-     * @returns Promise resolving to array of participant information
-     */
-    listParticipants(contactId) {
+   * Retrieves all participants associated with a specific contact.
+   * @param contactId - The unique identifier for the contact
+   * @returns Promise resolving to array of participant information
+   */ listParticipants(contactId) {
         return this.context.proxy.request(ContactRoutes.listParticipants, {
-            contactId,
+            contactId
         });
     }
     /**
-     * Retrieves information for a specific participant.
-     * @param participantId - The unique identifier for the participant
-     * @returns Promise resolving to participant information
-     */
-    getParticipant(participantId) {
+   * Retrieves information for a specific participant.
+   * @param participantId - The unique identifier for the participant
+   * @returns Promise resolving to participant information
+   */ getParticipant(participantId) {
         return this.context.proxy.request(ContactRoutes.getParticipant, {
-            participantId,
+            participantId
         });
     }
     /**
-     * Retrieves the current state of a specific participant.
-     * @param participantId - The unique identifier for the participant
-     * @returns Promise resolving to current participant state
-     */
-    getParticipantState(participantId) {
+   * Retrieves the current state of a specific participant.
+   * @param participantId - The unique identifier for the participant
+   * @returns Promise resolving to current participant state
+   */ getParticipantState(participantId) {
         return this.context.proxy.request(ContactRoutes.getParticipantState, {
-            participantId,
+            participantId
         });
     }
     /**
-     * Disconnects a specific participant from the contact.
-     * @param participantId - The unique identifier for the participant to disconnect
-     * @returns Promise resolving when the participant is disconnected
-     */
-    disconnectParticipant(participantId) {
+   * Disconnects a specific participant from the contact.
+   * @param participantId - The unique identifier for the participant to disconnect
+   * @returns Promise resolving when the participant is disconnected
+   */ disconnectParticipant(participantId) {
         return this.context.proxy.request(ContactRoutes.disconnectParticipant, {
-            participantId,
+            participantId
         });
     }
     /**
-     * Retrieves detailed information for a specific contact by its ID.
-     * @param contactId - The unique identifier for the contact
-     * @returns Promise resolving to detailed contact information
-     */
-    getContact(contactId) {
+   * Retrieves detailed information for a specific contact by its ID.
+   * @param contactId - The unique identifier for the contact
+   * @returns Promise resolving to detailed contact information
+   */ getContact(contactId) {
         return this.context.proxy.request(ContactRoutes.getContact, {
-            contactId,
+            contactId
         });
     }
     /**
-     * Lists all contacts for the current agent.
-     * @returns Promise resolving to array of contact information
-     */
-    listContacts() {
+   * Lists all contacts for the current agent.
+   * @returns Promise resolving to array of contact information
+   */ listContacts() {
         return this.context.proxy.request(ContactRoutes.listContacts);
     }
     /**
-     * Subscribes to participant added events.
-     * @param handler - Event handler function to call when participants are added
-     * @param contactId - Optional contact ID to filter events for a specific contact
-     */
-    onParticipantAdded(handler, contactId) {
-        this.context.proxy.subscribe({ key: ContactTopicKey.ParticipantAdded, parameter: contactId }, handler);
+   * Subscribes to participant added events.
+   * @param handler - Event handler function to call when participants are added
+   * @param contactId - Optional contact ID to filter events for a specific contact
+   */ onParticipantAdded(handler, contactId) {
+        this.context.proxy.subscribe({
+            key: ContactTopicKey.ParticipantAdded,
+            parameter: contactId
+        }, handler);
     }
     /**
-     * Unsubscribes from participant added events.
-     * @param handler - Event handler function to remove
-     * @param contactId - Optional contact ID to unsubscribe from specific contact events
-     */
-    offParticipantAdded(handler, contactId) {
-        this.context.proxy.unsubscribe({ key: ContactTopicKey.ParticipantAdded, parameter: contactId }, handler);
+   * Unsubscribes from participant added events.
+   * @param handler - Event handler function to remove
+   * @param contactId - Optional contact ID to unsubscribe from specific contact events
+   */ offParticipantAdded(handler, contactId) {
+        this.context.proxy.unsubscribe({
+            key: ContactTopicKey.ParticipantAdded,
+            parameter: contactId
+        }, handler);
     }
     /**
-     * Subscribes to participant disconnected events.
-     * @param handler - Event handler function to call when participants disconnect
-     * @param contactId - Optional contact ID to filter events for a specific contact
-     */
-    onParticipantDisconnected(handler, contactId) {
+   * Subscribes to participant disconnected events.
+   * @param handler - Event handler function to call when participants disconnect
+   * @param contactId - Optional contact ID to filter events for a specific contact
+   */ onParticipantDisconnected(handler, contactId) {
         this.context.proxy.subscribe({
             key: ContactTopicKey.ParticipantDisconnected,
-            parameter: contactId,
+            parameter: contactId
         }, handler);
     }
     /**
-     * Unsubscribes from participant disconnected events.
-     * @param handler - Event handler function to remove
-     * @param contactId - Optional contact ID to unsubscribe from specific contact events
-     */
-    offParticipantDisconnected(handler, contactId) {
+   * Unsubscribes from participant disconnected events.
+   * @param handler - Event handler function to remove
+   * @param contactId - Optional contact ID to unsubscribe from specific contact events
+   */ offParticipantDisconnected(handler, contactId) {
         this.context.proxy.unsubscribe({
             key: ContactTopicKey.ParticipantDisconnected,
-            parameter: contactId,
+            parameter: contactId
         }, handler);
     }
     /**
-     * Subscribes to participant state change events.
-     * @param handler - Event handler function to call when participant state changes
-     * @param participantId - Optional participant ID to filter events for a specific participant
-     */
-    onParticipantStateChanged(handler, participantId) {
+   * Subscribes to participant state change events.
+   * @param handler - Event handler function to call when participant state changes
+   * @param participantId - Optional participant ID to filter events for a specific participant
+   */ onParticipantStateChanged(handler, participantId) {
         this.context.proxy.subscribe({
             key: ContactTopicKey.ParticipantStateChanged,
-            parameter: participantId,
+            parameter: participantId
         }, handler);
     }
     /**
-     * Unsubscribes from participant state change events.
-     * @param handler - Event handler function to remove
-     * @param participantId - Optional participant ID to unsubscribe from specific participant events
-     */
-    offParticipantStateChanged(handler, participantId) {
+   * Unsubscribes from participant state change events.
+   * @param handler - Event handler function to remove
+   * @param participantId - Optional participant ID to unsubscribe from specific participant events
+   */ offParticipantStateChanged(handler, participantId) {
         this.context.proxy.unsubscribe({
             key: ContactTopicKey.ParticipantStateChanged,
-            parameter: participantId,
+            parameter: participantId
         }, handler);
+    }
+    constructor(config){
+        super(contactNamespace, config);
     }
 }
+
 //# sourceMappingURL=contact-client.js.map
 ;// ./node_modules/@amazon-connect/contact/lib-esm/states.js
 /**
  * States that a contact can be in.
- */
-var ContactStateType;
-(function (ContactStateType) {
-})(ContactStateType || (ContactStateType = {}));
+ */ var ContactStateType = /*#__PURE__*/ function(ContactStateType) {
+    return ContactStateType;
+}({});
 /**
  * States that a participant can be in.
- */
-var ParticipantStateType;
-(function (ParticipantStateType) {
+ */ var ParticipantStateType = /*#__PURE__*/ function(ParticipantStateType) {
     ParticipantStateType["Connecting"] = "connecting";
     ParticipantStateType["Connected"] = "connected";
     ParticipantStateType["Hold"] = "hold";
@@ -634,9 +828,12 @@ var ParticipantStateType;
     ParticipantStateType["Rejected"] = "rejected";
     ParticipantStateType["SilentMonitor"] = "silent_monitor";
     ParticipantStateType["Barge"] = "barge";
-})(ParticipantStateType || (ParticipantStateType = {}));
+    return ParticipantStateType;
+}({});
+
 //# sourceMappingURL=states.js.map
 ;// ./node_modules/@amazon-connect/contact/lib-esm/index.js
+
 
 
 
@@ -648,7 +845,7 @@ var ParticipantStateType;
 
 /***/ },
 
-/***/ 238
+/***/ 650
 (__unused_webpack_module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -669,8 +866,7 @@ __webpack_require__.d(__webpack_exports__, {
 ;// ./node_modules/@amazon-connect/core/lib-esm/provider/global-provider.js
 let _provider;
 function setGlobalProvider(provider) {
-    if (_provider)
-        throw new Error("Global Provider is already set");
+    if (_provider) throw new Error("Global Provider is already set");
     _provider = provider;
 }
 function resetGlobalProvider(provider) {
@@ -678,18 +874,18 @@ function resetGlobalProvider(provider) {
 }
 function getGlobalProvider(notSetMessage) {
     if (!_provider) {
-        throw new Error(notSetMessage !== null && notSetMessage !== void 0 ? notSetMessage : "Attempted to get Global AmazonConnectProvider that has not been set.");
+        throw new Error(notSetMessage ?? "Attempted to get Global AmazonConnectProvider that has not been set.");
     }
     return _provider;
 }
+
 //# sourceMappingURL=global-provider.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/provider/is-provider.js
 /**
  * Type guard to verify that a value represents an AmazonConnectProvider interface.
  * Checks for the presence of required getters and methods without performing
  * runtime validation of the on/off error handling functionality.
- */
-/**
+ */ /**
  * Type guard function that verifies if a given value implements the
  * basic AmazonConnectProvider interface structure.
  *
@@ -705,8 +901,7 @@ function getGlobalProvider(notSetMessage) {
  *   const proxy = someValue.getProxy();
  * }
  * ```
- */
-function isAmazonConnectProvider(value) {
+ */ function isAmazonConnectProvider(value) {
     if (typeof value !== "object" || value === null) {
         return false;
     }
@@ -725,28 +920,39 @@ function isAmazonConnectProvider(value) {
     }
     return true;
 }
+
 //# sourceMappingURL=is-provider.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/error/connect-error.js
+function _define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 class ConnectError extends Error {
-    constructor({ reason, namespace, errorKey, details, }) {
-        super(`ConnectError with error key "${errorKey}"`);
-        this.errorType = ConnectError.ErrorType;
+    constructor({ reason, namespace, errorKey, details }){
+        super(`ConnectError with error key "${errorKey}"`), _define_property(this, "errorType", ConnectError.ErrorType), _define_property(this, "errorKey", void 0), _define_property(this, "namespace", void 0), _define_property(this, "details", void 0), _define_property(this, "reason", void 0);
         this.namespace = namespace;
         this.errorKey = errorKey;
         this.reason = reason;
-        this.details = details !== null && details !== void 0 ? details : {};
+        this.details = details ?? {};
     }
 }
-ConnectError.ErrorType = "ConnectError";
+_define_property(ConnectError, "ErrorType", "ConnectError");
 function isConnectError(error) {
-    return Boolean(error instanceof ConnectError ||
-        (error &&
-            typeof error === "object" &&
-            "errorType" in error &&
-            error.errorType === ConnectError.ErrorType));
+    return Boolean(error instanceof ConnectError || error && typeof error === "object" && "errorType" in error && error.errorType === ConnectError.ErrorType);
 }
+
 //# sourceMappingURL=connect-error.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/error/index.js
+
 
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/utility/deep-clone.js
@@ -754,105 +960,107 @@ function isConnectError(error) {
 function deepClone(object) {
     try {
         return structuredClone(object);
-    }
-    catch (_a) {
+    } catch  {
         try {
             // Falls back to JSON parse/stringify if structureClone does not exist
             return JSON.parse(JSON.stringify(object));
-        }
-        catch (cloneError) {
+        } catch (cloneError) {
             throw new ConnectError({
                 errorKey: "deepCloneFailed",
                 details: {
-                    actualError: cloneError,
-                },
+                    actualError: cloneError
+                }
             });
         }
     }
 }
+
 //# sourceMappingURL=deep-clone.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/utility/emitter/emitter-base.js
+function emitter_base_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 class EmitterBase {
-    constructor({ provider, loggerKey }) {
-        this.events = new Map();
-        this.logger = new connect_logger_ConnectLogger({
-            provider,
-            source: "emitter",
-            mixin: () => ({
-                emitterLoggerKey: loggerKey,
-            }),
-        });
-    }
     on(parameter, handler) {
         const set = this.events.get(parameter);
-        if (set)
-            set.add(handler);
-        else
-            this.events.set(parameter, new Set([handler]));
+        if (set) set.add(handler);
+        else this.events.set(parameter, new Set([
+            handler
+        ]));
     }
     off(parameter, handler) {
         const set = this.events.get(parameter);
         if (set) {
             set.delete(handler);
-            if (set.size < 1)
-                this.events.delete(parameter);
+            if (set.size < 1) this.events.delete(parameter);
         }
     }
     getHandlers(parameter) {
-        var _a;
-        return Array.from((_a = this.events.get(parameter)) !== null && _a !== void 0 ? _a : []);
+        return Array.from(this.events.get(parameter) ?? []);
     }
-}
-//# sourceMappingURL=emitter-base.js.map
-;// ./node_modules/@amazon-connect/core/lib-esm/utility/emitter/async-event-emitter.js
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-
-class AsyncEventEmitter extends EmitterBase {
-    emit(parameter, event) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const handlers = this.getHandlers(parameter);
-            yield Promise.allSettled(handlers.map((handler) => __awaiter(this, void 0, void 0, function* () {
-                try {
-                    yield handler(event);
-                }
-                catch (error) {
-                    this.logger.error("An error occurred when invoking event handler", {
-                        error,
-                        parameter,
-                    });
-                }
-            })));
+    constructor({ provider, loggerKey }){
+        emitter_base_define_property(this, "events", void 0);
+        emitter_base_define_property(this, "logger", void 0);
+        this.events = new Map();
+        this.logger = new connect_logger_ConnectLogger({
+            provider,
+            source: "emitter",
+            mixin: ()=>({
+                    emitterLoggerKey: loggerKey
+                })
         });
     }
 }
+
+//# sourceMappingURL=emitter-base.js.map
+;// ./node_modules/@amazon-connect/core/lib-esm/utility/emitter/async-event-emitter.js
+
+class AsyncEventEmitter extends EmitterBase {
+    async emit(parameter, event) {
+        const handlers = this.getHandlers(parameter);
+        await Promise.allSettled(handlers.map(async (handler)=>{
+            try {
+                await handler(event);
+            } catch (error) {
+                this.logger.error("An error occurred when invoking event handler", {
+                    error,
+                    parameter
+                });
+            }
+        }));
+    }
+}
+
 //# sourceMappingURL=async-event-emitter.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/utility/emitter/emitter.js
 /* unused harmony import specifier */ var emitter_EmitterBase;
 
 class Emitter extends (/* unused pure expression or super */ null && (emitter_EmitterBase)) {
     emit(parameter) {
-        for (const handler of this.getHandlers(parameter)) {
+        for (const handler of this.getHandlers(parameter)){
             try {
                 handler();
-            }
-            catch (error) {
+            } catch (error) {
                 this.logger.error("An error occurred when invoking handler", {
                     error,
-                    parameter,
+                    parameter
                 });
             }
         }
     }
 }
+
 //# sourceMappingURL=emitter.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/utility/emitter/event-emitter.js
 /* unused harmony import specifier */ var event_emitter_EmitterBase;
@@ -860,21 +1068,22 @@ class Emitter extends (/* unused pure expression or super */ null && (emitter_Em
 class EventEmitter extends (/* unused pure expression or super */ null && (event_emitter_EmitterBase)) {
     emit(parameter, event) {
         const handlers = this.getHandlers(parameter);
-        for (const handler of handlers) {
+        for (const handler of handlers){
             try {
                 handler(event);
-            }
-            catch (error) {
+            } catch (error) {
                 this.logger.error("An error occurred when invoking event handler", {
                     error,
-                    parameter,
+                    parameter
                 });
             }
         }
     }
 }
+
 //# sourceMappingURL=event-emitter.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/utility/emitter/index.js
+
 
 
 
@@ -883,133 +1092,180 @@ class EventEmitter extends (/* unused pure expression or super */ null && (event
 function generateStringId(length) {
     const a = new Uint8Array(Math.ceil(length / 2));
     crypto.getRandomValues(a);
-    return Array.from(a, (d) => d.toString(16).padStart(2, "0"))
-        .join("")
-        .substring(0, length);
+    return Array.from(a, (d)=>d.toString(16).padStart(2, "0")).join("").substring(0, length);
 }
 function generateUUID() {
     if ("randomUUID" in crypto) {
         return crypto.randomUUID();
-    }
-    else {
-        return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => {
+    } else {
+        return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c)=>{
             const d = parseInt(c);
-            return (d ^
-                (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (d / 4)))).toString(16);
+            return (d ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> d / 4).toString(16);
         });
     }
 }
+
 //# sourceMappingURL=id-generator.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/utility/location-helpers.js
 function getOriginAndPath() {
-    var _a, _b, _c, _d;
     return {
-        origin: (_b = (_a = document === null || document === void 0 ? void 0 : document.location) === null || _a === void 0 ? void 0 : _a.origin) !== null && _b !== void 0 ? _b : "unknown",
-        path: (_d = (_c = document === null || document === void 0 ? void 0 : document.location) === null || _c === void 0 ? void 0 : _c.pathname) !== null && _d !== void 0 ? _d : "unknown",
+        origin: document?.location?.origin ?? "unknown",
+        path: document?.location?.pathname ?? "unknown"
     };
 }
+
 //# sourceMappingURL=location-helpers.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/module-proxy-factory.js
 function createModuleProxy(proxy, namespace) {
     return {
-        request: (command, data) => proxy.request(namespace, command, data),
-        subscribe: (topic, handler) => proxy.subscribe(Object.assign(Object.assign({}, topic), { namespace }), handler),
-        unsubscribe: (topic, handler) => proxy.unsubscribe(Object.assign(Object.assign({}, topic), { namespace }), handler),
-        getProxyInfo: () => ({
-            connectionStatus: proxy.connectionStatus,
-            proxyType: proxy.proxyType,
-        }),
-        onConnectionStatusChange: (h) => proxy.onConnectionStatusChange(h),
-        offConnectionStatusChange: (h) => proxy.offConnectionStatusChange(h),
+        request: (command, data)=>proxy.request(namespace, command, data),
+        subscribe: (topic, handler)=>proxy.subscribe({
+                ...topic,
+                namespace
+            }, handler),
+        unsubscribe: (topic, handler)=>proxy.unsubscribe({
+                ...topic,
+                namespace
+            }, handler),
+        getProxyInfo: ()=>({
+                connectionStatus: proxy.connectionStatus,
+                proxyType: proxy.proxyType
+            }),
+        onConnectionStatusChange: (h)=>proxy.onConnectionStatusChange(h),
+        offConnectionStatusChange: (h)=>proxy.offConnectionStatusChange(h)
     };
 }
+
 //# sourceMappingURL=module-proxy-factory.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/messaging/subscription/subscription-handler-id-map.js
+function subscription_handler_id_map_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 class SubscriptionHandlerIdMap {
-    constructor() {
-        this.idsByHandler = new Map();
-        this.handlersById = new Map();
-    }
     add(handler) {
         const existingId = this.idsByHandler.get(handler);
         if (existingId) {
-            return { handlerId: existingId };
+            return {
+                handlerId: existingId
+            };
         }
         const handlerId = generateUUID();
         this.idsByHandler.set(handler, handlerId);
         this.handlersById.set(handlerId, handler);
-        return { handlerId };
+        return {
+            handlerId
+        };
     }
     getIdByHandler(handler) {
-        var _a;
-        return (_a = this.idsByHandler.get(handler)) !== null && _a !== void 0 ? _a : null;
+        return this.idsByHandler.get(handler) ?? null;
     }
     getHandlerById(id) {
-        var _a;
-        return (_a = this.handlersById.get(id)) !== null && _a !== void 0 ? _a : null;
+        return this.handlersById.get(id) ?? null;
     }
     get() {
-        return [...this.idsByHandler.entries()].map(([handler, handlerId]) => ({
-            handler,
-            handlerId,
-        }));
+        return [
+            ...this.idsByHandler.entries()
+        ].map(([handler, handlerId])=>({
+                handler,
+                handlerId
+            }));
     }
     delete(handler) {
         const handlerId = this.idsByHandler.get(handler);
-        if (handlerId)
-            this.handlersById.delete(handlerId);
+        if (handlerId) this.handlersById.delete(handlerId);
         this.idsByHandler.delete(handler);
-        return { isEmpty: this.idsByHandler.size < 1 };
+        return {
+            isEmpty: this.idsByHandler.size < 1
+        };
     }
     size() {
         return this.idsByHandler.size;
     }
+    constructor(){
+        subscription_handler_id_map_define_property(this, "idsByHandler", void 0);
+        subscription_handler_id_map_define_property(this, "handlersById", void 0);
+        this.idsByHandler = new Map();
+        this.handlersById = new Map();
+    }
 }
+
 //# sourceMappingURL=subscription-handler-id-map.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/messaging/subscription/subscription-map.js
-class SubscriptionMap {
-    constructor() {
-        this.simpleSubscriptions = new Map();
-        this.paramSubscriptions = new Map();
+function subscription_map_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
     }
+    return obj;
+}
+class SubscriptionMap {
     add({ namespace, key, parameter: param }, value) {
-        var _a, _b, _c, _d, _e;
         if (param) {
             if (!this.paramSubscriptions.has(namespace)) {
-                this.paramSubscriptions.set(namespace, new Map([[key, new Map([[param, value]])]]));
+                this.paramSubscriptions.set(namespace, new Map([
+                    [
+                        key,
+                        new Map([
+                            [
+                                param,
+                                value
+                            ]
+                        ])
+                    ]
+                ]));
                 return;
             }
-            if (!((_a = this.paramSubscriptions.get(namespace)) === null || _a === void 0 ? void 0 : _a.has(key))) {
-                (_b = this.paramSubscriptions
-                    .get(namespace)) === null || _b === void 0 ? void 0 : _b.set(key, new Map([[param, value]]));
+            if (!this.paramSubscriptions.get(namespace)?.has(key)) {
+                this.paramSubscriptions.get(namespace)?.set(key, new Map([
+                    [
+                        param,
+                        value
+                    ]
+                ]));
                 return;
             }
-            (_d = (_c = this.paramSubscriptions.get(namespace)) === null || _c === void 0 ? void 0 : _c.get(key)) === null || _d === void 0 ? void 0 : _d.set(param, value);
-        }
-        else {
+            this.paramSubscriptions.get(namespace)?.get(key)?.set(param, value);
+        } else {
             if (!this.simpleSubscriptions.has(namespace)) {
-                this.simpleSubscriptions.set(namespace, new Map([[key, value]]));
+                this.simpleSubscriptions.set(namespace, new Map([
+                    [
+                        key,
+                        value
+                    ]
+                ]));
                 return;
-            }
-            else
-                (_e = this.simpleSubscriptions.get(namespace)) === null || _e === void 0 ? void 0 : _e.set(key, value);
+            } else this.simpleSubscriptions.get(namespace)?.set(key, value);
         }
     }
     delete({ namespace, key, parameter: param }) {
-        var _a, _b, _c, _d;
         if (param) {
-            if ((_b = (_a = this.paramSubscriptions.get(namespace)) === null || _a === void 0 ? void 0 : _a.get(key)) === null || _b === void 0 ? void 0 : _b.delete(param)) {
+            if (this.paramSubscriptions.get(namespace)?.get(key)?.delete(param)) {
                 if (this.paramSubscriptions.get(namespace).get(key).size < 1) {
-                    (_c = this.paramSubscriptions.get(namespace)) === null || _c === void 0 ? void 0 : _c.delete(key);
+                    this.paramSubscriptions.get(namespace)?.delete(key);
                     if (this.paramSubscriptions.get(namespace).size < 1) {
                         this.paramSubscriptions.delete(namespace);
                     }
                 }
             }
-        }
-        else {
-            if ((_d = this.simpleSubscriptions.get(namespace)) === null || _d === void 0 ? void 0 : _d.delete(key)) {
+        } else {
+            if (this.simpleSubscriptions.get(namespace)?.delete(key)) {
                 if (this.simpleSubscriptions.get(namespace).size < 1) {
                     this.simpleSubscriptions.delete(namespace);
                 }
@@ -1017,12 +1273,10 @@ class SubscriptionMap {
         }
     }
     get({ namespace, key, parameter: param }) {
-        var _a, _b, _c;
         if (!param) {
-            return (_a = this.simpleSubscriptions.get(namespace)) === null || _a === void 0 ? void 0 : _a.get(key);
-        }
-        else {
-            return (_c = (_b = this.paramSubscriptions.get(namespace)) === null || _b === void 0 ? void 0 : _b.get(key)) === null || _c === void 0 ? void 0 : _c.get(param);
+            return this.simpleSubscriptions.get(namespace)?.get(key);
+        } else {
+            return this.paramSubscriptions.get(namespace)?.get(key)?.get(param);
         }
     }
     getOrAdd(topic, addFactory) {
@@ -1037,56 +1291,67 @@ class SubscriptionMap {
         let value = this.get(topic);
         if (value) {
             value = updateAction(value);
-        }
-        else {
+        } else {
             value = addFactory();
         }
         this.add(topic, value);
         return value;
     }
     getAllSubscriptions() {
-        const noParam = Array.from(this.simpleSubscriptions.keys()).flatMap((namespace) => Array.from(this.simpleSubscriptions.get(namespace).keys()).flatMap((key) => ({
-            namespace,
-            key,
-        })));
-        const withParam = Array.from(this.paramSubscriptions.keys()).flatMap((namespace) => Array.from(this.paramSubscriptions.get(namespace).keys()).flatMap((key) => Array.from(this.paramSubscriptions.get(namespace).get(key).keys()).flatMap((parameter) => ({
-            namespace,
-            key,
-            parameter,
-        }))));
-        return [...noParam, ...withParam];
+        const noParam = Array.from(this.simpleSubscriptions.keys()).flatMap((namespace)=>Array.from(this.simpleSubscriptions.get(namespace).keys()).flatMap((key)=>({
+                    namespace,
+                    key
+                })));
+        const withParam = Array.from(this.paramSubscriptions.keys()).flatMap((namespace)=>Array.from(this.paramSubscriptions.get(namespace).keys()).flatMap((key)=>Array.from(this.paramSubscriptions.get(namespace).get(key).keys()).flatMap((parameter)=>({
+                        namespace,
+                        key,
+                        parameter
+                    }))));
+        return [
+            ...noParam,
+            ...withParam
+        ];
+    }
+    constructor(){
+        subscription_map_define_property(this, "simpleSubscriptions", new Map());
+        subscription_map_define_property(this, "paramSubscriptions", new Map());
     }
 }
+
 //# sourceMappingURL=subscription-map.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/messaging/subscription/subscription-manager.js
+function subscription_manager_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 class SubscriptionManager {
-    constructor() {
-        this.subscriptions = new SubscriptionMap();
-    }
     add(topic, handler) {
-        return this.subscriptions
-            .getOrAdd(topic, () => new SubscriptionHandlerIdMap())
-            .add(handler);
+        return this.subscriptions.getOrAdd(topic, ()=>new SubscriptionHandlerIdMap()).add(handler);
     }
     get(topic) {
-        var _a, _b;
-        return (_b = (_a = this.subscriptions.get(topic)) === null || _a === void 0 ? void 0 : _a.get()) !== null && _b !== void 0 ? _b : [];
+        return this.subscriptions.get(topic)?.get() ?? [];
     }
     getById(topic, handlerId) {
-        var _a, _b;
-        return (_b = (_a = this.subscriptions.get(topic)) === null || _a === void 0 ? void 0 : _a.getHandlerById(handlerId)) !== null && _b !== void 0 ? _b : null;
+        return this.subscriptions.get(topic)?.getHandlerById(handlerId) ?? null;
     }
     delete(topic, handler) {
-        var _a, _b;
-        if ((_b = (_a = this.subscriptions.get(topic)) === null || _a === void 0 ? void 0 : _a.delete(handler).isEmpty) !== null && _b !== void 0 ? _b : false) {
+        if (this.subscriptions.get(topic)?.delete(handler).isEmpty ?? false) {
             this.subscriptions.delete(topic);
         }
     }
     size(topic) {
-        var _a, _b;
-        return (_b = (_a = this.subscriptions.get(topic)) === null || _a === void 0 ? void 0 : _a.size()) !== null && _b !== void 0 ? _b : 0;
+        return this.subscriptions.get(topic)?.size() ?? 0;
     }
     isEmpty(topic) {
         return this.size(topic) === 0;
@@ -1095,58 +1360,78 @@ class SubscriptionManager {
         return this.subscriptions.getAllSubscriptions();
     }
     getAllSubscriptionHandlerIds() {
-        return this.subscriptions
-            .getAllSubscriptions()
-            .reduce((acc, topic) => acc.concat(this.get(topic).map(({ handlerId }) => ({
-            topic,
-            handlerId,
-        }))), []);
+        return this.subscriptions.getAllSubscriptions().reduce((acc, topic)=>acc.concat(this.get(topic).map(({ handlerId })=>({
+                    topic,
+                    handlerId
+                }))), []);
+    }
+    constructor(){
+        subscription_manager_define_property(this, "subscriptions", void 0);
+        this.subscriptions = new SubscriptionMap();
     }
 }
+
 //# sourceMappingURL=subscription-manager.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/messaging/subscription/index.js
 
 
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/metric/duration-metric-recorder.js
+function duration_metric_recorder_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 /**
  * @classdesc DurationMetricRecorder class provides APIs to emit duration metrics based on users' need
- */
-class DurationMetricRecorder {
+ */ class DurationMetricRecorder {
     /**
-     * Constructor for DurationMetricRecorder
-     * @param {(metric: MetricData) => void} sendMetric- The method that sends metric
-     * @param {string} metricName - The name of the duration metric
-     * @param {Record<string, string>} dimensions - The dimensions of the duration metric with keys and values (optional)
-     * @param {Record<string, string>} optionalDimensions - The optional dimensions of the duration metric with keys and values (optional)
-     */
-    constructor({ sendMetric, metricName, metricOptions, }) {
-        this.unit = "Milliseconds";
-        this.sendMetric = sendMetric;
-        this.startTime = performance.now();
-        this.metricName = metricName;
-        this.dimensions = (metricOptions === null || metricOptions === void 0 ? void 0 : metricOptions.dimensions) ? metricOptions.dimensions : {};
-        this.optionalDimensions = (metricOptions === null || metricOptions === void 0 ? void 0 : metricOptions.optionalDimensions)
-            ? metricOptions.optionalDimensions
-            : {};
-    }
-    /**
-     * Stop recording of the duration metric and emit it
-     * @returns {durationCount: number} - The duration being recorded
-     */
-    stopDurationCounter() {
+   * Stop recording of the duration metric and emit it
+   * @returns {durationCount: number} - The duration being recorded
+   */ stopDurationCounter() {
         const durationResult = Math.round(performance.now() - this.startTime);
         this.sendMetric({
             metricName: this.metricName,
             unit: this.unit,
             value: durationResult,
             dimensions: this.dimensions,
-            optionalDimensions: this.optionalDimensions,
+            optionalDimensions: this.optionalDimensions
         });
-        return { duration: durationResult };
+        return {
+            duration: durationResult
+        };
+    }
+    /**
+   * Constructor for DurationMetricRecorder
+   * @param {(metric: MetricData) => void} sendMetric- The method that sends metric
+   * @param {string} metricName - The name of the duration metric
+   * @param {Record<string, string>} dimensions - The dimensions of the duration metric with keys and values (optional)
+   * @param {Record<string, string>} optionalDimensions - The optional dimensions of the duration metric with keys and values (optional)
+   */ constructor({ sendMetric, metricName, metricOptions }){
+        duration_metric_recorder_define_property(this, "sendMetric", void 0);
+        duration_metric_recorder_define_property(this, "startTime", void 0);
+        duration_metric_recorder_define_property(this, "metricName", void 0);
+        duration_metric_recorder_define_property(this, "unit", "Milliseconds");
+        duration_metric_recorder_define_property(this, "dimensions", void 0);
+        duration_metric_recorder_define_property(this, "optionalDimensions", void 0);
+        this.sendMetric = sendMetric;
+        this.startTime = performance.now();
+        this.metricName = metricName;
+        this.dimensions = metricOptions?.dimensions ? metricOptions.dimensions : {};
+        this.optionalDimensions = metricOptions?.optionalDimensions ? metricOptions.optionalDimensions : {};
     }
 }
+
 //# sourceMappingURL=duration-metric-recorder.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/metric/metric-helpers.js
 const MAX_METRIC_DIMENSIONS = 30;
@@ -1154,11 +1439,8 @@ const MAX_METRIC_DIMENSIONS = 30;
  * Check if the the sum of the length of dimensions and optional dimentions is exceeding maximum dimension length acceptable by back-end
  * @param {Record<string, string>} dimensions - The dimensions of the duration metric with keys and values
  * @param {Record<string, string>} optionalDimensions -The optional dimensions of the duration metric with keys and values
- */
-function checkDimensionLength(dimensions, optionalDimensions) {
-    if (Object.keys(dimensions).length +
-        Object.keys(optionalDimensions !== null && optionalDimensions !== void 0 ? optionalDimensions : {}).length >
-        MAX_METRIC_DIMENSIONS) {
+ */ function checkDimensionLength(dimensions, optionalDimensions) {
+    if (Object.keys(dimensions).length + Object.keys(optionalDimensions ?? {}).length > MAX_METRIC_DIMENSIONS) {
         throw new Error("Cannot add more than 30 dimensions to a metric");
     }
 }
@@ -1169,9 +1451,7 @@ function checkDimensionLength(dimensions, optionalDimensions) {
  * @param {string} namespace - The namespace of the metric
  * @param {UpstreamMessageOrigin} messageOrigin - The origin of the metric message
  * @return {MetricMessage} - Return a MetricMessage object
- */
-function createMetricMessage({ metricData, time, namespace }, messageOrigin) {
-    var _a, _b;
+ */ function createMetricMessage({ metricData, time, namespace }, messageOrigin) {
     return {
         type: "metric",
         namespace: namespace,
@@ -1179,108 +1459,109 @@ function createMetricMessage({ metricData, time, namespace }, messageOrigin) {
         unit: metricData.unit,
         value: metricData.value,
         time: time,
-        dimensions: (_a = metricData.dimensions) !== null && _a !== void 0 ? _a : {},
-        optionalDimensions: (_b = metricData.optionalDimensions) !== null && _b !== void 0 ? _b : {},
-        messageOrigin,
+        dimensions: metricData.dimensions ?? {},
+        optionalDimensions: metricData.optionalDimensions ?? {},
+        messageOrigin
     };
 }
+
 //# sourceMappingURL=metric-helpers.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/metric/connect-metric-recorder.js
+function connect_metric_recorder_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 
 /**
  * @classdesc ConnectMetricRecorder class provides APIs to emit metrics based on users' need
- */
-class ConnectMetricRecorder {
+ */ class ConnectMetricRecorder {
     /**
-     * Constructor for ConnectMetricRecorder
-     * @param {ConnectRecorderMetricParams} params - The namespace and provider(optional)
-     */
-    constructor(params) {
-        var _a;
-        this._proxy = null;
-        this.namespace = params.namespace;
-        this.globalDimensions = (_a = params.globalDimensions) !== null && _a !== void 0 ? _a : {};
-        this.globalDimensionProvider = params.globalDimensionProvider;
-        if (params.provider && typeof params.provider === "function")
-            this.providerFactory = params.provider;
-        else
-            this.provider = params.provider;
-    }
-    /**
-     * Emit a metric that counts success
-     * @param {string} metricName - The name of the metric
-     * @param {Record<string, string>} dimensions - The dimensions of a metric with keys and values (optional)
-     * @param {Record<string, string>} optionalDimensions - The optional dimensions of a metric with keys and values (optional)
-     */
-    recordSuccess(metricName, metricOptions) {
-        var _a;
-        const processedDimensions = Object.assign({}, ((_a = metricOptions === null || metricOptions === void 0 ? void 0 : metricOptions.dimensions) !== null && _a !== void 0 ? _a : {}));
-        const processedMetricOptions = Object.assign(Object.assign({}, metricOptions), { dimensions: processedDimensions });
+   * Emit a metric that counts success
+   * @param {string} metricName - The name of the metric
+   * @param {Record<string, string>} dimensions - The dimensions of a metric with keys and values (optional)
+   * @param {Record<string, string>} optionalDimensions - The optional dimensions of a metric with keys and values (optional)
+   */ recordSuccess(metricName, metricOptions) {
+        const processedDimensions = {
+            ...metricOptions?.dimensions ?? {}
+        };
+        const processedMetricOptions = {
+            ...metricOptions,
+            dimensions: processedDimensions
+        };
         this.recordCount(metricName, 0, processedMetricOptions);
     }
     /**
-     * Emit a metric that counts error. Add default dimension { name: "Metric", value: "Error" } to the metric if not added
-     * @param {string} metricName - The name of the metric
-     * @param {Record<string, string>} dimensions - The dimensions of a metric with keys and values (optional)
-     * @param {Record<string, string>} optionalDimensions - The optional dimensions of a metric with keys and values (optional)
-     */
-    recordError(metricName, metricOptions) {
-        var _a;
-        const processedDimensions = Object.assign({}, ((_a = metricOptions === null || metricOptions === void 0 ? void 0 : metricOptions.dimensions) !== null && _a !== void 0 ? _a : {}));
-        const processedMetricOptions = Object.assign(Object.assign({}, metricOptions), { dimensions: processedDimensions });
+   * Emit a metric that counts error. Add default dimension { name: "Metric", value: "Error" } to the metric if not added
+   * @param {string} metricName - The name of the metric
+   * @param {Record<string, string>} dimensions - The dimensions of a metric with keys and values (optional)
+   * @param {Record<string, string>} optionalDimensions - The optional dimensions of a metric with keys and values (optional)
+   */ recordError(metricName, metricOptions) {
+        const processedDimensions = {
+            ...metricOptions?.dimensions ?? {}
+        };
+        const processedMetricOptions = {
+            ...metricOptions,
+            dimensions: processedDimensions
+        };
         this.recordCount(metricName, 1, processedMetricOptions);
     }
     /**
-     * Emit a counting metric
-     * @param {string} metricName - The name of the metric
-     * @param {number} count - The count of the metric
-     * @param {Record<string, string>} dimensions - The dimensions of a metric with keys and values (optional)
-     * @param {Record<string, string>} optionalDimensions - The optional dimensions of a metric with keys and values (optional)
-     */
-    recordCount(metricName, count, metricOptions) {
+   * Emit a counting metric
+   * @param {string} metricName - The name of the metric
+   * @param {number} count - The count of the metric
+   * @param {Record<string, string>} dimensions - The dimensions of a metric with keys and values (optional)
+   * @param {Record<string, string>} optionalDimensions - The optional dimensions of a metric with keys and values (optional)
+   */ recordCount(metricName, count, metricOptions) {
         this.sendMetric({
             metricName,
             unit: "Count",
             value: count,
-            dimensions: metricOptions === null || metricOptions === void 0 ? void 0 : metricOptions.dimensions,
-            optionalDimensions: metricOptions === null || metricOptions === void 0 ? void 0 : metricOptions.optionalDimensions,
+            dimensions: metricOptions?.dimensions,
+            optionalDimensions: metricOptions?.optionalDimensions
         });
     }
     /**
-     * Start a duration metric
-     * @param {string} metricName - The name of the metric
-     * @param {Record<string, string>} dimensions - The dimensions of a metric with keys and values (optional)
-     * @param {Record<string, string>} optionalDimensions - The optional dimensions of a metric with keys and values (optional)
-     * @returns {DurationMetricRecorder} - The DurationMetricRecorder object being created
-     */
-    startDurationCounter(metricName, metricOptions) {
+   * Start a duration metric
+   * @param {string} metricName - The name of the metric
+   * @param {Record<string, string>} dimensions - The dimensions of a metric with keys and values (optional)
+   * @param {Record<string, string>} optionalDimensions - The optional dimensions of a metric with keys and values (optional)
+   * @returns {DurationMetricRecorder} - The DurationMetricRecorder object being created
+   */ startDurationCounter(metricName, metricOptions) {
         return new DurationMetricRecorder({
             sendMetric: this.sendMetric.bind(this),
             metricName,
-            metricOptions,
+            metricOptions
         });
     }
     /**
-     * Emit metric
-     * @param {string} metricName - The name of the metric
-     * @param {unit} unit - The unit of the metric
-     * @param {number} value - The value of the metric
-     * @param {Record<string, string>} dimensions - The dimensions of a metric with keys and values (optional)
-     * @param {Record<string, string>} optionalDimensions - The optional dimensions of a metric with keys and values (optional)
-     */
-    sendMetric({ metricName, unit, value, dimensions, optionalDimensions, }) {
+   * Emit metric
+   * @param {string} metricName - The name of the metric
+   * @param {unit} unit - The unit of the metric
+   * @param {number} value - The value of the metric
+   * @param {Record<string, string>} dimensions - The dimensions of a metric with keys and values (optional)
+   * @param {Record<string, string>} optionalDimensions - The optional dimensions of a metric with keys and values (optional)
+   */ sendMetric({ metricName, unit, value, dimensions, optionalDimensions }) {
         // Resolve global dimensions at emission time (non-blocking)
-        const resolvedGlobalDimensions = this.globalDimensionProvider
-            ? this.globalDimensionProvider()
-            : this.globalDimensions;
+        const resolvedGlobalDimensions = this.globalDimensionProvider ? this.globalDimensionProvider() : this.globalDimensions;
         // Merge global dimensions with provided dimensions
         // User-provided dimensions take precedence over global dimensions
         const hasGlobalDimensions = Object.keys(resolvedGlobalDimensions).length > 0;
         const hasOptionalDimensions = optionalDimensions && Object.keys(optionalDimensions).length > 0;
-        const mergedDimensions = hasGlobalDimensions || hasOptionalDimensions
-            ? Object.assign(Object.assign({}, resolvedGlobalDimensions), optionalDimensions) : undefined;
+        const mergedDimensions = hasGlobalDimensions || hasOptionalDimensions ? {
+            ...resolvedGlobalDimensions,
+            ...optionalDimensions
+        } : undefined;
         if (dimensions) {
             checkDimensionLength(dimensions, mergedDimensions);
         }
@@ -1289,38 +1570,53 @@ class ConnectMetricRecorder {
             unit,
             value,
             dimensions,
-            optionalDimensions: mergedDimensions,
+            optionalDimensions: mergedDimensions
         };
         const time = new Date();
         this.getProxy().sendMetric({
             metricData,
             time,
-            namespace: this.namespace,
+            namespace: this.namespace
         });
     }
     /**
-     * Get the provider of the ConnectMetricRecorder instance
-     */
-    getProvider() {
+   * Get the provider of the ConnectMetricRecorder instance
+   */ getProvider() {
         if (!this.provider) {
-            this.provider = this.providerFactory
-                ? this.providerFactory()
-                : getGlobalProvider();
+            this.provider = this.providerFactory ? this.providerFactory() : getGlobalProvider();
         }
         return this.provider;
     }
     /**
-     * Get the proxy of the ConnectMetricRecorder instance
-     */
-    getProxy() {
+   * Get the proxy of the ConnectMetricRecorder instance
+   */ getProxy() {
         if (!this._proxy) {
             this._proxy = this.getProvider().getProxy();
         }
         return this._proxy;
     }
+    /**
+   * Constructor for ConnectMetricRecorder
+   * @param {ConnectRecorderMetricParams} params - The namespace and provider(optional)
+   */ constructor(params){
+        connect_metric_recorder_define_property(this, "namespace", void 0);
+        connect_metric_recorder_define_property(this, "provider", void 0);
+        connect_metric_recorder_define_property(this, "providerFactory", void 0);
+        connect_metric_recorder_define_property(this, "_proxy", void 0);
+        connect_metric_recorder_define_property(this, "globalDimensions", void 0);
+        connect_metric_recorder_define_property(this, "globalDimensionProvider", void 0);
+        this._proxy = null;
+        this.namespace = params.namespace;
+        this.globalDimensions = params.globalDimensions ?? {};
+        this.globalDimensionProvider = params.globalDimensionProvider;
+        if (params.provider && typeof params.provider === "function") this.providerFactory = params.provider;
+        else this.provider = params.provider;
+    }
 }
+
 //# sourceMappingURL=connect-metric-recorder.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/metric/index.js
+
 
 
 
@@ -1336,39 +1632,41 @@ function formatClientTimeoutError(request, timeoutMs) {
         details: {
             command,
             requestData,
-            timeoutMs,
+            timeoutMs
         },
-        errorKey: clientTimeoutResponseErrorKey,
+        errorKey: clientTimeoutResponseErrorKey
     };
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isClientTimeoutResponseError(err) {
-    return (
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    return(// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     typeof err === "object" && err.errorKey === clientTimeoutResponseErrorKey);
 }
+
 //# sourceMappingURL=client-timeout-error.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/request/request-handler-factory.js
 
 
 const DEFAULT_TIMEOUT_MS = 30 * 1000;
 function createRequestHandler(request, onStart, onTimeout, timeoutMs) {
-    const adjustedTimeoutMs = Math.max(1, timeoutMs !== null && timeoutMs !== void 0 ? timeoutMs : DEFAULT_TIMEOUT_MS);
-    return new Promise((resolve, reject) => {
+    const adjustedTimeoutMs = Math.max(1, timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    return new Promise((resolve, reject)=>{
         let isTimedOut = false;
-        const timeout = setTimeout(() => {
-            onTimeout({ timeoutMs: adjustedTimeoutMs, request });
+        const timeout = setTimeout(()=>{
+            onTimeout({
+                timeoutMs: adjustedTimeoutMs,
+                request
+            });
             // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
             reject(formatClientTimeoutError(request, adjustedTimeoutMs));
             isTimedOut = true;
         }, adjustedTimeoutMs);
-        const handler = (msg) => {
+        const handler = (msg)=>{
             clearTimeout(timeout);
             if (!isTimedOut) {
                 if (msg.isError) {
                     reject(new ConnectError(msg));
-                }
-                else {
+                } else {
                     resolve(msg.data);
                 }
             }
@@ -1376,21 +1674,28 @@ function createRequestHandler(request, onStart, onTimeout, timeoutMs) {
         onStart(handler);
     });
 }
+
 //# sourceMappingURL=request-handler-factory.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/request/request-manager.js
+function request_manager_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 class RequestManager {
-    constructor(provider) {
-        this.requestMap = new Map();
-        this.logger = new connect_logger_ConnectLogger({
-            provider,
-            source: "core.requestManager",
-        });
-    }
     processRequest(request) {
         const { requestId } = request;
-        return createRequestHandler(request, (handler) => this.requestMap.set(requestId, handler), ({ request, timeoutMs }) => this.handleTimeout(request, timeoutMs));
+        return createRequestHandler(request, (handler)=>this.requestMap.set(requestId, handler), ({ request, timeoutMs })=>this.handleTimeout(request, timeoutMs));
     }
     processResponse(response) {
         const { requestId } = response;
@@ -1398,7 +1703,7 @@ class RequestManager {
         if (!handler) {
             // The proxy is implemented such that this should never happen
             this.logger.error("Returned a response message with no handler", {
-                message: response,
+                message: response
             });
             return;
         }
@@ -1412,10 +1717,20 @@ class RequestManager {
             requestId,
             namespace,
             command,
-            timeoutMs,
+            timeoutMs
+        });
+    }
+    constructor(provider){
+        request_manager_define_property(this, "requestMap", void 0);
+        request_manager_define_property(this, "logger", void 0);
+        this.requestMap = new Map();
+        this.logger = new connect_logger_ConnectLogger({
+            provider,
+            source: "core.requestManager"
         });
     }
 }
+
 //# sourceMappingURL=request-manager.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/request/request-message-factory.js
 
@@ -1427,9 +1742,10 @@ function createRequestMessage(namespace, command, data, messageOrigin) {
         command,
         requestId,
         data,
-        messageOrigin,
+        messageOrigin
     };
 }
+
 //# sourceMappingURL=request-message-factory.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/request/index.js
 
@@ -1437,58 +1753,70 @@ function createRequestMessage(namespace, command, data, messageOrigin) {
 
 
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/messaging/downstream-message-sanitizer.js
-var __rest = (undefined && undefined.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-};
 function sanitizeDownstreamMessage(message) {
     try {
-        switch (message.type) {
+        switch(message.type){
             case "acknowledge":
             case "error":
             case "childConnectionClose":
                 return message;
             case "childDownstreamMessage":
-                return Object.assign(Object.assign({}, message), { message: sanitizeDownstreamMessage(message.message) });
-            case "publish": {
-                const { data } = message, other = __rest(message, ["data"]);
-                return Object.assign({}, other);
-            }
-            case "response": {
-                if (message.isError)
-                    return Object.assign(Object.assign({}, message), { details: { command: message.details.command } });
-                else {
-                    const { data } = message, other = __rest(message, ["data"]);
-                    return Object.assign({}, other);
+                return {
+                    ...message,
+                    message: sanitizeDownstreamMessage(message.message)
+                };
+            case "publish":
+                {
+                    const { data, ...other } = message;
+                    return {
+                        ...other
+                    };
                 }
-            }
+            case "response":
+                {
+                    if (message.isError) return {
+                        ...message,
+                        details: {
+                            command: message.details.command
+                        }
+                    };
+                    else {
+                        const { data, ...other } = message;
+                        return {
+                            ...other
+                        };
+                    }
+                }
             default:
                 return message;
         }
-    }
-    catch (error) {
+    } catch (error) {
         return {
             messageDetails: "error when sanitizing downstream message",
             message,
-            error,
+            error
         };
     }
 }
+
 //# sourceMappingURL=downstream-message-sanitizer.js.map
-;// ./node_modules/@amazon-connect/core/lib-esm/messaging/index.js
-
-
-//# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/channel-manager.js
+function channel_manager_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 /**
@@ -1527,116 +1855,108 @@ function sanitizeDownstreamMessage(message) {
  *   setUpstreamMessageHandler: (handler) => childEntity.onUpstream = handler
  * });
  * ```
- */
-class ChannelManager {
-    constructor(provider, relayChildUpstreamMessage) {
-        this.provider = provider;
-        this.relayChildUpstreamMessage = relayChildUpstreamMessage;
-        this.channels = new Map();
-        this.logger = new connect_logger_ConnectLogger({
-            provider,
-            source: "childConnectionManager",
-        });
-    }
+ */ class ChannelManager {
     /**
-     * Adds a new communication channel for a child entity.
-     *
-     * Supports both iframe and component channel types. For iframe channels,
-     * sets up message event listeners and starts the port. For component channels,
-     * configures the upstream message handler. Both types send a "childConnectionReady"
-     * message upstream to notify the proxy that the channel is established.
-     *
-     * @param params - Channel configuration parameters
-     * @param params.connectionId - UUID identifier for this channel connection
-     * @param params.providerId - UUID of the provider that owns this channel
-     * @param params.type - Channel type: "iframe" or "component"
-     *
-     * @example Iframe Channel
-     * ```typescript
-     * const { port1, port2 } = new MessageChannel();
-     * channelManager.addChannel({
-     *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
-     *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-     *   type: "iframe",
-     *   port: port1
-     * });
-     * ```
-     *
-     * @example Component Channel
-     * ```typescript
-     * channelManager.addChannel({
-     *   connectionId: "550e8400-e29b-41d4-a716-446655440001",
-     *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-     *   type: "component",
-     *   sendDownstreamMessage: (msg) => childEntity.receive(msg),
-     *   setUpstreamMessageHandler: (handler) => childEntity.onUpstream = handler
-     * });
-     * ```
-     */
-    addChannel(params) {
+   * Adds a new communication channel for a child entity.
+   *
+   * Supports both iframe and component channel types. For iframe channels,
+   * sets up message event listeners and starts the port. For component channels,
+   * configures the upstream message handler. Both types send a "childConnectionReady"
+   * message upstream to notify the proxy that the channel is established.
+   *
+   * @param params - Channel configuration parameters
+   * @param params.connectionId - UUID identifier for this channel connection
+   * @param params.providerId - UUID of the provider that owns this channel
+   * @param params.type - Channel type: "iframe" or "component"
+   *
+   * @example Iframe Channel
+   * ```typescript
+   * const { port1, port2 } = new MessageChannel();
+   * channelManager.addChannel({
+   *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
+   *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+   *   type: "iframe",
+   *   port: port1
+   * });
+   * ```
+   *
+   * @example Component Channel
+   * ```typescript
+   * channelManager.addChannel({
+   *   connectionId: "550e8400-e29b-41d4-a716-446655440001",
+   *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+   *   type: "component",
+   *   sendDownstreamMessage: (msg) => childEntity.receive(msg),
+   *   setUpstreamMessageHandler: (handler) => childEntity.onUpstream = handler
+   * });
+   * ```
+   */ addChannel(params) {
         const { connectionId } = params;
         if (this.channels.has(connectionId)) {
             this.logger.error("Attempted to add child connection that already exists. No action", {
-                connectionId,
+                connectionId
             });
             return;
         }
         if (params.type === "iframe") {
             this.setupIframe(params);
-        }
-        else {
+        } else {
             this.setupComponent(params);
         }
         this.logger.debug("Child channel added", {
             connectionId,
-            type: params.type,
+            type: params.type
         });
     }
     /**
-     * Updates an existing MessagePort channel with a new MessagePort.
-     *
-     * This method is only applicable to MessagePort channels. Direct channels cannot
-     * be updated and will result in an error. The old MessagePort is properly cleaned up
-     * (event listeners removed, port closed) before the new port is configured.
-     *
-     * @param params - Update parameters
-     * @param params.connectionId - UUID identifier for the channel to update
-     * @param params.port - New MessagePort instance to replace the existing one
-     * @param params.providerId - UUID of the provider that owns this channel
-     *
-     * @throws Logs error if connectionId doesn't exist or channel is Direct type
-     *
-     * @example
-     * ```typescript
-     * const { port1, port2 } = new MessageChannel();
-     * channelManager.updateChannelPort({
-     *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
-     *   port: port1,
-     *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
-     * });
-     * ```
-     */
-    updateChannelPort(params) {
+   * Updates an existing MessagePort channel with a new MessagePort.
+   *
+   * This method is only applicable to MessagePort channels. Direct channels cannot
+   * be updated and will result in an error. The old MessagePort is properly cleaned up
+   * (event listeners removed, port closed) before the new port is configured.
+   *
+   * @param params - Update parameters
+   * @param params.connectionId - UUID identifier for the channel to update
+   * @param params.port - New MessagePort instance to replace the existing one
+   * @param params.providerId - UUID of the provider that owns this channel
+   *
+   * @throws Logs error if connectionId doesn't exist or channel is Direct type
+   *
+   * @example
+   * ```typescript
+   * const { port1, port2 } = new MessageChannel();
+   * channelManager.updateChannelPort({
+   *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
+   *   port: port1,
+   *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+   * });
+   * ```
+   */ updateChannelPort(params) {
         const { connectionId } = params;
         const existingChannel = this.channels.get(connectionId);
         if (!existingChannel) {
             this.logger.error("Attempted to update child connection that does not exist No action", {
-                connectionId,
+                connectionId
             });
             return;
         }
         if (existingChannel.type === "component") {
             this.logger.error("Attempted to update a component channel connection as MessagePort. This is not supported.", {
-                connectionId,
+                connectionId
             });
             return;
         }
         const originalChannel = existingChannel;
         originalChannel.port.onmessage = null;
         originalChannel.port.close();
-        const setupParams = Object.assign(Object.assign({}, params), { type: "iframe" });
+        const setupParams = {
+            ...params,
+            type: "iframe"
+        };
         this.setupIframe(setupParams);
-        this.logger.info("Updated child port", { connectionId });
+        this.logger.info("Updated child port", {
+            connectionId
+        });
     }
     setupIframe(params) {
         const { connectionId, port, providerId } = params;
@@ -1647,7 +1967,7 @@ class ChannelManager {
             type: "iframe",
             port,
             handler,
-            providerId,
+            providerId
         });
         this.relayChildUpstreamMessage({
             type: "childUpstream",
@@ -1655,19 +1975,19 @@ class ChannelManager {
             sourceProviderId: providerId,
             parentProviderId: this.provider.id,
             message: {
-                type: "childConnectionReady",
-            },
+                type: "childConnectionReady"
+            }
         });
     }
     setupComponent(params) {
-        const { connectionId, providerId, sendDownstreamMessage, setUpstreamMessageHandler, } = params;
-        const upstreamHandler = (message) => {
+        const { connectionId, providerId, sendDownstreamMessage, setUpstreamMessageHandler } = params;
+        const upstreamHandler = (message)=>{
             this.relayChildUpstreamMessage({
                 type: "childUpstream",
                 sourceProviderId: providerId,
                 parentProviderId: this.provider.id,
                 connectionId,
-                message,
+                message
             });
         };
         setUpstreamMessageHandler(upstreamHandler);
@@ -1675,7 +1995,7 @@ class ChannelManager {
             type: "component",
             providerId,
             sendDownstreamMessage,
-            setUpstreamMessageHandler,
+            setUpstreamMessageHandler
         });
         this.relayChildUpstreamMessage({
             type: "childUpstream",
@@ -1683,35 +2003,37 @@ class ChannelManager {
             sourceProviderId: providerId,
             parentProviderId: this.provider.id,
             message: {
-                type: "childConnectionReady",
-            },
+                type: "childConnectionReady"
+            }
         });
     }
     /**
-     * Routes a downstream message from the proxy to the appropriate child channel.
-     *
-     * Validates that the target channel exists and that the provider ID matches
-     * (for security). For MessagePort channels, uses postMessage(). For Direct
-     * channels, calls the sendDownstreamMessage function.
-     *
-     * @param params - Downstream message parameters
-     * @param params.connectionId - UUID of the target channel
-     * @param params.message - The message to send to the child entity
-     * @param params.targetProviderId - Expected provider ID for validation
-     *
-     * @example
-     * ```typescript
-     * channelManager.handleDownstreamMessage({
-     *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
-     *   message: { type: "request", data: "some data" },
-     *   targetProviderId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
-     * });
-     * ```
-     */
-    handleDownstreamMessage({ connectionId, message, targetProviderId, }) {
+   * Routes a downstream message from the proxy to the appropriate child channel.
+   *
+   * Validates that the target channel exists and that the provider ID matches
+   * (for security). For MessagePort channels, uses postMessage(). For Direct
+   * channels, calls the sendDownstreamMessage function.
+   *
+   * @param params - Downstream message parameters
+   * @param params.connectionId - UUID of the target channel
+   * @param params.message - The message to send to the child entity
+   * @param params.targetProviderId - Expected provider ID for validation
+   *
+   * @example
+   * ```typescript
+   * channelManager.handleDownstreamMessage({
+   *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
+   *   message: { type: "request", data: "some data" },
+   *   targetProviderId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+   * });
+   * ```
+   */ handleDownstreamMessage({ connectionId, message, targetProviderId }) {
         const channelData = this.channels.get(connectionId);
         if (!channelData) {
-            this.logger.warn("Attempted to route downstream message to child channel that does not exist", { connectionId, message: sanitizeDownstreamMessage(message) });
+            this.logger.warn("Attempted to route downstream message to child channel that does not exist", {
+                connectionId,
+                message: sanitizeDownstreamMessage(message)
+            });
             return;
         }
         const { providerId } = channelData;
@@ -1722,40 +2044,38 @@ class ChannelManager {
                 connectionId,
                 targetProviderId,
                 actualProviderId: providerId,
-                message: sanitizeDownstreamMessage(message),
+                message: sanitizeDownstreamMessage(message)
             });
             return;
         }
         if (channelData.type === "iframe") {
             channelData.port.postMessage(message);
-        }
-        else {
+        } else {
             channelData.sendDownstreamMessage(message);
         }
     }
     /**
-     * Handles closing a child channel and performs appropriate cleanup.
-     *
-     * For MessagePort channels, removes event listeners and closes the port.
-     * For Direct channels, simply removes the channel from the internal map
-     * since no port cleanup is needed. The channel is always removed from
-     * the channels map regardless of type.
-     *
-     * @param params - Close message parameters
-     * @param params.connectionId - UUID of the channel to close
-     *
-     * @example
-     * ```typescript
-     * channelManager.handleCloseMessage({
-     *   connectionId: "550e8400-e29b-41d4-a716-446655440000"
-     * });
-     * ```
-     */
-    handleCloseMessage({ connectionId }) {
+   * Handles closing a child channel and performs appropriate cleanup.
+   *
+   * For MessagePort channels, removes event listeners and closes the port.
+   * For Direct channels, simply removes the channel from the internal map
+   * since no port cleanup is needed. The channel is always removed from
+   * the channels map regardless of type.
+   *
+   * @param params - Close message parameters
+   * @param params.connectionId - UUID of the channel to close
+   *
+   * @example
+   * ```typescript
+   * channelManager.handleCloseMessage({
+   *   connectionId: "550e8400-e29b-41d4-a716-446655440000"
+   * });
+   * ```
+   */ handleCloseMessage({ connectionId }) {
         const channelData = this.channels.get(connectionId);
         if (!channelData) {
             this.logger.warn("Attempted to close child channel that was not found", {
-                connectionId,
+                connectionId
             });
             return;
         }
@@ -1768,46 +2088,70 @@ class ChannelManager {
         this.channels.delete(connectionId);
         this.logger.debug("Removed child channel", {
             connectionId,
-            type: channelData.type,
+            type: channelData.type
         });
     }
     createMessageHandler(connectionId, providerId) {
-        return (message) => this.relayChildUpstreamMessage({
-            type: "childUpstream",
-            sourceProviderId: providerId,
-            parentProviderId: this.provider.id,
-            connectionId,
-            message: message.data,
+        return (message)=>this.relayChildUpstreamMessage({
+                type: "childUpstream",
+                sourceProviderId: providerId,
+                parentProviderId: this.provider.id,
+                connectionId,
+                message: message.data
+            });
+    }
+    constructor(provider, relayChildUpstreamMessage){
+        channel_manager_define_property(this, "provider", void 0);
+        channel_manager_define_property(this, "relayChildUpstreamMessage", void 0);
+        channel_manager_define_property(this, "channels", void 0);
+        channel_manager_define_property(this, "logger", void 0);
+        this.provider = provider;
+        this.relayChildUpstreamMessage = relayChildUpstreamMessage;
+        this.channels = new Map();
+        this.logger = new connect_logger_ConnectLogger({
+            provider,
+            source: "childConnectionManager"
         });
     }
 }
+
 //# sourceMappingURL=channel-manager.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/error/error-service.js
+function error_service_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 class ErrorService {
-    constructor(provider) {
-        this.errorHandlers = new Set();
-        this.logger = new connect_logger_ConnectLogger({
-            provider,
-            source: "core.proxy.error",
-        });
-    }
     invoke(error) {
         const { message, key, details, isFatal, connectionStatus } = error;
         this.logger.error(message, {
             key,
             details,
             isFatal,
-            connectionStatus,
-        }, { duplicateMessageToConsole: true, remoteIgnore: true });
-        [...this.errorHandlers].forEach((handler) => {
+            connectionStatus
+        }, {
+            duplicateMessageToConsole: true,
+            remoteIgnore: true
+        });
+        [
+            ...this.errorHandlers
+        ].forEach((handler)=>{
             try {
                 handler(error);
-            }
-            catch (handlerError) {
+            } catch (handlerError) {
                 this.logger.error("An error occurred within a AmazonConnectErrorHandler", {
                     handlerError,
-                    originalError: error,
+                    originalError: error
                 });
             }
         });
@@ -1818,36 +2162,39 @@ class ErrorService {
     offError(handler) {
         this.errorHandlers.delete(handler);
     }
+    constructor(provider){
+        error_service_define_property(this, "errorHandlers", void 0);
+        error_service_define_property(this, "logger", void 0);
+        this.errorHandlers = new Set();
+        this.logger = new connect_logger_ConnectLogger({
+            provider,
+            source: "core.proxy.error"
+        });
+    }
 }
+
 //# sourceMappingURL=error-service.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/error/index.js
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/health-check/health-check-manager.js
+function health_check_manager_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 class HealthCheckManager {
-    constructor({ provider, sendHealthCheck, getUpstreamMessageOrigin, }) {
-        this.connectionId = null;
-        this.healthCheckInterval = null;
-        this.healthCheckTimeout = null;
-        this.sendHealthCheck = sendHealthCheck;
-        this.getUpstreamMessageOrigin = getUpstreamMessageOrigin;
-        this.sendHealthCheckInterval = null;
-        this.lastHealthCheckResponse = null;
-        this._status = "unknown";
-        this.logger = new connect_logger_ConnectLogger({
-            source: "core.proxy.health-check",
-            provider: provider,
-            mixin: () => ({
-                connectionId: this.connectionId,
-            }),
-        });
-        this.events = new AsyncEventEmitter({
-            provider,
-            loggerKey: "core.proxy.health-check",
-        });
-    }
     get status() {
         return this._status;
     }
@@ -1855,14 +2202,12 @@ class HealthCheckManager {
         return this.sendHealthCheckInterval !== null;
     }
     get lastCheckCounter() {
-        var _a, _b;
-        return (_b = (_a = this.lastHealthCheckResponse) === null || _a === void 0 ? void 0 : _a.counter) !== null && _b !== void 0 ? _b : null;
+        return this.lastHealthCheckResponse?.counter ?? null;
     }
     get lastCheckTime() {
-        var _a, _b;
-        return (_b = (_a = this.lastHealthCheckResponse) === null || _a === void 0 ? void 0 : _a.time) !== null && _b !== void 0 ? _b : null;
+        return this.lastHealthCheckResponse?.time ?? null;
     }
-    start({ healthCheckInterval: interval, connectionId, }) {
+    start({ healthCheckInterval: interval, connectionId }) {
         this.connectionId = connectionId;
         this.healthCheckInterval = interval;
         this.clearInterval();
@@ -1871,11 +2216,13 @@ class HealthCheckManager {
             return;
         }
         if (interval < 1000) {
-            this.logger.error("Health check interval is less than 1 second. Not running", { interval });
+            this.logger.error("Health check interval is less than 1 second. Not running", {
+                interval
+            });
             return;
         }
         this.sendHealthCheckMessage();
-        this.sendHealthCheckInterval = setInterval(() => this.sendHealthCheckMessage(), interval);
+        this.sendHealthCheckInterval = setInterval(()=>this.sendHealthCheckMessage(), interval);
         this.startTimeout();
     }
     stop() {
@@ -1885,13 +2232,13 @@ class HealthCheckManager {
     handleResponse(message) {
         this.setHealthy({
             time: message.time,
-            counter: message.counter,
+            counter: message.counter
         });
     }
     sendHealthCheckMessage() {
         this.sendHealthCheck({
             type: "healthCheck",
-            messageOrigin: this.getUpstreamMessageOrigin(),
+            messageOrigin: this.getUpstreamMessageOrigin()
         });
     }
     startTimeout() {
@@ -1901,7 +2248,7 @@ class HealthCheckManager {
         }
         // Cancels a preexisting timeout to be replaced with new timeout
         this.clearTimeout();
-        this.healthCheckTimeout = setTimeout(() => {
+        this.healthCheckTimeout = setTimeout(()=>{
             this.setUnhealthy();
         }, this.healthCheckInterval * 3);
     }
@@ -1921,18 +2268,20 @@ class HealthCheckManager {
         if (this._status !== "unhealthy") {
             const previousStatus = this._status;
             this.logger.info("Connection unhealthy", {
-                previousStatus,
+                previousStatus
             });
             this._status = "unhealthy";
             this.emitStatusChanged("unhealthy", previousStatus);
         }
     }
     setHealthy(result) {
-        this.lastHealthCheckResponse = Object.assign({}, result);
+        this.lastHealthCheckResponse = {
+            ...result
+        };
         if (this._status !== "healthy") {
             const previousStatus = this._status;
             this.logger.debug("Connection healthy", {
-                previousStatus,
+                previousStatus
             });
             this._status = "healthy";
             this.emitStatusChanged("healthy", previousStatus);
@@ -1940,12 +2289,11 @@ class HealthCheckManager {
         this.startTimeout();
     }
     emitStatusChanged(status, previousStatus) {
-        var _a, _b, _c, _d;
         void this.events.emit(HealthCheckManager.statusChangedKey, {
             status,
             previousStatus,
-            lastCheckTime: (_b = (_a = this.lastHealthCheckResponse) === null || _a === void 0 ? void 0 : _a.time) !== null && _b !== void 0 ? _b : null,
-            lastCheckCounter: (_d = (_c = this.lastHealthCheckResponse) === null || _c === void 0 ? void 0 : _c.counter) !== null && _d !== void 0 ? _d : null,
+            lastCheckTime: this.lastHealthCheckResponse?.time ?? null,
+            lastCheckCounter: this.lastHealthCheckResponse?.counter ?? null
         });
     }
     onStatusChanged(handler) {
@@ -1954,38 +2302,78 @@ class HealthCheckManager {
     offStatusChanged(handler) {
         this.events.off(HealthCheckManager.statusChangedKey, handler);
     }
+    constructor({ provider, sendHealthCheck, getUpstreamMessageOrigin }){
+        health_check_manager_define_property(this, "logger", void 0);
+        health_check_manager_define_property(this, "sendHealthCheck", void 0);
+        health_check_manager_define_property(this, "getUpstreamMessageOrigin", void 0);
+        health_check_manager_define_property(this, "_status", void 0);
+        health_check_manager_define_property(this, "lastHealthCheckResponse", void 0);
+        health_check_manager_define_property(this, "events", void 0);
+        health_check_manager_define_property(this, "connectionId", void 0);
+        health_check_manager_define_property(this, "healthCheckInterval", void 0);
+        health_check_manager_define_property(this, "sendHealthCheckInterval", void 0);
+        health_check_manager_define_property(this, "healthCheckTimeout", void 0);
+        this.connectionId = null;
+        this.healthCheckInterval = null;
+        this.healthCheckTimeout = null;
+        this.sendHealthCheck = sendHealthCheck;
+        this.getUpstreamMessageOrigin = getUpstreamMessageOrigin;
+        this.sendHealthCheckInterval = null;
+        this.lastHealthCheckResponse = null;
+        this._status = "unknown";
+        this.logger = new connect_logger_ConnectLogger({
+            source: "core.proxy.health-check",
+            provider: provider,
+            mixin: ()=>({
+                    connectionId: this.connectionId
+                })
+        });
+        this.events = new AsyncEventEmitter({
+            provider,
+            loggerKey: "core.proxy.health-check"
+        });
+    }
 }
-HealthCheckManager.statusChangedKey = "statusChanged";
+health_check_manager_define_property(HealthCheckManager, "statusChangedKey", "statusChanged");
+
 //# sourceMappingURL=health-check-manager.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/health-check/index.js
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/proxy-connection/proxy-connection-status-manager.js
+function proxy_connection_status_manager_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 class ProxyConnectionStatusManager {
-    constructor(provider) {
-        this.status = "notConnected";
-        this.changeHandlers = new Set();
-        this.logger = new connect_logger_ConnectLogger({
-            source: "core.proxy.connection-status-manager",
-            provider,
-            mixin: () => ({ status: this.status }),
-        });
-    }
     getStatus() {
         return this.status;
     }
     update(evt) {
         this.status = evt.status;
         this.logger.trace("Proxy Connection Status Changed", {
-            status: evt.status,
+            status: evt.status
         });
-        [...this.changeHandlers].forEach((handler) => {
+        [
+            ...this.changeHandlers
+        ].forEach((handler)=>{
             try {
                 handler(evt);
-            }
-            catch (error) {
-                this.logger.error("An error occurred within a ProxyConnectionChangedHandler", { error });
+            } catch (error) {
+                this.logger.error("An error occurred within a ProxyConnectionChangedHandler", {
+                    error
+                });
             }
         });
     }
@@ -1995,32 +2383,41 @@ class ProxyConnectionStatusManager {
     offChange(handler) {
         this.changeHandlers.delete(handler);
     }
+    constructor(provider){
+        proxy_connection_status_manager_define_property(this, "changeHandlers", void 0);
+        proxy_connection_status_manager_define_property(this, "logger", void 0);
+        proxy_connection_status_manager_define_property(this, "status", void 0);
+        this.status = "notConnected";
+        this.changeHandlers = new Set();
+        this.logger = new connect_logger_ConnectLogger({
+            source: "core.proxy.connection-status-manager",
+            provider,
+            mixin: ()=>({
+                    status: this.status
+                })
+        });
+    }
 }
+
 //# sourceMappingURL=proxy-connection-status-manager.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/proxy-connection/index.js
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/proxy.js
-var proxy_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var proxy_rest = (undefined && undefined.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-};
+function proxy_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 
@@ -2030,39 +2427,13 @@ var proxy_rest = (undefined && undefined.__rest) || function (s, e) {
 
 
 class Proxy {
-    constructor(provider) {
-        this.provider = provider;
-        this.logger = new connect_logger_ConnectLogger({
-            source: "core.proxy",
-            provider,
-            mixin: () => ({
-                proxyType: this.proxyType,
-                connectionId: this.connectionId,
-            }),
-        });
-        this.requestManager = new RequestManager(provider);
-        this.status = new ProxyConnectionStatusManager(provider);
-        this.errorService = new ErrorService(provider);
-        this.upstreamMessageQueue = [];
-        this.connectionEstablished = false;
-        this.isInitialized = false;
-        this.subscriptions = new SubscriptionManager();
-        this.connectionId = null;
-        this.channelManager = new ChannelManager(provider, this.sendOrQueueMessageToSubject.bind(this));
-        this.healthCheck = new HealthCheckManager({
-            provider,
-            sendHealthCheck: this.sendOrQueueMessageToSubject.bind(this),
-            getUpstreamMessageOrigin: this.getUpstreamMessageOrigin.bind(this),
-        });
-    }
     init() {
-        if (this.isInitialized)
-            throw new Error("Proxy already initialized");
+        if (this.isInitialized) throw new Error("Proxy already initialized");
         this.isInitialized = true;
         this.initProxy();
     }
     request(namespace, command, data, origin) {
-        const msg = createRequestMessage(namespace, command, data, origin !== null && origin !== void 0 ? origin : this.getUpstreamMessageOrigin());
+        const msg = createRequestMessage(namespace, command, data, origin ?? this.getUpstreamMessageOrigin());
         const resp = this.requestManager.processRequest(msg);
         this.sendOrQueueMessageToSubject(msg);
         return resp;
@@ -2072,8 +2443,8 @@ class Proxy {
         const msg = {
             type: "subscribe",
             topic,
-            messageOrigin: origin !== null && origin !== void 0 ? origin : this.getUpstreamMessageOrigin(),
-            handlerId,
+            messageOrigin: origin ?? this.getUpstreamMessageOrigin(),
+            handlerId
         };
         this.sendOrQueueMessageToSubject(msg);
     }
@@ -2083,7 +2454,7 @@ class Proxy {
             const msg = {
                 type: "unsubscribe",
                 topic,
-                messageOrigin: origin !== null && origin !== void 0 ? origin : this.getUpstreamMessageOrigin(),
+                messageOrigin: origin ?? this.getUpstreamMessageOrigin()
             };
             this.sendOrQueueMessageToSubject(msg);
         }
@@ -2095,25 +2466,28 @@ class Proxy {
     sendLogMessage(message) {
         if (message.type !== "log") {
             this.logger.error("Attempted to send invalid log message", {
-                message,
+                message
             });
             return;
         }
-        message.context = Object.assign(Object.assign({}, message.context), this.addContextToLogger());
+        message.context = {
+            ...message.context,
+            ...this.addContextToLogger()
+        };
         this.sendOrQueueMessageToSubject(message);
     }
     sendMetric({ metricData, time, namespace }) {
         const metricMessage = createMetricMessage({
             metricData,
             time,
-            namespace,
+            namespace
         }, this.getUpstreamMessageOrigin());
         this.sendOrQueueMessageToSubject(metricMessage);
     }
     sendMetricMessage(metricMessage) {
         if (metricMessage.type !== "metric") {
             this.logger.error("Attempted to send invalid metric message", {
-                metricMessage,
+                metricMessage
             });
             return;
         }
@@ -2122,15 +2496,16 @@ class Proxy {
     sendOrQueueMessageToSubject(message) {
         if (this.connectionEstablished) {
             this.sendMessageToSubject(message);
-        }
-        else {
+        } else {
             this.upstreamMessageQueue.push(message);
         }
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     consumerMessageHandler(evt) {
         if (!this.isInitialized) {
-            this.logger.error("Attempted to process message from subject prior to proxy being initializing. Message not processed", { originalMessageEventData: evt.data });
+            this.logger.error("Attempted to process message from subject prior to proxy being initializing. Message not processed", {
+                originalMessageEventData: evt.data
+            });
             return;
         }
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -2138,7 +2513,7 @@ class Proxy {
         if (!("type" in data)) {
             // TODO Clean this up... probably safe to ignore without logging
             this.logger.warn("Unknown inbound message", {
-                originalMessageEventData: data,
+                originalMessageEventData: data
             });
             return;
         }
@@ -2150,7 +2525,7 @@ class Proxy {
         this.handleDefaultMessageFromSubject(msg);
     }
     handleDefaultMessageFromSubject(msg) {
-        switch (msg.type) {
+        switch(msg.type){
             case "acknowledge":
                 this.handleConnectionAcknowledge(msg);
                 break;
@@ -2174,7 +2549,7 @@ class Proxy {
                 break;
             default:
                 this.logger.error("Unknown inbound message", {
-                    originalMessageEventData: msg,
+                    originalMessageEventData: msg
                 });
                 return;
         }
@@ -2184,21 +2559,21 @@ class Proxy {
         this.logger.debug("Connection acknowledged by subject", {
             connectionId: msg.connectionId,
             queuedMessageCount: this.upstreamMessageQueue.length,
-            status: msg.status,
+            status: msg.status
         });
         this.status.update({
             status: "ready",
-            connectionId: msg.connectionId,
+            connectionId: msg.connectionId
         });
         this.connectionEstablished = true;
         // Sends any messages in queue
-        while (this.upstreamMessageQueue.length) {
+        while(this.upstreamMessageQueue.length){
             const msg = this.upstreamMessageQueue.shift();
             this.sendMessageToSubject(msg);
         }
         this.healthCheck.start(msg);
         this.logger.debug("Proxy connection ready", {
-            connectionId: this.connectionId,
+            connectionId: this.connectionId
         });
     }
     handleResponse(msg) {
@@ -2209,45 +2584,49 @@ class Proxy {
         if (handlerId) {
             const handler = this.subscriptions.getById(topic, handlerId);
             if (handler) {
-                void this.handleAsyncSubscriptionHandlerInvoke({ handler, handlerId }, msg);
+                void this.handleAsyncSubscriptionHandlerInvoke({
+                    handler,
+                    handlerId
+                }, msg);
             }
-        }
-        else {
-            this.subscriptions
-                .get(topic)
-                .map((handlerIdMapping) => void this.handleAsyncSubscriptionHandlerInvoke(handlerIdMapping, msg));
+        } else {
+            this.subscriptions.get(topic).map((handlerIdMapping)=>void this.handleAsyncSubscriptionHandlerInvoke(handlerIdMapping, msg));
         }
     }
     handleError(msg) {
         if (msg.isFatal) {
-            const { message: reason, type: _ } = msg, details = proxy_rest(msg, ["message", "type"]);
-            this.status.update({ status: "error", reason: reason, details });
+            const { message: reason, type: _, ...details } = msg;
+            this.status.update({
+                status: "error",
+                reason: reason,
+                details
+            });
         }
         this.publishError({
             message: msg.message,
             key: msg.key,
             details: msg.details,
             isFatal: msg.isFatal,
-            proxyStatus: msg.status,
+            proxyStatus: msg.status
         });
     }
     publishError(error) {
-        const fullError = Object.assign(Object.assign({}, error), { connectionStatus: this.connectionStatus });
+        const fullError = {
+            ...error,
+            connectionStatus: this.connectionStatus
+        };
         this.errorService.invoke(fullError);
     }
-    handleAsyncSubscriptionHandlerInvoke(_a, _b) {
-        return proxy_awaiter(this, arguments, void 0, function* ({ handler, handlerId }, { topic, data }) {
-            try {
-                yield handler(data);
-            }
-            catch (error) {
-                this.logger.error("An error occurred when handling subscription", {
-                    topic,
-                    error,
-                    handlerId,
-                });
-            }
-        });
+    async handleAsyncSubscriptionHandlerInvoke({ handler, handlerId }, { topic, data }) {
+        try {
+            await handler(data);
+        } catch (error) {
+            this.logger.error("An error occurred when handling subscription", {
+                topic,
+                error,
+                handlerId
+            });
+        }
     }
     get connectionStatus() {
         return this.status.getStatus();
@@ -2271,121 +2650,121 @@ class Proxy {
         this.healthCheck.offStatusChanged(handler);
     }
     /**
-     * @deprecated Use addChildIframeChannel instead. This method will be removed in a future version.
-     */
-    addChildChannel(params) {
+   * @deprecated Use addChildIframeChannel instead. This method will be removed in a future version.
+   */ addChildChannel(params) {
         // Legacy method that only supports MessagePort channels
         this.addChildIframeChannel(params);
     }
     /**
-     * Adds a component-based child channel to the proxy.
-     *
-     * This method establishes a communication channel using component function calls instead
-     * of MessagePorts. This is useful when both the proxy and child entity exist in the same
-     * execution context, such as within the same browser window or iframe.
-     *
-     * Component channels provide better performance than iframe channels since they avoid
-     * the overhead of serialization and can support synchronous communication patterns.
-     *
-     * @param params - Component channel configuration
-     * @param params.connectionId - UUID identifier for this channel connection
-     * @param params.providerId - UUID of the provider that owns this channel
-     * @param params.sendDownstreamMessage - Function to send messages to the child entity
-     * @param params.setUpstreamMessageHandler - Function to register upstream message handler
-     *
-     * @example
-     * ```typescript
-     * proxy.addChildComponentChannel({
-     *   connectionId: "child-uuid",
-     *   providerId: "provider-uuid",
-     *   sendDownstreamMessage: (message) => childComponent.receive(message),
-     *   setUpstreamMessageHandler: (handler) => childComponent.onUpstream = handler
-     * });
-     * ```
-     */
-    addChildIframeChannel(params) {
-        this.channelManager.addChannel(Object.assign(Object.assign({}, params), { type: "iframe" }));
+   * Adds a component-based child channel to the proxy.
+   *
+   * This method establishes a communication channel using component function calls instead
+   * of MessagePorts. This is useful when both the proxy and child entity exist in the same
+   * execution context, such as within the same browser window or iframe.
+   *
+   * Component channels provide better performance than iframe channels since they avoid
+   * the overhead of serialization and can support synchronous communication patterns.
+   *
+   * @param params - Component channel configuration
+   * @param params.connectionId - UUID identifier for this channel connection
+   * @param params.providerId - UUID of the provider that owns this channel
+   * @param params.sendDownstreamMessage - Function to send messages to the child entity
+   * @param params.setUpstreamMessageHandler - Function to register upstream message handler
+   *
+   * @example
+   * ```typescript
+   * proxy.addChildComponentChannel({
+   *   connectionId: "child-uuid",
+   *   providerId: "provider-uuid",
+   *   sendDownstreamMessage: (message) => childComponent.receive(message),
+   *   setUpstreamMessageHandler: (handler) => childComponent.onUpstream = handler
+   * });
+   * ```
+   */ addChildIframeChannel(params) {
+        this.channelManager.addChannel({
+            ...params,
+            type: "iframe"
+        });
     }
     /**
-     * Adds a component-based child channel for communication with child entities.
-     *
-     * This method establishes a communication channel using direct function calls instead
-     * of MessagePorts. This is useful when both the proxy and child entity exist in the same
-     * execution context and can directly reference each other's functions.
-     *
-     * @param params - Configuration parameters for the component function channel
-     * @param params.connectionId - Unique UUID identifier for this channel connection
-     * @param params.providerId - UUID of the provider that owns this channel connection
-     * @param params.sendDownstreamMessage - Function to send messages from proxy to child entity
-     * @param params.setUpstreamMessageHandler - Function to register handler for messages from child entity
-     *
-     * @example
-     * ```typescript
-     * // Child entity exposes these functions
-     * const childAPI = {
-     *   receive: (message) => { },
-     *   onUpstream: null as ((message) => void) | null
-     * };
-     *
-     * proxy.addChildComponentChannel({
-     *   connectionId: "550e8400-e29b-41d4-a716-446655440001", // UUID
-     *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8", // UUID
-     *   sendDownstreamMessage: (message) => {
-     *     childAPI.receive(message);
-     *   },
-     *   setUpstreamMessageHandler: (handler) => {
-     *     childAPI.onUpstream = handler;
-     *   }
-     * });
-     * ```
-     */
-    addChildComponentChannel(params) {
-        this.channelManager.addChannel(Object.assign(Object.assign({}, params), { type: "component" }));
+   * Adds a component-based child channel for communication with child entities.
+   *
+   * This method establishes a communication channel using direct function calls instead
+   * of MessagePorts. This is useful when both the proxy and child entity exist in the same
+   * execution context and can directly reference each other's functions.
+   *
+   * @param params - Configuration parameters for the component function channel
+   * @param params.connectionId - Unique UUID identifier for this channel connection
+   * @param params.providerId - UUID of the provider that owns this channel connection
+   * @param params.sendDownstreamMessage - Function to send messages from proxy to child entity
+   * @param params.setUpstreamMessageHandler - Function to register handler for messages from child entity
+   *
+   * @example
+   * ```typescript
+   * // Child entity exposes these functions
+   * const childAPI = {
+   *   receive: (message) => { },
+   *   onUpstream: null as ((message) => void) | null
+   * };
+   *
+   * proxy.addChildComponentChannel({
+   *   connectionId: "550e8400-e29b-41d4-a716-446655440001", // UUID
+   *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8", // UUID
+   *   sendDownstreamMessage: (message) => {
+   *     childAPI.receive(message);
+   *   },
+   *   setUpstreamMessageHandler: (handler) => {
+   *     childAPI.onUpstream = handler;
+   *   }
+   * });
+   * ```
+   */ addChildComponentChannel(params) {
+        this.channelManager.addChannel({
+            ...params,
+            type: "component"
+        });
     }
     /**
-     * Updates an existing iframe channel with a new MessagePort.
-     *
-     * This method is only applicable to iframe channels. Component channels cannot
-     * be updated and will result in an error. The old MessagePort is properly cleaned up
-     * (event listeners removed, port closed) before the new port is configured.
-     *
-     * @param params - Update parameters
-     * @param params.connectionId - UUID identifier for the channel to update
-     * @param params.port - New MessagePort instance to replace the existing one
-     * @param params.providerId - UUID of the provider that owns this channel
-     *
-     * @example
-     * ```typescript
-     * const { port1, port2 } = new MessageChannel();
-     * proxy.updateChildIframeChannelPort({
-     *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
-     *   port: port1,
-     *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
-     * });
-     * ```
-     */
-    updateChildIframeChannelPort(params) {
+   * Updates an existing iframe channel with a new MessagePort.
+   *
+   * This method is only applicable to iframe channels. Component channels cannot
+   * be updated and will result in an error. The old MessagePort is properly cleaned up
+   * (event listeners removed, port closed) before the new port is configured.
+   *
+   * @param params - Update parameters
+   * @param params.connectionId - UUID identifier for the channel to update
+   * @param params.port - New MessagePort instance to replace the existing one
+   * @param params.providerId - UUID of the provider that owns this channel
+   *
+   * @example
+   * ```typescript
+   * const { port1, port2 } = new MessageChannel();
+   * proxy.updateChildIframeChannelPort({
+   *   connectionId: "550e8400-e29b-41d4-a716-446655440000",
+   *   port: port1,
+   *   providerId: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+   * });
+   * ```
+   */ updateChildIframeChannelPort(params) {
         this.channelManager.updateChannelPort(params);
     }
     /**
-     * @deprecated Use updateChildIframeChannelPort instead. This method will be removed in a future version.
-     */
-    updateChildChannelPort(params) {
+   * @deprecated Use updateChildIframeChannelPort instead. This method will be removed in a future version.
+   */ updateChildChannelPort(params) {
         this.updateChildIframeChannelPort(params);
     }
     getConnectionId() {
-        if (this.connectionId)
-            return Promise.resolve(this.connectionId);
-        return new Promise((resolve, reject) => {
+        if (this.connectionId) return Promise.resolve(this.connectionId);
+        return new Promise((resolve, reject)=>{
             let timeout = undefined;
-            const handler = (evt) => {
+            const handler = (evt)=>{
                 if (evt.status === "ready") {
                     this.offConnectionStatusChange(handler);
                     clearInterval(timeout);
                     resolve(evt.connectionId);
                 }
             };
-            timeout = setTimeout(() => {
+            timeout = setTimeout(()=>{
                 this.logger.error("Timeout getting connection id");
                 this.offConnectionStatusChange(handler);
                 reject(new Error("Timeout getting connectionId"));
@@ -2396,79 +2775,110 @@ class Proxy {
     resetConnection(reason) {
         this.logger.debug("Resetting connection", {
             reason,
-            connectionId: this.connectionId,
+            connectionId: this.connectionId
         });
         this.connectionEstablished = false;
         this.status.update({
             status: "reset",
-            reason,
+            reason
         });
         const { subscriptionHandlerCount } = this.restoreAllHandler();
         this.logger.info("Resetting proxy", {
             reason,
-            subscriptionHandlerCount,
+            subscriptionHandlerCount
         });
         this.logger.debug("Connection reset complete, restoring handlers", {
-            subscriptionHandlerCount,
+            subscriptionHandlerCount
         });
     }
     restoreAllHandler() {
-        var _a;
         const subscriptionHandlerIds = this.subscriptions.getAllSubscriptionHandlerIds();
         // Restore all subscriptions
-        subscriptionHandlerIds === null || subscriptionHandlerIds === void 0 ? void 0 : subscriptionHandlerIds.map(({ topic, handlerId }) => ({
-            type: "subscribe",
-            topic,
-            messageOrigin: this.getUpstreamMessageOrigin(),
-            handlerId,
-        })).forEach((msg) => this.sendOrQueueMessageToSubject(msg));
-        return { subscriptionHandlerCount: (_a = subscriptionHandlerIds === null || subscriptionHandlerIds === void 0 ? void 0 : subscriptionHandlerIds.length) !== null && _a !== void 0 ? _a : -1 };
+        subscriptionHandlerIds?.map(({ topic, handlerId })=>({
+                type: "subscribe",
+                topic,
+                messageOrigin: this.getUpstreamMessageOrigin(),
+                handlerId
+            })).forEach((msg)=>this.sendOrQueueMessageToSubject(msg));
+        return {
+            subscriptionHandlerCount: subscriptionHandlerIds?.length ?? -1
+        };
     }
     unsubscribeAllHandlers() {
-        var _a;
         const subscriptionHandlerIds = this.subscriptions.getAllSubscriptionHandlerIds();
         this.logger.info("Unsubscribing all handlers from proxy", {
-            subscriptionHandlerCount: (_a = subscriptionHandlerIds === null || subscriptionHandlerIds === void 0 ? void 0 : subscriptionHandlerIds.length) !== null && _a !== void 0 ? _a : -1,
+            subscriptionHandlerCount: subscriptionHandlerIds?.length ?? -1
         });
-        subscriptionHandlerIds === null || subscriptionHandlerIds === void 0 ? void 0 : subscriptionHandlerIds.map(({ topic }) => ({
-            type: "unsubscribe",
-            topic,
-            messageOrigin: this.getUpstreamMessageOrigin(),
-        })).forEach((msg) => this.sendOrQueueMessageToSubject(msg));
+        subscriptionHandlerIds?.map(({ topic })=>({
+                type: "unsubscribe",
+                topic,
+                messageOrigin: this.getUpstreamMessageOrigin()
+            })).forEach((msg)=>this.sendOrQueueMessageToSubject(msg));
+    }
+    constructor(provider){
+        proxy_define_property(this, "provider", void 0);
+        proxy_define_property(this, "status", void 0);
+        proxy_define_property(this, "subscriptions", void 0);
+        proxy_define_property(this, "errorService", void 0);
+        proxy_define_property(this, "logger", void 0);
+        proxy_define_property(this, "channelManager", void 0);
+        proxy_define_property(this, "healthCheck", void 0);
+        proxy_define_property(this, "requestManager", void 0);
+        proxy_define_property(this, "upstreamMessageQueue", void 0);
+        proxy_define_property(this, "connectionEstablished", void 0);
+        proxy_define_property(this, "isInitialized", void 0);
+        proxy_define_property(this, "connectionId", void 0);
+        this.provider = provider;
+        this.logger = new connect_logger_ConnectLogger({
+            source: "core.proxy",
+            provider,
+            mixin: ()=>({
+                    proxyType: this.proxyType,
+                    connectionId: this.connectionId
+                })
+        });
+        this.requestManager = new RequestManager(provider);
+        this.status = new ProxyConnectionStatusManager(provider);
+        this.errorService = new ErrorService(provider);
+        this.upstreamMessageQueue = [];
+        this.connectionEstablished = false;
+        this.isInitialized = false;
+        this.subscriptions = new SubscriptionManager();
+        this.connectionId = null;
+        this.channelManager = new ChannelManager(provider, this.sendOrQueueMessageToSubject.bind(this));
+        this.healthCheck = new HealthCheckManager({
+            provider,
+            sendHealthCheck: this.sendOrQueueMessageToSubject.bind(this),
+            getUpstreamMessageOrigin: this.getUpstreamMessageOrigin.bind(this)
+        });
     }
 }
+
 //# sourceMappingURL=proxy.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/proxy/index.js
+
 
 
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/utility/subscription-handler-relay.js
 /* unused harmony import specifier */ var ConnectLogger;
 /* unused harmony import specifier */ var subscription_handler_relay_createModuleProxy;
-var subscription_handler_relay_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
+function subscription_handler_relay_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 class SubscriptionHandlerRelay {
-    constructor(provider) {
-        this.handlersMap = new Map();
-        this.provider = provider;
-        this.logger = new ConnectLogger({
-            source: "subscription-handler-relay",
-            provider,
-            mixin: () => ({
-                namespace: this.namespace,
-                topicKey: this.topicKey,
-            }),
-        });
-    }
     get supportsParameter() {
         return true;
     }
@@ -2478,48 +2888,47 @@ class SubscriptionHandlerRelay {
         }
         const parameterHandlerMap = this.getParameterInternalHandlerMap(handler);
         // Do not add when handler / parameter pair already exists
-        if (parameterHandlerMap.has(parameter))
-            return;
-        const internalHandler = ((evt) => subscription_handler_relay_awaiter(this, void 0, void 0, function* () {
-            if (this.skipRelay(evt))
-                return;
+        if (parameterHandlerMap.has(parameter)) return;
+        const internalHandler = async (evt)=>{
+            if (this.skipRelay(evt)) return;
             let externalEvent;
             try {
-                externalEvent = yield this.translate(evt);
-            }
-            catch (error) {
+                externalEvent = await this.translate(evt);
+            } catch (error) {
                 this.logger.error("An error occurred when translating event", {
                     error,
-                    parameter,
+                    parameter
                 });
                 // Stop execution. Rethrowing would produce a duplicate error message.
                 return;
             }
             try {
-                yield handler(externalEvent);
-            }
-            catch (error) {
+                await handler(externalEvent);
+            } catch (error) {
                 this.logger.error("Error in event handler", {
                     error,
-                    parameter,
+                    parameter
                 });
             }
-        }));
+        };
         parameterHandlerMap.set(parameter, internalHandler);
-        this.getProxy().subscribe({ key: this.topicKey, parameter }, internalHandler);
+        this.getProxy().subscribe({
+            key: this.topicKey,
+            parameter
+        }, internalHandler);
     }
     off(handler, parameter) {
-        var _a;
         if (parameter && !this.supportsParameter) {
             throw new Error("off provided unsupported parameter");
         }
-        const internalHandler = (_a = this.handlersMap.get(handler)) === null || _a === void 0 ? void 0 : _a.get(parameter);
-        if (!internalHandler)
-            return;
+        const internalHandler = this.handlersMap.get(handler)?.get(parameter);
+        if (!internalHandler) return;
         const parameterMap = this.handlersMap.get(handler);
-        if ((parameterMap === null || parameterMap === void 0 ? void 0 : parameterMap.delete(parameter)) && parameterMap.size < 1)
-            this.handlersMap.delete(handler);
-        this.getProxy().unsubscribe({ key: this.topicKey, parameter }, internalHandler);
+        if (parameterMap?.delete(parameter) && parameterMap.size < 1) this.handlersMap.delete(handler);
+        this.getProxy().unsubscribe({
+            key: this.topicKey,
+            parameter
+        }, internalHandler);
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     skipRelay(event) {
@@ -2527,9 +2936,12 @@ class SubscriptionHandlerRelay {
     }
     destroy() {
         const proxy = this.getProxy();
-        for (const [externalHandler, parameterMapping] of this.handlersMap) {
-            for (const [parameter, internalHandler] of parameterMapping) {
-                proxy.unsubscribe({ key: this.topicKey, parameter }, internalHandler);
+        for (const [externalHandler, parameterMapping] of this.handlersMap){
+            for (const [parameter, internalHandler] of parameterMapping){
+                proxy.unsubscribe({
+                    key: this.topicKey,
+                    parameter
+                }, internalHandler);
                 parameterMapping.delete(parameter);
             }
             this.handlersMap.delete(externalHandler);
@@ -2548,30 +2960,47 @@ class SubscriptionHandlerRelay {
         }
         return this.proxy;
     }
+    constructor(provider){
+        subscription_handler_relay_define_property(this, "handlersMap", void 0);
+        subscription_handler_relay_define_property(this, "logger", void 0);
+        subscription_handler_relay_define_property(this, "provider", void 0);
+        subscription_handler_relay_define_property(this, "proxy", void 0);
+        this.handlersMap = new Map();
+        this.provider = provider;
+        this.logger = new ConnectLogger({
+            source: "subscription-handler-relay",
+            provider,
+            mixin: ()=>({
+                    namespace: this.namespace,
+                    topicKey: this.topicKey
+                })
+        });
+    }
 }
+
 //# sourceMappingURL=subscription-handler-relay.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/utility/timeout-tracker.js
 /* unused harmony import specifier */ var timeout_tracker_ConnectLogger;
+function timeout_tracker_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 class TimeoutTracker {
-    constructor(onCancelled, timeoutMs) {
-        this.timeoutMs = timeoutMs;
-        this.onCancelled = onCancelled;
-        this.timeout = setTimeout(() => this.handleCancel(), this.timeoutMs);
-        this.status = "running";
-        this.logger = new timeout_tracker_ConnectLogger({
-            source: "core.utility.timeout-tracker",
-            mixin: () => ({
-                timeoutMs: this.timeoutMs,
-                timeoutTrackerStatus: this.status,
-            }),
-        });
-    }
     static start(onCancelled, ms) {
         return new TimeoutTracker(onCancelled, ms);
     }
     complete() {
-        switch (this.status) {
+        switch(this.status){
             case "running":
                 return this.handleComplete();
             case "completed":
@@ -2589,7 +3018,7 @@ class TimeoutTracker {
         return this.status;
     }
     handleCancel() {
-        switch (this.status) {
+        switch(this.status){
             case "running":
                 this.status = "cancelled";
                 this.logger.info("TimeoutTracker has timed out. Invoking onCancelled Handler");
@@ -2609,13 +3038,35 @@ class TimeoutTracker {
     }
     invokeOnCancelled() {
         try {
-            this.onCancelled({ timeoutMs: this.timeoutMs });
-        }
-        catch (error) {
-            this.logger.error("Error when attempting to invoke TimeoutTrackerCancelledHandler", { error });
+            this.onCancelled({
+                timeoutMs: this.timeoutMs
+            });
+        } catch (error) {
+            this.logger.error("Error when attempting to invoke TimeoutTrackerCancelledHandler", {
+                error
+            });
         }
     }
+    constructor(onCancelled, timeoutMs){
+        timeout_tracker_define_property(this, "timeoutMs", void 0);
+        timeout_tracker_define_property(this, "onCancelled", void 0);
+        timeout_tracker_define_property(this, "status", void 0);
+        timeout_tracker_define_property(this, "logger", void 0);
+        timeout_tracker_define_property(this, "timeout", void 0);
+        this.timeoutMs = timeoutMs;
+        this.onCancelled = onCancelled;
+        this.timeout = setTimeout(()=>this.handleCancel(), this.timeoutMs);
+        this.status = "running";
+        this.logger = new timeout_tracker_ConnectLogger({
+            source: "core.utility.timeout-tracker",
+            mixin: ()=>({
+                    timeoutMs: this.timeoutMs,
+                    timeoutTrackerStatus: this.status
+                })
+        });
+    }
 }
+
 //# sourceMappingURL=timeout-tracker.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/utility/index.js
 
@@ -2624,23 +3075,24 @@ class TimeoutTracker {
 
 
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/logging/log-level.js
-var LogLevel;
-(function (LogLevel) {
+var LogLevel = /*#__PURE__*/ function(LogLevel) {
     LogLevel[LogLevel["trace"] = 1] = "trace";
     LogLevel[LogLevel["debug"] = 2] = "debug";
     LogLevel[LogLevel["info"] = 3] = "info";
     LogLevel[LogLevel["warn"] = 4] = "warn";
     LogLevel[LogLevel["error"] = 5] = "error";
-})(LogLevel || (LogLevel = {}));
+    return LogLevel;
+}({});
+
 //# sourceMappingURL=log-level.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/logging/log-data-console-writer.js
-/* eslint-disable no-console */
-
+/* eslint-disable no-console */ 
 function logToConsole(level, message, data) {
     if (data) {
-        switch (level) {
+        switch(level){
             case LogLevel.error:
                 console.error(message, data);
                 break;
@@ -2660,9 +3112,8 @@ function logToConsole(level, message, data) {
                 console.log(message, data);
                 break;
         }
-    }
-    else {
-        switch (level) {
+    } else {
+        switch(level){
             case LogLevel.error:
                 console.error(message);
                 break;
@@ -2684,44 +3135,57 @@ function logToConsole(level, message, data) {
         }
     }
 }
+
 //# sourceMappingURL=log-data-console-writer.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/logging/log-data-transformer.js
+function log_data_transformer_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 class LogDataTransformer {
-    constructor(mixin) {
+    getTransformedData(level, data) {
+        if (!this.mixin) return data;
+        return {
+            ...data ?? {},
+            ...this.mixin(data ?? {}, level)
+        };
+    }
+    constructor(mixin){
+        log_data_transformer_define_property(this, "mixin", void 0);
         this.mixin = mixin;
     }
-    getTransformedData(level, data) {
-        if (!this.mixin)
-            return data;
-        return Object.assign(Object.assign({}, (data !== null && data !== void 0 ? data : {})), this.mixin(data !== null && data !== void 0 ? data : {}, level));
-    }
 }
+
 //# sourceMappingURL=log-data-transformer.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/logging/connect-logger.js
+function connect_logger_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 
 
 
 class connect_logger_ConnectLogger {
-    constructor(param) {
-        this._proxy = null;
-        this._logToConsoleLevel = null;
-        this.loggerId = generateStringId(8);
-        if (typeof param === "string") {
-            this.source = param;
-            this.dataTransformer = new LogDataTransformer(undefined);
-        }
-        else {
-            this.source = param.source;
-            if (param.provider && typeof param.provider === "function")
-                this.providerFactory = param.provider;
-            else
-                this.provider = param.provider;
-            this.dataTransformer = new LogDataTransformer(param.mixin);
-            this.logOptions = param.options;
-        }
-    }
     trace(message, data, options) {
         this.log(LogLevel.trace, message, data, options);
     }
@@ -2745,7 +3209,7 @@ class connect_logger_ConnectLogger {
                 source: this.source,
                 loggerId: this.loggerId,
                 message,
-                data: transformedData,
+                data: transformedData
             });
         }
         if (this.applyDuplicateMessageToConsole(level, options)) {
@@ -2754,9 +3218,7 @@ class connect_logger_ConnectLogger {
     }
     getProvider() {
         if (!this.provider) {
-            this.provider = this.providerFactory
-                ? this.providerFactory()
-                : getGlobalProvider();
+            this.provider = this.providerFactory ? this.providerFactory() : getGlobalProvider();
         }
         return this.provider;
     }
@@ -2767,38 +3229,56 @@ class connect_logger_ConnectLogger {
         return this._proxy;
     }
     applyDuplicateMessageToConsole(level, options) {
-        return ((options === null || options === void 0 ? void 0 : options.duplicateMessageToConsole) || this.getLogConsoleLevel() <= level);
+        return options?.duplicateMessageToConsole || this.getLogConsoleLevel() <= level;
     }
     getLogConsoleLevel() {
-        var _a, _b, _c, _d;
         if (!this._logToConsoleLevel) {
-            this._logToConsoleLevel = ((_a = this.logOptions) === null || _a === void 0 ? void 0 : _a.minLogToConsoleLevelOverride)
-                ? this.logOptions.minLogToConsoleLevelOverride
-                : ((_d = (_c = (_b = this.getProvider().config) === null || _b === void 0 ? void 0 : _b.logging) === null || _c === void 0 ? void 0 : _c.minLogToConsoleLevel) !== null && _d !== void 0 ? _d : LogLevel.error);
+            this._logToConsoleLevel = this.logOptions?.minLogToConsoleLevelOverride ? this.logOptions.minLogToConsoleLevelOverride : this.getProvider().config?.logging?.minLogToConsoleLevel ?? LogLevel.error;
         }
         return this._logToConsoleLevel;
     }
     ignoreRemote(options) {
-        var _a, _b, _c;
-        return (((_b = (_a = this.logOptions) === null || _a === void 0 ? void 0 : _a.remoteIgnore) !== null && _b !== void 0 ? _b : false) ||
-            ((_c = options === null || options === void 0 ? void 0 : options.remoteIgnore) !== null && _c !== void 0 ? _c : false));
+        return (this.logOptions?.remoteIgnore ?? false) || (options?.remoteIgnore ?? false);
+    }
+    constructor(param){
+        connect_logger_define_property(this, "provider", void 0);
+        connect_logger_define_property(this, "source", void 0);
+        connect_logger_define_property(this, "loggerId", void 0);
+        connect_logger_define_property(this, "dataTransformer", void 0);
+        connect_logger_define_property(this, "logOptions", void 0);
+        connect_logger_define_property(this, "_proxy", void 0);
+        connect_logger_define_property(this, "_logToConsoleLevel", void 0);
+        connect_logger_define_property(this, "providerFactory", void 0);
+        this._proxy = null;
+        this._logToConsoleLevel = null;
+        this.loggerId = generateStringId(8);
+        if (typeof param === "string") {
+            this.source = param;
+            this.dataTransformer = new LogDataTransformer(undefined);
+        } else {
+            this.source = param.source;
+            if (param.provider && typeof param.provider === "function") this.providerFactory = param.provider;
+            else this.provider = param.provider;
+            this.dataTransformer = new LogDataTransformer(param.mixin);
+            this.logOptions = param.options;
+        }
     }
 }
+
 //# sourceMappingURL=connect-logger.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/logging/sanitize-data.js
 
 function sanitizeData(data) {
-    if (!data)
-        return undefined;
+    if (!data) return undefined;
     try {
         return deepClone(data);
-    }
-    catch (_a) {
+    } catch  {
         return {
-            error: "Data failed to sanitize. The original data is not available",
+            error: "Data failed to sanitize. The original data is not available"
         };
     }
 }
+
 //# sourceMappingURL=sanitize-data.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/logging/log-message-factory.js
 
@@ -2815,33 +3295,37 @@ function createLogMessage({ level, source, message, loggerId, data }, context, m
         loggerId,
         data: sanitizedData,
         context,
-        messageOrigin,
+        messageOrigin
     };
 }
+
 //# sourceMappingURL=log-message-factory.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/logging/index.js
 
 
 
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/provider/provider-base.js
+function provider_base_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 
 
 class AmazonConnectProviderBase {
-    constructor({ config, proxyFactory }) {
-        this._id = generateUUID();
-        if (!proxyFactory) {
-            throw new Error("Attempted to get Proxy before setting up factory");
-        }
-        if (!config) {
-            throw new Error("Failed to include config");
-        }
-        this.proxyFactory = proxyFactory;
-        this._config = config;
-    }
     get id() {
         return this._id;
     }
@@ -2853,7 +3337,9 @@ class AmazonConnectProviderBase {
         return this.proxy;
     }
     get config() {
-        return Object.assign({}, this._config);
+        return {
+            ...this._config
+        };
     }
     onError(handler) {
         this.getProxy().onError(handler);
@@ -2870,20 +3356,19 @@ class AmazonConnectProviderBase {
                 const existingProvider = getGlobalProvider();
                 const logger = new connect_logger_ConnectLogger({
                     source: "core.amazonConnectProvider.init",
-                    provider: existingProvider,
+                    provider: existingProvider
                 });
                 logger.error(msg);
-            }
-            catch (e) {
+            } catch (e) {
                 // In the event of a error when logging or attempting
                 // to get provider when logging, capture the message
                 // in the error being thrown
-                details.loggingError = e === null || e === void 0 ? void 0 : e.message;
+                details.loggingError = e?.message;
             }
             throw new ConnectError({
                 errorKey: "attemptInitializeMultipleProviders",
                 reason: msg,
-                details,
+                details
             });
         }
         setGlobalProvider(provider);
@@ -2892,23 +3377,49 @@ class AmazonConnectProviderBase {
         provider.getProxy();
         return provider;
     }
+    constructor({ config, proxyFactory }){
+        provider_base_define_property(this, "_id", void 0);
+        provider_base_define_property(this, "proxyFactory", void 0);
+        provider_base_define_property(this, "_config", void 0);
+        provider_base_define_property(this, "proxy", void 0);
+        this._id = generateUUID();
+        if (!proxyFactory) {
+            throw new Error("Attempted to get Proxy before setting up factory");
+        }
+        if (!config) {
+            throw new Error("Failed to include config");
+        }
+        this.proxyFactory = proxyFactory;
+        this._config = config;
+    }
 }
-AmazonConnectProviderBase.isInitialized = false;
+provider_base_define_property(AmazonConnectProviderBase, "isInitialized", false);
+
 //# sourceMappingURL=provider-base.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/provider/index.js
 
 
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/context/module-context.js
+function module_context_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 
 class ModuleContext {
-    constructor(engineContext, moduleNamespace) {
-        this.engineContext = engineContext;
-        this.moduleNamespace = moduleNamespace;
-    }
     get proxy() {
         if (!this.moduleProxy) {
             const proxy = this.engineContext.getProvider().getProxy();
@@ -2922,84 +3433,135 @@ class ModuleContext {
     }
     createLogger(params) {
         if (typeof params === "object") {
-            return new connect_logger_ConnectLogger(Object.assign(Object.assign({}, params), { provider: () => this.engineContext.getProvider() }));
-        }
-        else {
+            return new connect_logger_ConnectLogger({
+                ...params,
+                provider: ()=>this.engineContext.getProvider()
+            });
+        } else {
             return new connect_logger_ConnectLogger({
                 source: params,
-                provider: () => this.engineContext.getProvider(),
+                provider: ()=>this.engineContext.getProvider()
             });
         }
     }
     createMetricRecorder(params) {
         if (typeof params === "object") {
-            return new ConnectMetricRecorder(Object.assign(Object.assign({}, params), { provider: () => this.engineContext.getProvider() }));
-        }
-        else {
+            return new ConnectMetricRecorder({
+                ...params,
+                provider: ()=>this.engineContext.getProvider()
+            });
+        } else {
             return new ConnectMetricRecorder({
                 namespace: params,
-                provider: () => this.engineContext.getProvider(),
+                provider: ()=>this.engineContext.getProvider()
             });
         }
     }
+    constructor(engineContext, moduleNamespace){
+        module_context_define_property(this, "engineContext", void 0);
+        module_context_define_property(this, "moduleNamespace", void 0);
+        module_context_define_property(this, "moduleProxy", void 0);
+        this.engineContext = engineContext;
+        this.moduleNamespace = moduleNamespace;
+    }
 }
+
 //# sourceMappingURL=module-context.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/context/context.js
+function context_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 class Context {
-    constructor(provider) {
-        this._provider = provider;
-    }
     getProvider() {
-        if (this._provider)
-            return this._provider;
-        else
-            return getGlobalProvider();
+        if (this._provider) return this._provider;
+        else return getGlobalProvider();
     }
     getModuleContext(namespace) {
         return new ModuleContext(this, namespace);
     }
+    constructor(provider){
+        context_define_property(this, "_provider", void 0);
+        this._provider = provider;
+    }
 }
+
 //# sourceMappingURL=context.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/context/index.js
+
 
 
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/client/get-module-context.js
 
 
-function getModuleContext({ namespace, config, }) {
+function getModuleContext({ namespace, config }) {
     if (config && "context" in config && config.context) {
         return config.context;
-    }
-    else if (isAmazonConnectProvider(config)) {
+    } else if (isAmazonConnectProvider(config)) {
         return new Context(config).getModuleContext(namespace);
-    }
-    else {
-        return new Context(config === null || config === void 0 ? void 0 : config.provider).getModuleContext(namespace);
+    } else {
+        return new Context(config?.provider).getModuleContext(namespace);
     }
 }
+
 //# sourceMappingURL=get-module-context.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/client/connect-client.js
+function connect_client_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 class ConnectClient {
-    constructor(namespace, config) {
+    constructor(namespace, config){
+        connect_client_define_property(this, "context", void 0);
+        connect_client_define_property(this, "namespace", void 0);
         this.namespace = namespace;
-        this.context = getModuleContext({ namespace, config });
+        this.context = getModuleContext({
+            namespace,
+            config
+        });
     }
 }
 class ConnectClientWithOptionalConfig {
-    constructor(namespace, config) {
+    constructor(namespace, config){
+        connect_client_define_property(this, "context", void 0);
+        connect_client_define_property(this, "namespace", void 0);
         this.namespace = namespace;
-        this.context = getModuleContext({ namespace, config });
+        this.context = getModuleContext({
+            namespace,
+            config
+        });
     }
 }
+
 //# sourceMappingURL=connect-client.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/client/index.js
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/core/lib-esm/index.js
+
 
 
 
@@ -3030,45 +3592,45 @@ __webpack_require__.d(__webpack_exports__, {
   GlobalResiliencyRegion: () => (/* reexport */ GlobalResiliencyRegion)
 });
 
-// EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 55 modules
-var lib_esm = __webpack_require__(238);
+// EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 54 modules
+var lib_esm = __webpack_require__(650);
 ;// ./node_modules/@amazon-connect/site/lib-esm/proxy/site-proxy.js
+function _define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 class SiteProxy extends lib_esm/* Proxy */.by {
-    constructor(provider, instanceUrl) {
-        super(provider);
-        if (instanceUrl !== undefined) {
-            // Two-parameter constructor: use the explicit instanceUrl parameter
-            this.instanceUrl = instanceUrl;
-        }
-        else {
-            // Single-parameter constructor: get instanceUrl from config
-            this.instanceUrl = provider.config.instanceUrl;
-        }
-        this.postMessageHandler = this.listenForInitialMessage.bind(this);
-        this.proxyLogger = new lib_esm/* ConnectLogger */.pg({
-            source: "siteProxy",
-            provider,
-        });
-    }
     initProxy() {
-        this.status.update({ status: "connecting" });
+        this.status.update({
+            status: "connecting"
+        });
         window.addEventListener("message", this.postMessageHandler);
     }
     resetConnection(reason) {
         super.resetConnection(reason);
         this.messagePort = undefined;
-        this.status.update({ status: "connecting" });
+        this.status.update({
+            status: "connecting"
+        });
     }
     sendMessageToSubject(message) {
         if (this.messagePort) {
             this.messagePort.postMessage(message);
-        }
-        else {
+        } else {
             // This could ever be reached if the setup did not occur and the
             // acknowledge process was initiated by non supported means.
             this.proxyLogger.error("Failed to send UpstreamMessage. MessagePort not set", {
-                messageType: message.type,
+                messageType: message.type
             });
         }
     }
@@ -3097,10 +3659,12 @@ class SiteProxy extends lib_esm/* Proxy */.by {
                 throw new Error("message port not provided by iframe");
             }
             this.messagePort.onmessage = this.consumerMessageHandler.bind(this);
-            this.status.update({ status: "initializing" });
+            this.status.update({
+                status: "initializing"
+            });
             this.messagePort.postMessage({
                 type: "cross-domain-site-ready",
-                providerId: this.provider.id,
+                providerId: this.provider.id
             });
             this.proxyLogger.debug("CDA Post message handler removed");
         }
@@ -3114,13 +3678,14 @@ class SiteProxy extends lib_esm/* Proxy */.by {
         let expectedOrigin;
         try {
             expectedOrigin = new URL(this.instanceUrl).origin;
-        }
-        catch (error) {
+        } catch (error) {
             this.proxyLogger.error("Unable to parse expected origin from instanceUrl. Cannot match", {
                 error,
                 eventOrigin,
-                instanceUrl: this.instanceUrl,
-            }, { duplicateMessageToConsole: true });
+                instanceUrl: this.instanceUrl
+            }, {
+                duplicateMessageToConsole: true
+            });
             return false;
         }
         if (eventOrigin !== expectedOrigin) {
@@ -3128,30 +3693,58 @@ class SiteProxy extends lib_esm/* Proxy */.by {
                 // Only logging for the specific handshake message. Otherwise just ignore
                 this.proxyLogger.warn("Origin of message with type 'cross-domain-adapter-init' did not expected instance value. Ignoring", {
                     expectedOrigin,
-                    eventOrigin,
-                }, { duplicateMessageToConsole: true });
+                    eventOrigin
+                }, {
+                    duplicateMessageToConsole: true
+                });
             }
             return false;
         }
         return true;
     }
+    constructor(provider, instanceUrl){
+        super(provider), _define_property(this, "proxyLogger", void 0), _define_property(this, "messagePort", void 0), _define_property(this, "postMessageHandler", void 0), _define_property(this, "instanceUrl", void 0);
+        if (instanceUrl !== undefined) {
+            // Two-parameter constructor: use the explicit instanceUrl parameter
+            this.instanceUrl = instanceUrl;
+        } else {
+            // Single-parameter constructor: get instanceUrl from config
+            this.instanceUrl = provider.config.instanceUrl;
+        }
+        this.postMessageHandler = this.listenForInitialMessage.bind(this);
+        this.proxyLogger = new lib_esm/* ConnectLogger */.pg({
+            source: "siteProxy",
+            provider
+        });
+    }
 }
+
 //# sourceMappingURL=site-proxy.js.map
 ;// ./node_modules/@amazon-connect/site/lib-esm/proxy/index.js
+
 
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/site/lib-esm/index.js
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/streams-site-proxy.js
+function streams_site_proxy_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 class StreamsSiteProxy extends SiteProxy {
-    constructor(provider) {
-        super(provider);
-        this.ccpIFrame = null;
-        this.unexpectedIframeWarningCount = 0;
-    }
     get proxyType() {
         return "streams-site";
     }
@@ -3159,17 +3752,20 @@ class StreamsSiteProxy extends SiteProxy {
         const isCcpIFrameSet = Boolean(this.ccpIFrame);
         this.ccpIFrame = iframe;
         this.unexpectedIframeWarningCount = 0;
-        if (isCcpIFrameSet)
-            this.resetConnection("CCP IFrame Updated");
+        if (isCcpIFrameSet) this.resetConnection("CCP IFrame Updated");
     }
     getUpstreamMessageOrigin() {
-        return Object.assign({ _type: "streams-site", providerId: this.provider.id }, (0,lib_esm/* getOriginAndPath */.xQ)());
+        return {
+            _type: "streams-site",
+            providerId: this.provider.id,
+            ...(0,lib_esm/* getOriginAndPath */.xQ)()
+        };
     }
     verifyEventSource(evt) {
         const ccpIFrame = this.ccpIFrame;
         if (!ccpIFrame) {
             this.proxyLogger.error("CCP Iframe not provided to proxy. Unable to verify event to Connect to CCP.", {
-                origin: evt.origin,
+                origin: evt.origin
             });
             return false;
         }
@@ -3179,32 +3775,34 @@ class StreamsSiteProxy extends SiteProxy {
             if (this.unexpectedIframeWarningCount < 5) {
                 this.proxyLogger.warn("Message came from unexpected iframe. Not a valid CCP. Will not connect", {
                     origin: evt.origin,
-                    unexpectedIframeWarningCount: this.unexpectedIframeWarningCount,
+                    unexpectedIframeWarningCount: this.unexpectedIframeWarningCount
                 });
             }
         }
         return valid;
     }
     invalidInitMessageHandler() {
-        // CCP sends messages via Streams
-        // Take no action here
+    // CCP sends messages via Streams
+    // Take no action here
+    }
+    constructor(provider){
+        super(provider), streams_site_proxy_define_property(this, "ccpIFrame", void 0), streams_site_proxy_define_property(this, "unexpectedIframeWarningCount", void 0);
+        this.ccpIFrame = null;
+        this.unexpectedIframeWarningCount = 0;
     }
 }
+
 //# sourceMappingURL=streams-site-proxy.js.map
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/amazon-connect-streams-site.js
 
 
 class AmazonConnectStreamsSite extends lib_esm/* AmazonConnectProviderBase */.Lt {
-    constructor(config) {
-        super({
-            config,
-            proxyFactory: (p) => new StreamsSiteProxy(p),
-        });
-    }
     static init(config) {
         const provider = new AmazonConnectStreamsSite(config);
         AmazonConnectStreamsSite.initializeProvider(provider);
-        return { provider };
+        return {
+            provider
+        };
     }
     static get default() {
         return (0,lib_esm/* getGlobalProvider */.Lz)("AmazonConnectStreamsSite has not been initialized");
@@ -3212,29 +3810,40 @@ class AmazonConnectStreamsSite extends lib_esm/* AmazonConnectProviderBase */.Lt
     setCCPIframe(iframe) {
         this.getProxy().setCCPIframe(iframe);
     }
+    constructor(config){
+        super({
+            config,
+            proxyFactory: (p)=>new StreamsSiteProxy(p)
+        });
+    }
 }
+
 //# sourceMappingURL=amazon-connect-streams-site.js.map
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/global-resiliency-region.js
-var GlobalResiliencyRegion;
-(function (GlobalResiliencyRegion) {
+var GlobalResiliencyRegion = /*#__PURE__*/ function(GlobalResiliencyRegion) {
     GlobalResiliencyRegion["Primary"] = "primary";
     GlobalResiliencyRegion["Secondary"] = "secondary";
-})(GlobalResiliencyRegion || (GlobalResiliencyRegion = {}));
+    return GlobalResiliencyRegion;
+}({});
+
 //# sourceMappingURL=global-resiliency-region.js.map
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/regional-proxy.js
+function regional_proxy_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 class RegionalProxy extends SiteProxy {
-    constructor({ provider, region, getUpstreamMessageOrigin, relayToGlobalResiliencyProxy, }) {
-        super(provider, region === GlobalResiliencyRegion.Primary
-            ? provider.config.primaryInstanceUrl
-            : provider.config.secondaryInstanceUrl);
-        this.getParentUpstreamMessageOrigin = getUpstreamMessageOrigin;
-        this.relayToGlobalResiliencyProxy = relayToGlobalResiliencyProxy;
-        this.ccpIFrame = null;
-        this.region = region;
-        this.unexpectedIframeWarningCount = 0;
-    }
     get proxyType() {
         return "acgr-regional-proxy";
     }
@@ -3242,11 +3851,10 @@ class RegionalProxy extends SiteProxy {
         const isCcpIFrameSet = Boolean(this.ccpIFrame);
         this.ccpIFrame = iframe;
         this.unexpectedIframeWarningCount = 0;
-        if (isCcpIFrameSet)
-            this.resetConnection("CCP IFrame Updated");
+        if (isCcpIFrameSet) this.resetConnection("CCP IFrame Updated");
     }
     handleMessageFromSubject(msg) {
-        switch (msg.type) {
+        switch(msg.type){
             case "response":
             case "publish":
             case "error":
@@ -3264,7 +3872,7 @@ class RegionalProxy extends SiteProxy {
         const ccpIFrame = this.ccpIFrame;
         if (!ccpIFrame) {
             this.proxyLogger.error("CCP Iframe not provided to proxy. Unable to verify event to Connect to CCP.", {
-                origin: evt.origin,
+                origin: evt.origin
             });
             return false;
         }
@@ -3274,7 +3882,7 @@ class RegionalProxy extends SiteProxy {
             if (this.unexpectedIframeWarningCount < 5) {
                 this.proxyLogger.warn("Message came from unexpected iframe. Not a valid CCP. Will not connect", {
                     origin: evt.origin,
-                    unexpectedIframeWarningCount: this.unexpectedIframeWarningCount,
+                    unexpectedIframeWarningCount: this.unexpectedIframeWarningCount
                 });
             }
         }
@@ -3284,10 +3892,19 @@ class RegionalProxy extends SiteProxy {
         super.sendOrQueueMessageToSubject(message);
     }
     invalidInitMessageHandler() {
-        // CCP sends messages via Streams
-        // Take no action here
+    // CCP sends messages via Streams
+    // Take no action here
+    }
+    constructor({ provider, region, getUpstreamMessageOrigin, relayToGlobalResiliencyProxy }){
+        super(provider, region === GlobalResiliencyRegion.Primary ? provider.config.primaryInstanceUrl : provider.config.secondaryInstanceUrl), regional_proxy_define_property(this, "ccpIFrame", void 0), regional_proxy_define_property(this, "region", void 0), regional_proxy_define_property(this, "unexpectedIframeWarningCount", void 0), regional_proxy_define_property(this, "getParentUpstreamMessageOrigin", void 0), regional_proxy_define_property(this, "relayToGlobalResiliencyProxy", void 0);
+        this.getParentUpstreamMessageOrigin = getUpstreamMessageOrigin;
+        this.relayToGlobalResiliencyProxy = relayToGlobalResiliencyProxy;
+        this.ccpIFrame = null;
+        this.region = region;
+        this.unexpectedIframeWarningCount = 0;
     }
 }
+
 //# sourceMappingURL=regional-proxy.js.map
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/verify-region.js
 
@@ -3297,37 +3914,29 @@ function verifyRegion(region) {
         throw new Error(`Invalid region: ${region}. Valid regions are: ${validValues.join(", ")}`);
     }
 }
+
 //# sourceMappingURL=verify-region.js.map
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/global-resiliency-proxy.js
+function global_resiliency_proxy_define_property(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 
 
 
 class GlobalResiliencyProxy extends lib_esm/* Proxy */.by {
-    constructor(provider) {
-        super(provider);
-        this.activeRegion = GlobalResiliencyRegion.Primary;
-        this.regionProxies = {
-            [GlobalResiliencyRegion.Primary]: new RegionalProxy({
-                provider,
-                region: GlobalResiliencyRegion.Primary,
-                getUpstreamMessageOrigin: this.getUpstreamMessageOrigin.bind(this),
-                relayToGlobalResiliencyProxy: this.handleMessageFromSubject.bind(this),
-            }),
-            [GlobalResiliencyRegion.Secondary]: new RegionalProxy({
-                provider,
-                region: GlobalResiliencyRegion.Secondary,
-                getUpstreamMessageOrigin: this.getUpstreamMessageOrigin.bind(this),
-                relayToGlobalResiliencyProxy: this.handleMessageFromSubject.bind(this),
-            }),
-        };
-        this.proxyLogger = new lib_esm/* ConnectLogger */.pg({
-            source: "globalResiliencyProxy",
-            provider,
-        });
-    }
     initProxy() {
-        Object.values(this.regionProxies).forEach((proxy) => proxy.init());
+        Object.values(this.regionProxies).forEach((proxy)=>proxy.init());
     }
     setCCPIframe({ iframe, region }) {
         verifyRegion(region);
@@ -3343,27 +3952,29 @@ class GlobalResiliencyProxy extends lib_esm/* Proxy */.by {
             this.proxyLogger.info("Active region changed", {
                 current: region,
                 instanceUrl: currentRegionProxy.instanceUrl,
-                previousInstanceUrl: previousRegionProxy.instanceUrl,
+                previousInstanceUrl: previousRegionProxy.instanceUrl
             });
             this.activeRegion = region;
             // Adds subscriptions to new engine
             this.restoreAllHandler();
             const currentStatus = this.status.getStatus();
             const activeRegionStatus = currentRegionProxy.connectionStatus;
-            switch (activeRegionStatus) {
+            switch(activeRegionStatus){
                 case "ready":
                     this.proxyLogger.info("Active region is ready", {
-                        activeRegionStatus,
+                        activeRegionStatus
                     });
                     this.status.update({
                         status: "ready",
-                        connectionId: currentRegionProxy["connectionId"],
+                        connectionId: currentRegionProxy["connectionId"]
                     });
                     break;
                 case "connecting":
                 case "initializing":
                     if (currentStatus !== activeRegionStatus) {
-                        this.status.update({ status: activeRegionStatus });
+                        this.status.update({
+                            status: activeRegionStatus
+                        });
                     }
                     break;
                 case "error":
@@ -3371,7 +3982,9 @@ class GlobalResiliencyProxy extends lib_esm/* Proxy */.by {
                         this.status.update({
                             status: "error",
                             reason: "new active region in error on transition",
-                            details: { region: this.activeRegion },
+                            details: {
+                                region: this.activeRegion
+                            }
                         });
                     }
                     break;
@@ -3387,7 +4000,9 @@ class GlobalResiliencyProxy extends lib_esm/* Proxy */.by {
         this.regionProxies[this.activeRegion].sendOrQueueMessageToSubject(message);
     }
     addContextToLogger() {
-        return { activeRegion: this.activeRegion };
+        return {
+            activeRegion: this.activeRegion
+        };
     }
     // When sending a message, it goes to the sendOrQueueMessageToSubject of the
     // active region
@@ -3395,7 +4010,12 @@ class GlobalResiliencyProxy extends lib_esm/* Proxy */.by {
         this.regionProxies[this.activeRegion].sendOrQueueMessageToSubject(message);
     }
     getUpstreamMessageOrigin() {
-        return Object.assign(Object.assign({ _type: "global-resiliency-streams-site", providerId: this.provider.id }, (0,lib_esm/* getOriginAndPath */.xQ)()), { activeRegion: this.activeRegion });
+        return {
+            _type: "global-resiliency-streams-site",
+            providerId: this.provider.id,
+            ...(0,lib_esm/* getOriginAndPath */.xQ)(),
+            activeRegion: this.activeRegion
+        };
     }
     addChildIframeChannel(params) {
         this.regionProxies[this.activeRegion].addChildIframeChannel(params);
@@ -3406,22 +4026,41 @@ class GlobalResiliencyProxy extends lib_esm/* Proxy */.by {
     updateChildIframeChannelPort(params) {
         this.regionProxies[this.activeRegion].updateChildIframeChannelPort(params);
     }
+    constructor(provider){
+        super(provider), global_resiliency_proxy_define_property(this, "proxyLogger", void 0), global_resiliency_proxy_define_property(this, "activeRegion", void 0), global_resiliency_proxy_define_property(this, "regionProxies", void 0);
+        this.activeRegion = GlobalResiliencyRegion.Primary;
+        this.regionProxies = {
+            [GlobalResiliencyRegion.Primary]: new RegionalProxy({
+                provider,
+                region: GlobalResiliencyRegion.Primary,
+                getUpstreamMessageOrigin: this.getUpstreamMessageOrigin.bind(this),
+                relayToGlobalResiliencyProxy: this.handleMessageFromSubject.bind(this)
+            }),
+            [GlobalResiliencyRegion.Secondary]: new RegionalProxy({
+                provider,
+                region: GlobalResiliencyRegion.Secondary,
+                getUpstreamMessageOrigin: this.getUpstreamMessageOrigin.bind(this),
+                relayToGlobalResiliencyProxy: this.handleMessageFromSubject.bind(this)
+            })
+        };
+        this.proxyLogger = new lib_esm/* ConnectLogger */.pg({
+            source: "globalResiliencyProxy",
+            provider
+        });
+    }
 }
+
 //# sourceMappingURL=global-resiliency-proxy.js.map
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/amazon-connect-gr-streams-site.js
 
 
 class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.Lt {
-    constructor(config) {
-        super({
-            config,
-            proxyFactory: (p) => new GlobalResiliencyProxy(p),
-        });
-    }
     static init(config) {
         const provider = new AmazonConnectGRStreamsSite(config);
         AmazonConnectGRStreamsSite.initializeProvider(provider);
-        return { provider };
+        return {
+            provider
+        };
     }
     static get default() {
         return (0,lib_esm/* getGlobalProvider */.Lz)("AmazonConnectGRStreamsSite has not been initialized");
@@ -3433,13 +4072,22 @@ class AmazonConnectGRStreamsSite extends lib_esm/* AmazonConnectProviderBase */.
     setActiveRegion(region) {
         this.getProxy().setActiveRegion(region);
     }
+    constructor(config){
+        super({
+            config,
+            proxyFactory: (p)=>new GlobalResiliencyProxy(p)
+        });
+    }
 }
+
 //# sourceMappingURL=amazon-connect-gr-streams-site.js.map
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/global-resiliency/index.js
 
 
+
 //# sourceMappingURL=index.js.map
 ;// ./node_modules/@amazon-connect/site-streams/lib-esm/index.js
+
 
 
 //# sourceMappingURL=index.js.map
@@ -3463,10 +4111,10 @@ __webpack_require__.d(__webpack_exports__, {
 
 ;// ./node_modules/@amazon-connect/voice/lib-esm/namespace.js
 const voiceNamespace = "aws.connect.voice";
+
 //# sourceMappingURL=namespace.js.map
 ;// ./node_modules/@amazon-connect/voice/lib-esm/routes.js
-var VoiceRoutes;
-(function (VoiceRoutes) {
+var VoiceRoutes = /*#__PURE__*/ function(VoiceRoutes) {
     VoiceRoutes["getPhoneNumber"] = "contact/getPhoneNumber";
     VoiceRoutes["getInitialCustomerPhoneNumber"] = "voice/getInitialCustomerPhoneNumber";
     VoiceRoutes["listDialableCountries"] = "voice/listDialableCountries";
@@ -3484,11 +4132,12 @@ var VoiceRoutes;
     VoiceRoutes["getVoiceEnhancementMode"] = "voice/getVoiceEnhancementMode";
     VoiceRoutes["setVoiceEnhancementMode"] = "voice/setVoiceEnhancementMode";
     VoiceRoutes["getVoiceEnhancementPaths"] = "voice/getVoiceEnhancementPaths";
-})(VoiceRoutes || (VoiceRoutes = {}));
+    return VoiceRoutes;
+}({});
+
 //# sourceMappingURL=routes.js.map
 ;// ./node_modules/@amazon-connect/voice/lib-esm/topic-keys.js
-var VoiceTopicKeys;
-(function (VoiceTopicKeys) {
+var VoiceTopicKeys = /*#__PURE__*/ function(VoiceTopicKeys) {
     VoiceTopicKeys["VoiceEnhancementModeChanged"] = "voice/voiceEnhancementModeChanged";
     VoiceTopicKeys["ParticipantHold"] = "voice/participantHold";
     VoiceTopicKeys["ParticipantResume"] = "voice/participantResume";
@@ -3496,276 +4145,275 @@ var VoiceTopicKeys;
     VoiceTopicKeys["SelfResume"] = "voice/selfResume";
     VoiceTopicKeys["CanResumeSelfChanged"] = "voice/canResumeSelfChanged";
     VoiceTopicKeys["CanResumeParticipantChanged"] = "voice/onCanResumeParticipantChanged";
-})(VoiceTopicKeys || (VoiceTopicKeys = {}));
+    return VoiceTopicKeys;
+}({});
+
 //# sourceMappingURL=topic-keys.js.map
-// EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 55 modules
-var lib_esm = __webpack_require__(238);
+// EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 54 modules
+var lib_esm = __webpack_require__(650);
 ;// ./node_modules/@amazon-connect/voice/lib-esm/voice-client.js
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 
 
 
 
 class VoiceClient extends lib_esm/* ConnectClientWithOptionalConfig */.uU {
-    constructor(config) {
-        super(voiceNamespace, config);
-    }
     /**
-     * @deprecated Use `getInitialCustomerPhoneNumber` instead.
-     */
-    getPhoneNumber(contactId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { phoneNumber } = yield this.context.proxy.request(VoiceRoutes.getPhoneNumber, {
-                contactId,
-            });
-            return phoneNumber;
+   * @deprecated Use `getInitialCustomerPhoneNumber` instead.
+   */ async getPhoneNumber(contactId) {
+        const { phoneNumber } = await this.context.proxy.request(VoiceRoutes.getPhoneNumber, {
+            contactId
         });
+        return phoneNumber;
     }
-    getInitialCustomerPhoneNumber(contactId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { phoneNumber } = yield this.context.proxy.request(VoiceRoutes.getInitialCustomerPhoneNumber, {
-                contactId,
-            });
-            return phoneNumber;
+    async getInitialCustomerPhoneNumber(contactId) {
+        const { phoneNumber } = await this.context.proxy.request(VoiceRoutes.getInitialCustomerPhoneNumber, {
+            contactId
         });
+        return phoneNumber;
     }
     listDialableCountries() {
         return this.context.proxy.request(VoiceRoutes.listDialableCountries);
     }
-    getOutboundCallPermission() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { outboundCallPermission } = yield this.context.proxy.request(VoiceRoutes.getOutboundCallPermission);
-            return outboundCallPermission;
-        });
+    async getOutboundCallPermission() {
+        const { outboundCallPermission } = await this.context.proxy.request(VoiceRoutes.getOutboundCallPermission);
+        return outboundCallPermission;
     }
     /**
-     * @param phoneNumber phone number string in E.164 format
-     */
-    createOutboundCall(phoneNumber, options) {
+   * @param phoneNumber phone number string in E.164 format
+   */ createOutboundCall(phoneNumber, options) {
         return this.context.proxy.request(VoiceRoutes.createOutboundCall, {
             phoneNumber,
-            options,
+            options
         });
     }
     onVoiceEnhancementModeChanged(handler) {
-        this.context.proxy.subscribe({ key: VoiceTopicKeys.VoiceEnhancementModeChanged }, handler);
+        this.context.proxy.subscribe({
+            key: VoiceTopicKeys.VoiceEnhancementModeChanged
+        }, handler);
     }
     offVoiceEnhancementModeChanged(handler) {
-        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.VoiceEnhancementModeChanged }, handler);
+        this.context.proxy.unsubscribe({
+            key: VoiceTopicKeys.VoiceEnhancementModeChanged
+        }, handler);
     }
-    getVoiceEnhancementMode() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { voiceEnhancementMode } = yield this.context.proxy.request(VoiceRoutes.getVoiceEnhancementMode);
-            return voiceEnhancementMode;
-        });
+    async getVoiceEnhancementMode() {
+        const { voiceEnhancementMode } = await this.context.proxy.request(VoiceRoutes.getVoiceEnhancementMode);
+        return voiceEnhancementMode;
     }
     setVoiceEnhancementMode(voiceEnhancementMode) {
         return this.context.proxy.request(VoiceRoutes.setVoiceEnhancementMode, {
-            voiceEnhancementMode,
+            voiceEnhancementMode
         });
     }
-    getVoiceEnhancementPaths() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { voiceEnhancementPaths } = yield this.context.proxy.request(VoiceRoutes.getVoiceEnhancementPaths);
-            return voiceEnhancementPaths;
+    async getVoiceEnhancementPaths() {
+        const { voiceEnhancementPaths } = await this.context.proxy.request(VoiceRoutes.getVoiceEnhancementPaths);
+        return voiceEnhancementPaths;
+    }
+    async conferenceParticipants(contactId) {
+        return this.context.proxy.request(VoiceRoutes.conferenceParticipants, {
+            contactId
         });
     }
-    conferenceParticipants(contactId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.context.proxy.request(VoiceRoutes.conferenceParticipants, {
-                contactId,
-            });
+    async holdParticipant(participantId) {
+        return this.context.proxy.request(VoiceRoutes.holdParticipant, {
+            participantId
         });
     }
-    holdParticipant(participantId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.context.proxy.request(VoiceRoutes.holdParticipant, {
-                participantId,
-            });
+    async resumeParticipant(participantId) {
+        return this.context.proxy.request(VoiceRoutes.resumeParticipant, {
+            participantId
         });
     }
-    resumeParticipant(participantId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.context.proxy.request(VoiceRoutes.resumeParticipant, {
-                participantId,
-            });
+    async holdSelf(contactId) {
+        return this.context.proxy.request(VoiceRoutes.holdSelf, {
+            contactId
         });
     }
-    holdSelf(contactId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.context.proxy.request(VoiceRoutes.holdSelf, {
-                contactId,
-            });
+    async resumeSelf(contactId) {
+        return this.context.proxy.request(VoiceRoutes.resumeSelf, {
+            contactId
         });
     }
-    resumeSelf(contactId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.context.proxy.request(VoiceRoutes.resumeSelf, {
-                contactId,
-            });
+    async isParticipantOnHold(participantId) {
+        const { isOnHold } = await this.context.proxy.request(VoiceRoutes.isParticipantOnHold, {
+            participantId
         });
+        return isOnHold;
     }
-    isParticipantOnHold(participantId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { isOnHold } = yield this.context.proxy.request(VoiceRoutes.isParticipantOnHold, { participantId });
-            return isOnHold;
+    async isSelfOnHold(contactId) {
+        const { isOnHold } = await this.context.proxy.request(VoiceRoutes.isSelfOnHold, {
+            contactId
         });
+        return isOnHold;
     }
-    isSelfOnHold(contactId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const { isOnHold } = yield this.context.proxy.request(VoiceRoutes.isSelfOnHold, { contactId });
-            return isOnHold;
+    async canResumeSelf(contactId) {
+        const response = await this.context.proxy.request(VoiceRoutes.canResumeSelf, {
+            contactId
         });
+        return response.canResumeSelf;
     }
-    canResumeSelf(contactId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const response = yield this.context.proxy.request(VoiceRoutes.canResumeSelf, {
-                contactId,
-            });
-            return response.canResumeSelf;
+    async canResumeParticipant(participantId) {
+        const response = await this.context.proxy.request(VoiceRoutes.canResumeParticipant, {
+            participantId
         });
-    }
-    canResumeParticipant(participantId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const response = yield this.context.proxy.request(VoiceRoutes.canResumeParticipant, { participantId });
-            return response.canResumeParticipant;
-        });
+        return response.canResumeParticipant;
     }
     /**
-     * Subscribes to events when any participant is put on hold on a contact.
-     * Each contact has multiple participants, and any given participant can be put on hold or resumed.
-     *
-     * @param handler - Event handler function to call when participants are put on hold
-     * @param participantId - Optional participant ID to filter events for a specific participant
-     */
-    onParticipantHold(handler, participantId) {
-        this.context.proxy.subscribe({ key: VoiceTopicKeys.ParticipantHold, parameter: participantId }, handler);
+   * Subscribes to events when any participant is put on hold on a contact.
+   * Each contact has multiple participants, and any given participant can be put on hold or resumed.
+   *
+   * @param handler - Event handler function to call when participants are put on hold
+   * @param participantId - Optional participant ID to filter events for a specific participant
+   */ onParticipantHold(handler, participantId) {
+        this.context.proxy.subscribe({
+            key: VoiceTopicKeys.ParticipantHold,
+            parameter: participantId
+        }, handler);
     }
     /**
-     * Unsubscribes from events when any participant is put on hold.
-     * Removes the specified handler from receiving notifications about participant hold events.
-     *
-     * @param handler - Event handler function to remove
-     * @param participantId - Optional participant ID to unsubscribe from specific participant events
-     */
-    offParticipantHold(handler, participantId) {
-        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.ParticipantHold, parameter: participantId }, handler);
+   * Unsubscribes from events when any participant is put on hold.
+   * Removes the specified handler from receiving notifications about participant hold events.
+   *
+   * @param handler - Event handler function to remove
+   * @param participantId - Optional participant ID to unsubscribe from specific participant events
+   */ offParticipantHold(handler, participantId) {
+        this.context.proxy.unsubscribe({
+            key: VoiceTopicKeys.ParticipantHold,
+            parameter: participantId
+        }, handler);
     }
     /**
-     * Subscribes to events when any participant is taken off hold on a contact.
-     * Each contact has multiple participants, and any given participant can be put on hold or taken off hold.
-     *
-     * @param handler - Event handler function to call when participants are taken off hold
-     * @param participantId - Optional participant ID to filter events for a specific participant
-     */
-    onParticipantResume(handler, participantId) {
-        this.context.proxy.subscribe({ key: VoiceTopicKeys.ParticipantResume, parameter: participantId }, handler);
+   * Subscribes to events when any participant is taken off hold on a contact.
+   * Each contact has multiple participants, and any given participant can be put on hold or taken off hold.
+   *
+   * @param handler - Event handler function to call when participants are taken off hold
+   * @param participantId - Optional participant ID to filter events for a specific participant
+   */ onParticipantResume(handler, participantId) {
+        this.context.proxy.subscribe({
+            key: VoiceTopicKeys.ParticipantResume,
+            parameter: participantId
+        }, handler);
     }
     /**
-     * Unsubscribes from events when any participant is taken off hold.
-     * Removes the specified handler from receiving notifications about participants being taken off hold.
-     *
-     * @param handler - Event handler function to remove
-     * @param participantId - Optional participant ID to unsubscribe from specific participant events
-     */
-    offParticipantResume(handler, participantId) {
-        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.ParticipantResume, parameter: participantId }, handler);
+   * Unsubscribes from events when any participant is taken off hold.
+   * Removes the specified handler from receiving notifications about participants being taken off hold.
+   *
+   * @param handler - Event handler function to remove
+   * @param participantId - Optional participant ID to unsubscribe from specific participant events
+   */ offParticipantResume(handler, participantId) {
+        this.context.proxy.unsubscribe({
+            key: VoiceTopicKeys.ParticipantResume,
+            parameter: participantId
+        }, handler);
     }
     /**
-     * Subscribes to events when the current user's participant is put on hold on a contact.
-     * Each contact has multiple participants, and this event fires specifically when the participant
-     * associated with the current user is put on hold, allowing specification by contact rather than participant ID.
-     *
-     * @param handler - Event handler function to call when the current user's participant is put on hold
-     * @param contactId - Optional contact ID to filter events for a specific contact
-     */
-    onSelfHold(handler, contactId) {
-        this.context.proxy.subscribe({ key: VoiceTopicKeys.SelfHold, parameter: contactId }, handler);
+   * Subscribes to events when the current user's participant is put on hold on a contact.
+   * Each contact has multiple participants, and this event fires specifically when the participant
+   * associated with the current user is put on hold, allowing specification by contact rather than participant ID.
+   *
+   * @param handler - Event handler function to call when the current user's participant is put on hold
+   * @param contactId - Optional contact ID to filter events for a specific contact
+   */ onSelfHold(handler, contactId) {
+        this.context.proxy.subscribe({
+            key: VoiceTopicKeys.SelfHold,
+            parameter: contactId
+        }, handler);
     }
     /**
-     * Unsubscribes from events when the current user's participant is put on hold.
-     * Removes the specified handler from receiving notifications about the current user's participant hold events.
-     *
-     * @param handler - Event handler function to remove
-     * @param contactId - Optional contact ID to unsubscribe from specific contact events
-     */
-    offSelfHold(handler, contactId) {
-        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.SelfHold, parameter: contactId }, handler);
+   * Unsubscribes from events when the current user's participant is put on hold.
+   * Removes the specified handler from receiving notifications about the current user's participant hold events.
+   *
+   * @param handler - Event handler function to remove
+   * @param contactId - Optional contact ID to unsubscribe from specific contact events
+   */ offSelfHold(handler, contactId) {
+        this.context.proxy.unsubscribe({
+            key: VoiceTopicKeys.SelfHold,
+            parameter: contactId
+        }, handler);
     }
     /**
-     * Subscribes to events when the current user's participant is taken off hold on a contact.
-     * Each contact has multiple participants, and this event fires specifically when the participant
-     * associated with the current user is taken off hold, allowing specification by contact rather than participant ID.
-     *
-     * @param handler - Event handler function to call when the current user's participant is taken off hold
-     * @param contactId - Optional contact ID to filter events for a specific contact
-     */
-    onSelfResume(handler, contactId) {
-        this.context.proxy.subscribe({ key: VoiceTopicKeys.SelfResume, parameter: contactId }, handler);
+   * Subscribes to events when the current user's participant is taken off hold on a contact.
+   * Each contact has multiple participants, and this event fires specifically when the participant
+   * associated with the current user is taken off hold, allowing specification by contact rather than participant ID.
+   *
+   * @param handler - Event handler function to call when the current user's participant is taken off hold
+   * @param contactId - Optional contact ID to filter events for a specific contact
+   */ onSelfResume(handler, contactId) {
+        this.context.proxy.subscribe({
+            key: VoiceTopicKeys.SelfResume,
+            parameter: contactId
+        }, handler);
     }
     /**
-     * Unsubscribes from events when the current user's participant is taken off hold.
-     * Removes the specified handler from receiving notifications about the current user's participant being taken off hold.
-     *
-     * @param handler - Event handler function to remove
-     * @param contactId - Optional contact ID to unsubscribe from specific contact events
-     */
-    offSelfResume(handler, contactId) {
-        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.SelfResume, parameter: contactId }, handler);
+   * Unsubscribes from events when the current user's participant is taken off hold.
+   * Removes the specified handler from receiving notifications about the current user's participant being taken off hold.
+   *
+   * @param handler - Event handler function to remove
+   * @param contactId - Optional contact ID to unsubscribe from specific contact events
+   */ offSelfResume(handler, contactId) {
+        this.context.proxy.unsubscribe({
+            key: VoiceTopicKeys.SelfResume,
+            parameter: contactId
+        }, handler);
     }
     /**
-     * Subscribes to events when the current user's participant capability to be taken off hold changes on a contact.
-     * Each contact has multiple participants, and this event fires specifically when the participant
-     * associated with the current user's capability to be taken off hold changes, allowing specification by contact rather than participant ID.
-     *
-     * @param handler - Event handler function to call when the current user's participant capability to be taken off hold changes
-     * @param contactId - Optional contact ID to filter events for a specific contact
-     */
-    onCanResumeSelfChanged(handler, contactId) {
-        this.context.proxy.subscribe({ key: VoiceTopicKeys.CanResumeSelfChanged, parameter: contactId }, handler);
+   * Subscribes to events when the current user's participant capability to be taken off hold changes on a contact.
+   * Each contact has multiple participants, and this event fires specifically when the participant
+   * associated with the current user's capability to be taken off hold changes, allowing specification by contact rather than participant ID.
+   *
+   * @param handler - Event handler function to call when the current user's participant capability to be taken off hold changes
+   * @param contactId - Optional contact ID to filter events for a specific contact
+   */ onCanResumeSelfChanged(handler, contactId) {
+        this.context.proxy.subscribe({
+            key: VoiceTopicKeys.CanResumeSelfChanged,
+            parameter: contactId
+        }, handler);
     }
     /**
-     * Unsubscribes from events when the current user's participant capability to be taken off hold changes.
-     * Removes the specified handler from receiving notifications about the current user's participant capability to be taken off hold changes.
-     *
-     * @param handler - Event handler function to remove
-     * @param contactId - Optional contact ID to unsubscribe from specific contact events
-     */
-    offCanResumeSelfChanged(handler, contactId) {
-        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.CanResumeSelfChanged, parameter: contactId }, handler);
+   * Unsubscribes from events when the current user's participant capability to be taken off hold changes.
+   * Removes the specified handler from receiving notifications about the current user's participant capability to be taken off hold changes.
+   *
+   * @param handler - Event handler function to remove
+   * @param contactId - Optional contact ID to unsubscribe from specific contact events
+   */ offCanResumeSelfChanged(handler, contactId) {
+        this.context.proxy.unsubscribe({
+            key: VoiceTopicKeys.CanResumeSelfChanged,
+            parameter: contactId
+        }, handler);
     }
     /**
-     * Subscribes to events when a participant's capability to be taken off hold changes.
-     * This event fires when the ability to resume a participant from hold changes,
-     * which can happen due to various factors such as permissions or system state.
-     *
-     * @param handler - Event handler function to call when a participant's capability to be taken off hold changes
-     * @param participantId - Optional participant ID to filter events for a specific participant
-     */
-    onCanResumeParticipantChanged(handler, participantId) {
-        this.context.proxy.subscribe({ key: VoiceTopicKeys.CanResumeParticipantChanged, parameter: participantId }, handler);
+   * Subscribes to events when a participant's capability to be taken off hold changes.
+   * This event fires when the ability to resume a participant from hold changes,
+   * which can happen due to various factors such as permissions or system state.
+   *
+   * @param handler - Event handler function to call when a participant's capability to be taken off hold changes
+   * @param participantId - Optional participant ID to filter events for a specific participant
+   */ onCanResumeParticipantChanged(handler, participantId) {
+        this.context.proxy.subscribe({
+            key: VoiceTopicKeys.CanResumeParticipantChanged,
+            parameter: participantId
+        }, handler);
     }
     /**
-     * Unsubscribes from events when a participant's capability to be taken off hold changes.
-     * Removes the specified handler from receiving notifications about participant capability to be taken off hold changes.
-     *
-     * @param handler - Event handler function to remove
-     * @param participantId - Optional participant ID to unsubscribe from specific participant events
-     */
-    offCanResumeParticipantChanged(handler, participantId) {
-        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.CanResumeParticipantChanged, parameter: participantId }, handler);
+   * Unsubscribes from events when a participant's capability to be taken off hold changes.
+   * Removes the specified handler from receiving notifications about participant capability to be taken off hold changes.
+   *
+   * @param handler - Event handler function to remove
+   * @param participantId - Optional participant ID to unsubscribe from specific participant events
+   */ offCanResumeParticipantChanged(handler, participantId) {
+        this.context.proxy.unsubscribe({
+            key: VoiceTopicKeys.CanResumeParticipantChanged,
+            parameter: participantId
+        }, handler);
+    }
+    constructor(config){
+        super(voiceNamespace, config);
     }
 }
+
 //# sourceMappingURL=voice-client.js.map
 ;// ./node_modules/@amazon-connect/voice/lib-esm/index.js
+
 
 
 
@@ -5689,6 +6337,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     SessionExpirationWarningClient = _require.SessionExpirationWarningClient,
     sendActivity = _require.sendActivity;
   var _require2 = __webpack_require__(791),
+    AgentClient = _require2.AgentClient,
     ContactClient = _require2.ContactClient;
   var _require3 = __webpack_require__(953),
     VoiceClient = _require3.VoiceClient;
@@ -5708,6 +6357,16 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
    * enum AgentErrorStates
    */
   connect.AgentErrorStates = connect.makeEnum(['Error', 'AgentHungUp', 'BadAddressAgent', 'BadAddressCustomer', 'Default', 'FailedConnectAgent', 'FailedConnectCustomer', 'InvalidLocale', 'LineEngagedAgent', 'LineEngagedCustomer', 'MissedCallAgent', 'MissedCallCustomer', 'MultipleCcpWindows', 'RealtimeCommunicationError']);
+
+  /*----------------------------------------------------------------
+   * enum NetworkConnectionStatus
+   */
+  connect.NetworkConnectionStatus = {
+    CONNECTED: "connected",
+    CONNECTING: "connecting",
+    DISCONNECTED: "disconnected",
+    FAILED: "failed"
+  };
 
   /*----------------------------------------------------------------
    * enum AddressType
@@ -5743,7 +6402,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   /*----------------------------------------------------------------
    * enum ContactInitiationMethod
    */
-  connect.ContactInitiationMethod = connect.makeEnum(['inbound', 'outbound', 'transfer', 'queue_transfer', 'callback', 'api', 'disconnect', 'webrtc_api', 'agent_reply']);
+  connect.ContactInitiationMethod = connect.makeEnum(['inbound', 'outbound', 'transfer', 'queue_transfer', 'callback', 'api', 'disconnect', 'webrtc_api', 'agent_reply', 'campaign_preview', 'external_outbound', 'monitor', 'flow', 'callback_customer_first_queued', 'callback_customer_first_dialed']);
 
   /*----------------------------------------------------------------
    * enum for MonitoringMode
@@ -5858,6 +6517,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   /*----------------------------------------------------------------
+   * constants for voice contact types. Can be used to validate with contact.type
+   */
+  connect.voiceContactTypes = ['voice', 'queue_callback'];
+
+  /*----------------------------------------------------------------
    * Quick Responses APIs (utilizes public api proxy -- No shared worker involvement)
    */
   var QuickResponses = /*#__PURE__*/_createClass(function QuickResponses() {
@@ -5941,6 +6605,48 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   Agent.prototype.onWebSocketConnectionGained = function (f) {
     return connect.core.getEventBus().subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED, f);
+  };
+  Agent.prototype._getSDKClient = function () {
+    if (this.agentClient) {
+      return this.agentClient;
+    }
+    try {
+      var _connect$core, _connect$core2, _connect$core3;
+      var providerData = {
+        providerId: (_connect$core = connect.core) === null || _connect$core === void 0 || (_connect$core = _connect$core._amazonConnectProviderData) === null || _connect$core === void 0 || (_connect$core = _connect$core.provider) === null || _connect$core === void 0 ? void 0 : _connect$core.id,
+        config: (_connect$core2 = connect.core) === null || _connect$core2 === void 0 || (_connect$core2 = _connect$core2._amazonConnectProviderData) === null || _connect$core2 === void 0 || (_connect$core2 = _connect$core2.provider) === null || _connect$core2 === void 0 ? void 0 : _connect$core2.config,
+        isStreamsProvider: (_connect$core3 = connect.core) === null || _connect$core3 === void 0 || (_connect$core3 = _connect$core3._amazonConnectProviderData) === null || _connect$core3 === void 0 ? void 0 : _connect$core3.isStreamsProvider
+      };
+      connect.getLog().info('Initializing Agent SDK Clients').withObject(providerData).sendInternalLogToServer();
+      this.agentClient = new AgentClient(connect.core.getSDKClientConfig());
+      return this.agentClient;
+    } catch (e) {
+      var _connect$core4, _connect$core5, _connect$core6;
+      var errorData = {
+        providerId: (_connect$core4 = connect.core) === null || _connect$core4 === void 0 || (_connect$core4 = _connect$core4._amazonConnectProviderData) === null || _connect$core4 === void 0 || (_connect$core4 = _connect$core4.provider) === null || _connect$core4 === void 0 ? void 0 : _connect$core4.id,
+        config: (_connect$core5 = connect.core) === null || _connect$core5 === void 0 || (_connect$core5 = _connect$core5._amazonConnectProviderData) === null || _connect$core5 === void 0 || (_connect$core5 = _connect$core5.provider) === null || _connect$core5 === void 0 ? void 0 : _connect$core5.config,
+        isStreamsProvider: (_connect$core6 = connect.core) === null || _connect$core6 === void 0 || (_connect$core6 = _connect$core6._amazonConnectProviderData) === null || _connect$core6 === void 0 ? void 0 : _connect$core6.isStreamsProvider,
+        error: e
+      };
+      connect.getLog().error('Failed to initialize Agent SDK Clients').withObject(errorData).sendInternalLogToServer();
+    }
+  };
+  Agent.prototype.onNetworkConnectionStatusChanged = function (f) {
+    var client = this._getSDKClient();
+    var handler = function handler(event) {
+      f(event);
+      return Promise.resolve();
+    };
+    client.onNetworkConnectionStatusChanged(handler);
+    return {
+      unsubscribe: function unsubscribe() {
+        client.offNetworkConnectionStatusChanged(handler);
+      }
+    };
+  };
+  Agent.prototype.getNetworkConnectionStatus = function () {
+    var client = this._getSDKClient();
+    return client.getNetworkConnectionStatus();
   };
   Agent.prototype.onAfterCallWork = function (f) {
     return connect.core.getEventBus().subscribe(connect.AgentEvents.ACW, f);
@@ -6281,21 +6987,21 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       return this.contactClient;
     }
     try {
-      var _connect$core, _connect$core2, _connect$core3;
+      var _connect$core7, _connect$core8, _connect$core9;
       var providerData = {
-        providerId: (_connect$core = connect.core) === null || _connect$core === void 0 || (_connect$core = _connect$core._amazonConnectProviderData) === null || _connect$core === void 0 || (_connect$core = _connect$core.provider) === null || _connect$core === void 0 ? void 0 : _connect$core.id,
-        config: (_connect$core2 = connect.core) === null || _connect$core2 === void 0 || (_connect$core2 = _connect$core2._amazonConnectProviderData) === null || _connect$core2 === void 0 || (_connect$core2 = _connect$core2.provider) === null || _connect$core2 === void 0 ? void 0 : _connect$core2.config,
-        isStreamsProvider: (_connect$core3 = connect.core) === null || _connect$core3 === void 0 || (_connect$core3 = _connect$core3._amazonConnectProviderData) === null || _connect$core3 === void 0 ? void 0 : _connect$core3.isStreamsProvider
+        providerId: (_connect$core7 = connect.core) === null || _connect$core7 === void 0 || (_connect$core7 = _connect$core7._amazonConnectProviderData) === null || _connect$core7 === void 0 || (_connect$core7 = _connect$core7.provider) === null || _connect$core7 === void 0 ? void 0 : _connect$core7.id,
+        config: (_connect$core8 = connect.core) === null || _connect$core8 === void 0 || (_connect$core8 = _connect$core8._amazonConnectProviderData) === null || _connect$core8 === void 0 || (_connect$core8 = _connect$core8.provider) === null || _connect$core8 === void 0 ? void 0 : _connect$core8.config,
+        isStreamsProvider: (_connect$core9 = connect.core) === null || _connect$core9 === void 0 || (_connect$core9 = _connect$core9._amazonConnectProviderData) === null || _connect$core9 === void 0 ? void 0 : _connect$core9.isStreamsProvider
       };
       connect.getLog().info('Initializing Contact SDK Clients').withObject(providerData).sendInternalLogToServer();
       this.contactClient = new ContactClient(connect.core.getSDKClientConfig());
       return this.contactClient;
     } catch (e) {
-      var _connect$core4, _connect$core5, _connect$core6;
+      var _connect$core0, _connect$core1, _connect$core10;
       var errorData = {
-        providerId: (_connect$core4 = connect.core) === null || _connect$core4 === void 0 || (_connect$core4 = _connect$core4._amazonConnectProviderData) === null || _connect$core4 === void 0 || (_connect$core4 = _connect$core4.provider) === null || _connect$core4 === void 0 ? void 0 : _connect$core4.id,
-        config: (_connect$core5 = connect.core) === null || _connect$core5 === void 0 || (_connect$core5 = _connect$core5._amazonConnectProviderData) === null || _connect$core5 === void 0 || (_connect$core5 = _connect$core5.provider) === null || _connect$core5 === void 0 ? void 0 : _connect$core5.config,
-        isStreamsProvider: (_connect$core6 = connect.core) === null || _connect$core6 === void 0 || (_connect$core6 = _connect$core6._amazonConnectProviderData) === null || _connect$core6 === void 0 ? void 0 : _connect$core6.isStreamsProvider,
+        providerId: (_connect$core0 = connect.core) === null || _connect$core0 === void 0 || (_connect$core0 = _connect$core0._amazonConnectProviderData) === null || _connect$core0 === void 0 || (_connect$core0 = _connect$core0.provider) === null || _connect$core0 === void 0 ? void 0 : _connect$core0.id,
+        config: (_connect$core1 = connect.core) === null || _connect$core1 === void 0 || (_connect$core1 = _connect$core1._amazonConnectProviderData) === null || _connect$core1 === void 0 || (_connect$core1 = _connect$core1.provider) === null || _connect$core1 === void 0 ? void 0 : _connect$core1.config,
+        isStreamsProvider: (_connect$core10 = connect.core) === null || _connect$core10 === void 0 || (_connect$core10 = _connect$core10._amazonConnectProviderData) === null || _connect$core10 === void 0 ? void 0 : _connect$core10.isStreamsProvider,
         error: e
       };
       connect.getLog().error('Failed to initialize Contact SDK Clients').withObject(errorData).sendInternalLogToServer();
@@ -6381,6 +7087,14 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   Contact.prototype.getState = function () {
     return this._getData().state;
+  };
+  Contact.prototype.isCustomerFirstCallback = function () {
+    var initiationMethod = this.getInitiationMethod();
+    return initiationMethod === connect.ContactInitiationMethod.CALLBACK_CUSTOMER_FIRST_DIALED;
+  };
+  Contact.prototype.isCampaignPreview = function () {
+    var initiationMethod = this.getInitiationMethod();
+    return initiationMethod === connect.ContactInitiationMethod.CAMPAIGN_PREVIEW;
   };
   Contact.prototype.getStatus = Contact.prototype.getState;
   Contact.prototype.getStateDuration = function () {
@@ -6482,6 +7196,34 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   Contact.prototype.getSegmentAttributes = function () {
     return this._getData().segmentAttributes;
+  };
+
+  /**
+   * @returns {Promise<string>} A promise that resolves to the contact ARN
+   */
+  Contact.prototype.getContactArn = function () {
+    var contactClient = this._getSDKClient();
+    var contactId = this.getContactId();
+    return contactClient.getContactArn(contactId);
+  };
+
+  /**
+   * @returns {Promise<InstanceDetails>} A promise that resolves to the contact's instance details
+   */
+  Contact.prototype.getInstanceDetails = function () {
+    var contactClient = this._getSDKClient();
+    var contactId = this.getContactId();
+    return contactClient.getInstanceDetails(contactId);
+  };
+
+  /**
+   * 
+   * @returns {Promise<boolean>} A promise that resolves to whether a contact can be transferred
+   */
+  Contact.prototype.canTransferContact = function () {
+    var contactClient = this._getSDKClient();
+    var contactId = this.getContactId();
+    return contactClient.canTransferContact(contactId);
   };
   Contact.prototype.getContactSubtype = function () {
     var segmentAttributes = this.getSegmentAttributes();
@@ -6644,7 +7386,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var conn = this.getInitialConnection();
 
     // We will gradually change checking inbound by relying on contact initiationMethod
-    if ([connect.MediaType.TASK, connect.MediaType.EMAIL].includes(conn.getMediaType())) {
+    if ([connect.MediaType.TASK, connect.MediaType.EMAIL].includes(conn.getMediaType()) || this.isCampaignPreview()) {
       return this._isInbound();
     }
     return conn ? conn.getType() === connect.ConnectionType.INBOUND : false;
@@ -7725,6 +8467,78 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
   VoiceConnection.prototype = Object.create(Connection.prototype);
   VoiceConnection.prototype.constructor = VoiceConnection;
+  VoiceConnection.prototype._getSDKClient = function () {
+    if (this.voiceClient) {
+      return this.voiceClient;
+    }
+    try {
+      var _connect$core11, _connect$core12, _connect$core13;
+      var providerData = {
+        providerId: (_connect$core11 = connect.core) === null || _connect$core11 === void 0 || (_connect$core11 = _connect$core11._amazonConnectProviderData) === null || _connect$core11 === void 0 || (_connect$core11 = _connect$core11.provider) === null || _connect$core11 === void 0 ? void 0 : _connect$core11.id,
+        config: (_connect$core12 = connect.core) === null || _connect$core12 === void 0 || (_connect$core12 = _connect$core12.amazonConnectProviderData) === null || _connect$core12 === void 0 || (_connect$core12 = _connect$core12.provider) === null || _connect$core12 === void 0 ? void 0 : _connect$core12.config,
+        isStreamsProvider: (_connect$core13 = connect.core) === null || _connect$core13 === void 0 || (_connect$core13 = _connect$core13._amazonConnectProviderData) === null || _connect$core13 === void 0 ? void 0 : _connect$core13.isStreamsProvider
+      };
+      connect.getLog().info('Initializing Voice SDK Client').withObject(providerData).sendInternalLogToServer();
+      this.voiceClient = new VoiceClient(connect.core.getSDKClientConfig());
+      return this.voiceClient;
+    } catch (e) {
+      var _connect$core14, _connect$core15, _connect$core16;
+      var errorData = {
+        providerId: (_connect$core14 = connect.core) === null || _connect$core14 === void 0 || (_connect$core14 = _connect$core14._amazonConnectProviderData) === null || _connect$core14 === void 0 || (_connect$core14 = _connect$core14.provider) === null || _connect$core14 === void 0 ? void 0 : _connect$core14.id,
+        config: (_connect$core15 = connect.core) === null || _connect$core15 === void 0 || (_connect$core15 = _connect$core15._amazonConnectProviderData) === null || _connect$core15 === void 0 || (_connect$core15 = _connect$core15.provider) === null || _connect$core15 === void 0 ? void 0 : _connect$core15.config,
+        isStreamsProvider: (_connect$core16 = connect.core) === null || _connect$core16 === void 0 || (_connect$core16 = _connect$core16._amazonConnectProviderData) === null || _connect$core16 === void 0 ? void 0 : _connect$core16.isStreamsProvider,
+        error: e
+      };
+      connect.getLog().error('Failed to initialize Voice SDK clients').withObject(errorData).sendInternalLogToServer();
+    }
+  };
+  VoiceConnection.prototype.onParticipantHold = function (f) {
+    var _this2 = this;
+    var handler = function handler(e) {
+      f(e);
+      return Promise.resolve();
+    };
+    this._getSDKClient().onParticipantHold(handler, this.getConnectionId());
+    return {
+      unsubscribe: function unsubscribe() {
+        return _this2._getSDKClient().offParticipantHold(handler);
+      }
+    };
+  };
+  VoiceConnection.prototype.onParticipantResume = function (f) {
+    var _this3 = this;
+    var handler = function handler(e) {
+      f(e);
+      return Promise.resolve();
+    };
+    this._getSDKClient().onParticipantResume(handler, this.getConnectionId());
+    return {
+      unsubscribe: function unsubscribe() {
+        return _this3._getSDKClient().offParticipantResume(handler);
+      }
+    };
+  };
+
+  /**
+   * @returns {Promise<boolean>} A promise that resolves to a boolean that indicates whether participant can be resumed
+   */
+  VoiceConnection.prototype.canResumeParticipant = function () {
+    var voiceClient = this._getSDKClient();
+    return voiceClient.canResumeParticipant(this.getConnectionId());
+  };
+  VoiceConnection.prototype.onCanResumeParticipantUpdated = function (f) {
+    var _this4 = this;
+    var handler = function handler(e) {
+      f(e);
+      return Promise.resolve();
+    };
+    this._getSDKClient().onCanResumeParticipantUpdated(handler, this.getConnectionId());
+    return {
+      unsubscribe: function unsubscribe() {
+        return _this4._getSDKClient().offCanResumeParticipantUpdated(handler);
+      }
+    };
+  };
 
   /**
   * @deprecated
@@ -8089,7 +8903,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }, {
       key: "onExpirationWarning",
       value: function onExpirationWarning(f) {
-        var _this2 = this;
+        var _this5 = this;
         var handler = function handler(e) {
           f(e);
           return Promise.resolve();
@@ -8097,7 +8911,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         this._getSDKClient().onExpirationWarning(handler);
         return {
           unsubscribe: function unsubscribe() {
-            return _this2._getSDKClient().offExpirationWarning(handler);
+            return _this5._getSDKClient().offExpirationWarning(handler);
           }
         };
       }
@@ -8106,7 +8920,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }, {
       key: "onExpirationWarningCleared",
       value: function onExpirationWarningCleared(f) {
-        var _this3 = this;
+        var _this6 = this;
         var handler = function handler(e) {
           f(e);
           return Promise.resolve();
@@ -8114,7 +8928,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         this._getSDKClient().onExpirationWarningCleared(handler);
         return {
           unsubscribe: function unsubscribe() {
-            return _this3._getSDKClient().offExpirationWarningCleared(handler);
+            return _this6._getSDKClient().offExpirationWarningCleared(handler);
           }
         };
       }
@@ -8126,7 +8940,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }, {
       key: "onSessionExtensionError",
       value: function onSessionExtensionError(f) {
-        var _this4 = this;
+        var _this7 = this;
         var handler = function handler(e) {
           f(e);
           return Promise.resolve();
@@ -8134,7 +8948,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         this._getSDKClient().onSessionExtensionError(handler);
         return {
           unsubscribe: function unsubscribe() {
-            return _this4._getSDKClient().offExpirationWarningCleared(handler);
+            return _this7._getSDKClient().offExpirationWarningCleared(handler);
           }
         };
       }
@@ -12687,7 +13501,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.25.2";
+  connect.version = "2.26.0";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
@@ -13183,6 +13997,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
               isInitializedAnyEngine = true;
               connect.getLog().info("VoiceRingtoneEngine initialized.").sendInternalLogToServer();
             }
+            if (!ringtoneSettings.additionalVoice.disabled && !connect.core.ringtoneEngines.additionalVoice) {
+              connect.core.ringtoneEngines.additionalVoice = new connect.AdditionalVoiceRingtoneEngine(ringtoneSettings.additionalVoice);
+              isInitializedAnyEngine = true;
+              connect.getLog().info("AdditionalVoiceRingtoneEngine initialized.").sendInternalLogToServer();
+            }
             if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
               connect.core.ringtoneEngines.chat = new connect.ChatRingtoneEngine(ringtoneSettings.chat);
               isInitializedAnyEngine = true;
@@ -13225,6 +14044,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       // from softphone config if it exists from downstream into the ringtone config.
       params.ringtone = params.ringtone || {};
       params.ringtone.voice = params.ringtone.voice || {};
+      params.ringtone.additionalVoice = params.ringtone.additionalVoice || {};
       params.ringtone.queue_callback = params.ringtone.queue_callback || {};
       params.ringtone.chat = params.ringtone.chat || {
         disabled: true
@@ -13241,6 +14061,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       if (otherParams.softphone) {
         if (otherParams.softphone.disableRingtone) {
           params.ringtone.voice.disabled = true;
+          params.ringtone.additionalVoice.disabled = true;
           params.ringtone.queue_callback.disabled = true;
         }
         if (otherParams.softphone.ringtoneUrl) {
@@ -13284,6 +14105,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       // Merge in ringtone settings from downstream.
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice, otherParams.ringtone.voice || {});
+        params.ringtone.additionalVoice = connect.merge(params.ringtone.additionalVoice, otherParams.ringtone.additionalVoice || {});
         params.ringtone.queue_callback = connect.merge(params.ringtone.queue_callback, otherParams.ringtone.voice || {});
         params.ringtone.chat = connect.merge(params.ringtone.chat, otherParams.ringtone.chat || {});
         params.ringtone.task = connect.merge(params.ringtone.task, otherParams.ringtone.task || {});
@@ -19255,6 +20077,15 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
   RingtoneEngineBase.prototype._driveRingtone = function () {
     throw new Error("Not implemented.");
   };
+  RingtoneEngineBase.prototype._canStartRingtone = function (contact) {
+    if (contact instanceof connect.Contact && contact.isCampaignPreview() && contact.getStatus().type === connect.ContactStatusType.INCOMING) {
+      return true;
+    } else if (contact instanceof connect.Contact && !contact.isCampaignPreview() && contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
+      return true;
+    }
+    connect.getLog().info("Ringtone Start skipped because the contact is already accepted").sendInternalLogToServer();
+    return false;
+  };
   RingtoneEngineBase.prototype._startRingtone = /*#__PURE__*/function () {
     var _ref = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(contact) {
       var _this2 = this;
@@ -19268,6 +20099,10 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
             errorList = _args2.length > 2 && _args2[2] !== undefined ? _args2[2] : [];
             return _context2.a(2, new Promise(function (resolve, reject) {
               if (!_this2._audio) reject(Error('No audio object found'));
+              if (!_this2._canStartRingtone(contact)) {
+                resolve();
+                return;
+              }
 
               // Empty string as sinkId means audio gets sent to the default device
               connect.getLog().info("Attempting to start ringtone to device ".concat(_this2._audio.sinkId || "''")).sendInternalLogToServer();
@@ -19394,6 +20229,21 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
   };
   VoiceRingtoneEngine.prototype = Object.create(RingtoneEngineBase.prototype);
   VoiceRingtoneEngine.prototype.constructor = VoiceRingtoneEngine;
+  VoiceRingtoneEngine.prototype._canStartRingtone = function (contact) {
+    if (!(contact instanceof connect.Contact)) {
+      return false;
+    }
+    var contacts = new connect.Agent().getContacts();
+    var isAdditionalVoiceContact = (contacts === null || contacts === void 0 ? void 0 : contacts.filter(function (contact) {
+      return connect.voiceContactTypes.includes(contact.getType());
+    }).length) > 1;
+    var expectedType = contact.isCampaignPreview() ? connect.ContactStatusType.INCOMING : connect.ContactStatusType.CONNECTING;
+    if (!isAdditionalVoiceContact && contact.getStatus().type === expectedType) {
+      return true;
+    }
+    connect.getLog().info("Voice contact ringtone skipped").sendInternalLogToServer();
+    return false;
+  };
   VoiceRingtoneEngine.prototype._driveRingtone = function () {
     var _this4 = this;
     var onContactConnect = function onContactConnect(contact) {
@@ -19436,6 +20286,14 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     connect.contact(function (contact) {
       var _this5 = this;
       contact.onConnecting(onContactConnect);
+
+      /**
+       * There is a race condition where when auto-accept is enabled for chat,
+       * the ACCEPTED event is sent before the _ringtoneSetup is triggered
+       * so the onAccepted event handler misses the event. Thus,
+       * subscribing to onAccepted in _driveRingtone, to stop the ringtone if
+       * auto-accept is enabled for the contact.
+       */
       contact.onAccepted(function (_contact) {
         if (_contact.isAutoAcceptEnabled()) {
           connect.ifMaster(connect.MasterTopics.RINGTONE, function () {
@@ -19603,9 +20461,30 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       contact.onConnected(onConnectedContactHandler);
     });
   };
+  var AdditionalVoiceRingtoneEngine = function AdditionalVoiceRingtoneEngine(ringtoneConfig) {
+    VoiceRingtoneEngine.call(this, ringtoneConfig);
+  };
+  AdditionalVoiceRingtoneEngine.prototype = Object.create(VoiceRingtoneEngine.prototype);
+  AdditionalVoiceRingtoneEngine.prototype.constructor = AdditionalVoiceRingtoneEngine;
+  AdditionalVoiceRingtoneEngine.prototype._canStartRingtone = function (contact) {
+    if (!(contact instanceof connect.Contact)) {
+      return false;
+    }
+    var contacts = new connect.Agent().getContacts();
+    var isAdditionalVoiceContact = (contacts === null || contacts === void 0 ? void 0 : contacts.filter(function (contact) {
+      return connect.voiceContactTypes.includes(contact.getType());
+    }).length) > 1;
+    var expectedType = contact.isCampaignPreview() ? connect.ContactStatusType.INCOMING : connect.ContactStatusType.CONNECTING;
+    if (isAdditionalVoiceContact && contact.getStatus().type === expectedType) {
+      return true;
+    }
+    connect.getLog().info("Additional voice contact ringtone skipped").sendInternalLogToServer();
+    return false;
+  };
 
   /* export connect.RingtoneEngine */
   connect.VoiceRingtoneEngine = VoiceRingtoneEngine;
+  connect.AdditionalVoiceRingtoneEngine = AdditionalVoiceRingtoneEngine;
   connect.ChatRingtoneEngine = ChatRingtoneEngine;
   connect.TaskRingtoneEngine = TaskRingtoneEngine;
   connect.QueueCallbackRingtoneEngine = QueueCallbackRingtoneEngine;
@@ -19659,36 +20538,60 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
   var AUDIO_OUTPUT = 'audio_output';
   var MediaTypeMap = {};
   MediaTypeMap[connect.ContactType.VOICE] = "Voice";
-  var timeSeriesStreamStatsBuffer = [];
 
   // We buffer only last 3 hours (10800 seconds) of a call's RTP stream stats.
   var MAX_RTP_STREAM_STATS_BUFFER_SIZE = 10800;
-  var inputRTPStreamStatsBuffer = [];
-  var outputRTPStreamStatsBuffer = [];
-  var aggregatedUserAudioStats = {};
-  var aggregatedRemoteAudioStats = {};
   var LOW_AUDIO_LEVEL_THRESHOLD = 1;
-  var consecutiveNoAudioInputPackets = 0;
-  var consecutiveLowInputAudioLevel = 0;
-  var consecutiveNoAudioOutputPackets = 0;
-  var consecutiveLowOutputAudioLevel = 0;
-  var audioInputConnectedDurationSeconds = 0;
-  var consecutiveAudioOutputMuteDurationSeconds = 0;
+
+  // Agent connection specific stats tracking - each agent connection gets its own stats object
+  var agentConnectionStatsMap = {};
   var isConnected = false;
   // Time from CCP received the softphone contact till local media is added to the softphone session
   var ccpMediaReadyLatencyMillis = 0;
   var allowEarlyGum = false;
   var earlyGumWorked = false;
   var vdiPlatform = null;
-  var rtpStatsJob = null;
-  var reportStatsJob = null;
-  //Logger specific to softphone.
+  var allowExtendedPersistentConnection = false;
+  var rtpStatsJobMap = {};
+  var reportStatsJobMap = {};
+
+  // Helper function to get or create agent connection specific stats
+  var getAgentConnectionStats = function getAgentConnectionStats(agentConnectionId) {
+    if (!agentConnectionStatsMap[agentConnectionId]) {
+      agentConnectionStatsMap[agentConnectionId] = {
+        consecutiveNoAudioInputPackets: 0,
+        consecutiveLowInputAudioLevel: 0,
+        consecutiveNoAudioOutputPackets: 0,
+        consecutiveLowOutputAudioLevel: 0,
+        audioInputConnectedDurationSeconds: 0,
+        consecutiveAudioOutputMuteDurationSeconds: 0,
+        timeSeriesStreamStatsBuffer: [],
+        inputRTPStreamStatsBuffer: [],
+        outputRTPStreamStatsBuffer: [],
+        aggregatedUserAudioStats: null,
+        aggregatedRemoteAudioStats: null
+      };
+    }
+    return agentConnectionStatsMap[agentConnectionId];
+  };
+
+  // Helper function to clean up agent connection stats
+  var cleanupAgentConnectionStats = function cleanupAgentConnectionStats(agentConnectionId) {
+    delete agentConnectionStatsMap[agentConnectionId];
+  };
+  // Logger specific to softphone.
   var logger = null;
   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
   var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
   var ECHO_CANCELLATION_CHECK = "echoCancellationCheck";
   var localMediaStream = {};
+  var gumLatencies = {};
   var softphoneClientId = connect.randomId();
+  var errorBatchMap = {};
+
+  //used for bullet routing - only the last active contact can make changes to the media stream.
+  var lastActiveContactID = "";
+  var contactAgentConnectionIdMap = {};
   var requestIceAccess = function requestIceAccess(transport) {
     return new Promise(function (resolve, reject) {
       connect.core.getClient().call(connect.ClientMethods.CREATE_TRANSPORT, transport, {
@@ -19717,6 +20620,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     this.rtcPeerConnectionFactory = null;
     this.rtcJsStrategy = null;
     this.rtcPeerConnectionManager = null;
+    allowExtendedPersistentConnection = !!softphoneParams.allowExtendedPersistentConnection;
     this._setRtcJsStrategy = function () {
       if (softphoneParams.VDIPlatform) {
         vdiPlatform = softphoneParams.VDIPlatform;
@@ -19738,18 +20642,17 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
           }
           logger.info("[SoftphoneManager] Strategy constructor retrieved: ".concat(this.rtcJsStrategy)).sendInternalLogToServer();
         } catch (error) {
+          logger.warn("[SoftphoneManager] VDI Strategy constructor error for ".concat(vdiPlatform, ": ").concat(error.message)).sendInternalLogToServer();
           if (error.message === "VDI Strategy not supported") {
             publishError(SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED, error.message, "");
-            throw error;
           } else if (error.message === "Citrix WebRTC redirection feature is NOT supported!") {
             publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
-            throw error;
           } else if (error.message === "DCV WebRTC redirection feature is NOT supported!") {
             publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
-            throw error;
+          } else if (error.message === "Omnissa WebRTC Redirection API failed to initialize!") {
+            publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
           } else {
             publishError(SoftphoneErrorTypes.OTHER, error.message, "");
-            throw error;
           }
         }
       }
@@ -19778,9 +20681,18 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     var listenAgentConfigurationUpdate = function listenAgentConfigurationUpdate() {
       connect.agent(function (a) {
         var sub = a.onRefresh(function (agent) {
+          var isPPCEnabled = agent.getConfiguration().softphonePersistentConnection;
+          var shouldUseV2 = !!connect.RtcPeerConnectionManagerV2;
           if (_this.rtcPeerConnectionManager) {
-            var isPPCEnabled = agent.getConfiguration().softphonePersistentConnection;
-            _this.rtcPeerConnectionManager.handlePersistentPeerConnectionToggle(isPPCEnabled);
+            // If the manager exists and the current manager type doesn't match what we should be using,
+            // we need to reinitialize the manager completely
+            var isUsingV2 = _this.rtcPeerConnectionManager instanceof connect.RtcPeerConnectionManagerV2;
+            if (Boolean(isUsingV2) !== Boolean(shouldUseV2)) {
+              logger.info("FAC flag changed, reinitializing RtcPeerConnectionManager with shouldUseV2: " + Boolean(shouldUseV2)).sendInternalLogToServer();
+              _this._initiateRtcPeerConnectionManager();
+            } else {
+              _this.rtcPeerConnectionManager.handlePersistentPeerConnectionToggle(isPPCEnabled);
+            }
           } else {
             _this._initiateRtcPeerConnectionManager();
           }
@@ -19788,14 +20700,24 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       });
     };
     this._initiateRtcPeerConnectionManager = function () {
-      var _connect$core2;
-      // close existing peer connection managed by rtcPeerConnectionManager
-      if (connect !== null && connect !== void 0 && (_connect$core2 = connect.core) !== null && _connect$core2 !== void 0 && (_connect$core2 = _connect$core2.softphoneManager) !== null && _connect$core2 !== void 0 && (_connect$core2 = _connect$core2.rtcPeerConnectionManager) !== null && _connect$core2 !== void 0 && _connect$core2.close) {
-        connect.core.softphoneManager.rtcPeerConnectionManager.close();
-        connect.core.softphoneManager.rtcPeerConnectionManager = null;
+      // close existing peer connection managed by rtcPeerConnectionManager, if the peer connection is not used in a call
+      var existingPCManager = self === null || self === void 0 ? void 0 : self.rtcPeerConnectionManager;
+      var hasActivePeerConnection = false;
+      if (existingPCManager) {
+        var _existingPCManager$_r;
+        var managerType = existingPCManager instanceof connect.RtcPeerConnectionManagerV2 ? "V2" : "V1";
+        var sessionState = existingPCManager === null || existingPCManager === void 0 || (_existingPCManager$_r = existingPCManager._rtcSession) === null || _existingPCManager$_r === void 0 || (_existingPCManager$_r = _existingPCManager$_r._state) === null || _existingPCManager$_r === void 0 ? void 0 : _existingPCManager$_r.name;
+        logger.info("Closing existing RTC peer connection manager: Type=".concat(managerType, ", HasPeerConnection=").concat(hasActivePeerConnection, ", SessionState=").concat(sessionState)).sendInternalLogToServer();
+        existingPCManager.close();
+        hasActivePeerConnection = existingPCManager._pc !== null && existingPCManager._pc !== undefined;
+        // if the peer connection is NOT used in a call and get cleared properly then we should be good to close the existing pcm and create new pcm
+        if (!hasActivePeerConnection) {
+          self.rtcPeerConnectionManager = null;
+        } else {
+          logger.warn("Cannot close existing RTC peer connection manager as it has an active peer connection.").sendInternalLogToServer();
+        }
       }
       var isPPCEnabled = softphoneParams.isSoftphonePersistentConnectionEnabled;
-
       // browserId will be used to handle browser page refresh, iceRestart scenarios
       var browserId;
       if (!global.localStorage.getItem(BROWSER_ID)) {
@@ -19810,29 +20732,50 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
           self.rtcPeerConnectionFactory.close();
           self.rtcPeerConnectionFactory = null;
         }
-        self.rtcPeerConnectionManager = new connect.RtcPeerConnectionManager(null,
-        // signalingURI for ccpv1
-        null,
-        // iceServers
-        connect.hitch(self, requestIceAccess, {
-          transportType: "softphone",
-          softphoneClientId: softphoneClientId
-        }),
-        // transportHandle
-        connect.hitch(self, publishError),
-        // publishError
-        softphoneClientId,
-        // clientId
-        null,
-        // callContextToken
-        logger, null,
-        // contactId
-        null,
-        // agent connectionId
-        connect.core.getWebSocketManager(), self.rtcJsStrategy === null ? new connect.StandardStrategy() : self.rtcJsStrategy, isPPCEnabled, browserId);
-      } else {
-        // customer who doesn't upgrade RTC.js will not be able to use RtcPeerConnectionManager to initialize persistent peer connection, but calls still work for them.
-        logger.info("RtcPeerConnectionManager does NOT exist, please upgrade RTC.js");
+        var shouldUseV2 = !hasActivePeerConnection && connect.RtcPeerConnectionManagerV2;
+        if (shouldUseV2) {
+          logger.info("Using RtcPeerConnectionManagerV2").sendInternalLogToServer();
+          var v2Config = {
+            transportHandle: connect.hitch(self, requestIceAccess, {
+              transportType: "softphone",
+              softphoneClientId: softphoneClientId
+            }),
+            publishError: connect.hitch(self, publishError),
+            clientId: softphoneClientId,
+            logger: logger,
+            webSocketManager: connect.core.getWebSocketManager(),
+            rtcJsStrategy: self.rtcJsStrategy === null ? new connect.StandardStrategy() : self.rtcJsStrategy,
+            isPersistentConnectionEnabled: isPPCEnabled,
+            allowExtendedPersistentConnection: !!softphoneParams.allowExtendedPersistentConnection,
+            browserId: browserId
+          };
+          self.rtcPeerConnectionManager = new connect.RtcPeerConnectionManagerV2(v2Config);
+        } else if (connect.RtcPeerConnectionManager) {
+          logger.info("Using RtcPeerConnectionManager").sendInternalLogToServer();
+          self.rtcPeerConnectionManager = new connect.RtcPeerConnectionManager(null,
+          // signalingURI for ccpv1
+          null,
+          // iceServers
+          connect.hitch(self, requestIceAccess, {
+            transportType: "softphone",
+            softphoneClientId: softphoneClientId
+          }),
+          // transportHandle
+          connect.hitch(self, publishError),
+          // publishError
+          softphoneClientId,
+          // clientId
+          null,
+          // callContextToken
+          logger, null,
+          // contactId
+          null,
+          // agent connectionId
+          connect.core.getWebSocketManager(), self.rtcJsStrategy === null ? new connect.StandardStrategy() : self.rtcJsStrategy, isPPCEnabled, browserId);
+        } else {
+          // customer who doesn't upgrade RTC.js will not be able to use RtcPeerConnectionManager to initialize persistent peer connection, but calls still work for them.
+          logger.info("RtcPeerConnectionManager does NOT exist, please upgrade RTC.js");
+        }
       }
     };
     logger = new SoftphoneLogger(connect.getLog());
@@ -19847,7 +20790,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     logger.info("[SoftphoneManager] Client Provided Strategy: ".concat(softphoneParams.VDIPlatform)).sendInternalLogToServer();
     this._setRtcJsStrategy();
     this._refreshRtcPeerConnectionFactory();
-    // initiate RtcPeerConnectionManager
+    // Initiate RtcPeerConnectionManager if it hasn't been initialized yet
     if (this.rtcPeerConnectionManager === null) {
       this._initiateRtcPeerConnectionManager();
     }
@@ -20085,6 +21028,11 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       var stream = localMediaStream[connectionId].stream;
       if (stream) {
         var oldTrack = stream.getAudioTracks()[0];
+        // Skip if the new track is the same as the existing track
+        if (oldTrack === track) {
+          logger.info("[Softphone Manager] Skipping track replacement as tracks are identical for connectionId ".concat(connectionId, ", trackId: ").concat(track.id)).sendInternalLogToServer();
+          return;
+        }
         track.enabled = oldTrack.enabled;
         oldTrack.enabled = false;
         stream.removeTrack(oldTrack);
@@ -20097,7 +21045,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     var isContactTerminated = function isContactTerminated(contact) {
       return contact.getStatus().type === connect.ContactStatusType.ENDED || contact.getStatus().type === connect.ContactStatusType.ERROR || contact.getStatus().type === connect.ContactStatusType.MISSED;
     };
-    var destroySession = function destroySession(agentConnectionId) {
+    this.destroySession = function (agentConnectionId) {
       if (rtcSessions.hasOwnProperty(agentConnectionId)) {
         var session = rtcSessions[agentConnectionId];
         // Currently the assumption is it will throw an exception only and if only it already has been hung up.
@@ -20107,7 +21055,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
           delete callsDetected[agentConnectionId];
           // if rtcPeerConnectionManager exists, it will hang up the session
           if (_this.rtcPeerConnectionManager) {
-            _this.rtcPeerConnectionManager.hangup();
+            _this.rtcPeerConnectionManager.hangup(agentConnectionId);
           } else {
             session.hangup();
           }
@@ -20120,30 +21068,50 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       }
     };
 
-    // When multiple RTC sessions detected, ignore the new call and hang up the previous sessions.
+    // LEGACY FUNCITON: Iterates through the current "active" sessions and should kill all sessions that ARE NOT currently presented in the snapshot based on agent connection id.
+    // With the addition of bullet routing this function has been updated to also account for queued callback (which follows a different agent connection id pattern)
+    // we want to make sure that we DON'T kill the incoming QCB contact when its a bullet contact.
     // TODO: Update when connect-rtc exposes an API to detect session status.
-    var sanityCheckActiveSessions = function sanityCheckActiveSessions(rtcSessions) {
-      if (Object.keys(rtcSessions).length > 0) {
-        // Error! our state doesn't match, tear it all down.
-        for (var connectionId in rtcSessions) {
-          if (rtcSessions.hasOwnProperty(connectionId)) {
-            // Log an error for the session we are about to end.
-            publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
-            destroySession(connectionId);
-          }
+    this.sanityCheckActiveSessions = function (rtcSessions) {
+      if (Object.keys(rtcSessions).length === 0) return;
+      var voiceContacts = new connect.Agent().getContacts().filter(function (contact) {
+        return contact.getType() == connect.ContactType.VOICE || contact.getType() == connect.ContactType.QUEUE_CALLBACK;
+      });
+      var agentConnectionIds = voiceContacts.map(function (contact) {
+        var _contact$getAgentConn;
+        return (_contact$getAgentConn = contact.getAgentConnection()) === null || _contact$getAgentConn === void 0 ? void 0 : _contact$getAgentConn.getConnectionId();
+      });
+
+      // Build set of active contactIds for validation
+      var activeContactIds = new Set(voiceContacts.map(function (c) {
+        return c.getContactId();
+      }));
+      var duplicateSessionDetected = false;
+      // Error! our state doesn't match, tear it all down.
+      for (var connectionId in rtcSessions) {
+        // For queued callbacks, agentConnectionId changes when contact connects, but rtcSession uses the original connectionId.
+        // Check if connectionId is current OR if it maps to an active contact via contactAgentConnectionIdMap
+        var isCurrentConnection = agentConnectionIds.includes(connectionId);
+        var mappedContactId = contactAgentConnectionIdMap[connectionId];
+        var isValidMappedConnection = mappedContactId && activeContactIds.has(mappedContactId);
+        if (rtcSessions.hasOwnProperty(connectionId) && !isCurrentConnection && !isValidMappedConnection) {
+          // Log an error for the session we are about to end.
+          _SoftphoneManager.publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
+          self.destroySession(connectionId);
+          duplicateSessionDetected = true;
         }
-        throw new Error("duplicate session detected, refusing to setup new connection");
       }
+      if (duplicateSessionDetected) throw new Error("duplicate session detected, refusing to setup new connection");
     };
     this._clearAllSessions = function () {
       connect.getLog().info("Clearing all active sessions").sendInternalLogToServer();
       for (var connectionId in rtcSessions) {
         if (rtcSessions.hasOwnProperty(connectionId)) {
-          destroySession(connectionId);
+          this.destroySession(connectionId);
         }
       }
     };
-    this.startSession = function (_contact, _agentConnectionId) {
+    this.startSession = function (_contact, _agentConnectionId, userMediaStream, callbacks) {
       var contact = isSessionPending ? pendingContact : _contact;
       var agentConnectionId = isSessionPending ? pendingAgentConnectionId : _agentConnectionId;
       if (!contact || !agentConnectionId) {
@@ -20156,11 +21124,10 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
       // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
-      sanityCheckActiveSessions(rtcSessions);
+      this.sanityCheckActiveSessions(rtcSessions);
       if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
         publishTelemetryEvent("Softphone Connecting", contact.getContactId());
       }
-      initializeParams();
       var softphoneInfo = contact.getAgentConnection().getSoftphoneMediaInfo();
       var callConfig = parseCallConfig(softphoneInfo.callConfigJson);
       var webSocketProvider;
@@ -20183,6 +21150,10 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
           session = new connect.RTCSession(callConfig.signalingEndpoint, callConfig.iceServers, softphoneInfo.callContextToken, logger, contact.getContactId(), agentConnectionId, webSocketProvider);
         }
       }
+      if (userMediaStream) {
+        logger.info('[Softphone Manager] Setting custom user media stream').sendInternalLogToServer();
+        session.mediaStream = userMediaStream;
+      }
       session.echoCancellation = !softphoneParams.disableEchoCancellation;
       rtcSessions[agentConnectionId] = session;
 
@@ -20201,17 +21172,18 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
         stopJobsAndReport(contact, rtcSession.sessionReport);
         // publish voice focus metrics
         connect.VoiceFocusProvider.publishMetrics({
-          contactId: contactId
+          contactId: contact.getContactId()
         });
         // clean voice focus models
         connect.VoiceFocusProvider.cleanVoiceFocus();
+        if (callbacks && callbacks.onSessionFailed) {
+          callbacks.onSessionFailed(rtcSession, reason);
+        }
       };
       session.onSessionConnected = function (rtcSession) {
         publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
-        // Become master to send logs, since we need logs from softphone tab.
-        connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
-        //start stats collection and reporting jobs
-        startStatsCollectionJob(rtcSession);
+        // start stats collection and reporting jobs
+        startStatsCollectionJob(contact, rtcSession);
         startStatsReportingJob(contact);
         fireContactAcceptedEvent(contact);
       };
@@ -20227,10 +21199,13 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 
         // publish voice focus metrics
         connect.VoiceFocusProvider.publishMetrics({
-          contactId: contactId
+          contactId: contact.getContactId()
         });
         // clean voice focus models
         connect.VoiceFocusProvider.cleanVoiceFocus();
+        if (callbacks && callbacks.onSessionCompleted) {
+          callbacks.onSessionCompleted(rtcSession);
+        }
       };
       session.onLocalStreamAdded = function (rtcSession, stream) {
         // Cache the streams for mute/unmute
@@ -20257,7 +21232,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       };
       session.remoteAudioElement = document.getElementById('remote-audio') || window.parent.parent.document.getElementById('remote-audio');
       if (this.rtcPeerConnectionManager) {
-        this.rtcPeerConnectionManager.connect();
+        this.rtcPeerConnectionManager.connect(agentConnectionId);
       } else {
         if (this.rtcPeerConnectionFactory) {
           session.connect(this.rtcPeerConnectionFactory.get(callConfig.iceServers));
@@ -20269,12 +21244,12 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     var onDestroyContact = function onDestroyContact(agentConnectionId) {
       // handle an edge case where a connecting contact gets cleared and the next agent snapshot doesn't contain the contact thus the onRefreshContact callback below can't properly clean up the stale session.
       if (rtcSessions[agentConnectionId]) {
-        destroySession(agentConnectionId);
+        self.destroySession(agentConnectionId);
       }
     };
     var onRefreshContact = function onRefreshContact(contact, agentConnectionId) {
       if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
-        destroySession(agentConnectionId);
+        self.destroySession(agentConnectionId);
         cancelPendingSession();
       }
       if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (contact.getStatus().type === connect.ContactStatusType.CONNECTING || contact.getStatus().type === connect.ContactStatusType.INCOMING)) {
@@ -20298,6 +21273,11 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
         }
       }
     };
+    var setLastActiveContactId = function setLastActiveContactId(contact, agentConnectionId) {
+      lastActiveContactID = contact.getContactId();
+      //this has to exist, all contacts must have an agent type connection;
+      contactAgentConnectionIdMap[agentConnectionId] = contact.getContactId();
+    };
     var onInitContact = function onInitContact(contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
       logger.info("Contact detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
@@ -20309,6 +21289,23 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
           onDestroyContact(agentConnectionId);
           // clean up localMediaStream
           if (localMediaStream[agentConnectionId]) deleteLocalMediaStream(agentConnectionId);
+        });
+
+        //used to track last active contact ID in bullet routing - This will be used to sync local media states
+        //Pass the initial agentConnectionId captured at contact init because for Queue Callbacks,
+        //the agentConnectionId changes after the contact connects. The localMediaStream uses the 
+        //initial agentConnectionId, so we must use it here to ensure contactAgentConnectionIdMap 
+        //correctly maps to the contact for mute/unmute operations.
+        var resumeSub = contact.getAgentConnection().onParticipantResume(function () {
+          setLastActiveContactId(contact, agentConnectionId);
+        });
+        var connectedSub = contact.onConnected(function () {
+          setLastActiveContactId(contact, agentConnectionId);
+        });
+        var endedSub = contact.onEnded(function () {
+          resumeSub.unsubscribe();
+          connectedSub.unsubscribe();
+          endedSub.unsubscribe();
         });
       }
     };
@@ -20424,7 +21421,15 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     for (var connectionId in localMediaStream) {
       if (localMediaStream.hasOwnProperty(connectionId)) {
         var localMedia = localMediaStream[connectionId].stream;
-        if (localMedia) {
+        var isActiveContact = contactAgentConnectionIdMap[connectionId] === lastActiveContactID;
+        logger.info("Agent's current active active media stream").withObject({
+          isActiveContact: isActiveContact,
+          contactAgentConnectionIdMap: contactAgentConnectionIdMap,
+          lastActiveContactID: lastActiveContactID,
+          localMediaStream: localMediaStream,
+          connectionId: connectionId
+        }).sendInternalLogToServer();
+        if (localMedia && isActiveContact) {
           var audioTracks = localMedia.getAudioTracks()[0];
           if (status !== undefined) {
             audioTracks.enabled = !status;
@@ -20608,16 +21613,64 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       failedReason: reason
     });
   };
-  var publishTelemetryEvent = function publishTelemetryEvent(eventName, contactId, data) {
-    connect.publishMetric({
-      name: eventName,
-      contactId: contactId,
-      data: data
-    });
+  var getPerformanceTime = function getPerformanceTime() {
+    try {
+      return performance.now();
+    } catch (e) {
+      logger.error(e.message);
+      return 0;
+    }
+  };
+
+  /**
+   * How does this work?
+   * When isGum is true:
+   *    - whenever this method is called, it will update gumLatencies['previousStep'] to the current step (eventName) and saves
+   *      the time (currentPerformanceTime) under the eventName in gumLatencies
+   *    - for latency calculation, it will check to see if gumLatencies['previousStep'] is populated, if so it will pull
+   *      the timestamp for gumLatencies['previousStep'] and calculate the difference with the current time. Then it will
+   *      update the previousStep to the current step
+   *    - every subsequent call will calculate the latency using the previous event's time
+   * To calculate latency between two steps with intermediate steps, you can manually set the gumLatencies['previousStep'] to the
+   * starting step you want to use and then call publishTelemetryEvent()
+   * @param eventName
+   * @param contactId
+   * @param data
+   * @param isGum
+   */
+  publishTelemetryEvent = function publishTelemetryEvent(eventName, contactId, data) {
+    var isGum = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : false;
+    try {
+      if (isGum) {
+        var currentPerformanceTime = getPerformanceTime();
+        data['gumRaceMechanismEnabled'] = gumLatencies['gumRaceMechanismEnabled'];
+        data['tabId'] = connect.core.tabId || '';
+        data['previousStep'] = gumLatencies['previousStep'] || '';
+        data['tabIsVisible'] = gumLatencies['AlreadyMaster'];
+
+        // uses the previous event to calculate latency
+        if (gumLatencies['previousStep'] && gumLatencies[gumLatencies['previousStep']]) {
+          data['latency'] = currentPerformanceTime - gumLatencies[gumLatencies['previousStep']];
+          if (gumLatencies['previousStep'] === 'ContactDetected' && eventName === 'SessionSetUpComplete') {
+            ccpMediaReadyLatencyMillis = data['latency'];
+          }
+        }
+        gumLatencies['previousStep'] = eventName;
+        gumLatencies[eventName] = currentPerformanceTime;
+        contactId = gumLatencies['contactId'] || null;
+      }
+      connect.publishMetric({
+        name: eventName,
+        contactId: contactId,
+        data: data
+      });
+    } catch (e) {
+      connect.getLog().error("Error Creating Metric: " + e.message).sendInternalLogToServer();
+    }
   };
 
   // Publish the contact and agent information in a multiple sessions scenarios
-  var publishMultipleSessionsEvent = function publishMultipleSessionsEvent(eventName, contactId, agentConnectionId) {
+  _SoftphoneManager.publishMultipleSessionsEvent = function (eventName, contactId, agentConnectionId) {
     publishTelemetryEvent(eventName, contactId, [{
       name: "AgentConnectionId",
       value: agentConnectionId
@@ -20641,8 +21694,10 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     }
   };
   var sendSoftphoneMetrics = function sendSoftphoneMetrics(contact) {
-    var streamStats = timeSeriesStreamStatsBuffer.slice();
-    timeSeriesStreamStatsBuffer = [];
+    var agentConnectionId = contact.getAgentConnection().getConnectionId();
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
+    var streamStats = agentConnectionStats.timeSeriesStreamStatsBuffer.slice();
+    agentConnectionStats.timeSeriesStreamStatsBuffer = [];
     if (streamStats.length > 0) {
       contact.sendSoftphoneMetrics(streamStats, {
         success: function success() {
@@ -20655,6 +21710,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     }
   };
   var sendSoftphoneReport = function sendSoftphoneReport(contact, report, userAudioStats, remoteAudioStats) {
+    var agentConnectionId = contact.getAgentConnection().getConnectionId();
     report.streamStats = [addStreamTypeToStats(userAudioStats, AUDIO_INPUT), addStreamTypeToStats(remoteAudioStats, AUDIO_OUTPUT)];
     var callReport = {
       callStartTime: report.sessionStartTime,
@@ -20688,35 +21744,36 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
         logger.error("sendSoftphoneReport failed.").withObject(data).sendInternalLogToServer();
       }
     });
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
     var streamPerSecondStats = {
       AUDIO_INPUT: {
-        packetsCount: inputRTPStreamStatsBuffer.map(function (stats) {
+        packetsCount: agentConnectionStats.inputRTPStreamStatsBuffer.map(function (stats) {
           return stats.packetsCount;
         }),
-        packetsLost: inputRTPStreamStatsBuffer.map(function (stats) {
+        packetsLost: agentConnectionStats.inputRTPStreamStatsBuffer.map(function (stats) {
           return stats.packetsLost;
         }),
-        audioLevel: inputRTPStreamStatsBuffer.map(function (stats) {
+        audioLevel: agentConnectionStats.inputRTPStreamStatsBuffer.map(function (stats) {
           return stats.audioLevel;
         }),
-        jitterBufferMillis: inputRTPStreamStatsBuffer.map(function (stats) {
+        jitterBufferMillis: agentConnectionStats.inputRTPStreamStatsBuffer.map(function (stats) {
           return stats.jitterBufferMillis;
         })
       },
       AUDIO_OUTPUT: {
-        packetsCount: outputRTPStreamStatsBuffer.map(function (stats) {
+        packetsCount: agentConnectionStats.outputRTPStreamStatsBuffer.map(function (stats) {
           return stats.packetsCount;
         }),
-        packetsLost: outputRTPStreamStatsBuffer.map(function (stats) {
+        packetsLost: agentConnectionStats.outputRTPStreamStatsBuffer.map(function (stats) {
           return stats.packetsLost;
         }),
-        audioLevel: outputRTPStreamStatsBuffer.map(function (stats) {
+        audioLevel: agentConnectionStats.outputRTPStreamStatsBuffer.map(function (stats) {
           return stats.audioLevel;
         }),
-        jitterBufferMillis: outputRTPStreamStatsBuffer.map(function (stats) {
+        jitterBufferMillis: agentConnectionStats.outputRTPStreamStatsBuffer.map(function (stats) {
           return stats.jitterBufferMillis;
         }),
-        roundTripTimeMillis: outputRTPStreamStatsBuffer.map(function (stats) {
+        roundTripTimeMillis: agentConnectionStats.outputRTPStreamStatsBuffer.map(function (stats) {
           return stats.roundTripTimeMillis;
         })
       }
@@ -20731,11 +21788,11 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       isMediaClusterPath: report.isMediaClusterPath,
       isPersistentPeerConnection: report.isPersistentPeerConnection,
       isExistingPersistentPeerConnection: report.isExistingPersistentPeerConnection || false,
-      consecutiveNoAudioInputPackets: consecutiveNoAudioInputPackets,
-      consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
-      consecutiveNoAudioOutputPackets: consecutiveNoAudioOutputPackets,
-      consecutiveLowOutputAudioLevel: consecutiveLowOutputAudioLevel,
-      audioInputConnectedDurationSeconds: audioInputConnectedDurationSeconds,
+      consecutiveNoAudioInputPackets: agentConnectionStats.consecutiveNoAudioInputPackets,
+      consecutiveLowInputAudioLevel: agentConnectionStats.consecutiveLowInputAudioLevel,
+      consecutiveNoAudioOutputPackets: agentConnectionStats.consecutiveNoAudioOutputPackets,
+      consecutiveLowOutputAudioLevel: agentConnectionStats.consecutiveLowOutputAudioLevel,
+      audioInputConnectedDurationSeconds: agentConnectionStats.audioInputConnectedDurationSeconds,
       ccpMediaReadyLatencyMillis: ccpMediaReadyLatencyMillis,
       contactSubtype: contact.getContactSubtype(),
       earlyGumEnabled: allowEarlyGum,
@@ -20743,12 +21800,21 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       vdiPlatform: vdiPlatform || null,
       userAgentData: report.userAgentData || null,
       isConnected: isConnected,
-      consecutiveAudioOutputMuteDurationSeconds: consecutiveAudioOutputMuteDurationSeconds,
-      streamJsVersion: connect.version
+      consecutiveAudioOutputMuteDurationSeconds: agentConnectionStats.consecutiveAudioOutputMuteDurationSeconds,
+      streamJsVersion: connect.version,
+      skewTimeMillis: connect.core.getSkew(),
+      activePeerConnectionCount: connect.activePeerConnectionCount || null,
+      isPCMv2Path: report.isPCMv2Path || null,
+      iceCredentialSource: report.iceCredentialSource || null,
+      isContactCredentialsDifferentRegion: report.isContactCredentialsDifferentRegion || null,
+      iceRestartAttempts: report.iceRestartAttempts || 0,
+      iceRestartSuccesses: report.iceRestartSuccesses || 0,
+      iceRestartInviteRetries: report.iceRestartInviteRetries || 0,
+      iceRestartTimeMillis: report.iceRestartTimeMillis || null,
+      iceRestartFailed: report.iceRestartFailed || null
     });
     ccpMediaReadyLatencyMillis = 0;
     isConnected = false;
-    consecutiveAudioOutputMuteDurationSeconds = 0;
     connect.publishSoftphoneReport({
       contactId: contact.getContactId(),
       ccpVersion: global.ccpVersion,
@@ -20756,105 +21822,97 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     });
     logger.info("sent TelemetryCallReport " + JSON.stringify(telemetryCallReport)).sendInternalLogToServer();
   };
-  var startStatsCollectionJob = function startStatsCollectionJob(rtcSession) {
-    rtpStatsJob = window.setInterval(function () {
+  var startStatsCollectionJob = function startStatsCollectionJob(contact, rtcSession) {
+    var agentConnectionId = contact.getAgentConnection().getConnectionId();
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
+    rtpStatsJobMap[agentConnectionId] = window.setInterval(function () {
       var _rtcSession$mediaStre;
       rtcSession.getUserAudioStats().then(function (stats) {
-        var previousUserStats = aggregatedUserAudioStats;
-        aggregatedUserAudioStats = stats;
-        var currRTPStreamStat = getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT);
-        timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
-        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat);
+        var previousUserStats = agentConnectionStats.aggregatedUserAudioStats;
+        agentConnectionStats.aggregatedUserAudioStats = stats;
+        var currRTPStreamStat = getTimeSeriesStats(agentConnectionStats.aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT, agentConnectionId);
+        agentConnectionStats.timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
+        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat, agentConnectionId);
       }, function (error) {
         logger.debug("Failed to get user audio stats.", error).sendInternalLogToServer();
       });
       rtcSession.getRemoteAudioStats().then(function (stats) {
-        var previousRemoteStats = aggregatedRemoteAudioStats;
-        aggregatedRemoteAudioStats = stats;
-        var currRTPStreamStat = getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT);
-        timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
-        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat);
+        var previousRemoteStats = agentConnectionStats.aggregatedRemoteAudioStats;
+        agentConnectionStats.aggregatedRemoteAudioStats = stats;
+        var currRTPStreamStat = getTimeSeriesStats(agentConnectionStats.aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT, agentConnectionId);
+        agentConnectionStats.timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
+        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat, agentConnectionId);
       }, function (error) {
         logger.debug("Failed to get remote audio stats.", error).sendInternalLogToServer();
       });
       if (rtcSession !== null && rtcSession !== void 0 && (_rtcSession$mediaStre = rtcSession.mediaStream) !== null && _rtcSession$mediaStre !== void 0 && (_rtcSession$mediaStre = _rtcSession$mediaStre.getAudioTracks()) !== null && _rtcSession$mediaStre !== void 0 && (_rtcSession$mediaStre = _rtcSession$mediaStre[0]) !== null && _rtcSession$mediaStre !== void 0 && _rtcSession$mediaStre.enabled) {
-        consecutiveAudioOutputMuteDurationSeconds = 0;
+        agentConnectionStats.consecutiveAudioOutputMuteDurationSeconds = 0;
       } else {
-        consecutiveAudioOutputMuteDurationSeconds++;
+        agentConnectionStats.consecutiveAudioOutputMuteDurationSeconds++;
       }
     }, 1000);
   };
   var startStatsReportingJob = function startStatsReportingJob(contact) {
-    reportStatsJob = window.setInterval(function () {
+    var agentConnectionId = contact.getAgentConnection().getConnectionId();
+    reportStatsJobMap[agentConnectionId] = window.setInterval(function () {
       sendSoftphoneMetrics(contact);
     }, statsReportingJobIntervalMs);
   };
-  var initializeParams = function initializeParams() {
-    aggregatedUserAudioStats = null;
-    aggregatedRemoteAudioStats = null;
-    timeSeriesStreamStatsBuffer = [];
-    inputRTPStreamStatsBuffer = [];
-    outputRTPStreamStatsBuffer = [];
-    rtpStatsJob = null;
-    reportStatsJob = null;
-    consecutiveNoAudioInputPackets = 0;
-    consecutiveLowInputAudioLevel = 0;
-    consecutiveNoAudioOutputPackets = 0;
-    consecutiveLowOutputAudioLevel = 0;
-    audioInputConnectedDurationSeconds = 0;
-  };
-  var getTimeSeriesStats = function getTimeSeriesStats(currentStats, previousStats, streamType) {
+  var getTimeSeriesStats = function getTimeSeriesStats(currentStats, previousStats, streamType, agentConnectionId) {
     if (previousStats && currentStats) {
       var packetsLost = currentStats.packetsLost > previousStats.packetsLost ? currentStats.packetsLost - previousStats.packetsLost : 0;
       var packetsCount = currentStats.packetsCount > previousStats.packetsCount ? currentStats.packetsCount - previousStats.packetsCount : 0;
-      checkConsecutiveNoPackets(packetsCount, streamType);
-      checkConsecutiveNoAudio(currentStats.audioLevel, streamType);
+      checkConsecutiveNoPackets(packetsCount, streamType, agentConnectionId);
+      checkConsecutiveNoAudio(currentStats.audioLevel, streamType, agentConnectionId);
       return new RTPStreamStats(currentStats.timestamp, packetsLost, packetsCount, streamType, currentStats.audioLevel, currentStats.jbMilliseconds, currentStats.rttMilliseconds);
     } else {
       return new RTPStreamStats(currentStats.timestamp, currentStats.packetsLost, currentStats.packetsCount, streamType, currentStats.audioLevel, currentStats.jbMilliseconds, currentStats.rttMilliseconds);
     }
   };
-  var telemetryCallReportRTPStreamStatsBuffer = function telemetryCallReportRTPStreamStatsBuffer(rtpStreamStats) {
+  var telemetryCallReportRTPStreamStatsBuffer = function telemetryCallReportRTPStreamStatsBuffer(rtpStreamStats, agentConnectionId) {
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
     if (rtpStreamStats.softphoneStreamType === AUDIO_INPUT) {
-      while (inputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
-        inputRTPStreamStatsBuffer.shift();
+      while (agentConnectionStats.inputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
+        agentConnectionStats.inputRTPStreamStatsBuffer.shift();
       }
-      inputRTPStreamStatsBuffer.push(rtpStreamStats);
+      agentConnectionStats.inputRTPStreamStatsBuffer.push(rtpStreamStats);
     } else if (rtpStreamStats.softphoneStreamType === AUDIO_OUTPUT) {
-      while (outputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
-        outputRTPStreamStatsBuffer.shift();
+      while (agentConnectionStats.outputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
+        agentConnectionStats.outputRTPStreamStatsBuffer.shift();
       }
-      outputRTPStreamStatsBuffer.push(rtpStreamStats);
+      agentConnectionStats.outputRTPStreamStatsBuffer.push(rtpStreamStats);
     }
   };
-  var checkConsecutiveNoPackets = function checkConsecutiveNoPackets(packetsCount, streamType) {
+  var checkConsecutiveNoPackets = function checkConsecutiveNoPackets(packetsCount, streamType, agentConnectionId) {
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
     if (streamType === AUDIO_INPUT) {
-      audioInputConnectedDurationSeconds++;
+      agentConnectionStats.audioInputConnectedDurationSeconds++;
       if (packetsCount <= 0) {
-        consecutiveNoAudioInputPackets++;
+        agentConnectionStats.consecutiveNoAudioInputPackets++;
       } else {
-        consecutiveNoAudioInputPackets = 0;
+        agentConnectionStats.consecutiveNoAudioInputPackets = 0;
       }
     } else if (streamType === AUDIO_OUTPUT) {
       if (packetsCount <= 0) {
-        consecutiveNoAudioOutputPackets++;
+        agentConnectionStats.consecutiveNoAudioOutputPackets++;
       } else {
-        consecutiveNoAudioOutputPackets = 0;
+        agentConnectionStats.consecutiveNoAudioOutputPackets = 0;
       }
     }
   };
-  var checkConsecutiveNoAudio = function checkConsecutiveNoAudio(audioLevel, streamType) {
+  var checkConsecutiveNoAudio = function checkConsecutiveNoAudio(audioLevel, streamType, agentConnectionId) {
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
     if (streamType === AUDIO_INPUT) {
       if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD) {
-        consecutiveLowInputAudioLevel++;
+        agentConnectionStats.consecutiveLowInputAudioLevel++;
       } else {
-        consecutiveLowInputAudioLevel = 0;
+        agentConnectionStats.consecutiveLowInputAudioLevel = 0;
       }
     } else if (streamType === AUDIO_OUTPUT) {
       if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD) {
-        consecutiveLowOutputAudioLevel++;
+        agentConnectionStats.consecutiveLowOutputAudioLevel++;
       } else {
-        consecutiveLowOutputAudioLevel = 0;
+        agentConnectionStats.consecutiveLowOutputAudioLevel = 0;
       }
     }
   };
@@ -20865,10 +21923,21 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     return null;
   };
   var stopJobsAndReport = function stopJobsAndReport(contact, sessionReport) {
-    rtpStatsJob = stopJob(rtpStatsJob);
-    reportStatsJob = stopJob(reportStatsJob);
-    sendSoftphoneReport(contact, sessionReport, addStreamTypeToStats(aggregatedUserAudioStats, AUDIO_INPUT), addStreamTypeToStats(aggregatedRemoteAudioStats, AUDIO_OUTPUT));
+    var agentConnectionId = contact.getAgentConnection().getConnectionId();
+    var rtpStatsJob = rtpStatsJobMap[agentConnectionId];
+    if (rtpStatsJob) {
+      stopJob(rtpStatsJob);
+      delete rtpStatsJobMap[agentConnectionId];
+    }
+    var reportStatsJob = reportStatsJobMap[agentConnectionId];
+    if (reportStatsJob) {
+      stopJob(reportStatsJob);
+      delete reportStatsJobMap[agentConnectionId];
+    }
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
+    sendSoftphoneReport(contact, sessionReport, addStreamTypeToStats(agentConnectionStats.aggregatedUserAudioStats, AUDIO_INPUT), addStreamTypeToStats(agentConnectionStats.aggregatedRemoteAudioStats, AUDIO_OUTPUT));
     sendSoftphoneMetrics(contact);
+    cleanupAgentConnectionStats(agentConnectionId);
   };
 
   /**

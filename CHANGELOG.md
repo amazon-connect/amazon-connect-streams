@@ -1,4 +1,9 @@
 # CHANGELOG.md
+## [2.26.0] - 2026-06-16
+- Added dual call support, allowing agents to handle two simultaneous voice contacts with independent audio streams.
+- Added new Contact APIs: `contact.getContactArn()`, `contact.getInstanceDetails()`, `contact.canTransferContact()`.
+- Added new VoiceConnection APIs: `voiceConnection.onParticipantHold()`, `voiceConnection.onParticipantResume()`, `voiceConnection.canResumeParticipant()`, `voiceConnection.onCanResumeParticipantUpdated()`, `voiceConnection.canSendScreenShare()`.
+
 ## [2.25.0] - 2026-02-11
 - Introducing contact level auto-accept configuration that can be accessed via `contact.isAutoAcceptEnabled()` as part of the launch to support auto-accept for all channels. Learn more [here](https://docs.aws.amazon.com/connect/latest/adminguide/configure-agents.html).
 
@@ -38,7 +43,7 @@
 - updating core and global resiliency modules
 - added ccpacktimout delay to popup handler
 
-## [2.19.1] - 2025-09-10
+## [2.19.1] - 2025-09-19
 - Added deduplication support for CustomViews applications to prevent multiple instances from running simultaneously in the same contact context. Key changes:
 
   - Added deduplicate boolean parameter (default: true) to control deduplication behavior
@@ -75,7 +80,6 @@ Added:
 (Deprecated)
 
 ## [2.17.0] - 2024-11-29
-(Deprecated)
 Added:
 - Email
 

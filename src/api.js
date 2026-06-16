@@ -10,7 +10,7 @@
   global.lily = connect;
 
   const { SessionExpirationWarningClient, sendActivity } = require("@amazon-connect/activity");
-  const { ContactClient } = require("@amazon-connect/contact");
+  const { AgentClient, ContactClient } = require("@amazon-connect/contact");
   const { VoiceClient } = require("@amazon-connect/voice");
 
   /*----------------------------------------------------------------
@@ -59,6 +59,16 @@
     'MultipleCcpWindows',
     'RealtimeCommunicationError'
   ]);
+
+  /*----------------------------------------------------------------
+   * enum NetworkConnectionStatus
+   */
+  connect.NetworkConnectionStatus = {
+    CONNECTED: "connected",
+    CONNECTING: "connecting",
+    DISCONNECTED: "disconnected",
+    FAILED: "failed"
+  };
 
   /*----------------------------------------------------------------
    * enum AddressType
@@ -156,7 +166,13 @@
     'api',
     'disconnect',
     'webrtc_api',
-    'agent_reply'
+    'agent_reply',
+    'campaign_preview',
+    'external_outbound',
+    'monitor',
+    'flow',
+    'callback_customer_first_queued',
+    'callback_customer_first_dialed'
   ]);
 
   /*----------------------------------------------------------------
@@ -386,6 +402,11 @@
   };
 
   /*----------------------------------------------------------------
+   * constants for voice contact types. Can be used to validate with contact.type
+   */
+  connect.voiceContactTypes = ['voice', 'queue_callback']
+
+  /*----------------------------------------------------------------
    * Quick Responses APIs (utilizes public api proxy -- No shared worker involvement)
    */
   class QuickResponses {
@@ -482,6 +503,55 @@
 
   Agent.prototype.onWebSocketConnectionGained = function (f) {
     return connect.core.getEventBus().subscribe(connect.AgentEvents.WEBSOCKET_CONNECTION_GAINED, f);
+  }
+
+  Agent.prototype._getSDKClient = function() {
+    if (this.agentClient) {
+      return this.agentClient;
+    }
+    try {
+      const providerData = {
+          providerId: connect.core?._amazonConnectProviderData?.provider?.id,
+          config: connect.core?._amazonConnectProviderData?.provider?.config,
+          isStreamsProvider: connect.core?._amazonConnectProviderData?.isStreamsProvider,
+      };
+      connect.getLog()
+        .info('Initializing Agent SDK Clients')
+        .withObject(providerData)
+        .sendInternalLogToServer();
+        this.agentClient = new AgentClient(connect.core.getSDKClientConfig());
+        return this.agentClient;
+    } catch(e) {
+      const errorData = {
+          providerId: connect.core?._amazonConnectProviderData?.provider?.id,
+          config: connect.core?._amazonConnectProviderData?.provider?.config,
+          isStreamsProvider: connect.core?._amazonConnectProviderData?.isStreamsProvider,
+          error: e
+      };
+      connect.getLog()
+        .error('Failed to initialize Agent SDK Clients')
+        .withObject(errorData)
+        .sendInternalLogToServer();
+    }
+  }
+
+  Agent.prototype.onNetworkConnectionStatusChanged = function (f) {
+    var client = this._getSDKClient();
+    var handler = function (event) {
+      f(event);
+      return Promise.resolve();
+    };
+    client.onNetworkConnectionStatusChanged(handler);
+    return {
+      unsubscribe: function () {
+        client.offNetworkConnectionStatusChanged(handler);
+      }
+    };
+  }
+
+  Agent.prototype.getNetworkConnectionStatus = function () {
+    var client = this._getSDKClient();
+    return client.getNetworkConnectionStatus();
   }
 
   Agent.prototype.onAfterCallWork = function (f) {
@@ -979,6 +1049,17 @@
     return this._getData().state;
   };
 
+  Contact.prototype.isCustomerFirstCallback = function () {
+    const initiationMethod = this.getInitiationMethod();
+    return initiationMethod === connect.ContactInitiationMethod.CALLBACK_CUSTOMER_FIRST_DIALED;
+  }
+
+  Contact.prototype.isCampaignPreview = function () {
+    const initiationMethod = this.getInitiationMethod();
+    return initiationMethod === connect.ContactInitiationMethod.CAMPAIGN_PREVIEW;
+  }
+
+
   Contact.prototype.getStatus = Contact.prototype.getState;
 
   Contact.prototype.getStateDuration = function () {
@@ -1102,6 +1183,34 @@
 
   Contact.prototype.getSegmentAttributes = function () {
     return this._getData().segmentAttributes;
+  }
+
+  /**
+   * @returns {Promise<string>} A promise that resolves to the contact ARN
+   */
+  Contact.prototype.getContactArn = function () {
+    const contactClient = this._getSDKClient();
+    const contactId = this.getContactId();
+    return contactClient.getContactArn(contactId);
+  }
+
+  /**
+   * @returns {Promise<InstanceDetails>} A promise that resolves to the contact's instance details
+   */
+  Contact.prototype.getInstanceDetails = function () {
+    const contactClient = this._getSDKClient();
+    const contactId = this.getContactId();
+    return contactClient.getInstanceDetails(contactId);
+  }
+
+  /**
+   * 
+   * @returns {Promise<boolean>} A promise that resolves to whether a contact can be transferred
+   */
+  Contact.prototype.canTransferContact = function () {
+    const contactClient = this._getSDKClient();
+    const contactId = this.getContactId();
+    return contactClient.canTransferContact(contactId);
   }
 
   Contact.prototype.getContactSubtype = function () {
@@ -1245,7 +1354,9 @@
     var conn = this.getInitialConnection();
 
     // We will gradually change checking inbound by relying on contact initiationMethod
-    if ([connect.MediaType.TASK, connect.MediaType.EMAIL].includes(conn.getMediaType())) {
+    if ([connect.MediaType.TASK, connect.MediaType.EMAIL].includes(conn.getMediaType())
+      || this.isCampaignPreview())
+    {
       return this._isInbound();
     }
 
@@ -2416,6 +2527,81 @@
 
   VoiceConnection.prototype = Object.create(Connection.prototype);
   VoiceConnection.prototype.constructor = VoiceConnection;
+
+  VoiceConnection.prototype._getSDKClient = function() {
+    if(this.voiceClient) {
+      return this.voiceClient;
+    }
+
+    try {
+      const providerData = {
+        providerId: connect.core?._amazonConnectProviderData?.provider?.id,
+        config: connect.core?.amazonConnectProviderData?.provider?.config,
+        isStreamsProvider: connect.core?._amazonConnectProviderData?.isStreamsProvider,
+      };
+      connect.getLog()
+        .info('Initializing Voice SDK Client')
+        .withObject(providerData)
+        .sendInternalLogToServer();
+        this.voiceClient = new VoiceClient(connect.core.getSDKClientConfig());
+        return this.voiceClient;
+    } catch(e) {
+      const errorData = {
+          providerId: connect.core?._amazonConnectProviderData?.provider?.id,
+          config: connect.core?._amazonConnectProviderData?.provider?.config,
+          isStreamsProvider: connect.core?._amazonConnectProviderData?.isStreamsProvider,
+          error: e
+      };
+      connect.getLog()
+        .error('Failed to initialize Voice SDK clients')
+        .withObject(errorData)
+        .sendInternalLogToServer();
+    }
+  }
+
+  VoiceConnection.prototype.onParticipantHold = function (f) {
+    const handler = (e) => {
+      f(e);
+      return Promise.resolve();
+    }
+
+    this._getSDKClient().onParticipantHold(handler, this.getConnectionId());
+    return {
+      unsubscribe: () => this._getSDKClient().offParticipantHold(handler)
+    }
+  }
+
+  VoiceConnection.prototype.onParticipantResume = function(f) {
+    const handler = (e) => {
+      f(e);
+      return Promise.resolve();
+    }
+
+    this._getSDKClient().onParticipantResume(handler, this.getConnectionId());
+    return {
+      unsubscribe: () => this._getSDKClient().offParticipantResume(handler)
+    }
+  }
+
+  /**
+   * @returns {Promise<boolean>} A promise that resolves to a boolean that indicates whether participant can be resumed
+   */
+  VoiceConnection.prototype.canResumeParticipant = function() {
+    const voiceClient = this._getSDKClient();
+    return voiceClient.canResumeParticipant(this.getConnectionId());
+  };
+
+  VoiceConnection.prototype.onCanResumeParticipantUpdated = function (f) {
+    const handler = (e) => {
+      f(e);
+      return Promise.resolve();
+    }
+
+    this._getSDKClient().onCanResumeParticipantUpdated(handler, this.getConnectionId());
+    return {
+      unsubscribe: () => this._getSDKClient().offCanResumeParticipantUpdated(handler)
+    }
+  }
 
   /**
   * @deprecated

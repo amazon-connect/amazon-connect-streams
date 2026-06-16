@@ -526,6 +526,13 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
               connect.getLog().info("VoiceRingtoneEngine initialized.").sendInternalLogToServer();
             }
 
+            if (!ringtoneSettings.additionalVoice.disabled && !connect.core.ringtoneEngines.additionalVoice) {
+              connect.core.ringtoneEngines.additionalVoice =
+                new connect.AdditionalVoiceRingtoneEngine(ringtoneSettings.additionalVoice);
+              isInitializedAnyEngine = true;
+              connect.getLog().info("AdditionalVoiceRingtoneEngine initialized.").sendInternalLogToServer();
+            }
+
             if (!ringtoneSettings.chat.disabled && !connect.core.ringtoneEngines.chat) {
               connect.core.ringtoneEngines.chat =
                 new connect.ChatRingtoneEngine(ringtoneSettings.chat);
@@ -578,6 +585,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       // from softphone config if it exists from downstream into the ringtone config.
       params.ringtone = params.ringtone || {};
       params.ringtone.voice = params.ringtone.voice || {};
+      params.ringtone.additionalVoice = params.ringtone.additionalVoice || {};
       params.ringtone.queue_callback = params.ringtone.queue_callback || {};
       params.ringtone.chat = params.ringtone.chat || { disabled: true };
       params.ringtone.task = params.ringtone.task || { disabled: true };
@@ -588,6 +596,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       if (otherParams.softphone) {
         if (otherParams.softphone.disableRingtone) {
           params.ringtone.voice.disabled = true;
+          params.ringtone.additionalVoice.disabled = true;
           params.ringtone.queue_callback.disabled = true;
         }
 
@@ -642,6 +651,8 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       if (otherParams.ringtone) {
         params.ringtone.voice = connect.merge(params.ringtone.voice,
           otherParams.ringtone.voice || {});
+        params.ringtone.additionalVoice = connect.merge(params.ringtone.additionalVoice,
+          otherParams.ringtone.additionalVoice || {});
         params.ringtone.queue_callback = connect.merge(params.ringtone.queue_callback,
           otherParams.ringtone.voice || {});
         params.ringtone.chat = connect.merge(params.ringtone.chat,
@@ -2909,6 +2920,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
   connect.globalResiliency.onFailoverPending= function (f) {
     return connect.core.getEventBus().subscribe(connect.GlobalResiliencyEvents.FAILOVER_PENDING_CRM, f);
   };
+
 
   /**-----------------------------------------------------------------------*/
   connect.globalResiliency.onFailoverCompleted= function (f) {

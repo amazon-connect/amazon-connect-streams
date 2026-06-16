@@ -45,6 +45,7 @@ global.connect.OmnissaVDIStrategy = function () {};
 global.connect.RTCSession = function () {};
 global.connect.RtcPeerConnectionFactory = function () {};
 global.connect.RtcPeerConnectionManager = function () {};
+global.connect.RtcPeerConnectionManagerV2 = function () {};
 global.AWS = {
   util: {
     uuid: {
