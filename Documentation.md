@@ -263,7 +263,7 @@ and made available to your JS client code.
   - `allowFramedVideoCall`: Currently video call can only be in one single window or tab. If `true`, CCP will handle  video calling experience in this window or tab and agents would be able to see and turn  on their video if they have video permission set in the security profile. If `false` or not provided, CCP will only provide voice calling.
    - `allowFramedScreenSharing`: Currently it is recommended to enable screen share button on only one CCP in one single window or tab. If `true`, the Contact Control Panel will display the screen share button on that window or tab.
   - `allowFramedScreenSharingPopUp`: If `true`, clicking the screen sharing button in the embedded CCP will launch the screen sharing app in a new window. If `false` or not provided, clicking the button will not launch the screen sharing app.
-  - `VDIPlatform`: This option is only applicable for virtual desktop interface integrations. If set, it will configure CCP to optimize softphone audio configuration for the VDI. Options can be provided by using enum `VDIPlatformType`. If `allowFramedSoftphone` is `false` and `VDIPlatform` is going to be set, please make sure you are passing this parameter into `connect.core.initSoftphoneManager()`. For example, `connect.core.initSoftphoneManager({ VDIPlatform: "CITRIX" })`
+  - `VDIPlatform`: This option is only applicable for virtual desktop interface integrations. If set, it will configure CCP to optimize softphone audio configuration for the VDI. Supported values: `"CITRIX"`, `"CITRIX_413"`, `"AWS_WORKSPACE"`, `"OMNISSA"` (also available via the `VDIPlatformType` enum). If `allowFramedSoftphone` is `false` and `VDIPlatform` is going to be set, please make sure you are passing this parameter into `connect.core.initSoftphoneManager()`. For example, `connect.core.initSoftphoneManager({ VDIPlatform: "CITRIX" })`
   - `allowEarlyGum`: If `true` or not provided, CCP will capture the agent’s browser microphone media stream before the contact arrives to reduce the call setup latency. If `false`, CCP will only capture agent media stream after the contact arrives.
 - `autoAcceptTone`: This object is optional and allows you to configure the tone that is played for auto-accepted contacts (excluding Voice contact).
   - `disableRingtone`: This option allows you to completely disable the built-in
@@ -678,6 +678,68 @@ Subscribe a method to be called when the agent is put into an error state specif
 agent.onWebSocketConnectionGained(function(agent) { ... });
 ```
 Subscribe a method to be called when the agent gains a WebSocket connection.
+
+### `agent.onNetworkConnectionStatusChanged()`
+
+```js
+agent.onNetworkConnectionStatusChanged(function(event) { ... });
+```
+
+Subscribe a method to be called whenever the agent's connection health state transitions. The callback receives a `NetworkConnectionStatusChanged` payload each time the status changes. This provides a single, stable API for monitoring connection health without coupling to internal transport details.
+
+#### `NetworkConnectionStatus` Values
+
+| Status | Description |
+|---|---|
+| `"connected"` | The connection is healthy and active. |
+| `"connecting"` | A connection attempt is in progress (initial or reconnection). |
+| `"disconnected"` | The connection has been lost and the system is attempting to reconnect. |
+| `"failed"` | The connection has permanently failed after exhausting all retry attempts. |
+
+#### `NetworkConnectionStatusChanged` Payload
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | `string` | One of `"connected"`, `"connecting"`, `"disconnected"`, or `"failed"`. |
+| `timestamp` | `number` | Epoch milliseconds when the status transition occurred. |
+
+#### Example
+
+```js
+agent.onNetworkConnectionStatusChanged(function(event) {
+  switch (event.status) {
+    case "connected":
+      console.log("Connection healthy at", new Date(event.timestamp));
+      break;
+    case "connecting":
+      console.log("Attempting to connect...");
+      break;
+    case "disconnected":
+      console.log("Connection lost, reconnecting...");
+      // Show a banner to the agent
+      break;
+    case "failed":
+      console.log("Connection permanently failed");
+      // Prompt the agent to refresh
+      break;
+  }
+});
+```
+
+### `agent.getNetworkConnectionStatus()`
+
+```js
+const status = await agent.getNetworkConnectionStatus();
+```
+
+Returns the current connection health status as a `Promise<NetworkConnectionStatusChanged>`. Use this to retrieve the latest known status when subscribing late (after the initial status event may have already been published).
+
+#### Example
+
+```js
+const status = await agent.getNetworkConnectionStatus();
+console.log(`Current status: ${status.status} since ${new Date(status.timestamp)}`);
+```
 
 ### `agent.onAfterCallWork()`
 ```js
@@ -1805,7 +1867,7 @@ Optional success and failure callbacks can be provided to determine if the opera
 ### `contact.engagePreviewContact()`
 
 ```js
-const participantId = await contact.engagePreviewContact(contactId);
+const participantId = contact.engagePreviewContact(contactId);
 ```
 
 When an agent is previewing a preview contact, this API will actually initiate the outbound dial to the end customer, ending the preview experience. It returns the id of the newly added participant 
@@ -1813,7 +1875,7 @@ When an agent is previewing a preview contact, this API will actually initiate t
 ### `contact.getPreviewConfiguration()`
 
 ```js
-const previewConfiguration = await contact.getPreviewConfiguration(contactId);
+const previewConfiguration = contact.getPreviewConfiguration(contactId);
 ```
 
 This gets configuration information related to the preview experience.
@@ -1823,10 +1885,34 @@ For more information on the return type, see Output parameter section of the SDK
 ### `contact.isPreviewMode()`
 
 ```js
-const isPreviewMode = await contact.isPreviewMode(contactId);
+const isPreviewMode = contact.isPreviewMode(contactId);
 ```
 
 Returns a boolean indicating whether the contact is being previewed. During this time, calling engagePreviewContact will trigger the outbound dial to the end customer and end preview mode.
+
+### `contact.getContactArn()`
+
+```js
+const contactArn = await contact.getContactArn();
+```
+
+Returns a `Promise` that resolves to the contact ARN string.
+
+### `contact.getInstanceDetails()`
+
+```js
+const instanceDetails = await contact.getInstanceDetails();
+```
+
+Returns a `Promise` that resolves to the contact's instance details object.
+
+### `contact.canTransferContact()`
+
+```js
+const canTransfer = await contact.canTransferContact();
+```
+
+Returns a `Promise` that resolves to a boolean indicating whether the contact can be transferred. This is only applicable for voice and queue callback contacts.
 
 ## Connection API
 The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state
@@ -2158,6 +2244,46 @@ var monitorStatus = conn.getMonitorStatus();
 
 Returns the current monitoring state of this connection. This value can be one of MonitoringMode enum values
 if the agent is supervisor, otherwise the monitorStatus will be undefined for the agent.
+
+### `voiceConnection.onParticipantHold()`
+
+```js
+var subscription = voiceConnection.onParticipantHold(function(event) { /* ... */ });
+```
+
+Subscribes a callback that is invoked when the participant associated with this connection is placed on hold. Returns a subscription object with an `unsubscribe()` method.
+
+### `voiceConnection.onParticipantResume()`
+
+```js
+var subscription = voiceConnection.onParticipantResume(function(event) { /* ... */ });
+```
+
+Subscribes a callback that is invoked when the participant associated with this connection is resumed from hold. Returns a subscription object with an `unsubscribe()` method.
+
+### `voiceConnection.canResumeParticipant()`
+
+```js
+const canResume = await voiceConnection.canResumeParticipant();
+```
+
+Returns a `Promise` that resolves to a boolean indicating whether the participant on this connection can be resumed.
+
+### `voiceConnection.onCanResumeParticipantUpdated()`
+
+```js
+var subscription = voiceConnection.onCanResumeParticipantUpdated(function(event) { /* ... */ });
+```
+
+Subscribes a callback that is invoked when the `canResumeParticipant` status changes for this connection. Returns a subscription object with an `unsubscribe()` method.
+
+### `voiceConnection.canSendScreenShare()`
+
+```js
+var canSendScreenShare = voiceConnection.canSendScreenShare();
+```
+
+Returns a boolean indicating whether this voice connection has the screen share SEND capability.
 
 ## ChatConnection API
 The ChatConnection API provides action methods (no event subscriptions) which can be called to manipulate the state
@@ -2576,6 +2702,26 @@ This enumeration lists all of the contact types supported by Connect Streams.
 - `ContactType.CHAT`: Chat contact.
 - `ContactType.TASK`: Task contact.
 - `ContactType.EMAIL`: Email contact.
+
+### `ContactInitiationMethod`
+
+This enumeration lists all of the contact initiation methods supported by Connect Streams.
+
+- `ContactInitiationMethod.INBOUND`: Contact initiated by a customer calling into the contact center.
+- `ContactInitiationMethod.OUTBOUND`: Contact initiated by an agent calling out to a customer.
+- `ContactInitiationMethod.TRANSFER`: Contact transferred from one agent to another agent.
+- `ContactInitiationMethod.QUEUE_TRANSFER`: Contact transferred to a queue rather than directly to an agent.
+- `ContactInitiationMethod.CALLBACK`: Contact initiated as a callback to a customer who requested one.
+- `ContactInitiationMethod.API`: Contact initiated programmatically through the AWS Connect API.
+- `ContactInitiationMethod.DISCONNECT`: Contact leg created when a participant disconnects.
+- `ContactInitiationMethod.MONITOR`: Contact initiated for monitoring/supervisory purposes.
+- `ContactInitiationMethod.EXTERNAL_OUTBOUND`: Outbound contact initiated from external systems.
+- `ContactInitiationMethod.WEBRTC_API`: Contact initiated through WebRTC API (browser-based communication).
+- `ContactInitiationMethod.AGENT_REPLY`: Contact initiated when an agent replies to an asynchronous message.
+- `ContactInitiationMethod.FLOW`: Contact initiated by a contact flow.
+- `ContactInitiationMethod.CALLBACK_CUSTOMER_FIRST_QUEUED`: Callback where the customer is queued first before the agent is contacted.
+- `ContactInitiationMethod.CALLBACK_CUSTOMER_FIRST_DIALED`: Callback where the customer is dialed first before connecting to an agent.
+- `ContactInitiationMethod.CAMPAIGN_PREVIEW`: Contact initiated as part of a preview dialing campaign.
 
 ### `EventType`
 This is a list of some of the special event types which are published into the low-level

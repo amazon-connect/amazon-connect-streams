@@ -1028,11 +1028,13 @@ describe('Core', function () {
             beforeEach(function () {
                 defaultRingtone = {
                     voice: { ringtoneUrl: defaultRingtoneUrl },
+                    additionalVoice: { ringtoneUrl: defaultRingtoneUrl },
                     queue_callback: { ringtoneUrl: defaultRingtoneUrl },
                     autoAcceptTone: { ringtoneUrl: defaultRingtoneUrl },
                 };
                 sandbox.stub(connect, "ifMaster");
                 sandbox.stub(connect, "VoiceRingtoneEngine");
+                sandbox.stub(connect, "AdditionalVoiceRingtoneEngine");
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
@@ -1046,6 +1048,13 @@ describe('Core', function () {
                 connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
                 connect.ifMaster.callArg(1);
                 assert.isTrue(connect.VoiceRingtoneEngine.calledWithNew(defaultRingtone.voice));
+            });
+
+            it("Ringtone init with AdditionalVoiceRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.AdditionalVoiceRingtoneEngine.calledWithNew(defaultRingtone.additionalVoice));
             });
 
             it("Ringtone init with QueueCallbackRingtoneEngine", function () {
@@ -1082,6 +1091,7 @@ describe('Core', function () {
             beforeEach(() => {
                 extraRingtone = {
                     voice: { ringtoneUrl: defaultRingtoneUrl },
+                    additionalVoice: { ringtoneUrl: defaultRingtoneUrl },
                     queue_callback: { ringtoneUrl: defaultRingtoneUrl },
                     chat: { ringtoneUrl: defaultRingtoneUrl },
                     task: { ringtoneUrl: defaultRingtoneUrl },
@@ -1090,12 +1100,20 @@ describe('Core', function () {
                 };
                 sandbox.stub(connect, "ifMaster");
                 sandbox.stub(connect, "VoiceRingtoneEngine");
+                sandbox.stub(connect, "AdditionalVoiceRingtoneEngine");
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
                 sandbox.stub(connect, "EmailRingtoneEngine");
                 sandbox.stub(connect, 'AutoAcceptedRingtoneEngine');
                 connect.core.initRingtoneEngines({ ringtone: extraRingtone });
+            });
+
+            it("Ringtone init with AdditionalVoiceRingtoneEngine", function () {
+                connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+                connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+                connect.ifMaster.callArg(1);
+                assert.isTrue(connect.AdditionalVoiceRingtoneEngine.calledWithNew(extraRingtone.additionalVoice));
             });
 
             it("Ringtone init with VoiceRingtoneEngine", function () {
@@ -1152,6 +1170,7 @@ describe('Core', function () {
             beforeEach(function () {
                 defaultRingtone = {
                     voice: { ringtoneUrl: defaultRingtoneUrl },
+                    additionalVoice: { ringtoneUrl: defaultRingtoneUrl },
                     queue_callback: { ringtoneUrl: defaultRingtoneUrl },
                     chat: { ringtoneUrl: defaultRingtoneUrl },
                     task: { ringtoneUrl: defaultRingtoneUrl }
@@ -1159,6 +1178,7 @@ describe('Core', function () {
                 setRingerDeviceMock = sandbox.spy();
                 sandbox.stub(connect, "ifMaster");
                 sandbox.stub(connect, "VoiceRingtoneEngine");
+                sandbox.stub(connect, "AdditionalVoiceRingtoneEngine");
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
@@ -1198,6 +1218,7 @@ describe('Core', function () {
             before(() => {
                 defaultRingtones = {
                     voice: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+                    additionalVoice: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                     queue_callback: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                     chat: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                     task: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
@@ -1218,6 +1239,7 @@ describe('Core', function () {
                     sendUpstream: sinon.stub()
                 });
                 sandbox.stub(connect, "VoiceRingtoneEngine");
+                sandbox.stub(connect, "AdditionalVoiceRingtoneEngine");
                 sandbox.stub(connect, "QueueCallbackRingtoneEngine");
                 sandbox.stub(connect, "ChatRingtoneEngine");
                 sandbox.stub(connect, "TaskRingtoneEngine");
@@ -1263,6 +1285,7 @@ describe('Core', function () {
 
                     sandbox.assert.calledWithExactly(global.localStorage.getItem, ringtoneParamsKey);
                     assert.isTrue(connect.VoiceRingtoneEngine.calledOnceWith(defaultRingtones.voice));
+                    assert.isTrue(connect.AdditionalVoiceRingtoneEngine.calledOnceWith(defaultRingtones.additionalVoice));
                     assert.isTrue(connect.ChatRingtoneEngine.calledOnceWith(defaultRingtones.chat));
                     assert.isTrue(connect.TaskRingtoneEngine.calledOnceWith(defaultRingtones.task));
                     assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(defaultRingtones.queue_callback));
@@ -1275,6 +1298,7 @@ describe('Core', function () {
                     const usedRingtoneParams = {
                         ringtone: {
                             voice: { disabled: false, ringtoneUrl: otherRingtoneUrl },
+                            additionalVoice: { disabled: false, ringtoneUrl: otherRingtoneUrl },
                             queue_callback: { disabled: false, ringtoneUrl: otherRingtoneUrl },
                             chat: { disabled: false, ringtoneUrl: otherRingtoneUrl },
                             task: { disabled: false, ringtoneUrl: otherRingtoneUrl },
@@ -1293,6 +1317,7 @@ describe('Core', function () {
 
                     sandbox.assert.calledWithExactly(global.localStorage.getItem, ringtoneParamsKey);
                     assert.isTrue(connect.VoiceRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.voice));
+                    assert.isTrue(connect.AdditionalVoiceRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.additionalVoice));
                     assert.isTrue(connect.ChatRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.chat));
                     assert.isTrue(connect.TaskRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.task));
                     assert.isTrue(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
@@ -1305,6 +1330,7 @@ describe('Core', function () {
                     const usedRingtoneParams = {
                         ringtone: {
                             voice: { disabled: true, ringtoneUrl: otherRingtoneUrl },
+                            additionalVoice: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                             queue_callback: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                             chat: { disabled: true, ringtoneUrl: otherRingtoneUrl },
                             task: { disabled: true, ringtoneUrl: otherRingtoneUrl },
@@ -1323,6 +1349,7 @@ describe('Core', function () {
 
                     sandbox.assert.calledWithExactly(global.localStorage.getItem, ringtoneParamsKey);
                     assert.isFalse(connect.VoiceRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.voice));
+                    assert.isFalse(connect.AdditionalVoiceRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.additionalVoice));
                     assert.isFalse(connect.ChatRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.chat));
                     assert.isFalse(connect.TaskRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.task));
                     assert.isFalse(connect.QueueCallbackRingtoneEngine.calledOnceWith(usedRingtoneParams.ringtone.queue_callback));
@@ -1741,6 +1768,7 @@ describe('Core', function () {
             sandbox.stub(connect, "isFramed").returns(true);
             sandbox.stub(connect, "ifMaster");
             sandbox.stub(connect, "VoiceRingtoneEngine");
+            sandbox.stub(connect, "AdditionalVoiceRingtoneEngine");
             sandbox.stub(connect, "QueueCallbackRingtoneEngine");
             sandbox.stub(connect, "ChatRingtoneEngine");
             sandbox.spy(document, "createElement");
@@ -1804,6 +1832,7 @@ describe('Core', function () {
             const defaultParamsPassedInByCCP = {
                 ringtone: {
                     voice: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+                    additionalVoice: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                     chat: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
                     task: { disabled: false, ringtoneUrl: defaultRingtoneUrl }
                 }
@@ -1811,11 +1840,15 @@ describe('Core', function () {
 
             connect.core.initRingtoneEngines(defaultParamsPassedInByCCP);
             const customParamsPassedInByCRM = {
-                softphone: { disabled: false, ringtoneUrl: 'custom-softphone.mp3' },
+                softphone: {
+                    disabled: false,
+                    ringtoneUrl: 'custom-softphone.mp3',
+                },
                 ringtone: {
                     chat: { disabled: false, ringtoneUrl: 'custom-chat.mp3' },
                     task: { disabled: false, ringtoneUrl: 'custom-task.mp3' }, // customization not working
-                    queue_callback: { disabled: false, ringtoneUrl: 'custom-qcb.mp3' }  // customization not working
+                    queue_callback: { disabled: false, ringtoneUrl: 'custom-qcb.mp3' },  // customization not working
+                    additionalVoice: { disabled: false, ringtoneUrl: 'custom-softphone.mp3' }
                 }
             };
             connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, customParamsPassedInByCRM);
@@ -1824,6 +1857,7 @@ describe('Core', function () {
             connect.ifMaster.callArg(1);
 
             sinon.assert.calledWith(connect.VoiceRingtoneEngine, customParamsPassedInByCRM.softphone);
+            sinon.assert.calledWith(connect.AdditionalVoiceRingtoneEngine, customParamsPassedInByCRM.ringtone.additionalVoice);
             sinon.assert.calledWith(connect.QueueCallbackRingtoneEngine, customParamsPassedInByCRM.softphone); // not 'custom-qcb.mp3'
             sinon.assert.calledWith(connect.ChatRingtoneEngine, customParamsPassedInByCRM.ringtone.chat);
         });
@@ -2782,10 +2816,7 @@ describe('Core', function () {
         before(function () {
             clock = sinon.useFakeTimers();
             if (!navigator.mediaDevices) {
-              navigator.mediaDevices = {};
-            }
-            if (!navigator.mediaDevices.enumerateDevices) {
-              navigator.mediaDevices.enumerateDevices = function () {};
+                navigator.mediaDevices = { enumerateDevices: () => {} };
             }
             sandbox.stub(navigator.mediaDevices, 'enumerateDevices')
                 .callsFake(() => new Promise((resolve) => {

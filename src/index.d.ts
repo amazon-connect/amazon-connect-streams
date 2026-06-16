@@ -25,6 +25,41 @@ declare namespace connect {
   type AgentStateChangeCallback = (agentStateChange: AgentStateChange) => void;
 
   /**
+   * The four possible connection health states for the agent's connection
+   * to Amazon Connect backend services.
+   */
+  type NetworkConnectionStatus = "connected" | "connecting" | "disconnected" | "failed";
+
+  /**
+   * Enum-like constant object for referencing network connection status values.
+   * Mirrors the runtime `connect.NetworkConnectionStatus` object defined in `api.js`.
+   */
+  const NetworkConnectionStatus: {
+    readonly CONNECTED: "connected";
+    readonly CONNECTING: "connecting";
+    readonly DISCONNECTED: "disconnected";
+    readonly FAILED: "failed";
+  };
+
+  /**
+   * Payload delivered to `onNetworkConnectionStatusChanged` subscribers when the agent's
+   * connection health state transitions.
+   */
+  interface NetworkConnectionStatusChanged {
+    /** The new connection health status. */
+    status: NetworkConnectionStatus;
+    /** Epoch milliseconds when the status transition occurred. */
+    timestamp: number;
+  }
+
+  /**
+   * A callback invoked whenever the agent's connection health state changes.
+   *
+   * @param event The `NetworkConnectionStatusChanged` payload describing the new state.
+   */
+  type NetworkConnectionStatusChangedCallback = (event: NetworkConnectionStatusChanged) => void;
+
+  /**
    * A callback to receive 'UserMediaDeviceChange' API object instances
    *
    * @param userMediaDeviceChange The 'UserMediaDeviceChange' API object instance
@@ -554,18 +589,23 @@ declare namespace connect {
     readonly allowFramedScreenSharingPopUp?: boolean;
 
     /**
-    * VDI SDK support, we are currently only supporting CITRIX
-    * To specify that the VDI environment is Citrix, please set this value to `CITRIX` or 
-    * `VDIPlatformType.CITRIX`
-    */
+     * VDI platform type for virtual desktop interface integrations.
+     * Supported values: `VDIPlatformType.CITRIX`, `VDIPlatformType.CITRIX_413`, `VDIPlatformType.AWS_WORKSPACE`, `VDIPlatformType.OMNISSA`.
+     */
     readonly VDIPlatform?: string;
 
     /**
-     * If `true` or not provided, CCP will capture the agent’s browser microphone media stream before the contact arrives to reduce the call setup latency. 
+     * If `true` or not provided, CCP will capture the agent’s browser microphone media stream before the contact arrives to reduce the call setup latency.
      * If `false`, CCP will only capture agent media stream after the contact arrives.
      * @default true
      */
     readonly allowEarlyGum?: boolean;
+
+    /**
+     * If `true`, enables extended persistent connection support when using `RtcPeerConnectionManagerV2`.
+     * @default false
+     */
+    readonly allowExtendedPersistentConnection?: boolean;
   }
 
   interface ChatOptions {
@@ -1123,6 +1163,8 @@ declare namespace connect {
     USER_BUSY_ERROR = "user_busy_error",
     WEBRTC_ERROR = "webrtc_error",
     REALTIME_COMMUNICATION_ERROR = "realtime_communication_error",
+    VDI_STRATEGY_NOT_SUPPORTED = "vdi_strategy_not_supported",
+    VDI_REDIR_NOT_SUPPORTED = "vdi_redir_not_supported",
     OTHER = "other",
   }
 
@@ -1176,6 +1218,12 @@ declare namespace connect {
     DISCONNECT = "disconnect",
     WEBRTC_API = "webrtc_api",
     AGENT_REPLY = "agent_reply",
+    CAMPAIGN_PREVIEW = "campaign_preview",
+    EXTERNAL_OUTBOUND = "external_outbound",
+    MONITOR = "monitor",
+    FLOW = "flow",
+    CALLBACK_CUSTOMER_FIRST_QUEUED = "callback_customer_first_queued",
+    CALLBACK_CUSTOMER_FIRST_DIALED = "callback_customer_first_dialed",
   }
 
   enum MonitoringErrorTypes {
@@ -1295,6 +1343,27 @@ declare namespace connect {
      * @param callback A callback to receive the `SoftphoneError` error.
      */
     onSoftphoneError(callback: SoftphoneErrorCallback): Subscription;
+
+    /**
+     * Subscribe a method to be called whenever the agent's connection health state transitions.
+     *
+     * The callback fires on every state change and receives a `NetworkConnectionStatusChanged` payload
+     * containing the new status and the transition timestamp. Use this single subscription in place
+     * of piecing together lifecycle signals from lower-level APIs.
+     *
+     * @param callback A callback to receive the `NetworkConnectionStatusChanged` payload.
+     */
+    onNetworkConnectionStatusChanged(callback: NetworkConnectionStatusChangedCallback): Subscription;
+
+    /**
+     * Returns the current connection health status.
+     *
+     * Use this to retrieve the latest known status when subscribing late
+     * (after the initial status event may have already been published).
+     *
+     * @returns The current connection status and timestamp.
+     */
+    getNetworkConnectionStatus(): Promise<NetworkConnectionStatusChanged>;
 
     /**
      * Subscribe a method to be called when the agent enters the "After Call Work" (ACW) state.
@@ -2242,6 +2311,20 @@ declare namespace connect {
      * @returns { boolean } Returns true if enabled; false otherwise.
      */
     isAutoAcceptEnabled(): boolean;
+
+    /** Returns a Promise that resolves to the contact ARN string. */
+    getContactArn(): Promise<string>;
+
+    /** Returns a Promise that resolves to the contact's instance details. */
+    getInstanceDetails(): Promise<InstanceDetails>;
+
+    /** Returns a Promise that resolves to whether the contact can be transferred. */
+    canTransferContact(): Promise<boolean>;
+  }
+
+  interface InstanceDetails {
+    origin: string;
+    region: string;
   }
 
   class QuickResponses {
@@ -2567,6 +2650,21 @@ declare namespace connect {
 
     /** Returns true if the connection was forced muted by the manager. */
     isForcedMute(): boolean;
+
+    /** Subscribes a callback invoked when the participant is placed on hold. */
+    onParticipantHold(callback: (event: any) => void): Subscription;
+
+    /** Subscribes a callback invoked when the participant is resumed from hold. */
+    onParticipantResume(callback: (event: any) => void): Subscription;
+
+    /** Returns a Promise that resolves to whether the participant can be resumed. */
+    canResumeParticipant(): Promise<boolean>;
+
+    /** Subscribes a callback invoked when the canResumeParticipant status changes. */
+    onCanResumeParticipantUpdated(callback: (event: any) => void): Subscription;
+
+    /** Returns true if this connection has the screen share SEND capability. */
+    canSendScreenShare(): boolean;
   }
 
   /**

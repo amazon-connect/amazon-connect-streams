@@ -31,31 +31,47 @@
   var MediaTypeMap = {};
   MediaTypeMap[connect.ContactType.VOICE] = "Voice";
 
-  var timeSeriesStreamStatsBuffer = [];
-
   // We buffer only last 3 hours (10800 seconds) of a call's RTP stream stats.
   var MAX_RTP_STREAM_STATS_BUFFER_SIZE = 10800;
-  var inputRTPStreamStatsBuffer = [];
-  var outputRTPStreamStatsBuffer = [];
-
-  var aggregatedUserAudioStats = {};
-  var aggregatedRemoteAudioStats = {};
   var LOW_AUDIO_LEVEL_THRESHOLD = 1;
-  var consecutiveNoAudioInputPackets = 0;
-  var consecutiveLowInputAudioLevel = 0;
-  var consecutiveNoAudioOutputPackets = 0;
-  var consecutiveLowOutputAudioLevel = 0;
-  var audioInputConnectedDurationSeconds = 0;
-  var consecutiveAudioOutputMuteDurationSeconds = 0;
+
+  // Agent connection specific stats tracking - each agent connection gets its own stats object
+  var agentConnectionStatsMap = {};
   var isConnected = false;
   // Time from CCP received the softphone contact till local media is added to the softphone session
   var ccpMediaReadyLatencyMillis = 0;
-  var allowEarlyGum = false;
-  var earlyGumWorked = false;
   var vdiPlatform = null;
-  var rtpStatsJob = null;
-  var reportStatsJob = null;
-  //Logger specific to softphone.
+
+  var allowExtendedPersistentConnection = false;
+
+  var rtpStatsJobMap = {};
+  var reportStatsJobMap = {};
+
+  // Helper function to get or create agent connection specific stats
+  var getAgentConnectionStats = function(agentConnectionId) {
+    if (!agentConnectionStatsMap[agentConnectionId]) {
+      agentConnectionStatsMap[agentConnectionId] = {
+        consecutiveNoAudioInputPackets: 0,
+        consecutiveLowInputAudioLevel: 0,
+        consecutiveNoAudioOutputPackets: 0,
+        consecutiveLowOutputAudioLevel: 0,
+        audioInputConnectedDurationSeconds: 0,
+        consecutiveAudioOutputMuteDurationSeconds: 0,
+        timeSeriesStreamStatsBuffer: [],
+        inputRTPStreamStatsBuffer: [],
+        outputRTPStreamStatsBuffer: [],
+        aggregatedUserAudioStats: null,
+        aggregatedRemoteAudioStats: null
+      };
+    }
+    return agentConnectionStatsMap[agentConnectionId];
+  };
+  
+  // Helper function to clean up agent connection stats
+  var cleanupAgentConnectionStats = function(agentConnectionId) {
+    delete agentConnectionStatsMap[agentConnectionId];
+  };
+  // Logger specific to softphone.
   var logger = null;
   var SoftphoneErrorTypes = connect.SoftphoneErrorTypes;
   var HANG_UP_MULTIPLE_SESSIONS_EVENT = "MultiSessionHangUp";
@@ -64,6 +80,12 @@
   var localMediaStream = {};
 
   var softphoneClientId = connect.randomId();
+
+  let errorBatchMap = {};
+
+  //used for bullet routing - only the last active contact can make changes to the media stream.
+  let lastActiveContactID = "";
+  const contactAgentConnectionIdMap = {}
 
   var requestIceAccess = function (transport) {
     return new Promise(function (resolve, reject) {
@@ -92,7 +114,8 @@
     this.rtcPeerConnectionFactory = null;
     this.rtcJsStrategy = null;
     this.rtcPeerConnectionManager = null;
-
+    allowExtendedPersistentConnection = !!softphoneParams.allowExtendedPersistentConnection;
+    
     this._setRtcJsStrategy = function () {
       if (softphoneParams.VDIPlatform) {
         vdiPlatform = softphoneParams.VDIPlatform;
@@ -113,21 +136,21 @@
           }
           logger.info(`[SoftphoneManager] Strategy constructor retrieved: ${this.rtcJsStrategy}`).sendInternalLogToServer();
         } catch (error) {
+          logger.warn(`[SoftphoneManager] VDI Strategy constructor error for ${vdiPlatform}: ${error.message}`).sendInternalLogToServer();
           if (error.message === "VDI Strategy not supported") {
             publishError(SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED, error.message, "");
-            throw error;
           }
           else if (error.message === "Citrix WebRTC redirection feature is NOT supported!") {
             publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
-            throw error;
           }
           else if (error.message === "DCV WebRTC redirection feature is NOT supported!") {
             publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
-            throw error;
+          }
+          else if (error.message === "Omnissa WebRTC Redirection API failed to initialize!") {
+            publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
           }
           else {
             publishError(SoftphoneErrorTypes.OTHER, error.message, "");
-            throw error;
           }
         }
       }
@@ -167,9 +190,20 @@
     const listenAgentConfigurationUpdate = () => {
       connect.agent( (a) => {
         const sub = a.onRefresh( (agent) => {
+          const isPPCEnabled = agent.getConfiguration().softphonePersistentConnection;
+          const shouldUseV2 = !!connect.RtcPeerConnectionManagerV2;
+
           if (this.rtcPeerConnectionManager) {
-            const isPPCEnabled = agent.getConfiguration().softphonePersistentConnection;
-            this.rtcPeerConnectionManager.handlePersistentPeerConnectionToggle(isPPCEnabled);
+            // If the manager exists and the current manager type doesn't match what we should be using,
+            // we need to reinitialize the manager completely
+            const isUsingV2 = this.rtcPeerConnectionManager instanceof connect.RtcPeerConnectionManagerV2;
+
+            if (Boolean(isUsingV2) !== Boolean(shouldUseV2)) {
+              logger.info("FAC flag changed, reinitializing RtcPeerConnectionManager with shouldUseV2: "+Boolean(shouldUseV2) ).sendInternalLogToServer();
+              this._initiateRtcPeerConnectionManager();
+            } else {
+              this.rtcPeerConnectionManager.handlePersistentPeerConnectionToggle(isPPCEnabled);
+            }
           } else {
             this._initiateRtcPeerConnectionManager();
           }
@@ -177,15 +211,27 @@
       });
     }
 
-    this._initiateRtcPeerConnectionManager = function () {
-      // close existing peer connection managed by rtcPeerConnectionManager
-      if (connect?.core?.softphoneManager?.rtcPeerConnectionManager?.close) {
-        connect.core.softphoneManager.rtcPeerConnectionManager.close();
-        connect.core.softphoneManager.rtcPeerConnectionManager = null;
+    this._initiateRtcPeerConnectionManager = function() {
+      // close existing peer connection managed by rtcPeerConnectionManager, if the peer connection is not used in a call
+      const existingPCManager = self?.rtcPeerConnectionManager;
+      let hasActivePeerConnection = false;
+
+      if (existingPCManager) {
+        const managerType = existingPCManager instanceof connect.RtcPeerConnectionManagerV2 ? "V2" : "V1";
+        const sessionState = existingPCManager?._rtcSession?._state?.name;
+
+        logger.info(`Closing existing RTC peer connection manager: Type=${managerType}, HasPeerConnection=${hasActivePeerConnection}, SessionState=${sessionState}`).sendInternalLogToServer();
+        existingPCManager.close();
+        hasActivePeerConnection = existingPCManager._pc !== null && existingPCManager._pc !== undefined;
+        // if the peer connection is NOT used in a call and get cleared properly then we should be good to close the existing pcm and create new pcm
+        if (!hasActivePeerConnection) {
+          self.rtcPeerConnectionManager = null;
+        } else {
+          logger.warn("Cannot close existing RTC peer connection manager as it has an active peer connection.").sendInternalLogToServer();
+        }
       }
 
       var isPPCEnabled = softphoneParams.isSoftphonePersistentConnectionEnabled;
-
       // browserId will be used to handle browser page refresh, iceRestart scenarios
       var browserId;
       if (!global.localStorage.getItem(BROWSER_ID)) {
@@ -194,56 +240,69 @@
       browserId = global.localStorage.getItem(BROWSER_ID);
 
       if (connect.RtcPeerConnectionManager) {
-        // Disable earlyGum and close rtcPeerConnectionFactory before creating RtcPeerConnectionManager
-        allowEarlyGum = false;
-        if (self.rtcPeerConnectionFactory?.close){
+        if (self.rtcPeerConnectionFactory?.close) {
           self.rtcPeerConnectionFactory.close();
           self.rtcPeerConnectionFactory = null;
         }
 
-        self.rtcPeerConnectionManager = new connect.RtcPeerConnectionManager(
-          null, // signalingURI for ccpv1
-          null, // iceServers
-          connect.hitch(self, requestIceAccess, {
-            transportType: "softphone",
-            softphoneClientId: softphoneClientId
-          }), // transportHandle
-          connect.hitch(self, publishError), // publishError
-          softphoneClientId,  // clientId
-          null, // callContextToken
-          logger,
-          null,  // contactId
-          null, // agent connectionId
-          connect.core.getWebSocketManager(),
-          self.rtcJsStrategy === null ? new connect.StandardStrategy(): self.rtcJsStrategy,
-          isPPCEnabled,
-          browserId
-        );
-      } else {
-        // customer who doesn't upgrade RTC.js will not be able to use RtcPeerConnectionManager to initialize persistent peer connection, but calls still work for them.
-        logger.info("RtcPeerConnectionManager does NOT exist, please upgrade RTC.js");
+        const shouldUseV2 = !hasActivePeerConnection && connect.RtcPeerConnectionManagerV2;
+
+        if (shouldUseV2) {
+          logger.info("Using RtcPeerConnectionManagerV2").sendInternalLogToServer();
+          const v2Config = {
+            transportHandle: connect.hitch(self, requestIceAccess, {
+              transportType: "softphone",
+              softphoneClientId: softphoneClientId
+            }),
+            publishError: connect.hitch(self, publishError),
+            clientId: softphoneClientId,
+            logger: logger,
+            webSocketManager: connect.core.getWebSocketManager(),
+            rtcJsStrategy: self.rtcJsStrategy === null ? new connect.StandardStrategy() : self.rtcJsStrategy,
+            isPersistentConnectionEnabled: isPPCEnabled,
+            allowExtendedPersistentConnection: !!softphoneParams.allowExtendedPersistentConnection,
+            browserId: browserId
+          };
+          self.rtcPeerConnectionManager = new connect.RtcPeerConnectionManagerV2(v2Config);
+        } else if (connect.RtcPeerConnectionManager) {
+          logger.info("Using RtcPeerConnectionManager").sendInternalLogToServer();
+          self.rtcPeerConnectionManager = new connect.RtcPeerConnectionManager(
+              null, // signalingURI for ccpv1
+              null, // iceServers
+              connect.hitch(self, requestIceAccess, {
+                transportType: "softphone",
+                softphoneClientId: softphoneClientId
+              }), // transportHandle
+              connect.hitch(self, publishError), // publishError
+              softphoneClientId, // clientId
+              null, // callContextToken
+              logger,
+              null, // contactId
+              null, // agent connectionId
+              connect.core.getWebSocketManager(),
+              self.rtcJsStrategy === null ? new connect.StandardStrategy() : self.rtcJsStrategy,
+              isPPCEnabled,
+              browserId
+          );
+        } else {
+          // customer who doesn't upgrade RTC.js will not be able to use RtcPeerConnectionManager to initialize persistent peer connection, but calls still work for them.
+          logger.info("RtcPeerConnectionManager does NOT exist, please upgrade RTC.js");
+        }
       }
     }
 
     logger = new SoftphoneLogger(connect.getLog());
     logger.info("[Softphone Manager] softphone manager initialization has begun").sendInternalLogToServer();
 
-    if(softphoneParams.allowEarlyGum !== false  && (connect.isChromeBrowser() || connect.isEdgeBrowser())){
-      logger.info("[Softphone Manager] earlyGum mechanism enabled").sendInternalLogToServer();
-      allowEarlyGum = true;
-    } else {
-      logger.info("[Softphone Manager] earlyGum mechanism NOT enabled").sendInternalLogToServer();
-      allowEarlyGum = false;
-    }
-
     logger.info(`[SoftphoneManager] Client Provided Strategy: ${softphoneParams.VDIPlatform}`).sendInternalLogToServer();
 
     this._setRtcJsStrategy();
     this._refreshRtcPeerConnectionFactory();
-    // initiate RtcPeerConnectionManager
+    // Initiate RtcPeerConnectionManager if it hasn't been initialized yet
     if (this.rtcPeerConnectionManager === null) {
       this._initiateRtcPeerConnectionManager();
     }
+
     listenAgentConfigurationUpdate();
 
     if (!SoftphoneManager.isBrowserSoftPhoneSupported()) {
@@ -271,9 +330,6 @@
               connectivityCheckType: "MicrophonePermission",
               status: "denied"
             });
-          publishTelemetryEvent("GumFailed", null, {
-            context: "Initializing Softphone Manager"
-          }, true);
         }
       });
     }
@@ -415,6 +471,11 @@
       var stream = localMediaStream[connectionId].stream;
       if (stream) {
         var oldTrack = stream.getAudioTracks()[0];
+        // Skip if the new track is the same as the existing track
+        if (oldTrack === track) {
+          logger.info(`[Softphone Manager] Skipping track replacement as tracks are identical for connectionId ${connectionId}, trackId: ${track.id}`).sendInternalLogToServer();
+          return;
+        }
         track.enabled = oldTrack.enabled;
         oldTrack.enabled = false;
         stream.removeTrack(oldTrack);
@@ -431,7 +492,7 @@
         contact.getStatus().type === connect.ContactStatusType.MISSED;
     };
 
-    var destroySession = (agentConnectionId) => {
+    this.destroySession = (agentConnectionId) => {
       if (rtcSessions.hasOwnProperty(agentConnectionId)) {
         var session = rtcSessions[agentConnectionId];
         // Currently the assumption is it will throw an exception only and if only it already has been hung up.
@@ -441,7 +502,7 @@
           delete callsDetected[agentConnectionId];
           // if rtcPeerConnectionManager exists, it will hang up the session
           if (this.rtcPeerConnectionManager) {
-            this.rtcPeerConnectionManager.hangup();
+            this.rtcPeerConnectionManager.hangup(agentConnectionId);
           } else {
             session.hangup();
           }
@@ -454,20 +515,42 @@
       }
     };
 
-    // When multiple RTC sessions detected, ignore the new call and hang up the previous sessions.
+    // LEGACY FUNCITON: Iterates through the current "active" sessions and should kill all sessions that ARE NOT currently presented in the snapshot based on agent connection id.
+    // With the addition of bullet routing this function has been updated to also account for queued callback (which follows a different agent connection id pattern)
+    // we want to make sure that we DON'T kill the incoming QCB contact when its a bullet contact.
     // TODO: Update when connect-rtc exposes an API to detect session status.
-    var sanityCheckActiveSessions = function (rtcSessions) {
-      if (Object.keys(rtcSessions).length > 0) {
-        // Error! our state doesn't match, tear it all down.
-        for (var connectionId in rtcSessions) {
-          if (rtcSessions.hasOwnProperty(connectionId)) {
-            // Log an error for the session we are about to end.
-            publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
-            destroySession(connectionId);
-          }
+    this.sanityCheckActiveSessions = function (rtcSessions) {
+      if (Object.keys(rtcSessions).length === 0)
+        return;
+
+      
+      const voiceContacts = new connect.Agent().getContacts()
+        .filter((contact) => contact.getType() == connect.ContactType.VOICE || contact.getType() == connect.ContactType.QUEUE_CALLBACK);
+
+      const agentConnectionIds = voiceContacts.map((contact) => contact.getAgentConnection()?.getConnectionId());
+      
+      // Build set of active contactIds for validation
+      const activeContactIds = new Set(voiceContacts.map(c => c.getContactId()));
+
+      let duplicateSessionDetected = false;
+      // Error! our state doesn't match, tear it all down.
+      for (var connectionId in rtcSessions) {
+        // For queued callbacks, agentConnectionId changes when contact connects, but rtcSession uses the original connectionId.
+        // Check if connectionId is current OR if it maps to an active contact via contactAgentConnectionIdMap
+        const isCurrentConnection = agentConnectionIds.includes(connectionId);
+        const mappedContactId = contactAgentConnectionIdMap[connectionId];
+        const isValidMappedConnection = mappedContactId && activeContactIds.has(mappedContactId);
+        
+        if (rtcSessions.hasOwnProperty(connectionId) && !isCurrentConnection && !isValidMappedConnection) {
+          // Log an error for the session we are about to end.
+          SoftphoneManager.publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
+          self.destroySession(connectionId);
+          duplicateSessionDetected = true;
         }
-        throw new Error("duplicate session detected, refusing to setup new connection");
       }
+
+      if (duplicateSessionDetected)
+        throw new Error("duplicate session detected, refusing to setup new connection");
     };
 
     this._clearAllSessions = function () {
@@ -480,12 +563,12 @@
 
       for (var connectionId in rtcSessions) {
         if (rtcSessions.hasOwnProperty(connectionId)) {
-          destroySession(connectionId);
+          this.destroySession(connectionId);
         }
       }
     }
 
-    this.startSession = function (_contact, _agentConnectionId) {
+    this.startSession = function (_contact, _agentConnectionId, userMediaStream, callbacks) {
       var contact = isSessionPending ? pendingContact : _contact;
       var agentConnectionId = isSessionPending ? pendingAgentConnectionId : _agentConnectionId;
       if (!contact || !agentConnectionId) {
@@ -498,13 +581,12 @@
       logger.info("Softphone call detected:", "contactId " + contact.getContactId(), "agent connectionId " + agentConnectionId).sendInternalLogToServer();
 
       // Ensure our session state matches our contact state to prevent issues should we lose track of a contact.
-      sanityCheckActiveSessions(rtcSessions);
+      this.sanityCheckActiveSessions(rtcSessions);
 
       if (contact.getStatus().type === connect.ContactStatusType.CONNECTING) {
         publishTelemetryEvent("Softphone Connecting", contact.getContactId());
       }
 
-      initializeParams();
       var softphoneInfo = contact.getAgentConnection().getSoftphoneMediaInfo();
       var callConfig = parseCallConfig(softphoneInfo.callConfigJson);
       var webSocketProvider;
@@ -550,6 +632,11 @@
         }
       }
 
+      if (userMediaStream) {
+        logger.info('[Softphone Manager] Setting custom user media stream').sendInternalLogToServer();
+        session.mediaStream = userMediaStream;
+      }
+
       session.echoCancellation = !softphoneParams.disableEchoCancellation;
 
       rtcSessions[agentConnectionId] = session;
@@ -569,17 +656,19 @@
         publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
         stopJobsAndReport(contact, rtcSession.sessionReport);
         // publish voice focus metrics
-        connect.VoiceFocusProvider.publishMetrics({ contactId });
+        connect.VoiceFocusProvider.publishMetrics({ contactId: contact.getContactId() });
         // clean voice focus models
         connect.VoiceFocusProvider.cleanVoiceFocus();
+
+        if (callbacks && callbacks.onSessionFailed) {
+          callbacks.onSessionFailed(rtcSession, reason);
+        }
       };
 
       session.onSessionConnected = function (rtcSession) {
         publishTelemetryEvent("Softphone Session Connected", contact.getContactId());
-        // Become master to send logs, since we need logs from softphone tab.
-        connect.becomeMaster(connect.MasterTopics.SEND_LOGS);
-        //start stats collection and reporting jobs
-        startStatsCollectionJob(rtcSession);
+        // start stats collection and reporting jobs
+        startStatsCollectionJob(contact, rtcSession);
         startStatsReportingJob(contact);
         fireContactAcceptedEvent(contact);
       };
@@ -596,9 +685,13 @@
         deleteLocalMediaStream(agentConnectionId);
 
         // publish voice focus metrics
-        connect.VoiceFocusProvider.publishMetrics({ contactId });
+        connect.VoiceFocusProvider.publishMetrics({ contactId: contact.getContactId() });
         // clean voice focus models
         connect.VoiceFocusProvider.cleanVoiceFocus();
+
+        if (callbacks && callbacks.onSessionCompleted) {
+          callbacks.onSessionCompleted(rtcSession);
+        }
       };
 
       session.onLocalStreamAdded = function (rtcSession, stream) {
@@ -628,7 +721,7 @@
 
       session.remoteAudioElement = document.getElementById('remote-audio') || window.parent.parent.document.getElementById('remote-audio');
       if (this.rtcPeerConnectionManager) {
-        this.rtcPeerConnectionManager.connect();
+        this.rtcPeerConnectionManager.connect(agentConnectionId);
       } else {
         if (this.rtcPeerConnectionFactory) {
           session.connect(this.rtcPeerConnectionFactory.get(callConfig.iceServers));
@@ -641,13 +734,13 @@
     var onDestroyContact = function (agentConnectionId) {
       // handle an edge case where a connecting contact gets cleared and the next agent snapshot doesn't contain the contact thus the onRefreshContact callback below can't properly clean up the stale session.
       if (rtcSessions[agentConnectionId]) {
-        destroySession(agentConnectionId);
+        self.destroySession(agentConnectionId);
       }
     }
 
     var onRefreshContact = function (contact, agentConnectionId) {
       if (rtcSessions[agentConnectionId] && isContactTerminated(contact)) {
-        destroySession(agentConnectionId);
+        self.destroySession(agentConnectionId);
         cancelPendingSession();
       }
       if (contact.isSoftphoneCall() && !callsDetected[agentConnectionId] && (
@@ -658,20 +751,15 @@
           logger.info('[Softphone Manager] Postpone starting session: ' + contact.getContactId()).sendInternalLogToServer();
           postponeStartingSession(contact, agentConnectionId);
         } else {
-          if (allowEarlyGum && connect.core.userMediaProvider?.precapturedMediaStreamAvailable()) {
-            earlyGumWorked = true;
-            logger.info('[Softphone Manager] starting session using precapturedMediaStream').sendInternalLogToServer();
-            self.startSession(contact, agentConnectionId, connect.core.userMediaProvider.getPrecapturedMediaStream());
-          } else {
-            earlyGumWorked = false;
-            if(connect.core._isEarlyGumDisabled){
-              allowEarlyGum = false;
-            }
             self.startSession(contact, agentConnectionId);
-          }
         }
       }
     };
+    var setLastActiveContactId = function(contact, agentConnectionId) {
+      lastActiveContactID = contact.getContactId();
+      //this has to exist, all contacts must have an agent type connection;
+      contactAgentConnectionIdMap[agentConnectionId] = contact.getContactId();
+    }
 
     var onInitContact = function (contact) {
       var agentConnectionId = contact.getAgentConnection().connectionId;
@@ -685,6 +773,23 @@
           onDestroyContact(agentConnectionId);
           // clean up localMediaStream
           if (localMediaStream[agentConnectionId]) deleteLocalMediaStream(agentConnectionId);
+        });
+
+        //used to track last active contact ID in bullet routing - This will be used to sync local media states
+        //Pass the initial agentConnectionId captured at contact init because for Queue Callbacks,
+        //the agentConnectionId changes after the contact connects. The localMediaStream uses the 
+        //initial agentConnectionId, so we must use it here to ensure contactAgentConnectionIdMap 
+        //correctly maps to the contact for mute/unmute operations.
+        const resumeSub = contact.getAgentConnection().onParticipantResume(() => {
+            setLastActiveContactId(contact, agentConnectionId);
+        });
+        const connectedSub = contact.onConnected(() => {
+            setLastActiveContactId(contact, agentConnectionId);
+        });
+        const endedSub = contact.onEnded(() => {
+            resumeSub.unsubscribe();
+            connectedSub.unsubscribe();
+            endedSub.unsubscribe();
         });
       }
     };
@@ -805,7 +910,15 @@
     for (var connectionId in localMediaStream) {
       if (localMediaStream.hasOwnProperty(connectionId)) {
         var localMedia = localMediaStream[connectionId].stream;
-        if (localMedia) {
+        var isActiveContact = contactAgentConnectionIdMap[connectionId] === lastActiveContactID;
+        logger.info("Agent's current active active media stream").withObject({
+          isActiveContact,
+          contactAgentConnectionIdMap,
+          lastActiveContactID,
+          localMediaStream,
+          connectionId
+        }).sendInternalLogToServer();
+        if (localMedia && isActiveContact) {
           var audioTracks = localMedia.getAudioTracks()[0];
           if (status !== undefined) {
             audioTracks.enabled = !status;
@@ -1008,16 +1121,29 @@
     });
   };
 
-  var publishTelemetryEvent = function (eventName, contactId, data) {
-    connect.publishMetric({
-      name: eventName,
-      contactId: contactId,
-      data: data
-    });
+  var getPerformanceTime = function () {
+    try {
+      return performance.now();
+    } catch (e) {
+      logger.error(e.message);
+      return 0;
+    }
+  }
+
+  publishTelemetryEvent = function (eventName, contactId, data) {
+    try {
+      connect.publishMetric({
+        name: eventName,
+        contactId: contactId,
+        data: data
+      });
+    } catch (e) {
+      connect.getLog().error("Error Creating Metric: " + e.message).sendInternalLogToServer();
+    }
   };
 
   // Publish the contact and agent information in a multiple sessions scenarios
-  var publishMultipleSessionsEvent = function (eventName, contactId, agentConnectionId) {
+  SoftphoneManager.publishMultipleSessionsEvent = function (eventName, contactId, agentConnectionId) {
     publishTelemetryEvent(eventName, contactId, [{
       name: "AgentConnectionId",
       value: agentConnectionId
@@ -1044,8 +1170,10 @@
   };
 
   var sendSoftphoneMetrics = function (contact) {
-    var streamStats = timeSeriesStreamStatsBuffer.slice();
-    timeSeriesStreamStatsBuffer = [];
+    const agentConnectionId = contact.getAgentConnection().getConnectionId();
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
+    var streamStats = agentConnectionStats.timeSeriesStreamStatsBuffer.slice();
+    agentConnectionStats.timeSeriesStreamStatsBuffer = [];
     if (streamStats.length > 0) {
       contact.sendSoftphoneMetrics(streamStats, {
         success: function () {
@@ -1062,6 +1190,7 @@
   };
 
   var sendSoftphoneReport = function (contact, report, userAudioStats, remoteAudioStats) {
+    const agentConnectionId = contact.getAgentConnection().getConnectionId();
     report.streamStats = [addStreamTypeToStats(userAudioStats, AUDIO_INPUT),
     addStreamTypeToStats(remoteAudioStats, AUDIO_OUTPUT)];
     var callReport = {
@@ -1101,19 +1230,20 @@
       }
     });
 
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
     var streamPerSecondStats = {
-      AUDIO_INPUT : {
-        packetsCount: inputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
-        packetsLost: inputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
-        audioLevel: inputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
-        jitterBufferMillis: inputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis)
+      AUDIO_INPUT: {
+        packetsCount: agentConnectionStats.inputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
+        packetsLost: agentConnectionStats.inputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
+        audioLevel: agentConnectionStats.inputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
+        jitterBufferMillis: agentConnectionStats.inputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis)
       },
-      AUDIO_OUTPUT : {
-        packetsCount: outputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
-        packetsLost: outputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
-        audioLevel: outputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
-        jitterBufferMillis: outputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis),
-        roundTripTimeMillis: outputRTPStreamStatsBuffer.map(stats => stats.roundTripTimeMillis)
+      AUDIO_OUTPUT: {
+        packetsCount: agentConnectionStats.outputRTPStreamStatsBuffer.map(stats => stats.packetsCount),
+        packetsLost: agentConnectionStats.outputRTPStreamStatsBuffer.map(stats => stats.packetsLost),
+        audioLevel: agentConnectionStats.outputRTPStreamStatsBuffer.map(stats => stats.audioLevel),
+        jitterBufferMillis: agentConnectionStats.outputRTPStreamStatsBuffer.map(stats => stats.jitterBufferMillis),
+        roundTripTimeMillis: agentConnectionStats.outputRTPStreamStatsBuffer.map(stats => stats.roundTripTimeMillis)
       }
     }
 
@@ -1128,24 +1258,31 @@
       isMediaClusterPath: report.isMediaClusterPath,
       isPersistentPeerConnection: report.isPersistentPeerConnection,
       isExistingPersistentPeerConnection: report.isExistingPersistentPeerConnection || false,
-      consecutiveNoAudioInputPackets: consecutiveNoAudioInputPackets,
-      consecutiveLowInputAudioLevel: consecutiveLowInputAudioLevel,
-      consecutiveNoAudioOutputPackets: consecutiveNoAudioOutputPackets,
-      consecutiveLowOutputAudioLevel: consecutiveLowOutputAudioLevel,
-      audioInputConnectedDurationSeconds: audioInputConnectedDurationSeconds,
+      consecutiveNoAudioInputPackets: agentConnectionStats.consecutiveNoAudioInputPackets,
+      consecutiveLowInputAudioLevel: agentConnectionStats.consecutiveLowInputAudioLevel,
+      consecutiveNoAudioOutputPackets: agentConnectionStats.consecutiveNoAudioOutputPackets,
+      consecutiveLowOutputAudioLevel: agentConnectionStats.consecutiveLowOutputAudioLevel,
+      audioInputConnectedDurationSeconds: agentConnectionStats.audioInputConnectedDurationSeconds,
       ccpMediaReadyLatencyMillis: ccpMediaReadyLatencyMillis,
       contactSubtype: contact.getContactSubtype(),
-      earlyGumEnabled: allowEarlyGum,
-      earlyGumWorked: earlyGumWorked,
       vdiPlatform: vdiPlatform || null,
       userAgentData: report.userAgentData || null,
       isConnected: isConnected,
-      consecutiveAudioOutputMuteDurationSeconds: consecutiveAudioOutputMuteDurationSeconds,
-      streamJsVersion: connect.version
+      consecutiveAudioOutputMuteDurationSeconds: agentConnectionStats.consecutiveAudioOutputMuteDurationSeconds,
+      streamJsVersion: connect.version,
+      skewTimeMillis: connect.core.getSkew(),
+      activePeerConnectionCount: connect.activePeerConnectionCount || null,
+      isPCMv2Path: report.isPCMv2Path || null,
+      iceCredentialSource: report.iceCredentialSource || null,
+      isContactCredentialsDifferentRegion: report.isContactCredentialsDifferentRegion || null,
+      iceRestartAttempts: report.iceRestartAttempts || 0,
+      iceRestartSuccesses: report.iceRestartSuccesses || 0,
+      iceRestartInviteRetries: report.iceRestartInviteRetries || 0,
+      iceRestartTimeMillis: report.iceRestartTimeMillis || null,
+      iceRestartFailed: report.iceRestartFailed || null
     }
     ccpMediaReadyLatencyMillis = 0;
     isConnected = false;
-    consecutiveAudioOutputMuteDurationSeconds = 0;
     connect.publishSoftphoneReport({
       contactId: contact.getContactId(),
       ccpVersion: global.ccpVersion,
@@ -1156,61 +1293,49 @@
       .sendInternalLogToServer();
   };
 
-  var startStatsCollectionJob = function (rtcSession) {
-    rtpStatsJob = window.setInterval(function () {
+  var startStatsCollectionJob = function (contact, rtcSession) {
+    const agentConnectionId = contact.getAgentConnection().getConnectionId();
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
+    rtpStatsJobMap[agentConnectionId] = window.setInterval(function () {
       rtcSession.getUserAudioStats().then(function (stats) {
-        var previousUserStats = aggregatedUserAudioStats;
-        aggregatedUserAudioStats = stats;
-        var currRTPStreamStat = getTimeSeriesStats(aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT);
-        timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
-        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat);
+        var previousUserStats = agentConnectionStats.aggregatedUserAudioStats;
+        agentConnectionStats.aggregatedUserAudioStats = stats;
+        var currRTPStreamStat = getTimeSeriesStats(agentConnectionStats.aggregatedUserAudioStats, previousUserStats, AUDIO_INPUT, agentConnectionId);
+        agentConnectionStats.timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
+        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat, agentConnectionId);
       }, function (error) {
         logger.debug("Failed to get user audio stats.", error).sendInternalLogToServer();
       });
       rtcSession.getRemoteAudioStats().then(function (stats) {
-        var previousRemoteStats = aggregatedRemoteAudioStats;
-        aggregatedRemoteAudioStats = stats;
-        var currRTPStreamStat = getTimeSeriesStats(aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT);
-        timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
-        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat);
+        var previousRemoteStats = agentConnectionStats.aggregatedRemoteAudioStats;
+        agentConnectionStats.aggregatedRemoteAudioStats = stats;
+        var currRTPStreamStat = getTimeSeriesStats(agentConnectionStats.aggregatedRemoteAudioStats, previousRemoteStats, AUDIO_OUTPUT, agentConnectionId);
+        agentConnectionStats.timeSeriesStreamStatsBuffer.push(currRTPStreamStat);
+        telemetryCallReportRTPStreamStatsBuffer(currRTPStreamStat, agentConnectionId);
       }, function (error) {
         logger.debug("Failed to get remote audio stats.", error).sendInternalLogToServer();
       });
       if(rtcSession?.mediaStream?.getAudioTracks()?.[0]?.enabled){
-        consecutiveAudioOutputMuteDurationSeconds = 0;
+        agentConnectionStats.consecutiveAudioOutputMuteDurationSeconds = 0;
       } else {
-        consecutiveAudioOutputMuteDurationSeconds ++;
+        agentConnectionStats.consecutiveAudioOutputMuteDurationSeconds++;
       }
     }, 1000);
   };
 
   var startStatsReportingJob = function (contact) {
-    reportStatsJob = window.setInterval(function () {
+    const agentConnectionId = contact.getAgentConnection().getConnectionId();
+    reportStatsJobMap[agentConnectionId] = window.setInterval(function () {
       sendSoftphoneMetrics(contact);
     }, statsReportingJobIntervalMs);
   };
 
-  var initializeParams = function () {
-    aggregatedUserAudioStats = null;
-    aggregatedRemoteAudioStats = null;
-    timeSeriesStreamStatsBuffer = [];
-    inputRTPStreamStatsBuffer = [];
-    outputRTPStreamStatsBuffer = [];
-    rtpStatsJob = null;
-    reportStatsJob = null;
-    consecutiveNoAudioInputPackets = 0;
-    consecutiveLowInputAudioLevel = 0;
-    consecutiveNoAudioOutputPackets = 0;
-    consecutiveLowOutputAudioLevel = 0;
-    audioInputConnectedDurationSeconds = 0;
-  };
-
-  var getTimeSeriesStats = function (currentStats, previousStats, streamType) {
+  var getTimeSeriesStats = function (currentStats, previousStats, streamType, agentConnectionId) {
     if (previousStats && currentStats) {
       var packetsLost = currentStats.packetsLost > previousStats.packetsLost ? currentStats.packetsLost - previousStats.packetsLost : 0;
       var packetsCount = currentStats.packetsCount > previousStats.packetsCount ? currentStats.packetsCount - previousStats.packetsCount : 0;
-      checkConsecutiveNoPackets(packetsCount, streamType);
-      checkConsecutiveNoAudio(currentStats.audioLevel, streamType);
+      checkConsecutiveNoPackets(packetsCount, streamType, agentConnectionId);
+      checkConsecutiveNoAudio(currentStats.audioLevel, streamType, agentConnectionId);
 
       return new RTPStreamStats(currentStats.timestamp,
         packetsLost,
@@ -1230,49 +1355,52 @@
     }
   };
 
-  var telemetryCallReportRTPStreamStatsBuffer = function (rtpStreamStats) {
+  var telemetryCallReportRTPStreamStatsBuffer = function (rtpStreamStats, agentConnectionId) {
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
     if (rtpStreamStats.softphoneStreamType === AUDIO_INPUT) {
-      while (inputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
-        inputRTPStreamStatsBuffer.shift();
+      while (agentConnectionStats.inputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
+        agentConnectionStats.inputRTPStreamStatsBuffer.shift();
       }
-      inputRTPStreamStatsBuffer.push(rtpStreamStats);
+      agentConnectionStats.inputRTPStreamStatsBuffer.push(rtpStreamStats);
     } else if (rtpStreamStats.softphoneStreamType === AUDIO_OUTPUT) {
-      while (outputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
-        outputRTPStreamStatsBuffer.shift();
+      while (agentConnectionStats.outputRTPStreamStatsBuffer.length >= MAX_RTP_STREAM_STATS_BUFFER_SIZE) {
+        agentConnectionStats.outputRTPStreamStatsBuffer.shift();
       }
-      outputRTPStreamStatsBuffer.push(rtpStreamStats);
+      agentConnectionStats.outputRTPStreamStatsBuffer.push(rtpStreamStats);
     }
   };
 
-  var checkConsecutiveNoPackets = function (packetsCount, streamType) {
+  var checkConsecutiveNoPackets = function (packetsCount, streamType, agentConnectionId) {
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
     if (streamType === AUDIO_INPUT) {
-      audioInputConnectedDurationSeconds++;
-      if (packetsCount <= 0){
-        consecutiveNoAudioInputPackets++;
+      agentConnectionStats.audioInputConnectedDurationSeconds++;
+      if (packetsCount <= 0) {
+        agentConnectionStats.consecutiveNoAudioInputPackets++;
       } else {
-        consecutiveNoAudioInputPackets = 0;
+        agentConnectionStats.consecutiveNoAudioInputPackets = 0;
       }
-    } else if (streamType === AUDIO_OUTPUT){
-      if (packetsCount <= 0){
-        consecutiveNoAudioOutputPackets++;
+    } else if (streamType === AUDIO_OUTPUT) {
+      if (packetsCount <= 0) {
+        agentConnectionStats.consecutiveNoAudioOutputPackets++;
       } else {
-        consecutiveNoAudioOutputPackets = 0;
+        agentConnectionStats.consecutiveNoAudioOutputPackets = 0;
       }
     }
   };
 
-  var checkConsecutiveNoAudio = function (audioLevel, streamType) {
+  var checkConsecutiveNoAudio = function (audioLevel, streamType, agentConnectionId) {
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
     if (streamType === AUDIO_INPUT) {
-      if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD){
-        consecutiveLowInputAudioLevel++;
-      } else{
-        consecutiveLowInputAudioLevel = 0;
+      if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD) {
+        agentConnectionStats.consecutiveLowInputAudioLevel++;
+      } else {
+        agentConnectionStats.consecutiveLowInputAudioLevel = 0;
       }
-    } else if (streamType === AUDIO_OUTPUT){
-      if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD){
-        consecutiveLowOutputAudioLevel++;
-      } else{
-        consecutiveLowOutputAudioLevel = 0;
+    } else if (streamType === AUDIO_OUTPUT) {
+      if (audioLevel !== null && audioLevel <= LOW_AUDIO_LEVEL_THRESHOLD) {
+        agentConnectionStats.consecutiveLowOutputAudioLevel++;
+      } else {
+        agentConnectionStats.consecutiveLowOutputAudioLevel = 0;
       }
     }
   };
@@ -1285,10 +1413,21 @@
   };
 
   var stopJobsAndReport = function (contact, sessionReport) {
-    rtpStatsJob = stopJob(rtpStatsJob);
-    reportStatsJob = stopJob(reportStatsJob);
-    sendSoftphoneReport(contact, sessionReport, addStreamTypeToStats(aggregatedUserAudioStats, AUDIO_INPUT), addStreamTypeToStats(aggregatedRemoteAudioStats, AUDIO_OUTPUT));
+    const agentConnectionId = contact.getAgentConnection().getConnectionId();
+    const rtpStatsJob = rtpStatsJobMap[agentConnectionId];
+    if (rtpStatsJob) {
+      stopJob(rtpStatsJob);
+      delete rtpStatsJobMap[agentConnectionId];
+    }
+    const reportStatsJob = reportStatsJobMap[agentConnectionId]
+    if(reportStatsJob) {
+      stopJob( reportStatsJob);
+      delete reportStatsJobMap[agentConnectionId]
+    }
+    var agentConnectionStats = getAgentConnectionStats(agentConnectionId);
+    sendSoftphoneReport(contact, sessionReport, addStreamTypeToStats(agentConnectionStats.aggregatedUserAudioStats, AUDIO_INPUT), addStreamTypeToStats(agentConnectionStats.aggregatedRemoteAudioStats, AUDIO_OUTPUT));
     sendSoftphoneMetrics(contact);
+    cleanupAgentConnectionStats(agentConnectionId);
   };
 
   /**
