@@ -154,6 +154,105 @@ describe('Agent APIs', () => {
     connect.core.eventBus = null;
   });
 
+  describe('agent.onNetworkConnectionStatusChanged', () => {
+    let getSDKClientStub;
+    let mockOnNetworkConnectionStatusChanged;
+    let mockOffNetworkConnectionStatusChanged;
+
+    beforeEach(() => {
+      mockOnNetworkConnectionStatusChanged = sinon.stub();
+      mockOffNetworkConnectionStatusChanged = sinon.stub();
+      getSDKClientStub = sinon.stub(agent, '_getSDKClient').returns({
+        onNetworkConnectionStatusChanged: mockOnNetworkConnectionStatusChanged,
+        offNetworkConnectionStatusChanged: mockOffNetworkConnectionStatusChanged,
+      });
+    });
+
+    afterEach(() => {
+      getSDKClientStub.restore();
+    });
+
+    it('should delegate to AgentClient via _getSDKClient', () => {
+      const cb = sinon.stub();
+      const sub = agent.onNetworkConnectionStatusChanged(cb);
+      expect(getSDKClientStub.calledOnce).to.be.true;
+      expect(mockOnNetworkConnectionStatusChanged.calledOnce).to.be.true;
+      sub.unsubscribe();
+    });
+
+    it('should return an object with an unsubscribe method', () => {
+      const cb = sinon.stub();
+      const sub = agent.onNetworkConnectionStatusChanged(cb);
+      expect(sub).to.have.property('unsubscribe');
+      expect(sub.unsubscribe).to.be.a('function');
+      sub.unsubscribe();
+    });
+
+    it('should call offNetworkConnectionStatusChanged on unsubscribe', () => {
+      const cb = sinon.stub();
+      const sub = agent.onNetworkConnectionStatusChanged(cb);
+      sub.unsubscribe();
+      expect(mockOffNetworkConnectionStatusChanged.calledOnce).to.be.true;
+    });
+
+    it('should forward events from AgentClient to the callback', () => {
+      const cb = sinon.stub();
+      agent.onNetworkConnectionStatusChanged(cb);
+
+      const handler = mockOnNetworkConnectionStatusChanged.firstCall.args[0];
+      const event = { status: 'connected', timestamp: 1700000000000 };
+      handler(event);
+
+      expect(cb.calledOnce).to.be.true;
+      expect(cb.calledWith(event)).to.be.true;
+    });
+  });
+
+  describe('connect.NetworkConnectionStatus', () => {
+    it('should have CONNECTED equal to "connected"', () => {
+      expect(connect.NetworkConnectionStatus.CONNECTED).to.equal('connected');
+    });
+
+    it('should have CONNECTING equal to "connecting"', () => {
+      expect(connect.NetworkConnectionStatus.CONNECTING).to.equal('connecting');
+    });
+
+    it('should have DISCONNECTED equal to "disconnected"', () => {
+      expect(connect.NetworkConnectionStatus.DISCONNECTED).to.equal('disconnected');
+    });
+
+    it('should have FAILED equal to "failed"', () => {
+      expect(connect.NetworkConnectionStatus.FAILED).to.equal('failed');
+    });
+  });
+
+  describe('agent.getNetworkConnectionStatus', () => {
+    let getSDKClientStub;
+    let mockGetConnectionStatus;
+
+    beforeEach(() => {
+      mockGetConnectionStatus = sinon.stub();
+      getSDKClientStub = sinon.stub(agent, '_getSDKClient').returns({
+        getNetworkConnectionStatus: mockGetConnectionStatus,
+      });
+    });
+
+    afterEach(() => {
+      getSDKClientStub.restore();
+    });
+
+    it('should delegate to AgentClient.getNetworkConnectionStatus via _getSDKClient', async () => {
+      const expected = { status: 'connected', timestamp: 1700000000000 };
+      mockGetConnectionStatus.resolves(expected);
+
+      const result = await agent.getNetworkConnectionStatus();
+
+      expect(getSDKClientStub.calledOnce).to.be.true;
+      expect(mockGetConnectionStatus.calledOnce).to.be.true;
+      expect(result).to.deep.equal(expected);
+    });
+  });
+
   describe('Voice Enhancement', () => {
     let agent;
 
