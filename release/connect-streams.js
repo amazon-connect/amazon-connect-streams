@@ -13501,7 +13501,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.26.0";
+  connect.version = "2.27.0";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
@@ -16221,6 +16221,11 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core.upstream = null;
 
   /**-----------------------------------------------------------------------*/
+  connect.globalResiliency.onFailoverDetected = function (f) {
+    return connect.core.getEventBus().subscribe(connect.GlobalResiliencyEvents.FAILOVER_DETECTED_CRM, f);
+  };
+
+  /**-----------------------------------------------------------------------*/
   connect.globalResiliency.onFailoverPending = function (f) {
     return connect.core.getEventBus().subscribe(connect.GlobalResiliencyEvents.FAILOVER_PENDING_CRM, f);
   };
@@ -16319,7 +16324,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   'init_dr_polling']);
 
   // New Global Resiliency implementation
-  var GlobalResiliencyEvents = connect.makeNamespacedEnum('globalResiliency', ['configure', 'configure_ccp_conduit', 'init', 'configure_error', 'validate_global_signin', 'global_signin_valid', 'global_signin_invalid', 'failover_initiated', 'failover_pending', 'failover_pending_crm', 'failover_complete', 'heartbeat_syn', 'heartbeat_ack', 'force_failover']);
+  var GlobalResiliencyEvents = connect.makeNamespacedEnum('globalResiliency', ['configure', 'configure_ccp_conduit', 'init', 'configure_error', 'validate_global_signin', 'global_signin_valid', 'global_signin_invalid', 'failover_detected', 'failover_detected_crm', 'failover_initiated', 'failover_pending', 'failover_pending_crm', 'failover_complete', 'heartbeat_syn', 'heartbeat_ack', 'force_failover']);
 
   /**---------------------------------------------------------------
    * enum GlobalResiliencyConfigureErrorType
@@ -16820,6 +16825,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     // Legacy auth flow must be enabled for now to allow GR to work
     var params = _objectSpread({}, paramsIn);
     var hasSentFailoverPending = false;
+    var detectedFailoverTargetRegion = null;
     connect.globalResiliency.params = params;
     connect.globalResiliency.conduitTimerContainerMap = {};
     connect.globalResiliency._activeRegion = null;
@@ -17004,6 +17010,27 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         } else {
           connect.getLog().log("[GR] Deduping GlobalResiliencyEvents.INIT - Core is already initialized.").sendInternalLogToServer();
         }
+      });
+      conduit.onUpstream(connect.GlobalResiliencyEvents.FAILOVER_DETECTED, function (data) {
+        if (data.activeRegion === detectedFailoverTargetRegion) {
+          connect.getLog().info("[GR] Received FAILOVER_DETECTED - deduping, already processing failover to ".concat(data.activeRegion, ".")).withObject({
+            data: data
+          }).sendInternalLogToServer();
+          return;
+        }
+        connect.getLog().info("[GR] Received FAILOVER_DETECTED").withObject({
+          data: data
+        }).sendInternalLogToServer();
+        detectedFailoverTargetRegion = data.activeRegion;
+        connect.core.getEventBus().trigger(connect.GlobalResiliencyEvents.FAILOVER_DETECTED_CRM, {
+          nextActiveRegion: data.activeRegion
+        });
+        connect.publishMetric({
+          name: 'GlobalResiliencyFailoverDetected',
+          data: {
+            count: 1
+          }
+        });
       });
       conduit.onUpstream(connect.GlobalResiliencyEvents.FAILOVER_INITIATED, function (data) {
         LAST_FAILOVER_INITIATED_TIME = Date.now();
@@ -25860,3 +25887,4 @@ module.exports = debounce;
 /******/ 	
 /******/ })()
 ;
+//# sourceMappingURL=connect-streams.js.map

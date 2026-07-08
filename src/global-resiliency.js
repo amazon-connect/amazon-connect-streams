@@ -363,6 +363,7 @@
     };
 
     let hasSentFailoverPending = false;
+    let detectedFailoverTargetRegion = null;
 
     connect.globalResiliency.params = params;
     connect.globalResiliency.conduitTimerContainerMap = {};
@@ -603,6 +604,28 @@
             .log(`[GR] Deduping GlobalResiliencyEvents.INIT - Core is already initialized.`)
             .sendInternalLogToServer();
         }
+      });
+
+      conduit.onUpstream(connect.GlobalResiliencyEvents.FAILOVER_DETECTED, (data) => {
+        if (data.activeRegion === detectedFailoverTargetRegion) {
+          connect
+            .getLog()
+            .info(`[GR] Received FAILOVER_DETECTED - deduping, already processing failover to ${data.activeRegion}.`)
+            .withObject({ data })
+            .sendInternalLogToServer();
+          return;
+        }
+
+        connect.getLog().info(`[GR] Received FAILOVER_DETECTED`).withObject({ data }).sendInternalLogToServer();
+        detectedFailoverTargetRegion = data.activeRegion;
+        connect.core.getEventBus().trigger(connect.GlobalResiliencyEvents.FAILOVER_DETECTED_CRM, {
+          nextActiveRegion: data.activeRegion,
+        });
+
+        connect.publishMetric({
+          name: 'GlobalResiliencyFailoverDetected',
+          data: { count: 1 },
+        });
       });
 
       conduit.onUpstream(connect.GlobalResiliencyEvents.FAILOVER_INITIATED, (data) => {

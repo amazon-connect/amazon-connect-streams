@@ -36,7 +36,7 @@ global.jsdom = jsdom;
 
 global.parent = global.window;
 
-require('../../release/connect-streams.js');
+require('../../release/connect-streams-test.js');
 
 global.connect.StandardStrategy = function () {};
 global.connect.CitrixVDIStrategy = function () {};

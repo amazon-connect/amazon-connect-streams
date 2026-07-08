@@ -173,6 +173,21 @@ The function will be called with an Object parameter with three properties:
 
 Returns a function that can be called if you wish to deregister the trigger.
 
+### connect.globalResiliency.onFailoverDetected(f)
+
+```js
+connect.globalResiliency.onFailoverDetected((data) => { console.log(data) }); // { nextActiveRegion: "us-east-1" }
+```
+
+Register a function to be triggered as soon as a change to the agent's active AWS Region is first detected. This event fires immediately when the traffic distribution group update is observed — before any decision is made about whether to wait for active contacts to end. It is always the first failover event to fire, and will be followed by either `onFailoverPending` (if the agent has active contacts) or `onFailoverCompleted` (if the agent has no active contacts).
+
+Parameter `f`: A function that will be triggered when a failover is first detected.
+The function will be called with an Object parameter with one property:
+
+1. `nextActiveRegion`: the AWS Region of the Amazon Connect instance that will become active.
+
+Returns a function that can be called if you wish to deregister the trigger.
+
 ### connect.globalResiliency.onFailoverPending(f)
 
 ```js

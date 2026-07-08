@@ -190,6 +190,8 @@
     'validate_global_signin',
     'global_signin_valid',
     'global_signin_invalid',
+    'failover_detected',
+    'failover_detected_crm',
     'failover_initiated',
     'failover_pending',
     'failover_pending_crm',
