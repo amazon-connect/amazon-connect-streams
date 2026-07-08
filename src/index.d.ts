@@ -10,6 +10,12 @@ declare namespace connect {
    */
   type AgentCallback = (agent: Agent) => void;
 
+  interface FailoverDetectedData {
+    nextActiveRegion: string;
+  }
+
+  type OnFailoverDetectedCallback = (data: FailoverDetectedData) => void;
+
   /**
    * A callback to receive `AgentMutedStatus` API object instances.
    *
@@ -360,6 +366,13 @@ declare namespace connect {
     onFailoverPending(f: Function): Subscription;
 
     /**
+     * Subscribes a callback function to be called when a failover has been detected.
+     *
+     * @param callback A callback that will receive a `FailoverDetectedData` object.
+     */
+    onFailoverDetected(callback: OnFailoverDetectedCallback): Subscription;
+
+    /**
      * Subscribes a callback function to be called when the failover to another region has completed.
      *
      * @param f The callback function.
@@ -690,6 +703,18 @@ declare namespace connect {
      * This is the page you would normally navigate to in order to use the CCP in a standalone page, it is different for each instance.
      */
     readonly ccpUrl: string;
+
+    /**
+     * The URL for the secondary region of the CCP in your traffic distribution group.
+     * Required when `enableGlobalResiliency` is `true`.
+     */
+    readonly secondaryCCPUrl?: string;
+
+    /**
+     * Set to `true` to activate the Global Resiliency feature in Streams.
+     * When enabled, `secondaryCCPUrl` and `loginUrl` must also be provided.
+     */
+    readonly enableGlobalResiliency?: boolean;
 
     /**
      * Amazon connect instance region. Only required for chat channel.
@@ -1793,7 +1818,7 @@ declare namespace connect {
     /** See `agent.getRoutingProfile()` for more info. */
     readonly routingProfile: AgentRoutingProfile;
 
-    /** Indicates whether auto accept soft phone calls is enabled. */
+    /** @deprecated Use contact.isAutoAcceptEnabled() instead. */
     readonly softphoneAutoAccept: boolean;
 
     /** See `agent.isSoftphoneEnabled()` for more info. */

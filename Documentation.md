@@ -798,7 +798,7 @@ Gets the full `AgentConfiguration` object for the agent. This object contains th
 - `name`: See `agent.getName()` for more info.
 - `permissions`: See `agent.getPermissions()` for more info.
 - `routingProfile`: See `agent.getRoutingProfile()` for more info.
-- `softphoneAutoAccept`: Indicates whether auto accept soft phone calls is enabled.
+- `softphoneAutoAccept`: **Deprecated.** Indicates whether auto accept soft phone calls is enabled.
   - We recommend updating to `contact.isAutoAcceptEnabled()`, which covers all contact types.
 - `softphoneEnabled`: See `agent.isSoftphoneEnabled()` for more info.
 - `username`: The username for the agent as entered in their Amazon Connect user account.

@@ -1,0 +1,11 @@
+{
+  "all": false,
+  "sourceMap": false,
+  "instrument": false,
+  "reporter": ["text", "html", "lcov", "cobertura"],
+  "report-dir": "coverage",
+  "exclude": [
+    "test/**",
+    "node_modules/**"
+  ]
+}

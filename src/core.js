@@ -2917,6 +2917,11 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
   connect.core.upstream = null;
 
   /**-----------------------------------------------------------------------*/
+  connect.globalResiliency.onFailoverDetected = function (f) {
+    return connect.core.getEventBus().subscribe(connect.GlobalResiliencyEvents.FAILOVER_DETECTED_CRM, f);
+  };
+
+  /**-----------------------------------------------------------------------*/
   connect.globalResiliency.onFailoverPending= function (f) {
     return connect.core.getEventBus().subscribe(connect.GlobalResiliencyEvents.FAILOVER_PENDING_CRM, f);
   };
