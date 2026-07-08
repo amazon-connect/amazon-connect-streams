@@ -1,4 +1,7 @@
 # CHANGELOG.md
+## [2.27.1] - 2026-07-08
+- Removed the `lint`, `lint-fix`, `format`, and `prepublishOnly` npm scripts from `package.json`.
+
 ## [2.27.0] - 2026-07-08
 - Added `secondaryCCPUrl` and `enableGlobalResiliency` to the `initCCP` options type definitions, so TypeScript users can pass these built-in Global Resiliency options to `initCCP()` without module augmentation.
 - Added `connect.globalResiliency.onFailoverDetected()` to subscribe to Global Resiliency failover detection. The callback fires as soon as a change to the agent's active AWS Region is first detected — before any decision is made about whether to wait for active contacts to end — and receives a `{ nextActiveRegion }` object. It is always the first failover event to fire, followed by either `onFailoverPending` (if the agent has active contacts) or `onFailoverCompleted` (if not). Duplicate detections for the same target region are deduped.
