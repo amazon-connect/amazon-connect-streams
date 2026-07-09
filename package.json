@@ -1,6 +1,6 @@
 {
   "name": "amazon-connect-streams",
-  "version": "2.27.0",
+  "version": "2.27.1",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
@@ -32,11 +32,7 @@
     "test-mocha": "npm run build-streams-test && nyc mocha \"test/unit/**/*.spec.js\" --ignore \"test/unit/drCoordinator/**\" --exit",
     "test-mocha-dr": "nyc mocha \"test/unit/drCoordinator/*.spec.js\" --exit",
     "test-jest": "jest --config test/unit/jest.config.js",
-    "clean": "rm -rf build/ node_modules build coverage .nyc_output package-lock.json",
-    "lint": "eslint --max-warnings=0 --no-error-on-unmatched-pattern --ext .js,.ts,.tsx src test",
-    "lint-fix": "eslint --fix --no-error-on-unmatched-pattern --ext .js,.jsx,.ts,.tsx src test",
-    "format": "prettier src test webpack --write",
-    "prepublishOnly": "npm run lint-fix && npm run format && npm run build"
+    "clean": "rm -rf build/ node_modules build coverage .nyc_output package-lock.json"
   },
   "author": "Amazon Web Services",
   "license": "Apache-2.0",
