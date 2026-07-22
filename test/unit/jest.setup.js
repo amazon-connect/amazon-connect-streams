@@ -32,7 +32,6 @@ global.parent = global.window;
 
 require('../../release/connect-streams-test.js');
 
-global.connect.worker = {};
 global.connect.StandardStrategy = function () {};
 global.connect.CitrixVDIStrategy = function () {};
 global.connect.DCVWebRTCStrategy = function () {};
@@ -46,6 +45,7 @@ global.AWS = {
     uuid: {
       v4: () => '4383f0b7-ddcb-4f8c-a63b-cbd53c852d39',
     },
+    calculateRetryDelay: (retryCount, options) => (options?.base || 100) * Math.pow(2, retryCount),
   },
   Credentials: () => {},
   Endpoint: () => {},
@@ -58,6 +58,14 @@ global.AWS = {
 
 if (typeof performance === 'undefined') {
   global.performance = require('perf_hooks').performance;
+}
+
+// jsdom does not expose TextEncoder/TextDecoder, which the bundle uses to read
+// streamed error bodies (e.g. TaskTemplatesClient). Node provides them via util.
+if (typeof global.TextDecoder === 'undefined') {
+  const { TextEncoder, TextDecoder } = require('util');
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
 }
 
 beforeEach(() => {
