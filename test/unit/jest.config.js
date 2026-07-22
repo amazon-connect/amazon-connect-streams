@@ -9,12 +9,20 @@ module.exports = {
     '\\.[jt]sx?$': 'babel-jest',
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  // The connect bundle emits thousands of INFO logs during the suite. Jest
+  // captures a stack trace for every console call and renders it, which on
+  // slower hosts dominated runtime (~180s -> ~13s when suppressed).
+  // Override on the CLI with `--silent=false` when debugging a specific test.
+  silent: true,
+  testTimeout: 30000,
   clearMocks: true,
   restoreMocks: true,
   collectCoverage: true,
   collectCoverageFrom: [
     '<rootDir>/../../src/**/*.js',
     '!<rootDir>/../../src/**/*.d.ts',
+    '!<rootDir>/../../src/aws-client.js',
+    '!<rootDir>/../../src/lib/**',
   ],
   coverageDirectory: '<rootDir>/../../build/brazil-documentation/coverage-jest',
   coverageReporters: ['text', 'html', 'lcov', 'cobertura'],

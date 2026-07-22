@@ -5,7 +5,6 @@ const { commonConfig } = require('./common');
 // Test build config with istanbul instrumentation for coverage
 const config = Object.assign({}, commonConfig, {
   entry: [
-    './src/aws-client.js',
     './src/md5.js',
     './src/sprintf.js',
     './src/log.js',
@@ -53,7 +52,7 @@ const config = Object.assign({}, commonConfig, {
           loader: 'babel-loader',
           options: {
             presets: ['@babel/preset-typescript', '@babel/preset-env'],
-            plugins: ['istanbul'],
+            plugins: [['istanbul', { exclude: ['src/lib/**'] }]],
           },
         },
       },
