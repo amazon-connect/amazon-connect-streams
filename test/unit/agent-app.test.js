@@ -206,11 +206,29 @@ describe('agent-app', () => {
     });
   });
 
+  describe('initCCP()', () => {
+    it('is the same function reference as core.initCCP', () => {
+      expect(connect.agentApp.initCCP).toBe(connect.core.initCCP);
+    });
+  });
+
   describe('stopApp()', () => {
+    beforeEach(() => {
+      jest.spyOn(connect, 'fetch');
+    });
+
     it('stops a registered app via AppRegistry.stop', () => {
       connect.agentApp.initApp('agentApp', 'agent-app-dom', endpoint, {});
       connect.agentApp.stopApp('agentApp');
       expect(connect.agentApp.AppRegistry.stop).toHaveBeenCalled();
+    });
+
+    it('still stops the app registry when the fetch logout call rejects', async () => {
+      connect.fetch.mockReturnValue(Promise.reject(new Error('network')));
+      connect.agentApp.initApp('ccp', 'agent-app-dom', endpoint, {});
+      connect.agentApp.stopApp('ccp');
+      expect(connect.agentApp.AppRegistry.stop).toHaveBeenCalled();
+      await Promise.resolve();
     });
   });
 
