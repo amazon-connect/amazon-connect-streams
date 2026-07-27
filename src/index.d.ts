@@ -2337,14 +2337,8 @@ declare namespace connect {
      */
     isAutoAcceptEnabled(): boolean;
 
-    /** Returns a Promise that resolves to the contact ARN string. */
-    getContactArn(): Promise<string>;
-
     /** Returns a Promise that resolves to the contact's instance details. */
     getInstanceDetails(): Promise<InstanceDetails>;
-
-    /** Returns a Promise that resolves to whether the contact can be transferred. */
-    canTransferContact(): Promise<boolean>;
   }
 
   interface InstanceDetails {
