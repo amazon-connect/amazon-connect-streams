@@ -1,4 +1,8 @@
 # CHANGELOG.md
+
+## [2.27.3] - 2026-07-27
+- Removed `contact.getContactArn()` and `contact.canTransferContact()` till upcoming release.
+  
 ## [2.27.2] - 2026-07-22
 - Added Jest unit test coverage for `agent`, `bargein`, `chatBarge`, `connections`, `contact`, `contactEvents`, `core`, `global-resiliency`, `log`, `ringtone`, `softphone`, `util`, `voiceEnhancementProvider`, `voiceid`, and `worker`.
 - Switched the `release` npm script to run the Jest unit suite (`build-streams-test` + `test-jest`) in place of the Mocha unit suite, while continuing to run the Mocha `drCoordinator` suite.
