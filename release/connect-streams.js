@@ -7199,31 +7199,12 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   };
 
   /**
-   * @returns {Promise<string>} A promise that resolves to the contact ARN
-   */
-  Contact.prototype.getContactArn = function () {
-    var contactClient = this._getSDKClient();
-    var contactId = this.getContactId();
-    return contactClient.getContactArn(contactId);
-  };
-
-  /**
    * @returns {Promise<InstanceDetails>} A promise that resolves to the contact's instance details
    */
   Contact.prototype.getInstanceDetails = function () {
     var contactClient = this._getSDKClient();
     var contactId = this.getContactId();
     return contactClient.getInstanceDetails(contactId);
-  };
-
-  /**
-   * 
-   * @returns {Promise<boolean>} A promise that resolves to whether a contact can be transferred
-   */
-  Contact.prototype.canTransferContact = function () {
-    var contactClient = this._getSDKClient();
-    var contactId = this.getContactId();
-    return contactClient.canTransferContact(contactId);
   };
   Contact.prototype.getContactSubtype = function () {
     var segmentAttributes = this.getSegmentAttributes();
@@ -13501,7 +13482,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.26.0";
+  connect.version = "2.26.1";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
