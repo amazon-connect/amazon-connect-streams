@@ -1,4 +1,8 @@
 # CHANGELOG.md
+
+## [2.26.1] - 2026-07-27
+- Removed `contact.getContactArn()` and `contact.canTransferContact()`
+- 
 ## [2.26.0] - 2026-06-16
 - Added dual call support, allowing agents to handle two simultaneous voice contacts with independent audio streams.
 - Added new Contact APIs: `contact.getContactArn()`, `contact.getInstanceDetails()`, `contact.canTransferContact()`.

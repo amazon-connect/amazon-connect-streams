@@ -1186,31 +1186,12 @@
   }
 
   /**
-   * @returns {Promise<string>} A promise that resolves to the contact ARN
-   */
-  Contact.prototype.getContactArn = function () {
-    const contactClient = this._getSDKClient();
-    const contactId = this.getContactId();
-    return contactClient.getContactArn(contactId);
-  }
-
-  /**
    * @returns {Promise<InstanceDetails>} A promise that resolves to the contact's instance details
    */
   Contact.prototype.getInstanceDetails = function () {
     const contactClient = this._getSDKClient();
     const contactId = this.getContactId();
     return contactClient.getInstanceDetails(contactId);
-  }
-
-  /**
-   * 
-   * @returns {Promise<boolean>} A promise that resolves to whether a contact can be transferred
-   */
-  Contact.prototype.canTransferContact = function () {
-    const contactClient = this._getSDKClient();
-    const contactId = this.getContactId();
-    return contactClient.canTransferContact(contactId);
   }
 
   Contact.prototype.getContactSubtype = function () {

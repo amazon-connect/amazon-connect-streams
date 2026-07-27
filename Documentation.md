@@ -1890,14 +1890,6 @@ const isPreviewMode = contact.isPreviewMode(contactId);
 
 Returns a boolean indicating whether the contact is being previewed. During this time, calling engagePreviewContact will trigger the outbound dial to the end customer and end preview mode.
 
-### `contact.getContactArn()`
-
-```js
-const contactArn = await contact.getContactArn();
-```
-
-Returns a `Promise` that resolves to the contact ARN string.
-
 ### `contact.getInstanceDetails()`
 
 ```js
@@ -1905,14 +1897,6 @@ const instanceDetails = await contact.getInstanceDetails();
 ```
 
 Returns a `Promise` that resolves to the contact's instance details object.
-
-### `contact.canTransferContact()`
-
-```js
-const canTransfer = await contact.canTransferContact();
-```
-
-Returns a `Promise` that resolves to a boolean indicating whether the contact can be transferred. This is only applicable for voice and queue callback contacts.
 
 ## Connection API
 The Connection API provides action methods (no event subscriptions) which can be called to manipulate the state
