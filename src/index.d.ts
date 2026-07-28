@@ -1151,6 +1151,7 @@ declare namespace connect {
     AWS_WORKSPACE = "AWS_WORKSPACE",
     OMNISSA = "OMNISSA",
     CITRIX_413 = "CITRIX_413",
+    AZURE = "AZURE",
   }
 
   /** This enumeration lists the different types of contact channels. */

@@ -102,6 +102,46 @@ describe('SoftphoneManager - sendSoftphoneReport', () => {
     expect(publishSoftphoneReportSpy.mock.calls[0][0].report.contactSubtype).toBeNull();
   });
 
+  it('includes vdiMetadata when present', () => {
+    const diagnostics = { mmrVersion: '1.2.3', redirectionStatus: 'active' };
+    startAndCompleteSession(undefined, { vdiMetadata: diagnostics });
+    const report = publishSoftphoneReportSpy.mock.calls[0][0].report;
+    expect(report.vdiMetadata).toEqual(diagnostics);
+  });
+
+  it('defaults vdiMetadata to null when not present', () => {
+    startAndCompleteSession();
+    const report = publishSoftphoneReportSpy.mock.calls[0][0].report;
+    expect(report.vdiMetadata).toBeNull();
+  });
+
+  it('populates vdiClientVersion from report.vdiClientVersion when present', () => {
+    startAndCompleteSession(undefined, { vdiClientVersion: '1.0.2601.09002' });
+    const report = publishSoftphoneReportSpy.mock.calls[0][0].report;
+    expect(report.vdiClientVersion).toBe('1.0.2601.09002');
+  });
+
+  it('falls back to citrixVersion.receiver when report.vdiClientVersion is absent', () => {
+    startAndCompleteSession(undefined, { citrixVersion: { receiver: '24.11.0.51' } });
+    const report = publishSoftphoneReportSpy.mock.calls[0][0].report;
+    expect(report.vdiClientVersion).toBe('24.11.0.51');
+  });
+
+  it('prefers report.vdiClientVersion over citrixVersion.receiver', () => {
+    startAndCompleteSession(undefined, {
+      vdiClientVersion: '1.0.2601',
+      citrixVersion: { receiver: '24.11' },
+    });
+    const report = publishSoftphoneReportSpy.mock.calls[0][0].report;
+    expect(report.vdiClientVersion).toBe('1.0.2601');
+  });
+
+  it('defaults vdiClientVersion to null when neither source is present', () => {
+    startAndCompleteSession();
+    const report = publishSoftphoneReportSpy.mock.calls[0][0].report;
+    expect(report.vdiClientVersion).toBeNull();
+  });
+
   it('includes activePeerConnectionCount in the telemetry report', () => {
     connect.activePeerConnectionCount = 3;
     try {
@@ -113,6 +153,143 @@ describe('SoftphoneManager - sendSoftphoneReport', () => {
     }
   });
 
+});
+
+describe('SoftphoneManager - VDI strategy constructor outcomes', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    installCommonMocks();
+  });
+
+  afterEach(() => {
+    commonAfterEach();
+    jest.useRealTimers();
+  });
+
+  // The opts.* values must be `function`s (constructor mocks); arrows can't be `new`-ed.
+  const stubAllVDIs = (opts = {}) => {
+    jest.spyOn(connect, 'CitrixVDIStrategy').mockImplementation(
+      opts.citrix ?? function () {
+        this.getStrategyName = () => 'CitrixVDIStrategy';
+      }
+    );
+    jest.spyOn(connect, 'DCVWebRTCStrategy').mockImplementation(
+      opts.dcv ?? function () {
+        this.getStrategyName = () => 'DCVStrategy';
+      }
+    );
+    jest.spyOn(connect, 'OmnissaVDIStrategy').mockImplementation(
+      opts.omnissa ?? function () {
+        this.getStrategyName = () => 'OmnissaVDIStrategy';
+      }
+    );
+    jest.spyOn(connect, 'AzureVDIStrategy').mockImplementation(
+      opts.azure ?? function () {
+        this.getStrategyName = () => 'AzureVDIStrategy';
+      }
+    );
+    jest.spyOn(connect, 'FailedVDIStrategy').mockImplementation(
+      opts.failed ?? function () {
+        this.getStrategyName = () => 'FailedVDIStrategy';
+      }
+    );
+  };
+
+  it('keeps rtcJsStrategy populated for AWS_WORKSPACE / OMNISSA / AZURE', () => {
+    stubAllVDIs();
+    expect(new connect.SoftphoneManager({ VDIPlatform: 'AWS_WORKSPACE' }).rtcJsStrategy.getStrategyName())
+      .toBe('DCVStrategy');
+    expect(new connect.SoftphoneManager({ VDIPlatform: 'OMNISSA' }).rtcJsStrategy.getStrategyName())
+      .toBe('OmnissaVDIStrategy');
+    expect(new connect.SoftphoneManager({ VDIPlatform: 'AZURE' }).rtcJsStrategy.getStrategyName())
+      .toBe('AzureVDIStrategy');
+  });
+
+  it('leaves rtcJsStrategy null and emits VDI_REDIR_NOT_SUPPORTED when CITRIX throws', () => {
+    stubAllVDIs({
+      citrix: function () {
+        throw new Error('Citrix WebRTC redirection feature is NOT supported!');
+      },
+    });
+    const sm = new connect.SoftphoneManager({ VDIPlatform: 'CITRIX' });
+    expect(sm.rtcJsStrategy).toBeNull();
+    expect(connect.SoftphoneError).toHaveBeenCalledWith(
+      connect.SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED,
+      expect.anything(),
+      expect.anything()
+    );
+    expect(connect.FailedVDIStrategy).not.toHaveBeenCalled();
+  });
+
+  it('falls back to FailedVDIStrategy when AZURE throws "browser not supported"', () => {
+    stubAllVDIs({
+      azure: function () {
+        throw new Error('Azure VDI Call Redirection is not supported on browser: Edge or Chrome required');
+      },
+    });
+    const sm = new connect.SoftphoneManager({ VDIPlatform: 'AZURE' });
+    expect(sm.rtcJsStrategy.getStrategyName()).toBe('FailedVDIStrategy');
+    expect(connect.FailedVDIStrategy).toHaveBeenCalledWith(
+      'AZURE',
+      'Azure VDI Call Redirection is not supported on browser: Edge or Chrome required'
+    );
+    expect(connect.SoftphoneError).toHaveBeenCalledWith(
+      connect.SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED,
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it('falls back to FailedVDIStrategy when AZURE throws "redirection not active"', () => {
+    stubAllVDIs({
+      azure: function () {
+        throw new Error('Azure VDI Call Redirection is not active');
+      },
+    });
+    const sm = new connect.SoftphoneManager({ VDIPlatform: 'AZURE' });
+    expect(sm.rtcJsStrategy.getStrategyName()).toBe('FailedVDIStrategy');
+    expect(connect.FailedVDIStrategy).toHaveBeenCalledWith(
+      'AZURE',
+      'Azure VDI Call Redirection is not active'
+    );
+  });
+
+  it('leaves rtcJsStrategy null when AZURE throws and FailedVDIStrategy is unavailable', () => {
+    stubAllVDIs({
+      azure: function () {
+        throw new Error('Azure VDI Call Redirection is not active');
+      },
+    });
+    const original = connect.FailedVDIStrategy;
+    connect.FailedVDIStrategy = undefined;
+    try {
+      const sm = new connect.SoftphoneManager({ VDIPlatform: 'AZURE' });
+      expect(sm.rtcJsStrategy).toBeNull();
+      expect(connect.SoftphoneError).toHaveBeenCalledWith(
+        connect.SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED,
+        expect.anything(),
+        expect.anything()
+      );
+    } finally {
+      connect.FailedVDIStrategy = original;
+    }
+  });
+
+  it('emits no VDI errors for non-VDI scenarios', () => {
+    stubAllVDIs();
+    const sm = new connect.SoftphoneManager({});
+    expect(sm.rtcJsStrategy).toBeNull();
+    expect(connect.SoftphoneError).not.toHaveBeenCalledWith(
+      connect.SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED,
+      expect.anything(),
+      expect.anything()
+    );
+    expect(connect.SoftphoneError).not.toHaveBeenCalledWith(
+      connect.SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED,
+      expect.anything(),
+      expect.anything()
+    );
+  });
 });
 
 describe('SoftphoneManager - Per-Agent Connection Stats Tracking', () => {

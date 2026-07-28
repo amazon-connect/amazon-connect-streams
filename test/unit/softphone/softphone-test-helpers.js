@@ -6,6 +6,7 @@ const VDI_PLATFORMS = {
   AWS_WORKSPACE: 'AWS_WORKSPACE',
   CITRIX: 'CITRIX',
   CITRIX_413: 'CITRIX_413',
+  AZURE: 'AZURE',
 };
 
 const installCommonMocks = () => {

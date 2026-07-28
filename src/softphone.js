@@ -14,7 +14,8 @@
     CITRIX: "CITRIX",
     AWS_WORKSPACE: "AWS_WORKSPACE",
     OMNISSA: "OMNISSA",
-    CITRIX_413 : "CITRIX_413"
+    CITRIX_413 : "CITRIX_413",
+    AZURE: "AZURE"
   }
 
   const BROWSER_ID = "browserId" // A key which is used for storing browser id value in local storage
@@ -131,6 +132,9 @@
             case VDIPlatformType.OMNISSA:
               this.rtcJsStrategy = new connect.OmnissaVDIStrategy();
               break;
+            case VDIPlatformType.AZURE:
+              this.rtcJsStrategy = new connect.AzureVDIStrategy();
+              break;
             default:
               publishError(SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED, "VDI Strategy not supported", "");
           }
@@ -149,9 +153,32 @@
           else if (error.message === "Omnissa WebRTC Redirection API failed to initialize!") {
             publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
           }
+          else if (error.message === "Azure VDI Call Redirection is not supported on browser: Edge or Chrome required") {
+            publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
+          }
+          else if (error.message === "Azure VDI Call Redirection is not active") {
+            publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
+          }
           else {
             publishError(SoftphoneErrorTypes.OTHER, error.message, "");
           }
+          if (vdiPlatform === VDIPlatformType.AZURE && typeof connect.FailedVDIStrategy === 'function') {
+            this.rtcJsStrategy = new connect.FailedVDIStrategy(vdiPlatform, error.message);
+          }
+        }
+      }
+
+      // Auto-detect Azure VDI when no VDIPlatform is explicitly set
+      if (!this.rtcJsStrategy && !softphoneParams.VDIPlatform) {
+        try {
+          if (connect.AzureVDIStrategy?.isRedirectionAvailable?.()) {
+            this.rtcJsStrategy = new connect.AzureVDIStrategy();
+            vdiPlatform = VDIPlatformType.AZURE;
+            softphoneParams.VDIPlatform = VDIPlatformType.AZURE;
+            logger.info('[SoftphoneManager] Auto-detected Azure VDI').sendInternalLogToServer();
+          }
+        } catch (error) {
+          logger.warn(`[SoftphoneManager] Azure VDI auto-detection failed: ${error.message}`).sendInternalLogToServer();
         }
       }
     }
@@ -1266,6 +1293,8 @@
       ccpMediaReadyLatencyMillis: ccpMediaReadyLatencyMillis,
       contactSubtype: contact.getContactSubtype(),
       vdiPlatform: vdiPlatform || null,
+      vdiMetadata: report.vdiMetadata || null,
+      vdiClientVersion:  report.vdiClientVersion || report?.citrixVersion?.receiver || null,
       userAgentData: report.userAgentData || null,
       isConnected: isConnected,
       consecutiveAudioOutputMuteDurationSeconds: agentConnectionStats.consecutiveAudioOutputMuteDurationSeconds,
