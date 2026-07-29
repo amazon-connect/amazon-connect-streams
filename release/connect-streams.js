@@ -9500,7 +9500,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.27.3";
+  connect.version = "2.28.0";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
@@ -21055,7 +21055,8 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     CITRIX: "CITRIX",
     AWS_WORKSPACE: "AWS_WORKSPACE",
     OMNISSA: "OMNISSA",
-    CITRIX_413: "CITRIX_413"
+    CITRIX_413: "CITRIX_413",
+    AZURE: "AZURE"
   };
   var BROWSER_ID = "browserId"; // A key which is used for storing browser id value in local storage
 
@@ -21165,6 +21166,9 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
             case VDIPlatformType.OMNISSA:
               this.rtcJsStrategy = new connect.OmnissaVDIStrategy();
               break;
+            case VDIPlatformType.AZURE:
+              this.rtcJsStrategy = new connect.AzureVDIStrategy();
+              break;
             default:
               publishError(SoftphoneErrorTypes.VDI_STRATEGY_NOT_SUPPORTED, "VDI Strategy not supported", "");
           }
@@ -21179,9 +21183,31 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
             publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
           } else if (error.message === "Omnissa WebRTC Redirection API failed to initialize!") {
             publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
+          } else if (error.message === "Azure VDI Call Redirection is not supported on browser: Edge or Chrome required") {
+            publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
+          } else if (error.message === "Azure VDI Call Redirection is not active") {
+            publishError(SoftphoneErrorTypes.VDI_REDIR_NOT_SUPPORTED, error.message, "");
           } else {
             publishError(SoftphoneErrorTypes.OTHER, error.message, "");
           }
+          if (vdiPlatform === VDIPlatformType.AZURE && typeof connect.FailedVDIStrategy === 'function') {
+            this.rtcJsStrategy = new connect.FailedVDIStrategy(vdiPlatform, error.message);
+          }
+        }
+      }
+
+      // Auto-detect Azure VDI when no VDIPlatform is explicitly set
+      if (!this.rtcJsStrategy && !softphoneParams.VDIPlatform) {
+        try {
+          var _connect$AzureVDIStra, _connect$AzureVDIStra2;
+          if ((_connect$AzureVDIStra = connect.AzureVDIStrategy) !== null && _connect$AzureVDIStra !== void 0 && (_connect$AzureVDIStra2 = _connect$AzureVDIStra.isRedirectionAvailable) !== null && _connect$AzureVDIStra2 !== void 0 && _connect$AzureVDIStra2.call(_connect$AzureVDIStra)) {
+            this.rtcJsStrategy = new connect.AzureVDIStrategy();
+            vdiPlatform = VDIPlatformType.AZURE;
+            softphoneParams.VDIPlatform = VDIPlatformType.AZURE;
+            logger.info('[SoftphoneManager] Auto-detected Azure VDI').sendInternalLogToServer();
+          }
+        } catch (error) {
+          logger.warn("[SoftphoneManager] Azure VDI auto-detection failed: ".concat(error.message)).sendInternalLogToServer();
         }
       }
     };
@@ -22179,6 +22205,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     }
   };
   var sendSoftphoneReport = function sendSoftphoneReport(contact, report, userAudioStats, remoteAudioStats) {
+    var _report$citrixVersion;
     var agentConnectionId = contact.getAgentConnection().getConnectionId();
     report.streamStats = [addStreamTypeToStats(userAudioStats, AUDIO_INPUT), addStreamTypeToStats(remoteAudioStats, AUDIO_OUTPUT)];
     var callReport = {
@@ -22265,6 +22292,8 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       ccpMediaReadyLatencyMillis: ccpMediaReadyLatencyMillis,
       contactSubtype: contact.getContactSubtype(),
       vdiPlatform: vdiPlatform || null,
+      vdiMetadata: report.vdiMetadata || null,
+      vdiClientVersion: report.vdiClientVersion || (report === null || report === void 0 || (_report$citrixVersion = report.citrixVersion) === null || _report$citrixVersion === void 0 ? void 0 : _report$citrixVersion.receiver) || null,
       userAgentData: report.userAgentData || null,
       isConnected: isConnected,
       consecutiveAudioOutputMuteDurationSeconds: agentConnectionStats.consecutiveAudioOutputMuteDurationSeconds,

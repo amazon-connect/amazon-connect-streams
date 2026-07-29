@@ -1,5 +1,9 @@
 # CHANGELOG.md
 
+## [2.28.0] - 2026-07-28
+- Added support for Microsoft Azure Virtual Desktop and Windows 365 audio optimization via Multimedia Redirection (MMR). Set `VDIPlatform: "AZURE"` in the softphone params of `initCCP()`, or rely on automatic detection when MMR call redirection is active.
+- Added `vdiMetadata` and `vdiClientVersion` fields to the softphone session telemetry report.
+
 ## [2.27.3] - 2026-07-27
 - Removed `contact.getContactArn()` and `contact.canTransferContact()` till upcoming release.
   

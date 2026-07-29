@@ -27,6 +27,7 @@ describe('SoftphoneManager - initialization', () => {
     let citrixSpy;
     let dcvSpy;
     let omnissaSpy;
+    let azureSpy;
 
     beforeEach(() => {
       citrixSpy = jest.spyOn(connect, 'CitrixVDIStrategy').mockImplementation(function () {
@@ -38,6 +39,9 @@ describe('SoftphoneManager - initialization', () => {
       omnissaSpy = jest.spyOn(connect, 'OmnissaVDIStrategy').mockImplementation(function () {
         this.getStrategyName = () => 'OmnissaVDIStrategy';
       });
+      azureSpy = jest.spyOn(connect, 'AzureVDIStrategy').mockImplementation(function () {
+        this.getStrategyName = () => 'AzureVDIStrategy';
+      });
     });
 
     it('selects CitrixVDIStrategy when VDIPlatform is CITRIX', () => {
@@ -46,6 +50,7 @@ describe('SoftphoneManager - initialization', () => {
       expect(citrixSpy).toHaveBeenCalledWith(VDI_PLATFORMS.CITRIX, true);
       expect(dcvSpy).not.toHaveBeenCalled();
       expect(omnissaSpy).not.toHaveBeenCalled();
+      expect(azureSpy).not.toHaveBeenCalled();
     });
 
     it('selects CitrixVDIStrategy when VDIPlatform is CITRIX_413', () => {
@@ -65,6 +70,11 @@ describe('SoftphoneManager - initialization', () => {
       expect(sm.rtcJsStrategy.getStrategyName()).toBe('OmnissaVDIStrategy');
     });
 
+    it('selects AzureVDIStrategy when VDIPlatform is AZURE', () => {
+      const sm = new connect.SoftphoneManager({ VDIPlatform: VDI_PLATFORMS.AZURE });
+      expect(sm.rtcJsStrategy.getStrategyName()).toBe('AzureVDIStrategy');
+    });
+
     it('publishes VDI_STRATEGY_NOT_SUPPORTED for an unsupported VDIPlatform', () => {
       const sm = new connect.SoftphoneManager({ VDIPlatform: 'UNSUPPORTED_PLATFORM' });
       expect(sm.rtcJsStrategy).toBeNull();
@@ -79,6 +89,51 @@ describe('SoftphoneManager - initialization', () => {
       const sm = new connect.SoftphoneManager({});
       expect(sm.rtcJsStrategy).toBeNull();
       expect(citrixSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Azure MMR auto-detection', () => {
+    let azureSpy;
+    let isRedirectionAvailable;
+
+    beforeEach(() => {
+      azureSpy = jest.spyOn(connect, 'AzureVDIStrategy').mockImplementation(function () {
+        this.getStrategyName = () => 'AzureVDIStrategy';
+      });
+      isRedirectionAvailable = jest.fn().mockReturnValue(false);
+      azureSpy.isRedirectionAvailable = isRedirectionAvailable;
+    });
+
+    it('auto-detects Azure MMR when isRedirectionAvailable returns true', () => {
+      isRedirectionAvailable.mockReturnValue(true);
+      const sm = new connect.SoftphoneManager({});
+      expect(sm.rtcJsStrategy.getStrategyName()).toBe('AzureVDIStrategy');
+      expect(azureSpy.mock.instances.length).toBeGreaterThan(0);
+    });
+
+    it('does NOT auto-detect when isRedirectionAvailable returns false', () => {
+      isRedirectionAvailable.mockReturnValue(false);
+      const sm = new connect.SoftphoneManager({});
+      expect(sm.rtcJsStrategy).toBeNull();
+      expect(azureSpy).not.toHaveBeenCalled();
+    });
+
+    it('logs a warning and leaves strategy null when isRedirectionAvailable throws', () => {
+      isRedirectionAvailable.mockImplementation(() => {
+        throw new Error('MMR probe failed');
+      });
+      const sm = new connect.SoftphoneManager({});
+      expect(sm.rtcJsStrategy).toBeNull();
+      expect(azureSpy).not.toHaveBeenCalled();
+    });
+
+    it('does NOT auto-detect when VDIPlatform is already set', () => {
+      isRedirectionAvailable.mockReturnValue(true);
+      jest.spyOn(connect, 'CitrixVDIStrategy').mockImplementation(function () {
+        this.getStrategyName = () => 'CitrixVDIStrategy';
+      });
+      const sm = new connect.SoftphoneManager({ VDIPlatform: VDI_PLATFORMS.CITRIX });
+      expect(sm.rtcJsStrategy.getStrategyName()).toBe('CitrixVDIStrategy');
     });
   });
 
