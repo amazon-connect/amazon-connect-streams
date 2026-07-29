@@ -390,7 +390,7 @@ declare namespace connect {
      * Get the active region for Global Resiliency, i.e. 'us-west-2'
      *
      */
-    getActiveRegion(): String;
+    getActiveRegion(): string | undefined;
 
   }
 
