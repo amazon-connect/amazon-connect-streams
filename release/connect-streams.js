@@ -840,6 +840,28 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       return true;
     }
   };
+  connect._parseRegionFromArn = function (arn) {
+    var region = arn === null || arn === void 0 ? void 0 : arn.split(":")[3];
+    if (!region) throw new Error("Invalid arn: ".concat(arn));
+    return region;
+  };
+
+  /**
+   * Resolves the region the given contact lives in from the contact's instance details.
+   * internal use only
+   * @param {string} contactId
+   * @returns {Promise<string|null>} the contact's region, or null when it cannot be determined
+   */
+  connect._getContactRegion = function (contactId) {
+    return Promise.resolve().then(function () {
+      return new connect.Contact(contactId).getInstanceDetails();
+    }).then(function (instanceDetails) {
+      return instanceDetails && instanceDetails.region || null;
+    })["catch"](function (error) {
+      connect.getLog().warn('Failed to get instance details for contact %s', contactId).withException(error).sendInternalLogToServer();
+      return null;
+    });
+  };
 })();
 
 /***/ },
@@ -2136,29 +2158,50 @@ exports.isOldChrome = isOldChrome;
     var logComponent = connect.LogComponent.CHAT;
     var createMediaInstance = function createMediaInstance() {
       publishTelemetryEvent('Chat media controller init', mediaInfo.contactId);
-      logger.info(logComponent, 'Chat media controller init').withObject(mediaInfo).sendInternalLogToServer();
-      connect.ChatSession.setGlobalConfig({
-        loggerConfig: {
-          logger: logger
-        },
-        region: metadata.region
-      });
+      logger.info(logComponent, 'Chat media controller init').withObject(mediaInfo).withObject(metadata).sendInternalLogToServer();
 
-      /** Could be also CUSTOMER -  For now we are creating only Agent connection media object */
-      var controller = connect.ChatSession.create({
-        chatDetails: mediaInfo,
-        type: 'AGENT',
-        websocketManager: connect.core.getWebSocketManager()
-      });
-      trackChatConnectionStatus(controller);
-      return controller.connect().then(function (data) {
-        logger.info(logComponent, 'Chat Session Successfully established for contactId %s', mediaInfo.contactId).sendInternalLogToServer();
-        publishTelemetryEvent('Chat Session Successfully established', mediaInfo.contactId);
-        return controller;
-      })["catch"](function (error) {
-        logger.error(logComponent, 'Chat Session establishement failed for contact %s', mediaInfo.contactId).withException(error).sendInternalLogToServer();
-        publishTelemetryEvent('Chat Session establishement failed', mediaInfo.contactId, error);
-        throw error;
+      // resolves to null when the region cannot be determined, in which case the chat
+      // session falls back to the agent's region from the global config
+      return connect._getContactRegion(mediaInfo.contactId).then(function (contactRegion) {
+        var agent = new connect.Agent();
+        var agentRegion = agent._getInstanceRegion();
+        connect.ChatSession.setGlobalConfig({
+          loggerConfig: {
+            logger: logger
+          },
+          region: agentRegion,
+          features: metadata.features
+        });
+        var chatSessionParams = {
+          chatDetails: mediaInfo,
+          type: 'AGENT',
+          websocketManager: connect.core.getWebSocketManager()
+        };
+        if (!contactRegion) {
+          var errMessage = 'Contact region is missing for chat contact';
+          logger.error(logComponent, errMessage, mediaInfo.contactId).sendInternalLogToServer();
+          publishTelemetryEvent(errMessage, mediaInfo.contactId);
+        } else {
+          // create the chatSession with the contact's region
+          chatSessionParams.options = chatSessionParams.options || {};
+          chatSessionParams.options.region = contactRegion;
+          logger.debug("Creating chat session with contact region ".concat(contactRegion)).sendInternalLogToServer();
+
+          // safeguard in case region override is set. the override will prevent the chat session from
+          // communicating with the contact region
+          connect.ChatSession.setRegionOverride(null);
+        }
+        var controller = connect.ChatSession.create(chatSessionParams);
+        trackChatConnectionStatus(controller);
+        return controller.connect().then(function () {
+          logger.info(logComponent, 'Chat Session Successfully established for contactId %s', mediaInfo.contactId).sendInternalLogToServer();
+          publishTelemetryEvent('Chat Session Successfully established', mediaInfo.contactId);
+          return controller;
+        })["catch"](function (error) {
+          logger.error(logComponent, 'Chat Session establishment failed for contact %s', mediaInfo.contactId).withException(error).sendInternalLogToServer();
+          publishTelemetryEvent('Chat Session establishment failed', mediaInfo.contactId, error);
+          throw error;
+        });
       });
     };
     var publishTelemetryEvent = function publishTelemetryEvent(eventName, data) {
@@ -2387,10 +2430,16 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     return entry;
   };
 
+  // Guards against unbounded recursion in redactSensitiveInfo when a logged
+  // object contains a circular reference or is pathologically deep. Without
+  // these, a single such object blows the call stack before the log entry is
+  // ever recorded, taking down CCP initialization with it (GitHub #1096).
+  var REDACT_MAX_DEPTH = 200;
+
   /**
    * Private method to remove sensitive info from client log
    */
-  var _redactSensitiveInfo = function redactSensitiveInfo(data) {
+  var _redactSensitiveInfo = function redactSensitiveInfo(data, _seen, _depth) {
     var authTokenRegex = /(AuthToken.*)/gi;
     var e164NumberFormatRegex = /Phone number.*/gi;
     var sendDigtRegex = /Send digit.*/gi;
@@ -2400,6 +2449,15 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     var redactedFields = ["quickconnectname", "token", "login", "credential", "internalip", "authtoken", "phonenumber", "firstname", "lastname", "emailaddress", "address", "displayname", "agentname", "description", "name", "value", "summary", "queue.name"];
     var hashedFields = ["customerid", "speakerid", "customerspeakerid", "presignedurl"];
     if (data && _typeof(data) === 'object') {
+      // Cycle + depth guard. _seen tracks the ancestor objects on the current
+      // path so a back-reference is skipped rather than followed forever;
+      // _depth caps runaway nesting. Both are seeded on the top-level call.
+      var seen = _seen || new WeakSet();
+      var depth = _depth || 0;
+      if (seen.has(data) || depth >= REDACT_MAX_DEPTH) {
+        return;
+      }
+      seen.add(data);
       Object.keys(data).forEach(function (key) {
         if (_typeof(data[key]) === 'object') {
           if (key === "attributes") {
@@ -2407,7 +2465,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
           } else if (key === "state") {
             return; // don't redact agent availability status name
           } else {
-            _redactSensitiveInfo(data[key]);
+            _redactSensitiveInfo(data[key], seen, depth + 1);
           }
         } else if (typeof data[key] === 'string') {
           if (key === "url" || key === "text") {
@@ -9500,7 +9558,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.28.0";
+  connect.version = "2.28.1";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
@@ -9554,6 +9612,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core.MAX_UNAUTHORIZED_RETRY_COUNT = 20;
   // access denied
   connect.core.MAX_ACCESS_DENIED_RETRY_COUNT = 10;
+  connect.core.endedEventTracker = new Set();
 
   /*----------------------------------------------------------------
    * enum SessionStorageKeys
@@ -11783,8 +11842,15 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     }
     var oldNextState = oldAgentData && oldAgentData.snapshot.nextState ? oldAgentData.snapshot.nextState.name : null;
     var newNextState = this.agentData.snapshot.nextState ? this.agentData.snapshot.nextState.name : null;
-    if (oldNextState !== newNextState && newNextState) {
-      self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
+    if (oldNextState !== newNextState) {
+      if (newNextState) {
+        self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
+      } else if (oldNextState) {
+        // The enqueued next state was cleared (e.g. agent returns to Available
+        // before the enqueued transition takes effect). Notify subscribers so
+        // their view of nextState stays accurate (GitHub #1063).
+        self.bus.trigger(connect.AgentEvents.CLEARED_NEXT_STATE, new connect.Agent());
+      }
     }
     if (oldAgentData !== null) {
       diff = this._diffContacts(oldAgentData);
@@ -11803,10 +11869,23 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       };
     }
     connect.values(diff.added).forEach(function (contactData) {
+      try {
+        connect.core.endedEventTracker.add(contactData.contactId);
+      } catch (e) {
+        connect.getLog().info("[ContactEvent] Failed to add contact to the ended event tracker").withObject(contactData || {}).withException(e).sendInternalLogToServer();
+      }
       self.bus.trigger(connect.ContactEvents.INIT, new connect.Contact(contactData.contactId));
       self._fireContactUpdateEvents(contactData.contactId, connect.ContactStateType.INIT, contactData.state.type);
     });
     connect.values(diff.removed).forEach(function (contactData) {
+      if (connect.core.endedEventTracker.has(contactData.contactId)) {
+        connect.getLog().info("[ContactEvent] ENDED event was not triggered prior to contact removal, firing ENDED now").withObject({
+          contactId: contactData.contactId
+        }).sendInternalLogToServer();
+        connect.core._removeContactFromEndedSet(contactData.contactId);
+        self.bus.trigger(connect.ContactEvents.ENDED, new connect.ContactSnapshot(contactData));
+        self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ENDED, contactData.contactId), new connect.ContactSnapshot(contactData));
+      }
       self.bus.trigger(connect.ContactEvents.DESTROYED, new connect.ContactSnapshot(contactData));
       self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.DESTROYED, contactData.contactId), new connect.ContactSnapshot(contactData));
       self._unsubAllContactEventsForContact(contactData.contactId);
@@ -11819,6 +11898,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var self = this;
     if (oldContactState !== newContactState) {
       connect.core.getContactEventGraph().getAssociations(this, oldContactState, newContactState).forEach(function (event) {
+        connect.core._handleEndedEvent(contactId, newContactState);
         self.bus.trigger(event, new connect.Contact(contactId));
         self.bus.trigger(connect.core.getContactEventName(event, contactId), new connect.Contact(contactId));
       });
@@ -14655,6 +14735,20 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   Agent.prototype.getAgentARN = function () {
     return this.getConfiguration().agentARN;
   };
+
+  /**
+   * Extracts and returns the AWS region from the agent's ARN
+   * @private
+   * @returns {string|null} The AWS region or null if unable to extract
+   */
+  Agent.prototype._getInstanceRegion = function () {
+    try {
+      return connect._parseRegionFromArn(this.getAgentARN());
+    } catch (e) {
+      connect.getLog().error('Failed to extract region from agent ARN').withException(e).sendInternalLogToServer();
+      return null;
+    }
+  };
   Agent.prototype.getExtension = function () {
     return this.getConfiguration().extension;
   };
@@ -14702,6 +14796,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     var bus = connect.core.getEventBus();
     return bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
   };
+  Agent.prototype.onClearedNextState = function (f) {
+    var bus = connect.core.getEventBus();
+    return bus.subscribe(connect.AgentEvents.CLEARED_NEXT_STATE, f);
+  };
   Agent.prototype.setStatus = Agent.prototype.setState;
   Agent.prototype.connect = function (endpointIn, params) {
     var client = connect.core.getClient();
@@ -14718,10 +14816,61 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
         delete callParams.previousContactId;
       }
     }
-    client.call(connect.ClientMethods.CREATE_OUTBOUND_CONTACT, callParams, params && {
-      success: params.success,
-      failure: params.failure
-    });
+
+    // The outbound-contact request settles when the upstream response comes
+    // back through the conduit. If that response is never delivered (e.g. a
+    // dropped shared-worker message), neither success nor failure would ever
+    // fire and callers hang indefinitely (GitHub #1090). An optional
+    // params.timeout (milliseconds) bounds the wait: on expiry we invoke
+    // failure with a timeout error. A settle-once guard ensures the timeout
+    // and a (possibly late) real response can never both fire.
+    var settled = false;
+    var timeoutId = null;
+    var timeoutMs = params && params.timeout;
+    var clearTimeoutIfSet = function clearTimeoutIfSet() {
+      if (timeoutId !== null) {
+        global.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+    var wrappedCallbacks = params && {
+      success: function success(data) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeoutIfSet();
+        if (params.success) {
+          params.success(data);
+        }
+      },
+      failure: function failure(err, data) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeoutIfSet();
+        if (params.failure) {
+          params.failure(err, data);
+        }
+      }
+    };
+    if (typeof timeoutMs === 'number' && timeoutMs > 0) {
+      timeoutId = global.setTimeout(function () {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        timeoutId = null;
+        connect.getLog().error("Agent.connect timed out after %s ms", timeoutMs).withObject({
+          queueARN: callParams.queueARN
+        }).sendInternalLogToServer();
+        if (params.failure) {
+          params.failure(new connect.ValueError(connect.sprintf("Agent.connect timed out after %d ms", timeoutMs)));
+        }
+      }, timeoutMs);
+    }
+    client.call(connect.ClientMethods.CREATE_OUTBOUND_CONTACT, callParams, wrappedCallbacks);
   };
   Agent.prototype.getAllQueueARNs = function () {
     return this.getConfiguration().routingProfile.queues.map(function (queue) {
@@ -16486,9 +16635,10 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
       return null;
     } else {
       var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+      var initialContactId = contactData.initialContactId;
       var mediaObject = {
         contactId: this.contactId,
-        initialContactId: contactData.initialContactId || this.contactId,
+        initialContactId: initialContactId || this.contactId,
         participantId: this.connectionId,
         getConnectionToken: connect.hitch(this, this.getConnectionToken)
       };
@@ -20061,7 +20211,7 @@ exports.getAudioInput = getAudioInput;
   /**---------------------------------------------------------------
    * enum EventType
    */
-  var EventType = connect.makeEnum(['acknowledge', 'ack_timeout', 'init', 'api_request', 'api_response', 'auth_fail', 'access_denied', 'close', 'configure', 'log', 'download_log_from_ccp', 'master_request', 'master_response', 'synchronize', 'terminate', 'terminated', 'send_logs', 'reload_agent_configuration', 'broadcast', 'api_metric', 'client_metric', 'softphone_stats', 'softphone_report', 'client_side_logs', 'server_bound_internal_log', 'mute', "iframe_style", "iframe_retries_exhausted", "update_connected_ccps", "outer_context_info", "media_device_request", "media_device_response", "tab_id", 'authorize_success', 'authorize_retries_exhausted', 'cti_authorize_retries_exhausted', 'click_stream_data', 'set_quick_get_agent_snapshot_flag', 'api_proxy_request', 'api_proxy_response', 'request_configure']);
+  var EventType = connect.makeEnum(['acknowledge', 'ack_timeout', 'init', 'api_request', 'api_response', 'auth_fail', 'access_denied', 'close', 'configure', 'log', 'download_log_from_ccp', 'master_request', 'master_response', 'synchronize', 'terminate', 'terminated', 'send_logs', 'reload_agent_configuration', 'broadcast', 'api_metric', 'client_metric', 'softphone_stats', 'softphone_report', 'client_side_logs', 'server_bound_internal_log', 'mute', "iframe_style", "iframe_retries_exhausted", "update_connected_ccps", "outer_context_info", "media_device_request", "media_device_response", "tab_id", 'authorize_success', 'authorize_retries_exhausted', 'cti_authorize_retries_exhausted', 'click_stream_data', 'set_quick_get_agent_snapshot_flag', 'api_proxy_request', 'api_proxy_response', 'request_configure', 'cross_region_csm_config']);
 
   /**---------------------------------------------------------------
    * enum MasterTopics
@@ -20071,7 +20221,7 @@ exports.getAudioInput = getAudioInput;
   /**---------------------------------------------------------------
    * enum AgentEvents
    */
-  var AgentEvents = connect.makeNamespacedEnum('agent', ['init', 'update', 'refresh', 'routable', 'not_routable', 'pending', 'contact_pending', 'offline', 'error', 'softphone_error', 'websocket_connection_lost', 'websocket_connection_gained', 'state_change', 'acw', 'mute_toggle', 'local_media_stream_created', 'enqueued_next_state', 'fetch_agent_data_from_ccp']);
+  var AgentEvents = connect.makeNamespacedEnum('agent', ['init', 'update', 'refresh', 'routable', 'not_routable', 'pending', 'contact_pending', 'offline', 'error', 'softphone_error', 'websocket_connection_lost', 'websocket_connection_gained', 'state_change', 'acw', 'mute_toggle', 'local_media_stream_created', 'enqueued_next_state', 'cleared_next_state', 'fetch_agent_data_from_ccp']);
 
   /**---------------------------------------------------------------
   * enum WebSocketEvents
@@ -24361,7 +24511,13 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
               activeRegion: data.activeRegion,
               activeCcpUrl: newActiveConduit.name
             });
-            grProxyConduit.sendUpstream(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE);
+
+            // Stamp the region on the wire copy so downstream CCP iframes read it
+            // directly instead of racing the SharedWorker region store.
+            grProxyConduit.sendUpstream(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE, {
+              activeRegion: data.activeRegion,
+              activeCcpUrl: newActiveConduit.name
+            });
             connect.getLog().info("[GR] GlobalResiliencyEvents.FAILOVER_COMPLETE emitted.").sendInternalLogToServer();
             LAST_FAILOVER_COMPLETED_TIME = Date.now();
             connect.publishMetric({
@@ -25892,4 +26048,3 @@ var VOICE_FOCUS_CPU_LONG_INVOKE = 'VoiceFocusCPULongInvoke';
 /******/ 	
 /******/ })()
 ;
-//# sourceMappingURL=connect-streams.js.map

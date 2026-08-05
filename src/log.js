@@ -182,10 +182,16 @@
     return entry;
   };
 
+  // Guards against unbounded recursion in redactSensitiveInfo when a logged
+  // object contains a circular reference or is pathologically deep. Without
+  // these, a single such object blows the call stack before the log entry is
+  // ever recorded, taking down CCP initialization with it (GitHub #1096).
+  var REDACT_MAX_DEPTH = 200;
+
   /**
    * Private method to remove sensitive info from client log
    */
-  var redactSensitiveInfo = function(data) {
+  var redactSensitiveInfo = function(data, _seen, _depth) {
     var authTokenRegex = /(AuthToken.*)/gi;
     var e164NumberFormatRegex = /Phone number.*/gi;
     var sendDigtRegex = /Send digit.*/gi
@@ -195,6 +201,15 @@
     const redactedFields = ["quickconnectname", "token", "login", "credential", "internalip", "authtoken", "phonenumber", "firstname", "lastname", "emailaddress", "address", "displayname", "agentname", "description", "name", "value", "summary", "queue.name"];
     const hashedFields = ["customerid", "speakerid", "customerspeakerid", "presignedurl"];
     if(data && typeof data === 'object') {
+      // Cycle + depth guard. _seen tracks the ancestor objects on the current
+      // path so a back-reference is skipped rather than followed forever;
+      // _depth caps runaway nesting. Both are seeded on the top-level call.
+      var seen = _seen || new WeakSet();
+      var depth = _depth || 0;
+      if (seen.has(data) || depth >= REDACT_MAX_DEPTH) {
+        return;
+      }
+      seen.add(data);
       Object.keys(data).forEach(function(key) {
         if (typeof data[key] === 'object') {
           if(key === "attributes") {
@@ -202,7 +217,7 @@
           } else if (key === "state") {
             return; // don't redact agent availability status name
           } else {
-            redactSensitiveInfo(data[key]);
+            redactSensitiveInfo(data[key], seen, depth + 1);
           }
         } else if(typeof data[key] === 'string') {
           if (key === "url" || key === "text") {

@@ -305,4 +305,5 @@ describe('Global Resiliency', () => {
       expect(connect.publishMetric).not.toHaveBeenCalled();
     });
   });
+
 });

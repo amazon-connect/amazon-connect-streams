@@ -82,6 +82,8 @@
   // access denied
   connect.core.MAX_ACCESS_DENIED_RETRY_COUNT = 10;
 
+  connect.core.endedEventTracker = new Set();
+
   /*----------------------------------------------------------------
    * enum SessionStorageKeys
    */
@@ -2412,8 +2414,15 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     }
     var oldNextState = oldAgentData && oldAgentData.snapshot.nextState ? oldAgentData.snapshot.nextState.name : null;
     var newNextState = this.agentData.snapshot.nextState ? this.agentData.snapshot.nextState.name : null;
-    if (oldNextState !== newNextState && newNextState) {
-      self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
+    if (oldNextState !== newNextState) {
+      if (newNextState) {
+        self.bus.trigger(connect.AgentEvents.ENQUEUED_NEXT_STATE, new connect.Agent());
+      } else if (oldNextState) {
+        // The enqueued next state was cleared (e.g. agent returns to Available
+        // before the enqueued transition takes effect). Notify subscribers so
+        // their view of nextState stays accurate (GitHub #1063).
+        self.bus.trigger(connect.AgentEvents.CLEARED_NEXT_STATE, new connect.Agent());
+      }
     }
 
     if (oldAgentData !== null) {
@@ -2430,11 +2439,25 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     }
 
     connect.values(diff.added).forEach(function (contactData) {
+      try {
+        connect.core.endedEventTracker.add(contactData.contactId);
+      } catch (e) {
+        connect.getLog().info("[ContactEvent] Failed to add contact to the ended event tracker")
+          .withObject(contactData || {})
+          .withException(e)
+          .sendInternalLogToServer();
+      }
       self.bus.trigger(connect.ContactEvents.INIT, new connect.Contact(contactData.contactId));
       self._fireContactUpdateEvents(contactData.contactId, connect.ContactStateType.INIT, contactData.state.type);
     });
 
     connect.values(diff.removed).forEach(function (contactData) {
+      if (connect.core.endedEventTracker.has(contactData.contactId)) {
+        connect.getLog().info("[ContactEvent] ENDED event was not triggered prior to contact removal, firing ENDED now").withObject({ contactId: contactData.contactId }).sendInternalLogToServer();
+        connect.core._removeContactFromEndedSet(contactData.contactId);
+        self.bus.trigger(connect.ContactEvents.ENDED, new connect.ContactSnapshot(contactData));
+        self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ENDED, contactData.contactId), new connect.ContactSnapshot(contactData));
+      }
       self.bus.trigger(connect.ContactEvents.DESTROYED, new connect.ContactSnapshot(contactData));
       self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.DESTROYED, contactData.contactId), new connect.ContactSnapshot(contactData));
       self._unsubAllContactEventsForContact(contactData.contactId);
@@ -2449,6 +2472,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     var self = this;
     if (oldContactState !== newContactState) {
       connect.core.getContactEventGraph().getAssociations(this, oldContactState, newContactState).forEach(function (event) {
+        connect.core._handleEndedEvent(contactId, newContactState);
         self.bus.trigger(event, new connect.Contact(contactId));
         self.bus.trigger(connect.core.getContactEventName(event, contactId), new connect.Contact(contactId));
       });

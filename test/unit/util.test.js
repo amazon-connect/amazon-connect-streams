@@ -858,4 +858,65 @@ describe('Utils', () => {
     });
   });
 
+  describe('connect._parseRegionFromArn', () => {
+    it('returns the region segment of a valid ARN', () => {
+      const arn = 'arn:aws:connect:us-west-2:123456789012:instance/instance-id/contact/contact-id';
+      expect(connect._parseRegionFromArn(arn)).toBe('us-west-2');
+    });
+
+    it('throws on an ARN with no region segment', () => {
+      expect(() => connect._parseRegionFromArn('invalid-arn-format')).toThrow('Invalid arn');
+    });
+
+    it('throws on a null or undefined ARN', () => {
+      expect(() => connect._parseRegionFromArn(null)).toThrow('Invalid arn');
+      expect(() => connect._parseRegionFromArn(undefined)).toThrow('Invalid arn');
+    });
+
+    it('throws when the region segment is empty', () => {
+      expect(() => connect._parseRegionFromArn('arn:aws:connect::123456789012:instance/x')).toThrow('Invalid arn');
+    });
+  });
+
+  describe('connect._getContactRegion', () => {
+    const contactId = 'contact-id';
+
+    it('resolves the region from the contact instance details', async () => {
+      const getInstanceDetails = jest
+        .spyOn(connect.Contact.prototype, 'getInstanceDetails')
+        .mockResolvedValue({ region: 'us-west-2', origin: 'https://example.awsapps.com' });
+
+      await expect(connect._getContactRegion(contactId)).resolves.toBe('us-west-2');
+      expect(getInstanceDetails).toHaveBeenCalled();
+    });
+
+    it('resolves null when the instance details have no region', async () => {
+      jest
+        .spyOn(connect.Contact.prototype, 'getInstanceDetails')
+        .mockResolvedValue({ origin: 'https://example.awsapps.com' });
+
+      await expect(connect._getContactRegion(contactId)).resolves.toBeNull();
+    });
+
+    it('resolves null when the instance details are missing', async () => {
+      jest.spyOn(connect.Contact.prototype, 'getInstanceDetails').mockResolvedValue(undefined);
+
+      await expect(connect._getContactRegion(contactId)).resolves.toBeNull();
+    });
+
+    it('resolves null when getInstanceDetails rejects', async () => {
+      jest.spyOn(connect.Contact.prototype, 'getInstanceDetails').mockRejectedValue(new Error('client error'));
+
+      await expect(connect._getContactRegion(contactId)).resolves.toBeNull();
+    });
+
+    it('resolves null when getInstanceDetails throws synchronously', async () => {
+      jest.spyOn(connect.Contact.prototype, 'getInstanceDetails').mockImplementation(() => {
+        throw new Error('no sdk client');
+      });
+
+      await expect(connect._getContactRegion(contactId)).resolves.toBeNull();
+    });
+  });
+
 });

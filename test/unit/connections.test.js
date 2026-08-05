@@ -75,6 +75,62 @@ describe('Connections API', () => {
       expect(mediaInfo.originalInfo.customerName).toBe(chatMediaInfo.customerName);
     });
 
+    describe('getMediaInfo initialContactId', () => {
+      const stubContactData = (contactData) => {
+        getAgentDataProviderStub.mockReturnValue({
+          getContactData: () => contactData,
+          _initMediaController: initMediaController,
+          getConnectionData: () => ({
+            state: {},
+            chatMediaInfo: chatMediaInfo,
+            monitoringInfo: chatMonitorInfo,
+            getMediaController: () => {},
+          }),
+          getAgentData: () => ({
+            configuration: {
+              name: 'mainAgent',
+            },
+          }),
+        });
+      };
+
+      it('should use initialContactId from contact data when present', () => {
+        stubContactData({
+          initialContactId: 'initial-contact-123',
+          segmentAttributes: {},
+        });
+
+        const chatConnection = new connect.ChatConnection(contactId, connectionId);
+        const mediaInfo = chatConnection.getMediaInfo();
+
+        expect(mediaInfo.initialContactId).toBe('initial-contact-123');
+      });
+
+      it('should not put a region on the mediaObject', () => {
+        stubContactData({
+          activeRegion: 'us-west-2',
+          initialContactId: 'initial-contact-456',
+          segmentAttributes: {},
+        });
+
+        const chatConnection = new connect.ChatConnection(contactId, connectionId);
+        const mediaInfo = chatConnection.getMediaInfo();
+
+        expect(mediaInfo.activeRegion).toBeUndefined();
+      });
+
+      it('should fall back to contactId when initialContactId is not present', () => {
+        stubContactData({
+          segmentAttributes: {},
+        });
+
+        const chatConnection = new connect.ChatConnection(contactId, connectionId);
+        const mediaInfo = chatConnection.getMediaInfo();
+
+        expect(mediaInfo.initialContactId).toBe(contactId);
+      });
+    });
+
     it('Should return valid monitor Info on getMonitorInfo method ', () => {
       const chatConnection = new connect.ChatConnection(contactId, connectionId);
       const monitorInfo = chatConnection.getMonitorInfo();

@@ -742,6 +742,20 @@
     return this.getConfiguration().agentARN;
   };
 
+  /**
+   * Extracts and returns the AWS region from the agent's ARN
+   * @private
+   * @returns {string|null} The AWS region or null if unable to extract
+   */
+  Agent.prototype._getInstanceRegion = function () {
+    try {
+      return connect._parseRegionFromArn(this.getAgentARN());
+    } catch (e) {
+      connect.getLog().error('Failed to extract region from agent ARN').withException(e).sendInternalLogToServer();
+      return null;
+    }
+  };
+
   Agent.prototype.getExtension = function () {
     return this.getConfiguration().extension;
   };
@@ -795,6 +809,10 @@
     var bus = connect.core.getEventBus();
     return bus.subscribe(connect.AgentEvents.ENQUEUED_NEXT_STATE, f);
   };
+  Agent.prototype.onClearedNextState = function (f) {
+    var bus = connect.core.getEventBus();
+    return bus.subscribe(connect.AgentEvents.CLEARED_NEXT_STATE, f);
+  };
 
   Agent.prototype.setStatus = Agent.prototype.setState;
 
@@ -816,10 +834,54 @@
       }
     }
 
-    client.call(connect.ClientMethods.CREATE_OUTBOUND_CONTACT, callParams, params && {
-      success: params.success,
-      failure: params.failure
-    });
+    // The outbound-contact request settles when the upstream response comes
+    // back through the conduit. If that response is never delivered (e.g. a
+    // dropped shared-worker message), neither success nor failure would ever
+    // fire and callers hang indefinitely (GitHub #1090). An optional
+    // params.timeout (milliseconds) bounds the wait: on expiry we invoke
+    // failure with a timeout error. A settle-once guard ensures the timeout
+    // and a (possibly late) real response can never both fire.
+    var settled = false;
+    var timeoutId = null;
+    var timeoutMs = params && params.timeout;
+
+    var clearTimeoutIfSet = function () {
+      if (timeoutId !== null) {
+        global.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+
+    var wrappedCallbacks = params && {
+      success: function (data) {
+        if (settled) { return; }
+        settled = true;
+        clearTimeoutIfSet();
+        if (params.success) { params.success(data); }
+      },
+      failure: function (err, data) {
+        if (settled) { return; }
+        settled = true;
+        clearTimeoutIfSet();
+        if (params.failure) { params.failure(err, data); }
+      }
+    };
+
+    if (typeof timeoutMs === 'number' && timeoutMs > 0) {
+      timeoutId = global.setTimeout(function () {
+        if (settled) { return; }
+        settled = true;
+        timeoutId = null;
+        connect.getLog().error("Agent.connect timed out after %s ms", timeoutMs)
+          .withObject({ queueARN: callParams.queueARN }).sendInternalLogToServer();
+        if (params.failure) {
+          params.failure(new connect.ValueError(
+            connect.sprintf("Agent.connect timed out after %d ms", timeoutMs)));
+        }
+      }, timeoutMs);
+    }
+
+    client.call(connect.ClientMethods.CREATE_OUTBOUND_CONTACT, callParams, wrappedCallbacks);
   };
 
   Agent.prototype.getAllQueueARNs = function () {
@@ -2745,9 +2807,10 @@
       return null;
     } else {
       var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+      const { initialContactId } = contactData;
       var mediaObject = {
         contactId: this.contactId,
-        initialContactId: contactData.initialContactId || this.contactId,
+        initialContactId: initialContactId || this.contactId,
         participantId: this.connectionId,
         getConnectionToken: connect.hitch(this, this.getConnectionToken)
       };

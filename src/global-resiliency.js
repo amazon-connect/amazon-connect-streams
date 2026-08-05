@@ -706,7 +706,12 @@
               activeCcpUrl: newActiveConduit.name,
             });
 
-            grProxyConduit.sendUpstream(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE);
+            // Stamp the region on the wire copy so downstream CCP iframes read it
+            // directly instead of racing the SharedWorker region store.
+            grProxyConduit.sendUpstream(connect.GlobalResiliencyEvents.FAILOVER_COMPLETE, {
+              activeRegion: data.activeRegion,
+              activeCcpUrl: newActiveConduit.name,
+            });
 
             connect.getLog().info(`[GR] GlobalResiliencyEvents.FAILOVER_COMPLETE emitted.`).sendInternalLogToServer();
 

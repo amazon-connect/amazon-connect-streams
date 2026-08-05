@@ -16,6 +16,24 @@ declare namespace connect {
 
   type OnFailoverDetectedCallback = (data: FailoverDetectedData) => void;
 
+  /** Data passed to the {@link GlobalResiliency.onFailoverPending} callback. */
+  interface FailoverPendingData {
+    nextActiveRegion: string;
+  }
+
+  /**
+   * Data passed to the {@link GlobalResiliency.onFailoverCompleted} callback.
+   * Reflects the runtime payload dispatched on FAILOVER_COMPLETE.
+   */
+  interface FailoverCompletedData {
+    activeRegion: string;
+    activeCcpUrl: string;
+  }
+
+  type OnFailoverPendingCallback = (data: FailoverPendingData) => void;
+  type OnFailoverCompletedCallback = (data: FailoverCompletedData) => void;
+  type OnConfigureErrorCallback = (error: Error) => void;
+
   /**
    * A callback to receive `AgentMutedStatus` API object instances.
    *
@@ -361,9 +379,9 @@ declare namespace connect {
     /**
      * Subscribes a callback function to be called when a failover is pending, but has not yet been completed.
      *
-     * @param f The callback function.
+     * @param f A callback that will receive a `FailoverPendingData` object.
      */
-    onFailoverPending(f: Function): Subscription;
+    onFailoverPending(f: OnFailoverPendingCallback): Subscription;
 
     /**
      * Subscribes a callback function to be called when a failover has been detected.
@@ -375,23 +393,24 @@ declare namespace connect {
     /**
      * Subscribes a callback function to be called when the failover to another region has completed.
      *
-     * @param f The callback function.
+     * @param f A callback that will receive a `FailoverCompletedData` object.
      */
-    onFailoverCompleted(f: Function): Subscription;
+    onFailoverCompleted(f: OnFailoverCompletedCallback): Subscription;
 
     /**
      * Subscribes a callback function to be called when there is an error setting up Global Resiliency
      *
-     * @param f The callback function.
+     * @param f A callback that will receive the `Error` describing the failure.
      */
-    onConfigureError(f: Function): Subscription;
+    onConfigureError(f: OnConfigureErrorCallback): Subscription;
 
     /**
-     * Get the active region for Global Resiliency, i.e. 'us-west-2'
+     * Get the active region for Global Resiliency, i.e. 'us-west-2'.
      *
+     * Returns the cached active region string, or `null`/`undefined` when no
+     * active region is known yet (e.g. before Global Resiliency initializes).
      */
-    getActiveRegion(): String;
-
+    getActiveRegion(): string | null | undefined;
   }
 
   const globalResiliency: GlobalResiliency;
@@ -1002,6 +1021,7 @@ declare namespace connect {
     MUTE_TOGGLE = 'mute_toggle',
     LOCAL_MEDIA_STREAM_CREATED = 'local_media_stream_created',
     ENQUEUED_NEXT_STATE = 'enqueued_next_state',
+    CLEARED_NEXT_STATE = 'cleared_next_state',
   }
 
   /** This enumeration lists the different types of endpoints. */
@@ -1693,6 +1713,14 @@ declare namespace connect {
      * @param callback A callback that is invoked with the Agent object.
      */
     onEnqueuedNextState(callback: AgentCallback): Subscription;
+
+    /**
+     * Subscribe a method to be called when the agent's enqueued nextState is
+     * cleared (the previously enqueued next state is no longer pending).
+     *
+     * @param callback A callback that is invoked with the Agent object.
+     */
+    onClearedNextState(callback: AgentCallback): Subscription;
   }
 
   interface AgentMutedStatus {
@@ -1757,10 +1785,10 @@ declare namespace connect {
     readonly references: ReferenceDictionary;
 
     /** The task scheduled time */
-    readonly scheduledTime: number;
+    readonly scheduledTime?: number;
 
     /** A random value */
-    readonly idempotencyToken: string;
+    readonly idempotencyToken?: string;
 
   }
 
