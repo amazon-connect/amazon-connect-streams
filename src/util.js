@@ -810,4 +810,33 @@
       return true;
     }
   }
+
+  connect._parseRegionFromArn = (arn) => {
+    const region = arn?.split(":")[3];
+    if (!region) throw new Error(`Invalid arn: ${arn}`);
+    return region;
+  };
+
+  /**
+   * Resolves the region the given contact lives in from the contact's instance details.
+   * internal use only
+   * @param {string} contactId
+   * @returns {Promise<string|null>} the contact's region, or null when it cannot be determined
+   */
+  connect._getContactRegion = function (contactId) {
+    return Promise.resolve()
+      .then(function () {
+        return new connect.Contact(contactId).getInstanceDetails();
+      })
+      .then(function (instanceDetails) {
+        return (instanceDetails && instanceDetails.region) || null;
+      })
+      .catch(function (error) {
+        connect.getLog()
+          .warn('Failed to get instance details for contact %s', contactId)
+          .withException(error)
+          .sendInternalLogToServer();
+        return null;
+      });
+  };
 })();

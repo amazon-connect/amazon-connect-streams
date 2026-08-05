@@ -36,7 +36,7 @@ const config = Object.assign({}, commonConfig, {
   optimization: {
     minimize: false,
   },
-  devtool: 'source-map',
+  devtool: false,
   mode: 'development',
   plugins: [
     new webpack.DefinePlugin({

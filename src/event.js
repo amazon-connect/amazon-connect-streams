@@ -55,6 +55,7 @@
     'api_proxy_request',
     'api_proxy_response',
     'request_configure',
+    'cross_region_csm_config',
   ]);
 
   /**---------------------------------------------------------------
@@ -90,6 +91,7 @@
     'mute_toggle',
     'local_media_stream_created',
     'enqueued_next_state',
+    'cleared_next_state',
     'fetch_agent_data_from_ccp'
   ]);
 

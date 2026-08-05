@@ -420,6 +420,50 @@ describe('Logger', () => {
         });
     });
 
+    describe('Logger.withObject() recursion safety', () => {
+        it('does not blow the call stack when the logged object has a circular reference (#1096)', () => {
+            const obj = { name: "SensitiveName", nested: {} };
+            obj.nested.self = obj; // cycle: obj -> nested -> obj
+            // deepcopy relies on a cycle-safe structuredClone in the browser; jsdom
+            // lacks one, so stub it to identity to isolate the redaction pass (the
+            // layer whose unbounded recursion is the subject of #1096).
+            const deepcopySpy = jest.spyOn(connect, 'deepcopy').mockImplementation((x) => x);
+            try {
+                // Must not throw RangeError: Maximum call stack size exceeded.
+                const loggedObject = connect.getLog().trace("Testing circular reference").withObject(obj);
+                // Redaction still applied to the reachable fields...
+                expect(loggedObject.objects[0].name).toBe("[redacted]");
+                // ...and the cycle is preserved as an object rather than followed forever.
+                expect(typeof loggedObject.objects[0].nested.self).toBe("object");
+            } finally {
+                deepcopySpy.mockRestore();
+            }
+        });
+
+        it('does not blow the call stack on a pathologically deep object (#1096)', () => {
+            let root = {};
+            let cursor = root;
+            for (let i = 0; i < 5000; i++) {
+                cursor.child = {};
+                cursor = cursor.child;
+            }
+            // Stub deepcopy to identity so the deep object reaches redactSensitiveInfo
+            // directly. This isolates the depth cap under test: deepcopy runs first in
+            // withObject and its own structuredClone/JSON clone can itself overflow the
+            // stack on a deep object (environment-dependent), which would mask — and is
+            // not — the guard being verified here (#1096).
+            const deepcopySpy = jest.spyOn(connect, 'deepcopy').mockImplementation((x) => x);
+            try {
+                // Must not throw; the redaction depth cap truncates the deep branch.
+                expect(() =>
+                    connect.getLog().trace("Testing deep object").withObject(root)
+                ).not.toThrow();
+            } finally {
+                deepcopySpy.mockRestore();
+            }
+        });
+    });
+
     describe('Logger.withCrossOriginEventObject()', () => {
         it('Log should be empty as none of these are the right fields.', () => {
             const obj =  {

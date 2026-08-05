@@ -108,6 +108,127 @@ describe('Agent APIs', () => {
     });
   });
 
+  describe('connect', () => {
+    let mockedClientCall;
+    const endpoint = { endpointARN: 'arn:aws:connect:us-east-1:111:instance/i/transfer-destination/e' };
+
+    beforeEach(() => {
+      mockedClientCall = jest.fn();
+      jest.spyOn(connect.core, 'getClient').mockImplementation(() => ({ call: mockedClientCall }));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('calls CREATE_OUTBOUND_CONTACT and forwards success (#1090)', () => {
+      const callbacks = { success: jest.fn(), failure: jest.fn() };
+      agent.connect(endpoint, { queueARN: 'q', success: callbacks.success, failure: callbacks.failure });
+
+      expect(mockedClientCall.mock.calls[0][0]).toBe(connect.ClientMethods.CREATE_OUTBOUND_CONTACT);
+      // Simulate the upstream response arriving.
+      mockedClientCall.mock.calls[0][2].success({ contactId: 'c1' });
+      expect(callbacks.success).toHaveBeenCalledWith({ contactId: 'c1' });
+      expect(callbacks.failure).not.toHaveBeenCalled();
+    });
+
+    it('invokes failure with a timeout error when the request never settles (#1090)', () => {
+      jest.useFakeTimers();
+      const callbacks = { success: jest.fn(), failure: jest.fn() };
+      agent.connect(endpoint, { queueARN: 'q', timeout: 5000, success: callbacks.success, failure: callbacks.failure });
+
+      // No upstream response; advance past the timeout.
+      jest.advanceTimersByTime(5000);
+      expect(callbacks.failure).toHaveBeenCalledTimes(1);
+      expect(callbacks.failure.mock.calls[0][0]).toBeInstanceOf(connect.ValueError);
+      expect(callbacks.success).not.toHaveBeenCalled();
+    });
+
+    it('does not fire failure timeout if the response arrives first (#1090)', () => {
+      jest.useFakeTimers();
+      const callbacks = { success: jest.fn(), failure: jest.fn() };
+      agent.connect(endpoint, { queueARN: 'q', timeout: 5000, success: callbacks.success, failure: callbacks.failure });
+
+      // Response arrives before the timeout fires.
+      mockedClientCall.mock.calls[0][2].success({ contactId: 'c1' });
+      jest.advanceTimersByTime(10000);
+
+      expect(callbacks.success).toHaveBeenCalledTimes(1);
+      expect(callbacks.failure).not.toHaveBeenCalled();
+    });
+
+    it('ignores a late response after the timeout already fired (settle-once) (#1090)', () => {
+      jest.useFakeTimers();
+      const callbacks = { success: jest.fn(), failure: jest.fn() };
+      agent.connect(endpoint, { queueARN: 'q', timeout: 5000, success: callbacks.success, failure: callbacks.failure });
+
+      jest.advanceTimersByTime(5000); // timeout fires -> failure
+      mockedClientCall.mock.calls[0][2].success({ contactId: 'late' }); // late response
+
+      expect(callbacks.failure).toHaveBeenCalledTimes(1);
+      expect(callbacks.success).not.toHaveBeenCalled();
+    });
+
+    it('does not set a timeout when none is provided (backwards compatible) (#1090)', () => {
+      jest.useFakeTimers();
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+      const callbacks = { success: jest.fn(), failure: jest.fn() };
+      agent.connect(endpoint, { queueARN: 'q', success: callbacks.success, failure: callbacks.failure });
+
+      expect(setTimeoutSpy).not.toHaveBeenCalled();
+      // Still forwards the real response.
+      mockedClientCall.mock.calls[0][2].success({ contactId: 'c1' });
+      expect(callbacks.success).toHaveBeenCalledWith({ contactId: 'c1' });
+    });
+
+    it('forwards an upstream failure response through the failure callback (#1090)', () => {
+      const callbacks = { success: jest.fn(), failure: jest.fn() };
+      agent.connect(endpoint, { queueARN: 'q', success: callbacks.success, failure: callbacks.failure });
+
+      // Simulate the upstream response arriving as a failure.
+      const err = new Error('upstream rejected');
+      mockedClientCall.mock.calls[0][2].failure(err, { code: 'X' });
+      expect(callbacks.failure).toHaveBeenCalledWith(err, { code: 'X' });
+      expect(callbacks.success).not.toHaveBeenCalled();
+    });
+
+    it('clears the pending timeout when an upstream failure settles first (#1090)', () => {
+      jest.useFakeTimers();
+      const callbacks = { success: jest.fn(), failure: jest.fn() };
+      agent.connect(endpoint, { queueARN: 'q', timeout: 5000, success: callbacks.success, failure: callbacks.failure });
+
+      // Upstream failure arrives before the timeout fires...
+      const err = new Error('upstream rejected');
+      mockedClientCall.mock.calls[0][2].failure(err);
+      // ...so advancing past the timeout must NOT produce a second failure.
+      jest.advanceTimersByTime(10000);
+
+      expect(callbacks.failure).toHaveBeenCalledTimes(1);
+      expect(callbacks.failure.mock.calls[0][0]).toBe(err);
+    });
+
+    it('ignores a duplicate upstream response after the first settle (#1090)', () => {
+      const callbacks = { success: jest.fn(), failure: jest.fn() };
+      agent.connect(endpoint, { queueARN: 'q', success: callbacks.success, failure: callbacks.failure });
+
+      const wrapped = mockedClientCall.mock.calls[0][2];
+      wrapped.success({ contactId: 'c1' });
+      // A duplicate/late failure for the same request must be ignored (settle-once).
+      wrapped.failure(new Error('late'));
+
+      expect(callbacks.success).toHaveBeenCalledTimes(1);
+      expect(callbacks.failure).not.toHaveBeenCalled();
+    });
+
+    it('does not throw on timeout when no failure callback is provided (#1090)', () => {
+      jest.useFakeTimers();
+      // params has a timeout but no success/failure callbacks (queueARN avoids
+      // the routing-profile lookup). The timeout branch must guard params.failure.
+      agent.connect(endpoint, { queueARN: 'q', timeout: 5000 });
+      expect(() => jest.advanceTimersByTime(5000)).not.toThrow();
+    });
+  });
+
   it('agent subscription apis', () => {
     connect.core.eventBus = new connect.EventBus();
 
@@ -259,6 +380,30 @@ describe('Agent APIs', () => {
         },
       });
       expect(localAgent.getState()).toBe(mockState);
+    });
+  });
+
+  describe('_getInstanceRegion', () => {
+    it('returns the region parsed from the agent ARN', () => {
+      jest
+        .spyOn(connect.Agent.prototype, 'getAgentARN')
+        .mockReturnValue('arn:aws:connect:eu-central-1:123456789012:instance/instance-id/agent/agent-id');
+
+      expect(agent._getInstanceRegion()).toBe('eu-central-1');
+    });
+
+    it('logs and returns null when the agent ARN is malformed', () => {
+      jest.spyOn(connect.Agent.prototype, 'getAgentARN').mockReturnValue('not-an-arn');
+
+      expect(agent._getInstanceRegion()).toBeNull();
+    });
+
+    it('logs and returns null when getAgentARN throws', () => {
+      jest.spyOn(connect.Agent.prototype, 'getAgentARN').mockImplementation(() => {
+        throw new Error('no configuration');
+      });
+
+      expect(agent._getInstanceRegion()).toBeNull();
     });
   });
 

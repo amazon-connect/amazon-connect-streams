@@ -13,6 +13,6 @@ module.exports = {
       extensions: ['.tsx', '.ts', '.js'],
     },
     mode: 'production',
-    devtool: 'source-map',
+    devtool: false,
   },
 };

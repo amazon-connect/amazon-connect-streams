@@ -121,9 +121,34 @@ describe('connect.core.AgentDataProvider', () => {
     expect(triggerEvents()).toContain(connect.AgentEvents.ENQUEUED_NEXT_STATE);
   });
 
-  // TODO: unskip once src/core.js populates connect.core.endedEventTracker (init + .add() on
-  // contact connect).
-  it.skip('triggers ENDED on active->inactive transition without INVALID_STATE_TRANSITION', () => {
+  it('triggers CLEARED_NEXT_STATE via onClearedNextState when a nextState is cleared (#1063)', () => {
+    // First UPDATE initializes the agent so `new connect.Agent()` works.
+    connect.core.getEventBus().trigger(
+      connect.AgentEvents.UPDATE,
+      createAgentSnapshotState(connect.AgentStateType.ROUTABLE, 'Available')
+    );
+
+    // Enqueue a nextState...
+    const withNext = createAgentSnapshotState(connect.AgentStateType.ROUTABLE, 'Available');
+    withNext.snapshot.nextState = createState(connect.AgentStateType.NOT_ROUTABLE, 'Lunch');
+    connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, withNext);
+
+    let observed = false;
+    new connect.Agent().onClearedNextState((agent) => {
+      expect(agent).toBeInstanceOf(connect.Agent);
+      observed = true;
+    });
+
+    // ...then clear it.
+    const cleared = createAgentSnapshotState(connect.AgentStateType.ROUTABLE, 'Available');
+    cleared.snapshot.nextState = null;
+    connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, cleared);
+
+    expect(observed).toBe(true);
+    expect(triggerEvents()).toContain(connect.AgentEvents.CLEARED_NEXT_STATE);
+  });
+
+  it('triggers ENDED on active->inactive transition without INVALID_STATE_TRANSITION', () => {
     // initialize agent
     const init = createAgentSnapshotState(connect.AgentStateType.ROUTABLE, 'Available');
     init.snapshot.contacts = [];
@@ -162,9 +187,7 @@ describe('connect.core.AgentDataProvider', () => {
     expect(triggerEvents()).not.toContain(connect.ContactEvents.INVALID_STATE_TRANSITION);
   });
 
-  // TODO: unskip once src/core.js populates connect.core.endedEventTracker (init + .add() on
-  // contact connect).
-  it.skip('fires ENDED when contact is removed without state transition to ENDED', () => {
+  it('fires ENDED when contact is removed without state transition to ENDED', () => {
     const init = createAgentSnapshotState(connect.AgentStateType.ROUTABLE, 'Available');
     init.snapshot.contacts = [];
     connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, init);
@@ -432,6 +455,44 @@ describe('AgentDataProvider._fireAgentUpdateEvents - nextState + state-change tr
 
     const events = triggerSpy.mock.calls.map(([eventName]) => eventName);
     expect(events).not.toContain(connect.AgentEvents.ENQUEUED_NEXT_STATE);
+  });
+
+  it('fires CLEARED_NEXT_STATE when an enqueued nextState is cleared (#1063)', () => {
+    const oldAgentData = {
+      snapshot: { state: { name: 'Available', type: 'routable' }, nextState: { name: 'Lunch' }, contacts: [] },
+    };
+    provider.agentData = buildAgentData({ nextState: null });
+
+    provider._fireAgentUpdateEvents(oldAgentData);
+
+    const events = triggerSpy.mock.calls.map(([eventName]) => eventName);
+    expect(events).toContain(connect.AgentEvents.CLEARED_NEXT_STATE);
+    expect(events).not.toContain(connect.AgentEvents.ENQUEUED_NEXT_STATE);
+  });
+
+  it('does NOT fire CLEARED_NEXT_STATE when there was no enqueued nextState to clear (#1063)', () => {
+    const oldAgentData = {
+      snapshot: { state: { name: 'Available', type: 'routable' }, nextState: null, contacts: [] },
+    };
+    provider.agentData = buildAgentData({ nextState: null });
+
+    provider._fireAgentUpdateEvents(oldAgentData);
+
+    const events = triggerSpy.mock.calls.map(([eventName]) => eventName);
+    expect(events).not.toContain(connect.AgentEvents.CLEARED_NEXT_STATE);
+  });
+
+  it('does NOT fire CLEARED_NEXT_STATE when a new nextState is enqueued (#1063)', () => {
+    const oldAgentData = {
+      snapshot: { state: { name: 'Available', type: 'routable' }, nextState: null, contacts: [] },
+    };
+    provider.agentData = buildAgentData({ nextState: { name: 'Lunch' } });
+
+    provider._fireAgentUpdateEvents(oldAgentData);
+
+    const events = triggerSpy.mock.calls.map(([eventName]) => eventName);
+    expect(events).toContain(connect.AgentEvents.ENQUEUED_NEXT_STATE);
+    expect(events).not.toContain(connect.AgentEvents.CLEARED_NEXT_STATE);
   });
 
   it('fires STATE_CHANGE when oldAgentState differs from newAgentState', () => {

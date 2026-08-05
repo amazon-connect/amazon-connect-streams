@@ -386,6 +386,7 @@ describe('Global Resiliency', () => {
           onUpstream: jest.fn().mockReturnValue({ unsubscribe: jest.fn() }),
           onAllUpstream: jest.fn(),
           relayUpstream: jest.fn(),
+          sendUpstream: jest.fn(),
         };
 
         jest.spyOn(connect, 'GRProxyIframeConduit').mockReturnValue(fakeGrProxyConduit);
@@ -493,6 +494,30 @@ describe('Global Resiliency', () => {
 
           expect(fakeInactiveConduit.region).toBe('us-west-2');
           expect(connect.globalResiliency._switchActiveRegion).toHaveBeenCalledWith(fakeGrProxyConduit, fakeInactiveConduit.name);
+        });
+
+        it('sends the active region on the FAILOVER_COMPLETE wire copy once the agent updates', () => {
+          fakeGrProxyConduit.getConduitByRegion.mockReturnValue(fakeInactiveConduit);
+          connect.globalResiliency._switchActiveRegion.mockClear().mockReturnValue(true);
+          const trigger = jest.spyOn(connect.core.getEventBus(), 'trigger');
+          const initiated = handlerFor(fakeActiveConduit, connect.GlobalResiliencyEvents.FAILOVER_INITIATED);
+
+          initiated({ activeRegion: 'us-west-2' });
+
+          // The complete emit is deferred to a one-shot AgentEvents.UPDATE the
+          // failover path registers on the proxy conduit; fire it to reach the emit.
+          const agentUpdate = handlerFor(fakeGrProxyConduit, connect.AgentEvents.UPDATE);
+          expect(agentUpdate).toEqual(expect.any(Function));
+          agentUpdate();
+
+          expect(trigger).toHaveBeenCalledWith(
+            connect.GlobalResiliencyEvents.FAILOVER_COMPLETE,
+            { activeRegion: 'us-west-2', activeCcpUrl: fakeInactiveConduit.name }
+          );
+          expect(fakeGrProxyConduit.sendUpstream).toHaveBeenCalledWith(
+            connect.GlobalResiliencyEvents.FAILOVER_COMPLETE,
+            { activeRegion: 'us-west-2', activeCcpUrl: fakeInactiveConduit.name }
+          );
         });
       });
 
