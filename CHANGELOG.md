@@ -1,5 +1,48 @@
 # CHANGELOG.md
 
+## [2.28.1] - 2026-08-06
+Bug fixes and defensive hardening across the agent, contact, logging, and
+chat paths, plus supporting type and build changes.
+
+src/core.js
+  - Fire ENDED before DESTROYED when a contact is removed without having
+    passed through an inactive state, so subscribers relying on ENDED are
+    not silently skipped. Tracked via connect.core.endedEventTracker.
+  - Emit the new AgentEvents.CLEARED_NEXT_STATE when an enqueued nextState
+    is cleared (e.g. the agent returns to Available before the enqueued
+    transition applies), keeping subscriber views accurate (GitHub #1063).
+
+src/log.js
+  - Guard redactSensitiveInfo against circular references and pathological
+    nesting with a WeakSet cycle check and a depth cap. Previously such an
+    object overflowed the call stack before the entry was recorded, taking
+    down CCP initialization (GitHub #1096).
+
+src/api.js
+  - Add an optional params.timeout to Agent.connect so a dropped upstream
+    response can no longer hang callers indefinitely (GitHub #1090). A
+    settle-once guard keeps the timeout and a late real response from both
+    firing.
+  - Add Agent.prototype.onClearedNextState and the private
+    Agent.prototype._getInstanceRegion helper.
+
+src/util.js
+  - Add the connect._parseRegionFromArn and connect._getContactRegion
+    internal helpers.
+
+src/index.d.ts
+  - Type the Global Resiliency callbacks (FailoverPendingData,
+    FailoverCompletedData, OnConfigureErrorCallback) instead of bare
+    Function, widen getActiveRegion() to string | null | undefined to match
+    runtime behavior, declare onClearedNextState and CLEARED_NEXT_STATE,
+    and mark scheduledTime and idempotencyToken optional.
+
+webpack/common.js, webpack/connect-streams-test.config.js
+  - Set devtool to false so the release bundles stop emitting .js.map
+    files. Nothing consumed them: .nycrc.json sets sourceMap false and
+    Jest gets coverage from babel-plugin-istanbul. Removes the five
+    previously committed release/*.js.map artifacts.
+
 ## [2.28.0] - 2026-07-28
 - Added support for Microsoft Azure Virtual Desktop and Windows 365 audio optimization via Multimedia Redirection (MMR). Set `VDIPlatform: "AZURE"` in the softphone params of `initCCP()`, or rely on automatic detection when MMR call redirection is active.
 - Added `vdiMetadata` and `vdiClientVersion` fields to the softphone session telemetry report.
