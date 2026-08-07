@@ -22302,7 +22302,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       return 0;
     }
   };
-  publishTelemetryEvent = function publishTelemetryEvent(eventName, contactId, data) {
+  var publishTelemetryEvent = function publishTelemetryEvent(eventName, contactId, data) {
     try {
       connect.publishMetric({
         name: eventName,

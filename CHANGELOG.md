@@ -1,5 +1,8 @@
 # CHANGELOG.md
 
+## [2.28.2] - 2026-08-07
+Fix variable that was missing a function declaration. This caused build issues for app running in Strict mode.
+
 ## [2.28.1] - 2026-08-06
 Bug fixes and defensive hardening across the agent, contact, logging, and
 chat paths, plus supporting type and build changes.
