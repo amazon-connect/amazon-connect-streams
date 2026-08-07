@@ -1157,7 +1157,7 @@
     }
   }
 
-  publishTelemetryEvent = function (eventName, contactId, data) {
+  var publishTelemetryEvent = function (eventName, contactId, data) {
     try {
       connect.publishMetric({
         name: eventName,
