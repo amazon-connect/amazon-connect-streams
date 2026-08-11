@@ -10726,7 +10726,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.24.0";
+  connect.version = "2.24.1";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
@@ -18116,7 +18116,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
         stopJobsAndReport(contact, rtcSession.sessionReport);
         // publish voice focus metrics
         connect.VoiceFocusProvider.publishMetrics({
-          contactId: contactId
+          contactId: contact.getContactId()
         });
         // clean voice focus models
         connect.VoiceFocusProvider.cleanVoiceFocus();
@@ -18142,7 +18142,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 
         // publish voice focus metrics
         connect.VoiceFocusProvider.publishMetrics({
-          contactId: contactId
+          contactId: contact.getContactId()
         });
         // clean voice focus models
         connect.VoiceFocusProvider.cleanVoiceFocus();
