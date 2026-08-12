@@ -196,6 +196,14 @@ var ContactRoutes;
     ContactRoutes["isPreviewMode"] = "contact/isPreviewMode";
     ContactRoutes["getPreviewConfiguration"] = "contact/getPreviewConfiguration";
     ContactRoutes["engagePreviewContact"] = "contact/engagePreviewContact";
+    ContactRoutes["getContactRegion"] = "contact/getContactRegion";
+    ContactRoutes["getInstanceDetails"] = "contact/getInstanceDetails";
+    ContactRoutes["listParticipants"] = "contact/listParticipants";
+    ContactRoutes["getParticipant"] = "contact/getParticipant";
+    ContactRoutes["getParticipantState"] = "contact/getParticipantState";
+    ContactRoutes["disconnectParticipant"] = "contact/disconnectParticipant";
+    ContactRoutes["getContact"] = "contact/getContact";
+    ContactRoutes["listContacts"] = "contact/listContacts";
 })(ContactRoutes || (ContactRoutes = {}));
 //# sourceMappingURL=routes.js.map
 ;// ./node_modules/@amazon-connect/contact/lib-esm/topic-keys.js
@@ -216,6 +224,9 @@ var AgentTopicKey;
 })(AgentTopicKey || (AgentTopicKey = {}));
 var ContactTopicKey;
 (function (ContactTopicKey) {
+    ContactTopicKey["ParticipantAdded"] = "contact/participantAdded";
+    ContactTopicKey["ParticipantDisconnected"] = "contact/participantDisconnected";
+    ContactTopicKey["ParticipantStateChanged"] = "contact/participantStateChanged";
 })(ContactTopicKey || (ContactTopicKey = {}));
 //# sourceMappingURL=topic-keys.js.map
 ;// ./node_modules/@amazon-connect/contact/lib-esm/agent-client.js
@@ -470,6 +481,138 @@ class ContactClient extends lib_esm/* ConnectClientWithOptionalConfig */.uU {
             });
         });
     }
+    getContactRegion(contactId) {
+        return contact_client_awaiter(this, void 0, void 0, function* () {
+            const { region } = yield this.context.proxy.request(ContactRoutes.getContactRegion, {
+                contactId,
+            });
+            return region;
+        });
+    }
+    getInstanceDetails(contactId) {
+        return contact_client_awaiter(this, void 0, void 0, function* () {
+            return yield this.context.proxy.request(ContactRoutes.getInstanceDetails, {
+                contactId,
+            });
+        });
+    }
+    /**
+     * Retrieves all participants associated with a specific contact.
+     * @param contactId - The unique identifier for the contact
+     * @returns Promise resolving to array of participant information
+     */
+    listParticipants(contactId) {
+        return this.context.proxy.request(ContactRoutes.listParticipants, {
+            contactId,
+        });
+    }
+    /**
+     * Retrieves information for a specific participant.
+     * @param participantId - The unique identifier for the participant
+     * @returns Promise resolving to participant information
+     */
+    getParticipant(participantId) {
+        return this.context.proxy.request(ContactRoutes.getParticipant, {
+            participantId,
+        });
+    }
+    /**
+     * Retrieves the current state of a specific participant.
+     * @param participantId - The unique identifier for the participant
+     * @returns Promise resolving to current participant state
+     */
+    getParticipantState(participantId) {
+        return this.context.proxy.request(ContactRoutes.getParticipantState, {
+            participantId,
+        });
+    }
+    /**
+     * Disconnects a specific participant from the contact.
+     * @param participantId - The unique identifier for the participant to disconnect
+     * @returns Promise resolving when the participant is disconnected
+     */
+    disconnectParticipant(participantId) {
+        return this.context.proxy.request(ContactRoutes.disconnectParticipant, {
+            participantId,
+        });
+    }
+    /**
+     * Retrieves detailed information for a specific contact by its ID.
+     * @param contactId - The unique identifier for the contact
+     * @returns Promise resolving to detailed contact information
+     */
+    getContact(contactId) {
+        return this.context.proxy.request(ContactRoutes.getContact, {
+            contactId,
+        });
+    }
+    /**
+     * Lists all contacts for the current agent.
+     * @returns Promise resolving to array of contact information
+     */
+    listContacts() {
+        return this.context.proxy.request(ContactRoutes.listContacts);
+    }
+    /**
+     * Subscribes to participant added events.
+     * @param handler - Event handler function to call when participants are added
+     * @param contactId - Optional contact ID to filter events for a specific contact
+     */
+    onParticipantAdded(handler, contactId) {
+        this.context.proxy.subscribe({ key: ContactTopicKey.ParticipantAdded, parameter: contactId }, handler);
+    }
+    /**
+     * Unsubscribes from participant added events.
+     * @param handler - Event handler function to remove
+     * @param contactId - Optional contact ID to unsubscribe from specific contact events
+     */
+    offParticipantAdded(handler, contactId) {
+        this.context.proxy.unsubscribe({ key: ContactTopicKey.ParticipantAdded, parameter: contactId }, handler);
+    }
+    /**
+     * Subscribes to participant disconnected events.
+     * @param handler - Event handler function to call when participants disconnect
+     * @param contactId - Optional contact ID to filter events for a specific contact
+     */
+    onParticipantDisconnected(handler, contactId) {
+        this.context.proxy.subscribe({
+            key: ContactTopicKey.ParticipantDisconnected,
+            parameter: contactId,
+        }, handler);
+    }
+    /**
+     * Unsubscribes from participant disconnected events.
+     * @param handler - Event handler function to remove
+     * @param contactId - Optional contact ID to unsubscribe from specific contact events
+     */
+    offParticipantDisconnected(handler, contactId) {
+        this.context.proxy.unsubscribe({
+            key: ContactTopicKey.ParticipantDisconnected,
+            parameter: contactId,
+        }, handler);
+    }
+    /**
+     * Subscribes to participant state change events.
+     * @param handler - Event handler function to call when participant state changes
+     * @param participantId - Optional participant ID to filter events for a specific participant
+     */
+    onParticipantStateChanged(handler, participantId) {
+        this.context.proxy.subscribe({
+            key: ContactTopicKey.ParticipantStateChanged,
+            parameter: participantId,
+        }, handler);
+    }
+    /**
+     * Unsubscribes from participant state change events.
+     * @param handler - Event handler function to remove
+     * @param participantId - Optional participant ID to unsubscribe from specific participant events
+     */
+    offParticipantStateChanged(handler, participantId) {
+        this.context.proxy.unsubscribe({
+            key: ContactTopicKey.ParticipantStateChanged,
+            parameter: participantId,
+        }, handler);
+    }
 }
 //# sourceMappingURL=contact-client.js.map
 ;// ./node_modules/@amazon-connect/contact/lib-esm/states.js
@@ -484,6 +627,13 @@ var ContactStateType;
  */
 var ParticipantStateType;
 (function (ParticipantStateType) {
+    ParticipantStateType["Connecting"] = "connecting";
+    ParticipantStateType["Connected"] = "connected";
+    ParticipantStateType["Hold"] = "hold";
+    ParticipantStateType["Disconnected"] = "disconnected";
+    ParticipantStateType["Rejected"] = "rejected";
+    ParticipantStateType["SilentMonitor"] = "silent_monitor";
+    ParticipantStateType["Barge"] = "barge";
 })(ParticipantStateType || (ParticipantStateType = {}));
 //# sourceMappingURL=states.js.map
 ;// ./node_modules/@amazon-connect/contact/lib-esm/index.js
@@ -1046,8 +1196,11 @@ class ConnectMetricRecorder {
      * @param {ConnectRecorderMetricParams} params - The namespace and provider(optional)
      */
     constructor(params) {
+        var _a;
         this._proxy = null;
         this.namespace = params.namespace;
+        this.globalDimensions = (_a = params.globalDimensions) !== null && _a !== void 0 ? _a : {};
+        this.globalDimensionProvider = params.globalDimensionProvider;
         if (params.provider && typeof params.provider === "function")
             this.providerFactory = params.provider;
         else
@@ -1116,15 +1269,25 @@ class ConnectMetricRecorder {
      * @param {Record<string, string>} optionalDimensions - The optional dimensions of a metric with keys and values (optional)
      */
     sendMetric({ metricName, unit, value, dimensions, optionalDimensions, }) {
+        // Resolve global dimensions at emission time (non-blocking)
+        const resolvedGlobalDimensions = this.globalDimensionProvider
+            ? this.globalDimensionProvider()
+            : this.globalDimensions;
+        // Merge global dimensions with provided dimensions
+        // User-provided dimensions take precedence over global dimensions
+        const hasGlobalDimensions = Object.keys(resolvedGlobalDimensions).length > 0;
+        const hasOptionalDimensions = optionalDimensions && Object.keys(optionalDimensions).length > 0;
+        const mergedDimensions = hasGlobalDimensions || hasOptionalDimensions
+            ? Object.assign(Object.assign({}, resolvedGlobalDimensions), optionalDimensions) : undefined;
         if (dimensions) {
-            checkDimensionLength(dimensions, optionalDimensions);
+            checkDimensionLength(dimensions, mergedDimensions);
         }
         const metricData = {
             metricName,
             unit,
             value,
             dimensions,
-            optionalDimensions,
+            optionalDimensions: mergedDimensions,
         };
         const time = new Date();
         this.getProxy().sendMetric({
@@ -3304,11 +3467,30 @@ var VoiceRoutes;
     VoiceRoutes["listDialableCountries"] = "voice/listDialableCountries";
     VoiceRoutes["createOutboundCall"] = "voice/createOutboundCall";
     VoiceRoutes["getOutboundCallPermission"] = "voice/getOutboundCallPermission";
+    VoiceRoutes["conferenceParticipants"] = "voice/conferenceParticipants";
+    VoiceRoutes["holdParticipant"] = "voice/holdParticipant";
+    VoiceRoutes["resumeParticipant"] = "voice/resumeParticipant";
+    VoiceRoutes["holdSelf"] = "voice/holdSelf";
+    VoiceRoutes["resumeSelf"] = "voice/resumeSelf";
+    VoiceRoutes["isParticipantOnHold"] = "voice/isParticipantOnHold";
+    VoiceRoutes["isSelfOnHold"] = "voice/isSelfOnHold";
+    VoiceRoutes["canResumeSelf"] = "voice/canResumeSelf";
+    VoiceRoutes["canResumeParticipant"] = "voice/canResumeParticipant";
+    VoiceRoutes["getVoiceEnhancementMode"] = "voice/getVoiceEnhancementMode";
+    VoiceRoutes["setVoiceEnhancementMode"] = "voice/setVoiceEnhancementMode";
+    VoiceRoutes["getVoiceEnhancementPaths"] = "voice/getVoiceEnhancementPaths";
 })(VoiceRoutes || (VoiceRoutes = {}));
 //# sourceMappingURL=routes.js.map
 ;// ./node_modules/@amazon-connect/voice/lib-esm/topic-keys.js
 var VoiceTopicKeys;
 (function (VoiceTopicKeys) {
+    VoiceTopicKeys["VoiceEnhancementModeChanged"] = "voice/voiceEnhancementModeChanged";
+    VoiceTopicKeys["ParticipantHold"] = "voice/participantHold";
+    VoiceTopicKeys["ParticipantResume"] = "voice/participantResume";
+    VoiceTopicKeys["SelfHold"] = "voice/selfHold";
+    VoiceTopicKeys["SelfResume"] = "voice/selfResume";
+    VoiceTopicKeys["CanResumeSelfChanged"] = "voice/canResumeSelfChanged";
+    VoiceTopicKeys["CanResumeParticipantChanged"] = "voice/onCanResumeParticipantChanged";
 })(VoiceTopicKeys || (VoiceTopicKeys = {}));
 //# sourceMappingURL=topic-keys.js.map
 // EXTERNAL MODULE: ./node_modules/@amazon-connect/core/lib-esm/index.js + 55 modules
@@ -3323,6 +3505,7 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+
 
 
 
@@ -3367,6 +3550,214 @@ class VoiceClient extends lib_esm/* ConnectClientWithOptionalConfig */.uU {
             options,
         });
     }
+    onVoiceEnhancementModeChanged(handler) {
+        this.context.proxy.subscribe({ key: VoiceTopicKeys.VoiceEnhancementModeChanged }, handler);
+    }
+    offVoiceEnhancementModeChanged(handler) {
+        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.VoiceEnhancementModeChanged }, handler);
+    }
+    getVoiceEnhancementMode() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { voiceEnhancementMode } = yield this.context.proxy.request(VoiceRoutes.getVoiceEnhancementMode);
+            return voiceEnhancementMode;
+        });
+    }
+    setVoiceEnhancementMode(voiceEnhancementMode) {
+        return this.context.proxy.request(VoiceRoutes.setVoiceEnhancementMode, {
+            voiceEnhancementMode,
+        });
+    }
+    getVoiceEnhancementPaths() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { voiceEnhancementPaths } = yield this.context.proxy.request(VoiceRoutes.getVoiceEnhancementPaths);
+            return voiceEnhancementPaths;
+        });
+    }
+    conferenceParticipants(contactId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.context.proxy.request(VoiceRoutes.conferenceParticipants, {
+                contactId,
+            });
+        });
+    }
+    holdParticipant(participantId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.context.proxy.request(VoiceRoutes.holdParticipant, {
+                participantId,
+            });
+        });
+    }
+    resumeParticipant(participantId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.context.proxy.request(VoiceRoutes.resumeParticipant, {
+                participantId,
+            });
+        });
+    }
+    holdSelf(contactId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.context.proxy.request(VoiceRoutes.holdSelf, {
+                contactId,
+            });
+        });
+    }
+    resumeSelf(contactId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.context.proxy.request(VoiceRoutes.resumeSelf, {
+                contactId,
+            });
+        });
+    }
+    isParticipantOnHold(participantId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { isOnHold } = yield this.context.proxy.request(VoiceRoutes.isParticipantOnHold, { participantId });
+            return isOnHold;
+        });
+    }
+    isSelfOnHold(contactId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { isOnHold } = yield this.context.proxy.request(VoiceRoutes.isSelfOnHold, { contactId });
+            return isOnHold;
+        });
+    }
+    canResumeSelf(contactId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const response = yield this.context.proxy.request(VoiceRoutes.canResumeSelf, {
+                contactId,
+            });
+            return response.canResumeSelf;
+        });
+    }
+    canResumeParticipant(participantId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const response = yield this.context.proxy.request(VoiceRoutes.canResumeParticipant, { participantId });
+            return response.canResumeParticipant;
+        });
+    }
+    /**
+     * Subscribes to events when any participant is put on hold on a contact.
+     * Each contact has multiple participants, and any given participant can be put on hold or resumed.
+     *
+     * @param handler - Event handler function to call when participants are put on hold
+     * @param participantId - Optional participant ID to filter events for a specific participant
+     */
+    onParticipantHold(handler, participantId) {
+        this.context.proxy.subscribe({ key: VoiceTopicKeys.ParticipantHold, parameter: participantId }, handler);
+    }
+    /**
+     * Unsubscribes from events when any participant is put on hold.
+     * Removes the specified handler from receiving notifications about participant hold events.
+     *
+     * @param handler - Event handler function to remove
+     * @param participantId - Optional participant ID to unsubscribe from specific participant events
+     */
+    offParticipantHold(handler, participantId) {
+        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.ParticipantHold, parameter: participantId }, handler);
+    }
+    /**
+     * Subscribes to events when any participant is taken off hold on a contact.
+     * Each contact has multiple participants, and any given participant can be put on hold or taken off hold.
+     *
+     * @param handler - Event handler function to call when participants are taken off hold
+     * @param participantId - Optional participant ID to filter events for a specific participant
+     */
+    onParticipantResume(handler, participantId) {
+        this.context.proxy.subscribe({ key: VoiceTopicKeys.ParticipantResume, parameter: participantId }, handler);
+    }
+    /**
+     * Unsubscribes from events when any participant is taken off hold.
+     * Removes the specified handler from receiving notifications about participants being taken off hold.
+     *
+     * @param handler - Event handler function to remove
+     * @param participantId - Optional participant ID to unsubscribe from specific participant events
+     */
+    offParticipantResume(handler, participantId) {
+        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.ParticipantResume, parameter: participantId }, handler);
+    }
+    /**
+     * Subscribes to events when the current user's participant is put on hold on a contact.
+     * Each contact has multiple participants, and this event fires specifically when the participant
+     * associated with the current user is put on hold, allowing specification by contact rather than participant ID.
+     *
+     * @param handler - Event handler function to call when the current user's participant is put on hold
+     * @param contactId - Optional contact ID to filter events for a specific contact
+     */
+    onSelfHold(handler, contactId) {
+        this.context.proxy.subscribe({ key: VoiceTopicKeys.SelfHold, parameter: contactId }, handler);
+    }
+    /**
+     * Unsubscribes from events when the current user's participant is put on hold.
+     * Removes the specified handler from receiving notifications about the current user's participant hold events.
+     *
+     * @param handler - Event handler function to remove
+     * @param contactId - Optional contact ID to unsubscribe from specific contact events
+     */
+    offSelfHold(handler, contactId) {
+        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.SelfHold, parameter: contactId }, handler);
+    }
+    /**
+     * Subscribes to events when the current user's participant is taken off hold on a contact.
+     * Each contact has multiple participants, and this event fires specifically when the participant
+     * associated with the current user is taken off hold, allowing specification by contact rather than participant ID.
+     *
+     * @param handler - Event handler function to call when the current user's participant is taken off hold
+     * @param contactId - Optional contact ID to filter events for a specific contact
+     */
+    onSelfResume(handler, contactId) {
+        this.context.proxy.subscribe({ key: VoiceTopicKeys.SelfResume, parameter: contactId }, handler);
+    }
+    /**
+     * Unsubscribes from events when the current user's participant is taken off hold.
+     * Removes the specified handler from receiving notifications about the current user's participant being taken off hold.
+     *
+     * @param handler - Event handler function to remove
+     * @param contactId - Optional contact ID to unsubscribe from specific contact events
+     */
+    offSelfResume(handler, contactId) {
+        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.SelfResume, parameter: contactId }, handler);
+    }
+    /**
+     * Subscribes to events when the current user's participant capability to be taken off hold changes on a contact.
+     * Each contact has multiple participants, and this event fires specifically when the participant
+     * associated with the current user's capability to be taken off hold changes, allowing specification by contact rather than participant ID.
+     *
+     * @param handler - Event handler function to call when the current user's participant capability to be taken off hold changes
+     * @param contactId - Optional contact ID to filter events for a specific contact
+     */
+    onCanResumeSelfChanged(handler, contactId) {
+        this.context.proxy.subscribe({ key: VoiceTopicKeys.CanResumeSelfChanged, parameter: contactId }, handler);
+    }
+    /**
+     * Unsubscribes from events when the current user's participant capability to be taken off hold changes.
+     * Removes the specified handler from receiving notifications about the current user's participant capability to be taken off hold changes.
+     *
+     * @param handler - Event handler function to remove
+     * @param contactId - Optional contact ID to unsubscribe from specific contact events
+     */
+    offCanResumeSelfChanged(handler, contactId) {
+        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.CanResumeSelfChanged, parameter: contactId }, handler);
+    }
+    /**
+     * Subscribes to events when a participant's capability to be taken off hold changes.
+     * This event fires when the ability to resume a participant from hold changes,
+     * which can happen due to various factors such as permissions or system state.
+     *
+     * @param handler - Event handler function to call when a participant's capability to be taken off hold changes
+     * @param participantId - Optional participant ID to filter events for a specific participant
+     */
+    onCanResumeParticipantChanged(handler, participantId) {
+        this.context.proxy.subscribe({ key: VoiceTopicKeys.CanResumeParticipantChanged, parameter: participantId }, handler);
+    }
+    /**
+     * Unsubscribes from events when a participant's capability to be taken off hold changes.
+     * Removes the specified handler from receiving notifications about participant capability to be taken off hold changes.
+     *
+     * @param handler - Event handler function to remove
+     * @param participantId - Optional participant ID to unsubscribe from specific participant events
+     */
+    offCanResumeParticipantChanged(handler, participantId) {
+        this.context.proxy.unsubscribe({ key: VoiceTopicKeys.CanResumeParticipantChanged, parameter: participantId }, handler);
+    }
 }
 //# sourceMappingURL=voice-client.js.map
 ;// ./node_modules/@amazon-connect/voice/lib-esm/index.js
@@ -3376,6 +3767,1545 @@ class VoiceClient extends lib_esm/* ConnectClientWithOptionalConfig */.uU {
 
 
 //# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 845:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.decideModel = exports.measureAndDecideExecutionApproach = void 0;
+const loader_js_1 = __webpack_require__(364);
+const support_js_1 = __webpack_require__(128);
+const DEFAULT_EXECUTION_QUANTA = 3;
+const SIMD_SCORE_FIXED_POINT = 2.50;
+const WASM_SCORE_FIXED_POINT = 2.63;
+const SINGLE_INLINE_SCORE_MULTIPLIER = 0.6;
+const QUALITY_MULTIPLE_QUANTA_SCORE_MULTIPLIER = 0.65;
+const INTERACTIVITY_MULTIPLE_QUANTA_SCORE_MULTIPLIER = 0.5;
+const WORKER_SCORE_MULTIPLIER = 0.7;
+const PERFORMANCE_THRESHOLDS = {
+    wasm: {
+        noSupport: 0.07,
+        inline: {
+            c100: 1,
+            c50: 0.36,
+            c20: 0.16,
+            c10: 0.07,
+        },
+        worker: {
+            c100: 0.5,
+            c50: 0.18,
+            c20: 0.08,
+            c10: 0.06,
+        },
+    },
+    simd: {
+        noSupport: 0.10,
+        inline: {
+            c100: 1,
+            c50: 0.43,
+            c20: 0.3,
+            c10: 0.2,
+        },
+        worker: {
+            c100: 0.5,
+            c50: 0.21,
+            c20: 0.15,
+            c10: 0.10,
+        },
+    },
+};
+class Estimator {
+    constructor(fetchConfig, logger) {
+        this.fetchConfig = fetchConfig;
+        this.logger = logger;
+        const workerURL = `${fetchConfig.paths.workers}estimator-v1.js`;
+        this.fetchBehavior = { headers: fetchConfig.headers, escapedQueryString: fetchConfig.escapedQueryString };
+        this.worker = (0, loader_js_1.loadWorker)(workerURL, 'VoiceFocusEstimator', this.fetchBehavior, logger);
+    }
+    roundtrip(toSend, receive, expectedKey) {
+        return new Promise((resolve, reject) => {
+            this.worker.then(worker => {
+                let listener;
+                listener = (event) => {
+                    const { message, key } = event.data;
+                    if (message === receive && key === expectedKey) {
+                        worker.removeEventListener('message', listener);
+                        resolve(event.data);
+                    }
+                };
+                worker.addEventListener('message', listener);
+                worker.postMessage(toSend);
+            }).catch(e => {
+                var _a;
+                (_a = this.logger) === null || _a === void 0 ? void 0 : _a.error('Failed to load worker.', e);
+                reject(e);
+            });
+        });
+    }
+    supportsSIMD(url) {
+        const key = 'simd';
+        const path = url || `${this.fetchConfig.paths.wasm}simd-v1.wasm`;
+        const toSend = {
+            message: 'supports-simd',
+            fetchBehavior: this.fetchBehavior,
+            path,
+            key,
+        };
+        return this.roundtrip(toSend, 'simd-support', key)
+            .then(data => data.supports);
+    }
+    measure(simd, budget) {
+        const benchWASM = `${this.fetchConfig.paths.wasm}bench-v1.wasm`;
+        const benchSIMD = `${this.fetchConfig.paths.wasm}bench-v1_simd.wasm`;
+        const path = simd ? benchSIMD : benchWASM;
+        const key = `bench:${simd}`;
+        const toSend = {
+            message: 'measure',
+            fetchBehavior: this.fetchBehavior,
+            budget,
+            path,
+            key,
+        };
+        return this.roundtrip(toSend, 'measurement', key)
+            .then(data => {
+            if (data.measurement) {
+                return data.measurement;
+            }
+            throw new Error('Failed to measure.');
+        });
+    }
+    stop() {
+        this.worker.then(worker => {
+            var _a;
+            (_a = this.logger) === null || _a === void 0 ? void 0 : _a.debug('Stopping estimator worker.');
+            worker.terminate();
+        }).catch(e => {
+        });
+    }
+}
+const inlineScoreMultiplier = (executionQuanta, usagePreference) => {
+    if (executionQuanta === 1) {
+        return SINGLE_INLINE_SCORE_MULTIPLIER;
+    }
+    if (usagePreference === 'quality') {
+        return QUALITY_MULTIPLE_QUANTA_SCORE_MULTIPLIER * executionQuanta;
+    }
+    return INTERACTIVITY_MULTIPLE_QUANTA_SCORE_MULTIPLIER * executionQuanta;
+};
+const decideExecutionApproach = ({ supportsSIMD, supportsSAB, duration, executionPreference = 'auto', simdPreference, variantPreference = 'auto', namePreference = 'default', usagePreference, executionQuantaPreference = DEFAULT_EXECUTION_QUANTA, }, allThresholds = PERFORMANCE_THRESHOLDS, logger) => {
+    const forceSIMD = (simdPreference === 'force');
+    const useSIMD = forceSIMD || (simdPreference !== 'disable' && supportsSIMD);
+    const checkScores = duration !== -1;
+    const baseScore = checkScores ? (useSIMD ? SIMD_SCORE_FIXED_POINT : WASM_SCORE_FIXED_POINT) / duration : 0;
+    const thresholds = useSIMD ? allThresholds.simd : allThresholds.wasm;
+    const inlineScore = checkScores ? inlineScoreMultiplier(executionQuantaPreference, usagePreference) * baseScore : 0;
+    const workerScore = checkScores ? WORKER_SCORE_MULTIPLIER * baseScore : 0;
+    const name = namePreference;
+    const unsupported = (reason) => {
+        return {
+            supported: false,
+            reason,
+        };
+    };
+    if (checkScores) {
+        if (baseScore < thresholds.noSupport) {
+            return unsupported(`Performance score ${baseScore} worse than threshold ${thresholds.noSupport}.`);
+        }
+    }
+    else {
+        if ((executionPreference === 'auto') ||
+            (variantPreference === 'auto')) {
+            return unsupported(`Missing explicit execution (${executionPreference}) or variant (${variantPreference}) preference, but no scoring performed.`);
+        }
+    }
+    logger === null || logger === void 0 ? void 0 : logger.debug(`Bench duration ${duration} yields inline score ${inlineScore} and worker score ${workerScore}.`);
+    const succeed = (processor, executionApproach, variant) => {
+        return {
+            supported: true,
+            useSIMD,
+            processor,
+            executionApproach,
+            variant,
+            executionQuanta: (executionApproach === 'inline' ? executionQuantaPreference : undefined),
+            name,
+        };
+    };
+    const resolveVariant = (score, variant, lookup) => {
+        if (variant !== 'auto') {
+            if (!checkScores || score > lookup[variant]) {
+                return variant;
+            }
+            return 'failed';
+        }
+        if (score > lookup.c100) {
+            return 'c100';
+        }
+        if (score > lookup.c50) {
+            return 'c50';
+        }
+        if (score > lookup.c20) {
+            return 'c20';
+        }
+        if (score > lookup.c10) {
+            return 'c10';
+        }
+        return 'failed';
+    };
+    const reducePreference = (preference) => {
+        switch (preference || 'auto') {
+            case 'auto': {
+                let inlineOption = reducePreference('inline');
+                let workerOption = reducePreference('worker');
+                logger === null || logger === void 0 ? void 0 : logger.debug(`Reducing auto preference: ${JSON.stringify(inlineOption)} vs ${JSON.stringify(workerOption)}`);
+                if (inlineOption.supported === false) {
+                    return workerOption;
+                }
+                if (workerOption.supported === false) {
+                    return workerOption;
+                }
+                if (inlineOption.variant === workerOption.variant || inlineOption.variant === 'c50') {
+                    return inlineOption;
+                }
+                return workerOption;
+            }
+            case 'worker': {
+                if ((0, support_js_1.supportsSharedArrayBuffer)(globalThis, window, logger)) {
+                    return reducePreference('worker-sab');
+                }
+                return reducePreference('worker-postMessage');
+            }
+            case 'inline': {
+                const variant = resolveVariant(inlineScore, variantPreference, thresholds.inline);
+                if (variant === 'failed') {
+                    return unsupported(`Performance score ${inlineScore} not sufficient for inline use with variant preference ${variantPreference}.`);
+                }
+                ;
+                return succeed('voicefocus-inline-processor', 'inline', variant);
+            }
+            case 'worker-sab': {
+                if (!supportsSAB) {
+                    const reason = 'Requested worker-sab but no SharedArrayBuffer support.';
+                    logger === null || logger === void 0 ? void 0 : logger.warn(reason);
+                    return { supported: false, reason };
+                }
+                const variant = resolveVariant(workerScore, variantPreference, thresholds.worker);
+                if (variant === 'failed') {
+                    return unsupported(`Performance score ${workerScore} not sufficient for worker use with variant preference ${variantPreference}.`);
+                }
+                ;
+                return succeed('voicefocus-worker-sab-processor', 'worker-sab', variant);
+            }
+            case 'worker-postMessage': {
+                const variant = resolveVariant(workerScore, variantPreference, thresholds.worker);
+                if (variant === 'failed') {
+                    return unsupported(`Performance score ${workerScore} not sufficient for worker use.`);
+                }
+                ;
+                if (name === 'ns_es') {
+                    const reason = 'Requested echo suppression but postMessage executor does not support it.';
+                    logger === null || logger === void 0 ? void 0 : logger.warn(reason);
+                    return { supported: false, reason };
+                }
+                ;
+                return succeed('voicefocus-worker-postMessage-processor', 'worker-postMessage', variant);
+            }
+        }
+    };
+    return reducePreference(executionPreference);
+};
+const featureCheck = (forceSIMD, fetchConfig, logger, estimator) => __awaiter(void 0, void 0, void 0, function* () {
+    const supports = {
+        supportsSIMD: forceSIMD,
+        supportsSAB: (0, support_js_1.supportsSharedArrayBuffer)(globalThis, window, logger),
+        duration: -1,
+    };
+    if (forceSIMD) {
+        logger === null || logger === void 0 ? void 0 : logger.info('Supports SIMD: true (force)');
+        return supports;
+    }
+    const cleanup = !estimator;
+    const e = estimator || new Estimator(fetchConfig, logger);
+    try {
+        const useSIMD = !(0, support_js_1.isOldChrome)(window, logger) && (yield e.supportsSIMD());
+        logger === null || logger === void 0 ? void 0 : logger.info(`Supports SIMD: ${useSIMD} (force: ${forceSIMD})`);
+        supports.supportsSIMD = useSIMD;
+        return supports;
+    }
+    finally {
+        if (cleanup) {
+            e.stop();
+        }
+    }
+});
+const estimateAndFeatureCheck = (forceSIMD, fetchConfig, estimatorBudget, logger) => __awaiter(void 0, void 0, void 0, function* () {
+    const estimator = new Estimator(fetchConfig, logger);
+    try {
+        const supports = yield featureCheck(forceSIMD, fetchConfig, logger, estimator);
+        if (supports.supportsSIMD) {
+            try {
+                supports.duration = yield estimator.measure(true, estimatorBudget);
+                logger === null || logger === void 0 ? void 0 : logger.info('SIMD timing:', supports.duration);
+                return supports;
+            }
+            catch (e) {
+                logger === null || logger === void 0 ? void 0 : logger.warn('Failed SIMD estimation; falling back to non-SIMD.');
+                supports.supportsSIMD = false;
+            }
+        }
+        supports.duration = yield estimator.measure(false, estimatorBudget);
+        logger === null || logger === void 0 ? void 0 : logger.info('No-SIMD timing:', supports.duration);
+        return supports;
+    }
+    catch (e) {
+        logger === null || logger === void 0 ? void 0 : logger.error('Could not feature check.', e);
+        throw e;
+    }
+    finally {
+        estimator.stop();
+    }
+});
+const measureAndDecideExecutionApproach = (spec, fetchConfig, logger, thresholds = PERFORMANCE_THRESHOLDS) => __awaiter(void 0, void 0, void 0, function* () {
+    let executionPreference = spec.executionPreference;
+    const { usagePreference, variantPreference, namePreference, simdPreference, estimatorBudget, executionQuantaPreference, } = spec;
+    if (usagePreference === 'interactivity' && executionPreference !== 'inline') {
+        logger === null || logger === void 0 ? void 0 : logger.debug(`Overriding execution preference ${executionPreference} to reflect interactivity preference.`);
+        executionPreference = 'inline';
+    }
+    const forceSIMD = simdPreference === 'force';
+    const knownModel = variantPreference !== 'auto';
+    const knownExecution = executionPreference !== 'auto';
+    let supports;
+    try {
+        if (knownModel && knownExecution) {
+            supports = yield featureCheck(forceSIMD, fetchConfig, logger);
+        }
+        else {
+            supports = yield estimateAndFeatureCheck(forceSIMD, fetchConfig, estimatorBudget, logger);
+        }
+    }
+    catch (e) {
+        logger === null || logger === void 0 ? void 0 : logger.error('Could not load estimator.', e);
+        throw new Error('Could not load Voice Focus estimator.');
+    }
+    return decideExecutionApproach(Object.assign(Object.assign({}, supports), { simdPreference,
+        executionPreference,
+        variantPreference,
+        namePreference,
+        usagePreference,
+        executionQuantaPreference }), thresholds, logger);
+});
+exports.measureAndDecideExecutionApproach = measureAndDecideExecutionApproach;
+const decideModel = ({ category, name, variant, simd, url }) => {
+    return `${category}-${name}-${variant}-v1${simd ? '_simd' : ''}`;
+};
+exports.decideModel = decideModel;
+
+
+/***/ }),
+
+/***/ 19:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.isValidRevisionID = exports.isValidAssetGroup = exports.resolveURL = exports.addQueryParams = exports.withQueryString = exports.withRequestHeaders = exports.fetchWithBehavior = void 0;
+function fetchWithBehavior(url, init, fetchBehavior) {
+    if (!fetchBehavior) {
+        return fetch(url, init);
+    }
+    const withQuery = withQueryString(url, fetchBehavior);
+    const withHeaders = withRequestHeaders(init, fetchBehavior);
+    return fetch(withQuery, withHeaders);
+}
+exports.fetchWithBehavior = fetchWithBehavior;
+function withRequestHeaders(init, fetchBehavior) {
+    if (!(fetchBehavior === null || fetchBehavior === void 0 ? void 0 : fetchBehavior.headers)) {
+        return init;
+    }
+    if (!init) {
+        return {
+            headers: fetchBehavior.headers,
+        };
+    }
+    return Object.assign(Object.assign({}, init), { headers: Object.assign(Object.assign({}, init.headers || {}), fetchBehavior.headers) });
+}
+exports.withRequestHeaders = withRequestHeaders;
+function withQueryString(url, fetchBehavior) {
+    if (!(fetchBehavior === null || fetchBehavior === void 0 ? void 0 : fetchBehavior.escapedQueryString)) {
+        return url;
+    }
+    const hasQuery = url.lastIndexOf('?') !== -1;
+    return `${url}${hasQuery ? '&' : '?'}${fetchBehavior.escapedQueryString}`;
+}
+exports.withQueryString = withQueryString;
+function addQueryParams(fetchBehavior, queryParams) {
+    const keys = Object.keys(queryParams);
+    if (!keys.length) {
+        return fetchBehavior;
+    }
+    const params = new URLSearchParams(fetchBehavior === null || fetchBehavior === void 0 ? void 0 : fetchBehavior.escapedQueryString);
+    for (const key of keys) {
+        params.append(key, queryParams[key]);
+    }
+    return Object.assign(Object.assign({}, fetchBehavior), { escapedQueryString: params.toString() });
+}
+exports.addQueryParams = addQueryParams;
+const HEAD_OPTIONS = {
+    method: 'HEAD',
+    mode: 'cors',
+    credentials: 'omit',
+    redirect: 'follow',
+    referrerPolicy: 'origin',
+};
+function resolveURL(url, fetchBehavior) {
+    return fetchWithBehavior(url, HEAD_OPTIONS, fetchBehavior)
+        .then(response => response.redirected ? response.url : url);
+}
+exports.resolveURL = resolveURL;
+function isValidAssetGroup(assetGroup) {
+    return !!assetGroup && /^[-.a-zA-Z0-9]+$/.test(assetGroup);
+}
+exports.isValidAssetGroup = isValidAssetGroup;
+function isValidRevisionID(revisionID) {
+    return !!revisionID && /^[123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ]{22}$/.test(revisionID);
+}
+exports.isValidRevisionID = isValidRevisionID;
+
+
+/***/ }),
+
+/***/ 364:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.loadWorker = void 0;
+const fetch_js_1 = __webpack_require__(19);
+const WORKER_FETCH_OPTIONS = {
+    method: 'GET',
+    mode: 'cors',
+    credentials: 'omit',
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer',
+};
+const loadWorker = (workerURL, name, fetchBehavior, logger) => {
+    logger === null || logger === void 0 ? void 0 : logger.debug(`Loading ${name} worker from ${workerURL}.`);
+    let workerURLIsSameOrigin = false;
+    try {
+        workerURLIsSameOrigin = self.origin === (new URL(workerURL)).origin;
+    }
+    catch (e) {
+        logger === null || logger === void 0 ? void 0 : logger.error('Could not compare origins.', e);
+    }
+    if (workerURLIsSameOrigin) {
+        const workerURLWithQuery = (0, fetch_js_1.withQueryString)(workerURL, fetchBehavior);
+        return Promise.resolve(new Worker(workerURLWithQuery, { name }));
+    }
+    return (0, fetch_js_1.fetchWithBehavior)(workerURL, WORKER_FETCH_OPTIONS, fetchBehavior).then((res) => {
+        if (res.ok) {
+            return res.blob()
+                .then((blob) => new Worker(window.URL.createObjectURL(blob)));
+        }
+        throw new Error('Fetch failed.');
+    });
+};
+exports.loadWorker = loadWorker;
+
+
+/***/ }),
+
+/***/ 128:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.isOldChrome = exports.supportsWASMStreaming = exports.supportsSharedArrayBuffer = exports.supportsWASM = exports.supportsAudioWorklet = exports.supportsWorker = exports.supportsVoiceFocusWorker = exports.supportsWASMPostMessage = exports.isSafari = void 0;
+const loader_js_1 = __webpack_require__(364);
+const isChrome = (global = globalThis) => {
+    const ua = global.navigator.userAgent;
+    return !!ua.match(/Chrom(?:e|ium)\/([0-9]+)/);
+};
+const isSafari = (global = globalThis) => {
+    const ua = global.navigator.userAgent;
+    const hasSafari = ua.match(/Safari\//);
+    const hasChrome = ua.match(/Chrom(?:e|ium)\//);
+    return !!(hasSafari && !hasChrome);
+};
+exports.isSafari = isSafari;
+const supportsWASMPostMessage = (global = globalThis) => {
+    if ((0, exports.isSafari)(global)) {
+        return false;
+    }
+    if (isChrome(global)) {
+        const version = chromeVersion(global) || 0;
+        return version < 95;
+    }
+    return true;
+};
+exports.supportsWASMPostMessage = supportsWASMPostMessage;
+const supportsVoiceFocusWorker = (scope = globalThis, fetchConfig, logger) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!(0, exports.supportsWorker)(scope, logger)) {
+        return false;
+    }
+    const workerURL = `${fetchConfig.paths.workers}worker-v1.js`;
+    try {
+        const worker = yield (0, loader_js_1.loadWorker)(workerURL, 'VoiceFocusTestWorker', fetchConfig, logger);
+        try {
+            worker.terminate();
+        }
+        catch (e) {
+            logger === null || logger === void 0 ? void 0 : logger.debug('Failed to terminate worker.', e);
+        }
+        return true;
+    }
+    catch (e) {
+        logger === null || logger === void 0 ? void 0 : logger.info('Failed to fetch and instantiate test worker', e);
+        return false;
+    }
+});
+exports.supportsVoiceFocusWorker = supportsVoiceFocusWorker;
+const supportsWorker = (scope = globalThis, logger) => {
+    try {
+        return !!scope.Worker;
+    }
+    catch (e) {
+        logger === null || logger === void 0 ? void 0 : logger.info('Does not support Worker', e);
+        return false;
+    }
+};
+exports.supportsWorker = supportsWorker;
+const supportsAudioWorklet = (scope = globalThis, logger) => {
+    try {
+        return !!scope.AudioWorklet && !!scope.AudioWorkletNode;
+    }
+    catch (e) {
+        logger === null || logger === void 0 ? void 0 : logger.info('Does not support Audio Worklet', e);
+        return false;
+    }
+};
+exports.supportsAudioWorklet = supportsAudioWorklet;
+const supportsWASM = (scope = globalThis, logger) => {
+    try {
+        return !!scope.WebAssembly && (!!scope.WebAssembly.compile || !!scope.WebAssembly.compileStreaming);
+    }
+    catch (e) {
+        logger === null || logger === void 0 ? void 0 : logger.info('Does not support WASM', e);
+        return false;
+    }
+};
+exports.supportsWASM = supportsWASM;
+const supportsSharedArrayBuffer = (scope = globalThis, window = globalThis, logger) => {
+    try {
+        return !!scope.SharedArrayBuffer && (!!window.chrome || !!scope.crossOriginIsolated);
+    }
+    catch (e) {
+        logger === null || logger === void 0 ? void 0 : logger.info('Does not support SharedArrayBuffer.');
+        return false;
+    }
+};
+exports.supportsSharedArrayBuffer = supportsSharedArrayBuffer;
+const supportsWASMStreaming = (scope = globalThis, logger) => {
+    var _a;
+    try {
+        return !!((_a = scope.WebAssembly) === null || _a === void 0 ? void 0 : _a.compileStreaming);
+    }
+    catch (e) {
+        logger === null || logger === void 0 ? void 0 : logger.info('Does not support WASM streaming compilation', e);
+        return false;
+    }
+};
+exports.supportsWASMStreaming = supportsWASMStreaming;
+const SUPPORTED_CHROME_VERSION = 90;
+const chromeVersion = (global = globalThis) => {
+    try {
+        if (!global.chrome) {
+            return undefined;
+        }
+    }
+    catch (e) {
+    }
+    const versionCheck = global.navigator.userAgent.match(/Chrom(?:e|ium)\/([0-9]+)/);
+    if (!versionCheck) {
+        return undefined;
+    }
+    return parseInt(versionCheck[1], 10);
+};
+const isOldChrome = (global = globalThis, logger) => {
+    const version = chromeVersion(global);
+    if (!version) {
+        return false;
+    }
+    if (version < SUPPORTED_CHROME_VERSION) {
+        logger === null || logger === void 0 ? void 0 : logger.debug(`Chrome ${version} has incomplete SIMD support.`);
+        return true;
+    }
+    return false;
+};
+exports.isOldChrome = isOldChrome;
+
+
+/***/ }),
+
+/***/ 614:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VoiceFocusAudioWorkletNode = void 0;
+class VoiceFocusAudioWorkletNode extends ((typeof globalThis !== 'undefined' && globalThis['AudioWorkletNode']) ||
+    class Sadness {
+    }) {
+}
+exports.VoiceFocusAudioWorkletNode = VoiceFocusAudioWorkletNode;
+
+
+/***/ }),
+
+/***/ 677:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getAudioInput = exports.createAudioContext = exports.VoiceFocus = void 0;
+const decider_js_1 = __webpack_require__(845);
+const fetch_js_1 = __webpack_require__(19);
+const loader_js_1 = __webpack_require__(364);
+const support_js_1 = __webpack_require__(128);
+const worklet_inline_node_js_1 = __webpack_require__(596);
+const worklet_worker_sab_node_js_1 = __webpack_require__(104);
+const worklet_worker_postMessage_node_js_1 = __webpack_require__(297);
+const DEFAULT_AGC_DISABLED_SETTING = {
+    useVoiceFocusAGC: false,
+    useBuiltInAGC: true,
+};
+const DEFAULT_AGC_SETTING = DEFAULT_AGC_DISABLED_SETTING;
+const DEFAULT_ASSET_GROUP = 'stable-v1';
+const DEFAULT_CDN = 'https://static.sdkassets.chime.aws';
+const DEFAULT_PATHS = {
+    processors: `${DEFAULT_CDN}/processors/`,
+    workers: `${DEFAULT_CDN}/workers/`,
+    wasm: `${DEFAULT_CDN}/wasm/`,
+    models: `${DEFAULT_CDN}/wasm/`,
+};
+const DEFAULT_CONTEXT_HINT = {
+    latencyHint: 0,
+};
+const BASE_AUDIO_CONSTRAINTS = {
+    channelCount: 1,
+    echoCancellation: true,
+    googEchoCancellation: true,
+    noiseSuppression: false,
+    googNoiseSuppression: false,
+    googHighpassFilter: false,
+    googTypingNoiseDetection: false,
+};
+const DEFAULT_AUDIO_CONSTRAINTS_WITH_BUILTIN_AGC = Object.assign(Object.assign({}, BASE_AUDIO_CONSTRAINTS), { autoGainControl: true, googAutoGainControl: true, googAutoGainControl2: true });
+const DEFAULT_AUDIO_CONSTRAINTS_WITHOUT_BUILTIN_AGC = Object.assign(Object.assign({}, BASE_AUDIO_CONSTRAINTS), { autoGainControl: false, googAutoGainControl: false, googAutoGainControl2: false });
+const PROCESSORS = {
+    'voicefocus-worker-sab-processor': {
+        file: 'worklet-worker-sab-processor-v1.js',
+        node: worklet_worker_sab_node_js_1.default,
+    },
+    'voicefocus-worker-postMessage-processor': {
+        file: 'worklet-worker-postMessage-processor-v1.js',
+        node: worklet_worker_postMessage_node_js_1.default,
+    },
+    'voicefocus-inline-processor': {
+        file: 'worklet-inline-processor-v1.js',
+        node: worklet_inline_node_js_1.default,
+    },
+};
+const validateAssetSpec = (assetGroup, revisionID) => {
+    if (assetGroup !== undefined && !(0, fetch_js_1.isValidAssetGroup)(assetGroup)) {
+        throw new Error(`Invalid asset group ${assetGroup}`);
+    }
+    if (revisionID !== undefined && !(0, fetch_js_1.isValidRevisionID)(revisionID)) {
+        throw new Error(`Invalid revision ID ${revisionID}`);
+    }
+};
+const mungeConstraints = (constraints, agc) => {
+    let defaultConstraints;
+    if (agc.useBuiltInAGC) {
+        defaultConstraints = DEFAULT_AUDIO_CONSTRAINTS_WITH_BUILTIN_AGC;
+    }
+    else {
+        defaultConstraints = DEFAULT_AUDIO_CONSTRAINTS_WITHOUT_BUILTIN_AGC;
+    }
+    if (!constraints) {
+        return { audio: defaultConstraints };
+    }
+    if (!constraints.audio) {
+        return constraints;
+    }
+    if (constraints.video) {
+        throw new Error('Not adding Voice Focus to multi-device getUserMedia call.');
+    }
+    return Object.assign(Object.assign({}, constraints), { audio: constraints.audio === true ? defaultConstraints : Object.assign(Object.assign({}, constraints.audio), defaultConstraints) });
+};
+const urlForModel = (model, paths) => {
+    return `${paths.models}${(0, decider_js_1.decideModel)(model)}.wasm`;
+};
+class VoiceFocus {
+    constructor(worker, processorURL, nodeConstructor, nodeOptions, executionQuanta, logger) {
+        this.processorURL = processorURL;
+        this.nodeConstructor = nodeConstructor;
+        this.nodeOptions = nodeOptions;
+        this.executionQuanta = executionQuanta;
+        this.logger = logger;
+        this.internal = {
+            worker,
+            isDestroyed: false,
+        };
+    }
+    getModelMetrics() {
+        var _a;
+        return (_a = this.internal.voiceFocusNode) === null || _a === void 0 ? void 0 : _a.getModelMetrics();
+    }
+    reset() {
+        var _a, _b, _c;
+        (_a = this.internal.voiceFocusNode) === null || _a === void 0 ? void 0 : _a.reset();
+        (_b = this.internal.sourceNode) === null || _b === void 0 ? void 0 : _b.disconnect();
+        (_c = this.internal.destinationNode) === null || _c === void 0 ? void 0 : _c.disconnect();
+    }
+    enable() {
+        var _a;
+        (_a = this.internal.voiceFocusNode) === null || _a === void 0 ? void 0 : _a.enable();
+    }
+    disable() {
+        var _a;
+        (_a = this.internal.voiceFocusNode) === null || _a === void 0 ? void 0 : _a.disable();
+    }
+    setMode(mode) {
+        var _a;
+        (_a = this.internal.voiceFocusNode) === null || _a === void 0 ? void 0 : _a.setMode(mode);
+    }
+    destroy() {
+        var _a, _b, _c, _d, _e;
+        return __awaiter(this, void 0, void 0, function* () {
+            const { worker, isDestroyed, voiceFocusNode, destinationNode, sourceNode, audioContext } = this.internal;
+            if (isDestroyed) {
+                (_a = this.logger) === null || _a === void 0 ? void 0 : _a.debug("Voice Focus is already destroyed");
+                return;
+            }
+            try {
+                worker === null || worker === void 0 ? void 0 : worker.terminate();
+                sourceNode === null || sourceNode === void 0 ? void 0 : sourceNode.disconnect();
+                destinationNode === null || destinationNode === void 0 ? void 0 : destinationNode.disconnect();
+                yield Promise.all([
+                    (_b = audioContext === null || audioContext === void 0 ? void 0 : audioContext.close().catch((error) => error)) !== null && _b !== void 0 ? _b : yield Promise.resolve(),
+                    (_c = voiceFocusNode === null || voiceFocusNode === void 0 ? void 0 : voiceFocusNode.stop().catch((error) => error)) !== null && _c !== void 0 ? _c : yield Promise.resolve(),
+                ]);
+                this.internal.audioContext = undefined;
+                this.internal.voiceFocusNode = undefined;
+                this.internal.sourceNode = undefined;
+                this.internal.destinationNode = undefined;
+                (_d = this.logger) === null || _d === void 0 ? void 0 : _d.debug("Voice Focus destroyed successfully");
+            }
+            catch (e) {
+                (_e = this.logger) === null || _e === void 0 ? void 0 : _e.error("Error while destroying the Voice Focus instance: ", e);
+                throw e;
+            }
+            finally {
+                this.internal.isDestroyed = true;
+            }
+        });
+    }
+    static isSupported(spec, options) {
+        const { fetchBehavior, logger } = options || {};
+        if (typeof globalThis === 'undefined') {
+            logger === null || logger === void 0 ? void 0 : logger.debug('Browser does not have globalThis.');
+            return Promise.resolve(false);
+        }
+        if (!(0, support_js_1.supportsAudioWorklet)(globalThis, logger)) {
+            logger === null || logger === void 0 ? void 0 : logger.debug('Browser does not support Audio Worklet.');
+            return Promise.resolve(false);
+        }
+        if (!(0, support_js_1.supportsWASM)(globalThis, logger)) {
+            logger === null || logger === void 0 ? void 0 : logger.debug('Browser does not support WASM.');
+            return Promise.resolve(false);
+        }
+        if (!(0, support_js_1.supportsWASMStreaming)(globalThis, logger)) {
+            logger === null || logger === void 0 ? void 0 : logger.debug('Browser does not support streaming WASM compilation.');
+        }
+        const { assetGroup = DEFAULT_ASSET_GROUP, revisionID, paths = DEFAULT_PATHS, } = spec || {};
+        validateAssetSpec(assetGroup, revisionID);
+        const assetConfig = revisionID ? { revisionID } : { assetGroup };
+        const updatedFetchBehavior = (0, fetch_js_1.addQueryParams)(fetchBehavior, assetConfig);
+        const fetchConfig = Object.assign(Object.assign({}, updatedFetchBehavior), { paths });
+        return (0, support_js_1.supportsVoiceFocusWorker)(globalThis, fetchConfig, logger);
+    }
+    static mungeExecutionPreference(preference, logger) {
+        const isAuto = (preference === undefined || preference === 'auto');
+        if ((0, support_js_1.isSafari)(globalThis)) {
+            if (isAuto || preference === 'inline') {
+                return 'inline';
+            }
+            if (!isAuto) {
+                throw new Error(`Unsupported execution preference ${preference}`);
+            }
+        }
+        if (preference === 'worker-sab' && !(0, support_js_1.supportsSharedArrayBuffer)(globalThis, globalThis, logger)) {
+            throw new Error(`Unsupported execution preference ${preference}`);
+        }
+        return preference || 'auto';
+    }
+    static configure(spec, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { fetchBehavior, preResolve, logger, } = options || {};
+            const { category = 'voicefocus', name = 'default', variant: variantPreference = 'auto', assetGroup = DEFAULT_ASSET_GROUP, revisionID, simd = 'detect', mode = 'ns', executionPreference = 'auto', executionQuantaPreference, usagePreference = 'interactivity', estimatorBudget = 100, paths = DEFAULT_PATHS, thresholds, } = spec || {};
+            logger === null || logger === void 0 ? void 0 : logger.debug('Configuring Voice Focus with spec', spec);
+            if (category !== undefined && category !== 'voicefocus') {
+                throw new Error(`Unrecognized category ${category}`);
+            }
+            if (name !== undefined && name !== 'default' && name !== 'ns_es') {
+                throw new Error(`Unrecognized feature name ${name}`);
+            }
+            if (variantPreference !== undefined && !['auto', 'c100', 'c50', 'c20', 'c10'].includes(variantPreference)) {
+                throw new Error(`Unrecognized feature variant ${variantPreference}`);
+            }
+            if (executionQuantaPreference !== undefined && ![1, 2, 3].includes(executionQuantaPreference)) {
+                throw new Error(`Unrecognized execution quanta preference ${executionQuantaPreference}`);
+            }
+            validateAssetSpec(assetGroup, revisionID);
+            if (simd !== undefined && !['detect', 'force', 'disable'].includes(simd)) {
+                throw new Error(`Unrecognized SIMD option ${simd}`);
+            }
+            if (executionPreference !== undefined && !['auto', 'inline', 'worker', 'worker-sab', 'worker-postMessage'].includes(executionPreference)) {
+                throw new Error(`Unrecognized execution preference ${executionPreference}`);
+            }
+            if (usagePreference !== undefined && !['quality', 'interactivity'].includes(usagePreference)) {
+                throw new Error(`Unrecognized usage preference ${usagePreference}`);
+            }
+            const executionSpec = {
+                executionPreference: this.mungeExecutionPreference(executionPreference, logger),
+                usagePreference,
+                executionQuantaPreference,
+                variantPreference,
+                namePreference: name,
+                simdPreference: simd,
+                estimatorBudget,
+            };
+            const assetConfig = revisionID ? { revisionID } : { assetGroup };
+            const updatedFetchBehavior = (0, fetch_js_1.addQueryParams)(fetchBehavior, assetConfig);
+            const fetchConfig = Object.assign({ paths }, updatedFetchBehavior);
+            const executionDefinition = yield (0, decider_js_1.measureAndDecideExecutionApproach)(executionSpec, fetchConfig, logger, thresholds);
+            if (executionDefinition.supported === false) {
+                return { supported: false, reason: executionDefinition.reason };
+            }
+            logger === null || logger === void 0 ? void 0 : logger.info('Decided execution approach', executionDefinition);
+            const { useSIMD, processor, variant, executionQuanta } = executionDefinition;
+            const model = {
+                category: category || 'voicefocus',
+                name: name || 'default',
+                mode,
+                variant,
+                simd: useSIMD,
+            };
+            if (preResolve) {
+                const startingURL = urlForModel(model, paths);
+                model.url = yield (0, fetch_js_1.resolveURL)(startingURL, updatedFetchBehavior);
+            }
+            return {
+                fetchConfig,
+                model,
+                processor,
+                executionQuanta,
+                supported: true,
+            };
+        });
+    }
+    static init(configuration, { delegate, preload = true, logger, }) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (configuration.supported === false) {
+                throw new Error('Voice Focus not supported. Reason: ' + configuration.reason);
+            }
+            const { model, processor, fetchConfig, executionQuanta, } = configuration;
+            const { simd, name, mode } = model;
+            const { paths } = fetchConfig;
+            if (processor !== 'voicefocus-inline-processor' &&
+                processor !== 'voicefocus-worker-postMessage-processor' &&
+                processor !== 'voicefocus-worker-sab-processor') {
+                throw new Error(`Unknown processor ${processor}`);
+            }
+            const modelURL = model.url || urlForModel(model, paths);
+            logger === null || logger === void 0 ? void 0 : logger.debug(`Using model URL ${modelURL}.`);
+            const audioBufferURL = `${paths.wasm}audio_buffer-v1${simd ? '_simd' : ''}.wasm`;
+            const resamplerURL = `${paths.wasm}resampler-v1${simd ? '_simd' : ''}.wasm`;
+            const workerURL = `${paths.workers}worker-v1.js`;
+            const { file, node } = PROCESSORS[processor];
+            const processorURL = `${paths.processors}${file}`;
+            const worker = yield (0, loader_js_1.loadWorker)(workerURL, 'VoiceFocusWorker', fetchConfig, logger);
+            if (preload) {
+                logger === null || logger === void 0 ? void 0 : logger.debug('Preloading', modelURL);
+                let message = (0, support_js_1.supportsWASMPostMessage)(globalThis) ? 'get-module' : 'get-module-buffer';
+                worker.postMessage({
+                    message,
+                    preload: true,
+                    key: 'model',
+                    fetchBehavior: fetchConfig,
+                    path: modelURL,
+                });
+            }
+            const numberOfInputs = (name === 'ns_es') ? 2 : 1;
+            const nodeOptions = {
+                processor,
+                worker,
+                audioBufferURL,
+                resamplerURL,
+                fetchBehavior: fetchConfig,
+                modelURL,
+                delegate,
+                logger,
+                numberOfInputs,
+                mode,
+            };
+            const factory = new VoiceFocus(worker, processorURL, node, nodeOptions, executionQuanta, logger);
+            return Promise.resolve(factory);
+        });
+    }
+    createNode(context, options) {
+        var _a;
+        if (this.internal.isDestroyed) {
+            throw new Error("Unable to create node because VoiceFocus worker has been destroyed.");
+        }
+        const { voiceFocusSampleRate = (context.sampleRate === 16000 ? 16000 : 48000), enabled = true, agc = DEFAULT_AGC_SETTING, } = options || {};
+        const supportFarendStream = options === null || options === void 0 ? void 0 : options.es;
+        const processorOptions = {
+            voiceFocusSampleRate,
+            enabled,
+            sendBufferCount: 10,
+            prefill: 6,
+            agc,
+            executionQuanta: this.executionQuanta,
+            supportFarendStream,
+            mode: this.nodeOptions.mode,
+        };
+        const url = (0, fetch_js_1.withQueryString)(this.processorURL, (_a = this.nodeOptions) === null || _a === void 0 ? void 0 : _a.fetchBehavior);
+        return context.audioWorklet
+            .addModule(url)
+            .then(() => new (this.nodeConstructor)(context, Object.assign(Object.assign({}, this.nodeOptions), { processorOptions })));
+    }
+    applyToStream(stream, context, options, useExistingNode = false) {
+        var _a, _b, _c;
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.internal.isDestroyed) {
+                throw new Error("Unable to apply stream because VoiceFocus worker has been destroyed");
+            }
+            (_a = this.internal.sourceNode) === null || _a === void 0 ? void 0 : _a.disconnect();
+            (_b = this.internal.destinationNode) === null || _b === void 0 ? void 0 : _b.disconnect();
+            let voiceFocusNode;
+            if (useExistingNode && this.internal.voiceFocusNode && this.internal.voiceFocusNode.isEnabled()) {
+                (_c = this.logger) === null || _c === void 0 ? void 0 : _c.info("Re-using existing voice focus node");
+                voiceFocusNode = this.internal.voiceFocusNode;
+            }
+            else {
+                voiceFocusNode = yield this.createNode(context, options);
+            }
+            const source = context.createMediaStreamSource(stream);
+            source.connect(voiceFocusNode);
+            const destination = context.createMediaStreamDestination();
+            voiceFocusNode.connect(destination);
+            this.internal = Object.assign(Object.assign({}, this.internal), { voiceFocusNode: voiceFocusNode, sourceNode: source, destinationNode: destination, audioContext: context });
+            return {
+                node: voiceFocusNode,
+                source,
+                destination,
+                stream: destination.stream,
+            };
+        });
+    }
+    applyToSourceNode(source, context, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const node = yield this.createNode(context, options);
+            source.connect(node);
+            return node;
+        });
+    }
+}
+exports.VoiceFocus = VoiceFocus;
+const createAudioContext = (contextHint = DEFAULT_CONTEXT_HINT) => {
+    return new (window.AudioContext || window.webkitAudioContext)(contextHint);
+};
+exports.createAudioContext = createAudioContext;
+const getAudioInput = (context, inputOptions, voiceFocusOptions) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    const { constraints, spec, delegate, preload = true, options } = inputOptions;
+    const { logger } = voiceFocusOptions;
+    const config = yield VoiceFocus.configure(spec, voiceFocusOptions);
+    if (!config.supported) {
+        (_a = voiceFocusOptions.logger) === null || _a === void 0 ? void 0 : _a.warn('Voice Focus not supported; returning standard stream.');
+        return window.navigator.mediaDevices.getUserMedia(constraints);
+    }
+    const factory = yield VoiceFocus.init(config, { delegate, preload, logger });
+    const agc = ((_b = inputOptions.options) === null || _b === void 0 ? void 0 : _b.agc) || DEFAULT_AGC_SETTING;
+    const input = yield window.navigator.mediaDevices.getUserMedia(mungeConstraints(constraints, agc));
+    return factory.applyToStream(input, context, options).then(result => result.stream);
+});
+exports.getAudioInput = getAudioInput;
+
+
+/***/ }),
+
+/***/ 596:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const support_js_1 = __webpack_require__(128);
+const types_js_1 = __webpack_require__(614);
+const CPU_WARNING_MAX_INTERVAL_MS = 5 * 1000;
+const METRICS_MAX_INTERVAL_MS = 5 * 1000;
+class VoiceFocusInlineNode extends types_js_1.VoiceFocusAudioWorkletNode {
+    constructor(context, options) {
+        super(context, options.processor, options);
+        this.cpuWarningCount = 0;
+        this.metrics = {
+            latencyMillisAverage: 0,
+            snr: {
+                average: 0,
+                averageActive: 0,
+                variance: 0,
+                varianceActive: 0,
+            },
+            drr: {
+                average: 0,
+                variance: 0,
+                averageActive: 0,
+                varianceActive: 0,
+            },
+            vad: {
+                average: 0,
+            },
+            cpu: {
+                lateInvoke: 0,
+                longInvoke: 0,
+            },
+        };
+        this.enabled = false;
+        this.channelCountMode = 'explicit';
+        this.channelCount = 1;
+        const { modelURL, worker, fetchBehavior, logger, delegate, } = options;
+        this.logger = logger;
+        this.port.onmessage = this.onProcessorMessage.bind(this);
+        this.delegate = delegate;
+        if (logger)
+            logger.debug('VoiceFocusInlineNode:', modelURL);
+        this.worker = worker;
+        this.worker.onmessage = this.onWorkerMessage.bind(this);
+        const message = (0, support_js_1.supportsWASMPostMessage)(globalThis) ? 'get-module' : 'get-module-buffer';
+        this.worker.postMessage({
+            message,
+            key: 'model',
+            fetchBehavior,
+            path: modelURL,
+        });
+        this.enabled = true;
+    }
+    onModuleBufferLoaded(buffer, key) {
+        this.port.postMessage({ message: 'module-buffer', buffer, key });
+    }
+    onModuleLoaded(module, key) {
+        this.port.postMessage({ message: 'module', module, key });
+    }
+    enable() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.port.postMessage({ message: 'enable' });
+            this.enabled = true;
+        });
+    }
+    disable() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.port.postMessage({ message: 'disable' });
+            this.enabled = false;
+        });
+    }
+    setMode(mode) {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.port.postMessage({ message: 'set-mode', mode });
+        });
+    }
+    stop() {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            this.port.postMessage({ message: 'stop' });
+            try {
+                (_a = this.worker) === null || _a === void 0 ? void 0 : _a.terminate();
+            }
+            catch (e) {
+                console.error("failed to terminate worker:", e);
+            }
+            this.disconnect();
+            this.enabled = false;
+        });
+    }
+    reset() {
+        this.metrics = {
+            latencyMillisAverage: 0,
+            snr: {
+                average: 0,
+                averageActive: 0,
+                variance: 0,
+                varianceActive: 0,
+            },
+            drr: {
+                average: 0,
+                variance: 0,
+                averageActive: 0,
+                varianceActive: 0,
+            },
+            vad: {
+                average: 0,
+            },
+            cpu: {
+                lateInvoke: 0,
+                longInvoke: 0,
+            },
+        };
+        this.port.postMessage({ message: 'reset' });
+    }
+    isEnabled() {
+        return this.enabled;
+    }
+    onProcessorMessage(event) {
+        var _a, _b, _c, _d, _e, _f;
+        const { data } = event;
+        const { message } = data;
+        switch (message) {
+            case 'cpu':
+                const { reason, count } = data;
+                if (reason && count) {
+                    this.metrics.cpu = Object.assign(Object.assign({}, this.metrics.cpu), { [reason]: count + this.metrics.cpu[reason] });
+                }
+                this.cpuWarningCount++;
+                const now = Date.now();
+                const before = this.cpuWarningLastTriggered || now;
+                const diff = Math.abs(now - before);
+                if (!this.cpuWarningLastTriggered || diff > CPU_WARNING_MAX_INTERVAL_MS) {
+                    (_a = this.logger) === null || _a === void 0 ? void 0 : _a.warn(`CPU warning (count: ${this.cpuWarningCount}):`, message);
+                    this.cpuWarningCount = 0;
+                    this.cpuWarningLastTriggered = now;
+                }
+                (_b = this.delegate) === null || _b === void 0 ? void 0 : _b.onCPUWarning();
+                break;
+            case 'metrics':
+                const { metrics } = data;
+                if (!metrics) {
+                    (_c = this.logger) === null || _c === void 0 ? void 0 : _c.warn("Got metrics message but no metrics payload");
+                    break;
+                }
+                this.metrics = Object.assign(Object.assign({}, this.metrics), metrics);
+                if (this.logger) {
+                    const now = Date.now();
+                    const diff = now - ((_d = this.metricsLastRecorded) !== null && _d !== void 0 ? _d : 0);
+                    if (diff > METRICS_MAX_INTERVAL_MS) {
+                        (_e = this.logger) === null || _e === void 0 ? void 0 : _e.debug("Contact metrics:", this.metrics);
+                        this.metricsLastRecorded = now;
+                    }
+                }
+                break;
+            default:
+                (_f = this.logger) === null || _f === void 0 ? void 0 : _f.debug('Ignoring processor message.');
+        }
+    }
+    getModelMetrics() {
+        return this.metrics;
+    }
+    onWorkerMessage(event) {
+        const data = event.data;
+        switch (data.message) {
+            case 'module-buffer':
+                if (!data.buffer || !data.key) {
+                    return;
+                }
+                this.onModuleBufferLoaded(data.buffer, data.key);
+                break;
+            case 'module':
+                if (!data.module || !data.key) {
+                    return;
+                }
+                this.onModuleLoaded(data.module, data.key);
+                break;
+            case 'stopped':
+                if (this.worker) {
+                    this.worker.terminate();
+                }
+                break;
+            default:
+                return;
+        }
+    }
+}
+exports["default"] = VoiceFocusInlineNode;
+
+
+/***/ }),
+
+/***/ 297:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const support_js_1 = __webpack_require__(128);
+const types_js_1 = __webpack_require__(614);
+class VoiceFocusWorkerPostMessageNode extends types_js_1.VoiceFocusAudioWorkletNode {
+    constructor(context, options) {
+        super(context, options.processor, options);
+        this.enabled = false;
+        this.channelCountMode = 'explicit';
+        this.channelCount = 1;
+        const { modelURL, audioBufferURL, worker, fetchBehavior, delegate, } = options;
+        this.delegate = delegate;
+        this.worker = worker;
+        this.worker.onmessage = this.onWorkerMessage.bind(this);
+        this.port.onmessage = this.onProcessorMessage.bind(this);
+        const { enabled, agc, supportFarendStream } = options.processorOptions;
+        this.worker.postMessage({
+            message: 'init',
+            approach: 'postMessage',
+            frames: context.sampleRate === 16000 ? 160 : 480,
+            enabled,
+            agc,
+            fetchBehavior,
+            model: modelURL,
+            supportFarendStream,
+        });
+        const message = (0, support_js_1.supportsWASMPostMessage)(globalThis) ? 'get-module' : 'get-module-buffer';
+        this.worker.postMessage({
+            message,
+            key: 'buffer',
+            fetchBehavior,
+            path: audioBufferURL,
+        });
+        this.enabled = true;
+    }
+    enable() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.worker.postMessage({ message: 'enable' });
+            this.enabled = true;
+        });
+    }
+    disable() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.worker.postMessage({ message: 'disable' });
+            this.enabled = false;
+        });
+    }
+    setMode(mode) {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.port.postMessage({ message: 'set-mode', mode });
+        });
+    }
+    stop() {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                this.worker.postMessage({ message: 'stop' });
+            }
+            catch (e) {
+            }
+            this.disconnect();
+            this.enabled = false;
+        });
+    }
+    getModelMetrics() {
+        return undefined;
+    }
+    reset() {
+    }
+    isEnabled() {
+        return this.enabled;
+    }
+    onWorkerMessage(event) {
+        var _a;
+        const data = event.data;
+        switch (data.message) {
+            case 'ready':
+                this.port.postMessage({ message: 'ready', shared: data.shared }, data.shared ? Object.values(data.shared) : []);
+                break;
+            case 'data':
+                if (!data.buffer) {
+                    return;
+                }
+                this.port.postMessage({ message: 'data', buffer: data.buffer }, [data.buffer]);
+                break;
+            case 'stopped':
+                this.worker.terminate();
+                break;
+            case 'module-buffer':
+            case 'module':
+                this.port.postMessage(data);
+                break;
+            case 'cpu':
+                (_a = this.delegate) === null || _a === void 0 ? void 0 : _a.onCPUWarning();
+                break;
+            case 'processing':
+                this.port.postMessage(data);
+                break;
+            default:
+                return;
+        }
+    }
+    onProcessorMessage(event) {
+        var _a;
+        const data = event.data;
+        switch (data.message) {
+            case 'data':
+                if (!data.buffer) {
+                    return;
+                }
+                this.worker.postMessage({ message: 'data', buffer: data.buffer }, [data.buffer]);
+                break;
+            case 'cpu':
+                (_a = this.delegate) === null || _a === void 0 ? void 0 : _a.onCPUWarning();
+                break;
+            case 'prepare-for-frames':
+                this.worker.postMessage(data);
+                break;
+            default:
+                return;
+        }
+    }
+}
+exports["default"] = VoiceFocusWorkerPostMessageNode;
+
+
+/***/ }),
+
+/***/ 104:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const support_js_1 = __webpack_require__(128);
+const types_js_1 = __webpack_require__(614);
+const INDICES = {
+    ready: 0,
+    enabled: 1,
+};
+const STATES = {
+    disabled: 0,
+    enabled: 1,
+    stopped: 2,
+};
+class VoiceFocusWorkerBufferNode extends types_js_1.VoiceFocusAudioWorkletNode {
+    constructor(context, options) {
+        super(context, options.processor, options);
+        this.enabled = false;
+        this.channelCountMode = 'explicit';
+        this.channelCount = 1;
+        const { modelURL, resamplerURL, worker, fetchBehavior, delegate, } = options;
+        this.delegate = delegate;
+        this.worker = worker;
+        this.worker.onmessage = this.onWorkerMessage.bind(this);
+        this.port.onmessage = this.onProcessorMessage.bind(this);
+        const { enabled, supportFarendStream } = options.processorOptions;
+        this.worker.postMessage({
+            message: 'init',
+            approach: 'sab',
+            frames: context.sampleRate === 16000 ? 160 : 480,
+            enabled,
+            model: modelURL,
+            supportFarendStream,
+        });
+        const message = (0, support_js_1.supportsWASMPostMessage)(globalThis) ? 'get-module' : 'get-module-buffer';
+        this.worker.postMessage({
+            message,
+            key: 'resampler',
+            fetchBehavior,
+            path: resamplerURL,
+        });
+        this.enabled = true;
+    }
+    enable() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.state) {
+                Atomics.store(this.state, INDICES.enabled, STATES.enabled);
+                Atomics.notify(this.state, INDICES.ready, 1);
+            }
+            else {
+                this.worker.postMessage({ message: 'enable' });
+            }
+            this.enabled = true;
+        });
+    }
+    disable() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.state) {
+                Atomics.store(this.state, INDICES.enabled, STATES.disabled);
+                Atomics.notify(this.state, INDICES.ready, 1);
+            }
+            else {
+                this.worker.postMessage({ message: 'disable' });
+            }
+            this.enabled = false;
+        });
+    }
+    setMode(mode) {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.port.postMessage({ message: 'set-mode', mode });
+        });
+    }
+    stop() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.state) {
+                Atomics.store(this.state, INDICES.enabled, STATES.stopped);
+                Atomics.notify(this.state, INDICES.ready, 1);
+            }
+            else {
+                try {
+                    this.worker.postMessage({ message: 'stop' });
+                }
+                catch (e) {
+                }
+            }
+            this.disconnect();
+            this.enabled = false;
+        });
+    }
+    getModelMetrics() {
+        return undefined;
+    }
+    reset() {
+    }
+    isEnabled() {
+        return this.enabled;
+    }
+    onWorkerMessage(event) {
+        var _a;
+        const data = event.data;
+        switch (data.message) {
+            case 'ready':
+                if (!data.shared) {
+                    throw new Error('No shared state.');
+                }
+                this.state = new Int32Array(data.shared.state);
+                this.port.postMessage(data);
+                break;
+            case 'stopped':
+                this.worker.terminate();
+                break;
+            case 'module-buffer':
+            case 'module':
+                this.port.postMessage(data);
+                break;
+            case 'cpu':
+                (_a = this.delegate) === null || _a === void 0 ? void 0 : _a.onCPUWarning();
+                break;
+            case 'processing':
+                this.port.postMessage(data);
+                break;
+            default:
+                return;
+        }
+    }
+    onProcessorMessage(event) {
+        var _a;
+        const data = event.data;
+        switch (data.message) {
+            case 'cpu':
+                (_a = this.delegate) === null || _a === void 0 ? void 0 : _a.onCPUWarning();
+                break;
+            case 'prepare-for-frames':
+                this.worker.postMessage(data);
+                break;
+            default:
+        }
+    }
+}
+exports["default"] = VoiceFocusWorkerBufferNode;
+
 
 /***/ }),
 
@@ -20465,6 +22395,767 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
 
 /***/ }),
 
+/***/ 969:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+function _regeneratorRuntime() { "use strict"; /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */ _regeneratorRuntime = function _regeneratorRuntime() { return e; }; var t, e = {}, r = Object.prototype, n = r.hasOwnProperty, o = Object.defineProperty || function (t, e, r) { t[e] = r.value; }, i = "function" == typeof Symbol ? Symbol : {}, a = i.iterator || "@@iterator", c = i.asyncIterator || "@@asyncIterator", u = i.toStringTag || "@@toStringTag"; function define(t, e, r) { return Object.defineProperty(t, e, { value: r, enumerable: !0, configurable: !0, writable: !0 }), t[e]; } try { define({}, ""); } catch (t) { define = function define(t, e, r) { return t[e] = r; }; } function wrap(t, e, r, n) { var i = e && e.prototype instanceof Generator ? e : Generator, a = Object.create(i.prototype), c = new Context(n || []); return o(a, "_invoke", { value: makeInvokeMethod(t, r, c) }), a; } function tryCatch(t, e, r) { try { return { type: "normal", arg: t.call(e, r) }; } catch (t) { return { type: "throw", arg: t }; } } e.wrap = wrap; var h = "suspendedStart", l = "suspendedYield", f = "executing", s = "completed", y = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} var p = {}; define(p, a, function () { return this; }); var d = Object.getPrototypeOf, v = d && d(d(values([]))); v && v !== r && n.call(v, a) && (p = v); var g = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(p); function defineIteratorMethods(t) { ["next", "throw", "return"].forEach(function (e) { define(t, e, function (t) { return this._invoke(e, t); }); }); } function AsyncIterator(t, e) { function invoke(r, o, i, a) { var c = tryCatch(t[r], t, o); if ("throw" !== c.type) { var u = c.arg, h = u.value; return h && "object" == _typeof(h) && n.call(h, "__await") ? e.resolve(h.__await).then(function (t) { invoke("next", t, i, a); }, function (t) { invoke("throw", t, i, a); }) : e.resolve(h).then(function (t) { u.value = t, i(u); }, function (t) { return invoke("throw", t, i, a); }); } a(c.arg); } var r; o(this, "_invoke", { value: function value(t, n) { function callInvokeWithMethodAndArg() { return new e(function (e, r) { invoke(t, n, e, r); }); } return r = r ? r.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg(); } }); } function makeInvokeMethod(e, r, n) { var o = h; return function (i, a) { if (o === f) throw Error("Generator is already running"); if (o === s) { if ("throw" === i) throw a; return { value: t, done: !0 }; } for (n.method = i, n.arg = a;;) { var c = n.delegate; if (c) { var u = maybeInvokeDelegate(c, n); if (u) { if (u === y) continue; return u; } } if ("next" === n.method) n.sent = n._sent = n.arg;else if ("throw" === n.method) { if (o === h) throw o = s, n.arg; n.dispatchException(n.arg); } else "return" === n.method && n.abrupt("return", n.arg); o = f; var p = tryCatch(e, r, n); if ("normal" === p.type) { if (o = n.done ? s : l, p.arg === y) continue; return { value: p.arg, done: n.done }; } "throw" === p.type && (o = s, n.method = "throw", n.arg = p.arg); } }; } function maybeInvokeDelegate(e, r) { var n = r.method, o = e.iterator[n]; if (o === t) return r.delegate = null, "throw" === n && e.iterator["return"] && (r.method = "return", r.arg = t, maybeInvokeDelegate(e, r), "throw" === r.method) || "return" !== n && (r.method = "throw", r.arg = new TypeError("The iterator does not provide a '" + n + "' method")), y; var i = tryCatch(o, e.iterator, r.arg); if ("throw" === i.type) return r.method = "throw", r.arg = i.arg, r.delegate = null, y; var a = i.arg; return a ? a.done ? (r[e.resultName] = a.value, r.next = e.nextLoc, "return" !== r.method && (r.method = "next", r.arg = t), r.delegate = null, y) : a : (r.method = "throw", r.arg = new TypeError("iterator result is not an object"), r.delegate = null, y); } function pushTryEntry(t) { var e = { tryLoc: t[0] }; 1 in t && (e.catchLoc = t[1]), 2 in t && (e.finallyLoc = t[2], e.afterLoc = t[3]), this.tryEntries.push(e); } function resetTryEntry(t) { var e = t.completion || {}; e.type = "normal", delete e.arg, t.completion = e; } function Context(t) { this.tryEntries = [{ tryLoc: "root" }], t.forEach(pushTryEntry, this), this.reset(!0); } function values(e) { if (e || "" === e) { var r = e[a]; if (r) return r.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) { var o = -1, i = function next() { for (; ++o < e.length;) if (n.call(e, o)) return next.value = e[o], next.done = !1, next; return next.value = t, next.done = !0, next; }; return i.next = i; } } throw new TypeError(_typeof(e) + " is not iterable"); } return GeneratorFunction.prototype = GeneratorFunctionPrototype, o(g, "constructor", { value: GeneratorFunctionPrototype, configurable: !0 }), o(GeneratorFunctionPrototype, "constructor", { value: GeneratorFunction, configurable: !0 }), GeneratorFunction.displayName = define(GeneratorFunctionPrototype, u, "GeneratorFunction"), e.isGeneratorFunction = function (t) { var e = "function" == typeof t && t.constructor; return !!e && (e === GeneratorFunction || "GeneratorFunction" === (e.displayName || e.name)); }, e.mark = function (t) { return Object.setPrototypeOf ? Object.setPrototypeOf(t, GeneratorFunctionPrototype) : (t.__proto__ = GeneratorFunctionPrototype, define(t, u, "GeneratorFunction")), t.prototype = Object.create(g), t; }, e.awrap = function (t) { return { __await: t }; }, defineIteratorMethods(AsyncIterator.prototype), define(AsyncIterator.prototype, c, function () { return this; }), e.AsyncIterator = AsyncIterator, e.async = function (t, r, n, o, i) { void 0 === i && (i = Promise); var a = new AsyncIterator(wrap(t, r, n, o), i); return e.isGeneratorFunction(r) ? a : a.next().then(function (t) { return t.done ? t.value : a.next(); }); }, defineIteratorMethods(g), define(g, u, "Generator"), define(g, a, function () { return this; }), define(g, "toString", function () { return "[object Generator]"; }), e.keys = function (t) { var e = Object(t), r = []; for (var n in e) r.push(n); return r.reverse(), function next() { for (; r.length;) { var t = r.pop(); if (t in e) return next.value = t, next.done = !1, next; } return next.done = !0, next; }; }, e.values = values, Context.prototype = { constructor: Context, reset: function reset(e) { if (this.prev = 0, this.next = 0, this.sent = this._sent = t, this.done = !1, this.delegate = null, this.method = "next", this.arg = t, this.tryEntries.forEach(resetTryEntry), !e) for (var r in this) "t" === r.charAt(0) && n.call(this, r) && !isNaN(+r.slice(1)) && (this[r] = t); }, stop: function stop() { this.done = !0; var t = this.tryEntries[0].completion; if ("throw" === t.type) throw t.arg; return this.rval; }, dispatchException: function dispatchException(e) { if (this.done) throw e; var r = this; function handle(n, o) { return a.type = "throw", a.arg = e, r.next = n, o && (r.method = "next", r.arg = t), !!o; } for (var o = this.tryEntries.length - 1; o >= 0; --o) { var i = this.tryEntries[o], a = i.completion; if ("root" === i.tryLoc) return handle("end"); if (i.tryLoc <= this.prev) { var c = n.call(i, "catchLoc"), u = n.call(i, "finallyLoc"); if (c && u) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } else if (c) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); } else { if (!u) throw Error("try statement without catch or finally"); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } } } }, abrupt: function abrupt(t, e) { for (var r = this.tryEntries.length - 1; r >= 0; --r) { var o = this.tryEntries[r]; if (o.tryLoc <= this.prev && n.call(o, "finallyLoc") && this.prev < o.finallyLoc) { var i = o; break; } } i && ("break" === t || "continue" === t) && i.tryLoc <= e && e <= i.finallyLoc && (i = null); var a = i ? i.completion : {}; return a.type = t, a.arg = e, i ? (this.method = "next", this.next = i.finallyLoc, y) : this.complete(a); }, complete: function complete(t, e) { if ("throw" === t.type) throw t.arg; return "break" === t.type || "continue" === t.type ? this.next = t.arg : "return" === t.type ? (this.rval = this.arg = t.arg, this.method = "return", this.next = "end") : "normal" === t.type && e && (this.next = e), y; }, finish: function finish(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.finallyLoc === t) return this.complete(r.completion, r.afterLoc), resetTryEntry(r), y; } }, "catch": function _catch(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.tryLoc === t) { var n = r.completion; if ("throw" === n.type) { var o = n.arg; resetTryEntry(r); } return o; } } throw Error("illegal catch attempt"); }, delegateYield: function delegateYield(e, r, n) { return this.delegate = { iterator: values(e), resultName: r, nextLoc: n }, "next" === this.method && (this.arg = t), y; } }, e; }
+function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
+function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
+function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _classCallCheck(a, n) { if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function"); }
+function _defineProperties(e, r) { for (var t = 0; t < r.length; t++) { var o = r[t]; o.enumerable = o.enumerable || !1, o.configurable = !0, "value" in o && (o.writable = !0), Object.defineProperty(e, _toPropertyKey(o.key), o); } }
+function _createClass(e, r, t) { return r && _defineProperties(e.prototype, r), t && _defineProperties(e, t), Object.defineProperty(e, "prototype", { writable: !1 }), e; }
+function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+var VOICE_FOCUS_ERROR_METRIC = 'VoiceFocusError';
+var VOICE_FOCUS_MODE_METRIC = 'VoiceFocusMode';
+var VOICE_FOCUS_ELAPSED_TIME_METRIC = 'VoiceFocusElapsedTime';
+var VOICE_FOCUS_CLEARED_METRIC = 'VoiceFocusCleared';
+var VOICE_FOCUS_DEVICE_LABEL_METRIC = 'VoiceFocusDeviceLabel';
+var VOICE_FOCUS_BROWSER_METRIC = 'VoiceFocusBrowser';
+var METRIC_ERROR_TYPE = 'ErrorType';
+var AUDIO_CONTEXT_SAMPLE_RATE = 48000;
+var QUANTA_SAMPLE_RATE_LIMIT_MAX = 40000;
+var QUANTA_SAMPLE_RATE_LIMIT_MIN = 14000;
+var COMPUTE_CAPACITY_LIMIT = 16000;
+
+// Model metrics
+var VOICE_FOCUS_LATENCY_AVERAGE = 'VoiceFocusLatencyAverage';
+var VOICE_FOCUS_SNR_AVERAGE = 'VoiceFocusSNRAverage';
+var VOICE_FOCUS_SNR_VARIANCE = 'VoiceFocusSNRVariance';
+var VOICE_FOCUS_SNR_AVERAGE_ACTIVE = 'VoiceFocusSNRAverageActive';
+var VOICE_FOCUS_SNR_VARIANCE_ACTIVE = 'VoiceFocusSNRVarianceActive';
+var VOICE_FOCUS_DRR_AVERAGE = 'VoiceFocusDRRAverage';
+var VOICE_FOCUS_DRR_VARIANCE = 'VoiceFocusDRRVariance';
+var VOICE_FOCUS_DRR_AVERAGE_ACTIVE = 'VoiceFocusDRRAverageActive';
+var VOICE_FOCUS_DRR_VARIANCE_ACTIVE = 'VoiceFocusDRRVarianceActive';
+var VOICE_FOCUS_VAD_AVERAGE = 'VoiceFocusVADAverage';
+var VOICE_FOCUS_CPU_LATE_INVOKE = 'VoiceFocusCPULateInvoke';
+var VOICE_FOCUS_CPU_LONG_INVOKE = 'VoiceFocusCPULongInvoke';
+(function () {
+  var global = this || globalThis;
+  var connect = global.connect || {};
+  global.connect = connect;
+  global.lily = connect;
+
+  /* eslint-disable-next-line */
+  var _require = __webpack_require__(677),
+    VoiceFocus = _require.VoiceFocus,
+    createAudioContext = _require.createAudioContext;
+  /* eslint-disable-next-line */
+  var _require2 = __webpack_require__(953),
+    VoiceClient = _require2.VoiceClient;
+  var logPrefix = '[VoiceFocus]';
+  var voiceEnhancementModeToModelMode = {
+    VOICE_ISOLATION: 'tve',
+    NOISE_SUPPRESSION: 'ns'
+  };
+
+  /**
+   * Gets the additional metadata from the connect object.
+   *
+   * @returns {Object} - An object containing the common metric dimensions.
+   */
+  var getAdditionalMetadata = function getAdditionalMetadata() {
+    var agentMetadata = {};
+    var agentARN;
+    var accountId;
+    var instanceId;
+    try {
+      var _connect$core, _connect$core2, _connect$core3;
+      agentARN = (_connect$core = connect.core) === null || _connect$core === void 0 || (_connect$core = _connect$core.getAgentDataProvider()) === null || _connect$core === void 0 || (_connect$core = _connect$core.getAgentData()) === null || _connect$core === void 0 || (_connect$core = _connect$core.configuration) === null || _connect$core === void 0 ? void 0 : _connect$core.agentARN;
+      accountId = (_connect$core2 = connect.core) === null || _connect$core2 === void 0 || (_connect$core2 = _connect$core2.getAgentDataProvider()) === null || _connect$core2 === void 0 ? void 0 : _connect$core2.getAWSAccountId();
+      instanceId = (_connect$core3 = connect.core) === null || _connect$core3 === void 0 || (_connect$core3 = _connect$core3.getAgentDataProvider()) === null || _connect$core3 === void 0 ? void 0 : _connect$core3.getInstanceId();
+    } catch (error) {
+      connect.getLog().warn("".concat(logPrefix, " Error in getting additional metadata.")).sendInternalLogToServer();
+    } finally {
+      if (accountId) {
+        agentMetadata.accountId = accountId;
+      }
+      if (instanceId) {
+        agentMetadata.instanceId = instanceId;
+      }
+      if (agentARN) {
+        agentMetadata.agentId = agentARN.split('/').pop();
+      }
+    }
+    return agentMetadata;
+  };
+
+  /**
+   * Gets the device label of the audio track from the provided media stream.
+   *
+   * @param {MediaStream} mediaStream - The media stream containing the audio track
+   * @returns {string} - The label of the audio device or 'unknown' if not available.
+   */
+  var getAudioDeviceLabel = function getAudioDeviceLabel(mediaStream) {
+    try {
+      if (mediaStream && mediaStream.getAudioTracks && mediaStream.getAudioTracks().length > 0) {
+        var audioTrack = mediaStream.getAudioTracks()[0];
+        var settings = audioTrack.getSettings();
+        if (settings && settings.deviceId) {
+          return navigator.mediaDevices.enumerateDevices().then(function (devices) {
+            var audioDevice = devices.find(function (device) {
+              return device.kind === 'audioinput' && device.deviceId === settings.deviceId;
+            });
+            return audioDevice ? audioDevice.label : 'unknown';
+          })["catch"](function (error) {
+            connect.getLog().warn('Error getting audio device label:', error).sendInternalLogToServer();
+            return 'unknown';
+          });
+        }
+      }
+      return Promise.resolve('unknown');
+    } catch (error) {
+      connect.getLog().warn('Error getting audio device label:', error).sendInternalLogToServer();
+      return Promise.resolve('unknown');
+    }
+  };
+
+  /**
+   * Gets the browser name from navigator.userAgent
+   *
+   * @returns {string} - The name of the browser
+   */
+  var getBrowserName = function getBrowserName() {
+    var userAgent = window.navigator.userAgent;
+    var browserName = 'unknown';
+    if (userAgent.indexOf('Chrome') !== -1 && userAgent.indexOf('Edg') === -1) {
+      browserName = 'Chrome';
+    } else if (userAgent.indexOf('Firefox') !== -1) {
+      browserName = 'Firefox';
+    } else if (userAgent.indexOf('Safari') !== -1 && userAgent.indexOf('Chrome') === -1) {
+      browserName = 'Safari';
+    } else if (userAgent.indexOf('Edg') !== -1) {
+      browserName = 'Edge';
+    }
+    return browserName;
+  };
+
+  /**
+   * Utility method to publish a connect metric.
+   * @param {string} metricName
+   * @param {int} metricValue
+   * @param {string} metricKey (defaults to 'count')
+   * @param {Object} moreDimensions
+   */
+  var publishMetric = function publishMetric(metricName, metricValue) {
+    var metricKey = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'count';
+    var moreDimensions = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
+    connect.publishMetric({
+      name: metricName,
+      data: _defineProperty(_defineProperty({}, metricKey, metricValue), "dimensions", _objectSpread({}, moreDimensions))
+    });
+  };
+
+  /**
+   * Custom logger to redirect log lines from chime-sdk.
+   * @implements {import('amazon-chime-sdk-js/libs/voicefocus/types').Logger}
+   */
+  var VoiceFocusLogger = /*#__PURE__*/function () {
+    function VoiceFocusLogger() {
+      _classCallCheck(this, VoiceFocusLogger);
+    }
+    return _createClass(VoiceFocusLogger, [{
+      key: "format",
+      value: function format() {
+        for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+          args[_key] = arguments[_key];
+        }
+        return "".concat(logPrefix, " ").concat(args.map(function (arg) {
+          return arg && _typeof(arg) === 'object' ? JSON.stringify(arg) : String(arg);
+        }).join(' '));
+      }
+    }, {
+      key: "buildLogObject",
+      value: function buildLogObject() {
+        var logObject = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+        return _objectSpread(_objectSpread({}, logObject), getAdditionalMetadata());
+      }
+    }, {
+      key: "debug",
+      value: function debug() {
+        connect.getLog().debug(this.format.apply(this, arguments)).withObject(this.buildLogObject()).sendInternalLogToServer();
+      }
+    }, {
+      key: "info",
+      value: function info() {
+        connect.getLog().info(this.format.apply(this, arguments)).withObject(this.buildLogObject()).sendInternalLogToServer();
+      }
+    }, {
+      key: "warn",
+      value: function warn() {
+        connect.getLog().warn(this.format.apply(this, arguments)).withObject(this.buildLogObject()).sendInternalLogToServer();
+      }
+    }, {
+      key: "error",
+      value: function error() {
+        connect.getLog().error(this.format.apply(this, arguments)).withObject(this.buildLogObject()).sendInternalLogToServer();
+      }
+    }, {
+      key: "log",
+      value: function log(content) {
+        var logObject = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+        connect.getLog().log(this.format(content)).withObject(this.buildLogObject(logObject)).sendInternalLogToServer();
+      }
+    }]);
+  }();
+  /** *
+   * Initialize voice focus instance from chime-sdk.
+   */
+  var VoiceFocusInstanceManager = /*#__PURE__*/function () {
+    function VoiceFocusInstanceManager(logger) {
+      _classCallCheck(this, VoiceFocusInstanceManager);
+      this._voiceClient = null;
+      this._logger = logger;
+      this._voiceFocusInstance = null;
+      this._audioContext = null;
+      this._modelLoadingMetrics = {};
+      this._danglingInstances = [];
+      this._streamSource = undefined;
+      this._streamFlowInitialized = false;
+    }
+    return _createClass(VoiceFocusInstanceManager, [{
+      key: "initialize",
+      value: function () {
+        var _initialize2 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee(_ref) {
+          var mode;
+          return _regeneratorRuntime().wrap(function _callee$(_context) {
+            while (1) switch (_context.prev = _context.next) {
+              case 0:
+                mode = _ref.mode;
+                if (!this.isInitialized()) {
+                  _context.next = 4;
+                  break;
+                }
+                this._logger.info('Voice Focus instance is already initialized');
+                return _context.abrupt("return");
+              case 4:
+                _context.next = 6;
+                return this._initialize({
+                  mode: mode
+                });
+              case 6:
+              case "end":
+                return _context.stop();
+            }
+          }, _callee, this);
+        }));
+        function initialize(_x) {
+          return _initialize2.apply(this, arguments);
+        }
+        return initialize;
+      }()
+    }, {
+      key: "isInitialized",
+      value: function isInitialized() {
+        return this._voiceFocusInstance && this._audioContext;
+      }
+    }, {
+      key: "setMode",
+      value: function setMode(mode) {
+        var _this$_voiceFocusInst;
+        if (mode !== 'tve' && mode !== 'ns') {
+          this._logger.error("Invalid mode: ".concat(mode));
+          throw new Error("Invalid mode: ".concat(mode));
+        }
+        (_this$_voiceFocusInst = this._voiceFocusInstance) === null || _this$_voiceFocusInst === void 0 || _this$_voiceFocusInst.setMode(mode);
+      }
+    }, {
+      key: "addModelLoadingMetric",
+      value: function addModelLoadingMetric(metricName, metricValue, metricType, dimensions) {
+        this._modelLoadingMetrics[metricName] = {
+          MetricName: metricName,
+          MetricValue: metricValue,
+          MetricType: metricType,
+          Dimensions: dimensions
+        };
+      }
+    }, {
+      key: "publishMetrics",
+      value: function publishMetrics(_ref2) {
+        var contactId = _ref2.contactId,
+          mode = _ref2.mode;
+        var metricsToPublish = Object.values(this._modelLoadingMetrics);
+        try {
+          var _this$_voiceFocusInst2;
+          var modelMetrics = (_this$_voiceFocusInst2 = this._voiceFocusInstance) === null || _this$_voiceFocusInst2 === void 0 ? void 0 : _this$_voiceFocusInst2.getModelMetrics();
+          if (modelMetrics && mode) {
+            // Define metric configurations to reduce duplication
+            var metricConfigs = [{
+              name: VOICE_FOCUS_LATENCY_AVERAGE,
+              value: modelMetrics.latencyMillisAverage,
+              type: 'latency'
+            }, {
+              name: VOICE_FOCUS_SNR_AVERAGE,
+              value: modelMetrics.snr.average,
+              type: 'value'
+            }, {
+              name: VOICE_FOCUS_SNR_VARIANCE,
+              value: modelMetrics.snr.variance,
+              type: 'value'
+            }, {
+              name: VOICE_FOCUS_SNR_AVERAGE_ACTIVE,
+              value: modelMetrics.snr.averageActive,
+              type: 'value'
+            }, {
+              name: VOICE_FOCUS_SNR_VARIANCE_ACTIVE,
+              value: modelMetrics.snr.varianceActive,
+              type: 'value'
+            }, {
+              name: VOICE_FOCUS_DRR_AVERAGE,
+              value: modelMetrics.drr.average,
+              type: 'value'
+            }, {
+              name: VOICE_FOCUS_DRR_VARIANCE,
+              value: modelMetrics.drr.variance,
+              type: 'value'
+            }, {
+              name: VOICE_FOCUS_DRR_AVERAGE_ACTIVE,
+              value: modelMetrics.drr.averageActive,
+              type: 'value'
+            }, {
+              name: VOICE_FOCUS_DRR_VARIANCE_ACTIVE,
+              value: modelMetrics.drr.varianceActive,
+              type: 'value'
+            }, {
+              name: VOICE_FOCUS_VAD_AVERAGE,
+              value: modelMetrics.vad.average,
+              type: 'value'
+            }, {
+              name: VOICE_FOCUS_CPU_LATE_INVOKE,
+              value: modelMetrics.cpu.lateInvoke,
+              type: 'count'
+            }, {
+              name: VOICE_FOCUS_CPU_LONG_INVOKE,
+              value: modelMetrics.cpu.longInvoke,
+              type: 'count'
+            }];
+
+            // Map configurations to the required format
+            metricsToPublish = metricsToPublish.concat(metricConfigs.map(function (config) {
+              return {
+                MetricName: config.name,
+                MetricValue: config.value,
+                MetricType: config.type
+              };
+            }));
+          }
+        } catch (error) {
+          this._logger.error("Failed to get the VoiceFocus model metrics: ".concat(error));
+        }
+        this._logger.info("Publishing metrics for contact: ".concat(contactId), metricsToPublish);
+        metricsToPublish.forEach(function (metric) {
+          publishMetric(metric.MetricName, metric.MetricValue, metric.MetricType, _objectSpread({
+            ContactId: contactId
+          }, metric.Dimensions));
+        });
+
+        // Clean model metrics
+        this._modelLoadingMetrics = {};
+      }
+    }, {
+      key: "getSDKVoiceClient",
+      value: function getSDKVoiceClient() {
+        if (!this._voiceClient) {
+          this._voiceClient = new VoiceClient(connect.core.getSDKClientConfig());
+        }
+        return this._voiceClient;
+      }
+    }, {
+      key: "_initialize",
+      value: function () {
+        var _initialize3 = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee2(_ref3) {
+          var mode, paths, spec, config;
+          return _regeneratorRuntime().wrap(function _callee2$(_context2) {
+            while (1) switch (_context2.prev = _context2.next) {
+              case 0:
+                mode = _ref3.mode;
+                _context2.prev = 1;
+                _context2.next = 4;
+                return this.getSDKVoiceClient().getVoiceEnhancementPaths();
+              case 4:
+                paths = _context2.sent;
+                this._logger.info('Fetched VoiceFocus assets from:', paths);
+
+                // Enforcing the required samplerate does not work in Firefox sometimes
+                // If the browser is Firefox, use the default sample rate
+                this._audioContext = createAudioContext(connect.isFirefoxBrowser() ? {} : {
+                  sampleRate: AUDIO_CONTEXT_SAMPLE_RATE
+                });
+                spec = {
+                  mode: mode,
+                  variant: 'c50',
+                  usagePreference: 'interactivity',
+                  simd: 'force',
+                  executionPreference: 'inline',
+                  // for interactive use case, inline is recommended from chime-sdk
+                  paths: paths,
+                  executionQuantaPreference: 3 // by default, voice focus is finished in 3 runs
+                }; // In Firefox browser and sample rate < 38.4 kHz, the resampler and default voiceFocus
+                // will have conflict due to buffer reading/writing frequency if 3-stage is used
+                if (!(connect.isFirefoxBrowser() && this._audioContext.sampleRate < QUANTA_SAMPLE_RATE_LIMIT_MAX)) {
+                  _context2.next = 14;
+                  break;
+                }
+                if (!(this._audioContext.sampleRate > QUANTA_SAMPLE_RATE_LIMIT_MIN && this._audioContext.sampleRate <= COMPUTE_CAPACITY_LIMIT)) {
+                  _context2.next = 13;
+                  break;
+                }
+                // Force one-stage processing so voiceFocus function is fast enough
+                // to prevent audio data loss due to buffer overflow
+                spec.executionQuantaPreference = 1;
+                _context2.next = 14;
+                break;
+              case 13:
+                throw new Error('This sample rate is not supported in VoiceFocus');
+              case 14:
+                _context2.next = 16;
+                return VoiceFocus.configure(spec, {
+                  logger: this._logger
+                });
+              case 16:
+                config = _context2.sent;
+                if (config.supported) {
+                  _context2.next = 19;
+                  break;
+                }
+                throw new Error('VoiceFocus not supported on this platform');
+              case 19:
+                this._logger.info('VoiceFocus is configured for given spec', spec);
+                _context2.next = 22;
+                return VoiceFocus.init(config, {
+                  preload: true,
+                  logger: this._logger
+                });
+              case 22:
+                this._voiceFocusInstance = _context2.sent;
+                this._danglingInstances.push(this._voiceFocusInstance);
+                this._logger.info('Successfully initialized VoiceFocus instance', config);
+                _context2.next = 32;
+                break;
+              case 27:
+                _context2.prev = 27;
+                _context2.t0 = _context2["catch"](1);
+                this._logger.error("Failed to initialize VoiceFocus: ".concat(_context2.t0));
+                this._voiceFocusInstance = null;
+                throw _context2.t0;
+              case 32:
+              case "end":
+                return _context2.stop();
+            }
+          }, _callee2, this, [[1, 27]]);
+        }));
+        function _initialize(_x2) {
+          return _initialize3.apply(this, arguments);
+        }
+        return _initialize;
+      }()
+    }, {
+      key: "applyToStream",
+      value: function () {
+        var _applyToStream = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee3(stream) {
+          var _this$_streamSource, _this$_voiceFocusInst3, _this$_voiceFocusInst4;
+          var _this$_voiceFocusInst5, audioContext, voiceFocusNode, destination, result;
+          return _regeneratorRuntime().wrap(function _callee3$(_context3) {
+            while (1) switch (_context3.prev = _context3.next) {
+              case 0:
+                if (this.isInitialized()) {
+                  _context3.next = 2;
+                  break;
+                }
+                throw new Error('VoiceFocus not initialized');
+              case 2:
+                // Disconnect existing source
+                (_this$_streamSource = this._streamSource) === null || _this$_streamSource === void 0 || _this$_streamSource.disconnect();
+                if (!(this._streamFlowInitialized && (_this$_voiceFocusInst3 = this._voiceFocusInstance) !== null && _this$_voiceFocusInst3 !== void 0 && (_this$_voiceFocusInst3 = _this$_voiceFocusInst3.internal) !== null && _this$_voiceFocusInst3 !== void 0 && _this$_voiceFocusInst3.voiceFocusNode && ((_this$_voiceFocusInst4 = this._voiceFocusInstance) === null || _this$_voiceFocusInst4 === void 0 || (_this$_voiceFocusInst4 = _this$_voiceFocusInst4.internal) === null || _this$_voiceFocusInst4 === void 0 || (_this$_voiceFocusInst4 = _this$_voiceFocusInst4.audioContext) === null || _this$_voiceFocusInst4 === void 0 ? void 0 : _this$_voiceFocusInst4.state) === 'running')) {
+                  _context3.next = 10;
+                  break;
+                }
+                _this$_voiceFocusInst5 = this._voiceFocusInstance.internal, audioContext = _this$_voiceFocusInst5.audioContext, voiceFocusNode = _this$_voiceFocusInst5.voiceFocusNode;
+                this._streamSource = audioContext.createMediaStreamSource(stream);
+                destination = audioContext.createMediaStreamDestination();
+                this._streamSource.connect(voiceFocusNode);
+                voiceFocusNode.connect(destination);
+                return _context3.abrupt("return", {
+                  stream: destination.stream
+                });
+              case 10:
+                this._streamFlowInitialized = true;
+                _context3.next = 13;
+                return this._voiceFocusInstance.applyToStream(stream, this._audioContext);
+              case 13:
+                result = _context3.sent;
+                this._streamSource = result.source;
+                return _context3.abrupt("return", result);
+              case 16:
+              case "end":
+                return _context3.stop();
+            }
+          }, _callee3, this);
+        }));
+        function applyToStream(_x3) {
+          return _applyToStream.apply(this, arguments);
+        }
+        return applyToStream;
+      }()
+    }, {
+      key: "initializeAndApplyToStream",
+      value: function () {
+        var _initializeAndApplyToStream = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee4(stream, mode) {
+          return _regeneratorRuntime().wrap(function _callee4$(_context4) {
+            while (1) switch (_context4.prev = _context4.next) {
+              case 0:
+                _context4.next = 2;
+                return this.initialize({
+                  mode: mode
+                });
+              case 2:
+                if (this.isInitialized()) {
+                  _context4.next = 4;
+                  break;
+                }
+                throw new Error("".concat(logPrefix, " Failed to initialize voice focus instance."));
+              case 4:
+                return _context4.abrupt("return", this.applyToStream(stream));
+              case 5:
+              case "end":
+                return _context4.stop();
+            }
+          }, _callee4, this);
+        }));
+        function initializeAndApplyToStream(_x4, _x5) {
+          return _initializeAndApplyToStream.apply(this, arguments);
+        }
+        return initializeAndApplyToStream;
+      }()
+    }, {
+      key: "reset",
+      value: function reset() {
+        try {
+          var _this$_streamSource2, _this$_voiceFocusInst6;
+          this._modelLoadingMetrics = {};
+          (_this$_streamSource2 = this._streamSource) === null || _this$_streamSource2 === void 0 || _this$_streamSource2.disconnect();
+          (_this$_voiceFocusInst6 = this._voiceFocusInstance) === null || _this$_voiceFocusInst6 === void 0 || (_this$_voiceFocusInst6 = _this$_voiceFocusInst6.internal) === null || _this$_voiceFocusInst6 === void 0 || (_this$_voiceFocusInst6 = _this$_voiceFocusInst6.voiceFocusNode) === null || _this$_voiceFocusInst6 === void 0 || (_this$_voiceFocusInst6 = _this$_voiceFocusInst6.port) === null || _this$_voiceFocusInst6 === void 0 || _this$_voiceFocusInst6.postMessage({
+            message: 'reset'
+          });
+          this.addModelLoadingMetric(VOICE_FOCUS_CLEARED_METRIC, 1, 'count');
+        } catch (error) {
+          this._logger.error("Error in destroying VoiceFocus instance: ".concat(error));
+          this.addModelLoadingMetric(VOICE_FOCUS_CLEARED_METRIC, 0, 'count');
+          return this.destroy();
+        }
+      }
+    }, {
+      key: "destroy",
+      value: function () {
+        var _destroy = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee5() {
+          var _this$_danglingInstan;
+          return _regeneratorRuntime().wrap(function _callee5$(_context5) {
+            while (1) switch (_context5.prev = _context5.next) {
+              case 0:
+                try {
+                  // call VF destroy to terminate the resources created in it.
+                  (_this$_danglingInstan = this._danglingInstances) === null || _this$_danglingInstan === void 0 || _this$_danglingInstan.forEach(function (instance) {
+                    return instance === null || instance === void 0 ? void 0 : instance.destroy();
+                  });
+                  this._voiceFocusInstance = null;
+                  this._audioContext = null;
+                  this._streamFlowInitialized = false;
+                  this._logger.info('Successfully destroyed VoiceFocus instance and cleared the WebAudio graph.');
+                } catch (error) {
+                  this._logger.error("Error in destroying VoiceFocus instance: ".concat(error));
+                } finally {
+                  this._voiceFocusInstance = null;
+                  this._audioContext = null;
+                  this._danglingInstances = [];
+                  this._modelLoadingMetrics = {};
+                }
+              case 1:
+              case "end":
+                return _context5.stop();
+            }
+          }, _callee5, this);
+        }));
+        function destroy() {
+          return _destroy.apply(this, arguments);
+        }
+        return destroy;
+      }()
+    }]);
+  }();
+  var _voiceFocusLogger = new VoiceFocusLogger();
+
+  // Create the singleton instance
+  connect.core.voiceFocus = new VoiceFocusInstanceManager(_voiceFocusLogger);
+  var VoiceFocusProvider = /*#__PURE__*/function () {
+    function VoiceFocusProvider() {
+      _classCallCheck(this, VoiceFocusProvider);
+    }
+    return _createClass(VoiceFocusProvider, null, [{
+      key: "getVoiceEnhancedUserMedia",
+      value: (
+      /**
+       * Gets the voice enhanced user media stream.
+       *
+       * @param {MediaStream} sourceMediaStream - Source media stream to enhance with voice enhancement feature.
+       * @param {Object} options - Options for voice enhancement.
+       * @param {Function} options.onError - Callback function to handle errors.
+       * @returns {Promise<MediaStream>} - A Promise that resolves with the enhanced MediaStream object if successful, or rejects with an error if there's a problem.
+       */
+      function () {
+        var _getVoiceEnhancedUserMedia = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee6(sourceMediaStream) {
+          var _ref4,
+            onError,
+            mode,
+            voiceFocusManager,
+            modelMode,
+            startTime,
+            timeout,
+            _args6 = arguments;
+          return _regeneratorRuntime().wrap(function _callee6$(_context6) {
+            while (1) switch (_context6.prev = _context6.next) {
+              case 0:
+                _ref4 = _args6.length > 1 && _args6[1] !== undefined ? _args6[1] : {
+                  onError: function onError() {}
+                }, onError = _ref4.onError;
+                mode = new connect.Agent().getVoiceEnhancementMode();
+                VoiceFocusProvider.modelMode = voiceEnhancementModeToModelMode[mode !== null && mode !== void 0 ? mode : ''];
+                voiceFocusManager = connect.core.voiceFocus;
+                modelMode = VoiceFocusProvider.modelMode;
+                if (modelMode) {
+                  _context6.next = 9;
+                  break;
+                }
+                _voiceFocusLogger.log('Voice focus disabled, returning default mediaStream.');
+                voiceFocusManager.addModelLoadingMetric(VOICE_FOCUS_MODE_METRIC, 1, 'count', {
+                  ModelMode: 'none'
+                });
+                return _context6.abrupt("return", sourceMediaStream);
+              case 9:
+                _context6.prev = 9;
+                _voiceFocusLogger.log("Voice focus enabled with mode: ".concat(modelMode));
+                voiceFocusManager.addModelLoadingMetric(VOICE_FOCUS_MODE_METRIC, 1, 'count', {
+                  ModelMode: modelMode
+                });
+                // Get audio device label and browser info for metrics
+                _context6.t0 = voiceFocusManager;
+                _context6.t1 = VOICE_FOCUS_DEVICE_LABEL_METRIC;
+                _context6.next = 16;
+                return getAudioDeviceLabel(sourceMediaStream);
+              case 16:
+                _context6.t2 = _context6.sent;
+                _context6.t3 = {
+                  DeviceLabel: _context6.t2
+                };
+                _context6.t0.addModelLoadingMetric.call(_context6.t0, _context6.t1, 1, 'count', _context6.t3);
+                // Get browser name for metrics
+                voiceFocusManager.addModelLoadingMetric(VOICE_FOCUS_BROWSER_METRIC, 1, 'count', {
+                  BrowserName: getBrowserName()
+                });
+                _voiceFocusLogger.log("Initializing voice focus to enhance source stream: ".concat(sourceMediaStream.id));
+
+                // Capture the start time
+                startTime = performance.now(); // Create a Promise that resolves after 5 seconds
+                timeout = new Promise(function (_, reject) {
+                  setTimeout(function () {
+                    return reject(new Error('TimeoutError'));
+                  }, 5000);
+                }); // Use Promise.race() to return the first Promise that resolves/rejects to ensure we fallback to default media stream
+                return _context6.abrupt("return", Promise.race([voiceFocusManager.initializeAndApplyToStream(sourceMediaStream, modelMode), timeout]).then(function (result) {
+                  // Capture the end time
+                  var endTime = performance.now();
+
+                  // Calculate the elapsed time
+                  var elapsedTime = (endTime - startTime).toFixed(2);
+
+                  // Note: since there is only one audio node, the mode must be explicitly set at every invocation to capture any change since the initialization
+                  connect.core.voiceFocus.setMode(modelMode);
+                  _voiceFocusLogger.log("Voice focus returned enhanced media stream in ".concat(elapsedTime, " ms"));
+                  voiceFocusManager.addModelLoadingMetric(VOICE_FOCUS_ERROR_METRIC, 0, 'count');
+                  voiceFocusManager.addModelLoadingMetric(VOICE_FOCUS_ELAPSED_TIME_METRIC, elapsedTime, 'latency');
+                  return result === null || result === void 0 ? void 0 : result.stream;
+                })["catch"](function (error) {
+                  // Capture the end time
+                  var endTime = performance.now();
+
+                  // Calculate the elapsed time
+                  var elapsedTime = (endTime - startTime).toFixed(2);
+                  if (error.message === 'TimeoutError') {
+                    // If the timeout Promise resolves first, return the default media stream
+                    _voiceFocusLogger.warn("Timeout exceeded (".concat(elapsedTime, " ms), returning back source media stream"));
+                    var timeoutDimensions = _defineProperty({}, METRIC_ERROR_TYPE, 'Timeout');
+                    voiceFocusManager.addModelLoadingMetric(VOICE_FOCUS_ERROR_METRIC, 1, 'count', timeoutDimensions);
+                    voiceFocusManager.addModelLoadingMetric(VOICE_FOCUS_ELAPSED_TIME_METRIC, elapsedTime, 'latency', timeoutDimensions);
+                  } else {
+                    _voiceFocusLogger.warn("Error occurred in Voice focus (".concat(elapsedTime, " ms), returning source media stream: ").concat(error));
+                    voiceFocusManager.addModelLoadingMetric(VOICE_FOCUS_ERROR_METRIC, 1, 'count');
+                    voiceFocusManager.addModelLoadingMetric(VOICE_FOCUS_ELAPSED_TIME_METRIC, elapsedTime, 'latency', _defineProperty({}, METRIC_ERROR_TYPE, 'Generic'));
+                  }
+                  onError === null || onError === void 0 || onError();
+                  return sourceMediaStream;
+                }));
+              case 26:
+                _context6.prev = 26;
+                _context6.t4 = _context6["catch"](9);
+                _voiceFocusLogger.warn("Error occurred in Voice focus, returning source media stream: ".concat(_context6.t4));
+                voiceFocusManager.addModelLoadingMetric(VOICE_FOCUS_ERROR_METRIC, 1, 'count');
+                onError === null || onError === void 0 || onError();
+                return _context6.abrupt("return", sourceMediaStream);
+              case 32:
+              case "end":
+                return _context6.stop();
+            }
+          }, _callee6, null, [[9, 26]]);
+        }));
+        function getVoiceEnhancedUserMedia(_x6) {
+          return _getVoiceEnhancedUserMedia.apply(this, arguments);
+        }
+        return getVoiceEnhancedUserMedia;
+      }())
+    }, {
+      key: "publishMetrics",
+      value: function publishMetrics(_ref5) {
+        var _connect$core$voiceFo;
+        var contactId = _ref5.contactId;
+        (_connect$core$voiceFo = connect.core.voiceFocus) === null || _connect$core$voiceFo === void 0 || _connect$core$voiceFo.publishMetrics({
+          contactId: contactId,
+          mode: VoiceFocusProvider.modelMode
+        });
+      }
+    }, {
+      key: "cleanVoiceFocus",
+      value: function () {
+        var _cleanVoiceFocus = _asyncToGenerator(/*#__PURE__*/_regeneratorRuntime().mark(function _callee7() {
+          var _connect$core$voiceFo2;
+          return _regeneratorRuntime().wrap(function _callee7$(_context7) {
+            while (1) switch (_context7.prev = _context7.next) {
+              case 0:
+                _context7.next = 2;
+                return (_connect$core$voiceFo2 = connect.core.voiceFocus) === null || _connect$core$voiceFo2 === void 0 ? void 0 : _connect$core$voiceFo2.reset();
+              case 2:
+              case "end":
+                return _context7.stop();
+            }
+          }, _callee7);
+        }));
+        function cleanVoiceFocus() {
+          return _cleanVoiceFocus.apply(this, arguments);
+        }
+        return cleanVoiceFocus;
+      }()
+    }]);
+  }();
+  _defineProperty(VoiceFocusProvider, "modelMode", undefined);
+  module.exports = VoiceFocusProvider;
+  connect.VoiceFocusProvider = VoiceFocusProvider;
+})();
+
+/***/ }),
+
 /***/ 354:
 /***/ (() => {
 
@@ -22028,7 +24719,8 @@ module.exports = debounce;
 /******/ 	__webpack_require__(269);
 /******/ 	__webpack_require__(825);
 /******/ 	__webpack_require__(961);
-/******/ 	var __webpack_exports__ = __webpack_require__(949);
+/******/ 	__webpack_require__(949);
+/******/ 	var __webpack_exports__ = __webpack_require__(969);
 /******/ 	
 /******/ })()
 ;
