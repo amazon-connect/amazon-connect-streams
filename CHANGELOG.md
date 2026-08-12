@@ -1,4 +1,8 @@
 # CHANGELOG.md
+## [2.25.3] - 2026-08-12
+- Fixing missing variable declaration in the softphone onSessionFailed and onSessionCompleted callbacks. This issue could lead to an increase in missed calls after a network degradation.
+- Builders on v2.25.0 through v2.25.2 should upgrade to this version.
+
 ## [2.25.0] - 2026-02-11
 - Introducing contact level auto-accept configuration that can be accessed via `contact.isAutoAcceptEnabled()` as part of the launch to support auto-accept for all channels. Learn more [here](https://docs.aws.amazon.com/connect/latest/adminguide/configure-agents.html).
 
