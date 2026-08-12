@@ -569,7 +569,9 @@
         publishSessionFailureTelemetryEvent(contact.getContactId(), reason);
         stopJobsAndReport(contact, rtcSession.sessionReport);
         // publish voice focus metrics
-        connect.VoiceFocusProvider.publishMetrics({ contactId });
+        connect.VoiceFocusProvider.publishMetrics({
+          contactId: contact.getContactId(),
+        });
         // clean voice focus models
         connect.VoiceFocusProvider.cleanVoiceFocus();
       };
@@ -596,7 +598,9 @@
         deleteLocalMediaStream(agentConnectionId);
 
         // publish voice focus metrics
-        connect.VoiceFocusProvider.publishMetrics({ contactId });
+        connect.VoiceFocusProvider.publishMetrics({
+          contactId: contact.getContactId(),
+        });
         // clean voice focus models
         connect.VoiceFocusProvider.cleanVoiceFocus();
       };
