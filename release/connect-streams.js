@@ -2616,7 +2616,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     this._rolledLogs = [];
     this._logsToPush = [];
     this._serverBoundInternalLogs = [];
-    this._echoLevel = LogLevelOrder.INFO;
+    this._echoLevel = LogLevelOrder.WARN;
     this._logLevel = LogLevelOrder.INFO;
     this._lineCount = 0;
     this._logRollInterval = 0;
@@ -9558,7 +9558,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.28.1";
+  connect.version = "2.28.3";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;

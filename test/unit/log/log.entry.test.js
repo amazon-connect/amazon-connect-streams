@@ -502,9 +502,9 @@ describe('Logger', () => {
             expect(logger._logLevel).toBe(30);
         });
 
-        it('should initialize with default echo level INFO (30)', () => {
+        it('should initialize with default echo level WARN (50) (#1094)', () => {
             const logger = new connect.Logger();
-            expect(logger._echoLevel).toBe(30);
+            expect(logger._echoLevel).toBe(50);
         });
     });
 
