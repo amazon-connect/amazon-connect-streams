@@ -1,5 +1,11 @@
 describe('Logger', () => {
     describe('Logger.setLogLevel / setEchoLevel (validation)', () => {
+        it('defaults the echo level to WARN so INFO/DEBUG/TRACE are not echoed to the console (#1094)', () => {
+            const logger = new connect.Logger();
+            // WARN (50): below-WARN levels stay out of the console by default.
+            expect(logger._echoLevel).toBe(50);
+        });
+
         it('setLogLevel sets the numeric level for a valid level on a fresh logger', () => {
             const logger = new connect.Logger();
             logger.setLogLevel(connect.LogLevel.CRITICAL);
@@ -20,6 +26,38 @@ describe('Logger', () => {
         it('setEchoLevel throws on an unknown level (fresh, unwrapped logger)', () => {
             const logger = new connect.Logger();
             expect(() => { logger.setEchoLevel('UNKNOWN'); }).toThrow('Unknown logging level: UNKNOWN');
+        });
+
+        it('sendInternalLogEntryToServer records the entry and echoes it at the default WARN echo level (#1094)', () => {
+            const logger = new connect.Logger();
+            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            try {
+                // A WARN entry (50) is >= both the default log level (INFO=30) and the
+                // default echo level (WARN=50), so it is recorded, line-numbered, and
+                // echoed to the console via the CONSOLE_LOGGER_MAP.WARN path.
+                const entry = logger.warn('internal warning');
+                logger.sendInternalLogEntryToServer(entry);
+                expect(logger._serverBoundInternalLogs).toContain(entry);
+                expect(warnSpy).toHaveBeenCalled();
+            } finally {
+                warnSpy.mockRestore();
+            }
+        });
+
+        it('sendInternalLogEntryToServer does NOT echo an INFO entry under the default WARN echo level (#1094)', () => {
+            const logger = new connect.Logger();
+            const infoSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
+            try {
+                // INFO (30) is >= the log level (30) so it is recorded, but < the default
+                // echo level (WARN=50), so it is NOT echoed to the console by default.
+                const entry = logger.info('internal info');
+                infoSpy.mockClear(); // ignore the echo from logger.info()'s own addLogEntry
+                logger.sendInternalLogEntryToServer(entry);
+                expect(logger._serverBoundInternalLogs).toContain(entry);
+                expect(infoSpy).not.toHaveBeenCalled();
+            } finally {
+                infoSpy.mockRestore();
+            }
         });
     });
 

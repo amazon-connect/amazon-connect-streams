@@ -1,5 +1,28 @@
 # CHANGELOG.md
 
+## [2.28.3] - 2026-08-13
+Default the console echo level to WARN, and correct the agent.createTask
+TypeScript typings.
+
+src/log.js
+  - Default the Logger echo level to WARN instead of INFO, so INFO/DEBUG/TRACE
+    entries are no longer echoed to the browser console by default (noisy for
+    integrators embedding the CCP). Integrators can still opt into a lower level
+    via setEchoLevel (GitHub #1094).
+
+src/index.d.ts
+  - Make TaskContactDefinition.description and TaskContactDefinition.references
+    optional, matching runtime behavior (createTask, implemented in
+    amazon-connect-taskjs, only requires name and, for non-templated tasks,
+    endpoint).
+  - Add a CreateTaskCallbacks interface whose success callback receives the
+    created task's contact id ({ contactId: string }), and point
+    Agent.createTask at it instead of the shared SuccessFailOptions (whose
+    success callback passed no data). Backward compatible: existing zero-argument
+    success callbacks remain assignable.
+
+Unit tests updated and added for the echo-level change.
+
 ## [2.28.2] - 2026-08-07
 Fix variable that was missing a function declaration. This caused build issues for app running in Strict mode.
 

@@ -376,7 +376,7 @@
     this._rolledLogs = [];
     this._logsToPush = [];
     this._serverBoundInternalLogs = [];
-    this._echoLevel = LogLevelOrder.INFO;
+    this._echoLevel = LogLevelOrder.WARN;
     this._logLevel = LogLevelOrder.INFO;
     this._lineCount = 0;
     this._logRollInterval = 0;

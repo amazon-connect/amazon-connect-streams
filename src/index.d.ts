@@ -1294,6 +1294,17 @@ declare namespace connect {
     readonly failure?: SuccessFailCallback<[string]>;
   }
 
+  interface CreateTaskCallbacks {
+      /**
+       * A callback that starts when the task is created successfully.
+       * Receives the created task's contact ID.
+       */
+      readonly success?: SuccessFailCallback<[{ contactId: string }]>;
+
+      /** A callback that starts when the operation has an error. */
+      readonly failure?: SuccessFailCallback<[string]>;
+  }
+
   interface AddParticipantOptions extends SuccessFailOptions {
     /**
      * Allows for additional parameters
@@ -1548,7 +1559,7 @@ declare namespace connect {
      * @param taskContact The new task contact.
      * @param callbacks Success and failure callbacks to determine whether the operation was successful.
      */
-    createTask(taskContact: TaskContactDefinition, callbacks?: SuccessFailOptions): void;
+    createTask(taskContact: TaskContactDefinition, callbacks?: CreateTaskCallbacks): void;
 
     /** Alias for `setState()`. */
     setStatus(
@@ -1779,10 +1790,10 @@ declare namespace connect {
     readonly name: string;
 
     /** The task description */
-    readonly description: string;
+    readonly description?: string;
 
     /** The task references */
-    readonly references: ReferenceDictionary;
+    readonly references?: ReferenceDictionary;
 
     /** The task scheduled time */
     readonly scheduledTime?: number;
