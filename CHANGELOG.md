@@ -1,5 +1,43 @@
 # CHANGELOG.md
 
+## [2.28.4] - 2026-08-20
+Enable persistent connection on page load, and expand softphone audio-quality
+telemetry. Includes a fix for a jitter metric that was reporting an unbounded
+cumulative value.
+
+src/softphone.js
+  - Pass isPersistentConnectionOnPageLoadEnabled: true to
+    RtcPeerConnectionManagerV2. The peer connection is now established on page
+    load rather than on first contact; the feature is generally available, so
+    the flag is set unconditionally. The page-load logic itself lives in
+    amazon-connect-rtc-js.
+  - Fix jitterBufferMillis, which was being fed the RtcJS jbMilliseconds field.
+    That field was repurposed from RTP jitter (a small per-packet variance) to
+    the cumulative jitterBufferDelay, which grows for the life of the call and
+    could reach values large enough to fail the telemetry payload.
+    jitterBufferMillis now reads jitterMilliseconds, restoring the field's
+    original meaning, and the cumulative delay is reported separately as
+    jitterBufferDelayMilliseconds, averaged over jitterBufferEmittedCount.
+  - Add concealmentEvents to the AUDIO_INPUT per-second statistics, and
+    echoReturnLoss and echoReturnLossEnhancement to AUDIO_OUTPUT.
+  - Add end-of-call report fields: microphonePermission, deviceMemory, the
+    audio track settings (noiseSuppression, autoGainControl, echoCancellation,
+    voiceIsolation), networkEffectiveType, networkRtt, audioInputDevices,
+    audioOutputDevices, timeSinceLastCallSeconds,
+    pcmCreationToFirstCallSeconds, and
+    isPersistentConnectionOnPageLoadEnabled.
+  - Capture audio track settings on the session report when a track is
+    replaced, so the settings above reflect the track actually in use.
+  - Stop double-wrapping the aggregated stream statistics: sendSoftphoneReport
+    was calling addStreamTypeToStats on values that stopJobsAndReport had
+    already converted to RTPStreamStats.
+
+The new jitter fields require amazon-connect-rtc-js v1.3.2 or later, which
+exposes jitterMilliseconds and jitterBufferEmittedCount. On earlier builds they
+resolve to undefined and are omitted from the report.
+
+Unit tests added and updated for the telemetry changes.
+
 ## [2.28.3] - 2026-08-13
 Default the console echo level to WARN, and correct the agent.createTask
 TypeScript typings.

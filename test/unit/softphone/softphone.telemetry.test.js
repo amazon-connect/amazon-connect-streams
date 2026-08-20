@@ -454,8 +454,15 @@ describe('SoftphoneManager - Per-Agent Connection Stats Tracking', () => {
           packetsLost: 5 * userCount,
           audioLevel: 0.8,
           timestamp: 1,
-          jbMilliseconds: 200 * userCount,
+          jitterMilliseconds: 8,
+          // Cumulative jitterBufferDelay: must never reach jitterBufferMillis (overflows a
+          // 32-bit int). Divided by the emitted count it yields a 23ms average delay.
+          jbMilliseconds: 28723200 * userCount,
+          jitterBufferEmittedCount: 1200000 * userCount,
           rttMilliseconds: null,
+          echoReturnLoss: -30,
+          echoReturnLossEnhancement: 17.5,
+          concealmentEvents: 3 * userCount,
         });
       }),
       getRemoteAudioStats: jest.fn().mockImplementation(() => {
@@ -465,8 +472,13 @@ describe('SoftphoneManager - Per-Agent Connection Stats Tracking', () => {
           packetsLost: 2 * remoteCount,
           audioLevel: 0.7,
           timestamp: 1,
+          jitterMilliseconds: null,
           jbMilliseconds: null,
+          jitterBufferEmittedCount: null,
           rttMilliseconds: 45,
+          echoReturnLoss: -25,
+          echoReturnLossEnhancement: 15,
+          concealmentEvents: 1 * remoteCount,
         });
       }),
       mediaStream: { getAudioTracks: () => [{ enabled: true }] },
@@ -487,10 +499,33 @@ describe('SoftphoneManager - Per-Agent Connection Stats Tracking', () => {
     const report = publishSoftphoneReportSpy.mock.calls.at(-1)[0];
     const perSec = report.report.softphoneStreamPerSecondStatistics;
 
-    // AUDIO_INPUT has jitterBufferMillis from jbMilliseconds
+    // AUDIO_INPUT reports jitterBufferMillis from jitterMilliseconds (RTP jitter),
+    // never from the cumulative jbMilliseconds.
     expect(Array.isArray(perSec.AUDIO_INPUT.jitterBufferMillis)).toBe(true);
+    expect(perSec.AUDIO_INPUT.jitterBufferMillis.length).toBeGreaterThan(0);
     perSec.AUDIO_INPUT.jitterBufferMillis.forEach((v) => {
+      expect(v).toBe(8);
+    });
+
+    // The cumulative delay is surfaced separately, averaged over the emitted count.
+    expect(Array.isArray(perSec.AUDIO_INPUT.jitterBufferDelayMilliseconds)).toBe(true);
+    perSec.AUDIO_INPUT.jitterBufferDelayMilliseconds.forEach((v) => {
+      expect(v).toBe(23);
+    });
+
+    expect(Array.isArray(perSec.AUDIO_INPUT.concealmentEvents)).toBe(true);
+    perSec.AUDIO_INPUT.concealmentEvents.forEach((v) => {
       expect(typeof v).toBe('number');
+      expect(v).toBeGreaterThanOrEqual(0);
+    });
+
+    expect(Array.isArray(perSec.AUDIO_OUTPUT.echoReturnLoss)).toBe(true);
+    perSec.AUDIO_OUTPUT.echoReturnLoss.forEach((v) => {
+      expect(v).toBe(-25);
+    });
+    expect(Array.isArray(perSec.AUDIO_OUTPUT.echoReturnLossEnhancement)).toBe(true);
+    perSec.AUDIO_OUTPUT.echoReturnLossEnhancement.forEach((v) => {
+      expect(v).toBe(15);
     });
 
     // AUDIO_OUTPUT has roundTripTimeMillis from rttMilliseconds
@@ -696,14 +731,21 @@ describe('SoftphoneManager - stats collection rejection paths', () => {
     jest.spyOn(connect, 'publishSoftphoneReport').mockImplementation(() => {});
 
     // First-tick stats (no previousStats) hit the else-branch of getTimeSeriesStats:
-    // jitterBufferMillis is passed through directly from currentStats.jbMilliseconds.
+    // jitterBufferMillis comes from jitterMilliseconds, and jitterBufferDelayMilliseconds
+    // from floor(jbMilliseconds / jitterBufferEmittedCount).
     const firstTickStats = {
       packetsCount: 100,
       packetsLost: 5,
       audioLevel: 0.5,
       timestamp: 1,
-      jbMilliseconds: 200,
+      jitterMilliseconds: 8,
+      // Cumulative jitterBufferDelay: must never reach jitterBufferMillis.
+      jbMilliseconds: 28723200,
+      jitterBufferEmittedCount: 1200000,
       rttMilliseconds: 40,
+      echoReturnLoss: -30,
+      echoReturnLossEnhancement: 17.5,
+      concealmentEvents: 4,
     };
 
     const rtcSession = {
@@ -727,7 +769,56 @@ describe('SoftphoneManager - stats collection rejection paths', () => {
     expect(connect.publishSoftphoneReport).toHaveBeenCalled();
     const lastReport = connect.publishSoftphoneReport.mock.calls.at(-1)[0].report;
     const perSec = lastReport.softphoneStreamPerSecondStatistics;
-    // jitterBufferMillis = raw jbMilliseconds (no division)
-    expect(perSec.AUDIO_INPUT.jitterBufferMillis[0]).toBe(200);
+    // jitterBufferMillis = RTP jitter, not the cumulative jitterBufferDelay
+    expect(perSec.AUDIO_INPUT.jitterBufferMillis[0]).toBe(8);
+    expect(perSec.AUDIO_INPUT.jitterBufferMillis[0]).not.toBe(28723200);
+    // else-branch averages the cumulative delay over the emitted count
+    expect(perSec.AUDIO_INPUT.jitterBufferDelayMilliseconds[0]).toBe(23);
+  });
+
+  it('reports no jitter buffer delay on the first tick when nothing has been emitted yet', async () => {
+    const contact = makeContact('stats-zero-emitted-contact', { contactType: connect.ContactType.VOICE });
+    contact.getAgentConnection.mockReturnValue(makeAgentConnection('stats-zero-emitted-conn'));
+    jest.spyOn(contact, 'sendSoftphoneReport').mockImplementation((_r, cb) => cb && cb.success && cb.success());
+    jest.spyOn(contact, 'sendSoftphoneMetrics').mockImplementation((_m, cb) => cb && cb.success && cb.success());
+    jest.spyOn(connect, 'publishSoftphoneReport').mockImplementation(() => {});
+
+    // RtcJS defaults jitterBufferEmittedCount to 0, so a call whose jitter buffer has not
+    // emitted yet must not divide by it.
+    const zeroEmittedStats = {
+      packetsCount: 100,
+      packetsLost: 5,
+      audioLevel: 0.5,
+      timestamp: 1,
+      jitterMilliseconds: 8,
+      jbMilliseconds: 0,
+      jitterBufferEmittedCount: 0,
+      rttMilliseconds: 40,
+    };
+
+    const rtcSession = {
+      getUserAudioStats: jest.fn().mockResolvedValue(zeroEmittedStats),
+      getRemoteAudioStats: jest.fn().mockResolvedValue(zeroEmittedStats),
+      mediaStream: { getAudioTracks: () => [{ enabled: true }] },
+      sessionReport: { sessionStartTime: 0, sessionEndTime: 5000 },
+      _iceServers: [{ urls: ['stun:x'] }],
+    };
+    pcmCreateSession.mockReturnValue(rtcSession);
+
+    const sm = new connect.SoftphoneManager();
+    contact.getStatus.mockReturnValue({ type: connect.ContactStatusType.CONNECTING });
+    sm.startSession(contact, 'stats-zero-emitted-conn');
+    const session = sm.getSession('stats-zero-emitted-conn');
+    session.onSessionConnected(rtcSession);
+
+    await jest.advanceTimersByTimeAsync(1500);
+    session.onSessionCompleted(rtcSession);
+
+    const lastReport = connect.publishSoftphoneReport.mock.calls.at(-1)[0].report;
+    const perSec = lastReport.softphoneStreamPerSecondStatistics;
+    // 0 rather than NaN/Infinity, matching what the delta branch reports for an
+    // interval in which nothing was emitted.
+    expect(perSec.AUDIO_INPUT.jitterBufferDelayMilliseconds[0]).toBe(0);
+    expect(Number.isFinite(perSec.AUDIO_INPUT.jitterBufferDelayMilliseconds[0])).toBe(true);
   });
 });

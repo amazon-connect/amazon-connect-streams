@@ -181,6 +181,15 @@ describe('SoftphoneManager - initialization', () => {
     expect(config.allowExtendedPersistentConnection).toBe(true);
   });
 
+  it('passes isPersistentConnectionOnPageLoadEnabled=true to PCMv2 unconditionally', async () => {
+    new connect.SoftphoneManager();
+    await jest.advanceTimersByTimeAsync(0);
+    bus.trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+
+    const config = connect.RtcPeerConnectionManagerV2.mock.calls.at(-1)[0];
+    expect(config.isPersistentConnectionOnPageLoadEnabled).toBe(true);
+  });
+
   it('throws UNSUPPORTED_BROWSER when the browser is not supported', () => {
     connect.SoftphoneManager.isBrowserSoftPhoneSupported.mockReturnValue(false);
     new connect.SoftphoneManager();

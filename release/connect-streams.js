@@ -9558,7 +9558,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.28.3";
+  connect.version = "2.28.4";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
@@ -21448,6 +21448,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
             webSocketManager: connect.core.getWebSocketManager(),
             rtcJsStrategy: self.rtcJsStrategy === null ? new connect.StandardStrategy() : self.rtcJsStrategy,
             isPersistentConnectionEnabled: isPPCEnabled,
+            isPersistentConnectionOnPageLoadEnabled: true,
             allowExtendedPersistentConnection: !!softphoneParams.allowExtendedPersistentConnection,
             browserId: browserId
           };
@@ -21672,6 +21673,10 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
                       })["catch"](function (error) {
                         logger.error("[Softphone Manager] Failed to replace track for connectionId: ".concat(connectionId)).withException(error).sendInternalLogToServer();
                       });
+                      session.sessionReport.noiseSuppression = newAudioTrack.getSettings().noiseSuppression;
+                      session.sessionReport.autoGainControl = newAudioTrack.getSettings().autoGainControl;
+                      session.sessionReport.echoCancellation = newAudioTrack.getSettings().echoCancellation;
+                      session.sessionReport.voiceIsolation = newAudioTrack.getSettings().voiceIsolation;
                       trackReplacements.push(trackReplacement);
                     case 3:
                       return _context2.a(2);
@@ -22355,9 +22360,10 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     }
   };
   var sendSoftphoneReport = function sendSoftphoneReport(contact, report, userAudioStats, remoteAudioStats) {
-    var _report$citrixVersion;
+    var _report$citrixVersion, _report$noiseSuppress, _report$autoGainContr, _report$echoCancellat, _report$voiceIsolatio, _report$networkRtt;
     var agentConnectionId = contact.getAgentConnection().getConnectionId();
-    report.streamStats = [addStreamTypeToStats(userAudioStats, AUDIO_INPUT), addStreamTypeToStats(remoteAudioStats, AUDIO_OUTPUT)];
+    // userAudioStats and remoteAudioStats are already RTPStreamStats objects from stopJobsAndReport
+    report.streamStats = [userAudioStats, remoteAudioStats];
     var callReport = {
       callStartTime: report.sessionStartTime,
       callEndTime: report.sessionEndTime,
@@ -22404,6 +22410,12 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
         }),
         jitterBufferMillis: agentConnectionStats.inputRTPStreamStatsBuffer.map(function (stats) {
           return stats.jitterBufferMillis;
+        }),
+        jitterBufferDelayMilliseconds: agentConnectionStats.inputRTPStreamStatsBuffer.map(function (stats) {
+          return stats.jitterBufferDelayMilliseconds;
+        }),
+        concealmentEvents: agentConnectionStats.inputRTPStreamStatsBuffer.map(function (stats) {
+          return stats.concealmentEvents;
         })
       },
       AUDIO_OUTPUT: {
@@ -22421,6 +22433,12 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
         }),
         roundTripTimeMillis: agentConnectionStats.outputRTPStreamStatsBuffer.map(function (stats) {
           return stats.roundTripTimeMillis;
+        }),
+        echoReturnLoss: agentConnectionStats.outputRTPStreamStatsBuffer.map(function (stats) {
+          return stats.echoReturnLoss;
+        }),
+        echoReturnLossEnhancement: agentConnectionStats.outputRTPStreamStatsBuffer.map(function (stats) {
+          return stats.echoReturnLossEnhancement;
         })
       }
     };
@@ -22457,7 +22475,24 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       iceRestartSuccesses: report.iceRestartSuccesses || 0,
       iceRestartInviteRetries: report.iceRestartInviteRetries || 0,
       iceRestartTimeMillis: report.iceRestartTimeMillis || null,
-      iceRestartFailed: report.iceRestartFailed || null
+      iceRestartFailed: report.iceRestartFailed || null,
+      // Device and browser metrics
+      microphonePermission: report.microphonePermission || null,
+      deviceMemory: report.deviceMemory || null,
+      // Audio track settings
+      noiseSuppression: (_report$noiseSuppress = report.noiseSuppression) !== null && _report$noiseSuppress !== void 0 ? _report$noiseSuppress : null,
+      autoGainControl: (_report$autoGainContr = report.autoGainControl) !== null && _report$autoGainContr !== void 0 ? _report$autoGainContr : null,
+      echoCancellation: (_report$echoCancellat = report.echoCancellation) !== null && _report$echoCancellat !== void 0 ? _report$echoCancellat : null,
+      voiceIsolation: (_report$voiceIsolatio = report.voiceIsolation) !== null && _report$voiceIsolatio !== void 0 ? _report$voiceIsolatio : null,
+      // Network metrics
+      networkEffectiveType: report.networkEffectiveType || null,
+      networkRtt: (_report$networkRtt = report.networkRtt) !== null && _report$networkRtt !== void 0 ? _report$networkRtt : null,
+      // Audio devices
+      audioInputDevices: report.audioInputDevices || null,
+      audioOutputDevices: report.audioOutputDevices || null,
+      timeSinceLastCallSeconds: report.timeSinceLastCallSeconds || null,
+      pcmCreationToFirstCallSeconds: report.pcmCreationToFirstCallSeconds || null,
+      isPersistentConnectionOnPageLoadEnabled: true
     });
     ccpMediaReadyLatencyMillis = 0;
     isConnected = false;
@@ -22510,9 +22545,21 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       var packetsCount = currentStats.packetsCount > previousStats.packetsCount ? currentStats.packetsCount - previousStats.packetsCount : 0;
       checkConsecutiveNoPackets(packetsCount, streamType, agentConnectionId);
       checkConsecutiveNoAudio(currentStats.audioLevel, streamType, agentConnectionId);
-      return new RTPStreamStats(currentStats.timestamp, packetsLost, packetsCount, streamType, currentStats.audioLevel, currentStats.jbMilliseconds, currentStats.rttMilliseconds);
+      var concealmentEvents = currentStats.concealmentEvents > previousStats.concealmentEvents ? currentStats.concealmentEvents - previousStats.concealmentEvents : 0;
+      // Calculate per-second jitter buffer delay
+      var jitterBufferDelayMilliseconds = null;
+      if (currentStats.jbMilliseconds != null && previousStats.jbMilliseconds != null && currentStats.jitterBufferEmittedCount != null && previousStats.jitterBufferEmittedCount != null) {
+        var deltaJbMs = currentStats.jbMilliseconds > previousStats.jbMilliseconds ? currentStats.jbMilliseconds - previousStats.jbMilliseconds : 0;
+        var deltaCount = currentStats.jitterBufferEmittedCount > previousStats.jitterBufferEmittedCount ? currentStats.jitterBufferEmittedCount - previousStats.jitterBufferEmittedCount : 0;
+        jitterBufferDelayMilliseconds = deltaCount > 0 ? Math.floor(deltaJbMs / deltaCount) : 0;
+      }
+      return new RTPStreamStats(currentStats.timestamp, packetsLost, packetsCount, streamType, currentStats.audioLevel, currentStats.jitterMilliseconds, currentStats.rttMilliseconds, jitterBufferDelayMilliseconds, currentStats.echoReturnLoss, currentStats.echoReturnLossEnhancement, concealmentEvents);
     } else {
-      return new RTPStreamStats(currentStats.timestamp, currentStats.packetsLost, currentStats.packetsCount, streamType, currentStats.audioLevel, currentStats.jbMilliseconds, currentStats.rttMilliseconds);
+      return new RTPStreamStats(currentStats.timestamp, currentStats.packetsLost, currentStats.packetsCount, streamType, currentStats.audioLevel, currentStats.jitterMilliseconds, currentStats.rttMilliseconds,
+      // Guarded like the delta branch above, which also yields 0 when nothing was
+      // emitted. Unguarded this produces NaN/Infinity, since RtcJS defaults the
+      // emitted count to 0 before the jitter buffer has produced any samples.
+      currentStats.jitterBufferEmittedCount > 0 && currentStats.jbMilliseconds != null ? Math.floor(currentStats.jbMilliseconds / currentStats.jitterBufferEmittedCount) : 0, currentStats.echoReturnLoss, currentStats.echoReturnLossEnhancement, 0);
     }
   };
   var telemetryCallReportRTPStreamStatsBuffer = function telemetryCallReportRTPStreamStatsBuffer(rtpStreamStats, agentConnectionId) {
@@ -22589,7 +22636,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
   /**
   *   Adding streamtype parameter on top of RTCJS RTStats object.
   */
-  var RTPStreamStats = function RTPStreamStats(timestamp, packetsLost, packetsCount, streamType, audioLevel, jitterBufferMillis, roundTripTimeMillis) {
+  var RTPStreamStats = function RTPStreamStats(timestamp, packetsLost, packetsCount, streamType, audioLevel, jitterBufferMillis, roundTripTimeMillis, jitterBufferDelayMilliseconds, echoReturnLoss, echoReturnLossEnhancement, concealmentEvents) {
     this.softphoneStreamType = streamType;
     this.timestamp = timestamp;
     this.packetsLost = packetsLost;
@@ -22597,10 +22644,19 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
     this.audioLevel = audioLevel;
     this.jitterBufferMillis = jitterBufferMillis;
     this.roundTripTimeMillis = roundTripTimeMillis;
+    this.jitterBufferDelayMilliseconds = jitterBufferDelayMilliseconds;
+    this.echoReturnLoss = echoReturnLoss;
+    this.echoReturnLossEnhancement = echoReturnLossEnhancement;
+    this.concealmentEvents = concealmentEvents;
   };
   var addStreamTypeToStats = function addStreamTypeToStats(stats, streamType) {
     stats = stats || {};
-    return new RTPStreamStats(stats.timestamp, stats.packetsLost, stats.packetsCount, streamType, stats.audioLevel);
+    // Calculate overall average jitter buffer delay for AUDIO_INPUT
+    var jitterBufferDelayMilliseconds = null;
+    if (streamType === AUDIO_INPUT && stats.jbMilliseconds && stats.jitterBufferEmittedCount > 0) {
+      jitterBufferDelayMilliseconds = Math.floor(stats.jbMilliseconds / stats.jitterBufferEmittedCount);
+    }
+    return new RTPStreamStats(stats.timestamp, stats.packetsLost, stats.packetsCount, streamType, stats.audioLevel, stats.jitterMilliseconds, stats.rttMilliseconds, jitterBufferDelayMilliseconds, stats.echoReturnLoss, stats.echoReturnLossEnhancement, stats.concealmentEvents);
   };
   var SoftphoneLogger = function SoftphoneLogger(logger) {
     this._originalLogger = logger;
