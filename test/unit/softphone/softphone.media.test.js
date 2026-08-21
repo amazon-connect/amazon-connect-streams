@@ -204,6 +204,7 @@ describe('SoftphoneManager - setMicrophoneDevice', () => {
     pcmCreateSession = jest.fn().mockReturnValue({
       connect: jest.fn(),
       _pc: { getSenders: () => [{ replaceTrack: stubbedReplaceTrack }] },
+      sessionReport: {},
     });
     connect.RtcPeerConnectionManager.mockImplementation(function () {
       this.createSession = pcmCreateSession;
@@ -456,6 +457,7 @@ describe('SoftphoneManager - replaceMediaStreamInRTCSession', () => {
     const sender = { replaceTrack: jest.fn().mockResolvedValue() };
     const session = {
       _pc: { getSenders: () => [sender] },
+      sessionReport: {},
       _isUserProvidedStream: false,
     };
     pcmCreateSession.mockReturnValue(session);
@@ -474,6 +476,11 @@ describe('SoftphoneManager - replaceMediaStreamInRTCSession', () => {
 
     await sm.replaceMediaStreamInRTCSession(mediaStream);
 
+    expect(session.sessionReport.noiseSuppression).toBe(true);
+    expect(session.sessionReport.autoGainControl).toBe(false);
+    expect(session.sessionReport.echoCancellation).toBe(true);
+    expect(session.sessionReport.voiceIsolation).toBe(false);
+
     expect(session._isUserProvidedStream).toBe(true);
     expect(sm.replaceLocalMediaTrack).toHaveBeenCalledWith(agentConnectionId, trackWithSettings);
   });
@@ -481,6 +488,7 @@ describe('SoftphoneManager - replaceMediaStreamInRTCSession', () => {
   it('sets _isUserProvidedStream without calling disableMediaStreamRefresh', async () => {
     const session = {
       _pc: { getSenders: () => [{ replaceTrack: jest.fn().mockResolvedValue() }] },
+      sessionReport: {},
       _isUserProvidedStream: false,
       disableMediaStreamRefresh: jest.fn(),
     };
@@ -510,6 +518,7 @@ describe('SoftphoneManager - replaceMediaStreamInRTCSession', () => {
   it('still sets _isUserProvidedStream when disableMediaStreamRefresh does not exist (older RTCJS)', async () => {
     const session = {
       _pc: { getSenders: () => [{ replaceTrack: jest.fn().mockResolvedValue() }] },
+      sessionReport: {},
       _isUserProvidedStream: false,
     };
     pcmCreateSession.mockReturnValue(session);
@@ -557,6 +566,7 @@ describe('deleteLocalMediaStream - shared stream audio track re-enable', () => {
     pcmCreateSession = jest.fn().mockReturnValue({
       connect: jest.fn(),
       _pc: { getSenders: () => [{ replaceTrack: jest.fn().mockResolvedValue() }] },
+      sessionReport: {},
     });
     connect.RtcPeerConnectionManager.mockImplementation(function () {
       this.createSession = pcmCreateSession;
@@ -764,10 +774,12 @@ describe('SoftphoneManager.replaceMediaStreamInRTCSession - error branches', () 
     const goodSender = { replaceTrack: jest.fn().mockResolvedValue() };
     const sessionGood = {
       _pc: { getSenders: () => [goodSender] },
+      sessionReport: {},
       _isUserProvidedStream: false,
     };
     const sessionNoSender = {
       _pc: { getSenders: () => [] },
+      sessionReport: {},
       _isUserProvidedStream: false,
     };
 
@@ -820,6 +832,7 @@ describe('SoftphoneManager.replaceLocalMediaTrack', () => {
     pcmCreateSession = jest.fn().mockReturnValue({
       connect: jest.fn(),
       _pc: { getSenders: () => [{ replaceTrack: jest.fn().mockResolvedValue() }] },
+      sessionReport: {},
     });
     connect.RtcPeerConnectionManagerV2.mockImplementation(function () {
       this.createSession = pcmCreateSession;
@@ -930,6 +943,7 @@ describe('SoftphoneManager.setMicrophoneDevice - rejection branch', () => {
     pcmCreateSession = jest.fn().mockReturnValue({
       connect: jest.fn(),
       _pc: { getSenders: () => [{ replaceTrack: jest.fn().mockResolvedValue() }] },
+      sessionReport: {},
     });
     connect.RtcPeerConnectionManagerV2.mockImplementation(function () {
       this.createSession = pcmCreateSession;
@@ -984,6 +998,7 @@ describe('SoftphoneManager - onLocalStreamAdded voiceFocus error branch', () => 
     pcmCreateSession = jest.fn().mockReturnValue({
       connect: jest.fn(),
       _pc: { getSenders: () => [{ replaceTrack: jest.fn().mockResolvedValue() }] },
+      sessionReport: {},
     });
     connect.RtcPeerConnectionManagerV2.mockImplementation(function () {
       this.createSession = pcmCreateSession;
