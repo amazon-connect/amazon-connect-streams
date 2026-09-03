@@ -30,9 +30,7 @@ const VOICE_FOCUS_CPU_LONG_INVOKE = 'VoiceFocusCPULongInvoke';
   global.connect = connect;
   global.lily = connect;
 
-  /* eslint-disable-next-line */
   const { VoiceFocus, createAudioContext } = require('amazon-chime-sdk-js/libs/voicefocus/voicefocus');
-  /* eslint-disable-next-line */
   const { VoiceClient } = require('@amazon-connect/voice');
 
   const logPrefix = '[VoiceFocus]';

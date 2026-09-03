@@ -67,7 +67,7 @@
     }
     return agentConnectionStatsMap[agentConnectionId];
   };
-  
+
   // Helper function to clean up agent connection stats
   var cleanupAgentConnectionStats = function(agentConnectionId) {
     delete agentConnectionStatsMap[agentConnectionId];
@@ -116,7 +116,7 @@
     this.rtcJsStrategy = null;
     this.rtcPeerConnectionManager = null;
     allowExtendedPersistentConnection = !!softphoneParams.allowExtendedPersistentConnection;
-    
+
     this._setRtcJsStrategy = function () {
       if (softphoneParams.VDIPlatform) {
         vdiPlatform = softphoneParams.VDIPlatform;
@@ -397,7 +397,7 @@
      * We expect the first invocation is always from the `onLocalStreamAdded` callback. This sets the mic to the best suitable default device.
      * However, if the AudioDeviceSettings is enabled on the Security Profile, we expect a second invocation from the `setMicrophoneDevice` callback
      * which supplies 'newDeviceId' and reflects the device chosen on the CCP itself.
-     * 
+     *
      * @param {*} newDeviceId The exact microphone device id to get media from browser.
      */
     this.replaceAudioTracksInRTCSessionWithVoiceEnhancedMedia = async function (newDeviceId) {
@@ -418,7 +418,7 @@
             audioConstraint.audio.echoCancellation = false;
             audioConstraint.audio.autoGainControl = true; // Enable autoGainControl to fix the low mic issue.
           }
-          connect.publishMetric({ 
+          connect.publishMetric({
             name: "IsEchoCancellationEnabled",
             data: {
               count: audioConstraint.audio.echoCancellation ? 1 : 0,
@@ -554,12 +554,12 @@
       if (Object.keys(rtcSessions).length === 0)
         return;
 
-      
+
       const voiceContacts = new connect.Agent().getContacts()
         .filter((contact) => contact.getType() == connect.ContactType.VOICE || contact.getType() == connect.ContactType.QUEUE_CALLBACK);
 
       const agentConnectionIds = voiceContacts.map((contact) => contact.getAgentConnection()?.getConnectionId());
-      
+
       // Build set of active contactIds for validation
       const activeContactIds = new Set(voiceContacts.map(c => c.getContactId()));
 
@@ -571,7 +571,7 @@
         const isCurrentConnection = agentConnectionIds.includes(connectionId);
         const mappedContactId = contactAgentConnectionIdMap[connectionId];
         const isValidMappedConnection = mappedContactId && activeContactIds.has(mappedContactId);
-        
+
         if (rtcSessions.hasOwnProperty(connectionId) && !isCurrentConnection && !isValidMappedConnection) {
           // Log an error for the session we are about to end.
           SoftphoneManager.publishMultipleSessionsEvent(HANG_UP_MULTIPLE_SESSIONS_EVENT, rtcSessions[connectionId].callId, connectionId);
@@ -808,8 +808,8 @@
 
         //used to track last active contact ID in bullet routing - This will be used to sync local media states
         //Pass the initial agentConnectionId captured at contact init because for Queue Callbacks,
-        //the agentConnectionId changes after the contact connects. The localMediaStream uses the 
-        //initial agentConnectionId, so we must use it here to ensure contactAgentConnectionIdMap 
+        //the agentConnectionId changes after the contact connects. The localMediaStream uses the
+        //initial agentConnectionId, so we must use it here to ensure contactAgentConnectionIdMap
         //correctly maps to the contact for mute/unmute operations.
         const resumeSub = contact.getAgentConnection().onParticipantResume(() => {
             setLastActiveContactId(contact, agentConnectionId);
@@ -899,7 +899,7 @@
         .then(function(permissionStatus){
           permissionStatus.onchange = function(){
             logger.info("Microphone Permission: " + permissionStatus.state);
-            publishTelemetryEvent("ConnectivityCheckResult", null, 
+            publishTelemetryEvent("ConnectivityCheckResult", null,
             {
               connectivityCheckType: "MicrophonePermission",
               status: permissionStatus.state
@@ -927,7 +927,7 @@
   };
 
   // Check for the local streams if exists  -  revert it
-  // And inform other clients about the change 
+  // And inform other clients about the change
   var muteToggle = function (data) {
     var status;
     if (connect.keys(localMediaStream).length === 0) {

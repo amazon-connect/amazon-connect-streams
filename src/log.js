@@ -158,7 +158,7 @@
         this.contextLayer = LogContextLayer.CRM;
       } else if (connect.isCCP()) {
         this.contextLayer = LogContextLayer.CCP;
-      }  
+      }
     }
   };
 
@@ -191,7 +191,7 @@
   /**
    * Private method to remove sensitive info from client log
    */
-  var redactSensitiveInfo = function(data, _seen, _depth) {
+  var redactSensitiveInfo = function(data, _seen, _depth, parentKey = "") {
     var authTokenRegex = /(AuthToken.*)/gi;
     var e164NumberFormatRegex = /Phone number.*/gi;
     var sendDigtRegex = /Send digit.*/gi
@@ -200,6 +200,13 @@
     var emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
     const redactedFields = ["quickconnectname", "token", "login", "credential", "internalip", "authtoken", "phonenumber", "firstname", "lastname", "emailaddress", "address", "displayname", "agentname", "description", "name", "value", "summary", "queue.name"];
     const hashedFields = ["customerid", "speakerid", "customerspeakerid", "presignedurl"];
+    const condenseField = ["connect:purpose", "connect:contactexpiry", "contactverification"];
+    // Parents whose "name" is a type, not customer data, and so is kept. An
+    // Error's name is its class - TimeoutError, ConnectError - which is where
+    // triage of an SDK request failure starts. Redacting it also protected
+    // nothing, because the class name is already spelled out in the accompanying
+    // unredacted "stack" ("Error: timeout\n    at ...").
+    const keepNameForParents = ["error"];
     if(data && typeof data === 'object') {
       // Cycle + depth guard. _seen tracks the ancestor objects on the current
       // path so a back-reference is skipped rather than followed forever;
@@ -210,14 +217,20 @@
         return;
       }
       seen.add(data);
+      // An array index says nothing about what it holds, so elements inherit the
+      // array's own key as their parent.
+      const isArray = Array.isArray(data);
       Object.keys(data).forEach(function(key) {
-        if (typeof data[key] === 'object') {
+        const childParentKey = isArray ? parentKey : key.toLowerCase();
+        if (condenseField.includes(key.toLowerCase())) {
+            data[key] = "[condensed]";
+        } else if (typeof data[key] === 'object') {
           if(key === "attributes") {
             data[key] = REDACTED_STRING; //we want to redact the entire attributes object
           } else if (key === "state") {
             return; // don't redact agent availability status name
           } else {
-            redactSensitiveInfo(data[key], seen, depth + 1);
+            redactSensitiveInfo(data[key], seen, depth + 1, childParentKey);
           }
         } else if(typeof data[key] === 'string') {
           if (key === "url" || key === "text") {
@@ -227,7 +240,8 @@
             data[key] = data[key].replace(sendDigtRegex, "send digit " + REDACTED_STRING);
             data[key] = data[key].replace(connectionAuthTokenRegex, REDACTED_STRING);
             data[key] = data[key].replace(emailRegex, "email address " + REDACTED_STRING);
-          } else if (redactedFields.includes(key.toLowerCase())) {
+          } else if (redactedFields.includes(key.toLowerCase()) &&
+              !(key.toLowerCase() === "name" && keepNameForParents.includes(parentKey))) {
             data[key] = REDACTED_STRING;
           } else if ("callconfigjson"===key.toLowerCase()) {
             // we need to redact the credential in call config json
@@ -570,15 +584,15 @@
 
     return lines.join("\n");
   };
-  
+
   /**
-   * Download/Archive logs to a file, 
+   * Download/Archive logs to a file,
    * By default, it returns all logs.
-   * To filter logs by the minimum log level set by setLogLevel or the default set in _logLevel, 
+   * To filter logs by the minimum log level set by setLogLevel or the default set in _logLevel,
    * pass in filterByLogLevel to true in options
-   * 
-   * @param options download options [Object|String]. 
-   * - of type Object: 
+   *
+   * @param options download options [Object|String].
+   * - of type Object:
    *   { logName: 'my-log-name',
    *     filterByLogLevel: false, //download all logs
    *   }
@@ -656,8 +670,8 @@
     var logs = [];
 
     // We do not send a request if we have less than 50 records so that we minimize the number of
-    // requests per second. 
-    // 500 is the max we accept on the server. 
+    // requests per second.
+    // 500 is the max we accept on the server.
     // We chose 500 because this is the limit imposed by Firehose for a put batch request
     if (this._serverBoundInternalLogs.length < 50) {
       return;
@@ -674,7 +688,7 @@
   var DownstreamConduitLogger = function (conduit) {
     Logger.call(this);
     this.conduit = conduit;
-    
+
     global.setInterval(connect.hitch(this, this._pushLogsDownstream),
       DownstreamConduitLogger.LOG_PUSH_INTERVAL);
 
@@ -697,7 +711,7 @@
 
   DownstreamConduitLogger.prototype._pushLogsDownstream = function () {
     var self = this;
-    
+
     this._logs.forEach(function (log) {
       self.conduit.sendDownstream(connect.EventType.LOG, log);
     });

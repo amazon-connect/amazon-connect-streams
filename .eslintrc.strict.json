@@ -1,0 +1,52 @@
+{
+  "root": true,
+  "noInlineConfig": true,
+  "parserOptions": {
+    "sourceType": "script",
+    "ecmaVersion": 2022
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2021": true,
+    "commonjs": true
+  },
+  "globals": {
+    "connect": "writable",
+    "globalConnect": "writable",
+    "lily": "writable",
+    "log": "writable",
+    "md5": "writable",
+    "devices": "writable",
+    "QuickResponsesClient": "writable",
+    "AWS": "readonly",
+    "globalThis": "readonly"
+  },
+  "rules": {
+    "no-undef": "error",
+    "no-implicit-globals": "error",
+    "no-const-assign": "error",
+    "no-dupe-args": "error",
+    "no-dupe-keys": "error",
+    "no-dupe-else-if": "error",
+    "no-func-assign": "error",
+    "no-import-assign": "error",
+    "no-class-assign": "error",
+    "no-obj-calls": "error",
+    "no-setter-return": "error",
+    "getter-return": "error",
+    "no-unsafe-negation": "error",
+    "no-unsafe-optional-chaining": "error",
+    "use-isnan": "error",
+    "no-compare-neg-zero": "error",
+    "no-self-assign": "error",
+    "no-cond-assign": "error",
+    "no-ex-assign": "error",
+    "no-sparse-arrays": "error",
+    "no-unreachable": "error",
+    "no-fallthrough": "error",
+    "no-invalid-regexp": "error",
+    "no-async-promise-executor": "error",
+    "no-unexpected-multiline": "error"
+  }
+}
