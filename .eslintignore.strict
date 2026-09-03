@@ -1,0 +1,7 @@
+# Vendored / bundled third-party sources — excluded from the strict build-time gate.
+# First-party source (softphone.js, core.js, api.js, …) is intentionally NOT
+# listed here so the gate covers it, even though the main .eslintignore skips it.
+src/aws-client.js
+src/lib/**
+src/md5.js
+src/sprintf.js

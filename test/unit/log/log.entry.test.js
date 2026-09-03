@@ -179,6 +179,67 @@ describe('Logger', () => {
             const loggedObject = connect.getLog().trace("Testing logging string").withObject(obj);
             expect(loggedObject.objects).toEqual(expectedObj);
         });
+        it('Log should keep the error class name so SDK request failures can be triaged', () => {
+            // Shape taken from a real "Error processing request handler" entry: the
+            // name was the only field lost, while message and stack survived - and
+            // the stack already spells out the class, so nothing was protected.
+            const obj = {
+                "error": {
+                    "name": "TimeoutError",
+                    "message": "timeout",
+                    "stack": "Error: timeout\n    at new nn (https://host/shared-worker/connect-engine.js:1:986205)"
+                },
+                "command": "get-agent-connection-snapshot",
+                "namespace": "aws.connect.agent-snapshot",
+                "requestId": "833e0058-83b4-400e-a245-bc5c22a8d313"
+            };
+            const expectedObj = [{
+                "error": {
+                    "name": "TimeoutError",
+                    "message": "timeout",
+                    "stack": "Error: timeout\n    at new nn (https://host/shared-worker/connect-engine.js:1:986205)"
+                },
+                "command": "get-agent-connection-snapshot",
+                "namespace": "aws.connect.agent-snapshot",
+                "requestId": "833e0058-83b4-400e-a245-bc5c22a8d313"
+            }];
+            const loggedObject = connect.getLog().trace("Error processing request handler").withObject(obj);
+            expect(loggedObject.objects).toEqual(expectedObj);
+        });
+
+        it('Log should still redact name everywhere other than on an error', () => {
+            // Regression guard: the exception above is scoped to an "error" parent
+            // and must not widen. configuration.name is the agent's own name.
+            const obj = {
+                "configuration": { "name": "Agent Smith", "softphoneEnabled": true },
+                "endpoint": { "type": "phone_number", "name": "Jane Doe" },
+                "contacts": [{ "contactId": "c-1", "name": "Refund request" }],
+                "queue": { "name": "VIP Support Queue", "queueId": "q-1" },
+                "name": "top level name"
+            };
+            const expectedObj = [{
+                "configuration": { "name": "[redacted]", "softphoneEnabled": true },
+                "endpoint": { "type": "phone_number", "name": "[redacted]" },
+                "contacts": [{ "contactId": "c-1", "name": "[redacted]" }],
+                "queue": { "name": "[redacted]", "queueId": "q-1" },
+                "name": "[redacted]"
+            }];
+            const loggedObject = connect.getLog().trace("Testing name is still redacted elsewhere").withObject(obj);
+            expect(loggedObject.objects).toEqual(expectedObj);
+        });
+
+        it('Log should still redact the other sensitive fields on an error object', () => {
+            // Only "name" is exempted; anything else sensitive on an error is not.
+            const obj = {
+                "error": { "name": "ConnectError", "phoneNumber": "+15551230123", "value": "secret" }
+            };
+            const expectedObj = [{
+                "error": { "name": "ConnectError", "phoneNumber": "[redacted]", "value": "[redacted]" }
+            }];
+            const loggedObject = connect.getLog().trace("Testing other error fields still redacted").withObject(obj);
+            expect(loggedObject.objects).toEqual(expectedObj);
+        });
+
         it('Log should redact all fields in redactedFields array', () => {
             const obj = {
                 "quickConnectName": "SensitiveQuickConnect",

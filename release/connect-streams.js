@@ -2440,6 +2440,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
    * Private method to remove sensitive info from client log
    */
   var _redactSensitiveInfo = function redactSensitiveInfo(data, _seen, _depth) {
+    var parentKey = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : "";
     var authTokenRegex = /(AuthToken.*)/gi;
     var e164NumberFormatRegex = /Phone number.*/gi;
     var sendDigtRegex = /Send digit.*/gi;
@@ -2448,6 +2449,13 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     var emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
     var redactedFields = ["quickconnectname", "token", "login", "credential", "internalip", "authtoken", "phonenumber", "firstname", "lastname", "emailaddress", "address", "displayname", "agentname", "description", "name", "value", "summary", "queue.name"];
     var hashedFields = ["customerid", "speakerid", "customerspeakerid", "presignedurl"];
+    var condenseField = ["connect:purpose", "connect:contactexpiry", "contactverification"];
+    // Parents whose "name" is a type, not customer data, and so is kept. An
+    // Error's name is its class - TimeoutError, ConnectError - which is where
+    // triage of an SDK request failure starts. Redacting it also protected
+    // nothing, because the class name is already spelled out in the accompanying
+    // unredacted "stack" ("Error: timeout\n    at ...").
+    var keepNameForParents = ["error"];
     if (data && _typeof(data) === 'object') {
       // Cycle + depth guard. _seen tracks the ancestor objects on the current
       // path so a back-reference is skipped rather than followed forever;
@@ -2458,14 +2466,20 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
         return;
       }
       seen.add(data);
+      // An array index says nothing about what it holds, so elements inherit the
+      // array's own key as their parent.
+      var isArray = Array.isArray(data);
       Object.keys(data).forEach(function (key) {
-        if (_typeof(data[key]) === 'object') {
+        var childParentKey = isArray ? parentKey : key.toLowerCase();
+        if (condenseField.includes(key.toLowerCase())) {
+          data[key] = "[condensed]";
+        } else if (_typeof(data[key]) === 'object') {
           if (key === "attributes") {
             data[key] = REDACTED_STRING; //we want to redact the entire attributes object
           } else if (key === "state") {
             return; // don't redact agent availability status name
           } else {
-            _redactSensitiveInfo(data[key], seen, depth + 1);
+            _redactSensitiveInfo(data[key], seen, depth + 1, childParentKey);
           }
         } else if (typeof data[key] === 'string') {
           if (key === "url" || key === "text") {
@@ -2475,7 +2489,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
             data[key] = data[key].replace(sendDigtRegex, "send digit " + REDACTED_STRING);
             data[key] = data[key].replace(connectionAuthTokenRegex, REDACTED_STRING);
             data[key] = data[key].replace(emailRegex, "email address " + REDACTED_STRING);
-          } else if (redactedFields.includes(key.toLowerCase())) {
+          } else if (redactedFields.includes(key.toLowerCase()) && !(key.toLowerCase() === "name" && keepNameForParents.includes(parentKey))) {
             data[key] = REDACTED_STRING;
           } else if ("callconfigjson" === key.toLowerCase()) {
             // we need to redact the credential in call config json
@@ -2792,13 +2806,13 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   };
 
   /**
-   * Download/Archive logs to a file, 
+   * Download/Archive logs to a file,
    * By default, it returns all logs.
-   * To filter logs by the minimum log level set by setLogLevel or the default set in _logLevel, 
+   * To filter logs by the minimum log level set by setLogLevel or the default set in _logLevel,
    * pass in filterByLogLevel to true in options
-   * 
-   * @param options download options [Object|String]. 
-   * - of type Object: 
+   *
+   * @param options download options [Object|String].
+   * - of type Object:
    *   { logName: 'my-log-name',
    *     filterByLogLevel: false, //download all logs
    *   }
@@ -2866,8 +2880,8 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     var logs = [];
 
     // We do not send a request if we have less than 50 records so that we minimize the number of
-    // requests per second. 
-    // 500 is the max we accept on the server. 
+    // requests per second.
+    // 500 is the max we accept on the server.
     // We chose 500 because this is the limit imposed by Firehose for a put batch request
     if (this._serverBoundInternalLogs.length < 50) {
       return;
@@ -9558,7 +9572,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.29.0";
+  connect.version = "2.29.1";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
@@ -21548,7 +21562,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
      * We expect the first invocation is always from the `onLocalStreamAdded` callback. This sets the mic to the best suitable default device.
      * However, if the AudioDeviceSettings is enabled on the Security Profile, we expect a second invocation from the `setMicrophoneDevice` callback
      * which supplies 'newDeviceId' and reflects the device chosen on the CCP itself.
-     * 
+     *
      * @param {*} newDeviceId The exact microphone device id to get media from browser.
      */
     this.replaceAudioTracksInRTCSessionWithVoiceEnhancedMedia = /*#__PURE__*/function () {
@@ -21979,8 +21993,8 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
 
         //used to track last active contact ID in bullet routing - This will be used to sync local media states
         //Pass the initial agentConnectionId captured at contact init because for Queue Callbacks,
-        //the agentConnectionId changes after the contact connects. The localMediaStream uses the 
-        //initial agentConnectionId, so we must use it here to ensure contactAgentConnectionIdMap 
+        //the agentConnectionId changes after the contact connects. The localMediaStream uses the
+        //initial agentConnectionId, so we must use it here to ensure contactAgentConnectionIdMap
         //correctly maps to the contact for mute/unmute operations.
         var resumeSub = contact.getAgentConnection().onParticipantResume(function () {
           setLastActiveContactId(contact, agentConnectionId);
@@ -22095,7 +22109,7 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
   };
 
   // Check for the local streams if exists  -  revert it
-  // And inform other clients about the change 
+  // And inform other clients about the change
   var muteToggle = function muteToggle(data) {
     var status;
     if (connect.keys(localMediaStream).length === 0) {
@@ -25282,12 +25296,9 @@ var VOICE_FOCUS_CPU_LONG_INVOKE = 'VoiceFocusCPULongInvoke';
   var connect = global.connect || {};
   global.connect = connect;
   global.lily = connect;
-
-  /* eslint-disable-next-line */
   var _require = __webpack_require__(677),
     VoiceFocus = _require.VoiceFocus,
     createAudioContext = _require.createAudioContext;
-  /* eslint-disable-next-line */
   var _require2 = __webpack_require__(953),
     VoiceClient = _require2.VoiceClient;
   var logPrefix = '[VoiceFocus]';

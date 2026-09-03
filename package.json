@@ -1,6 +1,6 @@
 {
   "name": "amazon-connect-streams",
-  "version": "2.29.0",
+  "version": "2.29.1",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
@@ -25,13 +25,14 @@
     "connect"
   ],
   "scripts": {
-    "release": "npm run build-streams && npm run build-streams-dr && npm run build-streams-test && npm run test-jest && npm run test-mocha-dr",
+    "release": "npm run lint-strict && npm run build-streams && npm run build-streams-dr && npm run build-streams-test && npm run test-jest && npm run test-mocha-dr",
     "build-streams": "webpack --config ./webpack/connect-streams.config.js && webpack --config ./webpack/connect-streams-min.config.js",
     "build-streams-test": "webpack --config ./webpack/connect-streams-test.config.js",
     "build-streams-dr": "webpack --config ./webpack/connect-streams-dr.config.js && webpack --config ./webpack/connect-streams-dr-min.config.js",
     "test-mocha": "npm run build-streams-test && nyc mocha \"test/unit/**/*.spec.js\" --ignore \"test/unit/drCoordinator/**\" --exit",
     "test-mocha-dr": "nyc mocha \"test/unit/drCoordinator/*.spec.js\" --exit",
     "test-jest": "jest --config test/unit/jest.config.js",
+    "lint-strict": "eslint --no-eslintrc --config .eslintrc.strict.json --ignore-path .eslintignore.strict --ext .js src",
     "clean": "rm -rf build/ node_modules build coverage .nyc_output package-lock.json"
   },
   "author": "Amazon Web Services",
