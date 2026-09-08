@@ -35,7 +35,7 @@
   };
 
   Container.prototype._createFramedCcp = function (resource) {
-    var permission = permission || "microphone; autoplay; clipboard-write";
+    var permission = permission || "microphone; autoplay; clipboard-write; speaker-selection";
     var style = this.style || FRAME_DIMENSIONS;
     var iframe = document.createElement('iframe');
     iframe.srcdoc = this.getContent(resource);

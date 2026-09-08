@@ -211,7 +211,7 @@ describe('connect.core._createCCPIframe', () => {
     iframeId: 1,
     dataset: {},
     src: 'url.com',
-    allow: 'microphone; camera; autoplay; clipboard-write; identity-credentials-get',
+    allow: 'microphone; camera; autoplay; clipboard-write; identity-credentials-get; speaker-selection',
     style: 'width: 100%; height: 100%;',
     title: 'Amazon Connect CCP',
     name: 'Amazon Connect CCP',
@@ -267,6 +267,15 @@ describe('connect.core._createCCPIframe', () => {
   it('does not rewrite ccpUrl when isFlexibleWorkspace is omitted', () => {
     const result = connect.core._createCCPIframe(containerDiv, baseParams);
     expect(result.src).toBe('url.com');
+  });
+
+  // speaker-selection defaults to an allowlist of 'self', so a cross-origin
+  // embedder must delegate it explicitly. Without it Firefox omits every
+  // audiooutput device from enumerateDevices() inside the frame, which leaves
+  // the CCP Speaker and Ringer pickers empty even though the microphone works.
+  it('delegates speaker-selection so the framed CCP can enumerate audio output devices', () => {
+    const result = connect.core._createCCPIframe(containerDiv, baseParams);
+    expect(result.allow).toContain('speaker-selection');
   });
 });
 

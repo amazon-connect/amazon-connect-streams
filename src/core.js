@@ -1827,7 +1827,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     connect.assertNotNull(containerDiv, 'containerDiv');
     var iframe = document.createElement('iframe');
     iframe.src = initCCPParams.ccpUrl;
-    iframe.allow = "microphone; camera; autoplay; clipboard-write; identity-credentials-get";
+    iframe.allow = "microphone; camera; autoplay; clipboard-write; identity-credentials-get; speaker-selection";
     iframe.style = initCCPParams.style || connect.core.iframeStyle;
     iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
     iframe.name = CCP_IFRAME_NAME;

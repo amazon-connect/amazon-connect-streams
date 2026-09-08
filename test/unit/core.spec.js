@@ -2536,7 +2536,7 @@ describe('Core', function () {
         let expectedIframe = {
             ...iframe,
             src: params.ccpUrl,
-            allow: "microphone; camera; autoplay; clipboard-write; identity-credentials-get",
+            allow: "microphone; camera; autoplay; clipboard-write; identity-credentials-get; speaker-selection",
             style: "width: 100%; height: 100%;",
             title: "Amazon Connect CCP",
             name: "Amazon Connect CCP",

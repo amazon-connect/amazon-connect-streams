@@ -140,7 +140,7 @@
           });
           var globalIframe = document.createElement("iframe");
           globalIframe.style = GLOBALIFRAME_STYLE;
-          globalIframe.allow = "microphone; camera; autoplay; clipboard-write; identity-credentials-get";
+          globalIframe.allow = "microphone; camera; autoplay; clipboard-write; identity-credentials-get; speaker-selection";
           globalIframe.id = GLOBALIFRAME_ID;
           globalIframe.scrolling = "no";
 
