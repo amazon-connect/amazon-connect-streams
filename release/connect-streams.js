@@ -9572,7 +9572,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.29.1";
+  connect.version = "2.29.2";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
@@ -11344,7 +11344,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
     connect.assertNotNull(containerDiv, 'containerDiv');
     var iframe = document.createElement('iframe');
     iframe.src = initCCPParams.ccpUrl;
-    iframe.allow = "microphone; camera; autoplay; clipboard-write; identity-credentials-get";
+    iframe.allow = "microphone; camera; autoplay; clipboard-write; identity-credentials-get; speaker-selection";
     iframe.style = initCCPParams.style || connect.core.iframeStyle;
     iframe.title = initCCPParams.iframeTitle || CCP_IFRAME_NAME;
     iframe.name = CCP_IFRAME_NAME;

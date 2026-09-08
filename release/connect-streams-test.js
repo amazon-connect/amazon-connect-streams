@@ -58337,7 +58337,7 @@ cov_pwmy0dccr().s[0]++;
 
 function cov_15456ht52d() {
   var path = "/Users/nosirrah/streams-hngan-fork/amazon-connect-streams/src/core.js";
-  var hash = "365baf381eec1d631ddf45d3422d1f560327045c";
+  var hash = "2550e8651fc5ff611f5f0cec3fd4c7b532503c53";
   var global = new Function("return this")();
   var gcv = "__coverage__";
   var coverageData = {
@@ -67000,7 +67000,7 @@ function cov_15456ht52d() {
         },
         end: {
           line: 1830,
-          column: 93
+          column: 112
         }
       },
       "866": {
@@ -91493,7 +91493,7 @@ function cov_15456ht52d() {
       "316": [0, 0]
     },
     _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
-    hash: "365baf381eec1d631ddf45d3422d1f560327045c"
+    hash: "2550e8651fc5ff611f5f0cec3fd4c7b532503c53"
   };
   var coverage = global[gcv] || (global[gcv] = {});
   if (!coverage[path] || coverage[path].hash !== hash) {
@@ -91553,7 +91553,7 @@ cov_15456ht52d().s[0]++;
   cov_15456ht52d().s[7]++;
   connect.core.initialized = false;
   cov_15456ht52d().s[8]++;
-  connect.version = "2.29.1";
+  connect.version = "2.29.2";
   cov_15456ht52d().s[9]++;
   connect.outerContextStreamsVersion = null;
   cov_15456ht52d().s[10]++;
@@ -94553,7 +94553,7 @@ cov_15456ht52d().s[0]++;
     cov_15456ht52d().s[864]++;
     iframe.src = initCCPParams.ccpUrl;
     cov_15456ht52d().s[865]++;
-    iframe.allow = "microphone; camera; autoplay; clipboard-write; identity-credentials-get";
+    iframe.allow = "microphone; camera; autoplay; clipboard-write; identity-credentials-get; speaker-selection";
     cov_15456ht52d().s[866]++;
     iframe.style = (cov_15456ht52d().b[238][0]++, initCCPParams.style) || (cov_15456ht52d().b[238][1]++, connect.core.iframeStyle);
     cov_15456ht52d().s[867]++;
