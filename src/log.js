@@ -19,7 +19,6 @@
   var DEFAULT_LOG_ROLL_INTERVAL = 1800000;
 
   // Hard ceiling on retained _logs entries; the time-based roll alone lets a long, high-volume
-  // session grow the buffer to hundreds of MB and OOM-crash 4GB devices (P505301738).
   var DEFAULT_LOG_MAX_LENGTH = 5000;
   // Slack above the cap so eviction batches (amortized O(1)) instead of shifting on every push.
   var LOG_EVICTION_BATCH_SIZE = 100;
