@@ -2255,6 +2255,11 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
   // The default log roll interval (30min)
   var DEFAULT_LOG_ROLL_INTERVAL = 1800000;
 
+  // Hard ceiling on retained _logs entries; the time-based roll alone lets a long, high-volume
+  var DEFAULT_LOG_MAX_LENGTH = 5000;
+  // Slack above the cap so eviction batches (amortized O(1)) instead of shifting on every push.
+  var LOG_EVICTION_BATCH_SIZE = 100;
+
   // Prefix to be added to values obfuscated using MD5 digest.
   var OBFUSCATED_PREFIX = "[obfuscated value]";
 
@@ -2635,6 +2640,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     this._lineCount = 0;
     this._logRollInterval = 0;
     this._logRollTimer = null;
+    this._logMaxLength = DEFAULT_LOG_MAX_LENGTH;
     this._loggerId = new Date().getTime() + "-" + Math.random().toString(36).slice(2);
     this.setLogRollInterval(DEFAULT_LOG_ROLL_INTERVAL);
     this._startLogIndexToPush = 0;
@@ -2660,6 +2666,24 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
       }, this._logRollInterval);
     } else {
       this.warn("Logger is already set to the given interval: %d", this._logRollInterval);
+    }
+  };
+
+  // Sets the max entries retained in _logs (oldest evicted first). Expects a positive number.
+  Logger.prototype.setLogMaxLength = function (maxLength) {
+    if (typeof maxLength === "number" && maxLength > 0) {
+      this._logMaxLength = maxLength;
+      this.enforceLogMaxLength(true);
+    } else {
+      this.warn("Ignoring invalid log max length: %s", maxLength);
+    }
+  };
+
+  // Evicts oldest _logs entries once over the cap; batched by default, immediate=true trims now.
+  Logger.prototype.enforceLogMaxLength = function (immediate) {
+    var overshoot = immediate ? 0 : LOG_EVICTION_BATCH_SIZE;
+    if (this._logs.length > this._logMaxLength + overshoot) {
+      this._logs.splice(0, this._logs.length - this._logMaxLength);
     }
   };
 
@@ -2705,6 +2729,8 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     // Call this second time as in some places this function is called directly
     _redactSensitiveInfo(logEntry);
     this._logs.push(logEntry);
+    // Bound the buffer so a long-lived, high-volume session cannot grow it without limit (P505301738).
+    this.enforceLogMaxLength();
 
     // BROADCAST: Sync CRM layer logs between CCPs
     if (connect.isCRM() && logEntry.loggerId === this.getLoggerId()) {
@@ -9572,7 +9598,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.29.2";
+  connect.version = "2.30.0";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;

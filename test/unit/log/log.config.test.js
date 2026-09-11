@@ -296,4 +296,67 @@ describe('Logger', () => {
             expect(sendDownstream).toHaveBeenCalledWith(connect.EventType.LOG, { id: 2 });
         });
     });
+
+    describe('_logs buffer cap', () => {
+        it('defaults _logMaxLength to 5000 on a fresh logger', () => {
+            const logger = new connect.Logger();
+            expect(logger._logMaxLength).toBe(5000);
+        });
+
+        it('setLogMaxLength updates the cap and immediately trims the buffer to the new cap', () => {
+            const logger = new connect.Logger();
+            logger._logs = [];
+            for (let i = 0; i < 10; i++) logger._logs.push({ id: i });
+
+            logger.setLogMaxLength(4);
+
+            expect(logger._logMaxLength).toBe(4);
+            // Trimmed to exactly the new cap; the oldest entries are evicted first.
+            expect(logger._logs.map((l) => l.id)).toEqual([6, 7, 8, 9]);
+        });
+
+        it('setLogMaxLength ignores a non-positive or non-numeric value and warns', () => {
+            const logger = new connect.Logger();
+            const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+
+            logger.setLogMaxLength(0);
+            logger.setLogMaxLength(-3);
+            logger.setLogMaxLength('lots');
+
+            expect(logger._logMaxLength).toBe(5000); // unchanged
+            expect(warnSpy).toHaveBeenCalledTimes(3);
+        });
+
+        it('enforceLogMaxLength evicts oldest-first only after the buffer overshoots the cap by the batch size', () => {
+            const logger = new connect.Logger();
+            logger._logMaxLength = 5;
+            logger._logs = [];
+            // Fill to cap + batch (5 + 100 = 105): still within the eviction slack, nothing dropped.
+            for (let i = 0; i < 105; i++) logger._logs.push({ id: i });
+            logger.enforceLogMaxLength();
+            expect(logger._logs).toHaveLength(105);
+
+            // One more entry crosses the slack -> a single batch eviction trims back to exactly the cap.
+            logger._logs.push({ id: 105 });
+            logger.enforceLogMaxLength();
+            expect(logger._logs.map((l) => l.id)).toEqual([101, 102, 103, 104, 105]);
+        });
+
+        it('keeps _logs bounded when addLogEntry is called far more often than the cap', () => {
+            jest.spyOn(connect, 'isFramed').mockReturnValue(false);
+            jest.spyOn(connect, 'isCCP').mockReturnValue(false);
+            jest.spyOn(connect, 'isCRM').mockReturnValue(false);
+            const logger = new connect.Logger();
+            logger._logMaxLength = 10;
+
+            for (let i = 0; i < 500; i++) {
+                logger.info('entry %d', i);
+            }
+
+            // Bounded to at most the cap plus one batch of slack -- never unbounded (was: grows for the
+            // life of the session, OOM-crashing 4GB devices).
+            expect(logger._logs.length).toBeLessThanOrEqual(10 + 100);
+            expect(logger._logs.length).toBeGreaterThan(0);
+        });
+    });
 });
