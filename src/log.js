@@ -491,7 +491,7 @@
     // Call this second time as in some places this function is called directly
     redactSensitiveInfo(logEntry);
     this._logs.push(logEntry);
-    // Bound the buffer so a long-lived, high-volume session cannot grow it without limit (P505301738).
+    // Bound the buffer so a long-lived, high-volume session cannot grow it without limit
     this.enforceLogMaxLength();
 
     // BROADCAST: Sync CRM layer logs between CCPs
