@@ -4,6 +4,8 @@
 
 **Global Resiliency is only compatible with CCPv2 and Streams releases 2.16.0 or later, and requires the use of SAML authentication. Global Resiliency can’t be used with CCPv1 or with Amazon Connect instances configured to use Amazon Connect-managed authentication (username and password).**
 
+**Subdomain migration for existing ACGR customers:** Global Routing uses subdomain-based instance aliases and requires Streams version 2.28.1 or later. Existing Amazon Connect Global Resiliency (ACGR) customers must migrate to the subdomain-based alias format in order to adopt Global Routing. See Subdomain-based instance aliases and Migrating to global routing.
+
 Streams will suppress contacts from the Amazon Connect instance in the region where the agent is not currently active. In embedded use cases where the native CCP UI will be visible, Streams will show only the CCP for the region where the agent is active. In the event of a change to the agent’s active region, Streams will automatically switch over the embedded UI to display CCP for the newly active region, and hide the CCP UI for the region where the agent was previously active.
 
 # Prerequisites
