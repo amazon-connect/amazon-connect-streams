@@ -21,25 +21,27 @@ In version 1.x, we also support `make` for legacy builds. This option was remove
 
 1. September 2026 - Global Routing is now supported. Amazon Connect Global Routing enables you to route contacts across the AWS Regions in your Amazon Connect Global Resiliency (ACGR) Region group, so agents can handle contacts from either Region while their instance stays highly available. Global Routing requires Streams version 2.28.1 or later. See [Global routing across ACGR Regions](https://docs.aws.amazon.com/connect/latest/adminguide/global-routing-across-acgr-regions.html) for setup and usage.
    * Existing ACGR customers must migrate to subdomain-based instance aliases to adopt Global Routing. See [Subdomain-based instance aliases](https://docs.aws.amazon.com/connect/latest/adminguide/global-routing-across-acgr-regions.html#subdomain-based-instance-aliases) and [Migrating to global routing](https://docs.aws.amazon.com/connect/latest/adminguide/global-routing-across-acgr-regions.html#migrating-to-global-routing), and reference [Documentation-GR.md](Documentation-GR.md) for Streams usage details.
-2. October 2025 - 2.19.2
+2. February 2026 - 2.24.0
+Introducing Voice Enhancement, improving audio quality and reliability on the agent's side by reducing background noise and isolating the agent's voice during calls
+3. October 2025 - 2.19.2
    * Re-added ccpAckTimeout as a param for configuring how long the authentication popup will take to re-occur after auth session expiration/logout.
-3. August 2025 - 2.18.7
+4. August 2025 - 2.18.7
    * Adds important stability update addressing periodic login popups that some customers experienced even when agents had valid authentication sessions. This update replaces the heartbeat mechanism used to detect changes in agent authentication status as Chrome now no longer recommends using timers for periodic state checks.
    * The ACK_TIMEOUT event is still triggered on initial login. However, ACK_TIMEOUT events will no longer be triggered on logout/auth session expiration. The existing TERMINATED event for logout and AUTH_FAIL event for session expiration are used to trigger re-authentication. 
-4. January 2025 - 2.18.1
+5. January 2025 - 2.18.1
    * Provides bug fixes for chat and voice. Customers using 2.17 and 2.18 should upgrade to 2.18.1
-5. December 2024 - Major changes:
+6. December 2024 - Major changes:
    * Introducing Multiparty Chat, allowing up to 4 additional agents to join an ongoing chat conversation, making it easier to collaborate and resolve customer issues quickly.
-6. November 2024 - Major changes:
+7. November 2024 - Major changes:
    * Introducing Email
    * Storage access settings from `initCCP` are now deprecated after Google is no longer deprecating 3rd party cookies by default.
    * Global resiliency involving `connect-streams-dr.js` is now deprecated. Please reference [Documentation-GR.md](Documentation-GR.md) for the new set of APIs.
-7. July 2024 - The issue with muting while a Voice contact is on hold has been resolved. Agents can use the mute button while a contact is placed on hold. The following APIs will be available when the contact is on hold:
+8. July 2024 - The issue with muting while a Voice contact is on hold has been resolved. Agents can use the mute button while a contact is placed on hold. The following APIs will be available when the contact is on hold:
     * `voiceConnection.muteParticipant()`
     * `voiceConnection.unmuteParticipant()`
     * `agent.mute()`
     * `agent.unmute()`
-8. February 2024 - In response to a Google Chrome feature launched on 7/13/2023 called [Storage Partitioning](https://developers.google.com/privacy-sandbox/3pcd/storage-partitioning), we made a short term fix on 2/10/2024 to adjust our mute functionality and synchronize the mute state across all CCPs. However, due to current limitations, this change required us to disable muting while being on hold. As a workaround, agents should mute themselves on the call before going on hold. We are planning to address this issue by August 2024 and revert back to original mute behavior.
+9. February 2024 - In response to a Google Chrome feature launched on 7/13/2023 called [Storage Partitioning](https://developers.google.com/privacy-sandbox/3pcd/storage-partitioning), we made a short term fix on 2/10/2024 to adjust our mute functionality and synchronize the mute state across all CCPs. However, due to current limitations, this change required us to disable muting while being on hold. As a workaround, agents should mute themselves on the call before going on hold. We are planning to address this issue by August 2024 and revert back to original mute behavior.
     * At the moment, the following APIs will fail when the contact is on hold:
       * `voiceConnection.muteParticipant()`
       * `voiceConnection.unmuteParticipant()`
@@ -132,7 +134,7 @@ Find build artifacts in **release** directory - This will generate a file called
 
 To run unit tests:
 ```
-$ npm run test-jest
+$ npm run test-mocha
 ```
 Note: these tests run on the release files generated above
 
