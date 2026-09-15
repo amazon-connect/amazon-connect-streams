@@ -18,8 +18,9 @@ Run `npm run release` to generate new release files. Full instructions for build
 In version 1.x, we also support `make` for legacy builds. This option was removed in version 2.x. 
 
 # Important Announcements
-1. February 2026 - 2.24.0
-   * Introducing Voice Enhancement, improving audio quality and reliability on the agent's side by reducing background noise and isolating the agent's voice during calls
+
+1. Global Routing is now supported. Amazon Connect Global Routing enables you to route contacts across the AWS Regions in your Amazon Connect Global Resiliency (ACGR) Region group, so agents can handle contacts from either Region while their instance stays highly available. Global Routing requires Streams version 2.28.1 or later. See [Global routing across ACGR Regions](https://docs.aws.amazon.com/connect/latest/adminguide/global-routing-across-acgr-regions.html) for setup and usage.
+   * Existing ACGR customers must migrate to subdomain-based instance aliases to adopt Global Routing. See [Subdomain-based instance aliases](https://docs.aws.amazon.com/connect/latest/adminguide/global-routing-across-acgr-regions.html#subdomain-based-instance-aliases) and [Migrating to global routing](https://docs.aws.amazon.com/connect/latest/adminguide/global-routing-across-acgr-regions.html#migrating-to-global-routing), and reference [Documentation-GR.md](Documentation-GR.md) for Streams usage details.
 2. October 2025 - 2.19.2
    * Re-added ccpAckTimeout as a param for configuring how long the authentication popup will take to re-occur after auth session expiration/logout.
 3. August 2025 - 2.18.7
@@ -131,7 +132,7 @@ Find build artifacts in **release** directory - This will generate a file called
 
 To run unit tests:
 ```
-$ npm run test-mocha
+$ npm run test-jest
 ```
 Note: these tests run on the release files generated above
 
