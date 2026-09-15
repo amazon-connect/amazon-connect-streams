@@ -2,16 +2,15 @@
 
 **In order to obtain access to the Global Resiliency feature, you will need to reach out to your Amazon Connect Solutions Architect or Technical Account Manager first.**
 
-**Global Resiliency is only compatible with CCPv2 and Streams releases 2.16.0 or later, and requires the use of SAML authentication. Global Resiliency can’t be used with CCPv1 or with Amazon Connect instances configured to use Amazon Connect-managed authentication (username and password).**
+**Global Resiliency is only compatible with CCPv2 and Streams releases 2.15.0 or later, and requires the use of SAML authentication. Global Resiliency can’t be used with CCPv1 or with Amazon Connect instances configured to use Amazon Connect-managed authentication (username and password).**
+
+**Subdomain migration for existing ACGR customers:** Global Routing uses subdomain-based instance aliases and requires Streams version 2.28.1 or later. Existing Amazon Connect Global Resiliency (ACGR) customers must migrate to the subdomain-based alias format in order to adopt Global Routing. See [Subdomain-based instance aliases](https://docs.aws.amazon.com/connect/latest/adminguide/global-routing-across-acgr-regions.html#subdomain-based-instance-aliases) and [Migrating to global routing](https://docs.aws.amazon.com/connect/latest/adminguide/global-routing-across-acgr-regions.html#migrating-to-global-routing).
 
 Streams will suppress contacts from the Amazon Connect instance in the region where the agent is not currently active. In embedded use cases where the native CCP UI will be visible, Streams will show only the CCP for the region where the agent is active. In the event of a change to the agent’s active region, Streams will automatically switch over the embedded UI to display CCP for the newly active region, and hide the CCP UI for the region where the agent was previously active.
 
 # Prerequisites
 
 You will need to complete all prerequisites in the [Global Resiliency documentation](https://docs.aws.amazon.com/connect/latest/adminguide/get-started-connect-global-resiliency.html) before you can make use of the version of Streams that is compatible with the feature.
-
-### IMPORTANT NOTICE
-The [AmazonConnectSDK](https://github.com/amazon-connect/AmazonConnectSDK) package will only be supported with AmazonConnectStreams version 2.19.0 and above.
 
 # Usage
 
@@ -202,14 +201,6 @@ The function will be called with an Object parameter with one property:
 1. `nextActiveRegion`: the AWS Region of the Amazon Connect instance that will become active in the UI once the active contacts is ended and cleared from ACW.
 
 Returns a function that can be called if you wish to deregister the trigger.
-
-### connect.globalResiliency.forceFailover()
-
-```js
-connect.globalResiliency.forceFailover();
-```
-
-When an active AWS Region change has been detected and the agent has at least 1 active voice or chat contact, the UI will normally wait to change over to the new AWS Region until all active voice/chat contact(s) are ended and cleared from ACW. This is called the failover pending state. When the forceFailover API is called during the failover pending state, the failover occurs immediately instead of waiting for the contacts to be ended and cleared. This can be used in scenarios where service failures render the contacts unable to be cleared. This does not trigger any change in the traffic distribution group. It only has an impact when called during the failover pending state.
 
 ## Note regarding page refresh
 
