@@ -2012,6 +2012,12 @@ Send a digit or string of digits through this connection.
 This is only valid for contact types that can accept digits,
 currently this is limited to softphone-enabled voice contacts.
 
+`sendDigits()` is supported both after the call is connected and during
+**early media** — the period on an outbound call after dialing has started
+but before the remote party answers, for example, while an IVR or carrier
+prompt is playing. This allows agents to interact with automated call screenings
+or IVR that request DTMF input before the call is fully established.
+
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
 ### `connection.hold()`
