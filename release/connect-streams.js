@@ -2729,7 +2729,7 @@ function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == 
     // Call this second time as in some places this function is called directly
     _redactSensitiveInfo(logEntry);
     this._logs.push(logEntry);
-    // Bound the buffer so a long-lived, high-volume session cannot grow it without limit (P505301738).
+    // Bound the buffer so a long-lived, high-volume session cannot grow it without limit
     this.enforceLogMaxLength();
 
     // BROADCAST: Sync CRM layer logs between CCPs
@@ -9598,7 +9598,7 @@ function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e 
   connect.core = {};
   connect.globalResiliency = connect.globalResiliency || {};
   connect.core.initialized = false;
-  connect.version = "2.30.0";
+  connect.version = "2.30.1";
   connect.outerContextStreamsVersion = null;
   connect.initCCPParams = null;
   connect.containerDiv = null;
