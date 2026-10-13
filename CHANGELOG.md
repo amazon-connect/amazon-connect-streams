@@ -1,5 +1,16 @@
 # CHANGELOG.md
 
+## [2.30.2] - 2026-10-13
+Delegate the loopback-network permission to the embedded CCP iframe so VDI
+softphone redirection can reach its local loopback socket in Chrome and Edge
+147+.
+
+src/core.js
+  - Add loopback-network to the allow attribute of the CCP iframe created by
+    connect.core._createCCPIframe. Delegation grants nothing on its own; access
+    still requires the browser permission or enterprise policy, so embedders
+    that do not use VDI see no change in behavior.
+
 ## [2.29.0] - 2026-08-21
 Enable persistent connection on page load, and expand softphone audio-quality
 telemetry. Includes a fix for a jitter metric that was reporting an unbounded

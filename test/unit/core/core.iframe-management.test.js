@@ -211,7 +211,7 @@ describe('connect.core._createCCPIframe', () => {
     iframeId: 1,
     dataset: {},
     src: 'url.com',
-    allow: 'microphone; camera; autoplay; clipboard-write; identity-credentials-get; speaker-selection',
+    allow: 'microphone; camera; autoplay; clipboard-write; identity-credentials-get; loopback-network; speaker-selection',
     style: 'width: 100%; height: 100%;',
     title: 'Amazon Connect CCP',
     name: 'Amazon Connect CCP',
@@ -267,6 +267,21 @@ describe('connect.core._createCCPIframe', () => {
   it('does not rewrite ccpUrl when isFlexibleWorkspace is omitted', () => {
     const result = connect.core._createCCPIframe(containerDiv, baseParams);
     expect(result.src).toBe('url.com');
+  });
+
+  it.each([
+    ['no softphone params', undefined],
+    ['no VDIPlatform', { allowFramedSoftphone: true }],
+    ['CITRIX', { VDIPlatform: 'CITRIX' }],
+    ['CITRIX_413', { VDIPlatform: 'CITRIX_413' }],
+    ['AWS_WORKSPACE', { VDIPlatform: 'AWS_WORKSPACE' }],
+    ['OMNISSA', { VDIPlatform: 'OMNISSA' }],
+    ['AZURE', { VDIPlatform: 'AZURE' }],
+  ])('delegates loopback-network regardless of VDI config (%s)', (_label, softphone) => {
+    const params = softphone ? { ...baseParams, softphone } : baseParams;
+    const result = connect.core._createCCPIframe(containerDiv, params);
+    expect(result.allow).toBe(expectedDefault().allow);
+    expect(result.allow).toContain('loopback-network');
   });
 
   // speaker-selection defaults to an allowlist of 'self', so a cross-origin
