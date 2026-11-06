@@ -223,6 +223,88 @@ describe('Connections API', () => {
         );
       });
     });
+
+    describe('getConnectionToken', () => {
+      let client;
+      let logger;
+
+      function realAgentDataProvider(contactIds) {
+        const provider = Object.create(connect.core.AgentDataProvider.prototype);
+        provider.agentData = {
+          snapshot: {
+            contacts: contactIds.map((id) => ({ contactId: id, connections: [] })),
+          },
+        };
+        return provider;
+      }
+
+      beforeEach(() => {
+        client = { call: jest.fn() };
+        jest.spyOn(connect.core, 'getClient').mockReturnValue(client);
+        logger = {
+          info: jest.fn().mockReturnThis(),
+          error: jest.fn().mockReturnThis(),
+          withObject: jest.fn().mockReturnThis(),
+          withException: jest.fn().mockReturnThis(),
+          sendInternalLogToServer: jest.fn().mockReturnThis(),
+        };
+        jest.spyOn(connect, 'getLog').mockReturnValue(logger);
+      });
+
+      it('resolves with the CREATE_TRANSPORT response for a contact in the snapshot', async () => {
+        const chatConnection = new connect.ChatConnection(contactId, connectionId);
+        getAgentDataProviderStub.mockReturnValue(realAgentDataProvider([contactId]));
+
+        const tokenPromise = chatConnection.getConnectionToken();
+
+        expect(client.call).toHaveBeenCalledTimes(1);
+        expect(client.call).toHaveBeenCalledWith(
+          connect.ClientMethods.CREATE_TRANSPORT,
+          {
+            transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
+            participantId: connectionId,
+            contactId,
+          },
+          expect.any(Object)
+        );
+
+        const response = { transport: { participantToken: 'a-participant-token' } };
+        client.call.mock.calls[0][2].success(response);
+
+        await expect(tokenPromise).resolves.toBe(response);
+        expect(logger.info).toHaveBeenCalledWith('getConnectionToken succeeded');
+      });
+
+      it('rejects when the CREATE_TRANSPORT call fails', async () => {
+        const chatConnection = new connect.ChatConnection(contactId, connectionId);
+        getAgentDataProviderStub.mockReturnValue(realAgentDataProvider([contactId]));
+
+        const tokenPromise = chatConnection.getConnectionToken();
+        const err = new Error('boom');
+        client.call.mock.calls[0][2].failure(err, { status: 500 });
+
+        await expect(tokenPromise).rejects.toThrow('getConnectionToken failed');
+        expect(logger.error).toHaveBeenCalledWith('getConnectionToken failed');
+        expect(logger.withObject).toHaveBeenCalledWith({ err, data: { status: 500 } });
+      });
+
+      it('throws synchronously without calling the client when the contact is gone from the snapshot', () => {
+        const chatConnection = new connect.ChatConnection(contactId, connectionId);
+        getAgentDataProviderStub.mockReturnValue(realAgentDataProvider(['some-other-contact']));
+
+        let thrown;
+        try {
+          chatConnection.getConnectionToken();
+        } catch (e) {
+          thrown = e;
+        }
+
+        expect(thrown).toBeDefined();
+        expect(thrown.name).toBe('StateError');
+        expect(thrown.message).toBe(`Contact ${contactId} no longer exists.`);
+        expect(client.call).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('#Voice Connection API', () => {
@@ -323,6 +405,24 @@ describe('Connections API', () => {
     ])('%s returns a Promise', (method) => {
       const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
       expect(voiceConnection[method]()).toBeInstanceOf(Promise);
+    });
+
+    // The SDK keys these subscriptions on the participant id, so an unsubscribe without it
+    // removes nothing.
+    it.each([
+      ['onParticipantHold', 'onParticipantHold', 'offParticipantHold'],
+      ['onParticipantResume', 'onParticipantResume', 'offParticipantResume'],
+      ['onCanResumeParticipantUpdated', 'onCanResumeParticipantChanged', 'offCanResumeParticipantChanged'],
+    ])('%s unsubscribes the handler it subscribed, for this connection', (method, on, off) => {
+      const voiceClient = { [on]: jest.fn(), [off]: jest.fn() };
+      const voiceConnection = new connect.VoiceConnection(contactId, connectionId);
+      jest.spyOn(voiceConnection, '_getSDKClient').mockReturnValue(voiceClient);
+
+      voiceConnection[method](jest.fn()).unsubscribe();
+
+      expect(voiceClient[on]).toHaveBeenCalledWith(expect.any(Function), connectionId);
+      const [handler] = voiceClient[on].mock.calls[0];
+      expect(voiceClient[off]).toHaveBeenCalledWith(handler, connectionId);
     });
   });
 
@@ -491,5 +591,23 @@ describe('Connections API', () => {
         );
       });
     });
+  });
+});
+
+describe('SessionExpirationWarningManager', () => {
+  // Object.create skips the constructor, which builds a real SDK client.
+  it.each([
+    ['onExpirationWarning', 'offExpirationWarning'],
+    ['onExpirationWarningCleared', 'offExpirationWarningCleared'],
+    ['onSessionExtensionError', 'offSessionExtensionError'],
+  ])('%s returns an unsubscribe that calls %s with the same handler', (on, off) => {
+    const client = { [on]: jest.fn(), [off]: jest.fn() };
+    const manager = Object.create(connect.SessionExpirationWarningManager.prototype);
+    manager.sessionExpirationWarningClient = client;
+
+    manager[on](jest.fn()).unsubscribe();
+
+    const [handler] = client[on].mock.calls[0];
+    expect(client[off]).toHaveBeenCalledWith(handler);
   });
 });

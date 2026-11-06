@@ -263,6 +263,53 @@ describe('RingtoneEngine', () => {
             });
         });
 
+        describe("_loadRingtone re-applies the output device without letting a failure break loading", () => {
+            const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+            it('logs the re-apply failure with the error and the device it tried to apply', async () => {
+                const warn = jest.spyOn(connect.getLog(), 'warn');
+                createFakeAudio({
+                    fakeSetSinkId: jest.fn().mockRejectedValue('sink gone'),
+                    fakeAddEventListener: fireOnEvent('canplay')
+                });
+
+                voiceRingtoneEngine = new connect.VoiceRingtoneEngine(ringtoneObj);
+                voiceRingtoneEngine._deviceId = 'device-1';
+                await expect(voiceRingtoneEngine._loadRingtone(ringtoneObj.ringtoneUrl)).resolves.toBeUndefined();
+                await flushPromises();
+
+                const warnIndex = warn.mock.calls.findIndex(
+                    ([message]) => message === '[Ringtone] Failed to re-apply the ringtone output device'
+                );
+                expect(warnIndex).toBeGreaterThanOrEqual(0);
+                expect(warn.mock.results[warnIndex].value.objects[0]).toEqual(expect.objectContaining({
+                    error: expect.stringContaining('audio.setSinkId() failed with error sink gone'),
+                    deviceId: 'device-1',
+                    ringtoneUrl: ringtoneObj.ringtoneUrl,
+                }));
+            });
+
+            it('leaves the engine able to play after the re-apply failure, and keeps the stored deviceId', async () => {
+                const fakePlay = jest.fn().mockResolvedValue();
+                createFakeAudio({
+                    fakePlay,
+                    fakeSetSinkId: jest.fn().mockRejectedValue('sink gone'),
+                    fakeAddEventListener: fireOnEvent('canplay')
+                });
+
+                voiceRingtoneEngine = new connect.VoiceRingtoneEngine(ringtoneObj);
+                voiceRingtoneEngine._deviceId = 'device-1';
+                await voiceRingtoneEngine._loadRingtone(ringtoneObj.ringtoneUrl);
+                await flushPromises();
+
+                expect(voiceRingtoneEngine._audio.setSinkId).toHaveBeenCalledWith('device-1');
+                expect(voiceRingtoneEngine._deviceId).toBe('device-1');
+                expect(voiceRingtoneEngine._audio.loop).toBe(true);
+                await expect(voiceRingtoneEngine._startRingtone(contact, 0)).resolves.toBeUndefined();
+                expect(fakePlay).toHaveBeenCalledTimes(1);
+            });
+        });
+
         describe("_startRingtone", () => {
             it('Validate the ringtone engine attempts to start the ringtone only once when it plays successfully.', async () => {
                 createFakeAudio({

@@ -1,5 +1,5 @@
-// Jest port of: initCCP-after-ACK with DR enabled, ACK_TIMEOUT subscription
-// behavior with disableAuthPopupAfterLogout, and reauthenticateAfterLogout.
+// Jest port of: ACK_TIMEOUT subscription behavior with
+// disableAuthPopupAfterLogout, and reauthenticateAfterLogout.
 
 const {
   commonAfterEach,
@@ -33,61 +33,6 @@ const setupCommon = () => {
   connect.agent.initialized = true;
   connect.core.eventBus = new connect.EventBus({ logEvents: true });
 };
-
-describe('connect.core.initCCP() after ACKNOWLEDGE - with DR enabled', () => {
-  let containerDiv;
-  let drParams;
-
-  beforeEach(() => {
-    setupCommon();
-    containerDiv = makeContainerDiv();
-    drParams = {
-      ccpUrl: 'url.com',
-      loginUrl: 'loginUrl.com',
-      softphone: { ringtoneUrl: 'customVoiceRingtone.amazon.com' },
-      chat: { ringtoneUrl: 'customChatRingtone.amazon.com' },
-      task: { ringtoneUrl: 'customTaskRingtone.amazon.com' },
-      loginOptions: { autoClose: true },
-      pageOptions: { showInactivityModal: true },
-      shouldAddNamespaceToLogs: false,
-      disasterRecoveryOn: true,
-    };
-    connect.core.initCCP(containerDiv, drParams);
-    jest.spyOn(connect.WindowIOStream.prototype, 'send').mockReturnValue(null);
-    jest.spyOn(connect.core.getUpstream(), 'sendUpstream');
-    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-    commonAfterEach();
-  });
-
-  it('sends INIT_DISASTER_RECOVERY upstream after ACK when disasterRecoveryOn=true', () => {
-    expect(connect.core.getUpstream().sendUpstream).toHaveBeenCalledWith(
-      connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY,
-      drParams
-    );
-  });
-
-  it('forceOffline() (no args) sends SET_OFFLINE upstream', () => {
-    connect.core.forceOffline();
-    const calls = connect.core.getUpstream().sendUpstream.mock.calls;
-    const setOfflineCall = calls.find(
-      ([event]) => event === connect.DisasterRecoveryEvents.SET_OFFLINE
-    );
-    expect(setOfflineCall).toBeDefined();
-  });
-
-  it('forceOffline(data) forwards the data argument with SET_OFFLINE upstream', () => {
-    const data = { softFailover: true };
-    connect.core.forceOffline(data);
-    expect(connect.core.getUpstream().sendUpstream).toHaveBeenCalledWith(
-      connect.DisasterRecoveryEvents.SET_OFFLINE,
-      data
-    );
-  });
-});
 
 describe('ACK_TIMEOUT subscription with disableAuthPopupAfterLogout (initCCP)', () => {
   let containerDiv;

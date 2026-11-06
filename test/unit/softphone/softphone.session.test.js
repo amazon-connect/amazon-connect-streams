@@ -1,5 +1,4 @@
-// Jest port of softphone.spec.js (split file). Mocha spec stays in place; this
-// file runs under `npm run test-jest`.
+// SoftphoneManager tests: RTC sessions, mute, and contact teardown.
 
 const {
   VDI_PLATFORMS,
@@ -1217,5 +1216,62 @@ describe('SoftphoneManager - onInitContact onEnded teardown', () => {
     expect(resumeUnsub).toHaveBeenCalled();
     expect(connectedUnsub).toHaveBeenCalled();
     expect(endedUnsub).toHaveBeenCalled();
+  });
+
+  it('skips the resume subscription when the agent connection is not a voice connection', () => {
+    const chain = {};
+    chain.withObject = jest.fn(() => chain);
+    chain.withException = jest.fn(() => chain);
+    chain.sendInternalLogToServer = jest.fn(() => chain);
+    const loggerStub = {
+      debug: jest.fn(() => chain),
+      info: jest.fn(() => chain),
+      log: jest.fn(() => chain),
+      warn: jest.fn(() => chain),
+      error: jest.fn(() => chain),
+      trace: jest.fn(() => chain),
+    };
+    jest.spyOn(connect, 'getLog').mockReturnValue(loggerStub);
+
+    const contact = makeContact('chat-contact', {
+      contactType: connect.ContactType.CHAT,
+      isSoftphoneCall: false,
+      agentConnection: makeAgentConnection('chat-conn', { onParticipantResume: undefined }),
+    });
+    jest.spyOn(contact, 'onRefresh').mockReturnValue({ unsubscribe: jest.fn() });
+    jest.spyOn(contact, 'onDestroy').mockReturnValue({ unsubscribe: jest.fn() });
+    jest.spyOn(contact, 'onConnected').mockReturnValue({ unsubscribe: jest.fn() });
+    jest.spyOn(contact, 'onEnded').mockReturnValue({ unsubscribe: jest.fn() });
+
+    new connect.SoftphoneManager();
+    bus.trigger(connect.ContactEvents.INIT, contact);
+
+    // The event bus catches a throwing handler and logs this line.
+    expect(loggerStub.error).not.toHaveBeenCalledWith("'%s' event handler failed.", connect.ContactEvents.INIT);
+    expect(contact.onRefresh).toHaveBeenCalled();
+    expect(contact.onDestroy).toHaveBeenCalled();
+    expect(contact.onConnected).not.toHaveBeenCalled();
+    expect(contact.onEnded).not.toHaveBeenCalled();
+  });
+
+  // The constructor runs onInitContact for every contact already in the agent snapshot, and
+  // nothing catches a throw there.
+  it('constructs when a contact whose agent connection is not a voice connection is already open', () => {
+    const contact = makeContact('open-chat', {
+      contactType: connect.ContactType.CHAT,
+      isSoftphoneCall: false,
+      agentConnection: makeAgentConnection('open-chat-conn', { onParticipantResume: undefined }),
+    });
+    jest.spyOn(contact, 'onRefresh').mockReturnValue({ unsubscribe: jest.fn() });
+    jest.spyOn(contact, 'onDestroy').mockReturnValue({ unsubscribe: jest.fn() });
+    jest.spyOn(contact, 'onConnected').mockReturnValue({ unsubscribe: jest.fn() });
+    jest.spyOn(contact, 'onEnded').mockReturnValue({ unsubscribe: jest.fn() });
+    connect.Agent.prototype.getContacts.mockReturnValue([contact]);
+
+    expect(() => new connect.SoftphoneManager()).not.toThrow();
+    expect(contact.onRefresh).toHaveBeenCalled();
+    expect(contact.onDestroy).toHaveBeenCalled();
+    expect(contact.onConnected).not.toHaveBeenCalled();
+    expect(contact.onEnded).not.toHaveBeenCalled();
   });
 });

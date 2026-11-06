@@ -6,10 +6,8 @@ describe('Logger', () => {
         let originalCore;
         let originalUpstream;
         let originalEventBus;
-        let originalClientEngine;
         let originalIsFramed;
         let originalIsCCP;
-        let originalIsSharedWorker;
         let originalEventType;
         let originalLogComponent;
         let originalDeepCopy;
@@ -23,10 +21,8 @@ describe('Logger', () => {
             originalCore = connect.core;
             originalUpstream = connect.core ? connect.core.upstream : undefined;
             originalEventBus = connect.core ? connect.core.eventBus : undefined;
-            originalClientEngine = connect.worker ? connect.worker.clientEngine : undefined;
             originalIsFramed = connect.isFramed;
             originalIsCCP = connect.isCCP;
-            originalIsSharedWorker = connect.isSharedWorker;
             originalEventType = connect.EventType;
             originalLogComponent = connect.LogComponent;
             originalDeepCopy = connect.deepcopy;
@@ -56,12 +52,8 @@ describe('Logger', () => {
                 connect.core.upstream = originalUpstream;
                 connect.core.eventBus = originalEventBus;
             }
-            if (connect.worker) {
-                connect.worker.clientEngine = originalClientEngine;
-            }
             connect.isFramed = originalIsFramed;
             connect.isCCP = originalIsCCP;
-            connect.isSharedWorker = originalIsSharedWorker;
             connect.EventType = originalEventType;
             connect.LogComponent = originalLogComponent;
             connect.deepcopy = originalDeepCopy;
@@ -277,38 +269,6 @@ describe('Logger', () => {
 
                 // Log should have been added before the broadcast attempt
                 expect(logger._serverBoundInternalLogs.length).toBe(initialCount + 1);
-            });
-
-            it('should NOT broadcast server-bound log when in SharedWorker context', () => {
-                const sendUpstreamSpy = jest.fn();
-                connect.isCRM = jest.fn().mockReturnValue(false);
-                connect.isSharedWorker = jest.fn().mockReturnValue(true);
-                connect.core = {
-                    getUpstream: jest.fn().mockReturnValue({
-                        sendUpstream: sendUpstreamSpy,
-                        sendDownstream: jest.fn()
-                    }),
-                    tabId: 'test-tab-id'
-                };
-                connect.isFramed = jest.fn().mockReturnValue(false);
-                connect.isCCP = jest.fn().mockReturnValue(false);
-                connect.EventType = {
-                    BROADCAST: 'broadcast',
-                    LOG: 'log',
-                    SERVER_BOUND_INTERNAL_LOG: 'server_bound_internal_log'
-                };
-
-                const logger = new connect.Logger();
-                const savedRootLogger = connect.rootLogger;
-                connect.rootLogger = logger;
-
-                const logEntry = logger.info('SharedWorker log');
-                logEntry.sendInternalLogToServer();
-
-                connect.rootLogger = savedRootLogger;
-
-                // sendUpstream should NOT be called because we're in SharedWorker context, not CRM
-                expect(sendUpstreamSpy).not.toHaveBeenCalled();
             });
         });
 

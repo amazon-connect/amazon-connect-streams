@@ -24,7 +24,6 @@ const config = Object.assign({}, commonConfig, {
     './src/mediaControllers/factory.js',
     './src/mediaControllers/softphone.js',
     './src/mediaControllers/task.js',
-    './src/worker.js',
     './src/agent-app/agent-app.js',
     './src/agent-app/app-registry.js',
     './src/global-resiliency.js',
@@ -52,6 +51,10 @@ const config = Object.assign({}, commonConfig, {
           loader: 'babel-loader',
           options: {
             presets: ['@babel/preset-typescript', '@babel/preset-env'],
+            // src/lib holds pre-bundled third-party deps (e.g. the
+            // amazon-connect-websocket-manager webpack bundle). Instrumenting
+            // them makes istanbul expand their embedded source maps into
+            // bogus `src/lib/webpack:/...` coverage rows, so exclude them.
             plugins: [['istanbul', { exclude: ['src/lib/**'] }]],
           },
         },

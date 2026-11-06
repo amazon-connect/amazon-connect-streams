@@ -19,6 +19,7 @@
   var DEFAULT_LOG_ROLL_INTERVAL = 1800000;
 
   // Hard ceiling on retained _logs entries; the time-based roll alone lets a long, high-volume
+  // session grow the buffer to hundreds of MB and OOM-crash 4GB devices.
   var DEFAULT_LOG_MAX_LENGTH = 5000;
   // Slack above the cap so eviction batches (amortized O(1)) instead of shifting on every push.
   var LOG_EVICTION_BATCH_SIZE = 100;
@@ -72,7 +73,6 @@
    */
     var LogContextLayer = {
       CCP: "CCP",
-      SHARED_WORKER: "SharedWorker",
       CRM: "CRM"
     }
 
@@ -157,9 +157,7 @@
     if (contextLayer) {
       this.contextLayer = contextLayer;
     } else {
-      if (connect.isSharedWorker()) {
-        this.contextLayer = LogContextLayer.SHARED_WORKER;
-      } else if (connect.isCRM()) {
+      if (connect.isCRM()) {
         this.contextLayer = LogContextLayer.CRM;
       } else if (connect.isCCP()) {
         this.contextLayer = LogContextLayer.CCP;
@@ -491,7 +489,7 @@
     // Call this second time as in some places this function is called directly
     redactSensitiveInfo(logEntry);
     this._logs.push(logEntry);
-    // Bound the buffer so a long-lived, high-volume session cannot grow it without limit
+    // Bound the buffer so a long-lived, high-volume session cannot grow it without limit.
     this.enforceLogMaxLength();
 
     // BROADCAST: Sync CRM layer logs between CCPs

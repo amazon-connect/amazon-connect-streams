@@ -10,7 +10,6 @@
   global.lily = connect;
 
   var userAgent = navigator.userAgent;
-  var ONE_DAY_MILLIS = 24 * 60 * 60 * 1000;
   var DEFAULT_POPUP_HEIGHT = 578;
   var DEFAULT_POPUP_WIDTH = 433;
   var COPYABLE_EVENT_FIELDS = ["bubbles", "cancelBubble", "cancelable", "composed", "data", "defaultPrevented", "eventPhase", "isTrusted", "lastEventId", "origin", "returnValue", "timeStamp", "type"];
@@ -34,7 +33,6 @@
   connect.TRANSPORT_TYPES = {
     CHAT_TOKEN: "chat_token",
     WEB_SOCKET: "web_socket",
-    AGENT_DISCOVERY: "agent_discovery",
     WEB_RTC: "web_rtc"
   };
 
@@ -73,6 +71,44 @@
    */
   connect.isFunction = function (obj) {
     return !!(obj && obj.constructor && obj.call && obj.apply);
+  };
+
+  /**
+   * Invoke a consumer-supplied callback so a throw inside it cannot unwind past the
+   * caller's teardown. Same guarantee EventBus.prototype.trigger makes for subscribers.
+   *
+   * @returns fn's return value, or undefined if it threw
+   */
+  connect.invokeSafely = function (fn, args, label) {
+    try {
+      return fn.apply(null, args || []);
+    } catch (e) {
+      try {
+        connect.getLog()
+          .warn("Consumer callback '%s' failed.", label || "anonymous")
+          .withException(e)
+          .sendInternalLogToServer();
+      } catch (loggingError) {
+      }
+    }
+    return undefined;
+  };
+
+  /**
+   * Fan out to consumer-supplied handlers, isolating each so an early throw cannot starve
+   * the rest. Snapshots first because a handler may deregister mid-dispatch.
+   */
+  connect.invokeAllSafely = function (fns, args, label) {
+    if (!fns) {
+      return;
+    }
+    var snapshot = [];
+    fns.forEach(function (fn) {
+      snapshot.push(fn);
+    });
+    snapshot.forEach(function (fn) {
+      connect.invokeSafely(fn, args, label);
+    });
   };
 
   /**
@@ -787,10 +823,6 @@
     }
     var conduit = connect.core.getUpstream();
     return conduit.name === 'ConnectSharedWorkerConduit';
-  }
-
-  connect.isSharedWorker = function () {
-    return connect.worker && !!connect.worker.clientEngine;
   }
 
   connect.isCRM = function () {

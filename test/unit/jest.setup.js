@@ -62,14 +62,6 @@ if (typeof performance === 'undefined') {
   global.performance = require('perf_hooks').performance;
 }
 
-// jsdom does not expose TextEncoder/TextDecoder, which the bundle uses to read
-// streamed error bodies (e.g. TaskTemplatesClient). Node provides them via util.
-if (typeof global.TextDecoder === 'undefined') {
-  const { TextEncoder, TextDecoder } = require('util');
-  global.TextEncoder = TextEncoder;
-  global.TextDecoder = TextDecoder;
-}
-
 beforeEach(() => {
   jest.spyOn(connect.Agent.prototype, '_getResourceId').mockReturnValue('id');
   connect.storageAccess.optOutFromRequestAccess();

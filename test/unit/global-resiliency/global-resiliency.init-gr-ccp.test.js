@@ -190,14 +190,13 @@ describe('Global Resiliency', () => {
         );
       });
 
-      it('should exclude disasterRecoveryOn when isACGR is true', () => {
+      it('should add enableGlobalResiliency + instanceState when isACGR is true', () => {
         const fakeConduit = {
           sendUpstream: jest.fn(),
           name: 'test-conduit',
         };
         const localParams = {
           softphone: { allowFramedSoftphone: true },
-          disasterRecoveryOn: true,
           enableGlobalResiliency: true,
         };
 
@@ -206,25 +205,22 @@ describe('Global Resiliency', () => {
         connect.core.sendConfigure(localParams, fakeConduit, true);
 
         const configArgs = fakeConduit.sendUpstream.mock.calls[0];
-        expect(configArgs[1].disasterRecoveryOn).toBeUndefined();
         expect(configArgs[1].enableGlobalResiliency).toBeDefined();
         expect(configArgs[1].instanceState).toBeDefined();
       });
 
-      it('should include disasterRecoveryOn when isACGR is false', () => {
+      it('should not add ACGR params when isACGR is false', () => {
         const fakeConduit = {
           sendUpstream: jest.fn(),
           name: 'test-conduit',
         };
         const localParams = {
           softphone: { allowFramedSoftphone: true },
-          disasterRecoveryOn: true,
         };
 
         connect.core.sendConfigure(localParams, fakeConduit, false);
 
         const configArgs = fakeConduit.sendUpstream.mock.calls[0];
-        expect(configArgs[1].disasterRecoveryOn).toBeDefined();
         expect(configArgs[1].enableGlobalResiliency).toBeUndefined();
         expect(configArgs[1].instanceState).toBeUndefined();
       });

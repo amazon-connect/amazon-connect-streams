@@ -24,7 +24,6 @@
   var CCP_ACK_TIMEOUT = 3000; // 3 sec
   var CCP_LOAD_TIMEOUT = 5000; // 5 sec
   var CCP_IFRAME_REFRESH_INTERVAL = 5000; // 5 sec
-  var CCP_DR_IFRAME_REFRESH_INTERVAL = 10000; //10 s
   var CCP_IFRAME_REFRESH_LIMIT = 10; // 10 attempts
   var CCP_IFRAME_NAME = 'Amazon Connect CCP';
   var LEGACY_LOGIN_URL_PATTERN = "https://{alias}.awsapps.com/auth/?client_id={client_id}&redirect_uri={redirect}";
@@ -43,17 +42,12 @@
   var WHITELISTED_ORIGINS_MAX_RETRY = 5;
 
   var CSM_IFRAME_REFRESH_ATTEMPTS = 'IframeRefreshAttempts';
-  var CSM_IFRAME_REFRESH_ATTEMPTS_DR = 'IframeRefreshAttemptsDr';
   var CSM_IFRAME_INITIALIZATION_SUCCESS = 'IframeInitializationSuccess';
-  var CSM_IFRAME_INITIALIZATION_SUCCESS_DR = 'IframeInitializationSuccessDr';
   var CSM_IFRAME_INITIALIZATION_TIME = 'IframeInitializationTime';
-  var CSM_IFRAME_INITIALIZATION_TIME_DR = 'IframeInitializationTimeDr';
   var CSM_SET_RINGER_DEVICE_BEFORE_INIT = 'SetRingerDeviceBeforeInitRingtoneEngine';
 
   var CONNECTED_CCPS_SINGLE_TAB = 'ConnectedCCPSingleTabCount';
   var CCP_TABS_ACROSS_BROWSER_COUNT = 'CCPTabsAcrossBrowserCount';
-
-  var MULTIPLE_INIT_SOFTPHONE_MANAGER_CALLS = 'MultipleInitSoftphoneManagerCalls';
 
   var CHECK_LOGIN_POPUP_INTERVAL_MS = 1000;
 
@@ -91,30 +85,6 @@
     'tab_id',
     'authorize_retry_count',
   ]);
-
-  /**
-   * @deprecated
-   * This function was only meant for internal use.
-   * The name is misleading for what it should do.
-   * Internally we have replaced its usage with `getLoginUrl`.
-   */
-  var createLoginUrl = function (params) {
-    var redirect = "https://lily.us-east-1.amazonaws.com/taw/auth/code";
-    connect.assertNotNull(redirect);
-
-    if (params.loginUrl) {
-      return params.loginUrl
-    } else if (params.alias) {
-      log.warn("The `alias` param is deprecated and should not be expected to function properly. Please use `ccpUrl` or `loginUrl`. See https://github.com/amazon-connect/amazon-connect-streams/blob/master/README.md#connectcoreinitccp for valid parameters.");
-      return LEGACY_LOGIN_URL_PATTERN
-        .replace("{alias}", params.alias)
-        .replace("{client_id}", CLIENT_ID_MAP["us-east-1"])
-        .replace("{redirect}", global.encodeURIComponent(
-          redirect));
-    } else {
-      return params.ccpUrl;
-    }
-  };
 
   /**
    * Replaces `createLoginUrl`, as that function's name was misleading.
@@ -201,19 +171,6 @@
 
   const ringtoneParamsStorage = new RingtoneParamsStorage();
 
-  /**
-   * globalResiliencyParamsStorage module to store necessary global resiliency params in local storage
-   * Used mainly for cases where embedded CCP gets refreshed.
-   * @returns {Object}
-   */
-  class GlobalResiliencyParamsStorage extends BaseParamsStorage {
-    constructor() {
-      super('GlobalResiliency');
-    }
-  }
-
-  const globalResiliencyParamsStorage = new GlobalResiliencyParamsStorage();
-
   /**-------------------------------------------------------------------------
    * Returns scheme://host:port for a given url
    */
@@ -231,98 +188,6 @@
       log.warn("Connect core already initialized, only needs to be initialized once.").sendInternalLogToServer();
     }
   };
-
-  /**-------------------------------------------------------------------------
-   * DISASTER RECOVERY
-   */
-
-  var makeAgentOffline = function (agent, callbacks) {
-    var offlineState = agent.getAgentStates().find(function (state) {
-      return state.type === connect.AgentStateType.OFFLINE;
-    });
-    agent.setState(offlineState, callbacks);
-  }
-
-  // Suppress Contacts function
-  // This is used by Disaster Recovery as a safeguard to not surface incoming calls/chats to UI
-  //
-  var suppressContacts = function (isSuppressed) {
-    connect.getLog().info("[Disaster Recovery] Signal sharedworker to set contacts suppressor to %s for instance %s.",
-      isSuppressed, connect.core.region
-    ).sendInternalLogToServer();
-    connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.SUPPRESS, {
-      suppress: isSuppressed,
-      shouldSendFailoverDownstream: false
-    });
-  }
-
-  var setForceOfflineUpstream = function (offline, nextActiveArn) {
-    connect.getLog().info("[DISASTER RECOVERY] Signal sharedworker to set forceOffline to %s for instance %s.",
-      offline, connect.core.region
-    ).sendInternalLogToServer();
-    connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, {
-      offline,
-      nextActiveArn
-    });
-  }
-
-  // Force the instance to be offline.
-  // If `shouldSoftFailover` has a truthy value, this will try to disconnect all non-voice contacts in progress. If a voice contact
-  // is in progress, the contact will be allowed to complete, and the agent will be set offline once the contact is destroyed (i.e. ACW is cleared).
-  // If there is no voice contact in progress, or if `shouldSoftFailover` is missing/untruthy, this will disconnect all contacts and set the agent offline immediately.
-  // If any of these requests fail (i.e. the backend is down/inaccessible), the shared worker will be signaled to invoke this function again once the region recovers.
-  var forceOffline = function (shouldSoftFailover, nextActiveArn) {
-    var log = connect.getLog();
-    // if agent is still initializing, we can't get instance ID; fall back to logging the region, else getInstanceId() will throw
-    const instanceIdentifier = (connect.agent.initialized) ? connect.core.getAgentDataProvider().getInstanceId() : connect.core.region;
-    log.info(`[Disaster Recovery] Attempting to force instance ${instanceIdentifier} offline using ${shouldSoftFailover ? 'soft' : 'hard'} failover`).sendInternalLogToServer();
-    connect.agent(function (agent) {
-      var contactClosed = 0;
-      var contacts = agent.getContacts();
-      var failureEncountered = false;
-      if (contacts.length) {
-        for (let contact of contacts) {
-          if (failureEncountered) {
-            break; // stop after first failure to avoid triggering UI failover multiple times
-          } else if (shouldSoftFailover &&
-            (contact.getType() === connect.ContactType.QUEUE_CALLBACK || contact.getType() === connect.ContactType.VOICE)) {
-            log.info("[Disaster Recovery] Will wait to complete failover of instance %s until voice contact with ID %s is destroyed",
-              connect.core.region, contact.getContactId()).sendInternalLogToServer();
-            connect.core.getUpstream().sendDownstream(connect.DisasterRecoveryEvents.FAILOVER_PENDING, { nextActiveArn });
-            contact.onDestroy(function (contact) {
-              log.info("[Disaster Recovery] Voice contact with ID %s destroyed, continuing with failover in instance %s", contact.getContactId(), connect.core.region);
-              forceOffline(true, nextActiveArn)
-            });
-          } else {
-            contact.getAgentConnection().destroy({
-              success: function () {
-                // check if all active contacts are closed
-                if (++contactClosed === contacts.length) {
-                  setForceOfflineUpstream(false, nextActiveArn);
-                  // It's ok if we're not able to put the agent offline.
-                  // since we're suppressing the agents contacts already.
-                  makeAgentOffline(agent);
-                  log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
-                }
-              },
-              failure: function (err) {
-                log.warn("[Disaster Recovery] An error occured while attempting to force this instance to offline in region %s", connect.core.region).sendInternalLogToServer();
-                log.warn(err).sendInternalLogToServer();
-                // signal the sharedworker to call forceOffline again when network connection
-                // has been re-established (this happens in case of network or backend failures)
-                setForceOfflineUpstream(true, nextActiveArn);
-                failureEncountered = true;
-              }
-            });
-          }
-        }
-      } else {
-        setForceOfflineUpstream(false, nextActiveArn);
-        makeAgentOffline(agent);
-        log.info("[Disaster Recovery] Instance %s is now offline", connect.core.region).sendInternalLogToServer();
-      }
-    });
-  }
 
   /**
    * Terminates a customviews application. 
@@ -376,64 +241,6 @@
     }
   }
 
-  //Initiate Disaster Recovery (This should only be called from customCCP that are DR enabled)
-  connect.core.initDisasterRecovery = function (params, _suppressContacts, _forceOffline) {
-    var log = connect.getLog();
-    connect.core.region = params.region;
-    connect.core.suppressContacts = _suppressContacts || suppressContacts;
-    connect.core.forceOffline = _forceOffline || forceOffline;
-
-    //Register iframe listener to set native CCP offline
-    connect.core.getUpstream().onDownstream(connect.DisasterRecoveryEvents.SET_OFFLINE, function (data) {
-      connect.ifMaster(connect.MasterTopics.FAILOVER,
-        function () {
-          connect.core.forceOffline(data && data.softFailover);
-        }
-      );
-    });
-
-    // Register Event listener to force the agent to be offline in a particular region
-    connect.core.getUpstream().onUpstream(connect.DisasterRecoveryEvents.FORCE_OFFLINE, function (data) {
-      connect.ifMaster(connect.MasterTopics.FAILOVER,
-        function () {
-          connect.core.forceOffline(data && data.softFailover, data && data.nextActiveArn);
-        }
-      );
-    });
-
-    connect.ifMaster(connect.MasterTopics.FAILOVER,
-      function () {
-        log.info("[Disaster Recovery] Initializing region %s as part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
-      },
-      function () {
-        log.info("[Disaster Recovery] %s already part of a Disaster Recovery fleet", connect.core.region).sendInternalLogToServer();
-      });
-
-    if (params.pollForFailover && connect.DisasterRecoveryEvents.INIT_DR_POLLING) {
-      connect.core.getUpstream().sendUpstream(connect.DisasterRecoveryEvents.INIT_DR_POLLING, { instanceArn: params.instanceArn, otherArn: params.otherArn, authToken: params.authToken });
-    } else if (!params.isPrimary) {
-      connect.core.suppressContacts(true);
-      connect.core.forceOffline();
-      log.info("[Disaster Recovery] %s instance is set to stand-by", connect.core.region).sendInternalLogToServer();
-    } else {
-      connect.core.suppressContacts(false);
-      log.info("[Disaster Recovery] %s instance is set to primary", connect.core.region).sendInternalLogToServer();
-    }
-  }
-
-  /**-------------------------------------------------------------------------
-   * Basic Connect client initialization.
-   * Should be used only by the API Shared Worker.
-   */
-  connect.core.init = function (params) {
-    connect.core.eventBus = new connect.EventBus();
-    connect.core.agentDataProvider = new AgentDataProvider(connect.core.getEventBus());
-    connect.core.initClient(params);
-    connect.core.initAgentAppClient(params);
-    connect.core.initTaskTemplatesClient(params);
-    connect.core.initialized = true;
-  };
-
   /**-------------------------------------------------------------------------
    * Initialized AWS client
    * Should be used by Shared Worker to update AWS client with new credentials
@@ -449,37 +256,11 @@
   };
 
   /**-------------------------------------------------------------------------
-   * Initialized AgentApp client
-   * Should be used by Shared Worker to update AgentApp client with new credentials
-   * after refreshed authentication.
-   */
-  connect.core.initAgentAppClient = function (params) {
-    connect.assertNotNull(params, 'params');
-    var authToken = connect.assertNotNull(params.authToken, 'params.authToken');
-    var authCookieName = connect.assertNotNull(params.authCookieName, 'params.authCookieName');
-    var endpoint = connect.assertNotNull(params.agentAppEndpoint, 'params.agentAppEndpoint');
-
-    connect.core.agentAppClient = new connect.AgentAppClient(authCookieName, authToken, endpoint);
-  };
-
-  /**-------------------------------------------------------------------------
-   * Initialized TaskTemplates client
-   */
-  connect.core.initTaskTemplatesClient = function (params) {
-    connect.assertNotNull(params, 'params');
-    var endpoint = params.taskTemplatesEndpoint || params.endpoint;
-    connect.assertNotNull(endpoint, 'taskTemplatesEndpoint');
-    connect.core.taskTemplatesClient = new connect.TaskTemplatesClient(endpoint);
-  };
-
-  /**-------------------------------------------------------------------------
    * Uninitialize Connect.
    */
   connect.core.terminate = function () {
     connect.core.client = new connect.NullClient();
     connect.core.apiProxyClient = new connect.NullClient();
-    connect.core.agentAppClient = new connect.NullClient();
-    connect.core.taskTemplatesClient = new connect.NullClient();
     connect.core.masterClient = new connect.NullClient();
     var bus = connect.core.getEventBus();
     if (bus) bus.unsubscribeAll();
@@ -986,8 +767,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         if (navigator && navigator.mediaDevices) {
           navigator.mediaDevices.enumerateDevices()
             .then(function (devicesIn) {
-              devices = devicesIn || [];
-              devices = devices.map(function (d) { return d.toJSON() });
+              var devices = (devicesIn || []).map(function (d) { return d.toJSON() });
               sendDevices(devices);
             })
             .catch(function (err) {
@@ -1038,9 +818,11 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         if (navigator && navigator.mediaDevices) {
           navigator.mediaDevices.enumerateDevices()
             .then(function (devicesIn) {
-              devices = devicesIn || [];
-              devices = devices.map(function (d) { return d.toJSON() });
+              var devices = (devicesIn || []).map(function (d) { return d.toJSON() });
               resolve(devices);
+            })
+            .catch(function (err) {
+              reject(err);
             });
         } else {
           reject(new Error("No navigator or navigator.mediaDevices object found"));
@@ -1318,9 +1100,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       var nm = connect.core.getNotificationManager();
       nm.requestPermission();
 
-      conduit.onDownstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, function (params) {
-        connect.core.initDisasterRecovery(params);
-      });
     } catch (e) {
       connect.getLog().error("Failed to initialize the API shared worker, we're dead!")
         .withException(e).sendInternalLogToServer();
@@ -1578,16 +1357,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         connect.core.sendConfigure(params, conduit, false);
         connect.core.listenForConfigureRequest(params, conduit, false); // failsafe for abnormal ccp refresh
 
-        // If DR enabled, set this CCP instance as part of a Disaster Recovery fleet
-        if (params.disasterRecoveryOn) {
-          connect.core.region = params.region;
-          connect.core.suppressContacts = suppressContacts;
-          connect.core.forceOffline = function (data) {
-            conduit.sendUpstream(connect.DisasterRecoveryEvents.SET_OFFLINE, data);
-          }
-          conduit.sendUpstream(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY, params);
-        }
-
         if (connect.core.ccpLoadTimeoutInstance) {
           global.clearTimeout(connect.core.ccpLoadTimeoutInstance);
           connect.core.ccpLoadTimeoutInstance = null;
@@ -1627,20 +1396,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
               name: CSM_IFRAME_INITIALIZATION_TIME,
               data: { count: initTime }
             });
-            if (params.disasterRecoveryOn) {
-              connect.publishMetric({
-                name: CSM_IFRAME_REFRESH_ATTEMPTS_DR,
-                data: { count: refreshAttempts }
-              });
-              connect.publishMetric({
-                name: CSM_IFRAME_INITIALIZATION_SUCCESS_DR,
-                data: { count: 1 }
-              });
-              connect.publishMetric({
-                name: CSM_IFRAME_INITIALIZATION_TIME_DR,
-                data: { count: initTime }
-              });
-            }
             //to avoid metric emission after initialization
             initStartTime = null;
           }, 1000)
@@ -1684,16 +1439,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
             name: CSM_IFRAME_INITIALIZATION_SUCCESS,
             data: { count: 0 }
           });
-          if (params.disasterRecoveryOn) {
-            connect.publishMetric({
-              name: CSM_IFRAME_REFRESH_ATTEMPTS_DR,
-              data: { count: refreshAttempts }
-            });
-            connect.publishMetric({
-              name: CSM_IFRAME_INITIALIZATION_SUCCESS_DR,
-              data: { count: 0 }
-            });
-          }
           initStartTime = null;
         }
       });
@@ -1732,7 +1477,9 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
         }
 
         connect.getLog().info("Releasing weblock for opening login popup.").sendInternalLogToServer();
-      })
+      }).catch(function (err) {
+        connect.getLog().error("Failed to hold weblock for opening login popup.").withException(err).sendInternalLogToServer();
+      });
     } catch (e) {
       connect.getLog().error("Failed to use weblock to open popup. Your browser may be out of date.").withException(e).sendInternalLogToServer();
       
@@ -1752,9 +1499,8 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     const obj = timerContainer || connect.core;
 
     // ccpIframeRefreshInterval is the ccpLoadTimeout passed into initCCP
-    // if no ccpLoadTimeout is passed in, the interval is the default, which depends on if disaster recovery is on
+    // if no ccpLoadTimeout is passed in, the interval is the default
     var ccpIframeRefreshInterval = (initCCPParams.ccpLoadTimeout) ? (initCCPParams.ccpLoadTimeout)
-      : (initCCPParams.disasterRecoveryOn) ? CCP_DR_IFRAME_REFRESH_INTERVAL
       : CCP_IFRAME_REFRESH_INTERVAL;
 
     global.clearTimeout(obj.iframeRefreshTimeout);
@@ -2025,9 +1771,7 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     };
 
     var invokeCallbacks = function (callbacks, response) {
-      callbacks.forEach(function (callback) {
-        callback(response);
-      });
+      connect.invokeAllSafely(callbacks, [response], "websocket subscriber");
     };
 
     connect.core.getUpstream().onUpstream(connect.WebSocketEvents.INIT_FAILURE, function () {
@@ -2301,7 +2045,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
 
   /**-----------------------------------------------------------------------*/
   var AgentDataProvider = function (bus) {
-    var agentData = null;
     this.bus = bus;
     this.agentUpdateSubscriber = this.bus.subscribe(connect.AgentEvents.UPDATE, connect.hitch(this, this.updateAgentData));
   };
@@ -2712,14 +2455,15 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       params.softphone ||
       params.chat ||
       params.task ||
+      params.email ||
       params.pageOptions ||
-      params.shouldAddNamespaceToLogs ||
-      params.disasterRecoveryOn
+      params.shouldAddNamespaceToLogs
     ) {      
       const config = {
         softphone: params.softphone,
         chat: params.chat,
         task: params.task,
+        email: params.email,
         autoAcceptTone: params.autoAcceptTone,
         pageOptions: params.pageOptions,
         shouldAddNamespaceToLogs: params.shouldAddNamespaceToLogs,
@@ -2727,12 +2471,9 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       };
 
       if (isACGR) {
-        // ACGR mode: add ACGR-specific params, exclude disasterRecoveryOn
+        // ACGR mode: add ACGR-specific params
         config.enableGlobalResiliency = params.enableGlobalResiliency;
         config.instanceState = connect.isActiveConduit(conduit) ? 'active' : 'inactive';
-      } else {
-        // Legacy mode: include disasterRecoveryOn param
-        config.disasterRecoveryOn = params.disasterRecoveryOn;
       }
 
       conduit.sendUpstream(connect.EventType.CONFIGURE, config);
@@ -2882,24 +2623,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
     return connect.core.apiProxyClient;
   };
   connect.core.apiProxyClient = null;
-
-  /**-----------------------------------------------------------------------*/
-  connect.core.getAgentAppClient = function () {
-    if (!connect.core.agentAppClient) {
-      throw new connect.StateError('The connect AgentApp Client has not been initialized!');
-    }
-    return connect.core.agentAppClient;
-  };
-  connect.core.agentAppClient = null;
-
-  /**-----------------------------------------------------------------------*/
-  connect.core.getTaskTemplatesClient = function () {
-    if (!connect.core.taskTemplatesClient) {
-      throw new connect.StateError('The connect TaskTemplates Client has not been initialized!');
-    }
-    return connect.core.taskTemplatesClient;
-  };
-  connect.core.taskTemplatesClient = null;
 
   /**-----------------------------------------------------------------------*/
   connect.core.getMasterClient = function () {

@@ -206,9 +206,7 @@
     var onLoad = config.onLoad ? config.onLoad : null;
     var registerConfig = { endpoint: endpoint, style: config.style, onLoad: onLoad };
     var filteredName;
-    if (name === APP.CCP_DR) {
-      filteredName = APP.CCP;
-    } else if (name === APP.GUIDES && config.customViewsParams) {
+    if (name === APP.GUIDES && config.customViewsParams) {
       const { iframeSuffix } = config.customViewsParams
       if (iframeSuffix) {
         filteredName = `${APP.GUIDES}${iframeSuffix}`;

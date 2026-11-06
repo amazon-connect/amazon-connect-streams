@@ -1,4 +1,4 @@
-// Jest port of self-contained core.spec describes:
+// Tests for self-contained connect.core features:
 // verifyDomainAccess, getFrameMediaDevices, activateChannelWithViewType,
 // Api Proxy Client initialization, triggerEmailCreated,
 // core subscription apis, Global resiliency subscription apis, CustomViews Termination.
@@ -136,6 +136,49 @@ describe('connect.core.getFrameMediaDevices()', () => {
     const expectation = expect(promise).rejects.toThrow('Timeout exceeded');
     await jest.advanceTimersByTimeAsync(500);
     await expectation;
+  });
+
+  it('inside CCP, enumerates locally and resolves with each device mapped through toJSON()', async () => {
+    jest.spyOn(connect, 'isCCP').mockReturnValue(true);
+    const rawMic = {
+      deviceId: 'RAW-NOT-SERIALIZABLE',
+      toJSON: () => ({ deviceId: 'mic-1', groupId: 'g1', kind: 'audioinput', label: 'Mic' }),
+    };
+    const rawSpeaker = {
+      deviceId: 'RAW-NOT-SERIALIZABLE',
+      toJSON: () => ({ deviceId: 'spk-1', groupId: 'g2', kind: 'audiooutput', label: 'Speaker' }),
+    };
+    navigator.mediaDevices.enumerateDevices.mockImplementation(() =>
+      Promise.resolve([rawMic, rawSpeaker])
+    );
+
+    const promise = connect.core.getFrameMediaDevices();
+    await jest.advanceTimersByTimeAsync(100);
+    const devices = await promise;
+
+    expect(devices).toEqual([
+      { deviceId: 'mic-1', groupId: 'g1', kind: 'audioinput', label: 'Mic' },
+      { deviceId: 'spk-1', groupId: 'g2', kind: 'audiooutput', label: 'Speaker' },
+    ]);
+    expect(devices[0]).not.toBe(rawMic);
+    expect(navigator.mediaDevices.enumerateDevices).toHaveBeenCalledTimes(1);
+  });
+
+  it('inside CCP, rejects with the enumerateDevices error itself rather than the race timeout', async () => {
+    jest.spyOn(connect, 'isCCP').mockReturnValue(true);
+    const enumerateError = new Error('NotAllowedError: Permission denied by system');
+    navigator.mediaDevices.enumerateDevices.mockImplementation(() =>
+      Promise.reject(enumerateError)
+    );
+
+    const promise = connect.core.getFrameMediaDevices(50);
+    let caught = null;
+    const settled = promise.catch((err) => { caught = err; });
+    await jest.advanceTimersByTimeAsync(500);
+    await settled;
+
+    expect(caught).toBe(enumerateError);
+    expect(caught.message).not.toBe('Timeout exceeded');
   });
 });
 

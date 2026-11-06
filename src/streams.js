@@ -178,7 +178,6 @@
     * Add a stream to the multiplexer.
     */
    StreamMultiplexer.prototype.addStream = function(stream) {
-      var self = this;
       this.streamMap[stream.getId()] = stream;
 
       // Update stream with existing listeners.

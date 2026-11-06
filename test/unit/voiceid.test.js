@@ -499,7 +499,7 @@ describe('VoiceId', () => {
       expect(voiceId.getDomainId).toHaveBeenCalledTimes(1);
     });
 
-    // TODO: fix this case. https://issues.amazon.com/issues/LILAX-3451
+    // TODO: fix this case.
     it.skip('should populate the auth result decision with Inconclusive when the streaming status is Ended and auth result decision is Not_Enough_Speech', async () => {
       const response = {
         "StreamingStatus": connect.VoiceIdStreamingStatus.ENDED,
@@ -525,7 +525,7 @@ describe('VoiceId', () => {
       expect(voiceId.getDomainId).toHaveBeenCalledTimes(1);
     });
 
-    // TODO: fix this case. https://issues.amazon.com/issues/LILAX-3451
+    // TODO: fix this case.
     it.skip('should populate the fraud result decision with Inconclusive when the streaming status is Ended and fraud result decision is Not_Enough_Speech', async () => {
       const response = {
         "StreamingStatus": connect.VoiceIdStreamingStatus.ENDED,
@@ -888,6 +888,33 @@ describe('VoiceId', () => {
 
       await jest.advanceTimersToNextTimerAsync();
       expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should log and stop polling when describeSession fails on a later poll', async () => {
+      const errorSpy = jest.spyOn(connect.getLog(), 'error');
+      const inProgress = {
+        Session: {
+          "EnrollmentRequestDetails": {
+            Status: connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS
+          },
+          "StreamingStatus": connect.VoiceIdStreamingStatus.ONGOING
+        }
+      };
+      const err = connect.VoiceIdError(connect.VoiceIdErrorTypes.DESCRIBE_SESSION_FAILED, 'describeSession failed');
+      const voiceId = new connect.VoiceId(contactId);
+      voiceId.describeSession = jest.fn()
+        .mockImplementationOnce(() => Promise.resolve(inProgress))
+        .mockImplementationOnce(() => Promise.reject(err));
+
+      let caught;
+      voiceId.checkEnrollmentStatus().then(() => {}).catch((e) => { caught = e; });
+      await jest.advanceTimersByTimeAsync(connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL);
+
+      expect(caught).toBe(err);
+      expect(errorSpy).toHaveBeenCalledWith('[VoiceId] describeSession failed while polling enrollment status');
+
+      await jest.advanceTimersByTimeAsync(connect.VoiceIdConstants.ENROLLMENT_POLLING_INTERVAL * 3);
+      expect(voiceId.describeSession).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -1277,6 +1304,32 @@ describe('VoiceId', () => {
       voiceId.getDomainId = jest.fn(() => Promise.resolve(domainId));
       await expect(voiceId.evaluateSpeaker(true)).rejects.toBe(err);
       expect(voiceId.syncSpeakerId).not.toHaveBeenCalled();
+    });
+
+    it('checkEnrollmentStatus logs and rejects with the original error when the first describeSession rejects', async () => {
+      const errorSpy = jest.spyOn(connect.getLog(), 'error');
+      const voiceId = new connect.VoiceId(contactId);
+      const err = connect.VoiceIdError(connect.VoiceIdErrorTypes.DESCRIBE_SESSION_FAILED, 'describeSession failed');
+      voiceId.describeSession = jest.fn(() => Promise.reject(err));
+      await expect(voiceId.checkEnrollmentStatus()).rejects.toBe(err);
+      expect(errorSpy).toHaveBeenCalledWith('[VoiceId] describeSession failed while polling enrollment status');
+      expect(voiceId.describeSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('enrollSpeaker rejects with the describeSession error instead of hanging when enrollment polling fails', async () => {
+      const errorSpy = jest.spyOn(connect.getLog(), 'error');
+      stubClientSuccess({ Status: connect.VoiceIdEnrollmentRequestStatus.IN_PROGRESS });
+      const voiceId = new connect.VoiceId(contactId);
+      voiceId.checkConferenceCall = jest.fn();
+      voiceId.syncSpeakerId = jest.fn(() => Promise.resolve());
+      voiceId.getSpeakerStatus = jest.fn(() => Promise.resolve({ Speaker: { Status: connect.VoiceIdSpeakerStatus.ENROLLED } }));
+      voiceId.getDomainId = jest.fn(() => Promise.resolve(domainId));
+      const err = connect.VoiceIdError(connect.VoiceIdErrorTypes.DESCRIBE_SESSION_FAILED, 'describeSession failed');
+      voiceId.describeSession = jest.fn(() => Promise.reject(err));
+
+      await expect(voiceId.enrollSpeaker()).rejects.toBe(err);
+      expect(errorSpy).toHaveBeenCalledWith('[VoiceId] describeSession failed while polling enrollment status');
+      expect(voiceId.describeSession).toHaveBeenCalledTimes(1);
     });
   });
 });

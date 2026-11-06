@@ -1,5 +1,4 @@
-// Jest port of softphone.spec.js (split file). Mocha spec stays in place; this
-// file runs under `npm run test-jest`.
+// SoftphoneManager tests: initialization.
 
 const {
   VDI_PLATFORMS,

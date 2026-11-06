@@ -26,7 +26,10 @@
       }
       this._audio = new Audio(ringtoneUrl);
       this._audio.loop = loop;
-      this.setOutputDevice(this._deviceId); // re-applying deviceId for audio reloading scenario
+      // re-applying deviceId for audio reloading scenario
+      this.setOutputDevice(this._deviceId).catch((err) => {
+        connect.getLog().warn("[Ringtone] Failed to re-apply the ringtone output device").withObject({ error: err, deviceId: this._deviceId, ringtoneUrl }).sendInternalLogToServer();
+      });
 
       // just in case "canplay" doesn't fire at all for some reasons
       const timerId = setTimeout(() => {
@@ -249,6 +252,13 @@
     connect.contact(function (contact) {
       contact.onConnecting(onContactConnect);
 
+      /**
+       * There is a race condition where when auto-accept is enabled for chat,
+       * the ACCEPTED event is sent before the _ringtoneSetup is triggered
+       * so the onAccepted event handler misses the event. Thus,
+       * subscribing to onAccepted in _driveRingtone, to stop the ringtone if
+       * auto-accept is enabled for the contact.
+       */
       contact.onAccepted((_contact) => {
         if (_contact.isAutoAcceptEnabled()) {
           connect.ifMaster(connect.MasterTopics.RINGTONE, () => {
