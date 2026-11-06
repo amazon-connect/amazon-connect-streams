@@ -19,7 +19,6 @@ const config = Object.assign({}, commonConfig, {
     './src/core.js',
     './src/ringtone.js',
     './src/softphone.js',
-    './src/worker.js',
     './src/mediaControllers/chat.js',
     './src/mediaControllers/factory.js',
     './src/mediaControllers/softphone.js',
@@ -27,7 +26,7 @@ const config = Object.assign({}, commonConfig, {
     './src/agent-app/agent-app.js',
     './src/agent-app/app-registry.js',
     './src/global-resiliency.js',
-    './src/voiceEnhancementProvider.js'
+    './src/voiceEnhancementProvider.js',
   ],
   output: {
     path: path.resolve(__dirname, '../release'),

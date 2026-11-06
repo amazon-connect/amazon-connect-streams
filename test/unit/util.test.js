@@ -113,27 +113,6 @@ describe('Utils', () => {
     });
   });
 
-  describe('connect.isSharedWorker', () => {
-    let originalClientEngine;
-
-    beforeEach(() => {
-      originalClientEngine = connect.worker.clientEngine;
-    });
-
-    afterEach(() => {
-      connect.worker.clientEngine = originalClientEngine;
-    });
-
-    it('should return true when worker.clientEngine is set', () => {
-      connect.worker.clientEngine = true;
-      expect(connect.isSharedWorker()).toBe(true);
-    });
-    it('should return false when worker.clientEngine is not set', () => {
-      connect.worker.clientEngine = null;
-      expect(connect.isSharedWorker()).toBe(false);
-    });
-  });
-
   describe('connect.isCRM', () => {
     let originalUpstream;
 
@@ -919,4 +898,102 @@ describe('Utils', () => {
     });
   });
 
+  describe('connect.invokeSafely', () => {
+    it('returns the callback result when it does not throw', () => {
+      expect(connect.invokeSafely(() => 42, [], 'ok')).toBe(42);
+    });
+
+    it('applies the supplied arguments', () => {
+      const cb = jest.fn();
+      connect.invokeSafely(cb, ['a', 'b'], 'args');
+      expect(cb).toHaveBeenCalledWith('a', 'b');
+    });
+
+    it('tolerates a missing args array', () => {
+      const cb = jest.fn();
+      connect.invokeSafely(cb, undefined, 'noargs');
+      expect(cb).toHaveBeenCalledWith();
+    });
+
+    it('swallows a throw and returns undefined instead of propagating', () => {
+      const boom = () => { throw new Error('consumer blew up'); };
+      let result;
+      expect(() => { result = connect.invokeSafely(boom, [], 'thrower'); }).not.toThrow();
+      expect(result).toBeUndefined();
+    });
+
+    it('logs the exception rather than failing silently', () => {
+      const warn = jest.spyOn(connect.getLog(), 'warn');
+      connect.invokeSafely(() => { throw new Error('consumer blew up'); }, [], 'thrower');
+      expect(warn).toHaveBeenCalled();
+    });
+
+    it('still contains the throw when logging itself is unavailable', () => {
+      const getLog = jest.spyOn(connect, 'getLog').mockReturnValue({});
+      try {
+        expect(() => connect.invokeSafely(() => { throw new Error('boom'); }, [], 'x')).not.toThrow();
+      } finally {
+        getLog.mockRestore();
+      }
+    });
+
+    it('lets teardown after the call still run when the callback throws', () => {
+      const resources = { session: {} };
+      const run = () => {
+        connect.invokeSafely(() => { throw new Error('consumer blew up'); }, [], 'onSessionFailed');
+        delete resources.session;
+      };
+      expect(run).not.toThrow();
+      expect(resources.session).toBeUndefined();
+    });
+  });
+
+  describe('connect.invokeAllSafely', () => {
+    it('invokes every handler in an array', () => {
+      const calls = [];
+      connect.invokeAllSafely([() => calls.push(1), () => calls.push(2)], [], 'fanout');
+      expect(calls).toEqual([1, 2]);
+    });
+
+    it('invokes every handler in a Set', () => {
+      const calls = [];
+      const handlers = new Set([() => calls.push(1), () => calls.push(2)]);
+      connect.invokeAllSafely(handlers, [], 'fanout');
+      expect(calls).toEqual([1, 2]);
+    });
+
+    it('does not let one throwing handler starve the handlers after it', () => {
+      const calls = [];
+      const handlers = new Set([
+        () => calls.push('first'),
+        () => { throw new Error('second blew up'); },
+        () => calls.push('third'),
+      ]);
+      expect(() => connect.invokeAllSafely(handlers, [], 'fanout')).not.toThrow();
+      expect(calls).toEqual(['first', 'third']);
+    });
+
+    it('passes the same arguments to every handler', () => {
+      const a = jest.fn();
+      const b = jest.fn();
+      connect.invokeAllSafely([a, b], ['payload'], 'fanout');
+      expect(a).toHaveBeenCalledWith('payload');
+      expect(b).toHaveBeenCalledWith('payload');
+    });
+
+    it('snapshots the collection so a handler may deregister mid-dispatch', () => {
+      const calls = [];
+      const handlers = new Set();
+      const second = () => calls.push('second');
+      handlers.add(() => { calls.push('first'); handlers.delete(second); });
+      handlers.add(second);
+      expect(() => connect.invokeAllSafely(handlers, [], 'fanout')).not.toThrow();
+      expect(calls).toEqual(['first', 'second']);
+    });
+
+    it('is a no-op for a null or undefined collection', () => {
+      expect(() => connect.invokeAllSafely(null, [], 'none')).not.toThrow();
+      expect(() => connect.invokeAllSafely(undefined, [], 'none')).not.toThrow();
+    });
+  });
 });

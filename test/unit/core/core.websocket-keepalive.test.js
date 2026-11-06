@@ -163,6 +163,34 @@ describe('WebSocketProvider', () => {
       expect(allMsgCb).toHaveBeenCalledTimes(2);
       expect(specificCb).toHaveBeenCalledTimes(1);
     });
+
+    it('a throwing subscriber does not starve the subscribers registered after it', () => {
+      const warn = jest.spyOn(connect.getLog(), 'warn');
+      const first = jest.fn();
+      const thrower = jest.fn(() => { throw new Error('consumer blew up'); });
+      const last = jest.fn();
+      provider.onConnectionLost(first);
+      provider.onConnectionLost(thrower);
+      provider.onConnectionLost(last);
+      const handler = findHandler(connect.WebSocketEvents.CONNECTION_LOST);
+
+      const response = { reason: 'network' };
+      expect(() => handler(response)).not.toThrow();
+      expect(first).toHaveBeenCalledWith(response);
+      expect(thrower).toHaveBeenCalledWith(response);
+      expect(last).toHaveBeenCalledWith(response);
+      expect(warn).toHaveBeenCalledWith("Consumer callback '%s' failed.", 'websocket subscriber');
+    });
+
+    it('a throwing onAllMessage subscriber does not starve the topic subscribers', () => {
+      provider.onAllMessage(() => { throw new Error('consumer blew up'); });
+      const specificCb = jest.fn();
+      provider.onMessage('myTopic', specificCb);
+      const handler = findHandler(connect.WebSocketEvents.ALL_MESSAGE);
+
+      expect(() => handler({ topic: 'myTopic', data: 1 })).not.toThrow();
+      expect(specificCb).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('subscribeTopics()', () => {

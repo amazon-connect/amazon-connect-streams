@@ -1,6 +1,6 @@
 {
   "name": "amazon-connect-streams",
-  "version": "2.30.2",
+  "version": "2.31.0",
   "description": "Amazon Connect Streams Library",
   "engines": {
     "node": ">=12.0.0"
@@ -25,12 +25,10 @@
     "connect"
   ],
   "scripts": {
-    "release": "npm run lint-strict && npm run build-streams && npm run build-streams-dr && npm run build-streams-test && npm run test-jest && npm run test-mocha-dr",
+    "release": "npm run lint-strict && npm run build-streams && npm run build-streams-test && npm run test-jest",
     "build-streams": "webpack --config ./webpack/connect-streams.config.js && webpack --config ./webpack/connect-streams-min.config.js",
     "build-streams-test": "webpack --config ./webpack/connect-streams-test.config.js",
-    "build-streams-dr": "webpack --config ./webpack/connect-streams-dr.config.js && webpack --config ./webpack/connect-streams-dr-min.config.js",
-    "test-mocha": "npm run build-streams-test && nyc mocha \"test/unit/**/*.spec.js\" --ignore \"test/unit/drCoordinator/**\" --exit",
-    "test-mocha-dr": "nyc mocha \"test/unit/drCoordinator/*.spec.js\" --exit",
+    "test-mocha": "npm run build-streams-test && nyc mocha \"test/unit/**/*.spec.js\" --exit",
     "test-jest": "jest --config test/unit/jest.config.js",
     "lint-strict": "eslint --no-eslintrc --config .eslintrc.strict.json --ignore-path .eslintignore.strict --ext .js src",
     "clean": "rm -rf build/ node_modules build coverage .nyc_output package-lock.json"
@@ -42,12 +40,13 @@
   },
   "homepage": "https://github.com/amazon-connect/amazon-connect-streams#readme",
   "dependencies": {
-    "@amazon-connect/activity": "1.0.12",
-    "@amazon-connect/core": "1.0.12",
-    "@amazon-connect/contact": "1.0.12",
-    "@amazon-connect/site": "1.0.12",
-    "@amazon-connect/site-streams": "1.0.12",
-    "@amazon-connect/voice": "1.0.12",
+    "@amazon-connect/activity": "1.0.15",
+    "@amazon-connect/core": "1.0.15",
+    "@amazon-connect/contact": "1.0.15",
+    "@amazon-connect/site": "1.0.15",
+    "@amazon-connect/site-streams": "1.0.15",
+    "@amazon-connect/voice": "1.0.15",
+    "@amazon-connect/user": "1.0.15",
     "amazon-chime-sdk-js": "^3.29.0"
   },
   "devDependencies": {

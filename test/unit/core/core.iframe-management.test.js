@@ -1,4 +1,4 @@
-// Jest port of: onIframeRetriesExhausted, _refreshIframeOnTimeout,
+// Tests for onIframeRetriesExhausted, _refreshIframeOnTimeout,
 // _getCCPIframe, _createCCPIframe, _showIframe/_hideIframe,
 // _sendIframeStyleDataUpstreamAfterReasonableWaitTime, _setTabId.
 
@@ -75,7 +75,7 @@ describe('connect.core._refreshIframeOnTimeout', () => {
 
     // initial scheduling
     expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
-    // CCP_IFRAME_REFRESH_INTERVAL = 5_000 ms (production default; no DR, no override)
+    // CCP_IFRAME_REFRESH_INTERVAL = 5_000 ms (production default, no override)
     expect(setTimeoutSpy.mock.calls[0][1]).toBe(5000);
     // iframeRefreshAttempt is unset on first call (null); production assigns
     // (obj.iframeRefreshAttempt || 0) + 1 only after the first scheduled tick.
@@ -126,14 +126,6 @@ describe('connect.core._refreshIframeOnTimeout', () => {
     const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
     connect.core._refreshIframeOnTimeout(params, makeContainerDiv());
     expect(setTimeoutSpy.mock.calls[0][1]).toBe(250);
-  });
-
-  it('uses CCP_DR_IFRAME_REFRESH_INTERVAL when disasterRecoveryOn is true and no override is supplied', () => {
-    const params = { ccpUrl: 'url.com', disasterRecoveryOn: true };
-    const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
-    connect.core._refreshIframeOnTimeout(params, makeContainerDiv());
-    // CCP_DR_IFRAME_REFRESH_INTERVAL = 10_000 ms (production default for DR).
-    expect(setTimeoutSpy.mock.calls[0][1]).toBe(10000);
   });
 
   it('preserves the existing iframe.style.cssText onto the new iframe after teardown', () => {

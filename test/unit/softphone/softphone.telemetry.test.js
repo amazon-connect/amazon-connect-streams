@@ -1,5 +1,4 @@
-// Jest port of softphone.spec.js (split file). Mocha spec stays in place; this
-// file runs under `npm run test-jest`.
+// SoftphoneManager tests: softphone reports, VDI strategies, connection stats and failure logs.
 
 const {
   installCommonMocks,
@@ -54,7 +53,7 @@ describe('SoftphoneManager - sendSoftphoneReport', () => {
     jest.useRealTimers();
   });
 
-  const startAndCompleteSession = (contactSubtypeAttr, sessionReport = {}) => {
+  const startAndCompleteSession = (contactSubtypeAttr, sessionReport = {}, softphoneParams = { disableEchoCancellation: true }) => {
     stubbedGetAgentDataProvider.mockReturnValue({
       getContactData: () => ({
         segmentAttributes: contactSubtypeAttr ? { 'connect:Subtype': { ValueString: contactSubtypeAttr } } : {},
@@ -64,7 +63,7 @@ describe('SoftphoneManager - sendSoftphoneReport', () => {
       contactType: connect.ContactType.VOICE,
       contactSubtype: contactSubtypeAttr ?? 'VoIP',
     });
-    const sm = new connect.SoftphoneManager({ disableEchoCancellation: true });
+    const sm = new connect.SoftphoneManager(softphoneParams);
     contact.getStatus.mockReturnValue({ type: connect.ContactStatusType.CONNECTING });
     sm.startSession(contact, 'abcdefg-sendSoftphoneReport');
     const session = sm.getSession('abcdefg-sendSoftphoneReport');
@@ -151,6 +150,18 @@ describe('SoftphoneManager - sendSoftphoneReport', () => {
     } finally {
       delete connect.activePeerConnectionCount;
     }
+  });
+
+  it('reports allowExtendedPersistentConnection as true when the softphone param is set', () => {
+    startAndCompleteSession(undefined, {}, { disableEchoCancellation: true, allowExtendedPersistentConnection: true });
+    const report = publishSoftphoneReportSpy.mock.calls[0][0].report;
+    expect(report.allowExtendedPersistentConnection).toBe(true);
+  });
+
+  it('reports allowExtendedPersistentConnection as false when the softphone param is absent', () => {
+    startAndCompleteSession();
+    const report = publishSoftphoneReportSpy.mock.calls[0][0].report;
+    expect(report.allowExtendedPersistentConnection).toBe(false);
   });
 
 });

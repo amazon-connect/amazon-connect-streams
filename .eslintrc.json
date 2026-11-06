@@ -1,12 +1,14 @@
 {
   "root": true,
+  "parser": "@babel/eslint-parser",
   "parserOptions": {
-    "project": "tsconfig.json"
+    "requireConfigFile": false
   },
-  "extends": ["@amzn/lilax-style/lint-ts"],
+  "extends": ["@amzn/eslint-config-lilax-style/lint-js"],
   "globals": {
     "globalThis": "readonly",
-    "globalConnect": "writable"
+    "globalConnect": "writable",
+    "connect": "writable"
   },
   "rules": {
     "wrap-iife": ["error", "inside"],
@@ -14,6 +16,7 @@
     "func-names": "off",
     "max-len": "off",
     "no-console": "off",
-    "no-underscore-dangle": "off"
+    "no-underscore-dangle": "off",
+    "global-require": "off"
   }
 }

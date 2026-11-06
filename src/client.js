@@ -288,54 +288,6 @@
    UpstreamConduitMasterClient.prototype.constructor = UpstreamConduitMasterClient;
 
    /**---------------------------------------------------------------
-   * class AgentAppClient extends ClientBase
-   */
-   var AgentAppClient = function (authCookieName, authToken, endpoint) {
-      connect.assertNotNull(authCookieName, 'authCookieName');
-      connect.assertNotNull(authToken, 'authToken');
-      connect.assertNotNull(endpoint, 'endpoint');
-      ClientBase.call(this);
-      this.endpointUrl = connect.getUrlWithProtocol(endpoint);
-      this.authToken = authToken;
-      this.authCookieName = authCookieName
-   };
-
-   AgentAppClient.prototype = Object.create(ClientBase.prototype);
-   AgentAppClient.prototype.constructor = AgentAppClient;
-
-   AgentAppClient.prototype._callImpl = function (method, params, callbacks) {
-      var self = this;
-      var bear = {};
-      bear[self.authCookieName] = self.authToken;
-      var options = {
-         method: 'post',
-         body: JSON.stringify(params || {}),
-         headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'X-Amz-target': method,
-            'X-Amz-Bearer': JSON.stringify(bear)
-         }
-      };
-      connect.fetch(self.endpointUrl, options).then(function (res) {
-         callbacks.success(res);
-      }).catch(function (err) {
-         const reader = err.body.getReader();
-         let body = '';
-         const decoder = new TextDecoder();
-         reader.read().then(function processText({ done, value }) {
-            if (done) {
-               var error = JSON.parse(body);
-               error.status = err.status;
-               callbacks.failure(error);
-               return;
-            }
-            body += decoder.decode(value);
-            return reader.read().then(processText);
-         });
-      })
-   };
-   /**---------------------------------------------------------------
     * class AWSClient extends ClientBase
     */
    var AWSClient = function (authToken, region, endpointIn) {
@@ -641,93 +593,6 @@
       return report;
    };
 
-   /**---------------------------------------------------------------
-   * class TaskTemplatesClient extends ClientBase
-   */
-   var TaskTemplatesClient = function (endpoint) {
-      connect.assertNotNull(endpoint, 'endpoint');
-      ClientBase.call(this);
-      if (endpoint.includes('/task-templates')) {
-         this.endpointUrl = connect.getUrlWithProtocol(endpoint);
-      } else {
-         var AWSEndpoint = new AWS.Endpoint(endpoint);
-         var CFPrefix = endpoint.includes('.awsapps.com') ? '/connect' : '';
-         this.endpointUrl = connect.getUrlWithProtocol(`${AWSEndpoint.host}${CFPrefix}/task-templates/api/ccp`);
-      }
-   };
-
-   TaskTemplatesClient.prototype = Object.create(ClientBase.prototype);
-   TaskTemplatesClient.prototype.constructor = TaskTemplatesClient;
-
-   TaskTemplatesClient.prototype._callImpl = function (method, params, callbacks) {
-      // only relatedContactId or previousContactId can exist
-      if (params && params.relatedContactId && params.relatedContactId !== null) {
-         if (params.previousContactId) {
-            delete params.previousContactId;
-         }
-      }
-      connect.assertNotNull(method, 'method');
-      connect.assertNotNull(params, 'params');
-      var options = {
-         credentials: 'include',
-         method: 'GET',
-         headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'x-csrf-token': 'csrf'
-         }
-      };
-      var instanceId = params.instanceId;
-      var url = this.endpointUrl;
-      var methods = connect.TaskTemplatesClientMethods;
-      switch (method) {
-         case methods.LIST_TASK_TEMPLATES:
-            url += `/proxy/instance/${instanceId}/task/template`;
-            if (params.queryParams) {
-               const queryString = new URLSearchParams(params.queryParams).toString();
-               if (queryString) {
-                  url += `?${queryString}`;
-               }
-            }
-            break;
-         case methods.GET_TASK_TEMPLATE:
-            connect.assertNotNull(params.templateParams, 'params.templateParams');
-            const id = connect.assertNotNull(params.templateParams.id, 'params.templateParams.id');
-            const version = params.templateParams.version;
-            url += `/proxy/instance/${instanceId}/task/template/${id}`;
-            if (version) {
-               url += `?snapshotVersion=${version}`;
-            }
-            break;
-         case methods.CREATE_TEMPLATED_TASK:
-            url += `/${method}`;
-            options.body = JSON.stringify(params);
-            options.method = 'PUT';
-            break;
-         case methods.UPDATE_CONTACT:
-            url += `/${method}`;
-            options.body = JSON.stringify(params);
-            options.method = 'POST';
-      }
-      connect.fetch(url, options)
-         .then(function (res) {
-            callbacks.success(res);
-         }).catch(function (err) {
-            const reader = err.body.getReader();
-            let body = '';
-            const decoder = new TextDecoder();
-            reader.read().then(function processText({ done, value }) {
-               if (done) {
-                  var error = JSON.parse(body);
-                  error.status = err.status;
-                  callbacks.failure(error);
-                  return;
-               }
-               body += decoder.decode(value);
-               return reader.read().then(processText);
-            });
-         })
-   };
 
    connect.ClientBase = ClientBase;
    connect.NullClient = NullClient;
@@ -735,6 +600,4 @@
    connect.ApiProxyClient = ApiProxyClient;
    connect.UpstreamConduitMasterClient = UpstreamConduitMasterClient;
    connect.AWSClient = AWSClient;
-   connect.AgentAppClient = AgentAppClient;
-   connect.TaskTemplatesClient = TaskTemplatesClient;
 })();

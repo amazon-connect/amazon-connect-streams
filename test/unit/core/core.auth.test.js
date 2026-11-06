@@ -1,4 +1,4 @@
-// Jest port of the auth-handler describes from core.spec.js:
+// Tests for the auth handlers:
 // _handleAuthorizeSuccess, _handleAuthFail, _handleAuthorizeFail,
 // _redirectOnAuthFail, _redirectToLogin, _handleCTIAuthFail,
 // _triggerAuthorizeSuccess / _triggerAuthFail, _getAuthRetryCount,
@@ -320,5 +320,72 @@ describe('connect.core.initSharedWorker - new endpoint', () => {
     const lastCall = connect.Conduit.prototype.sendUpstream.mock.calls[0];
     const lastArg = lastCall[lastCall.length - 1];
     expect(lastArg.authorizeEndpoint).toBe('/auth/authorize');
+  });
+});
+
+describe('connect.core._openPopupWithLock - login popup weblock rejection', () => {
+  const loginUrl = 'https://login.example.com';
+  const loginOptions = { autoClose: true };
+  let popupOpenSpy;
+
+  const findErrorCall = (errorSpy, message) =>
+    errorSpy.mock.calls.findIndex(([msg]) => msg === message);
+
+  const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  beforeEach(() => {
+    setLocation('https://abc.awsapps.com/connect/ccp-v2');
+    popupOpenSpy = jest.fn().mockReturnValue({ closed: true, close: jest.fn() });
+    jest.spyOn(connect.core, 'getPopupManager').mockReturnValue({
+      open: popupOpenSpy,
+      clear: jest.fn(),
+    });
+    connect.core.loginWindow = null;
+    connect.core._shouldHoldPopupLock = undefined;
+  });
+
+  afterEach(() => {
+    if (navigator.locks) delete navigator.locks;
+    connect.core.loginWindow = null;
+    connect.core._shouldHoldPopupLock = undefined;
+    commonAfterEach();
+  });
+
+  it('logs the weblock failure with the original exception when the lock request rejects', async () => {
+    const errorSpy = jest.spyOn(connect.getLog(), 'error');
+    const lockError = new Error('lock request denied');
+    navigator.locks = { request: jest.fn().mockRejectedValue(lockError) };
+
+    expect(() => connect.core._openPopupWithLock(loginUrl, loginOptions)).not.toThrow();
+    await flushPromises();
+
+    expect(navigator.locks.request).toHaveBeenCalledTimes(1);
+
+    const idx = findErrorCall(errorSpy, 'Failed to hold weblock for opening login popup.');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(errorSpy.mock.results[idx].value.exception.message).toBe('lock request denied');
+
+    expect(findErrorCall(errorSpy, 'Failed to use weblock to open popup. Your browser may be out of date.')).toBe(-1);
+    expect(popupOpenSpy).not.toHaveBeenCalled();
+    expect(connect.core.loginWindow).toBeNull();
+  });
+
+  it('routes a failure raised inside the held lock through the same handler', async () => {
+    const errorSpy = jest.spyOn(connect.getLog(), 'error');
+    const popupError = new Error('popup blocked while holding lock');
+    popupOpenSpy.mockImplementation(() => { throw popupError; });
+    navigator.locks = {
+      request: jest.fn((lockName, _opts, cb) => Promise.resolve().then(() => cb({ name: lockName }))),
+    };
+
+    expect(() => connect.core._openPopupWithLock(loginUrl, loginOptions)).not.toThrow();
+    await flushPromises();
+
+    expect(popupOpenSpy).toHaveBeenCalledWith(loginUrl, connect.MasterTopics.LOGIN_POPUP, loginOptions);
+
+    const idx = findErrorCall(errorSpy, 'Failed to hold weblock for opening login popup.');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(errorSpy.mock.results[idx].value.exception.message).toBe('popup blocked while holding lock');
+    expect(connect.core.loginWindow).toBeNull();
   });
 });

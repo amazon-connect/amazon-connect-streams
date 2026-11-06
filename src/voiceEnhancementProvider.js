@@ -74,7 +74,7 @@ const VOICE_FOCUS_CPU_LONG_INVOKE = 'VoiceFocusCPULongInvoke';
    * Gets the device label of the audio track from the provided media stream.
    *
    * @param {MediaStream} mediaStream - The media stream containing the audio track
-   * @returns {string} - The label of the audio device or 'unknown' if not available.
+   * @returns {Promise<string>} - Resolves with the label of the audio device, or 'unknown' if not available.
    */
   const getAudioDeviceLabel = function (mediaStream) {
     try {

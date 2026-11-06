@@ -656,6 +656,14 @@ declare namespace connect {
     readonly ringtoneUrl?: string;
   }
 
+  interface EmailOptions {
+    /** This option allows you to completely disable the built-in ringtone audio that is played when an email is incoming. */
+    readonly disableRingtone?: boolean;
+
+    /** If the ringtone is not disabled, this allows for overriding the ringtone with any browser-supported audio file accessible by the user. */
+    readonly ringtoneUrl?: string;
+  }
+
   interface AutoAcceptToneOption {
     /** This option allows you to completely disable the built-in audio that is played when a contact is auto-accepted. */
     readonly disableRingtone?: boolean;
@@ -772,6 +780,9 @@ declare namespace connect {
 
     /** Allows you to specify ringtone settings for Task. */
     readonly task?: TaskOptions;
+
+    /** Allows you to specify ringtone settings for Email. */
+    readonly email?: EmailOptions;
 
     /** Allows you to specify ringtone settings for AutoAccept enabled contacts. */
     readonly autoAcceptTone?: AutoAcceptToneOption;
@@ -940,6 +951,9 @@ declare namespace connect {
 
     /** Allows you to specify ringtone settings for Chat. */
     readonly chat?: ChatOptions;
+
+    /** Allows you to specify ringtone settings for Email. */
+    readonly email?: EmailOptions;
 
     /** Allows you to configure which configuration sections are displayed in the settings tab. */
     readonly pageOptions?: PageOptions;

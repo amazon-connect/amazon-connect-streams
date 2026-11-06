@@ -11,6 +11,7 @@ const setupInitCCPParams = () => {
   const softphoneParams = { ringtoneUrl: 'customVoiceRingtone.amazon.com' };
   const chatParams = { ringtoneUrl: 'customChatRingtone.amazon.com' };
   const taskParams = { ringtoneUrl: 'customTaskRingtone.amazon.com' };
+  const emailParams = { disableRingtone: true };
   const autoAcceptToneParams = { ringtoneUrl: 'customAutoAcceptTone.amazon.com' };
   const logConfigParams = { echoLevel: 'warn', logLevel: 'info' };
   const pageOptionsParams = {
@@ -24,6 +25,7 @@ const setupInitCCPParams = () => {
     softphone: softphoneParams,
     chat: chatParams,
     task: taskParams,
+    email: emailParams,
     autoAcceptTone: autoAcceptToneParams,
     loginOptions: { autoClose: true },
     logConfig: logConfigParams,
@@ -178,6 +180,49 @@ describe('connect.core.initCCP() - CONFIGURE event drives ringtone init', () => 
   });
 });
 
+describe('connect.core.initCCP() - email params reach the framed ringtone engine', () => {
+  const sentConfigure = (email) => {
+    jest.spyOn(connect.WindowIOStream.prototype, 'send').mockReturnValue(null);
+    connect.core.initCCP(makeContainerDiv(), { ...setupInitCCPParams(), email });
+    jest.spyOn(connect.core.getUpstream(), 'sendUpstream');
+    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
+    return connect.core.getUpstream().sendUpstream.mock.calls.find(([event]) => event === connect.EventType.CONFIGURE)[1];
+  };
+  const initFramedRingtones = (configure) => {
+    connect.core.initRingtoneEngines({
+      ringtone: {
+        voice: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+        queue_callback: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+        email: { disabled: false, ringtoneUrl: defaultRingtoneUrl },
+      },
+    });
+    connect.core.getEventBus().trigger(connect.EventType.CONFIGURE, configure);
+    connect.core.getEventBus().trigger(connect.AgentEvents.INIT, new connect.Agent());
+    connect.core.getEventBus().trigger(connect.AgentEvents.REFRESH, new connect.Agent());
+    connect.ifMaster.mock.calls.at(-1)[1]();
+  };
+
+  beforeEach(() => {
+    setupInitCCPCommon();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    commonAfterEach();
+  });
+
+  it('skips the email ringtone engine when initCCP passes email.disableRingtone', () => {
+    initFramedRingtones(sentConfigure({ disableRingtone: true }));
+    expect(connect.VoiceRingtoneEngine).toHaveBeenCalled();
+    expect(connect.EmailRingtoneEngine).not.toHaveBeenCalled();
+  });
+
+  it('uses the email ringtoneUrl passed to initCCP', () => {
+    initFramedRingtones(sentConfigure({ ringtoneUrl: 'custom-email.mp3' }));
+    expect(connect.EmailRingtoneEngine).toHaveBeenCalledWith(expect.objectContaining({ ringtoneUrl: 'custom-email.mp3' }));
+  });
+});
+
 describe('connect.core.listenForConfigureRequest', () => {
   beforeEach(() => {
     setLocation('http://localhost');
@@ -210,7 +255,6 @@ describe('connect.core.listenForConfigureRequest', () => {
       autoAcceptTone: undefined,
       pageOptions: undefined,
       shouldAddNamespaceToLogs: undefined,
-      disasterRecoveryOn: undefined,
       showInactivityModal: undefined,
     });
   });
@@ -256,16 +300,11 @@ describe('connect.core.initCCP() - on ACK', () => {
     expect(payload.softphone).toEqual(params.softphone);
     expect(payload.chat).toEqual(params.chat);
     expect(payload.task).toEqual(params.task);
+    expect(payload.email).toEqual(params.email);
     expect(payload.autoAcceptTone).toEqual(params.autoAcceptTone);
     expect(payload.pageOptions).toEqual(params.pageOptions);
     expect(payload.shouldAddNamespaceToLogs).toBe(params.shouldAddNamespaceToLogs);
     expect(payload.showInactivityModal).toBe(params.pageOptions?.showInactivityModal);
-  });
-
-  it('does NOT send INIT_DISASTER_RECOVERY upstream when DR is off', () => {
-    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
-    const sentEvents = connect.core.getUpstream().sendUpstream.mock.calls.map(([event]) => event);
-    expect(sentEvents).not.toContain(connect.DisasterRecoveryEvents.INIT_DISASTER_RECOVERY);
   });
 });
 
@@ -310,7 +349,7 @@ describe('connect.core.initCCP() - on ACK_TIMEOUT and openPopupWithLock', () => 
   });
 
   it('calls navigator.locks.request with correct parameters', () => {
-    const requestSpy = jest.fn();
+    const requestSpy = jest.fn().mockResolvedValue(undefined);
     navigator.locks = { request: requestSpy };
 
     connect.core.getEventBus().trigger(connect.EventType.ACK_TIMEOUT);
@@ -504,22 +543,6 @@ describe('connect.core.initCCP() - publishMetric paths after ACK', () => {
     );
   });
 
-  it('publishes _DR metrics on ACK when disasterRecoveryOn=true', () => {
-    const drParams = { ...params, disasterRecoveryOn: true };
-    connect.core.initCCP(containerDiv, drParams);
-    connect.core.getUpstream().upstreamBus.trigger(connect.EventType.ACKNOWLEDGE, { id: 'portId' });
-    jest.advanceTimersByTime(1100);
-
-    const metricNames = publishMetricSpy.mock.calls.map(([m]) => m.name);
-    expect(metricNames).toEqual(
-      expect.arrayContaining([
-        'IframeRefreshAttemptsDr',
-        'IframeInitializationSuccessDr',
-        'IframeInitializationTimeDr',
-      ])
-    );
-  });
-
   it('publishes IframeInitializationSuccess=0 when IFRAME_RETRIES_EXHAUSTED fires before ACK', () => {
     connect.core.initCCP(containerDiv, params);
     connect.core.iframeRefreshAttempt = 5;
@@ -530,17 +553,6 @@ describe('connect.core.initCCP() - publishMetric paths after ACK', () => {
       .find((m) => m.name === 'IframeInitializationSuccess');
     expect(failureMetric).toBeDefined();
     expect(failureMetric.data.count).toBe(0);
-  });
-
-  it('publishes _DR failure metrics when IFRAME_RETRIES_EXHAUSTED fires with disasterRecoveryOn=true', () => {
-    const drParams = { ...params, disasterRecoveryOn: true };
-    connect.core.initCCP(containerDiv, drParams);
-    connect.core.iframeRefreshAttempt = 3;
-    connect.core.getEventBus().trigger(connect.EventType.IFRAME_RETRIES_EXHAUSTED);
-
-    const metricNames = publishMetricSpy.mock.calls.map(([m]) => m.name);
-    expect(metricNames).toContain('IframeRefreshAttemptsDr');
-    expect(metricNames).toContain('IframeInitializationSuccessDr');
   });
 
   it('honours params.onViewContact by subscribing it to ContactEvents.VIEW', () => {

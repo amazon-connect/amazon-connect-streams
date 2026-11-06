@@ -80,7 +80,6 @@ describe('VoiceFocusProvider', () => {
 
     mockVoiceFocusInstance = {
       // TODO: this code is part of a temporary fix, waiting for ChimeSDK to deploy
-      // https://taskei.amazon.dev/tasks/RIPTIDE-2938
       internal: {
         voiceFocusNode: {
           port: {
@@ -646,7 +645,6 @@ describe('VoiceFocusProvider', () => {
   });
 
   // TODO: this code is part of a temporary fix, waiting for ChimeSDK to deploy
-  // https://taskei.amazon.dev/tasks/RIPTIDE-2938
   describe('VoiceFocusInstanceManager applyToStream', () => {
     let mockStream, mockSource, mockDestination;
 

@@ -1,5 +1,4 @@
-// Jest port of softphone.spec.js (split file). Mocha spec stays in place; this
-// file runs under `npm run test-jest`.
+// SoftphoneManager tests: audio devices, media streams and tracks, and microphone permission.
 
 const {
   VDI_PLATFORMS,
@@ -1034,5 +1033,92 @@ describe('SoftphoneManager - onLocalStreamAdded voiceFocus error branch', () => 
         payload && payload.event === connect.AgentEvents.LOCAL_MEDIA_STREAM_CREATED
     );
     expect(created.length).toBeGreaterThan(0);
+  });
+});
+
+describe('SoftphoneManager - monitorMicrophonePermission failure paths', () => {
+  let bus;
+  let loggerStub;
+  let logChain;
+
+  const PERMISSION_LOG = 'Failed in detecting microphone permission status';
+
+  const logsMatching = (mockFn, needle) =>
+    mockFn.mock.calls.filter((args) => args.some((a) => typeof a === 'string' && a.includes(needle)));
+
+  const newChain = () => {
+    const chain = {};
+    chain.withObject = jest.fn(() => chain);
+    chain.withException = jest.fn(() => chain);
+    chain.sendInternalLogToServer = jest.fn(() => chain);
+    return chain;
+  };
+
+  // The chain the logger returned for one logged call, to tell whether that call was sent.
+  const chainFor = (mockFn, args) => mockFn.mock.results[mockFn.mock.calls.indexOf(args)].value;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    ({ bus } = installCommonMocks());
+    logChain = newChain();
+    loggerStub = {
+      debug: jest.fn(() => logChain),
+      info: jest.fn(() => logChain),
+      log: jest.fn(() => logChain),
+      warn: jest.fn(() => logChain),
+      // Each error gets its own chain; other levels share one, and the constructor sends on it.
+      error: jest.fn(() => newChain()),
+      trace: jest.fn(() => logChain),
+    };
+    jest.spyOn(connect, 'getLog').mockReturnValue(loggerStub);
+  });
+
+  afterEach(() => {
+    commonAfterEach();
+    jest.useRealTimers();
+  });
+
+  it('logs the rejection from navigator.permissions.query and still finishes softphone setup', async () => {
+    navigator.permissions.query.mockRejectedValue(new Error('permission query boom'));
+
+    const sm = new connect.SoftphoneManager({});
+    connect.core.softphoneManager = sm;
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(navigator.permissions.query).toHaveBeenCalledWith({ name: 'microphone' });
+
+    const errors = logsMatching(loggerStub.error, PERMISSION_LOG);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].some((a) => typeof a === 'string' && a.includes('permission query boom'))).toBe(true);
+    expect(chainFor(loggerStub.error, errors[0]).sendInternalLogToServer).toHaveBeenCalled();
+
+    expect(bus.subscribe).toHaveBeenCalledWith(connect.EventType.MUTE, expect.any(Function));
+    expect(typeof sm.getSession).toBe('function');
+  });
+
+  it('logs a synchronous throw from navigator.permissions.query and still finishes softphone setup', async () => {
+    navigator.permissions.query.mockImplementation(() => {
+      throw new Error('permissions api unavailable');
+    });
+
+    const sm = new connect.SoftphoneManager({});
+    connect.core.softphoneManager = sm;
+    await jest.advanceTimersByTimeAsync(0);
+
+    const errors = logsMatching(loggerStub.error, PERMISSION_LOG);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].some((a) => typeof a === 'string' && a.includes('permissions api unavailable'))).toBe(true);
+
+    expect(bus.subscribe).toHaveBeenCalledWith(connect.EventType.MUTE, expect.any(Function));
+    expect(typeof sm.getSession).toBe('function');
+  });
+
+  it('does not log a permission failure when the query resolves', async () => {
+    navigator.permissions.query.mockResolvedValue({ state: 'granted' });
+
+    new connect.SoftphoneManager({});
+    await jest.advanceTimersByTimeAsync(0);
+
+    expect(logsMatching(loggerStub.error, PERMISSION_LOG)).toHaveLength(0);
   });
 });

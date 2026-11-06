@@ -12,6 +12,7 @@
   const { SessionExpirationWarningClient, sendActivity } = require("@amazon-connect/activity");
   const { AgentClient, ContactClient } = require("@amazon-connect/contact");
   const { VoiceClient } = require("@amazon-connect/voice");
+  const { UserClient } = require("@amazon-connect/user");
 
   /*----------------------------------------------------------------
    * enum AgentStateType
@@ -448,6 +449,24 @@
       });
     }
   };
+
+  /*----------------------------------------------------------------
+   * User Client
+   */
+  class User {
+    static userClient = null;
+
+    static _getSDKClient() {
+      if (!User.userClient) {
+        User.userClient = new UserClient(connect.core.getSDKClientConfig());
+      }
+      return User.userClient;
+    }
+
+    static getNetworkType = function () {
+      return User._getSDKClient().getNetworkType();
+    };
+  }
 
   /*----------------------------------------------------------------
    * class Agent
@@ -2304,6 +2323,10 @@
                 var error = connect.VoiceIdError(connect.VoiceIdErrorTypes.ENROLL_SPEAKER_FAILED, message, data.Session.EnrollmentRequestDetails.Status);
                 reject(error);
             }
+          }).catch(function (err) {
+            connect.getLog().error("[VoiceId] describeSession failed while polling enrollment status")
+              .withObject({ err: err }).sendInternalLogToServer();
+            reject(err);
           });
         } else {
           connect.getLog().error("enrollSpeaker timeout").sendInternalLogToServer();
@@ -2610,7 +2633,7 @@
 
     this._getSDKClient().onParticipantHold(handler, this.getConnectionId());
     return {
-      unsubscribe: () => this._getSDKClient().offParticipantHold(handler)
+      unsubscribe: () => this._getSDKClient().offParticipantHold(handler, this.getConnectionId())
     }
   }
 
@@ -2622,7 +2645,7 @@
 
     this._getSDKClient().onParticipantResume(handler, this.getConnectionId());
     return {
-      unsubscribe: () => this._getSDKClient().offParticipantResume(handler)
+      unsubscribe: () => this._getSDKClient().offParticipantResume(handler, this.getConnectionId())
     }
   }
 
@@ -2640,9 +2663,9 @@
       return Promise.resolve();
     }
 
-    this._getSDKClient().onCanResumeParticipantUpdated(handler, this.getConnectionId());
+    this._getSDKClient().onCanResumeParticipantChanged(handler, this.getConnectionId());
     return {
-      unsubscribe: () => this._getSDKClient().offCanResumeParticipantUpdated(handler)
+      unsubscribe: () => this._getSDKClient().offCanResumeParticipantChanged(handler, this.getConnectionId())
     }
   }
 
@@ -2842,7 +2865,7 @@
   */
   ChatConnection.prototype.getConnectionToken = function () {
     var client = connect.core.getClient();
-    var contactData = connect.core.getAgentDataProvider().getContactData(this.contactId);
+    connect.core.getAgentDataProvider().getContactData(this.contactId);
     var transportDetails = {
       transportType: connect.TRANSPORT_TYPES.CHAT_TOKEN,
       participantId: this.connectionId,
@@ -3097,7 +3120,7 @@
       this._getSDKClient().onSessionExtensionError(handler);
 
       return {
-        unsubscribe: () => this._getSDKClient().offExpirationWarningCleared(handler),
+        unsubscribe: () => this._getSDKClient().offSessionExtensionError(handler),
       };
     }
   }
@@ -3235,6 +3258,7 @@
   connect.SoftphoneError = SoftphoneError;
   connect.VoiceId = VoiceId;
   connect.QuickResponses = QuickResponses;
+  connect.User = User;
   connect.SessionExpirationWarningManager = SessionExpirationWarningManager;
 })();
 

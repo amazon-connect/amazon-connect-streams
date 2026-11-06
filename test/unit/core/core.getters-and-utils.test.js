@@ -1,6 +1,4 @@
-// Jest tests for the simple connect.core getter / utility functions that
-// were not exercised by the original Mocha spec. These are small but raise
-// branch + function coverage materially.
+// Tests for the simple connect.core getter and utility functions.
 
 const { commonAfterEach, setLocation } = require('./core-test-helpers');
 
@@ -130,18 +128,28 @@ describe('connect.core.sendConfigure', () => {
     expect(sendUpstreamSpy).not.toHaveBeenCalled();
   });
 
-  it('sends CONFIGURE upstream with softphone present and disasterRecoveryOn included in legacy mode', () => {
+  it('sends CONFIGURE upstream with softphone present in legacy mode', () => {
     const params = {
       softphone: { ringtoneUrl: 'r.mp3' },
-      disasterRecoveryOn: false,
     };
     connect.core.sendConfigure(params, conduit, false);
     expect(sendUpstreamSpy).toHaveBeenCalledTimes(1);
     const [event, payload] = sendUpstreamSpy.mock.calls[0];
     expect(event).toBe(connect.EventType.CONFIGURE);
     expect(payload.softphone).toEqual(params.softphone);
-    expect(payload.disasterRecoveryOn).toBe(false);
     expect(payload.enableGlobalResiliency).toBeUndefined();
+  });
+
+  it('forwards email params in the CONFIGURE payload', () => {
+    const email = { disableRingtone: true, ringtoneUrl: 'email.mp3' };
+    connect.core.sendConfigure({ softphone: {}, email }, conduit, false);
+    expect(sendUpstreamSpy.mock.calls[0][1].email).toEqual(email);
+  });
+
+  it('sends CONFIGURE when email is the only configurable field', () => {
+    connect.core.sendConfigure({ email: { disableRingtone: true } }, conduit, false);
+    expect(sendUpstreamSpy).toHaveBeenCalledTimes(1);
+    expect(sendUpstreamSpy.mock.calls[0][1].email).toEqual({ disableRingtone: true });
   });
 
   it('omits integrationProductType when not provided', () => {
@@ -149,18 +157,16 @@ describe('connect.core.sendConfigure', () => {
     expect(sendUpstreamSpy.mock.calls[0][1].integrationProductType).toBeUndefined();
   });
 
-  it('in ACGR mode adds enableGlobalResiliency + instanceState and omits disasterRecoveryOn', () => {
+  it('in ACGR mode adds enableGlobalResiliency + instanceState', () => {
     const params = {
       softphone: { ringtoneUrl: 'r.mp3' },
       enableGlobalResiliency: true,
-      disasterRecoveryOn: true,
     };
     jest.spyOn(connect, 'isActiveConduit').mockReturnValue(true);
     connect.core.sendConfigure(params, conduit, true);
     const payload = sendUpstreamSpy.mock.calls[0][1];
     expect(payload.enableGlobalResiliency).toBe(true);
     expect(payload.instanceState).toBe('active');
-    expect(payload.disasterRecoveryOn).toBeUndefined();
   });
 
   it('in ACGR mode marks the instance inactive when isActiveConduit returns false', () => {
