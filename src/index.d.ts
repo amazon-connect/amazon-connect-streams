@@ -2220,6 +2220,18 @@ declare namespace connect {
     /** Determine whether this contact is a softphone call. */
     isSoftphoneCall(): boolean;
 
+    /** Determine whether this contact was initiated as a campaign preview contact. */
+    isCampaignPreview(): boolean;
+
+    /** Determine whether the contact is being previewed. Calling `engagePreviewContact` ends preview mode. */
+    isPreviewMode(): Promise<boolean>;
+
+    /** Initiates the outbound dial to the end customer for a previewed contact, ending preview mode. Resolves with the id of the newly added participant. */
+    engagePreviewContact(): Promise<{ participantId: string }>;
+
+    /** Gets configuration information related to the preview experience. */
+    getPreviewConfiguration(): Promise<{ autoDialTimeout: number; canDiscardPreview: boolean }>;
+
     /** Determine whether this contact has video capabilities. */
     hasVideoRTCCapabilities(): boolean;
 
