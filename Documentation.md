@@ -1864,10 +1864,18 @@ Resume a paused contact.
 
 Optional success and failure callbacks can be provided to determine if the operation was successful.
 
+### `contact.isCampaignPreview()`
+
+```js
+if (contact.isCampaignPreview()) { /* ... */ }
+```
+
+Determine whether this contact was initiated as a campaign preview contact.
+
 ### `contact.engagePreviewContact()`
 
 ```js
-const participantId = contact.engagePreviewContact(contactId);
+const { participantId } = await contact.engagePreviewContact();
 ```
 
 When an agent is previewing a preview contact, this API will actually initiate the outbound dial to the end customer, ending the preview experience. It returns the id of the newly added participant 
@@ -1875,17 +1883,17 @@ When an agent is previewing a preview contact, this API will actually initiate t
 ### `contact.getPreviewConfiguration()`
 
 ```js
-const previewConfiguration = contact.getPreviewConfiguration(contactId);
+const previewConfiguration = await contact.getPreviewConfiguration();
 ```
 
 This gets configuration information related to the preview experience.
 
-For more information on the return type, see Output parameter section of the SDK Documentation: https://docs.aws.amazon.com/agentworkspace/latest/devguide/3p-apps-contact-requests-getpreviewconfiguration.html
+For more information on the return type, see Output parameter section of the SDK Documentation: https://docs.aws.amazon.com/agentworkspace/latest/devguide/3P-apps-contact-requests-getpreviewconfiguration.html
 
 ### `contact.isPreviewMode()`
 
 ```js
-const isPreviewMode = contact.isPreviewMode(contactId);
+const isPreviewMode = await contact.isPreviewMode();
 ```
 
 Returns a boolean indicating whether the contact is being previewed. During this time, calling engagePreviewContact will trigger the outbound dial to the end customer and end preview mode.
@@ -2598,7 +2606,7 @@ In addition to the EmailClient methods, the existing Contact + Connection API ac
 | Get the initiation method of the email contact (see `connect.ContactInitiationMethod`) | `contact.getInitiationMethod()`| 
 | Get system defined key-value pairs stored on a contact segment; includes `connect:Subtype`, `connect:Direction` and for non-draft email contacts, `connect:EmailSubject`| `contact.getSegmentAttributes()` |
 
-### To integrate Attached Files, Message Templates and Quick Responses with your Email contact handling experience, please read the [Amazon Connect SDK API Reference](https://docs.aws.amazon.com/agentworkspace/latest/devguide/api-reference-3p-apps-events-and-requests.html)
+### To integrate Attached Files, Message Templates and Quick Responses with your Email contact handling experience, please read the [Amazon Connect SDK API Reference](https://docs.aws.amazon.com/agentworkspace/latest/devguide/api-reference-3P-apps-events-and-requests.html)
 ## Utility Functions
 
 ### `Endpoint.byPhoneNumber()` (static function)
