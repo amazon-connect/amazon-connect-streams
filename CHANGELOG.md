@@ -1,5 +1,138 @@
 # CHANGELOG.md
 
+## [2.31.1] - 2026-11-19
+Fix a softphone call that could be refused on back-to-back calls, ship the attribution files in
+the npm package, correct the API documentation, and make the release build stricter. The bundles
+are built with the same Connect SDK packages, 1.0.15.
+
+src/core.js
+  - The softphone could refuse an incoming call with "duplicate session detected, refusing to
+    setup new connection" when one agent snapshot both removed the previous voice contact and
+    offered the next one, which can happen for back-to-back calls when After Contact Work is off.
+    Within a single snapshot, removed contacts now fire ENDED and DESTROYED before added contacts
+    fire INIT, the same order consumers already see when the two changes arrive in separate
+    snapshots.
+
+package.json
+  - The npm package includes NOTICE.txt and THIRD_PARTY.txt.
+  - Remove nine development dependencies, mocha, nyc, sinon and jshint among them, and the
+    mocha test script.
+  - npm run release fails on any lint warning, and runs type-aware lint rules over src
+    (tsconfig.lint.json).
+
+Documentation.md
+  - engagePreviewContact(), getPreviewConfiguration() and isPreviewMode() are documented as they
+    behave: they take no argument and return a Promise. engagePreviewContact() resolves to
+    { participantId }, getPreviewConfiguration() resolves to { autoDialTimeout,
+    canDiscardPreview } and rejects when the contact has no preview configuration, and
+    isPreviewMode() resolves to a boolean.
+  - Document the email ringtone options of initCCP() and the allowExtendedPersistentConnection
+    softphone option.
+  - The Global Resiliency link points at Documentation-GR.md, and the unit test command is
+    npm run test-jest.
+
+Documentation-GR.md, README.md, cheat-sheet.md
+  - Link the subdomain-based instance alias and migration notes to the AWS documentation,
+    document the email ringtone options and npm run test-jest in the README, and fix two
+    cheat-sheet examples.
+
+## [2.31.0] - 2026-11-06
+Connect chat sessions over dual-stack (IPv4 and IPv6) endpoints when the instance is
+dual-stack, remove the deprecated Disaster Recovery bundle and the shared-worker entry point,
+fix four subscription APIs, forward the email ringtone options to the embedded CCP, and stop
+one throwing callback from blocking the others.
+
+Breaking: the names below are removed. The API documentation describes none of them.
+initCCP() no longer reads the disasterRecoveryOn option.
+
+release/connect-streams-dr.js, release/connect-streams-dr-min.js
+  - No longer built or published. The Global Resiliency APIs in Documentation-GR.md replace
+    them.
+
+src/core.js
+  - Remove connect.core.initDisasterRecovery and the rest of the legacy Disaster Recovery path.
+    initCCP() ignores the disasterRecoveryOn option, so the default iframe refresh interval is
+    5 seconds for every page, and connect.core.region, connect.core.suppressContacts and
+    connect.core.forceOffline are no longer set.
+  - Remove connect.core.init, connect.core.initAgentAppClient,
+    connect.core.initTaskTemplatesClient, connect.core.getAgentAppClient,
+    connect.core.getTaskTemplatesClient, connect.core.agentAppClient and
+    connect.core.taskTemplatesClient. Only the shared-worker entry point set up these clients.
+  - Forward email.disableRingtone and email.ringtoneUrl from initCCP() to the embedded CCP, so
+    the email ringtone can be disabled or replaced.
+  - Run each WebSocket subscriber callback on its own, so a callback that throws is logged and
+    the other subscribers still receive the message.
+  - connect.core.getFrameMediaDevices() rejects with the enumerateDevices() error instead of
+    waiting for its timeout.
+  - A failed Web Lock request for the login popup is logged instead of left unhandled.
+
+src/client.js
+  - Remove connect.AgentAppClient and connect.TaskTemplatesClient.
+
+src/event.js
+  - Remove connect.DisasterRecoveryEvents.
+
+src/util.js
+  - Remove connect.isSharedWorker() and connect.TRANSPORT_TYPES.AGENT_DISCOVERY.
+  - Add connect.invokeSafely and connect.invokeAllSafely, which run consumer callbacks so that
+    one that throws is logged and does not stop the caller.
+
+src/worker.js
+  - Removed, with connect.worker. It was the shared-worker entry point of the CCP and never ran
+    in a page that calls initCCP().
+
+src/mediaControllers/chat.js
+  - The chat session uses dual-stack endpoints when the instance's network type is DUAL_STACK.
+    Any other network type, or a failed lookup, keeps the IPv4 endpoints, and the session still
+    connects.
+  - Publish the ChatSessionFailure and ChatSessionFailureReason metrics when a chat session
+    connects, fails to connect, loses its connection, or has no resolved contact region. The
+    connect and connect-failure metrics carry a NetworkType dimension, DUAL_STACK or IPV4.
+
+src/api.js
+  - Add connect.User.getNetworkType(), which resolves to the instance's network type,
+    DUAL_STACK or IPV4.
+  - VoiceConnection.onCanResumeParticipantUpdated now subscribes, and unsubscribe() on the
+    subscription it returns removes the handler. It called a voice-client method that does not
+    exist, so it threw a TypeError.
+  - unsubscribe() on the subscriptions that VoiceConnection.onParticipantHold and
+    VoiceConnection.onParticipantResume return now removes the handler. It left out the
+    connection id, so the handler stayed and the callback kept running.
+  - unsubscribe() on the subscription that
+    SessionExpirationWarningManager.onSessionExtensionError returns now removes the handler. It
+    removed a handler on a different topic, so the handler stayed.
+  - voiceConnection.enrollSpeakerInVoiceId() rejects when an enrollment status check fails,
+    instead of never settling.
+
+src/softphone.js
+  - The end-of-call softphone report includes allowExtendedPersistentConnection.
+  - A failed microphone-permission query is logged instead of left unhandled.
+  - A chat, task or email contact no longer makes the softphone manager log a TypeError, and one
+    already open no longer stops the softphone manager from starting. It subscribed to
+    onParticipantResume on every contact's agent connection, and only a voice connection has
+    that method.
+
+src/ringtone.js
+  - A failed re-apply of the ringtone output device is logged as a warning instead of left
+    unhandled. Browsers without setSinkId log this warning when a ringtone loads.
+
+src/index.d.ts
+  - Add EmailOptions, and the email option on InitCCPOptions and OptionalInitCCPOptions.
+
+package.json
+  - Add the @amazon-connect/user dependency, and move the @amazon-connect/* dependencies from
+    1.0.12 to 1.0.15. connect.User.getNetworkType() needs @amazon-connect/user 1.0.15.
+  - Remove the Disaster Recovery build scripts.
+
+test/unit/jest.config.js
+  - The coverage thresholds rise from 0 to 85% of statements and lines and 75% of branches and
+    functions, so npm run release fails below them.
+
+.eslintrc.json
+  - Changed. This file, like the one it replaces, extends a style package that is not on npm.
+    npm run release and the public CI do not read it: they lint with npm run lint-strict, which
+    reads .eslintrc.strict.json.
+
 ## [2.30.2] - 2026-10-13
 Delegate the loopback-network permission to the embedded CCP iframe so VDI
 softphone redirection can reach its local loopback socket in Chrome and Edge

@@ -2181,6 +2181,21 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       };
     }
 
+    // Removed contacts go first: when one snapshot drops a contact and adds the next, the old one
+    // must be DESTROYED before the new one INITs. SoftphoneManager releases the old RTC session on
+    // DESTROYED and refuses to start a session while a stale one exists.
+    connect.values(diff.removed).forEach(function (contactData) {
+      if (connect.core.endedEventTracker.has(contactData.contactId)) {
+        connect.getLog().info("[ContactEvent] ENDED event was not triggered prior to contact removal, firing ENDED now").withObject({ contactId: contactData.contactId }).sendInternalLogToServer();
+        connect.core._removeContactFromEndedSet(contactData.contactId);
+        self.bus.trigger(connect.ContactEvents.ENDED, new connect.ContactSnapshot(contactData));
+        self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ENDED, contactData.contactId), new connect.ContactSnapshot(contactData));
+      }
+      self.bus.trigger(connect.ContactEvents.DESTROYED, new connect.ContactSnapshot(contactData));
+      self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.DESTROYED, contactData.contactId), new connect.ContactSnapshot(contactData));
+      self._unsubAllContactEventsForContact(contactData.contactId);
+    });
+
     connect.values(diff.added).forEach(function (contactData) {
       try {
         connect.core.endedEventTracker.add(contactData.contactId);
@@ -2192,18 +2207,6 @@ connect.core.setSoftphoneUserMediaStream = function (stream) {
       }
       self.bus.trigger(connect.ContactEvents.INIT, new connect.Contact(contactData.contactId));
       self._fireContactUpdateEvents(contactData.contactId, connect.ContactStateType.INIT, contactData.state.type);
-    });
-
-    connect.values(diff.removed).forEach(function (contactData) {
-      if (connect.core.endedEventTracker.has(contactData.contactId)) {
-        connect.getLog().info("[ContactEvent] ENDED event was not triggered prior to contact removal, firing ENDED now").withObject({ contactId: contactData.contactId }).sendInternalLogToServer();
-        connect.core._removeContactFromEndedSet(contactData.contactId);
-        self.bus.trigger(connect.ContactEvents.ENDED, new connect.ContactSnapshot(contactData));
-        self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.ENDED, contactData.contactId), new connect.ContactSnapshot(contactData));
-      }
-      self.bus.trigger(connect.ContactEvents.DESTROYED, new connect.ContactSnapshot(contactData));
-      self.bus.trigger(connect.core.getContactEventName(connect.ContactEvents.DESTROYED, contactData.contactId), new connect.ContactSnapshot(contactData));
-      self._unsubAllContactEventsForContact(contactData.contactId);
     });
 
     connect.keys(diff.common).forEach(function (contactId) {

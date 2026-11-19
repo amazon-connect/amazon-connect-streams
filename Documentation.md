@@ -2,7 +2,7 @@
 (c) 2018-2020 Amazon.com, Inc. All rights reserved.
 
 ## Global Resiliency
-For details on using Amazon Connect Streams with the Connect Global Resiliency feature, please first refer to the specific documentation [here](Documentation-DR.md).
+For details on using Amazon Connect Streams with the Connect Global Resiliency feature, please first refer to the specific documentation [here](Documentation-GR.md).
 
 ### A note on "Routability"
 Note that routability in streams is only affected by agent statuses. Voice contacts will change the agent status, and thus can affect routability. Task and chat contacts do not affect routability. However, if the other channels hit their concurrent live contact limit(s), the agent will not be routed more contacts, but they will technically be in a routable agent state.
@@ -115,7 +115,7 @@ Find build artifacts in **release** directory - This will generate a file called
 
 To run unit tests:
 ```
-$ npm run test-mocha
+$ npm run test-jest
 ```
 Note: these tests run on the release files generated above
 
@@ -188,6 +188,10 @@ everything set up correctly and that you are able to listen for events.
             allowEarlyGum: true, //optional, default to true
           },
           task: {
+            disableRingtone: false, // optional, defaults to false
+            ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP's default ringtone if a falsy value is set
+          },
+          email: {
             disableRingtone: false, // optional, defaults to false
             ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP's default ringtone if a falsy value is set
           },
@@ -265,6 +269,7 @@ and made available to your JS client code.
   - `allowFramedScreenSharingPopUp`: If `true`, clicking the screen sharing button in the embedded CCP will launch the screen sharing app in a new window. If `false` or not provided, clicking the button will not launch the screen sharing app.
   - `VDIPlatform`: This option is only applicable for virtual desktop interface integrations. If set, it will configure CCP to optimize softphone audio configuration for the VDI. Supported values: `"CITRIX"`, `"CITRIX_413"`, `"AWS_WORKSPACE"`, `"OMNISSA"`, `"AZURE"` (also available via the `VDIPlatformType` enum). If `allowFramedSoftphone` is `false` and `VDIPlatform` is going to be set, please make sure you are passing this parameter into `connect.core.initSoftphoneManager()`. For example, `connect.core.initSoftphoneManager({ VDIPlatform: "CITRIX" })`. For Azure Virtual Desktop and Windows 365, audio optimization uses Multimedia Redirection (MMR) call redirection and is also detected automatically when `VDIPlatform` is not set and call redirection is active — see the [Amazon Connect admin guide](https://docs.aws.amazon.com/connect/latest/adminguide/using-ccp-vdi-azure-step-by-step.html) for setup steps.
   - `allowEarlyGum`: If `true` or not provided, CCP will capture the agent’s browser microphone media stream before the contact arrives to reduce the call setup latency. If `false`, CCP will only capture agent media stream after the contact arrives.
+  - `allowExtendedPersistentConnection`: If `true`, enables extended persistent connection support when using `RtcPeerConnectionManagerV2`. This parameter is passed through to the peer connection manager configuration. Defaults to `false`.
 - `autoAcceptTone`: This object is optional and allows you to configure the tone that is played for auto-accepted contacts (excluding Voice contact).
   - `disableRingtone`: This option allows you to completely disable the built-in
     audio that is played when a contact has auto-accept enabled.
@@ -1867,29 +1872,36 @@ Optional success and failure callbacks can be provided to determine if the opera
 ### `contact.engagePreviewContact()`
 
 ```js
-const participantId = contact.engagePreviewContact(contactId);
+const { participantId } = await contact.engagePreviewContact();
 ```
 
-When an agent is previewing a preview contact, this API will actually initiate the outbound dial to the end customer, ending the preview experience. It returns the id of the newly added participant 
+When an agent is previewing a preview contact, this API will actually initiate the outbound dial to the end customer, ending the preview experience.
+
+Returns a `Promise` that resolves to `{ participantId }`, the id of the participant the dial added. Callers that only need the side effect can ignore the resolved value. Rejects if the contact is not a voice contact in preview mode. Takes no arguments; the contact supplies its own id.
 
 ### `contact.getPreviewConfiguration()`
 
 ```js
-const previewConfiguration = contact.getPreviewConfiguration(contactId);
+try {
+  const { autoDialTimeout, canDiscardPreview } = await contact.getPreviewConfiguration();
+} catch (err) {
+  // no preview configuration for this contact — see the rejection cases below
+}
 ```
 
-This gets configuration information related to the preview experience.
+Returns a `Promise` that resolves to the configuration for the preview experience: `autoDialTimeout`, the number of seconds the agent has to preview the contact before auto-dial triggers, and `canDiscardPreview`, whether the agent may discard the contact instead of dialing it. Takes no arguments.
+
+Rejects when the contact is not a voice contact, when no snapshot for the contact is available, when the contact is neither incoming nor being previewed, or when its outbound strategy does not carry both a preview timeout and the allowed user actions. An ordinary inbound voice contact therefore rejects rather than resolving an empty configuration.
 
 For more information on the return type, see Output parameter section of the SDK Documentation: https://docs.aws.amazon.com/agentworkspace/latest/devguide/3p-apps-contact-requests-getpreviewconfiguration.html
 
 ### `contact.isPreviewMode()`
 
 ```js
-const isPreviewMode = contact.isPreviewMode(contactId);
+const isPreviewMode = await contact.isPreviewMode();
 ```
 
-Returns a boolean indicating whether the contact is being previewed. During this time, calling engagePreviewContact will trigger the outbound dial to the end customer and end preview mode.
-
+Returns a `Promise` that resolves to a boolean indicating whether the contact is being previewed. During this time, calling `engagePreviewContact` will trigger the outbound dial to the end customer and end preview mode. Takes no arguments.
 
 ### `contact.getInstanceDetails()`
 

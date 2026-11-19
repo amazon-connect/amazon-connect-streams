@@ -29,7 +29,7 @@ jobs:
         stale-issue-label: 'no-issue-activity'
         close-issue-label: 'no-issue-activity-auto-closed'
         days-before-pr-stale: 90
-        days-befor-pr-close: -1  # If set to a negative number like -1, the pull requests will never be closed automatically.
+        days-before-pr-close: -1  # If set to a negative number like -1, the pull requests will never be closed automatically.
         stale-pr-message: 'This PR is stale because it has been open for 90 days with no activity.'
         close-pr-message: 'It has been a while and we are closing this for now'
         stale-pr-label: 'no-pr-activity'
