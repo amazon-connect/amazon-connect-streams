@@ -134,7 +134,7 @@ Find build artifacts in **release** directory - This will generate a file called
 
 To run unit tests:
 ```
-$ npm run test-mocha
+$ npm run test-jest
 ```
 Note: these tests run on the release files generated above
 
@@ -201,6 +201,10 @@ everything setup correctly and that you will be able to listen for events.
             allowEarlyGum: true    //optional, default to true
           },
           task: {
+            disableRingtone: false, // optional, defaults to false
+            ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP's default ringtone if a falsy value is set
+          },
+          email: {
             disableRingtone: false, // optional, defaults to false
             ringtoneUrl: "[your-ringtone-filepath].mp3" // optional, defaults to CCP's default ringtone if a falsy value is set
           },

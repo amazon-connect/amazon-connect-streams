@@ -32,6 +32,10 @@ describe('connect.core.AgentDataProvider', () => {
   // event-name list from the trigger spy's recorded calls. Avoids matching on
   // payload shape, which the bus passes through verbatim and varies per event.
   const triggerEvents = () => triggerSpy.mock.calls.map(([eventName]) => eventName);
+  // Index of the INIT trigger whose payload is the given contact.
+  const initIndexFor = (contactId) => triggerSpy.mock.calls.findIndex(
+    ([eventName, payload]) => eventName === connect.ContactEvents.INIT && payload && payload.contactId === contactId
+  );
 
   beforeEach(() => {
     setLocation('http://localhost');
@@ -185,6 +189,51 @@ describe('connect.core.AgentDataProvider', () => {
     expect(connect.core._removeContactFromEndedSet).toHaveBeenCalled();
     expect(connect.core.endedEventTracker.size).toBe(0);
     expect(triggerEvents()).not.toContain(connect.ContactEvents.INVALID_STATE_TRANSITION);
+  });
+
+  it('fires ENDED and DESTROYED for a removed contact before INIT of a contact added in the same snapshot', () => {
+    const init = createAgentSnapshotState(connect.AgentStateType.ROUTABLE, 'Available');
+    init.snapshot.contacts = createContactSnapshot(connect.ContactStateType.CONNECTED, 'connected', 'connected');
+    connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, init);
+
+    // One snapshot drops abc-123 and offers def-456.
+    const next = createAgentSnapshotState(connect.AgentStateType.ROUTABLE, 'Available');
+    next.snapshot.contacts = createContactSnapshot(connect.ContactStateType.CONNECTING, 'connecting', 'connected');
+    next.snapshot.contacts[0].contactId = 'def-456';
+    triggerSpy.mockClear();
+
+    connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, next);
+
+    const events = triggerEvents();
+    const endedOld = events.indexOf(connect.core.getContactEventName(connect.ContactEvents.ENDED, 'abc-123'));
+    const destroyedOld = events.indexOf(connect.core.getContactEventName(connect.ContactEvents.DESTROYED, 'abc-123'));
+    expect(endedOld).toBeGreaterThan(-1);
+    expect(destroyedOld).toBeGreaterThan(endedOld);
+    expect(initIndexFor('def-456')).toBeGreaterThan(destroyedOld);
+  });
+
+  it('fires DESTROYED for a contact that already ENDED before INIT of a contact added in the same snapshot', () => {
+    const init = createAgentSnapshotState(connect.AgentStateType.ROUTABLE, 'Available');
+    init.snapshot.contacts = createContactSnapshot(connect.ContactStateType.CONNECTED, 'connected', 'connected');
+    connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, init);
+
+    // abc-123 enters ACW in its own snapshot, so no ENDED is backfilled on removal.
+    const acw = createAgentSnapshotState(connect.AgentStateType.ROUTABLE, 'Available');
+    acw.snapshot.contacts = createContactSnapshot(connect.ContactStateType.ENDED, 'disconnected', 'disconnected');
+    connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, acw);
+
+    const next = createAgentSnapshotState(connect.AgentStateType.ROUTABLE, 'Available');
+    next.snapshot.contacts = createContactSnapshot(connect.ContactStateType.CONNECTING, 'connecting', 'connected');
+    next.snapshot.contacts[0].contactId = 'def-456';
+    triggerSpy.mockClear();
+
+    connect.core.getEventBus().trigger(connect.AgentEvents.UPDATE, next);
+
+    const events = triggerEvents();
+    const destroyedOld = events.indexOf(connect.core.getContactEventName(connect.ContactEvents.DESTROYED, 'abc-123'));
+    expect(events).not.toContain(connect.core.getContactEventName(connect.ContactEvents.ENDED, 'abc-123'));
+    expect(destroyedOld).toBeGreaterThan(-1);
+    expect(initIndexFor('def-456')).toBeGreaterThan(destroyedOld);
   });
 
   it('fires ENDED when contact is removed without state transition to ENDED', () => {

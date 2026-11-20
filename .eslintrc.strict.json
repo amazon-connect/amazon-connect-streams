@@ -1,10 +1,15 @@
 {
   "root": true,
   "noInlineConfig": true,
+  "reportUnusedDisableDirectives": true,
+  "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "sourceType": "script",
-    "ecmaVersion": 2022
+    "ecmaVersion": 2022,
+    "project": ["./tsconfig.lint.json"],
+    "tsconfigRootDir": "."
   },
+  "plugins": ["@typescript-eslint", "import"],
   "env": {
     "browser": true,
     "node": true,
@@ -17,7 +22,6 @@
     "lily": "writable",
     "log": "writable",
     "md5": "writable",
-    "devices": "writable",
     "QuickResponsesClient": "writable",
     "AWS": "readonly",
     "globalThis": "readonly"
@@ -47,6 +51,20 @@
     "no-fallthrough": "error",
     "no-invalid-regexp": "error",
     "no-async-promise-executor": "error",
-    "no-unexpected-multiline": "error"
+    "no-unexpected-multiline": "error",
+
+    "no-unused-vars": ["error", { "args": "none", "vars": "all" }],
+    "no-unused-private-class-members": "error",
+
+    "import/no-unresolved": ["error", { "commonjs": true }],
+    "import/no-extraneous-dependencies": ["error", { "devDependencies": false }],
+    "import/no-dynamic-require": "error",
+    "import/no-self-import": "error",
+    "import/export": "error",
+
+    "@typescript-eslint/no-floating-promises": "error",
+    "@typescript-eslint/no-misused-promises": "error",
+    "@typescript-eslint/await-thenable": "error",
+    "require-atomic-updates": ["error", { "allowProperties": true }]
   }
 }

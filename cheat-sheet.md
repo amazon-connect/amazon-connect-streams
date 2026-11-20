@@ -42,7 +42,7 @@ const offlineState = agent.getAgentStates().find(
 );
 agent.setState(offlineState, {
   success: () => console.log("Agent state set to OFFLINE"),
-  failure: () => console.log("Failed to set agent state to OFFLINE""),
+  failure: () => console.log("Failed to set agent state to OFFLINE"),
 }, { enqueueNextState: true });
 ```
 
@@ -67,7 +67,7 @@ const customState = agent.getAgentStates().find(
   (state) => state.name === targetCustomStateName
 );
 agent.setState(customState, {
-  success: () => console.log(`Agent state set to ${routableState.name}`),
+  success: () => console.log(`Agent state set to ${customState.name}`),
   failure: () => console.log(`Failed to set agent state to ${targetCustomStateName}`),
 }, { enqueueNextState: true });
 ```
